@@ -1,8 +1,9 @@
 """
 Thesis - Main Application Entry Point
 
-AI-powered assistant for L&D and education professionals.
-This is a clean, modular FastAPI application with route separation.
+Multi-agent platform for enterprise GenAI strategy implementation.
+Provides specialized agents for research (Atlas), finance (Fortuna),
+IT/governance (Guardian), legal (Counselor), and transcript analysis (Oracle).
 """
 import os
 
@@ -32,7 +33,7 @@ limiter = Limiter(key_func=get_remote_address)
 # Initialize FastAPI app
 app = FastAPI(
     title="Thesis API",
-    description="Backend API for Thesis - AI-powered assistant for L&D and education professionals",
+    description="Multi-agent platform for enterprise GenAI strategy - Research, Finance, IT/Governance, Legal, and Transcript Analysis agents",
     version="1.0.0"
 )
 
@@ -175,9 +176,11 @@ from api.routes import (
     personal_impact,
     projects,
     quick_prompts,
+    stakeholders,
     system_instructions,
     templates,
     theme,
+    transcripts,
     users,
 )
 
@@ -202,8 +205,10 @@ app.include_router(templates.router)
 app.include_router(projects.router)
 app.include_router(outcomes.router)
 app.include_router(system_instructions.router)
+app.include_router(transcripts.router)
+app.include_router(stakeholders.router)
 
-logger.info("✅ All route modules registered")
+logger.info("✅ All route modules registered (including Thesis multi-agent routes)")
 
 # ============================================================================
 # Backward Compatibility Routes
