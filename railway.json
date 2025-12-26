@@ -3,7 +3,7 @@
   "build": {
     "builder": "NIXPACKS",
     "buildCommand": "cd frontend && npm install && npm run build && cd ../backend && pip install -r requirements.txt && cp -r ../docs/help ./docs_help",
-    "watchPatterns": ["backend/**", "frontend/**", "docs/**"]
+    "watchPatterns": ["backend/**", "frontend/**", "docs/**", "*.toml", "*.json"]
   },
   "deploy": {
     "startCommand": "cd backend && python -m uvicorn main:app --host 0.0.0.0 --port $PORT",
