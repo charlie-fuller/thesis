@@ -1,12 +1,5 @@
-# Multi-stage build for Thesis backend
-FROM node:22-slim AS frontend-builder
-
-WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend/ ./
-RUN npm run build
-
+# Backend-only Dockerfile for Thesis
+# Frontend is deployed separately to Vercel
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -25,9 +18,6 @@ COPY backend/ ./
 
 # Copy help docs
 COPY docs/help ./docs_help
-
-# Copy frontend build (for static serving if needed)
-COPY --from=frontend-builder /app/frontend/.next ./.next
 
 # Expose port (Railway uses dynamic PORT)
 EXPOSE 8000
