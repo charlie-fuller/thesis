@@ -4,7 +4,7 @@ import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: "Thesis",
-  description: "AI Assistant for L&D and Education Professionals",
+  description: "Multi-agent platform for enterprise GenAI strategy",
 };
 
 export default function RootLayout({
