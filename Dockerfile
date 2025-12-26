@@ -1,0 +1,36 @@
+# Multi-stage build for Thesis backend
+FROM node:22-slim AS frontend-builder
+
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy backend requirements and install
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backend code
+COPY backend/ ./
+
+# Copy help docs
+COPY docs/help ./docs_help
+
+# Copy frontend build (for static serving if needed)
+COPY --from=frontend-builder /app/frontend/.next ./.next
+
+# Expose port (Railway uses dynamic PORT)
+EXPOSE 8000
+
+# Start command - uses PORT env var from Railway, defaults to 8000
+CMD python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
