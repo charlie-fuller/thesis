@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { apiGet, apiPost, apiPatch } from '@/lib/api';
+import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
@@ -31,14 +31,31 @@ interface Agent {
   updated_at: string;
 }
 
+interface Document {
+  id: string;
+  filename: string;
+  content_type: string;
+  file_size: number;
+  uploaded_at: string;
+}
+
+interface KBDocument {
+  link_id: string;
+  document: Document;
+  notes: string | null;
+  priority: number;
+  added_at: string;
+}
+
 interface AgentData {
   agent: Agent;
   active_instruction_version: InstructionVersion | null;
   instruction_versions: InstructionVersion[];
-  kb_documents: unknown[];
+  kb_documents: KBDocument[];
   stats: {
     conversations_count: number;
     instruction_versions_count: number;
+    kb_documents_count: number;
   };
 }
 
@@ -59,6 +76,11 @@ export default function AgentDetailPage() {
   const [newInstructions, setNewInstructions] = useState('');
   const [versionDescription, setVersionDescription] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Knowledge base state
+  const [showDocPicker, setShowDocPicker] = useState(false);
+  const [availableDocs, setAvailableDocs] = useState<Document[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
 
   useEffect(() => {
     fetchAgent();
@@ -129,6 +151,54 @@ export default function AgentDetailPage() {
     }
   };
 
+  const fetchAvailableDocs = async () => {
+    try {
+      setLoadingDocs(true);
+      const result = await apiGet<{ documents: Document[] }>(`/api/agents/documents/available?agent_id=${agentId}`);
+      setAvailableDocs(result.documents);
+    } catch (err) {
+      logger.error('Failed to fetch available documents:', err);
+    } finally {
+      setLoadingDocs(false);
+    }
+  };
+
+  const handleLinkDocument = async (documentId: string) => {
+    try {
+      await apiPost(`/api/agents/${agentId}/documents`, {
+        document_id: documentId,
+        priority: 0,
+      });
+      await fetchAgent();
+      setShowDocPicker(false);
+    } catch (err) {
+      logger.error('Failed to link document:', err);
+      alert('Failed to link document');
+    }
+  };
+
+  const handleUnlinkDocument = async (linkId: string) => {
+    if (!confirm('Remove this document from the agent knowledge base?')) return;
+    try {
+      await apiDelete(`/api/agents/${agentId}/documents/${linkId}`);
+      await fetchAgent();
+    } catch (err) {
+      logger.error('Failed to unlink document:', err);
+      alert('Failed to unlink document');
+    }
+  };
+
+  const openDocPicker = () => {
+    fetchAvailableDocs();
+    setShowDocPicker(true);
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   const getAgentIcon = (name: string) => {
     const icons: Record<string, string> = {
       atlas: '\u{1F30D}',
@@ -159,7 +229,7 @@ export default function AgentDetailPage() {
     );
   }
 
-  const { agent, active_instruction_version, instruction_versions, stats } = data;
+  const { agent, active_instruction_version, instruction_versions, kb_documents, stats } = data;
 
   return (
     <div>
@@ -329,17 +399,121 @@ export default function AgentDetailPage() {
       )}
 
       {activeTab === 'knowledge' && (
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold text-primary mb-4">Knowledge Base Documents</h2>
-          <p className="text-secondary text-sm mb-6">
-            Link documents to this agent&apos;s knowledge base. These documents will be used for RAG retrieval when this agent responds.
-          </p>
-          <div className="text-center py-12 bg-page rounded-lg border border-dashed border-border">
-            <p className="text-secondary">Knowledge base linking coming soon</p>
-            <p className="text-sm text-muted mt-2">
-              You&apos;ll be able to select documents to include in this agent&apos;s context
-            </p>
+        <div className="space-y-6">
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-primary">Knowledge Base Documents</h2>
+                <p className="text-secondary text-sm mt-1">
+                  These documents will be used for RAG retrieval when this agent responds.
+                </p>
+              </div>
+              <button onClick={openDocPicker} className="btn-primary">
+                + Add Document
+              </button>
+            </div>
+
+            {kb_documents.length === 0 ? (
+              <div className="text-center py-12 bg-page rounded-lg border border-dashed border-border">
+                <p className="text-secondary">No documents linked yet</p>
+                <p className="text-sm text-muted mt-2">
+                  Add documents to give this agent specialized knowledge
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {kb_documents.map((kbDoc) => (
+                  <div
+                    key={kbDoc.link_id}
+                    className="flex items-center justify-between p-4 bg-page rounded-lg border border-border"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-card border border-border flex items-center justify-center text-lg">
+                        {kbDoc.document.content_type?.includes('pdf') ? '📄' :
+                         kbDoc.document.content_type?.includes('word') ? '📝' :
+                         kbDoc.document.content_type?.includes('text') ? '📃' : '📁'}
+                      </div>
+                      <div>
+                        <p className="font-medium text-primary">{kbDoc.document.filename}</p>
+                        <p className="text-xs text-secondary">
+                          {formatFileSize(kbDoc.document.file_size)} • Added {new Date(kbDoc.added_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleUnlinkDocument(kbDoc.link_id)}
+                      className="text-sm text-red-400 hover:text-red-300"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* Document Picker Modal */}
+          {showDocPicker && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-card rounded-xl border border-border p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-primary">Add Document to Knowledge Base</h3>
+                  <button
+                    onClick={() => setShowDocPicker(false)}
+                    className="text-secondary hover:text-primary"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {loadingDocs ? (
+                  <div className="py-12 text-center">
+                    <LoadingSpinner size="md" />
+                    <p className="text-secondary mt-2">Loading documents...</p>
+                  </div>
+                ) : availableDocs.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <p className="text-secondary">No available documents</p>
+                    <p className="text-sm text-muted mt-2">
+                      All documents are already linked or no documents have been uploaded yet.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-y-auto flex-1 space-y-2">
+                    {availableDocs.map((doc) => (
+                      <button
+                        key={doc.id}
+                        onClick={() => handleLinkDocument(doc.id)}
+                        className="w-full flex items-center gap-3 p-3 bg-page rounded-lg border border-border hover:border-primary transition-colors text-left"
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-card border border-border flex items-center justify-center text-lg">
+                          {doc.content_type?.includes('pdf') ? '📄' :
+                           doc.content_type?.includes('word') ? '📝' :
+                           doc.content_type?.includes('text') ? '📃' : '📁'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-primary truncate">{doc.filename}</p>
+                          <p className="text-xs text-secondary">
+                            {formatFileSize(doc.file_size)} • {new Date(doc.uploaded_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span className="text-primary text-sm">+ Add</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-4 pt-4 border-t border-border">
+                  <button
+                    onClick={() => setShowDocPicker(false)}
+                    className="btn-secondary w-full"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -388,7 +562,7 @@ export default function AgentDetailPage() {
 
       {activeTab === 'stats' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-3 gap-6">
             <div className="card p-6 text-center">
               <div className="text-4xl font-bold text-primary mb-2">
                 {stats.conversations_count}
@@ -400,6 +574,12 @@ export default function AgentDetailPage() {
                 {stats.instruction_versions_count}
               </div>
               <div className="text-secondary">Instruction Versions</div>
+            </div>
+            <div className="card p-6 text-center">
+              <div className="text-4xl font-bold text-primary mb-2">
+                {stats.kb_documents_count || kb_documents.length}
+              </div>
+              <div className="text-secondary">KB Documents</div>
             </div>
           </div>
 

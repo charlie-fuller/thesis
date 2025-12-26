@@ -65,6 +65,14 @@ class AgentInstructionVersionActivate(BaseModel):
 class AgentKBDocLink(BaseModel):
     """Link a document to an agent's knowledge base."""
     document_id: str
+    notes: Optional[str] = None
+    priority: int = 0
+
+
+class AgentKBDocUpdate(BaseModel):
+    """Update a KB document link."""
+    notes: Optional[str] = None
+    priority: Optional[int] = None
 
 
 class AgentResponse(BaseModel):
@@ -128,10 +136,16 @@ async def list_agents(
                 .eq("agent_id", agent["id"])\
                 .execute()
 
+            # Get KB document count
+            kb_result = supabase.table("agent_knowledge_base")\
+                .select("id", count="exact")\
+                .eq("agent_id", agent["id"])\
+                .execute()
+
             agents.append({
                 **agent,
                 "instruction_versions_count": versions_result.count or 0,
-                "kb_documents_count": 0,  # TODO: Add when KB linking is implemented
+                "kb_documents_count": kb_result.count or 0,
                 "conversations_count": convs_result.count or 0,
             })
 
@@ -181,14 +195,34 @@ async def get_agent(
             .eq("agent_id", agent_id)\
             .execute()
 
+        # Get linked KB documents
+        kb_result = supabase.table("agent_knowledge_base")\
+            .select("*, documents(*)")\
+            .eq("agent_id", agent_id)\
+            .order("priority", desc=True)\
+            .execute()
+
+        # Format KB documents
+        kb_documents = []
+        for link in kb_result.data or []:
+            if link.get("documents"):
+                kb_documents.append({
+                    "link_id": link["id"],
+                    "document": link["documents"],
+                    "notes": link.get("notes"),
+                    "priority": link.get("priority", 0),
+                    "added_at": link.get("created_at"),
+                })
+
         return {
             "agent": agent,
             "active_instruction_version": active_version.data if active_version.data else None,
             "instruction_versions": all_versions.data or [],
-            "kb_documents": [],  # TODO: Add when KB linking is implemented
+            "kb_documents": kb_documents,
             "stats": {
                 "conversations_count": convs_result.count or 0,
                 "instruction_versions_count": len(all_versions.data or []),
+                "kb_documents_count": len(kb_documents),
             }
         }
 
@@ -411,7 +445,7 @@ async def compare_instruction_versions(
 
 
 # ============================================================================
-# Knowledge Base Document Routes (for future implementation)
+# Knowledge Base Document Routes
 # ============================================================================
 
 @router.get("/{agent_id}/documents")
@@ -420,31 +454,168 @@ async def get_agent_documents(
     supabase: Client = Depends(get_supabase)
 ):
     """Get documents linked to an agent's knowledge base."""
-    # TODO: Implement agent-specific document linking
-    # This will need a new table: agent_documents
-    return {"documents": [], "message": "Agent KB linking not yet implemented"}
+    try:
+        result = supabase.table("agent_knowledge_base")\
+            .select("*, documents(*)")\
+            .eq("agent_id", agent_id)\
+            .order("priority", desc=True)\
+            .execute()
+
+        documents = []
+        for link in result.data or []:
+            if link.get("documents"):
+                documents.append({
+                    "link_id": link["id"],
+                    "document": link["documents"],
+                    "notes": link.get("notes"),
+                    "priority": link.get("priority", 0),
+                    "added_at": link.get("created_at"),
+                })
+
+        return {"documents": documents}
+
+    except Exception as e:
+        logger.error(f"Failed to get documents for agent {agent_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{agent_id}/documents")
 async def link_document_to_agent(
     agent_id: str,
     doc_link: AgentKBDocLink,
+    user_id: Optional[str] = None,  # TODO: Get from auth
     supabase: Client = Depends(get_supabase)
 ):
     """Link a document to an agent's knowledge base."""
-    # TODO: Implement
-    return {"message": "Agent KB linking not yet implemented"}
+    try:
+        # Check if link already exists
+        existing = supabase.table("agent_knowledge_base")\
+            .select("id")\
+            .eq("agent_id", agent_id)\
+            .eq("document_id", doc_link.document_id)\
+            .execute()
+
+        if existing.data:
+            raise HTTPException(status_code=400, detail="Document already linked to this agent")
+
+        # Verify document exists
+        doc_check = supabase.table("documents")\
+            .select("id, filename")\
+            .eq("id", doc_link.document_id)\
+            .single()\
+            .execute()
+
+        if not doc_check.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Create link
+        result = supabase.table("agent_knowledge_base").insert({
+            "agent_id": agent_id,
+            "document_id": doc_link.document_id,
+            "notes": doc_link.notes,
+            "priority": doc_link.priority,
+            "added_by": user_id,
+        }).execute()
+
+        return {
+            "link": result.data[0],
+            "document": doc_check.data,
+            "message": f"Document '{doc_check.data['filename']}' linked to agent"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to link document to agent {agent_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/{agent_id}/documents/{document_id}")
+@router.patch("/{agent_id}/documents/{link_id}")
+async def update_document_link(
+    agent_id: str,
+    link_id: str,
+    updates: AgentKBDocUpdate,
+    supabase: Client = Depends(get_supabase)
+):
+    """Update a KB document link (notes, priority)."""
+    try:
+        update_data = {k: v for k, v in updates.model_dump().items() if v is not None}
+        update_data["updated_at"] = datetime.utcnow().isoformat()
+
+        result = supabase.table("agent_knowledge_base")\
+            .update(update_data)\
+            .eq("id", link_id)\
+            .eq("agent_id", agent_id)\
+            .execute()
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Link not found")
+
+        return {"link": result.data[0]}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update document link {link_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{agent_id}/documents/{link_id}")
 async def unlink_document_from_agent(
     agent_id: str,
-    document_id: str,
+    link_id: str,
     supabase: Client = Depends(get_supabase)
 ):
     """Remove a document from an agent's knowledge base."""
-    # TODO: Implement
-    return {"message": "Agent KB linking not yet implemented"}
+    try:
+        result = supabase.table("agent_knowledge_base")\
+            .delete()\
+            .eq("id", link_id)\
+            .eq("agent_id", agent_id)\
+            .execute()
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Link not found")
+
+        return {"message": "Document unlinked from agent", "deleted_link": result.data[0]}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to unlink document from agent {agent_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/documents/available")
+async def get_available_documents(
+    agent_id: Optional[str] = None,
+    supabase: Client = Depends(get_supabase)
+):
+    """Get all documents available for linking. If agent_id provided, excludes already linked docs."""
+    try:
+        # Get all documents
+        docs_result = supabase.table("documents")\
+            .select("id, filename, content_type, file_size, uploaded_at")\
+            .order("uploaded_at", desc=True)\
+            .execute()
+
+        documents = docs_result.data or []
+
+        # If agent_id provided, filter out already linked documents
+        if agent_id:
+            linked = supabase.table("agent_knowledge_base")\
+                .select("document_id")\
+                .eq("agent_id", agent_id)\
+                .execute()
+
+            linked_ids = {link["document_id"] for link in linked.data or []}
+            documents = [doc for doc in documents if doc["id"] not in linked_ids]
+
+        return {"documents": documents}
+
+    except Exception as e:
+        logger.error(f"Failed to get available documents: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
