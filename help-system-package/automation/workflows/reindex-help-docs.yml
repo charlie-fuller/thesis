@@ -1,0 +1,50 @@
+name: Auto-Reindex Help Documentation
+
+# Trigger when help docs are modified and pushed to main
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/help/**/*.md'
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  reindex-help-docs:
+    name: Reindex Help Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Trigger production help docs reindex
+        env:
+          REINDEX_API_URL: ${{ secrets.REINDEX_API_URL }}
+          REINDEX_API_KEY: ${{ secrets.REINDEX_API_KEY }}
+        run: |
+          echo "📚 Help documentation changed - triggering reindex..."
+
+          # Call production API to reindex help docs
+          response=$(curl -X POST "$REINDEX_API_URL" \
+            -H "Authorization: Bearer $REINDEX_API_KEY" \
+            -H "Content-Type: application/json" \
+            -w "\n%{http_code}" \
+            -s)
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ Help docs reindexed successfully!"
+            echo "$body" | jq '.'
+          else
+            echo "❌ Reindex failed with status $http_code"
+            echo "$body"
+            exit 1
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Help documentation reindex failed! Check production logs."
