@@ -161,6 +161,7 @@ supabase = get_supabase()
 # Import all route modules
 from api.routes import (
     admin,
+    agents,
     chat,
     clients,
     conversations,
@@ -185,6 +186,7 @@ from api.routes import (
 )
 
 # Register routers
+app.include_router(agents.router)
 app.include_router(chat.router)
 app.include_router(kpis.router)
 app.include_router(conversations.router)
