@@ -8,6 +8,7 @@ Core agents for enterprise GenAI strategy implementation:
 - Guardian: IT/Governance agent - security, infrastructure, governance
 - Counselor: Legal agent - contracts, compliance, legal considerations
 - Oracle: Transcript analyzer - stakeholder sentiment extraction
+- Sage: People agent - human-centered change, community building, human flourishing
 """
 
 from .base_agent import BaseAgent, AgentContext, AgentResponse
@@ -18,6 +19,7 @@ from .fortuna import FortunaAgent
 from .guardian import GuardianAgent
 from .counselor import CounselorAgent
 from .oracle import OracleAgent
+from .sage import SageAgent
 from .agent_factory import create_coordinator, create_specialist
 
 __all__ = [
@@ -32,6 +34,7 @@ __all__ = [
     "GuardianAgent",
     "CounselorAgent",
     "OracleAgent",
+    "SageAgent",
     "create_coordinator",
     "create_specialist",
 ]

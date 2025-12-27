@@ -66,7 +66,11 @@ class CoordinatorAgent(BaseAgent):
         "counselor": ["legal", "contract", "liability", "ip", "intellectual property",
                      "licensing", "terms", "agreement", "lawyer", "counsel", "dpa"],
         "oracle": ["transcript", "meeting", "sentiment", "stakeholder analysis",
-                  "attendee", "recording", "call notes"]
+                  "attendee", "recording", "call notes"],
+        "sage": ["people", "change management", "adoption", "resistance", "fear", "anxiety",
+                "burnout", "champion", "community", "culture", "human", "flourishing",
+                "psychology", "safety", "overwhelm", "support", "morale", "engagement",
+                "people-first", "human-centered", "meaningful work", "team", "employee"]
     }
 
     def __init__(
@@ -133,6 +137,13 @@ Core Mission: Synthesize insights across research, finance, governance, legal, a
    - Meeting transcript analysis
    - Sentiment extraction
    - Stakeholder mapping
+
+6. People & Human Flourishing (Sage domain)
+   - Human-centered change management
+   - Addressing fear, resistance, and anxiety
+   - Community building and psychological safety
+   - Champion enablement without burnout
+   - Meaningful work in AI-augmented roles
 </capabilities>
 
 <instructions>
@@ -245,6 +256,7 @@ Available specialists:
 - guardian: Security, governance, compliance, IT infrastructure, risk
 - counselor: Legal, contracts, IP, licensing, liability
 - oracle: Meeting transcripts, stakeholder sentiment analysis
+- sage: People, change management, adoption resistance, fear/anxiety, burnout, community, culture, human flourishing, psychological safety
 
 Query: {context.user_message}
 

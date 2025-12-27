@@ -17,6 +17,7 @@ from .fortuna import FortunaAgent
 from .guardian import GuardianAgent
 from .counselor import CounselorAgent
 from .oracle import OracleAgent
+from .sage import SageAgent
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ async def create_coordinator(
             "guardian": GuardianAgent(supabase, anthropic_client),
             "counselor": CounselorAgent(supabase, anthropic_client),
             "oracle": OracleAgent(supabase, anthropic_client),
+            "sage": SageAgent(supabase, anthropic_client),
         }
 
         # Initialize all specialists
@@ -77,7 +79,7 @@ async def create_specialist(
     Create a single specialist agent by name.
 
     Args:
-        name: Name of the specialist (atlas, fortuna, guardian, counselor, oracle)
+        name: Name of the specialist (atlas, fortuna, guardian, counselor, oracle, sage)
         supabase: Supabase client
         anthropic_client: Anthropic client
 
@@ -90,6 +92,7 @@ async def create_specialist(
         "guardian": GuardianAgent,
         "counselor": CounselorAgent,
         "oracle": OracleAgent,
+        "sage": SageAgent,
     }
 
     agent_class = agent_classes.get(name.lower())
