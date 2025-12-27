@@ -57,20 +57,51 @@ class CoordinatorAgent(BaseAgent):
 
     # Map of specialist names to their expertise keywords
     SPECIALIST_DOMAINS = {
+        # Original persona-aligned agents
         "atlas": ["research", "study", "trend", "case study", "best practice", "mckinsey",
-                  "bcg", "gartner", "forrester", "academic", "literature", "benchmark"],
+                  "bcg", "gartner", "forrester", "academic", "literature", "benchmark",
+                  "lean", "toyota", "operational excellence", "value stream"],
         "fortuna": ["roi", "budget", "cost", "financial", "investment", "savings",
-                   "cfo", "finance", "business case", "payback", "revenue", "expense"],
+                   "cfo", "finance", "business case", "payback", "revenue", "expense",
+                   "sox", "audit trail", "close cycle", "controller"],
         "guardian": ["security", "governance", "compliance", "infrastructure", "it",
-                    "soc2", "gdpr", "hipaa", "policy", "risk", "audit", "ciso", "cio"],
+                    "soc2", "gdpr", "hipaa", "policy", "risk", "audit", "ciso", "cio",
+                    "okta", "sso", "shadow it", "vendor security"],
         "counselor": ["legal", "contract", "liability", "ip", "intellectual property",
-                     "licensing", "terms", "agreement", "lawyer", "counsel", "dpa"],
+                     "licensing", "terms", "agreement", "lawyer", "counsel", "dpa",
+                     "hallucination", "bias", "prompt drift", "data privacy"],
         "oracle": ["transcript", "meeting", "sentiment", "stakeholder analysis",
                   "attendee", "recording", "call notes"],
         "sage": ["people", "change management", "adoption", "resistance", "fear", "anxiety",
                 "burnout", "champion", "community", "culture", "human", "flourishing",
                 "psychology", "safety", "overwhelm", "support", "morale", "engagement",
-                "people-first", "human-centered", "meaningful work", "team", "employee"]
+                "people-first", "human-centered", "meaningful work", "team", "employee"],
+        # New consulting/implementation agents
+        "strategist": ["executive", "c-suite", "ceo", "board", "sponsor", "sponsorship",
+                      "stakeholder management", "coalition", "organizational politics",
+                      "governance structure", "strategic alignment", "business strategy",
+                      "executive buy-in", "leadership", "transformation"],
+        "architect": ["architecture", "integration", "api", "technical design", "build vs buy",
+                     "rag", "vector", "embedding", "mlops", "devops", "infrastructure",
+                     "microservices", "data pipeline", "system design", "technical"],
+        "operator": ["process", "workflow", "automation", "metrics", "kpi", "baseline",
+                    "exception", "sop", "operations", "efficiency", "throughput",
+                    "bottleneck", "ground level", "frontline", "day-to-day"],
+        "pioneer": ["emerging", "innovation", "r&d", "new technology", "cutting edge",
+                   "experimental", "prototype", "hype", "maturity", "readiness",
+                   "quantum", "future", "horizon", "scout", "evaluate"],
+        # Internal enablement agents
+        "catalyst": ["internal communications", "messaging", "narrative", "employee engagement",
+                    "announcement", "all-hands", "town hall", "internal marketing",
+                    "ai anxiety", "fear communication", "transparency", "email"],
+        "scholar": ["training", "learning", "l&d", "enablement", "curriculum", "course",
+                   "workshop", "certification", "champion program", "skill development",
+                   "adult learning", "capability building", "onboarding"],
+        # Systems thinking agent
+        "nexus": ["systems thinking", "feedback loop", "leverage point", "unintended consequences",
+                 "interconnection", "complexity", "second-order effect", "system dynamics",
+                 "archetype", "reinforcing loop", "balancing loop", "mental model",
+                 "paradigm", "root cause", "holistic", "emergent", "ripple effect"]
     }
 
     def __init__(
@@ -92,6 +123,34 @@ class CoordinatorAgent(BaseAgent):
         self._specialists[name] = agent
         logger.info(f"Registered specialist: {name}")
 
+    def get_specialist(self, name: str) -> Optional[BaseAgent]:
+        """Get a specialist agent by name."""
+        return self._specialists.get(name)
+
+    async def reload_specialist_instruction(self, name: str) -> bool:
+        """
+        Reload a specialist's instruction from the database.
+        Used for hot-reloading after instruction updates in admin UI.
+        Returns True if reload was successful.
+        """
+        specialist = self._specialists.get(name)
+        if specialist:
+            return await specialist.reload_instruction()
+        logger.warning(f"Specialist {name} not found for reload")
+        return False
+
+    async def reload_all_instructions(self) -> dict[str, bool]:
+        """
+        Reload instructions for all specialists.
+        Returns dict of agent_name -> success.
+        """
+        results = {}
+        for name, agent in self._specialists.items():
+            results[name] = await agent.reload_instruction()
+        # Also reload coordinator's own instruction
+        results["coordinator"] = await self.reload_instruction()
+        return results
+
     def _get_default_instruction(self) -> str:
         return """<system>
 
@@ -109,27 +168,29 @@ Core Mission: Synthesize insights across research, finance, governance, legal, a
 </role>
 
 <capabilities>
+## Stakeholder Perspective Agents (Persona-Aligned)
+
 1. Research Intelligence (Atlas domain)
    - GenAI implementation trends and patterns
    - Consulting firm approaches and frameworks
    - Case studies and best practices
-   - Academic research synthesis
+   - Lean/Toyota Production System thinking
 
 2. Financial Analysis (Fortuna domain)
    - ROI calculations and projections
    - Budget justification and business cases
-   - Cost-benefit frameworks
-   - TCO analysis
+   - SOX compliance and audit trails
+   - Close cycle optimization
 
 3. Governance & Security (Guardian domain)
    - Security assessments for AI implementations
    - Compliance guidance (SOC2, GDPR, HIPAA)
-   - Infrastructure planning
-   - Risk assessment
+   - Shadow IT risk management
+   - Vendor security evaluation
 
 4. Legal Considerations (Counselor domain)
    - Contract review and negotiation points
-   - IP and licensing issues
+   - AI-specific risks (hallucination, bias, prompt drift)
    - Data processing agreements
    - Liability frameworks
 
@@ -143,7 +204,55 @@ Core Mission: Synthesize insights across research, finance, governance, legal, a
    - Addressing fear, resistance, and anxiety
    - Community building and psychological safety
    - Champion enablement without burnout
-   - Meaningful work in AI-augmented roles
+
+## Consulting/Implementation Agents
+
+7. Executive Strategy (Strategist domain)
+   - C-suite engagement and sponsorship
+   - Organizational politics and coalition building
+   - Business case development for executives
+   - Governance structure design
+
+8. Technical Architecture (Architect domain)
+   - Enterprise AI architecture patterns (RAG, agents)
+   - Integration design and data pipelines
+   - Build vs. buy analysis
+   - Security architecture and MLOps
+
+9. Business Operations (Operator domain)
+   - Process analysis and workflow optimization
+   - Automation opportunity assessment
+   - Operational metrics and KPIs
+   - Ground-level change management
+
+10. Innovation & R&D (Pioneer domain)
+    - Emerging technology scouting
+    - Technology maturity assessment
+    - Hype cycle navigation
+    - Innovation portfolio strategy
+
+## Internal Enablement Agents
+
+11. Internal Communications (Catalyst domain)
+    - AI initiative messaging and narratives
+    - Employee engagement communication
+    - Addressing AI anxiety proactively
+    - Multi-channel communication strategies
+
+12. Learning & Development (Scholar domain)
+    - AI training program design
+    - Champion program enablement
+    - Skill development and capability building
+    - Adult learning and behavior change
+
+## Systems Thinking Agent
+
+13. Systems Thinking (Nexus domain)
+    - Feedback loop identification and analysis
+    - Leverage point identification
+    - Unintended consequence anticipation
+    - System archetype recognition
+    - Second and third-order effect analysis
 </capabilities>
 
 <instructions>
@@ -250,13 +359,26 @@ Core Mission: Synthesize insights across research, finance, governance, legal, a
         """Use Claude Haiku for intelligent query classification."""
         classification_prompt = f"""Analyze this query and determine which specialist agents should handle it.
 
-Available specialists:
-- atlas: Research, trends, case studies, best practices, consulting frameworks
-- fortuna: Financial analysis, ROI, budgets, business cases, cost-benefit
-- guardian: Security, governance, compliance, IT infrastructure, risk
-- counselor: Legal, contracts, IP, licensing, liability
+Available specialists (Stakeholder Perspectives):
+- atlas: Research, trends, case studies, best practices, Lean/Toyota methodology
+- fortuna: Financial analysis, ROI, budgets, SOX compliance, audit trails
+- guardian: Security, governance, compliance, IT infrastructure, shadow IT
+- counselor: Legal, contracts, AI risks (hallucination, bias), liability
 - oracle: Meeting transcripts, stakeholder sentiment analysis
-- sage: People, change management, adoption resistance, fear/anxiety, burnout, community, culture, human flourishing, psychological safety
+- sage: People, change management, adoption resistance, burnout, community, human flourishing
+
+Available specialists (Consulting/Implementation):
+- strategist: Executive engagement, C-suite sponsorship, organizational politics, governance design
+- architect: Technical architecture, integration, build vs buy, RAG, MLOps, system design
+- operator: Process optimization, automation, operational metrics, ground-level change
+- pioneer: Emerging technology, innovation, hype filtering, technology maturity assessment
+
+Available specialists (Internal Enablement):
+- catalyst: Internal communications, employee messaging, AI announcements, addressing AI anxiety
+- scholar: Training programs, L&D, skill development, champion enablement, adult learning
+
+Available specialists (Systems Thinking):
+- nexus: Systems thinking, feedback loops, leverage points, unintended consequences, system archetypes
 
 Query: {context.user_message}
 

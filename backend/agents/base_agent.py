@@ -89,14 +89,45 @@ class BaseAgent(ABC):
             result = self.supabase.table("agents").select("*").eq("name", self.name).single().execute()
             if result.data:
                 self._agent_id = result.data["id"]
-                # Load system instruction from DB if not provided
-                if not self._system_instruction and result.data.get("system_instruction"):
-                    self._system_instruction = result.data["system_instruction"]
+                # Load active instruction from agent_instruction_versions (single source of truth)
+                await self._load_active_instruction()
                 logger.info(f"Initialized agent: {self.name} (ID: {self._agent_id})")
             else:
                 logger.warning(f"Agent {self.name} not found in database")
         except Exception as e:
             logger.error(f"Failed to initialize agent {self.name}: {e}")
+
+    async def _load_active_instruction(self) -> bool:
+        """
+        Load the active instruction version from agent_instruction_versions table.
+        This is the SINGLE SOURCE OF TRUTH for agent instructions.
+        Falls back to Python default if no valid instruction in DB.
+        Returns True if DB instruction was loaded.
+        """
+        if not self._agent_id:
+            return False
+
+        try:
+            version_result = self.supabase.table("agent_instruction_versions")\
+                .select("instructions")\
+                .eq("agent_id", self._agent_id)\
+                .eq("is_active", True)\
+                .limit(1)\
+                .execute()
+
+            if version_result.data and version_result.data[0].get("instructions"):
+                instruction = version_result.data[0]["instructions"]
+                # Only use if it's real content, not a placeholder
+                if not instruction.startswith("--") and len(instruction) > 100:
+                    self._system_instruction = instruction
+                    logger.info(f"Loaded active instruction for {self.name} from DB")
+                    return True
+
+            logger.info(f"No active instruction in DB for {self.name}, using Python default")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to load active instruction for {self.name}: {e}")
+            return False
 
     @property
     def system_instruction(self) -> str:
@@ -104,6 +135,15 @@ class BaseAgent(ABC):
         if self._system_instruction:
             return self._system_instruction
         return self._get_default_instruction()
+
+    async def reload_instruction(self) -> bool:
+        """
+        Reload the system instruction from the database.
+        Called when instructions are updated via the admin UI.
+        This hot-reloads from agent_instruction_versions (single source of truth).
+        Returns True if reload was successful.
+        """
+        return await self._load_active_instruction()
 
     @abstractmethod
     def _get_default_instruction(self) -> str:

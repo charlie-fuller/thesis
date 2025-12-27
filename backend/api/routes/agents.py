@@ -371,7 +371,12 @@ async def activate_instruction_version(
     version_id: str,
     supabase: Client = Depends(get_supabase)
 ):
-    """Activate a specific instruction version (deactivates others)."""
+    """
+    Activate a specific instruction version (deactivates others).
+
+    The agent_instruction_versions table is the SINGLE SOURCE OF TRUTH.
+    Running agents will pick up changes on next initialization or via reload.
+    """
     try:
         # Deactivate all versions for this agent
         supabase.table("agent_instruction_versions")\
@@ -391,16 +396,20 @@ async def activate_instruction_version(
         if not result.data:
             raise HTTPException(status_code=404, detail="Version not found")
 
-        # Also update the agent's system_instruction field
+        # Update agent's updated_at timestamp (but NOT copying system_instruction)
+        # The agent_instruction_versions table is the single source of truth
         supabase.table("agents")\
             .update({
-                "system_instruction": result.data[0]["instructions"],
                 "updated_at": datetime.utcnow().isoformat()
             })\
             .eq("id", agent_id)\
             .execute()
 
-        return {"version": result.data[0], "message": "Version activated"}
+        return {
+            "version": result.data[0],
+            "message": "Version activated. Running agents will use this on next request.",
+            "reload_required": True  # Signal to frontend that a reload may be needed
+        }
 
     except HTTPException:
         raise
