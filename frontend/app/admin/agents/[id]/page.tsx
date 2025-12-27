@@ -133,7 +133,9 @@ export default function AgentDetailPage() {
       setLoading(true);
       const result = await apiGet<AgentData>(`/api/agents/${agentId}`);
       setData(result);
-      setNewInstructions(result.agent.system_instruction || '');
+      // Prefer active version instructions over agent.system_instruction
+      const instructions = result.active_instruction_version?.instructions || result.agent.system_instruction || '';
+      setNewInstructions(instructions);
     } catch (err) {
       logger.error('Failed to fetch agent:', err);
       setError('Failed to load agent');
@@ -391,7 +393,7 @@ export default function AgentDetailPage() {
 
   const clearUploadedFile = () => {
     setUploadedFile(null);
-    setNewInstructions(data?.agent.system_instruction || '');
+    setNewInstructions(data?.active_instruction_version?.instructions || data?.agent.system_instruction || '');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -612,7 +614,7 @@ export default function AgentDetailPage() {
                       setEditingInstructions(false);
                       setEditMode('text');
                       setUploadedFile(null);
-                      setNewInstructions(agent.system_instruction || '');
+                      setNewInstructions(active_instruction_version?.instructions || agent.system_instruction || '');
                     }}
                     className="btn-secondary"
                   >
@@ -623,7 +625,7 @@ export default function AgentDetailPage() {
             ) : (
               <div>
                 <pre className="bg-page p-4 rounded-lg text-sm text-secondary overflow-auto max-h-96 whitespace-pre-wrap font-mono">
-                  {agent.system_instruction || 'No instructions configured'}
+                  {active_instruction_version?.instructions || agent.system_instruction || 'No instructions configured'}
                 </pre>
                 <button
                   onClick={() => setEditingInstructions(true)}
