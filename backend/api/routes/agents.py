@@ -166,21 +166,22 @@ async def get_agent(
         result = supabase.table("agents")\
             .select("*")\
             .eq("id", agent_id)\
-            .single()\
             .execute()
 
-        if not result.data:
+        if not result.data or len(result.data) == 0:
             raise HTTPException(status_code=404, detail="Agent not found")
 
-        agent = result.data
+        agent = result.data[0]
 
-        # Get active instruction version
-        active_version = supabase.table("agent_instruction_versions")\
+        # Get active instruction version (use limit(1) instead of single() to avoid error when no rows)
+        active_version_result = supabase.table("agent_instruction_versions")\
             .select("*")\
             .eq("agent_id", agent_id)\
             .eq("is_active", True)\
-            .single()\
+            .limit(1)\
             .execute()
+
+        active_version = active_version_result.data[0] if active_version_result.data else None
 
         # Get all instruction versions
         all_versions = supabase.table("agent_instruction_versions")\
@@ -216,7 +217,7 @@ async def get_agent(
 
         return {
             "agent": agent,
-            "active_instruction_version": active_version.data if active_version.data else None,
+            "active_instruction_version": active_version,
             "instruction_versions": all_versions.data or [],
             "kb_documents": kb_documents,
             "stats": {
@@ -408,6 +409,78 @@ async def activate_instruction_version(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class VersionCompareRequest(BaseModel):
+    """Request to compare two instruction versions."""
+    version_a_id: str
+    version_b_id: str
+
+
+@router.get("/{agent_id}/instructions/{version_id}")
+async def get_instruction_version(
+    agent_id: str,
+    version_id: str,
+    supabase: Client = Depends(get_supabase)
+):
+    """Get a specific instruction version."""
+    try:
+        result = supabase.table("agent_instruction_versions")\
+            .select("*")\
+            .eq("id", version_id)\
+            .eq("agent_id", agent_id)\
+            .single()\
+            .execute()
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Version not found")
+
+        return {"success": True, "version": result.data}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get version {version_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{agent_id}/instructions/{version_id}")
+async def delete_instruction_version(
+    agent_id: str,
+    version_id: str,
+    supabase: Client = Depends(get_supabase)
+):
+    """Delete an instruction version (cannot delete active version)."""
+    try:
+        # Check if version is active
+        version = supabase.table("agent_instruction_versions")\
+            .select("is_active, version_number")\
+            .eq("id", version_id)\
+            .eq("agent_id", agent_id)\
+            .single()\
+            .execute()
+
+        if not version.data:
+            raise HTTPException(status_code=404, detail="Version not found")
+
+        if version.data.get("is_active"):
+            raise HTTPException(status_code=400, detail="Cannot delete active version")
+
+        result = supabase.table("agent_instruction_versions")\
+            .delete()\
+            .eq("id", version_id)\
+            .execute()
+
+        return {
+            "success": True,
+            "message": f"Version {version.data['version_number']} deleted"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete version {version_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{agent_id}/instructions/compare")
 async def compare_instruction_versions(
     agent_id: str,
@@ -415,7 +488,7 @@ async def compare_instruction_versions(
     v2: str,
     supabase: Client = Depends(get_supabase)
 ):
-    """Compare two instruction versions."""
+    """Compare two instruction versions (GET for simple comparison)."""
     try:
         version1 = supabase.table("agent_instruction_versions")\
             .select("*")\
@@ -441,6 +514,191 @@ async def compare_instruction_versions(
         raise
     except Exception as e:
         logger.error(f"Failed to compare versions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{agent_id}/instructions/compare")
+async def compare_versions_detailed(
+    agent_id: str,
+    request: VersionCompareRequest,
+    supabase: Client = Depends(get_supabase)
+):
+    """Compare two instruction versions with detailed diff."""
+    import difflib
+
+    try:
+        version_a = supabase.table("agent_instruction_versions")\
+            .select("*")\
+            .eq("id", request.version_a_id)\
+            .eq("agent_id", agent_id)\
+            .single()\
+            .execute()
+
+        version_b = supabase.table("agent_instruction_versions")\
+            .select("*")\
+            .eq("id", request.version_b_id)\
+            .eq("agent_id", agent_id)\
+            .single()\
+            .execute()
+
+        if not version_a.data or not version_b.data:
+            raise HTTPException(status_code=404, detail="One or both versions not found")
+
+        # Generate unified diff
+        content_a = version_a.data.get("instructions", "").splitlines(keepends=True)
+        content_b = version_b.data.get("instructions", "").splitlines(keepends=True)
+
+        diff = list(difflib.unified_diff(
+            content_a,
+            content_b,
+            fromfile=f"v{version_a.data['version_number']}",
+            tofile=f"v{version_b.data['version_number']}",
+            lineterm=""
+        ))
+
+        # Calculate stats
+        additions = sum(1 for line in diff if line.startswith('+') and not line.startswith('+++'))
+        deletions = sum(1 for line in diff if line.startswith('-') and not line.startswith('---'))
+
+        return {
+            "success": True,
+            "version_a": {
+                "id": version_a.data["id"],
+                "version_number": version_a.data["version_number"],
+                "created_at": version_a.data["created_at"]
+            },
+            "version_b": {
+                "id": version_b.data["id"],
+                "version_number": version_b.data["version_number"],
+                "created_at": version_b.data["created_at"]
+            },
+            "diff": diff,
+            "stats": {
+                "additions": additions,
+                "deletions": deletions,
+                "total_changes": additions + deletions
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to compare versions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{agent_id}/instructions/compare/summary")
+async def generate_comparison_summary(
+    agent_id: str,
+    request: VersionCompareRequest,
+    supabase: Client = Depends(get_supabase)
+):
+    """Generate an AI summary of changes between two instruction versions."""
+    import difflib
+    import anthropic
+    import os
+
+    try:
+        version_a = supabase.table("agent_instruction_versions")\
+            .select("*")\
+            .eq("id", request.version_a_id)\
+            .eq("agent_id", agent_id)\
+            .single()\
+            .execute()
+
+        version_b = supabase.table("agent_instruction_versions")\
+            .select("*")\
+            .eq("id", request.version_b_id)\
+            .eq("agent_id", agent_id)\
+            .single()\
+            .execute()
+
+        if not version_a.data or not version_b.data:
+            raise HTTPException(status_code=404, detail="One or both versions not found")
+
+        # Get agent info for context
+        agent = supabase.table("agents")\
+            .select("name, display_name")\
+            .eq("id", agent_id)\
+            .single()\
+            .execute()
+
+        agent_name = agent.data.get("display_name", "Unknown Agent") if agent.data else "Unknown Agent"
+
+        # Generate diff
+        content_a = version_a.data.get("instructions", "").splitlines(keepends=True)
+        content_b = version_b.data.get("instructions", "").splitlines(keepends=True)
+
+        diff = list(difflib.unified_diff(
+            content_a,
+            content_b,
+            fromfile=f"v{version_a.data['version_number']}",
+            tofile=f"v{version_b.data['version_number']}",
+            lineterm=""
+        ))
+
+        # Calculate stats
+        additions = sum(1 for line in diff if line.startswith('+') and not line.startswith('+++'))
+        deletions = sum(1 for line in diff if line.startswith('-') and not line.startswith('---'))
+
+        # Generate AI summary using Claude
+        client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+        diff_text = "\n".join(diff[:500])  # Limit diff size for API
+
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1024,
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"""Analyze this diff between two versions of system instructions for the "{agent_name}" agent and provide a concise summary of the key changes.
+
+Focus on:
+1. Major additions or new capabilities
+2. Removed functionality or restrictions
+3. Changes to persona, tone, or communication style
+4. Updated examples or few-shot patterns
+5. Modified instructions or workflows
+
+Keep the summary actionable and highlight what administrators should be aware of.
+
+Diff:
+```
+{diff_text}
+```
+
+Provide a clear, bulleted summary of the changes (3-7 bullet points)."""
+                }
+            ]
+        )
+
+        summary = message.content[0].text
+
+        return {
+            "success": True,
+            "version_a": {
+                "id": version_a.data["id"],
+                "version_number": version_a.data["version_number"],
+                "created_at": version_a.data["created_at"]
+            },
+            "version_b": {
+                "id": version_b.data["id"],
+                "version_number": version_b.data["version_number"],
+                "created_at": version_b.data["created_at"]
+            },
+            "summary": summary,
+            "stats": {
+                "additions": additions,
+                "deletions": deletions,
+                "total_changes": additions + deletions
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to generate comparison summary: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
