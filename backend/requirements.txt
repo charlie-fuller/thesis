@@ -44,3 +44,6 @@ apscheduler>=3.10.4
 
 # Caching (optional - graceful fallback if not available)
 redis>=5.0.0
+
+# Neo4j Knowledge Graph
+neo4j>=5.15.0

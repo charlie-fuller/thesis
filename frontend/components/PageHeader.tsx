@@ -30,17 +30,17 @@ export default function PageHeader({
   const navLinks = isAdmin
     ? [
         { href: '/admin', label: 'Dashboard' },
-        { href: '/admin/users', label: 'Users' },
+        { href: '/admin/agents', label: 'Agents' },
         { href: '/admin/documents', label: 'Documents' },
         { href: '/admin/conversations', label: 'Conversations' },
-        { href: '/admin/help-system', label: 'Help System' },
         { href: '/admin/system-instructions', label: 'System Instructions' },
-        { href: '/admin/theme', label: 'Theme' },
       ]
     : [
         { href: '/chat', label: 'Chat' },
-        { href: '/projects', label: 'Projects' },
-        { href: '/dashboard', label: 'My Impact' },
+        { href: '/stakeholders', label: 'Stakeholders' },
+        { href: '/transcripts', label: 'Transcripts' },
+        { href: '/documents', label: 'Documents' },
+        { href: '/projects', label: 'Initiatives' },
       ]
 
   const isActive = (href: string) => {

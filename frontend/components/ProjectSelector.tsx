@@ -238,7 +238,7 @@ export default function ProjectSelector({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
           <span className="text-xs font-medium text-muted uppercase tracking-wide">
-            Projects
+            Initiatives
           </span>
           {projects.length > 0 && (
             <span className="text-xs text-muted">({projects.length})</span>
@@ -301,7 +301,7 @@ export default function ProjectSelector({
             </div>
           ) : projects.length === 0 ? (
             <div className="text-xs text-muted text-center py-3">
-              No projects yet. Create one to organize your conversations.
+              No initiatives yet. Create one to organize your AI strategy work.
             </div>
           ) : (
             <div className="space-y-1">

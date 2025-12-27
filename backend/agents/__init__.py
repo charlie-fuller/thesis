@@ -2,6 +2,7 @@
 Thesis Multi-Agent System
 
 Core agents for enterprise GenAI strategy implementation:
+- Coordinator: Central orchestrator - routes queries to specialists, synthesizes responses
 - Atlas: Research agent - GenAI research, consulting approaches, case studies
 - Fortuna: Finance agent - ROI analysis, budget justification
 - Guardian: IT/Governance agent - security, infrastructure, governance
@@ -11,8 +12,13 @@ Core agents for enterprise GenAI strategy implementation:
 
 from .base_agent import BaseAgent, AgentContext, AgentResponse
 from .agent_router import AgentRouter, RoutingDecision
+from .coordinator import CoordinatorAgent
 from .atlas import AtlasAgent
+from .fortuna import FortunaAgent
+from .guardian import GuardianAgent
+from .counselor import CounselorAgent
 from .oracle import OracleAgent
+from .agent_factory import create_coordinator, create_specialist
 
 __all__ = [
     "BaseAgent",
@@ -20,6 +26,12 @@ __all__ = [
     "AgentResponse",
     "AgentRouter",
     "RoutingDecision",
+    "CoordinatorAgent",
     "AtlasAgent",
+    "FortunaAgent",
+    "GuardianAgent",
+    "CounselorAgent",
     "OracleAgent",
+    "create_coordinator",
+    "create_specialist",
 ]

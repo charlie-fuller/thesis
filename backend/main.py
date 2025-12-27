@@ -168,13 +168,10 @@ from api.routes import (
     document_mappings,
     documents,
     google_drive,
+    graph,
     help_chat,
     images,
-    kpis,
     notion,
-    onboarding,
-    outcomes,
-    personal_impact,
     projects,
     quick_prompts,
     stakeholders,
@@ -188,7 +185,6 @@ from api.routes import (
 # Register routers
 app.include_router(agents.router)
 app.include_router(chat.router)
-app.include_router(kpis.router)
 app.include_router(conversations.router)
 app.include_router(documents.router)
 app.include_router(users.router)
@@ -201,16 +197,14 @@ app.include_router(quick_prompts.router)
 app.include_router(theme.router)
 app.include_router(images.router)
 app.include_router(help_chat.router)
-app.include_router(onboarding.router)
-app.include_router(personal_impact.router)
 app.include_router(templates.router)
 app.include_router(projects.router)
-app.include_router(outcomes.router)
 app.include_router(system_instructions.router)
 app.include_router(transcripts.router)
 app.include_router(stakeholders.router)
+app.include_router(graph.router)
 
-logger.info("✅ All route modules registered (including Thesis multi-agent routes)")
+logger.info("✅ All route modules registered (including Thesis multi-agent and graph routes)")
 
 # ============================================================================
 # Backward Compatibility Routes
@@ -339,9 +333,17 @@ async def shutdown_event():
     try:
         from services.sync_scheduler import stop_scheduler
         stop_scheduler()
-        logger.info("✅ Application shutdown complete")
     except Exception as e:
-        logger.error(f"⚠️ Warning during shutdown: {e}")
+        logger.error(f"⚠️ Warning during scheduler shutdown: {e}")
+
+    try:
+        from services.graph import close_neo4j_connection
+        await close_neo4j_connection()
+        logger.info("✅ Neo4j connection closed")
+    except Exception as e:
+        logger.error(f"⚠️ Warning during Neo4j shutdown: {e}")
+
+    logger.info("✅ Application shutdown complete")
 
 
 # ============================================================================

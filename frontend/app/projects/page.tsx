@@ -221,9 +221,9 @@ export default function ProjectsPage() {
         {/* Page Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-primary">Projects</h1>
+            <h1 className="text-3xl font-bold text-primary">Initiatives</h1>
             <p className="text-secondary mt-1">
-              Organize your conversations into projects
+              Organize your AI strategy work into initiatives
             </p>
           </div>
           <button
@@ -233,7 +233,7 @@ export default function ProjectsPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            New Project
+            New Initiative
           </button>
         </div>
 
@@ -263,17 +263,17 @@ export default function ProjectsPage() {
           <div className="text-center py-12">
             <div className="text-6xl mb-4">📁</div>
             <h3 className="text-lg font-medium text-primary mb-2">
-              {statusFilter === 'active' ? 'No active projects' :
-               statusFilter === 'archived' ? 'No archived projects' : 'No projects yet'}
+              {statusFilter === 'active' ? 'No active initiatives' :
+               statusFilter === 'archived' ? 'No archived initiatives' : 'No initiatives yet'}
             </h3>
             <p className="text-secondary mb-4">
               {statusFilter === 'active'
-                ? 'Create a project to organize your conversations'
-                : 'Archived projects will appear here'}
+                ? 'Create an initiative to organize your AI strategy work'
+                : 'Archived initiatives will appear here'}
             </p>
             {statusFilter === 'active' && (
               <button onClick={openCreateModal} className="btn-primary">
-                Create Your First Project
+                Create Your First Initiative
               </button>
             )}
           </div>
@@ -412,17 +412,17 @@ export default function ProjectsPage() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-card rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
               <h2 className="text-xl font-semibold text-primary mb-4">
-                {editingProject ? 'Edit Project' : 'Create Project'}
+                {editingProject ? 'Edit Initiative' : 'Create Initiative'}
               </h2>
 
               <div className="space-y-4">
                 <div>
-                  <label className="label">Project Name</label>
+                  <label className="label">Initiative Name</label>
                   <input
                     type="text"
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
-                    placeholder="e.g., New Hire Onboarding Course"
+                    placeholder="e.g., Finance GenAI Pilot"
                     className="input-field w-full"
                     autoFocus
                   />
@@ -433,7 +433,7 @@ export default function ProjectsPage() {
                   <textarea
                     value={formDescription}
                     onChange={(e) => setFormDescription(e.target.value)}
-                    placeholder="Brief description of this project..."
+                    placeholder="Brief description of this initiative..."
                     rows={3}
                     className="input-field w-full resize-none"
                   />
@@ -445,7 +445,7 @@ export default function ProjectsPage() {
                   onClick={handleSaveProject}
                   className="btn-primary flex-1"
                 >
-                  {editingProject ? 'Save Changes' : 'Create Project'}
+                  {editingProject ? 'Save Changes' : 'Create Initiative'}
                 </button>
                 <button
                   onClick={closeModal}
