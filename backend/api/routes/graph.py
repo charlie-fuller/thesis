@@ -12,8 +12,8 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from ...auth import get_current_user, User
-from ...services.graph import (
+from auth import get_current_user, User
+from services.graph import (
     get_neo4j_connection,
     GraphSyncService,
     GraphQueryService,
