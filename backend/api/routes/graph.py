@@ -12,7 +12,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from auth import get_current_user, User
+from auth import get_current_user
 from services.graph import (
     get_neo4j_connection,
     GraphSyncService,
@@ -89,11 +89,11 @@ async def get_graph_query_service():
         )
 
 
-async def get_graph_sync_service(current_user: User = Depends(get_current_user)):
+async def get_graph_sync_service(current_user: dict = Depends(get_current_user)):
     """Get the graph sync service."""
     try:
-        from ...database import get_supabase_client
-        supabase = get_supabase_client()
+        from database import get_supabase
+        supabase = get_supabase()
         connection = await get_neo4j_connection()
         return GraphSyncService(supabase, connection)
     except Exception as e:
@@ -125,13 +125,13 @@ async def graph_health():
 
 
 @router.post("/schema/init")
-async def init_schema(current_user: User = Depends(get_current_user)):
+async def init_schema(current_user: dict = Depends(get_current_user)):
     """
     Initialize the graph schema (constraints and indexes).
 
     Requires admin privileges.
     """
-    if current_user.role != "admin":
+    if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
     try:
@@ -147,7 +147,7 @@ async def init_schema(current_user: User = Depends(get_current_user)):
 
 
 @router.get("/schema/verify")
-async def verify_graph_schema(current_user: User = Depends(get_current_user)):
+async def verify_graph_schema(current_user: dict = Depends(get_current_user)):
     """
     Verify the current graph schema state.
     """
@@ -162,14 +162,14 @@ async def verify_graph_schema(current_user: User = Depends(get_current_user)):
 
 @router.get("/stats")
 async def get_stats(
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
     Get graph statistics for the current user's client.
     """
     try:
-        stats = await query_service.get_graph_stats(current_user.client_id)
+        stats = await query_service.get_graph_stats(current_user["client_id"])
         return GraphStatsResponse(**stats)
     except Exception as e:
         logger.error(f"Failed to get graph stats: {e}")
@@ -182,7 +182,7 @@ async def get_stats(
 
 @router.post("/sync/full", response_model=SyncResponse)
 async def full_sync(
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     sync_service: GraphSyncService = Depends(get_graph_sync_service)
 ):
     """
@@ -191,10 +191,10 @@ async def full_sync(
     This syncs stakeholders, meetings, insights, documents, and ROI opportunities.
     """
     try:
-        result = await sync_service.full_sync(current_user.client_id)
+        result = await sync_service.full_sync(current_user["client_id"])
         return SyncResponse(
             status="completed",
-            client_id=current_user.client_id,
+            client_id=current_user["client_id"],
             results=result
         )
     except Exception as e:
@@ -205,7 +205,7 @@ async def full_sync(
 @router.post("/sync/incremental", response_model=SyncResponse)
 async def incremental_sync(
     request: SyncRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     sync_service: GraphSyncService = Depends(get_graph_sync_service)
 ):
     """
@@ -214,13 +214,13 @@ async def incremental_sync(
     try:
         since = request.since or datetime.utcnow().replace(hour=0, minute=0, second=0)
         result = await sync_service.incremental_sync(
-            current_user.client_id,
+            current_user["client_id"],
             since=since,
             entity_types=request.entity_types
         )
         return SyncResponse(
             status="completed",
-            client_id=current_user.client_id,
+            client_id=current_user["client_id"],
             results=result
         )
     except Exception as e:
@@ -230,14 +230,14 @@ async def incremental_sync(
 
 @router.post("/sync/stakeholders")
 async def sync_stakeholders(
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     sync_service: GraphSyncService = Depends(get_graph_sync_service)
 ):
     """
     Sync only stakeholders and their relationships.
     """
     try:
-        result = await sync_service.sync_stakeholders(current_user.client_id)
+        result = await sync_service.sync_stakeholders(current_user["client_id"])
         return {"status": "completed", "result": result}
     except Exception as e:
         logger.error(f"Stakeholder sync failed: {e}")
@@ -252,7 +252,7 @@ async def sync_stakeholders(
 async def get_stakeholder_network(
     stakeholder_id: str,
     depth: int = Query(default=2, ge=1, le=4),
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -275,7 +275,7 @@ async def get_influence_path(
     from_id: str = Query(..., description="Source stakeholder ID"),
     to_id: str = Query(..., description="Target stakeholder ID"),
     max_depth: int = Query(default=5, ge=1, le=10),
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -292,7 +292,7 @@ async def get_influence_path(
 @router.get("/influence/key-influencers")
 async def get_key_influencers(
     limit: int = Query(default=10, ge=1, le=50),
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -300,7 +300,7 @@ async def get_key_influencers(
     """
     try:
         influencers = await query_service.find_key_influencers(
-            current_user.client_id,
+            current_user["client_id"],
             limit
         )
         return {"influencers": influencers}
@@ -312,7 +312,7 @@ async def get_key_influencers(
 @router.get("/influence/chains/{target_id}")
 async def get_influence_chains(
     target_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -320,7 +320,7 @@ async def get_influence_chains(
     """
     try:
         chains = await query_service.find_influence_chains(
-            current_user.client_id,
+            current_user["client_id"],
             target_id
         )
         return {"target_id": target_id, "influence_chains": chains}
@@ -336,7 +336,7 @@ async def get_influence_chains(
 @router.get("/roi/{opportunity_id}/analysis")
 async def get_roi_analysis(
     opportunity_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -361,7 +361,7 @@ async def get_roi_analysis(
 @router.get("/roi/{opportunity_id}/blockers")
 async def get_roi_blockers(
     opportunity_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -378,7 +378,7 @@ async def get_roi_blockers(
 @router.get("/roi/{opportunity_id}/strategy")
 async def get_blocker_strategy(
     opportunity_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -399,7 +399,7 @@ async def get_blocker_strategy(
 @router.get("/concerns/shared")
 async def get_shared_concerns(
     min_stakeholders: int = Query(default=2, ge=2),
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -407,7 +407,7 @@ async def get_shared_concerns(
     """
     try:
         concerns = await query_service.find_shared_concerns(
-            current_user.client_id,
+            current_user["client_id"],
             min_stakeholders
         )
         return {"shared_concerns": concerns}
@@ -419,7 +419,7 @@ async def get_shared_concerns(
 @router.get("/stakeholder/{stakeholder_id}/concerns")
 async def get_stakeholder_concerns(
     stakeholder_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -440,7 +440,7 @@ async def get_stakeholder_concerns(
 @router.get("/meeting/{meeting_id}/network")
 async def get_meeting_network(
     meeting_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -457,7 +457,7 @@ async def get_meeting_network(
 @router.get("/concepts/{concept_name}/advocates")
 async def get_concept_advocates(
     concept_name: str,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -466,7 +466,7 @@ async def get_concept_advocates(
     try:
         advocates = await query_service.find_concept_advocates(
             concept_name,
-            current_user.client_id
+            current_user["client_id"]
         )
         return {"concept": concept_name, "advocates": advocates}
     except Exception as e:
@@ -478,7 +478,7 @@ async def get_concept_advocates(
 async def get_aligned_stakeholders(
     stakeholder_id: str,
     min_shared_meetings: int = Query(default=2, ge=1),
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -503,7 +503,7 @@ async def get_aligned_stakeholders(
 async def get_agent_routing_suggestion(
     question: str = Query(..., description="The user's question"),
     current_agent_id: Optional[str] = Query(default=None, description="Current agent ID"),
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -525,7 +525,7 @@ async def get_agent_routing_suggestion(
 @router.get("/agents/{agent_id}/expertise")
 async def get_agent_expertise(
     agent_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -541,7 +541,7 @@ async def get_agent_expertise(
 
 @router.get("/agents/handoff-patterns")
 async def get_handoff_patterns(
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     query_service: GraphQueryService = Depends(get_graph_query_service)
 ):
     """
@@ -561,11 +561,11 @@ async def get_handoff_patterns(
 # Relationship Inference Endpoints
 # =============================================================================
 
-async def get_relationship_extractor(current_user: User = Depends(get_current_user)):
+async def get_relationship_extractor(current_user: dict = Depends(get_current_user)):
     """Get the relationship extractor service."""
     try:
-        from ...database import get_supabase_client
-        supabase = get_supabase_client()
+        from database import get_supabase
+        supabase = get_supabase()
         connection = await get_neo4j_connection()
         return RelationshipExtractor(supabase, connection)
     except Exception as e:
@@ -578,7 +578,7 @@ async def get_relationship_extractor(current_user: User = Depends(get_current_us
 
 @router.post("/infer/influences")
 async def infer_influences(
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     extractor: RelationshipExtractor = Depends(get_relationship_extractor)
 ):
     """
@@ -588,10 +588,10 @@ async def infer_influences(
     to infer who influences whom.
     """
     try:
-        result = await extractor.infer_influences(current_user.client_id)
+        result = await extractor.infer_influences(current_user["client_id"])
         return {
             "status": "completed",
-            "client_id": current_user.client_id,
+            "client_id": current_user["client_id"],
             "result": result
         }
     except Exception as e:
@@ -601,7 +601,7 @@ async def infer_influences(
 
 @router.post("/infer/concepts")
 async def extract_all_concepts(
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     extractor: RelationshipExtractor = Depends(get_relationship_extractor)
 ):
     """
@@ -611,10 +611,10 @@ async def extract_all_concepts(
     DISCUSSES relationships between meetings and concepts.
     """
     try:
-        result = await extractor.extract_all_meeting_concepts(current_user.client_id)
+        result = await extractor.extract_all_meeting_concepts(current_user["client_id"])
         return {
             "status": "completed",
-            "client_id": current_user.client_id,
+            "client_id": current_user["client_id"],
             "result": result
         }
     except Exception as e:
@@ -624,7 +624,7 @@ async def extract_all_concepts(
 
 @router.post("/infer/clusters")
 async def detect_stakeholder_clusters(
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     extractor: RelationshipExtractor = Depends(get_relationship_extractor)
 ):
     """
@@ -634,10 +634,10 @@ async def detect_stakeholder_clusters(
     attend meetings together.
     """
     try:
-        result = await extractor.detect_stakeholder_clusters(current_user.client_id)
+        result = await extractor.detect_stakeholder_clusters(current_user["client_id"])
         return {
             "status": "completed",
-            "client_id": current_user.client_id,
+            "client_id": current_user["client_id"],
             "result": result
         }
     except Exception as e:
@@ -648,7 +648,7 @@ async def detect_stakeholder_clusters(
 @router.post("/meetings/{meeting_id}/concepts")
 async def extract_meeting_concepts(
     meeting_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     extractor: RelationshipExtractor = Depends(get_relationship_extractor)
 ):
     """
