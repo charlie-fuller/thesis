@@ -2,7 +2,7 @@
 Useable Output Detection Service
 Blended approach using multiple signals to detect when AI output becomes useable
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Tuple
 
 from database import get_supabase
@@ -129,7 +129,7 @@ def mark_useable_output(
             'useable_output_message_id': message_id,
             'turns_to_useable_output': turns,
             'useable_output_method': method,
-            'useable_output_detected_at': datetime.utcnow().isoformat()
+            'useable_output_detected_at': datetime.now(timezone.utc).isoformat()
         }).eq('id', conversation_id).execute()
 
         logger.info(

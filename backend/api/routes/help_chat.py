@@ -6,7 +6,7 @@ Separate from main chat conversations.
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from threading import Lock
 from typing import Dict, List, Optional
 
@@ -416,10 +416,9 @@ async def submit_help_feedback(
             raise HTTPException(status_code=403, detail="Not authorized")
 
         # Update feedback
-        from datetime import datetime
         supabase.table('help_messages').update({
             'feedback': feedback,
-            'feedback_timestamp': datetime.utcnow().isoformat()
+            'feedback_timestamp': datetime.now(timezone.utc).isoformat()
         }).eq('id', message_id).execute()
 
         logger.info(f"Feedback recorded: message={message_id}, feedback={feedback}, user={user_id}")
@@ -720,7 +719,7 @@ def _run_indexing_background(force: bool):
             _indexing_state["status"] = "completed"
             _indexing_state["is_indexing"] = False
             _indexing_state["progress"] = 100
-            _indexing_state["completed_at"] = datetime.utcnow().isoformat()
+            _indexing_state["completed_at"] = datetime.now(timezone.utc).isoformat()
             _indexing_state["result"] = {
                 "total_documents": doc_count.count,
                 "total_chunks": chunk_count.count
@@ -805,7 +804,7 @@ async def index_help_docs(
         _indexing_state["total_files"] = 0
         _indexing_state["current_file"] = ""
         _indexing_state["error"] = None
-        _indexing_state["started_at"] = datetime.utcnow().isoformat()
+        _indexing_state["started_at"] = datetime.now(timezone.utc).isoformat()
         _indexing_state["completed_at"] = None
         _indexing_state["result"] = None
 

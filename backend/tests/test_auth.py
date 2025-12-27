@@ -5,7 +5,7 @@ Tests for JWT validation, user authentication, and role-based access control.
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import jwt
@@ -51,7 +51,7 @@ class TestJWTValidation:
 
         # Create token with different secret
         wrong_token = jwt.encode(
-            {"sub": "test-user", "aud": "authenticated", "exp": datetime.utcnow() + timedelta(hours=1)},
+            {"sub": "test-user", "aud": "authenticated", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
             "wrong-secret",
             algorithm="HS256"
         )
@@ -69,7 +69,7 @@ class TestJWTValidation:
             {
                 "sub": "test-user",
                 "aud": "wrong-audience",
-                "exp": datetime.utcnow() + timedelta(hours=1)
+                "exp": datetime.now(timezone.utc) + timedelta(hours=1)
             },
             os.environ["SUPABASE_JWT_SECRET"],
             algorithm="HS256"
@@ -252,7 +252,7 @@ class TestAuthEdgeCases:
 
         # Create token without 'sub'
         token = jwt.encode(
-            {"email": "test@example.com", "aud": "authenticated", "exp": datetime.utcnow() + timedelta(hours=1)},
+            {"email": "test@example.com", "aud": "authenticated", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
             os.environ["SUPABASE_JWT_SECRET"],
             algorithm="HS256"
         )

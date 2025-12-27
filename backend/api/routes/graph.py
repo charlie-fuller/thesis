@@ -7,7 +7,7 @@ Used for stakeholder network analysis, influence mapping, and blocker detection.
 
 import logging
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -212,7 +212,7 @@ async def incremental_sync(
     Perform an incremental sync for recently updated entities.
     """
     try:
-        since = request.since or datetime.utcnow().replace(hour=0, minute=0, second=0)
+        since = request.since or datetime.now(timezone.utc).replace(hour=0, minute=0, second=0)
         result = await sync_service.incremental_sync(
             current_user["client_id"],
             since=since,

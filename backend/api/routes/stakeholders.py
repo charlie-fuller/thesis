@@ -6,7 +6,7 @@ Endpoints for managing stakeholders and their insights.
 
 import logging
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -198,7 +198,7 @@ async def create_stakeholder(
         "department": stakeholder.department,
         "organization": stakeholder.organization,
         "notes": stakeholder.notes,
-        "first_interaction": datetime.utcnow().date().isoformat()
+        "first_interaction": datetime.now(timezone.utc).date().isoformat()
     }
 
     result = supabase.table("stakeholders").insert(data).execute()
@@ -239,7 +239,7 @@ async def update_stakeholder(
     """Update a stakeholder."""
     # Build update data, excluding None values
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
-    update_data["updated_at"] = datetime.utcnow().isoformat()
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     result = supabase.table("stakeholders") \
         .update(update_data) \
@@ -344,9 +344,9 @@ async def resolve_insight(
     result = supabase.table("stakeholder_insights") \
         .update({
             "is_resolved": True,
-            "resolved_at": datetime.utcnow().isoformat(),
+            "resolved_at": datetime.now(timezone.utc).isoformat(),
             "resolution_notes": resolve.resolution_notes,
-            "updated_at": datetime.utcnow().isoformat()
+            "updated_at": datetime.now(timezone.utc).isoformat()
         }) \
         .eq("id", insight_id) \
         .eq("stakeholder_id", stakeholder_id) \

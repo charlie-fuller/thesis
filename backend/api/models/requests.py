@@ -4,7 +4,7 @@ All Pydantic models for validating incoming requests
 """
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class ConversationCreateRequest(BaseModel):
@@ -12,7 +12,8 @@ class ConversationCreateRequest(BaseModel):
     title: str = Field(default="New Conversation", max_length=200)
     client_id: Optional[str] = None
 
-    @validator('title')
+    @field_validator('title')
+    @classmethod
     def validate_title(cls, v):
         if not v or not v.strip():
             raise ValueError('Title cannot be empty')
@@ -22,7 +23,8 @@ class ConversationCreateRequest(BaseModel):
 class ConversationRenameRequest(BaseModel):
     title: str = Field(max_length=200, min_length=1)
 
-    @validator('title')
+    @field_validator('title')
+    @classmethod
     def validate_title(cls, v):
         if not v.strip():
             raise ValueError('Title cannot be empty')

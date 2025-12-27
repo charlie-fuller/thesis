@@ -73,7 +73,7 @@ def mock_voyage():
 @pytest.fixture
 def valid_jwt_token():
     """Generate a valid JWT token for testing."""
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     import jwt
 
@@ -81,8 +81,8 @@ def valid_jwt_token():
         "sub": "test-user-id-12345",
         "email": "testuser@example.com",
         "aud": "authenticated",
-        "exp": datetime.utcnow() + timedelta(hours=1),
-        "iat": datetime.utcnow(),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+        "iat": datetime.now(timezone.utc),
     }
 
     return jwt.encode(payload, os.environ["SUPABASE_JWT_SECRET"], algorithm="HS256")
@@ -91,7 +91,7 @@ def valid_jwt_token():
 @pytest.fixture
 def expired_jwt_token():
     """Generate an expired JWT token for testing."""
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     import jwt
 
@@ -99,8 +99,8 @@ def expired_jwt_token():
         "sub": "test-user-id-12345",
         "email": "testuser@example.com",
         "aud": "authenticated",
-        "exp": datetime.utcnow() - timedelta(hours=1),  # Expired
-        "iat": datetime.utcnow() - timedelta(hours=2),
+        "exp": datetime.now(timezone.utc) - timedelta(hours=1),  # Expired
+        "iat": datetime.now(timezone.utc) - timedelta(hours=2),
     }
 
     return jwt.encode(payload, os.environ["SUPABASE_JWT_SECRET"], algorithm="HS256")

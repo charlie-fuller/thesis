@@ -6,7 +6,7 @@ import asyncio
 import io
 import json
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -75,7 +75,7 @@ async def get_usage_trends(
         from datetime import datetime, timedelta
 
         # Calculate date range
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
         # Get all conversations in range
@@ -190,7 +190,7 @@ async def get_active_users(
         total_users = total_users_result.count or 0
 
         # Get users active in last 7 days (users who updated conversations)
-        seven_days_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+        seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
         active_7_convos = await asyncio.to_thread(
             lambda: supabase.table('conversations')\
                 .select('user_id')\
@@ -205,7 +205,7 @@ async def get_active_users(
                 active_7_user_ids.add(convo['user_id'])
 
         # Get users active in last 30 days
-        thirty_days_ago = (datetime.utcnow() - timedelta(days=30)).isoformat()
+        thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
         active_30_convos = await asyncio.to_thread(
             lambda: supabase.table('conversations')\
                 .select('user_id')\
@@ -450,7 +450,7 @@ async def get_system_health(
 
         # 4. Check Anthropic (Claude) - Check recent AI interactions
         try:
-            one_hour_ago = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+            one_hour_ago = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
             recent_messages = await asyncio.to_thread(
                 lambda: supabase.table('messages')\
                     .select('role, created_at')\
@@ -480,7 +480,7 @@ async def get_system_health(
         # 5. Check Voyage AI (Embeddings) - Check if embeddings service is available
         try:
             # Check if we have recent documents with embeddings
-            one_day_ago = (datetime.utcnow() - timedelta(days=1)).isoformat()
+            one_day_ago = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
             recent_docs = await asyncio.to_thread(
                 lambda: supabase.table('documents')\
                     .select('id')\
@@ -551,7 +551,7 @@ async def get_upload_health(
     Returns success rates, failure breakdown, and stuck documents.
     """
     try:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         one_day_ago = (now - timedelta(days=1)).isoformat()
         seven_days_ago = (now - timedelta(days=7)).isoformat()
         thirty_days_ago = (now - timedelta(days=30)).isoformat()
@@ -677,7 +677,7 @@ async def get_interface_health(
     Returns response length stats, image generation stats, and workflow metrics.
     """
     try:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         seven_days_ago = (now - timedelta(days=7)).isoformat()
         five_minutes_ago = (now - timedelta(minutes=5)).isoformat()
 
@@ -1026,7 +1026,7 @@ async def reindex_help_document(
         # Update document's updated_at timestamp
         await asyncio.to_thread(
             lambda: supabase.table('help_documents')
-                .update({'updated_at': datetime.utcnow().isoformat()})
+                .update({'updated_at': datetime.now(timezone.utc).isoformat()})
                 .eq('id', document_id)
                 .execute()
         )
@@ -1099,7 +1099,7 @@ async def update_help_document(
                     'title': new_title.strip(),
                     'content': new_content,
                     'word_count': word_count,
-                    'updated_at': datetime.utcnow().isoformat()
+                    'updated_at': datetime.now(timezone.utc).isoformat()
                 })
                 .eq('id', document_id)
                 .execute()
@@ -1240,7 +1240,7 @@ async def get_help_analytics(
     sources returned with each response. Lower similarity = lower confidence.
     """
     try:
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
         # Get all help messages (both user questions and assistant responses)
@@ -1370,7 +1370,7 @@ async def export_help_conversations(
     Returns conversations with their full message history.
     """
     try:
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
         # Get all help conversations in the period
@@ -1470,7 +1470,7 @@ async def get_keyword_trends(
 
     try:
         # Calculate date range
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
         # Get all user messages in range

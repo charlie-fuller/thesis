@@ -264,8 +264,8 @@ async def delete_avatar(
                     await asyncio.to_thread(
                         lambda p=storage_path: supabase.storage.from_('avatars').remove([p])
                     )
-            except:
-                pass  # Ignore storage errors
+            except Exception as e:
+                logger.debug(f"Could not remove avatar from storage: {e}")
 
         # Clear avatar_url in database
         await asyncio.to_thread(

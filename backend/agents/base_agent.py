@@ -2,16 +2,28 @@
 Base Agent class for Thesis multi-agent system.
 
 All agents inherit from this class and implement their specialized behaviors.
+
+INSTRUCTION LOADING HIERARCHY:
+1. XML files in backend/system_instructions/agents/ (source of truth for editing)
+2. agent_instruction_versions table (source of truth for runtime, enables versioning)
+3. Python _get_default_instruction() (fallback if no XML and no DB entry)
+
+When instructions are updated:
+- Edit the XML file or use the admin UI
+- Admin UI saves to DB and optionally syncs to XML
+- Running agents load from the active version in agent_instruction_versions
 """
 
 import logging
 from abc import ABC, abstractmethod
 from typing import AsyncGenerator, Optional
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 import anthropic
 from supabase import Client
+
+from services.instruction_loader import load_instruction_from_file, instruction_file_exists
 
 logger = logging.getLogger(__name__)
 
@@ -99,35 +111,46 @@ class BaseAgent(ABC):
 
     async def _load_active_instruction(self) -> bool:
         """
-        Load the active instruction version from agent_instruction_versions table.
-        This is the SINGLE SOURCE OF TRUTH for agent instructions.
-        Falls back to Python default if no valid instruction in DB.
-        Returns True if DB instruction was loaded.
+        Load the active instruction for this agent.
+
+        Priority order:
+        1. Active version from agent_instruction_versions table (for runtime, with versioning)
+        2. XML file from backend/system_instructions/agents/ (source of truth for editing)
+        3. Python _get_default_instruction() method (fallback)
+
+        Returns True if instruction was loaded from DB or XML.
         """
-        if not self._agent_id:
-            return False
+        # First, try to load from DB (active version)
+        if self._agent_id:
+            try:
+                version_result = self.supabase.table("agent_instruction_versions")\
+                    .select("instructions")\
+                    .eq("agent_id", self._agent_id)\
+                    .eq("is_active", True)\
+                    .limit(1)\
+                    .execute()
 
-        try:
-            version_result = self.supabase.table("agent_instruction_versions")\
-                .select("instructions")\
-                .eq("agent_id", self._agent_id)\
-                .eq("is_active", True)\
-                .limit(1)\
-                .execute()
+                if version_result.data and version_result.data[0].get("instructions"):
+                    instruction = version_result.data[0]["instructions"]
+                    # Only use if it's real content, not a placeholder
+                    if not instruction.startswith("--") and len(instruction) > 100:
+                        self._system_instruction = instruction
+                        logger.info(f"Loaded active instruction for {self.name} from DB ({len(instruction)} chars)")
+                        return True
+            except Exception as e:
+                logger.error(f"Failed to load instruction from DB for {self.name}: {e}")
 
-            if version_result.data and version_result.data[0].get("instructions"):
-                instruction = version_result.data[0]["instructions"]
-                # Only use if it's real content, not a placeholder
-                if not instruction.startswith("--") and len(instruction) > 100:
-                    self._system_instruction = instruction
-                    logger.info(f"Loaded active instruction for {self.name} from DB")
-                    return True
+        # Second, try to load from XML file
+        if instruction_file_exists(self.name):
+            xml_instruction = load_instruction_from_file(self.name)
+            if xml_instruction and len(xml_instruction) > 100:
+                self._system_instruction = xml_instruction
+                logger.info(f"Loaded instruction for {self.name} from XML file ({len(xml_instruction)} chars)")
+                return True
 
-            logger.info(f"No active instruction in DB for {self.name}, using Python default")
-            return False
-        except Exception as e:
-            logger.error(f"Failed to load active instruction for {self.name}: {e}")
-            return False
+        # Fall back to Python default
+        logger.info(f"No DB/XML instruction for {self.name}, using Python default")
+        return False
 
     @property
     def system_instruction(self) -> str:
@@ -230,7 +253,7 @@ class BaseAgent(ABC):
             if self._agent_id:
                 self.supabase.table("conversations").update({
                     "agent_id": self._agent_id,
-                    "updated_at": datetime.utcnow().isoformat()
+                    "updated_at": datetime.now(timezone.utc).isoformat()
                 }).eq("id", context.conversation_id).execute()
         except Exception as e:
             logger.error(f"Failed to log interaction for {self.name}: {e}")

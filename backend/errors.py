@@ -4,11 +4,14 @@ Standardized error handling for the API
 Provides consistent error response format and custom exception classes.
 """
 
+import logging
 from typing import Any, Dict, Optional
 
 from fastapi import HTTPException
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
+
+logger = logging.getLogger(__name__)
 
 
 class APIError(HTTPException):
@@ -229,9 +232,7 @@ async def generic_error_handler(request: Request, exc: Exception) -> JSONRespons
         JSON response with generic server error
     """
     # Log the full error for debugging
-    import traceback
-    print(f"Unexpected error: {str(exc)}")
-    print(traceback.format_exc())
+    logger.exception(f"Unexpected error: {str(exc)}")
 
     return JSONResponse(
         status_code=500,

@@ -8,7 +8,7 @@ import asyncio
 import difflib
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import anthropic
@@ -193,7 +193,7 @@ async def upload_system_instructions(
             'created_by': current_user['id'],
             'metadata': {
                 'original_filename': file.filename,
-                'uploaded_at': datetime.utcnow().isoformat()
+                'uploaded_at': datetime.now(timezone.utc).isoformat()
             }
         }
 
@@ -418,7 +418,7 @@ async def activate_version(
                 .update({
                     'is_active': True,
                     'activated_by': current_user['id'],
-                    'activated_at': datetime.utcnow().isoformat()
+                    'activated_at': datetime.now(timezone.utc).isoformat()
                 })
                 .eq('id', version_id)
                 .execute()

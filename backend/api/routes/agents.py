@@ -10,7 +10,7 @@ Provides full CRUD and management for Thesis agents:
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -19,6 +19,13 @@ from pydantic import BaseModel, Field
 
 from database import get_supabase
 from supabase import Client
+from services.instruction_loader import (
+    load_instruction_from_file,
+    save_instruction_to_file,
+    instruction_file_exists,
+    list_available_instruction_files,
+    get_instruction_file_mtime
+)
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +284,7 @@ async def update_agent(
     """Update agent metadata (not instructions - use instruction versioning for that)."""
     try:
         update_data = {k: v for k, v in updates.model_dump().items() if v is not None}
-        update_data["updated_at"] = datetime.utcnow().isoformat()
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         result = supabase.table("agents")\
             .update(update_data)\
@@ -343,7 +350,7 @@ async def create_instruction_version(
             try:
                 major, minor = last_version.split(".")
                 new_version = f"{major}.{int(minor) + 1}"
-            except:
+            except (ValueError, IndexError):
                 new_version = "1.1"
         else:
             new_version = "1.0"
@@ -388,7 +395,7 @@ async def activate_instruction_version(
         result = supabase.table("agent_instruction_versions")\
             .update({
                 "is_active": True,
-                "activated_at": datetime.utcnow().isoformat()
+                "activated_at": datetime.now(timezone.utc).isoformat()
             })\
             .eq("id", version_id)\
             .execute()
@@ -400,7 +407,7 @@ async def activate_instruction_version(
         # The agent_instruction_versions table is the single source of truth
         supabase.table("agents")\
             .update({
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.now(timezone.utc).isoformat()
             })\
             .eq("id", agent_id)\
             .execute()
@@ -807,7 +814,7 @@ async def update_document_link(
     """Update a KB document link (notes, priority)."""
     try:
         update_data = {k: v for k, v in updates.model_dump().items() if v is not None}
-        update_data["updated_at"] = datetime.utcnow().isoformat()
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         result = supabase.table("agent_knowledge_base")\
             .update(update_data)\
@@ -886,8 +893,332 @@ async def get_available_documents(
 
 
 # ============================================================================
+# XML Instruction Sync Routes
+# ============================================================================
+
+@router.get("/{agent_id}/xml-instructions")
+async def get_xml_instructions(
+    agent_id: str,
+    supabase: Client = Depends(get_supabase)
+):
+    """
+    Get the XML instruction file content for an agent.
+
+    Returns the content of the XML file in backend/system_instructions/agents/{name}.xml
+    """
+    try:
+        # Get agent name
+        agent_result = supabase.table("agents")\
+            .select("name, display_name")\
+            .eq("id", agent_id)\
+            .execute()
+
+        if not agent_result.data:
+            raise HTTPException(status_code=404, detail="Agent not found")
+
+        agent_name = agent_result.data[0]["name"]
+        display_name = agent_result.data[0]["display_name"]
+
+        # Check if XML file exists
+        if not instruction_file_exists(agent_name):
+            return {
+                "success": False,
+                "has_xml": False,
+                "agent_name": agent_name,
+                "display_name": display_name,
+                "message": f"No XML file found for agent '{agent_name}'"
+            }
+
+        # Load XML content
+        xml_content = load_instruction_from_file(agent_name)
+        file_mtime = get_instruction_file_mtime(agent_name)
+
+        return {
+            "success": True,
+            "has_xml": True,
+            "agent_name": agent_name,
+            "display_name": display_name,
+            "xml_instructions": xml_content,
+            "character_count": len(xml_content) if xml_content else 0,
+            "word_count": len(xml_content.split()) if xml_content else 0,
+            "file_modified_at": file_mtime.isoformat() if file_mtime else None
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get XML instructions for agent {agent_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{agent_id}/sync-from-xml")
+async def sync_instructions_from_xml(
+    agent_id: str,
+    description: Optional[str] = None,
+    user_id: Optional[str] = None,
+    supabase: Client = Depends(get_supabase)
+):
+    """
+    Sync instructions from XML file to database.
+
+    This creates a new version in agent_instruction_versions from the current XML file
+    and activates it. Use this when you've edited the XML file and want to apply changes.
+    """
+    try:
+        # Get agent info
+        agent_result = supabase.table("agents")\
+            .select("name, display_name")\
+            .eq("id", agent_id)\
+            .execute()
+
+        if not agent_result.data:
+            raise HTTPException(status_code=404, detail="Agent not found")
+
+        agent_name = agent_result.data[0]["name"]
+
+        # Check if XML file exists
+        if not instruction_file_exists(agent_name):
+            raise HTTPException(
+                status_code=404,
+                detail=f"No XML file found for agent '{agent_name}'"
+            )
+
+        # Load XML content
+        xml_content = load_instruction_from_file(agent_name)
+        if not xml_content or len(xml_content) < 100:
+            raise HTTPException(
+                status_code=400,
+                detail="XML file is empty or too short"
+            )
+
+        # Get current version count to generate version number
+        existing = supabase.table("agent_instruction_versions")\
+            .select("version_number")\
+            .eq("agent_id", agent_id)\
+            .order("created_at", desc=True)\
+            .limit(1)\
+            .execute()
+
+        if existing.data:
+            last_version = existing.data[0]["version_number"]
+            try:
+                major, minor = last_version.split(".")
+                new_version = f"{major}.{int(minor) + 1}"
+            except (ValueError, IndexError):
+                new_version = "1.1"
+        else:
+            new_version = "1.0"
+
+        # Deactivate all existing versions
+        supabase.table("agent_instruction_versions")\
+            .update({"is_active": False})\
+            .eq("agent_id", agent_id)\
+            .execute()
+
+        # Create new version from XML
+        version_result = supabase.table("agent_instruction_versions").insert({
+            "agent_id": agent_id,
+            "version_number": new_version,
+            "instructions": xml_content,
+            "description": description or f"Synced from XML file",
+            "is_active": True,
+            "activated_at": datetime.now(timezone.utc).isoformat(),
+            "created_by": user_id,
+        }).execute()
+
+        # Update agent timestamp
+        supabase.table("agents")\
+            .update({"updated_at": datetime.now(timezone.utc).isoformat()})\
+            .eq("id", agent_id)\
+            .execute()
+
+        file_mtime = get_instruction_file_mtime(agent_name)
+
+        return {
+            "success": True,
+            "message": f"Synced XML to database as version {new_version}",
+            "version": version_result.data[0],
+            "character_count": len(xml_content),
+            "file_modified_at": file_mtime.isoformat() if file_mtime else None
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to sync XML for agent {agent_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{agent_id}/sync-to-xml")
+async def sync_instructions_to_xml(
+    agent_id: str,
+    supabase: Client = Depends(get_supabase)
+):
+    """
+    Sync active database instructions to XML file.
+
+    This saves the current active version to the XML file.
+    Use this to update the XML file after editing via the admin UI.
+    """
+    try:
+        # Get agent info
+        agent_result = supabase.table("agents")\
+            .select("name, display_name")\
+            .eq("id", agent_id)\
+            .execute()
+
+        if not agent_result.data:
+            raise HTTPException(status_code=404, detail="Agent not found")
+
+        agent_name = agent_result.data[0]["name"]
+
+        # Get active version
+        version_result = supabase.table("agent_instruction_versions")\
+            .select("*")\
+            .eq("agent_id", agent_id)\
+            .eq("is_active", True)\
+            .limit(1)\
+            .execute()
+
+        if not version_result.data:
+            raise HTTPException(
+                status_code=404,
+                detail="No active instruction version found"
+            )
+
+        instructions = version_result.data[0]["instructions"]
+        version_number = version_result.data[0]["version_number"]
+
+        # Save to XML file
+        success = save_instruction_to_file(agent_name, instructions)
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to write to XML file"
+            )
+
+        file_mtime = get_instruction_file_mtime(agent_name)
+
+        return {
+            "success": True,
+            "message": f"Saved version {version_number} to XML file",
+            "agent_name": agent_name,
+            "version_number": version_number,
+            "character_count": len(instructions),
+            "file_modified_at": file_mtime.isoformat() if file_mtime else None
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to sync to XML for agent {agent_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/xml-files")
+async def list_xml_instruction_files():
+    """
+    List all available XML instruction files.
+
+    Returns information about each XML file in backend/system_instructions/agents/
+    """
+    try:
+        files = list_available_instruction_files()
+        return {
+            "success": True,
+            "files": files,
+            "count": len(files)
+        }
+    except Exception as e:
+        logger.error(f"Failed to list XML files: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
 # Agent Stats Routes
 # ============================================================================
+
+@router.get("/{agent_id}/default-instructions")
+async def get_agent_default_instructions(
+    agent_id: str,
+    supabase: Client = Depends(get_supabase)
+):
+    """
+    Get the Python default instructions for an agent.
+
+    This returns the hardcoded default instructions from the agent's Python class.
+    Useful when the database has placeholder text or empty instructions.
+    """
+    try:
+        # Get the agent name
+        agent_result = supabase.table("agents")\
+            .select("name, display_name")\
+            .eq("id", agent_id)\
+            .execute()
+
+        if not agent_result.data:
+            raise HTTPException(status_code=404, detail="Agent not found")
+
+        agent_name = agent_result.data[0]["name"]
+        display_name = agent_result.data[0]["display_name"]
+
+        # Import and instantiate the agent to get default instructions
+        from agents import (
+            AtlasAgent, FortunaAgent, GuardianAgent, CounselorAgent, OracleAgent,
+            SageAgent, StrategistAgent, ArchitectAgent, OperatorAgent, PioneerAgent,
+            CatalystAgent, ScholarAgent, NexusAgent, CoordinatorAgent
+        )
+        import anthropic
+        import os
+
+        # Create a minimal anthropic client (we won't use it, just need it for instantiation)
+        anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", "dummy"))
+
+        agent_classes = {
+            "atlas": AtlasAgent,
+            "fortuna": FortunaAgent,
+            "guardian": GuardianAgent,
+            "counselor": CounselorAgent,
+            "oracle": OracleAgent,
+            "sage": SageAgent,
+            "strategist": StrategistAgent,
+            "architect": ArchitectAgent,
+            "operator": OperatorAgent,
+            "pioneer": PioneerAgent,
+            "catalyst": CatalystAgent,
+            "scholar": ScholarAgent,
+            "nexus": NexusAgent,
+            "coordinator": CoordinatorAgent,
+        }
+
+        agent_class = agent_classes.get(agent_name.lower())
+        if not agent_class:
+            return {
+                "success": False,
+                "has_default": False,
+                "message": f"No Python class found for agent '{agent_name}'"
+            }
+
+        # Instantiate the agent to get default instructions
+        agent_instance = agent_class(supabase, anthropic_client)
+        default_instructions = agent_instance._get_default_instruction()
+
+        return {
+            "success": True,
+            "has_default": bool(default_instructions),
+            "agent_name": agent_name,
+            "display_name": display_name,
+            "default_instructions": default_instructions,
+            "character_count": len(default_instructions) if default_instructions else 0,
+            "word_count": len(default_instructions.split()) if default_instructions else 0
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get default instructions for agent {agent_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/{agent_id}/stats")
 async def get_agent_stats(

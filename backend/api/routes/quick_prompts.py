@@ -38,7 +38,7 @@ supabase = get_supabase()
 
 class GeneratePromptsRequest(BaseModel):
     """Request body for generating quick prompts"""
-    selected_functions: List[str] = Field(..., min_items=5, max_items=5, description="5 function names from Solomon Stage 2")
+    selected_functions: List[str] = Field(..., min_length=5, max_length=5, description="5 function names from Solomon Stage 2")
     extraction_json: Optional[dict] = Field(None, description="Optional extraction data for context-aware prompts")
 
 

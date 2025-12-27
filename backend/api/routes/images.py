@@ -25,7 +25,7 @@ class ImageGenerationRequest(BaseModel):
 
 class BatchImageGenerationRequest(BaseModel):
     """Request model for batch image generation."""
-    prompts: List[str] = Field(..., min_items=1, max_items=5, description="List of text prompts (max 5)")
+    prompts: List[str] = Field(..., min_length=1, max_length=5, description="List of text prompts (max 5)")
     model: Optional[str] = Field(None, description="Optional model override")
 
 

@@ -6,7 +6,7 @@ FastAPI exception handlers for consistent error handling across the application.
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from fastapi import HTTPException, Request, status
@@ -206,7 +206,7 @@ def create_error_response(
         "error": {
             "type": error.__class__.__name__,
             "message": str(error),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     }
 
@@ -330,7 +330,7 @@ async def http_exception_handler(
                 "type": "HTTPException",
                 "message": exc.detail,
                 "status_code": exc.status_code,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         },
         headers=get_cors_headers(request)
@@ -366,7 +366,7 @@ async def generic_exception_handler(
             "error": {
                 "type": "InternalServerError",
                 "message": "An unexpected error occurred. Please try again later.",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         },
         headers=get_cors_headers(request)

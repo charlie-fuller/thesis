@@ -3,7 +3,7 @@ Conversation management routes
 Handles creation, retrieval, updating, and deletion of conversations
 """
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -208,7 +208,7 @@ async def update_conversation_phase(
             lambda: supabase.table('conversations')\
                 .update({
                     'addie_phase': request.addie_phase,
-                    'phase_updated_at': datetime.utcnow().isoformat()
+                    'phase_updated_at': datetime.now(timezone.utc).isoformat()
                 })\
                 .eq('id', conversation_id)\
                 .execute()

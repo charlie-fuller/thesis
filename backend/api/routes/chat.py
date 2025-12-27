@@ -499,11 +499,11 @@ Instructions:
 
             # Update conversation ADDIE phase
             try:
-                from datetime import datetime
+                from datetime import datetime, timezone
                 supabase.table('conversations')\
                     .update({
                         'addie_phase': addie_phase,
-                        'phase_updated_at': datetime.utcnow().isoformat()
+                        'phase_updated_at': datetime.now(timezone.utc).isoformat()
                     })\
                     .eq('id', chat_request.conversation_id)\
                     .execute()
@@ -1386,12 +1386,12 @@ Instructions:
 
                 # Update conversation ADDIE phase
                 try:
-                    from datetime import datetime
+                    from datetime import datetime, timezone
                     await asyncio.to_thread(
                         lambda: supabase.table('conversations')\
                             .update({
                                 'addie_phase': addie_phase,
-                                'phase_updated_at': datetime.utcnow().isoformat()
+                                'phase_updated_at': datetime.now(timezone.utc).isoformat()
                             })\
                             .eq('id', chat_request.conversation_id)\
                             .execute()
@@ -1451,12 +1451,191 @@ Instructions:
 # ============================================================================
 
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import Optional
 
 
 class PhaseGuidanceRequest(BaseModel):
     conversation_id: str
     include_prompts: bool = True
+
+
+class DigDeeperRequest(BaseModel):
+    """Request to elaborate on a previous assistant response."""
+    conversation_id: str
+    message_id: str  # The assistant message ID to dig deeper on
+    original_content: str  # The content of the original message
+    custom_prompt: Optional[str] = Field(None, max_length=500)  # Optional specific request
+
+
+# ============================================================================
+# Dig Deeper Endpoint
+# ============================================================================
+
+
+@router.post("/dig-deeper")
+@limiter.limit("15/minute")
+async def dig_deeper(
+    request: Request,
+    dig_request: DigDeeperRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Dig deeper into a previous assistant response.
+
+    Takes an existing assistant message and asks for more detail, examples,
+    or elaboration. Streams the extended response.
+
+    Use cases:
+    - Email drafts that need more detail
+    - Meeting summaries that need expansion
+    - Reports that need deeper analysis
+    - Any assistant output that could benefit from elaboration
+    """
+    logger.info(
+        "Dig deeper request received",
+        extra={
+            "user_id": current_user['id'],
+            "conversation_id": dig_request.conversation_id,
+            "message_id": dig_request.message_id
+        }
+    )
+
+    async def generate_stream():
+        """Generator function for SSE stream"""
+        try:
+            # Build the dig deeper prompt
+            if dig_request.custom_prompt:
+                dig_deeper_prompt = f"""The user wants you to elaborate on your previous response with this specific request:
+
+"{dig_request.custom_prompt}"
+
+Your previous response was:
+---
+{dig_request.original_content}
+---
+
+Please provide more detail as requested. Maintain the same format and tone as your original response."""
+            else:
+                dig_deeper_prompt = f"""The user clicked "Dig Deeper" on your previous response, requesting more detail and depth.
+
+Your previous response was:
+---
+{dig_request.original_content}
+---
+
+Please elaborate with:
+- **More specific examples** or case studies if applicable
+- **Deeper analysis** of the key points you mentioned
+- **Practical next steps** or implementation considerations
+- **Potential challenges** or considerations you didn't cover
+
+Maintain the same format and style as your original response, but provide more comprehensive detail."""
+
+            # Load system instructions
+            try:
+                system_prompt = get_system_instructions_for_user(
+                    user_id=current_user['id'],
+                    user_data=current_user
+                )
+            except FileNotFoundError as e:
+                logger.warning(f"Could not load system instructions: {e}")
+                user_name = current_user.get('name', 'User')
+                system_prompt = (
+                    f"You are Thesis, a helpful AI assistant for {user_name}. "
+                    "Provide clear, accurate, and professional assistance."
+                )
+
+            # Get conversation history for context
+            conversation_messages = []
+            if dig_request.conversation_id:
+                history_result = supabase.table('messages')\
+                    .select('role,content')\
+                    .eq('conversation_id', dig_request.conversation_id)\
+                    .order('created_at', desc=False)\
+                    .execute()
+
+                if history_result.data:
+                    for msg in history_result.data:
+                        if msg['role'] in ['user', 'assistant'] and msg.get('content'):
+                            conversation_messages.append({
+                                "role": msg['role'],
+                                "content": msg['content']
+                            })
+
+            # Add the dig deeper request as a user message
+            conversation_messages.append({"role": "user", "content": dig_deeper_prompt})
+
+            # Stream the response
+            full_response = ""
+            input_tokens = 0
+            output_tokens = 0
+
+            with anthropic_client.messages.stream(
+                model="claude-sonnet-4-5-20250929",
+                max_tokens=4096,  # Higher limit for dig deeper responses
+                temperature=0.3,
+                system=[
+                    {
+                        "type": "text",
+                        "text": system_prompt,
+                        "cache_control": {"type": "ephemeral"}
+                    }
+                ],
+                messages=conversation_messages
+            ) as stream:
+                for text in stream.text_stream:
+                    full_response += text
+                    yield f"data: {json.dumps({'type': 'token', 'content': text})}\n\n"
+
+                final_message = stream.get_final_message()
+                input_tokens = final_message.usage.input_tokens
+                output_tokens = final_message.usage.output_tokens
+
+            # Save the dig deeper exchange to the conversation
+            if dig_request.conversation_id:
+                # Save as a special "dig deeper" exchange
+                messages_to_insert = [
+                    {
+                        'conversation_id': dig_request.conversation_id,
+                        'role': 'user',
+                        'content': dig_request.custom_prompt or '[Dig Deeper]',
+                        'metadata': {
+                            'dig_deeper': True,
+                            'original_message_id': dig_request.message_id
+                        }
+                    },
+                    {
+                        'conversation_id': dig_request.conversation_id,
+                        'role': 'assistant',
+                        'content': full_response,
+                        'metadata': {
+                            'dig_deeper_response': True,
+                            'original_message_id': dig_request.message_id
+                        }
+                    }
+                ]
+                await asyncio.to_thread(
+                    lambda: supabase.table('messages').insert(messages_to_insert).execute()
+                )
+                logger.info("Dig deeper messages saved to conversation")
+
+            # Send completion
+            yield f"data: {json.dumps({'type': 'done', 'tokens': {'input': input_tokens, 'output': output_tokens, 'total': input_tokens + output_tokens}})}\n\n"
+
+        except Exception as e:
+            logger.exception("Error processing dig deeper request", exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 
 @router.post("/phase-guidance")

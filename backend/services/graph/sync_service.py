@@ -6,7 +6,7 @@ Handles stakeholders, meetings, insights, documents, and relationships.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Any
 from uuid import uuid4
 
@@ -48,7 +48,7 @@ class GraphSyncService:
             Dict with sync statistics
         """
         logger.info(f"Starting full sync for client {client_id}")
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         results = {
             "client_id": client_id,
@@ -90,8 +90,8 @@ class GraphSyncService:
             logger.error(f"Full sync failed for client {client_id}: {e}")
             results["error"] = str(e)
 
-        results["completed_at"] = datetime.utcnow().isoformat()
-        results["duration_seconds"] = (datetime.utcnow() - start_time).total_seconds()
+        results["completed_at"] = datetime.now(timezone.utc).isoformat()
+        results["duration_seconds"] = (datetime.now(timezone.utc) - start_time).total_seconds()
 
         return results
 
@@ -215,7 +215,7 @@ class GraphSyncService:
                             # Parse and format to YYYY-MM-DD
                             meeting_date = meeting_date.split("T")[0]
                     else:
-                        meeting_date = datetime.utcnow().strftime("%Y-%m-%d")
+                        meeting_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
                     # Upsert meeting node
                     await self.neo4j.execute_write(
@@ -661,7 +661,7 @@ class GraphSyncService:
                         "to_agent_id": handoff.get("to_agent_id"),
                         "conversation_id": handoff.get("conversation_id"),
                         "reason": handoff.get("reason", ""),
-                        "timestamp": handoff.get("created_at", datetime.utcnow().isoformat()),
+                        "timestamp": handoff.get("created_at", datetime.now(timezone.utc).isoformat()),
                     })
                     result["synced"] += 1
                 except Exception as e:
@@ -687,7 +687,7 @@ class GraphSyncService:
                 "client_id": client_id,
                 "sync_type": sync_type,
                 "entity_type": "full",
-                "synced_at": datetime.utcnow().isoformat(),
+                "synced_at": datetime.now(timezone.utc).isoformat(),
                 "sync_status": "completed" if not results.get("error") else "failed",
                 "details": results,
             }).execute()
