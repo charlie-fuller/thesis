@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { apiGet } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { AgentIcon, getAgentColor } from '@/components/AgentIcon';
 
 interface Agent {
   id: string;
@@ -41,27 +42,6 @@ export default function AgentsPage() {
     }
   };
 
-  const getAgentIcon = (name: string) => {
-    const icons: Record<string, string> = {
-      atlas: '\u{1F30D}',      // Globe for Research
-      fortuna: '\u{1F4B0}',    // Money bag for Finance
-      guardian: '\u{1F6E1}',   // Shield for IT/Governance
-      counselor: '\u{2696}',   // Scales for Legal
-      oracle: '\u{1F52E}',     // Crystal ball for Transcripts
-    };
-    return icons[name] || '\u{1F916}';
-  };
-
-  const getAgentColor = (name: string) => {
-    const colors: Record<string, string> = {
-      atlas: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      fortuna: 'bg-green-500/20 text-green-400 border-green-500/30',
-      guardian: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-      counselor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-      oracle: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-    };
-    return colors[name] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-  };
 
   if (loading) {
     return (
@@ -106,8 +86,8 @@ export default function AgentsPage() {
           >
             {/* Agent Header */}
             <div className="flex items-start gap-4 mb-4">
-              <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl border ${getAgentColor(agent.name)}`}>
-                {getAgentIcon(agent.name)}
+              <div className={`w-12 h-12 rounded-lg flex items-center justify-center border ${getAgentColor(agent.name)}`}>
+                <AgentIcon name={agent.name} size="lg" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-primary group-hover:text-blue-400 transition-colors">

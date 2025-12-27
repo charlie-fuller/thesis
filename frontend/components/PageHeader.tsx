@@ -33,7 +33,6 @@ export default function PageHeader({
         { href: '/admin/agents', label: 'Agents' },
         { href: '/admin/documents', label: 'Documents' },
         { href: '/admin/conversations', label: 'Conversations' },
-        { href: '/admin/system-instructions', label: 'System Instructions' },
       ]
     : [
         { href: '/chat', label: 'Chat' },
