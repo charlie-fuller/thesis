@@ -12,12 +12,23 @@ import anthropic
 from supabase import Client
 
 from .coordinator import CoordinatorAgent
+# Stakeholder Perspective Agents
 from .atlas import AtlasAgent
 from .fortuna import FortunaAgent
 from .guardian import GuardianAgent
 from .counselor import CounselorAgent
 from .oracle import OracleAgent
 from .sage import SageAgent
+# Consulting/Implementation Agents
+from .strategist import StrategistAgent
+from .architect import ArchitectAgent
+from .operator import OperatorAgent
+from .pioneer import PioneerAgent
+# Internal Enablement Agents
+from .catalyst import CatalystAgent
+from .scholar import ScholarAgent
+# Systems Thinking Agent
+from .nexus import NexusAgent
 
 logger = logging.getLogger(__name__)
 
@@ -48,14 +59,25 @@ async def create_coordinator(
     await coordinator.initialize()
 
     if register_specialists:
-        # Create and register specialist agents
+        # Create and register all specialist agents
         specialists = {
+            # Stakeholder Perspective Agents
             "atlas": AtlasAgent(supabase, anthropic_client),
             "fortuna": FortunaAgent(supabase, anthropic_client),
             "guardian": GuardianAgent(supabase, anthropic_client),
             "counselor": CounselorAgent(supabase, anthropic_client),
             "oracle": OracleAgent(supabase, anthropic_client),
             "sage": SageAgent(supabase, anthropic_client),
+            # Consulting/Implementation Agents
+            "strategist": StrategistAgent(supabase, anthropic_client),
+            "architect": ArchitectAgent(supabase, anthropic_client),
+            "operator": OperatorAgent(supabase, anthropic_client),
+            "pioneer": PioneerAgent(supabase, anthropic_client),
+            # Internal Enablement Agents
+            "catalyst": CatalystAgent(supabase, anthropic_client),
+            "scholar": ScholarAgent(supabase, anthropic_client),
+            # Systems Thinking Agent
+            "nexus": NexusAgent(supabase, anthropic_client),
         }
 
         # Initialize all specialists
@@ -79,7 +101,7 @@ async def create_specialist(
     Create a single specialist agent by name.
 
     Args:
-        name: Name of the specialist (atlas, fortuna, guardian, counselor, oracle, sage)
+        name: Name of the specialist (all 12 agents supported)
         supabase: Supabase client
         anthropic_client: Anthropic client
 
@@ -87,12 +109,23 @@ async def create_specialist(
         The specialist agent, or None if name is invalid
     """
     agent_classes = {
+        # Stakeholder Perspective Agents
         "atlas": AtlasAgent,
         "fortuna": FortunaAgent,
         "guardian": GuardianAgent,
         "counselor": CounselorAgent,
         "oracle": OracleAgent,
         "sage": SageAgent,
+        # Consulting/Implementation Agents
+        "strategist": StrategistAgent,
+        "architect": ArchitectAgent,
+        "operator": OperatorAgent,
+        "pioneer": PioneerAgent,
+        # Internal Enablement Agents
+        "catalyst": CatalystAgent,
+        "scholar": ScholarAgent,
+        # Systems Thinking Agent
+        "nexus": NexusAgent,
     }
 
     agent_class = agent_classes.get(name.lower())

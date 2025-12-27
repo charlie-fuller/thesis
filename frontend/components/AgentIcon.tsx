@@ -11,6 +11,7 @@ import {
   Rocket,
   Megaphone,
   GraduationCap,
+  Network,
   Bot,
 } from 'lucide-react';
 
@@ -27,6 +28,7 @@ const AGENT_ICONS: Record<string, React.ElementType> = {
   pioneer: Rocket,        // Innovation/R&D
   catalyst: Megaphone,    // Internal Communications
   scholar: GraduationCap, // L&D
+  nexus: Network,         // Systems Thinking
 };
 
 interface AgentIconProps {
@@ -58,6 +60,7 @@ export const AGENT_COLORS: Record<string, string> = {
   pioneer: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
   catalyst: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   scholar: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
+  nexus: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
 };
 
 export function getAgentColor(name: string): string {
