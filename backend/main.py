@@ -76,6 +76,7 @@ allowed_origins = [normalize_origin(origin) for origin in FRONTEND_URL.split(","
 production_origins = [
     "https://thesis.vercel.app",
     "https://thesis-woad.vercel.app",
+    "https://thesis-mvp.vercel.app",
 ]
 for origin in production_origins:
     if origin not in allowed_origins:
