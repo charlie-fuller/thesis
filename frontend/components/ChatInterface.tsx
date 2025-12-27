@@ -4,19 +4,13 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import ChatMessage from './ChatMessage'
 import LoadingSpinner from './LoadingSpinner'
-import ImageSuggestionPrompt from './ImageSuggestionPrompt'
-import InlineChatImage from './InlineChatImage'
 import {
   authenticatedFetch,
   apiGet,
   apiPost,
-  generateConversationImage,
-  getConversationImages,
-  deleteConversationImage,
   getProjects,
   addConversationToProject,
   removeConversationFromProject,
-  type ConversationImage,
   type Project
 } from '@/lib/api'
 import toast from 'react-hot-toast'
@@ -35,16 +29,7 @@ interface Message {
   role: 'user' | 'assistant'
   timestamp: string
   documents?: Document[]
-  imageLoading?: boolean  // True while image is being generated
-  imageId?: string         // ID of the generated image
-  metadata?: {
-    image_suggestion?: {
-      suggested_prompt: string
-      reason: string
-    }
-    has_image?: boolean
-    image_id?: string
-  }
+  metadata?: Record<string, unknown>
 }
 
 interface ChatInterfaceProps {
@@ -57,13 +42,6 @@ interface ChatInterfaceProps {
   onConversationCreated?: () => void
   initialProjectId?: string | null  // Auto-assign new conversations to this project
 }
-
-// Generate a cryptographically secure UUID v4
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for potential future use
-function _generateUUID(): string {
-  return crypto.randomUUID()
-}
-
 
 export default function ChatInterface({
   clientId,
@@ -93,15 +71,6 @@ export default function ChatInterface({
   const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- setStreamingEnabled kept for future toggle feature
   const [streamingEnabled, _setStreamingEnabled] = useState(true) // Enable streaming by default
-  const [conversationImages, setConversationImages] = useState<ConversationImage[]>([])
-  const [pendingImageSuggestion, setPendingImageSuggestion] = useState<{
-    messageId: string
-    suggestion: {
-      suggested_prompt: string
-      reason: string
-    }
-  } | null>(null)
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false)
   const [isSendingFirstMessage, setIsSendingFirstMessage] = useState(false) // Track when creating new conversation
 
   // Project assignment state
@@ -157,12 +126,9 @@ export default function ChatInterface({
     // (This prevents overwriting messages during streaming after creating a new conversation)
     if (conversationId && !isSendingFirstMessage) {
       loadConversation(conversationId)
-      loadConversationImages(conversationId)
     } else if (!conversationId) {
       // No conversation ID means start fresh (new chat)
       setMessages([])
-      setConversationImages([])
-      setPendingImageSuggestion(null)
       setError(null)
     }
   }, [conversationId, isSendingFirstMessage]) // Run when conversationId prop changes
@@ -254,87 +220,9 @@ export default function ChatInterface({
       }))
 
       setMessages(loadedMessages)
-
-      // Check for image suggestions in loaded messages
-      const messagesWithSuggestions = loadedMessages.filter(
-        msg => msg.metadata?.image_suggestion
-      )
-      if (messagesWithSuggestions.length > 0) {
-        const lastSuggestion = messagesWithSuggestions[messagesWithSuggestions.length - 1]
-        if (lastSuggestion.id && lastSuggestion.metadata?.image_suggestion) {
-          setPendingImageSuggestion({
-            messageId: lastSuggestion.id,
-            suggestion: lastSuggestion.metadata.image_suggestion
-          })
-        }
-      }
     } catch (err) {
       logger.error('Error loading conversation:', err)
       // Don't show error to user, just start with empty conversation
-    }
-  }
-
-  async function loadConversationImages(convId: string) {
-    try {
-      const response = await getConversationImages(convId)
-      setConversationImages(response.images)
-    } catch {
-      // Silently handle all errors - new conversations won't have images yet
-      // Setting empty array is enough, no need to log
-      setConversationImages([])
-    }
-  }
-
-  async function handleGenerateImage(prompt: string, aspectRatio: string, model: string) {
-    if (!currentConversationId) return
-
-    setIsGeneratingImage(true)
-    setPendingImageSuggestion(null)
-
-    try {
-      const response = await generateConversationImage({
-        conversation_id: currentConversationId,
-        message_id: pendingImageSuggestion?.messageId,
-        prompt,
-        aspect_ratio: aspectRatio,
-        model
-      })
-
-      // Add to conversation images
-      setConversationImages(prev => [response, ...prev])
-
-      logger.info('Image generated successfully')
-    } catch (error) {
-      logger.error('Failed to generate image:', error)
-      setError('Failed to generate image. Please try again.')
-    } finally {
-      setIsGeneratingImage(false)
-    }
-  }
-
-  function handleDeclineSuggestion() {
-    setPendingImageSuggestion(null)
-  }
-
-  function handleRegenerateImage(prompt: string) {
-    // Re-trigger the suggestion flow with the same prompt
-    setPendingImageSuggestion({
-      messageId: '',
-      suggestion: {
-        suggested_prompt: prompt,
-        reason: 'Regenerate with different settings'
-      }
-    })
-  }
-
-  async function handleDeleteImage(imageId: string) {
-    try {
-      await deleteConversationImage(imageId)
-      setConversationImages(prev => prev.filter(img => img.id !== imageId))
-      logger.info('Image deleted successfully')
-    } catch (error) {
-      logger.error('Failed to delete image:', error)
-      setError('Failed to delete image')
     }
   }
 
@@ -591,51 +479,6 @@ export default function ChatInterface({
                   }
                   return updated
                 })
-              } else if (data.type === 'image_generated') {
-                // Image was generated - add it directly to conversationImages for immediate display
-                const newImage: ConversationImage = {
-                  id: data.image_id,
-                  storage_url: data.storage_url,
-                  prompt: data.prompt || '',
-                  aspect_ratio: data.aspect_ratio || '16:9',
-                  model: data.model || 'fast',
-                  mime_type: data.mime_type || 'image/png',
-                  file_size: data.file_size || 0,
-                  generated_at: new Date().toISOString(),
-                  conversation_id: conversationIdToUse,
-                  message_id: undefined  // Orphaned image - will display at end
-                }
-
-                // Add to conversation images immediately (prepend so it appears first)
-                setConversationImages(prev => [newImage, ...prev])
-
-                // Update message to indicate it has an image
-                setMessages(prev => {
-                  const updated = [...prev]
-                  if (updated[messageIndex]) {
-                    updated[messageIndex] = {
-                      ...updated[messageIndex],
-                      content: fullResponse,
-                      imageLoading: false,
-                      imageId: data.image_id
-                    }
-                  }
-                  return updated
-                })
-
-                logger.info('Image added to conversation:', data.image_id)
-              } else if (data.type === 'image_suggestion') {
-                // Image suggestion received - show the aspect ratio/quality selector
-                logger.info('Image suggestion received:', data.suggestion)
-                if (data.suggestion?.message_id && data.suggestion?.suggested_prompt) {
-                  setPendingImageSuggestion({
-                    messageId: data.suggestion.message_id,
-                    suggestion: {
-                      suggested_prompt: data.suggestion.suggested_prompt,
-                      reason: data.suggestion.reason || 'This could be clearer with a visual'
-                    }
-                  })
-                }
               } else if (data.type === 'done') {
                 logger.debug('Stream complete:', data.tokens)
                 // Update total tokens used for context window tracking
@@ -679,70 +522,6 @@ export default function ChatInterface({
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for future export functionality
-  function _exportConversation(format: 'markdown' | 'txt') {
-    if (messages.length === 0) return
-
-    try {
-      const formatDate = (iso: string) => {
-        const date = new Date(iso)
-        return date.toLocaleString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        })
-      }
-
-      let content = ''
-
-      if (format === 'markdown') {
-        content = '# Conversation Export\n\n'
-        content += `**Exported:** ${formatDate(new Date().toISOString())}\n\n`
-        content += `**Messages:** ${messages.length}\n\n`
-        content += '---\n\n'
-
-        messages.forEach((msg) => {
-          const role = msg.role === 'user' ? 'You' : 'Assistant'
-          content += `### ${role}\n`
-          content += `*${formatDate(msg.timestamp)}*\n\n`
-          content += `${msg.content}\n\n`
-          content += '---\n\n'
-        })
-      } else {
-        content = 'CONVERSATION EXPORT\n'
-        content += '='.repeat(50) + '\n\n'
-        content += `Exported: ${formatDate(new Date().toISOString())}\n`
-        content += `Messages: ${messages.length}\n\n`
-        content += '='.repeat(50) + '\n\n'
-
-        messages.forEach((msg) => {
-          const role = msg.role === 'user' ? 'YOU' : 'ASSISTANT'
-          content += `${role}\n`
-          content += `${formatDate(msg.timestamp)}\n\n`
-          content += `${msg.content}\n\n`
-          content += '-'.repeat(50) + '\n\n'
-        })
-      }
-
-      // Create download
-      const blob = new Blob([content], { type: 'text/plain' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `conversation-${new Date().toISOString().split('T')[0]}.${format === 'markdown' ? 'md' : 'txt'}`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      logger.error('Export failed:', err)
-      setError(`Failed to export conversation. Please try again.`)
-    }
-  }
-
   // Search functionality
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -773,57 +552,6 @@ export default function ChatInterface({
       }, 100)
     }
   }, [searchQuery, messages])
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for future search navigation UI
-  function _navigateSearch(direction: 'next' | 'prev') {
-    if (searchResults.length === 0) return
-
-    let newIndex = currentSearchIndex
-    if (direction === 'next') {
-      newIndex = (currentSearchIndex + 1) % searchResults.length
-    } else {
-      newIndex = currentSearchIndex === 0 ? searchResults.length - 1 : currentSearchIndex - 1
-    }
-
-    setCurrentSearchIndex(newIndex)
-
-    // Scroll to result
-    const messageIndex = searchResults[newIndex]
-    searchResultRefs.current[messageIndex]?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center'
-    })
-  }
-
-  // Create a merged timeline of messages and orphaned images
-  type TimelineItem =
-    | { type: 'message'; data: Message; index: number }
-    | { type: 'image'; data: ConversationImage }
-
-  const timeline: TimelineItem[] = []
-
-  // Add all messages
-  messages.forEach((msg, index) => {
-    timeline.push({ type: 'message', data: msg, index })
-  })
-
-  // Add orphaned images (images without message_id)
-  conversationImages
-    .filter(img => !img.message_id)
-    .forEach(img => {
-      timeline.push({ type: 'image', data: img })
-    })
-
-  // Sort by timestamp
-  timeline.sort((a, b) => {
-    const timeA = a.type === 'message'
-      ? new Date(a.data.timestamp).getTime()
-      : new Date(a.data.generated_at).getTime()
-    const timeB = b.type === 'message'
-      ? new Date(b.data.timestamp).getTime()
-      : new Date(b.data.generated_at).getTime()
-    return timeA - timeB
-  })
 
   const currentProject = projects.find(p => p.id === currentProjectId)
 
@@ -910,98 +638,27 @@ export default function ChatInterface({
               </p>
             </div>
           ) : (
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            timeline.map((item, _timelineIndex) => {
-              if (item.type === 'message') {
-                const msg = item.data
-                const index = item.index
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for future search highlighting
-                const _isSearchResult = searchResults.includes(index)
-                const isCurrentSearchResult = searchResults[currentSearchIndex] === index
+            messages.map((msg, index) => {
+              const isCurrentSearchResult = searchResults[currentSearchIndex] === index
 
-                return (
-                  <div key={`msg-${index}`}>
-                    <div
-                      ref={(el) => { searchResultRefs.current[index] = el }}
-                      className={isCurrentSearchResult ? 'ring-2 ring-teal-500 rounded-lg' : ''}
-                    >
-                      <ChatMessage
-                        content={msg.content}
-                        role={msg.role}
-                        timestamp={msg.timestamp}
-                        documents={msg.documents}
-                        conversationId={currentConversationId || undefined}
-                        messageId={msg.id}
-                      />
-                    </div>
-
-                    {/* Show image suggestion if this message triggered it */}
-                    {msg.id && pendingImageSuggestion?.messageId === msg.id && (
-                      <ImageSuggestionPrompt
-                        suggestion={pendingImageSuggestion.suggestion}
-                        onAccept={handleGenerateImage}
-                        onDecline={handleDeclineSuggestion}
-                        isGenerating={isGeneratingImage}
-                      />
-                    )}
-
-                    {/* Show images associated with this message */}
-                    {msg.id && conversationImages
-                      .filter(img => img.message_id === msg.id)
-                      .map(image => (
-                        <InlineChatImage
-                          key={image.id}
-                          image={image}
-                          onRegenerate={handleRegenerateImage}
-                          onDelete={handleDeleteImage}
-                        />
-                      ))
-                    }
-
-                    {/* Show image loading placeholder */}
-                    {msg.imageLoading && (
-                      <div className="mb-4 flex justify-start">
-                        <div className="bg-hover rounded-lg px-6 py-4 max-w-[70%] border-2 border-teal-500/30 animate-pulse">
-                          <div className="flex items-center gap-3">
-                            <LoadingSpinner type="dots" />
-                            <span className="text-sm text-muted">Generating image...</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+              return (
+                <div key={`msg-${index}`}>
+                  <div
+                    ref={(el) => { searchResultRefs.current[index] = el }}
+                    className={isCurrentSearchResult ? 'ring-2 ring-teal-500 rounded-lg' : ''}
+                  >
+                    <ChatMessage
+                      content={msg.content}
+                      role={msg.role}
+                      timestamp={msg.timestamp}
+                      documents={msg.documents}
+                      conversationId={currentConversationId || undefined}
+                      messageId={msg.id}
+                    />
                   </div>
-                )
-              } else {
-                // Orphaned image
-                const image = item.data
-                return (
-                  <InlineChatImage
-                    key={`img-${image.id}`}
-                    image={image}
-                    onRegenerate={handleRegenerateImage}
-                    onDelete={handleDeleteImage}
-                  />
-                )
-              }
+                </div>
+              )
             })
-          )}
-
-          {/* Floating image suggestion prompt - shows when:
-              1. messageId is empty (for regeneration requests), OR
-              2. No message in the current list has a matching ID (e.g., after streaming when messages don't have DB IDs yet)
-          */}
-          {pendingImageSuggestion && (
-            pendingImageSuggestion.messageId === '' ||
-            !messages.some(msg => msg.id === pendingImageSuggestion.messageId)
-          ) && (
-            <div className="mb-4">
-              <ImageSuggestionPrompt
-                suggestion={pendingImageSuggestion.suggestion}
-                onAccept={handleGenerateImage}
-                onDecline={handleDeclineSuggestion}
-                isGenerating={isGeneratingImage}
-              />
-            </div>
           )}
 
           {/* Loading indicator */}
