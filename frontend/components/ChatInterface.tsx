@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import ChatMessage from './ChatMessage'
 import LoadingSpinner from './LoadingSpinner'
 import AgentSelector from './AgentSelector'
+import SaveToKBModal from './SaveToKBModal'
 import { AgentIcon, getAgentColor } from './AgentIcon'
 import {
   authenticatedFetch,
@@ -81,6 +82,14 @@ export default function ChatInterface({
   // Agent selection state
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]) // Empty = auto (coordinator)
   const [currentResponseAgent, setCurrentResponseAgent] = useState<{ name: string; displayName: string } | null>(null)
+
+  // Save to KB modal state
+  const [saveToKBModal, setSaveToKBModal] = useState<{
+    isOpen: boolean;
+    messageId: string;
+    content: string;
+  }>({ isOpen: false, messageId: '', content: '' })
+  const [isSavingToKB, setIsSavingToKB] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -606,6 +615,34 @@ export default function ChatInterface({
     }
   }
 
+  // Handle Save to KB button click
+  function handleSaveToKB(messageId: string, content: string) {
+    setSaveToKBModal({ isOpen: true, messageId, content })
+  }
+
+  // Handle actual save to KB
+  async function handleSaveToKBConfirm(title: string, agentIds: string[] | null) {
+    try {
+      setIsSavingToKB(true)
+
+      await apiPost('/api/documents/save-from-chat', {
+        title,
+        content: saveToKBModal.content,
+        message_id: saveToKBModal.messageId,
+        conversation_id: currentConversationId,
+        agent_ids: agentIds
+      })
+
+      toast.success('Saved to knowledge base')
+      setSaveToKBModal({ isOpen: false, messageId: '', content: '' })
+    } catch (err) {
+      logger.error('Save to KB error:', err)
+      toast.error('Failed to save to knowledge base')
+    } finally {
+      setIsSavingToKB(false)
+    }
+  }
+
   function handleKeyPress(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -682,6 +719,7 @@ export default function ChatInterface({
                       onDigDeeperSection={handleDigDeeperSection}
                       isDigDeeperLoading={digDeeperLoading === msg.id}
                       metadata={msg.metadata}
+                      onSaveToKB={handleSaveToKB}
                     />
                   </div>
                 </div>
@@ -831,6 +869,15 @@ export default function ChatInterface({
           </div>
         </div>
       </div>
+
+      {/* Save to KB Modal */}
+      <SaveToKBModal
+        isOpen={saveToKBModal.isOpen}
+        onClose={() => setSaveToKBModal({ isOpen: false, messageId: '', content: '' })}
+        onSave={handleSaveToKBConfirm}
+        defaultTitle=""
+        isSaving={isSavingToKB}
+      />
     </div>
   )
 }
