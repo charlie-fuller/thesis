@@ -276,6 +276,16 @@ export default function ChatInterface({
         // Update URL to include the conversation ID
         router.push(`/chat?id=${conversationIdToUse}`)
 
+        // Generate a title for the conversation in the background (don't await)
+        apiPost(`/api/conversations/${conversationIdToUse}/generate-title`, {
+          message: userMessage.content
+        }).then(() => {
+          // Refresh the sidebar to show the new title
+          onConversationCreated?.()
+        }).catch((err) => {
+          logger.warn('Failed to generate conversation title:', err)
+        })
+
         // Notify parent that a new conversation was created
         onConversationCreated?.()
       }

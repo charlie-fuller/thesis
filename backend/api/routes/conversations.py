@@ -271,6 +271,73 @@ async def delete_conversation(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/{conversation_id}/generate-title")
+async def generate_conversation_title(
+    conversation_id: str,
+    request: GenerateTitleRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Generate a concise title for a conversation based on the initial message.
+    Uses Claude to create a short, descriptive title (3-6 words).
+    """
+    try:
+        validate_uuid(conversation_id, "conversation_id")
+
+        # Generate title using Claude
+        response = await asyncio.to_thread(
+            lambda: anthropic_client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=50,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"""Generate a concise title (3-6 words) for a conversation that starts with this message. The title should capture the main topic or intent. Do not use quotes or punctuation. Just output the title, nothing else.
+
+Message: {request.message[:500]}"""
+                    }
+                ]
+            )
+        )
+
+        # Extract the title from the response
+        title = response.content[0].text.strip()
+
+        # Ensure title is not too long (max 100 chars for UI)
+        if len(title) > 100:
+            title = title[:97] + "..."
+
+        # Update the conversation title in the database
+        result = await asyncio.to_thread(
+            lambda: supabase.table('conversations')
+                .update({'title': title})
+                .eq('id', conversation_id)
+                .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        logger.info(f"Generated title for conversation {conversation_id}: {title}")
+
+        return {
+            'success': True,
+            'title': title,
+            'conversation_id': conversation_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating conversation title: {str(e)}")
+        # Return a fallback - don't fail the request
+        return {
+            'success': False,
+            'title': 'New Conversation',
+            'error': str(e)
+        }
+
+
 # ============================================================================
 # Conversation Listing
 # ============================================================================

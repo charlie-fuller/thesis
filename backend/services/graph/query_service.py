@@ -545,8 +545,10 @@ class GraphQueryService:
         Returns:
             Dict with node and relationship counts
         """
+        # Use OPTIONAL MATCH from the start to handle empty graphs gracefully
         result = await self.neo4j.execute_query("""
-            MATCH (s:Stakeholder {client_id: $client_id})
+            // Count stakeholders and their relationships
+            OPTIONAL MATCH (s:Stakeholder {client_id: $client_id})
             OPTIONAL MATCH (s)-[influences:INFLUENCES]->()
             OPTIONAL MATCH (s)-[reports:REPORTS_TO]->()
             OPTIONAL MATCH (s)-[attended:ATTENDED]->()
@@ -559,15 +561,22 @@ class GraphQueryService:
                  count(DISTINCT i) as insight_count,
                  count(DISTINCT c) as concern_count
 
+            // Count other node types independently
             OPTIONAL MATCH (m:Meeting {client_id: $client_id})
+            WITH stakeholder_count, influence_count, reporting_count, attendance_count,
+                 insight_count, concern_count, count(DISTINCT m) as meeting_count
+
             OPTIONAL MATCH (d:Document {client_id: $client_id})
+            WITH stakeholder_count, influence_count, reporting_count, attendance_count,
+                 insight_count, concern_count, meeting_count, count(DISTINCT d) as document_count
+
             OPTIONAL MATCH (r:ROIOpportunity {client_id: $client_id})
 
             RETURN {
                 nodes: {
                     stakeholders: stakeholder_count,
-                    meetings: count(DISTINCT m),
-                    documents: count(DISTINCT d),
+                    meetings: meeting_count,
+                    documents: document_count,
                     roi_opportunities: count(DISTINCT r),
                     insights: insight_count,
                     concerns: concern_count
