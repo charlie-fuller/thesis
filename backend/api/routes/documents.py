@@ -1,6 +1,6 @@
 """
 Document management routes
-Handles document upload, processing, retrieval, and deletion
+Handles document upload, processing, retrieval, deletion, and save-from-chat
 """
 import asyncio
 import json
