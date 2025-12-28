@@ -388,8 +388,9 @@ async def root():
     """Root endpoint - API status"""
     return {
         "message": "Thesis API is running",
-        "version": "1.0.0",
-        "status": "healthy"
+        "version": "1.0.1",
+        "status": "healthy",
+        "deploy_marker": "2025-12-28-save-from-chat"
     }
 
 
