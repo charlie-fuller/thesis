@@ -732,12 +732,24 @@ async def get_visualization_data(
         client_id = current_user["client_id"]
 
         # Query all nodes and relationships for this client
-        # Include global nodes (Agents, Expertise) that don't have client_id
+        # Include global nodes (Agents, Expertise) and connected nodes (Chunks, Messages)
         result = await connection.execute_query("""
-            // Get client-specific nodes
+            // Get client-specific nodes and global nodes
             MATCH (n)
             WHERE n.client_id = $client_id OR n:Agent OR n:Expertise
-            WITH collect(DISTINCT n) as nodes
+            WITH collect(DISTINCT n) as baseNodes
+
+            // Also get nodes connected to client nodes (like Chunks connected to Documents)
+            UNWIND baseNodes as bn
+            OPTIONAL MATCH (connected)-[:PART_OF|BELONGS_TO|IN_CONVERSATION]->(bn)
+            WITH baseNodes, collect(DISTINCT connected) as connectedNodes
+
+            // Combine all nodes
+            WITH baseNodes + [n IN connectedNodes WHERE n IS NOT NULL] as allNodes
+
+            // Deduplicate
+            UNWIND allNodes as node
+            WITH collect(DISTINCT node) as nodes
 
             // Get relationships between these nodes
             UNWIND nodes as n

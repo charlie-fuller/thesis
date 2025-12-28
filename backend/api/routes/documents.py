@@ -242,24 +242,36 @@ async def list_user_documents(
 async def get_storage_info(
     current_user: dict = Depends(get_current_user)
 ):
-    """Get storage usage information for current user"""
+    """Get storage usage information for current user.
+
+    Calculates storage used directly from documents table for accuracy.
+    """
     try:
         user_id = current_user['id']
 
-        # Get user's storage quota and usage
-        result = await asyncio.to_thread(
+        # Get user's storage quota
+        user_result = await asyncio.to_thread(
             lambda: supabase.table('users')\
-                .select('storage_quota, storage_used')\
+                .select('storage_quota')\
                 .eq('id', user_id)\
                 .single()\
                 .execute()
         )
 
-        if not result.data:
+        if not user_result.data:
             raise HTTPException(status_code=404, detail="User not found")
 
-        storage_quota = result.data.get('storage_quota') or 524288000  # 500MB default
-        storage_used = result.data.get('storage_used') or 0
+        storage_quota = user_result.data.get('storage_quota') or 524288000  # 500MB default
+
+        # Calculate actual storage used from documents table
+        docs_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')\
+                .select('file_size')\
+                .eq('uploaded_by', user_id)\
+                .execute()
+        )
+
+        storage_used = sum(doc.get('file_size', 0) or 0 for doc in (docs_result.data or []))
 
         return {
             'success': True,
