@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { apiGet } from '@/lib/api';
 import { logger } from '@/lib/logger';
+import { useAuth } from './AuthContext';
 
 interface ThemeSettings {
   color_primary: string;
@@ -97,6 +98,7 @@ const ThemeContext = createContext<ThemeContextValue>({
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<ThemeSettings>(defaultTheme);
   const [loading, setLoading] = useState(true);
+  const { session, loading: authLoading } = useAuth();
 
   const applyTheme = (settings: ThemeSettings) => {
     const root = document.documentElement;
@@ -168,9 +170,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Apply default theme immediately to prevent flash
     applyTheme(defaultTheme);
-    // Then fetch custom theme
-    fetchTheme();
-  }, []);
+
+    // Only fetch custom theme after auth is ready and user is logged in
+    if (!authLoading && session) {
+      fetchTheme();
+    } else if (!authLoading && !session) {
+      // No session, just use default theme
+      setLoading(false);
+    }
+  }, [authLoading, session]);
 
   return (
     <ThemeContext.Provider value={{ theme, loading, refreshTheme }}>

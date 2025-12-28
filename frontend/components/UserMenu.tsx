@@ -1,29 +1,15 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useAuth, ViewMode } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
-  // effectiveRole is available via context but currently unused in the UI
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { user, profile, signOut, viewMode, setViewMode, isActualAdmin, effectiveRole: _effectiveRole } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
-
-  // Handle view mode toggle for admins
-  const handleViewModeToggle = (mode: ViewMode) => {
-    setViewMode(mode);
-    setIsOpen(false);
-    // Redirect to appropriate landing page
-    if (mode === 'admin') {
-      router.push('/admin');
-    } else {
-      router.push('/chat');
-    }
-  };
 
   // Close menu when clicking outside or pressing Escape
   useEffect(() => {
@@ -60,8 +46,6 @@ export default function UserMenu() {
       router.push('/auth/login');
     }
   };
-
-  // effectiveRole is available from context for UI rendering if needed
 
   return (
     <div className="relative" ref={menuRef}>
@@ -130,18 +114,11 @@ export default function UserMenu() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {profile?.role && (
-                <span className="badge-primary capitalize">
-                  {profile.role.replace('_', ' ')}
-                </span>
-              )}
-              {isActualAdmin && viewMode === 'user' && (
-                <span className="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
-                  User View
-                </span>
-              )}
-            </div>
+            {profile?.role && (
+              <span className="badge-primary capitalize">
+                {profile.role.replace('_', ' ')}
+              </span>
+            )}
           </div>
 
           {/* Menu Items */}
@@ -157,41 +134,6 @@ export default function UserMenu() {
               </svg>
               Profile Settings
             </Link>
-
-            {/* Note: My Impact and Admin Dashboard links are now in the top nav bar,
-                so they're removed from this dropdown menu */}
-
-            {/* View Mode Toggle - for actual admins only */}
-            {isActualAdmin && (
-              <>
-                <div className="my-1 divider"></div>
-                <div className="px-4 py-2">
-                  <p className="text-xs text-muted mb-2 font-medium uppercase tracking-wide">View Mode</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleViewModeToggle('admin')}
-                      className={`flex-1 px-3 py-2 text-sm rounded-lg transition-colors ${
-                        viewMode === 'admin'
-                          ? 'bg-primary text-white'
-                          : 'bg-hover text-secondary hover:bg-hover-dark'
-                      }`}
-                    >
-                      Admin
-                    </button>
-                    <button
-                      onClick={() => handleViewModeToggle('user')}
-                      className={`flex-1 px-3 py-2 text-sm rounded-lg transition-colors ${
-                        viewMode === 'user'
-                          ? 'bg-primary text-white'
-                          : 'bg-hover text-secondary hover:bg-hover-dark'
-                      }`}
-                    >
-                      User
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
 
             {/* Divider */}
             <div className="my-1 divider"></div>

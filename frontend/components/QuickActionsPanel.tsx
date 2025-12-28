@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiGet } from '@/lib/api';
 import { logger } from '@/lib/logger';
+import { useAuth } from '@/contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 
 export default function QuickActionsPanel() {
@@ -15,15 +16,15 @@ export default function QuickActionsPanel() {
     neo4j: { status: 'checking', responseTime: 0 }
   });
   const [loading, setLoading] = useState(true);
+  const { session, loading: authLoading } = useAuth();
 
-  useEffect(() => {
-    fetchHealthMetrics();
-    // Refresh every 60 seconds
-    const interval = setInterval(fetchHealthMetrics, 60000);
-    return () => clearInterval(interval);
-  }, []);
+  const fetchHealthMetrics = useCallback(async () => {
+    // Don't fetch if not authenticated
+    if (!session) {
+      setLoading(false);
+      return;
+    }
 
-  const fetchHealthMetrics = async () => {
     try {
       const response = await apiGet<{ success: boolean; health: {
         supabase: { status: string; responseTime: number };
@@ -88,7 +89,21 @@ export default function QuickActionsPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [session]);
+
+  useEffect(() => {
+    // Wait for auth to be ready before fetching
+    if (authLoading) return;
+
+    if (session) {
+      fetchHealthMetrics();
+      // Refresh every 60 seconds
+      const interval = setInterval(fetchHealthMetrics, 60000);
+      return () => clearInterval(interval);
+    } else {
+      setLoading(false);
+    }
+  }, [authLoading, session, fetchHealthMetrics]);
 
   // Service status color coding
   const getServiceStatusColor = (status: string) => {

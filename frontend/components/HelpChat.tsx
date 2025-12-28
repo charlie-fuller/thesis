@@ -7,8 +7,7 @@ import LoadingSpinner from './LoadingSpinner';
 import MarkdownText from './MarkdownText';
 
 export default function HelpChat() {
-  const { effectiveRole } = useAuth();
-  const isAdmin = effectiveRole === 'admin';
+  const { isAdmin } = useAuth();
   const {
     isOpen,
     isMinimized,

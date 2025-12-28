@@ -21,36 +21,37 @@ export default function PageHeader({
   onToggleLeftPanel,
   onToggleRightPanel,
 }: PageHeaderProps) {
-  const { effectiveRole } = useAuth()
+  const { isAdmin } = useAuth()
   const { theme } = useTheme()
   const pathname = usePathname()
 
-  // Navigation links based on effective role (respects view mode for admins)
-  const isAdmin = effectiveRole === 'admin'
-  const navLinks = isAdmin
-    ? [
-        { href: '/admin', label: 'Dashboard' },
-        { href: '/admin/agents', label: 'Agents' },
-        { href: '/admin/documents', label: 'Global Documents' },
-        { href: '/admin/conversations', label: 'Conversations' },
-      ]
-    : [
-        { href: '/chat', label: 'Chat' },
-        { href: '/meeting-room', label: 'Meeting Room' },
-        { href: '/stakeholders', label: 'Stakeholders' },
-        { href: '/transcripts', label: 'Transcripts' },
-        { href: '/documents', label: 'Global Documents' },
-        { href: '/projects', label: 'Initiatives' },
-      ]
+  // User-facing navigation links
+  const userLinks = [
+    { href: '/', label: 'Home' },
+    { href: '/chat', label: 'Chat' },
+    { href: '/meeting-room', label: 'Meeting Room' },
+    { href: '/stakeholders', label: 'Stakeholders' },
+    { href: '/transcripts', label: 'Transcripts' },
+  ]
+
+  // Admin-only navigation links
+  const adminLinks = [
+    { href: '/admin', label: 'Admin' },
+  ]
+
+  // Admins get all links, regular users only get user links
+  const navLinks = isAdmin ? [...userLinks, ...adminLinks] : userLinks
 
   const isActive = (href: string) => {
-    if (href === '/chat') {
-      return pathname === href || pathname === '/'
+    // Home route - exact match only
+    if (href === '/') {
+      return pathname === '/'
     }
-    // For /admin, only match exact path (not /admin/users, etc.)
+    // For /admin, match both exact and sub-paths (admin section)
     if (href === '/admin') {
-      return pathname === href
+      return pathname === href || pathname?.startsWith('/admin/')
     }
+    // For other routes, match exact or sub-paths
     return pathname === href || pathname?.startsWith(href + '/')
   }
 
@@ -94,7 +95,7 @@ export default function PageHeader({
 
           {/* Center: Logo/Brand - truly centered between nav and right edge */}
           <div className="flex-1 flex justify-center">
-            <Link href={isAdmin ? '/admin' : '/chat'} className="flex items-center">
+            <Link href="/" className="flex items-center">
               {theme.header_logo_url ? (
                 <img
                   src={theme.header_logo_url}

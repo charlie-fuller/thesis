@@ -13,7 +13,7 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, profile, loading, effectiveRole, isActualAdmin } = useAuth();
+  const { user, profile, loading, isAdmin } = useAuth();
   const { isOpen: helpChatOpen, toggleOpen: toggleHelpChat } = useHelpChat();
   const router = useRouter();
 
@@ -26,19 +26,13 @@ export default function AdminLayout({
         return;
       }
 
-      // Not an admin at all - redirect to chat
-      if (profile && profile.role !== 'admin') {
-        router.push('/chat');
-        return;
-      }
-
-      // Admin in user view mode - redirect to chat
-      if (isActualAdmin && effectiveRole === 'user') {
-        router.push('/chat');
+      // Not an admin - redirect to home
+      if (profile && !isAdmin) {
+        router.push('/');
         return;
       }
     }
-  }, [loading, user, profile, router, isActualAdmin, effectiveRole]);
+  }, [loading, user, profile, router, isAdmin]);
 
   // Show loading state while checking auth
   if (loading) {
@@ -52,8 +46,8 @@ export default function AdminLayout({
     );
   }
 
-  // Show loading state while redirecting non-admin users or admins in user view mode
-  if (!user || (profile && profile.role !== 'admin') || (isActualAdmin && effectiveRole === 'user')) {
+  // Show loading state while redirecting non-admin users
+  if (!user || !isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-page">
         <div className="text-center">

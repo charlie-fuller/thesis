@@ -18,9 +18,6 @@ interface UserProfile {
   };
 }
 
-// View mode allows admins to experience the app as a regular user
-export type ViewMode = 'admin' | 'user';
-
 interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
@@ -31,47 +28,20 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: AuthError | null }>;
   refreshProfile: () => Promise<void>;
-  // View mode for admins to switch between admin and user views
-  viewMode: ViewMode;
-  setViewMode: (mode: ViewMode) => void;
-  // Effective role based on actual role and view mode
-  effectiveRole: 'admin' | 'user';
-  // Whether the user is actually an admin (regardless of view mode)
-  isActualAdmin: boolean;
+  // Whether the user is an admin
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const VIEW_MODE_STORAGE_KEY = 'thesis_admin_view_mode';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewModeState] = useState<ViewMode>('admin');
 
-  // Load view mode from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedMode = localStorage.getItem(VIEW_MODE_STORAGE_KEY) as ViewMode | null;
-      if (savedMode === 'admin' || savedMode === 'user') {
-        setViewModeState(savedMode);
-      }
-    }
-  }, []);
-
-  // Update view mode and persist to localStorage
-  const setViewMode = (mode: ViewMode) => {
-    setViewModeState(mode);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
-    }
-  };
-
-  // Calculate effective role and admin status
-  const isActualAdmin = profile?.role === 'admin';
-  const effectiveRole: 'admin' | 'user' = isActualAdmin ? viewMode : 'user';
+  // Simple admin check - admins have full access to everything
+  const isAdmin = profile?.role === 'admin';
 
   useEffect(() => {
     // Get initial session
@@ -198,10 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     updatePassword,
     refreshProfile,
-    viewMode,
-    setViewMode,
-    effectiveRole,
-    isActualAdmin,
+    isAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
