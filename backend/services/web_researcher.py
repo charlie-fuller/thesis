@@ -234,9 +234,10 @@ async def _anthropic_web_search(query: str, max_results: int) -> list[WebSource]
         client = get_anthropic_client()
 
         # Use Claude with web search tool
-        # web_search_20250305 is the current tool type for Anthropic web search
+        # web_search_20250305 requires Claude 3.5/3.7 Sonnet or Haiku
+        # Claude 4 models do NOT support web search yet
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-7-sonnet-20250219",
             max_tokens=4096,
             tools=[
                 {
