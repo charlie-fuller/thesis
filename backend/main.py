@@ -174,6 +174,7 @@ from api.routes import (
     images,
     meeting_rooms,
     notion,
+    projects,
     research,
     stakeholders,
     system_instructions,
@@ -202,6 +203,7 @@ app.include_router(stakeholders.router)
 app.include_router(graph.router)
 app.include_router(meeting_rooms.router)
 app.include_router(research.router)
+app.include_router(projects.router)
 
 logger.info("✅ All route modules registered (including Thesis multi-agent, graph, meeting room, and research routes)")
 
