@@ -284,9 +284,9 @@ export default function DocumentUpload({
       {/* Progress Bar */}
       {(uploadStatus.status === 'uploading' || uploadStatus.status === 'processing') && uploadStatus.progress !== undefined && (
         <div className="mt-4">
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-secondary rounded-full h-2">
             <div
-              className="bg-teal-400 h-2 rounded-full transition-all duration-300"
+              className="bg-brand h-2 rounded-full transition-all duration-300"
               style={{ width: `${uploadStatus.progress}%` }}
             ></div>
           </div>
@@ -296,16 +296,16 @@ export default function DocumentUpload({
       {/* Status Message */}
       {uploadStatus.message && (
         <div className={`mt-4 p-3 rounded-lg text-sm ${
-          uploadStatus.status === 'complete' ? 'bg-teal-50 text-teal-700' :
-          uploadStatus.status === 'error' ? 'bg-red-50 text-red-800' :
-          'bg-teal-100 text-teal-700'
+          uploadStatus.status === 'complete' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300' :
+          uploadStatus.status === 'error' ? 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300' :
+          'bg-brand/10 text-brand'
         }`}>
           {uploadStatus.message}
         </div>
       )}
 
       {/* Supported Formats */}
-      <div className="mt-4 text-xs text-gray-500">
+      <div className="mt-4 text-xs text-muted">
         <p className="font-semibold mb-1">Supported formats:</p>
         <ul className="list-disc list-inside space-y-1">
           <li>Plain text (.txt, .md)</li>

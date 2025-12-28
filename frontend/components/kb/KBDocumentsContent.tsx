@@ -47,7 +47,6 @@ interface Document {
   notion_page_id?: string
   sync_cadence?: string
   file_size?: number
-  is_core_document?: boolean
 }
 
 export default function KBDocumentsContent() {
@@ -112,7 +111,6 @@ export default function KBDocumentsContent() {
   // Upload and Documents section state
   const [uploadExpanded, setUploadExpanded] = useState<boolean>(false)
   const [documentsExpanded, setDocumentsExpanded] = useState<boolean>(true)
-  const [coreDocumentsExpanded, setCoreDocumentsExpanded] = useState<boolean>(false)
 
 
   // Define functions first with useCallback
@@ -1076,7 +1074,7 @@ export default function KBDocumentsContent() {
               )}
             </button>
             <h2 className="heading-3">Your Documents</h2>
-            <span className="text-sm text-muted">({documents.filter(d => !d.is_core_document).length})</span>
+            <span className="text-sm text-muted">({documents.length})</span>
           </div>
         </div>
 
@@ -1110,7 +1108,7 @@ export default function KBDocumentsContent() {
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 p-4 rounded-lg text-sm">
               Error: {error}
             </div>
-          ) : documents.filter(doc => !doc.is_core_document).length === 0 ? (
+          ) : documents.length === 0 ? (
             <div className="text-center py-8 text-muted">
               <p>No documents uploaded yet</p>
               <p className="text-sm mt-2">Upload your first document or connect Google Drive to get started!</p>
@@ -1168,25 +1166,15 @@ export default function KBDocumentsContent() {
                 </div>
               )}
 
-              {documents.filter(doc => !doc.is_core_document).map((doc) => (
+              {documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className={`border rounded-lg p-2 transition-colors ${
-                    doc.is_core_document
-                      ? 'border-gray-200 dark:border-green-700 bg-[#F1FEF4] dark:bg-green-900/20 hover:bg-[#E5F9E9] dark:hover:bg-green-900/30'
-                      : 'border-default hover:bg-hover'
-                  }`}
+                  className="border rounded-lg p-2 transition-colors border-default hover:bg-hover"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start gap-2 mb-1">
                         <h3 className="font-medium text-primary break-words">{doc.filename}</h3>
-                        {/* Core Document Badge */}
-                        {doc.is_core_document && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 flex-shrink-0" title="Core document - cannot be deleted">
-                            Core
-                          </span>
-                        )}
                         {/* Status Badges */}
                         {!doc.processed && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 flex-shrink-0" title="Document is being processed">
@@ -1242,86 +1230,18 @@ export default function KBDocumentsContent() {
                           </svg>
                         </button>
 
-                        {/* Delete Button - hidden for core documents */}
-                        {!doc.is_core_document && (
-                          <button
-                            onClick={() => handleDeleteClick(doc)}
-                            disabled={deletingDocId === doc.id}
-                            className="p-1.5 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Delete document"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        )}
+                        {/* Delete Button */}
+                        <button
+                          onClick={() => handleDeleteClick(doc)}
+                          disabled={deletingDocId === doc.id}
+                          className="p-1.5 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Delete document"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
                       </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          </div>
-        )}
-      </div>
-
-      {/* Core Documents List */}
-      <div className={`card ${coreDocumentsExpanded ? 'p-6' : 'p-2'}`}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 flex-1">
-            <button
-              onClick={() => setCoreDocumentsExpanded(!coreDocumentsExpanded)}
-              className="text-secondary hover:text-primary transition-colors"
-            >
-              {coreDocumentsExpanded ? (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                </svg>
-              )}
-            </button>
-            <h2 className="heading-3 text-teal-600 dark:text-teal-400">Core Documents</h2>
-            <span className="text-sm text-muted">({documents.filter(d => d.is_core_document).length})</span>
-          </div>
-        </div>
-
-        {coreDocumentsExpanded && (
-          <div className="mt-4">
-          {loading ? (
-            <div className="text-center py-8 text-muted">
-              <LoadingSpinner size="md" />
-              <p className="mt-2">Loading documents...</p>
-            </div>
-          ) : documents.filter(doc => doc.is_core_document).length === 0 ? (
-            <div className="text-center py-8 text-muted">
-              <p>No core documents</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {documents.filter(doc => doc.is_core_document).map((doc) => (
-                <div
-                  key={doc.id}
-                  className="border border-default bg-card hover:bg-hover rounded-lg py-1.5 px-3 transition-colors"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-primary break-words text-sm">{doc.filename}</h3>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {/* Info Button */}
-                      <button
-                        onClick={() => handleDocumentInfo(doc)}
-                        className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-                        title="Document info"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </button>
                     </div>
                   </div>
                 </div>

@@ -8,8 +8,25 @@ interface Agent {
   id: string
   name: string
   display_name: string
-  description: string
+  description: string | null
   is_active: boolean
+}
+
+const AGENT_SHORT_DESCRIPTIONS: Record<string, string> = {
+  atlas: 'GenAI research and benchmarking',
+  fortuna: 'ROI analysis and business cases',
+  guardian: 'Security, compliance, IT governance',
+  counselor: 'Legal, contracts, AI risks',
+  oracle: 'Meeting transcript analysis',
+  sage: 'Change management and adoption',
+  strategist: 'Executive strategy and governance',
+  architect: 'Technical architecture and integration',
+  operator: 'Process optimization and automation',
+  pioneer: 'Emerging tech and innovation',
+  catalyst: 'Internal communications and messaging',
+  scholar: 'Training and learning programs',
+  echo: 'Brand voice and style analysis',
+  nexus: 'Systems thinking and interconnections',
 }
 
 interface CreateMeetingModalProps {
@@ -199,7 +216,7 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
                 <LoadingSpinner size="md" />
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {agents.map((agent) => (
                   <button
                     key={agent.id}
@@ -211,13 +228,16 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
                         : 'border-default hover:border-primary/50'
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-full ${getAgentColor(agent.name)} flex items-center justify-center text-white font-semibold text-sm`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full ${getAgentColor(agent.name)} flex items-center justify-center text-white font-semibold text-sm flex-shrink-0`}>
                         {agent.display_name.charAt(0)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-primary text-sm truncate">
+                        <div className="font-medium text-primary text-sm">
                           {agent.display_name}
+                        </div>
+                        <div className="text-xs text-secondary truncate">
+                          {AGENT_SHORT_DESCRIPTIONS[agent.name] || agent.description || 'AI Agent'}
                         </div>
                       </div>
                       {selectedAgents.includes(agent.id) && (
