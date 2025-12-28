@@ -87,11 +87,13 @@ async def get_usage_trends(
                 .execute()
         )
         agents = {a['id']: a for a in (agents_result.data or [])}
+        # Also create a name -> display_name mapping for normalization
+        agent_display_names = {a['name']: a.get('display_name', a['name']) for a in (agents_result.data or [])}
 
-        # Get all assistant messages in range (messages table doesn't have agent_id)
+        # Get all assistant messages in range WITH metadata (for agent tracking)
         messages = await asyncio.to_thread(
             lambda: supabase.table('messages')
-                .select('created_at')
+                .select('created_at, metadata')
                 .eq('role', 'assistant')
                 .gte('created_at', start_date.isoformat())
                 .lte('created_at', end_date.isoformat())
@@ -140,11 +142,22 @@ async def get_usage_trends(
             }
             current_date += timedelta(days=1)
 
-        # Count messages by date (regular chat messages don't have agent tracking)
+        # Count messages by date AND extract agent from metadata
         for msg in (messages.data or []):
             date = datetime.fromisoformat(msg['created_at'].replace('Z', '+00:00')).date().isoformat()
             if date in trends_by_date:
                 trends_by_date[date]['messages'] += 1
+
+                # Extract agent from metadata if available
+                metadata = msg.get('metadata') or {}
+                agent_name = metadata.get('agent_display_name') or metadata.get('agent_name')
+                if agent_name:
+                    # Normalize to display name if we have a mapping
+                    normalized_name = agent_display_names.get(agent_name, agent_name)
+                    # Capitalize first letter for consistency
+                    if normalized_name and normalized_name[0].islower():
+                        normalized_name = normalized_name.capitalize()
+                    trends_by_date[date]['agent_usage'][normalized_name] = trends_by_date[date]['agent_usage'].get(normalized_name, 0) + 1
 
         # Count meeting room messages by date and agent
         for msg in (meeting_messages.data or []):
@@ -153,7 +166,12 @@ async def get_usage_trends(
                 trends_by_date[date]['messages'] += 1
                 agent_name = msg.get('agent_name', 'Unknown')
                 if agent_name:
-                    trends_by_date[date]['agent_usage'][agent_name] = trends_by_date[date]['agent_usage'].get(agent_name, 0) + 1
+                    # Normalize to display name if we have a mapping
+                    normalized_name = agent_display_names.get(agent_name, agent_name)
+                    # Capitalize first letter for consistency
+                    if normalized_name and normalized_name[0].islower():
+                        normalized_name = normalized_name.capitalize()
+                    trends_by_date[date]['agent_usage'][normalized_name] = trends_by_date[date]['agent_usage'].get(normalized_name, 0) + 1
 
         # Count conversations by date
         for convo in (convos.data or []):

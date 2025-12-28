@@ -3,8 +3,10 @@ Conversation management routes
 Handles creation, retrieval, updating, and deletion of conversations
 """
 import asyncio
+import os
 from typing import Optional
 
+from anthropic import Anthropic
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -18,6 +20,7 @@ from validation import validate_uuid
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 supabase = get_supabase()
+anthropic_client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 
 # ============================================================================
@@ -37,6 +40,10 @@ class ConversationUpdateRequest(BaseModel):
 class ConversationSearchRequest(BaseModel):
     query: str
     limit: int = 10
+
+
+class GenerateTitleRequest(BaseModel):
+    message: str
 
 
 # ============================================================================
