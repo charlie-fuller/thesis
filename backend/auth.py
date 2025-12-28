@@ -18,10 +18,16 @@ from jwt import PyJWTError
 security = HTTPBearer()
 
 # Supabase JWT secret (from environment)
+# For HS256: Use the JWT secret directly
+# For ES256: Use the JWT public key (PEM format)
 SUPABASE_JWT_SECRET = os.getenv('SUPABASE_JWT_SECRET', '')
 
 if not SUPABASE_JWT_SECRET:
     logger.warning("SUPABASE_JWT_SECRET not set in environment variables")
+
+# Check if it's a PEM-encoded public key (for ES256)
+# Public keys start with "-----BEGIN PUBLIC KEY-----"
+IS_PUBLIC_KEY = SUPABASE_JWT_SECRET.strip().startswith('-----BEGIN')
 
 
 def decode_jwt(token: str) -> Optional[dict]:
@@ -42,12 +48,29 @@ def decode_jwt(token: str) -> Optional[dict]:
         # First, peek at the token header to see what algorithm is used
         unverified_header = jwt.get_unverified_header(token)
         token_alg = unverified_header.get('alg', 'HS256')
-        logger.debug(f"Token algorithm: {token_alg}")
+        logger.info(f"JWT token algorithm: {token_alg}")
 
-        # Supabase uses HS256, but allow the token's algorithm if it's a valid HMAC type
-        allowed_algorithms = ['HS256', 'HS384', 'HS512']
+        # Determine allowed algorithms based on what we have configured
+        if IS_PUBLIC_KEY:
+            # We have a public key, allow ECDSA algorithms
+            allowed_algorithms = ['ES256', 'ES384', 'ES512']
+        else:
+            # We have a secret, allow HMAC algorithms
+            allowed_algorithms = ['HS256', 'HS384', 'HS512']
+
         if token_alg not in allowed_algorithms:
-            logger.error(f"JWT validation error: Unsupported algorithm {token_alg}")
+            if token_alg in ['ES256', 'ES384', 'ES512'] and not IS_PUBLIC_KEY:
+                logger.error(
+                    f"JWT uses {token_alg} but SUPABASE_JWT_SECRET is not a public key. "
+                    "For ES256, use the JWT public key from Supabase Dashboard -> Settings -> API -> JWT Settings."
+                )
+            elif token_alg in ['HS256', 'HS384', 'HS512'] and IS_PUBLIC_KEY:
+                logger.error(
+                    f"JWT uses {token_alg} but SUPABASE_JWT_SECRET is a public key. "
+                    "For HS256, use the JWT secret from Supabase Dashboard -> Settings -> API."
+                )
+            else:
+                logger.error(f"JWT validation error: Unsupported algorithm {token_alg}")
             return None
 
         # Decode the JWT token
