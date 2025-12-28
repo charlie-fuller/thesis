@@ -334,6 +334,15 @@ async def startup_event():
     except Exception as e:
         logger.error(f"⚠️ Warning: Could not start research scheduler: {e}")
 
+    # Start Knowledge Graph sync scheduler
+    try:
+        from services.graph_sync_scheduler import start_graph_sync_scheduler
+        # Start the graph sync scheduler (runs daily at 3 AM UTC)
+        start_graph_sync_scheduler(hour_utc=3, minute=0)
+        logger.info("✅ Knowledge Graph sync scheduler started")
+    except Exception as e:
+        logger.error(f"⚠️ Warning: Could not start graph sync scheduler: {e}")
+
     logger.info("✅ Application startup complete")
 
 

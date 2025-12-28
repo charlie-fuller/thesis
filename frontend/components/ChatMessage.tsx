@@ -247,7 +247,7 @@ function ChatMessage({ content, role, timestamp, documents, sources, onSourceCli
                       messageId={messageId}
                     />
                   ) : (
-                    <code className="bg-gray-200 px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
+                    <code className="bg-hover text-primary px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
                       {children}
                     </code>
                   );
@@ -351,11 +351,11 @@ function ChatMessage({ content, role, timestamp, documents, sources, onSourceCli
 
         {/* Action buttons for assistant messages */}
         {role === 'assistant' && content && content.length > 100 && onDigDeeper && messageId && (
-          <div className="mt-3 pt-2 border-t border-gray-200 flex items-center gap-2">
+          <div className="mt-3 pt-2 border-t border-default flex items-center gap-2">
             <button
               onClick={() => onDigDeeper(messageId, content)}
               disabled={isDigDeeperLoading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted hover:text-primary bg-hover hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Get more detail on this response"
             >
               {isDigDeeperLoading ? (

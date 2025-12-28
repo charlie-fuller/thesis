@@ -644,6 +644,32 @@ export default function ChatInterface({
     }
   }
 
+  // Handle inline dig-deeper section expansion (non-streaming, returns content directly)
+  async function handleDigDeeperSection(messageId: string, originalContent: string, sectionId: string): Promise<string> {
+    if (!currentConversationId) {
+      throw new Error('No conversation active')
+    }
+
+    try {
+      const response = await apiPost('/api/chat/dig-deeper-section', {
+        conversation_id: currentConversationId,
+        message_id: messageId,
+        original_content: originalContent,
+        section_id: sectionId
+      })
+
+      if (response.expanded_content) {
+        return response.expanded_content
+      }
+
+      throw new Error('No content returned')
+    } catch (err) {
+      logger.error('Dig deeper section error:', err)
+      toast.error('Failed to expand section')
+      throw err
+    }
+  }
+
   function handleKeyPress(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -784,6 +810,7 @@ export default function ChatInterface({
                       conversationId={currentConversationId || undefined}
                       messageId={msg.id}
                       onDigDeeper={handleDigDeeper}
+                      onDigDeeperSection={handleDigDeeperSection}
                       isDigDeeperLoading={digDeeperLoading === msg.id}
                       metadata={msg.metadata}
                     />
