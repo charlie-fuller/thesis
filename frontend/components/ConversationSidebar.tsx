@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 // Link import intentionally removed - navigation handled via router
 import { useDebounce } from 'use-debounce'
-import { apiGet, apiDelete, apiPatch, apiPost } from '@/lib/api'
+import { apiGet, apiDelete, apiPost } from '@/lib/api'
 import LoadingSpinner from './LoadingSpinner'
 import ConfirmModal from './ConfirmModal'
 import toast from 'react-hot-toast'
@@ -23,21 +23,12 @@ interface Conversation {
   archived_at?: string | null
 }
 
-interface Prompt {
-  id: string
-  user_id: string
-  title: string
-  prompt_text: string
-  display_order: number
-}
-
 interface ConversationSidebarProps {
   clientId?: string  // Optional - backend auto-assigns default client
   userId?: string
   currentConversationId?: string | null
   apiBaseUrl?: string
   className?: string
-  onPromptSelect?: (promptText: string) => void
   refreshTrigger?: number
 }
 
@@ -47,20 +38,14 @@ export default function ConversationSidebar({
   currentConversationId,
   apiBaseUrl: _apiBaseUrl = API_BASE_URL,
   className = '',
-  onPromptSelect,
   refreshTrigger
 }: ConversationSidebarProps) {
   const router = useRouter()
   const [conversations, setConversations] = useState<Conversation[]>([])
-  const [prompts, setPrompts] = useState<Prompt[]>([])
   const [loading, setLoading] = useState(true)
   const [renamingConversationId, setRenamingConversationId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [processingKBId, setProcessingKBId] = useState<string | null>(null)
-  const [editingPromptId, setEditingPromptId] = useState<string | null>(null)
-  const [promptTitle, setPromptTitle] = useState('')
-  const [promptText, setPromptText] = useState('')
-  const [showAddPrompt, setShowAddPrompt] = useState(false)
 
   // Archive and search state
   const [showArchived, setShowArchived] = useState(false)
@@ -83,10 +68,7 @@ export default function ConversationSidebar({
 
   useEffect(() => {
     loadConversations()
-    if (userId) {
-      loadPrompts()
-    }
-  }, [clientId, userId, showArchived, debouncedSearchQuery, refreshTrigger])
+  }, [clientId, showArchived, debouncedSearchQuery, refreshTrigger])
 
   async function loadConversations() {
     // Skip loading if no clientId (shouldn't happen in normal use)
@@ -121,22 +103,6 @@ export default function ConversationSidebar({
     } finally {
       setLoading(false)
       setIsSearching(false)
-    }
-  }
-
-  async function loadPrompts() {
-    try {
-      // Fetch prompts from backend - apiGet already handles response and returns parsed data
-      const data = await apiGet<{ prompts: Prompt[] }>(`/api/users/${userId}/prompts`)
-
-      if (data.prompts) {
-        setPrompts(data.prompts)
-      } else {
-        setPrompts([])
-      }
-    } catch (err) {
-      logger.error('Error loading prompts:', err)
-      setPrompts([])
     }
   }
 
@@ -328,97 +294,6 @@ async function toggleKnowledgeBase(conversationId: string, currentStatus: boolea
     } catch (err) {
       logger.error('Error restoring conversation:', err)
       toast.error('Failed to restore conversation. Please try again.')
-    }
-  }
-
-  function handleStartAddPrompt() {
-    setShowAddPrompt(true)
-    setPromptTitle('')
-    setPromptText('')
-    setEditingPromptId(null)
-  }
-
-  function handleStartEditPrompt(prompt: Prompt, e: React.MouseEvent) {
-    e.stopPropagation()
-    setEditingPromptId(prompt.id)
-    setPromptTitle(prompt.title)
-    setPromptText(prompt.prompt_text)
-    setShowAddPrompt(false)
-  }
-
-  function handleCancelPromptEdit() {
-    setEditingPromptId(null)
-    setShowAddPrompt(false)
-    setPromptTitle('')
-    setPromptText('')
-  }
-
-  async function handleSavePrompt() {
-    if (!promptTitle.trim() || !promptText.trim()) {
-      toast.error('Title and prompt text are required')
-      return
-    }
-
-    if (!userId) {
-      toast.error('User ID is required')
-      return
-    }
-
-    try {
-      if (editingPromptId) {
-        // Update existing prompt
-        await apiPatch(`/api/prompts/${editingPromptId}`, {
-          title: promptTitle.trim(),
-          prompt_text: promptText.trim()
-        })
-
-        toast.success('Prompt updated successfully')
-      } else {
-        // Create new prompt
-        await apiPost(`/api/users/${userId}/prompts`, {
-          title: promptTitle.trim(),
-          prompt_text: promptText.trim(),
-          display_order: prompts.length
-        })
-
-        toast.success('Prompt created successfully')
-      }
-
-      // Reload prompts
-      await loadPrompts()
-
-      // Clear form
-      handleCancelPromptEdit()
-    } catch (err) {
-      logger.error('Error saving prompt:', err)
-      toast.error('Failed to save prompt. Please try again.')
-    }
-  }
-
-  async function handleDeletePrompt(promptId: string, e: React.MouseEvent) {
-    e.stopPropagation()
-
-    setConfirmModal({
-      open: true,
-      title: 'Delete Prompt',
-      message: 'Are you sure you want to delete this prompt? This action cannot be undone.',
-      onConfirm: async () => {
-        await deletePrompt(promptId)
-      }
-    })
-  }
-
-  async function deletePrompt(promptId: string) {
-    try {
-      await apiDelete(`/api/prompts/${promptId}`)
-
-      toast.success('Prompt deleted successfully')
-
-      // Reload prompts
-      await loadPrompts()
-    } catch (err) {
-      logger.error('Error deleting prompt:', err)
-      toast.error('Failed to delete prompt. Please try again.')
     }
   }
 
@@ -635,118 +510,6 @@ async function toggleKnowledgeBase(conversationId: string, currentStatus: boolea
         </div>
 
 
-        {/* Quick Prompts Section - max 50% height, scrollable */}
-        {userId && (
-          <div className="border-t border-default max-h-[50%] overflow-y-auto flex-shrink-0">
-            <div className="p-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-xs font-medium text-muted">
-                  QUICK PROMPTS
-                </div>
-                <button
-                  onClick={handleStartAddPrompt}
-                  className="text-xs text-primary hover:opacity-70"
-                  title="Add Prompt"
-                >
-                  + Add
-                </button>
-              </div>
-
-              {/* Add/Edit Prompt Form */}
-              {(showAddPrompt || editingPromptId) && (
-                <div className="mb-3 p-2 bg-hover rounded-lg space-y-2">
-                  <input
-                    type="text"
-                    value={promptTitle}
-                    onChange={(e) => setPromptTitle(e.target.value)}
-                    placeholder="Prompt title..."
-                    className="input-field w-full px-2 py-1 text-sm"
-                  />
-                  <textarea
-                    value={promptText}
-                    onChange={(e) => setPromptText(e.target.value)}
-                    placeholder="Prompt text..."
-                    rows={3}
-                    className="input-field w-full px-2 py-1 text-sm resize-none"
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleSavePrompt}
-                      className="btn-primary flex-1 text-xs py-1"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={handleCancelPromptEdit}
-                      className="btn-secondary flex-1 text-xs py-1"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Prompts List */}
-              {prompts.length > 0 && (
-                <div className="space-y-1">
-                  {prompts.map((prompt) => (
-                    editingPromptId === prompt.id ? (
-                      // Skip rendering if editing - form is shown above
-                      null
-                    ) : (
-                      <div key={prompt.id} className="relative group">
-                        <button
-                          onClick={() => {
-                            // Remove blank lines from prompt text
-                            const cleanedText = prompt.prompt_text
-                              .split('\n')
-                              .filter(line => line.trim() !== '')
-                              .join('\n')
-                            onPromptSelect?.(cleanedText)
-                          }}
-                          className="sidebar-item w-full text-left pr-16"
-                          title={prompt.prompt_text}
-                        >
-                          <div className="text-sm truncate">
-                            • {prompt.title}
-                          </div>
-                        </button>
-                        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
-                          <button
-                            onClick={(e) => handleStartEditPrompt(prompt, e)}
-                            className="hover:opacity-70 p-1 icon-muted opacity-60 hover:opacity-100 transition-opacity"
-                            title="Edit"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                            </svg>
-                          </button>
-                          <button
-                            onClick={(e) => handleDeletePrompt(prompt.id, e)}
-                            className="hover:opacity-70 p-1 icon-muted opacity-60 hover:opacity-100 transition-opacity"
-                            title="Delete"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="3 6 5 6 21 6"></polyline>
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  ))}
-                </div>
-              )}
-
-              {prompts.length === 0 && !showAddPrompt && (
-                <div className="text-xs text-muted text-center py-2">
-                  No prompts yet
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Confirm Modal */}

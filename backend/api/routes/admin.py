@@ -1595,36 +1595,49 @@ async def get_keyword_trends(
 
         messages = messages_result.data if messages_result.data else []
 
-        # L&D domain keywords to track
+        # GenAI Strategy domain keywords to track
         domain_keywords = {
-            'addie', 'analysis', 'design', 'development', 'implementation', 'evaluation',
-            'learning objectives', 'objectives', 'bloom', 'blooms', 'taxonomy',
-            'assessment', 'quiz', 'test', 'exam', 'rubric', 'competency', 'competencies',
-            'curriculum', 'course', 'module', 'lesson', 'training', 'onboarding',
-            'instructional design', 'elearning', 'e-learning', 'lms', 'scorm',
-            'microlearning', 'blended learning', 'virtual training', 'facilitation',
-            'kirkpatrick', 'roi', 'impact', 'behavior change', 'performance',
-            'learner', 'audience', 'stakeholder', 'sme', 'subject matter expert',
-            'storyboard', 'prototype', 'pilot', 'feedback', 'iteration',
-            'accessibility', 'ada', 'wcag', 'compliance', 'certification',
-            'simulation', 'scenario', 'case study', 'role play', 'gamification',
-            'job aid', 'performance support', 'checklist', 'template', 'framework'
+            # Strategy & Business
+            'strategy', 'roadmap', 'initiative', 'transformation', 'adoption',
+            'roi', 'business case', 'value', 'impact', 'metrics', 'kpi',
+            # AI/ML Technical
+            'genai', 'llm', 'rag', 'embeddings', 'fine-tuning', 'prompt',
+            'model', 'inference', 'training', 'deployment', 'api',
+            'chatbot', 'agent', 'copilot', 'automation', 'workflow',
+            # Governance & Security
+            'governance', 'compliance', 'security', 'privacy', 'policy',
+            'risk', 'audit', 'regulation', 'gdpr', 'sox', 'hipaa',
+            'data protection', 'access control', 'shadow ai',
+            # Stakeholder Management
+            'stakeholder', 'sponsor', 'champion', 'executive', 'c-suite',
+            'alignment', 'buy-in', 'resistance', 'change management',
+            # Implementation
+            'pilot', 'poc', 'mvp', 'prototype', 'integration', 'vendor',
+            'build vs buy', 'architecture', 'infrastructure', 'scalability',
+            # Research & Innovation
+            'research', 'benchmark', 'best practice', 'use case', 'experiment',
+            'innovation', 'emerging', 'trend', 'disruption'
         }
 
         # Categorize domain keywords
         keyword_categories = {
-            'addie': 'ADDIE Framework', 'analysis': 'ADDIE Framework', 'design': 'ADDIE Framework',
-            'development': 'ADDIE Framework', 'implementation': 'ADDIE Framework', 'evaluation': 'ADDIE Framework',
-            'learning objectives': 'Objectives', 'objectives': 'Objectives', 'bloom': 'Objectives',
-            'blooms': 'Objectives', 'taxonomy': 'Objectives',
-            'assessment': 'Assessment', 'quiz': 'Assessment', 'test': 'Assessment',
-            'exam': 'Assessment', 'rubric': 'Assessment', 'competency': 'Assessment', 'competencies': 'Assessment',
-            'kirkpatrick': 'Evaluation', 'roi': 'Evaluation', 'impact': 'Evaluation',
-            'behavior change': 'Evaluation', 'performance': 'Evaluation',
-            'microlearning': 'Modalities', 'blended learning': 'Modalities', 'elearning': 'Modalities',
-            'e-learning': 'Modalities', 'virtual training': 'Modalities', 'gamification': 'Modalities',
-            'job aid': 'Performance Support', 'performance support': 'Performance Support',
-            'checklist': 'Performance Support', 'template': 'Performance Support'
+            'strategy': 'Strategy', 'roadmap': 'Strategy', 'initiative': 'Strategy',
+            'transformation': 'Strategy', 'adoption': 'Strategy',
+            'roi': 'Business Value', 'business case': 'Business Value', 'value': 'Business Value',
+            'impact': 'Business Value', 'metrics': 'Business Value', 'kpi': 'Business Value',
+            'genai': 'AI Technology', 'llm': 'AI Technology', 'rag': 'AI Technology',
+            'embeddings': 'AI Technology', 'fine-tuning': 'AI Technology', 'prompt': 'AI Technology',
+            'model': 'AI Technology', 'inference': 'AI Technology', 'agent': 'AI Technology',
+            'chatbot': 'AI Technology', 'copilot': 'AI Technology', 'automation': 'AI Technology',
+            'governance': 'Governance', 'compliance': 'Governance', 'security': 'Governance',
+            'privacy': 'Governance', 'policy': 'Governance', 'risk': 'Governance',
+            'audit': 'Governance', 'regulation': 'Governance', 'shadow ai': 'Governance',
+            'stakeholder': 'Stakeholders', 'sponsor': 'Stakeholders', 'champion': 'Stakeholders',
+            'executive': 'Stakeholders', 'c-suite': 'Stakeholders', 'alignment': 'Stakeholders',
+            'pilot': 'Implementation', 'poc': 'Implementation', 'mvp': 'Implementation',
+            'prototype': 'Implementation', 'integration': 'Implementation', 'vendor': 'Implementation',
+            'research': 'Research', 'benchmark': 'Research', 'best practice': 'Research',
+            'use case': 'Research', 'innovation': 'Research', 'emerging': 'Research'
         }
 
         # Process messages

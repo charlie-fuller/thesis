@@ -224,7 +224,7 @@ export default function AgentSelector({
               <span>Add</span>
             </>
           ) : null}
-          <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? '' : 'rotate-180'}`} />
         </button>
 
         {/* Clear all button */}
@@ -238,9 +238,9 @@ export default function AgentSelector({
         )}
       </div>
 
-      {/* Dropdown menu */}
+      {/* Dropdown menu - opens upward */}
       {isOpen && (
-        <div className="absolute z-50 mt-2 w-72 max-h-80 overflow-y-auto rounded-lg border border-neutral-700 bg-neutral-800 shadow-xl">
+        <div className="absolute z-50 bottom-full mb-2 w-72 max-h-80 overflow-y-auto rounded-lg border border-neutral-700 bg-neutral-800 shadow-xl">
           <div className="p-2">
             <div className="text-xs font-medium text-neutral-500 px-2 py-1 mb-1">
               Select agents (max {maxAgents})
