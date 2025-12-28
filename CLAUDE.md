@@ -65,14 +65,18 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 
 ### Key Capabilities
 
-1. **Meeting Intelligence**: Upload meeting transcripts (Granola/Otter/Teams/Zoom), extract stakeholder insights with evidence-based sentiment analysis, power dynamics, and strategic recommendations
-2. **Stakeholder Tracking**: Full CRM-style tracking with sentiment, engagement, alignment scores
-3. **Research Intelligence**: Proactive monitoring of GenAI implementation research
-4. **Agent Coordination**: Hybrid model - some agents work independently, others collaborate
-5. **Persistent Memory**: Mem0 integration for cross-conversation learning
-6. **Meeting Room**: Multi-agent collaboration with selected agents for focused discussions
-7. **Autonomous Discussion**: Agents discuss topics amongst themselves with discourse moves (Question, Connect, Challenge, Extend, Synthesize) - user can interject anytime
-8. **Dig Deeper**: One-click elaboration on any assistant response for more detail
+1. **Agent Selection in Chat**: Select specific agents or use Auto mode (Coordinator routes to best agent)
+   - UI selector above chat input to pick agents (max 3)
+   - `@mention` syntax in messages (e.g., `@atlas`, `@fortuna`) to invoke agents inline
+   - Agent badge displayed on each response showing which agent answered
+2. **Meeting Intelligence**: Upload meeting transcripts (Granola/Otter/Teams/Zoom), extract stakeholder insights with evidence-based sentiment analysis, power dynamics, and strategic recommendations
+3. **Stakeholder Tracking**: Full CRM-style tracking with sentiment, engagement, alignment scores
+4. **Research Intelligence**: Proactive monitoring of GenAI implementation research
+5. **Agent Coordination**: Hybrid model - some agents work independently, others collaborate
+6. **Persistent Memory**: Mem0 integration for cross-conversation learning
+7. **Meeting Room**: Multi-agent collaboration with selected agents for focused discussions
+8. **Autonomous Discussion**: Agents discuss topics amongst themselves with discourse moves (Question, Connect, Challenge, Extend, Synthesize) - user can interject anytime
+9. **Dig Deeper**: One-click elaboration on any assistant response for more detail
 
 ## Tech Stack
 
@@ -267,7 +271,8 @@ python -m pytest tests/ -v --tb=short
 - `/backend/services/web_researcher.py` - Anthropic web search with credibility filtering
 - `/backend/system_instructions/agents/*.xml` - Agent behavior configuration (Gigawatt v4.0)
 - `/backend/system_instructions/shared/smart_brevity.xml` - Mandatory response format directive
-- `/backend/api/routes/chat.py` - Chat endpoints including Dig Deeper
+- `/backend/services/chat_agent_service.py` - Agent selection, @mention parsing, instruction loading for chat
+- `/backend/api/routes/chat.py` - Chat endpoints including Dig Deeper and agent routing
 - `/backend/api/routes/meeting_rooms.py` - Meeting room CRUD and streaming
 - `/backend/api/routes/agents.py` - Agent management endpoints
 - `/backend/api/routes/research.py` - Atlas research API endpoints
@@ -275,7 +280,10 @@ python -m pytest tests/ -v --tb=short
 
 ### Frontend
 - `/frontend/app/layout.tsx` - Root layout with providers
-- `/frontend/components/ChatInterface.tsx` - Main chat with Dig Deeper integration
+- `/frontend/components/ChatInterface.tsx` - Main chat with agent selection and Dig Deeper
+- `/frontend/components/AgentSelector.tsx` - Agent dropdown selector component
+- `/frontend/components/AgentIcon.tsx` - Agent icons and color mapping
+- `/frontend/components/ChatMessage.tsx` - Message display with agent badges
 - `/frontend/app/meeting-room/` - Meeting room pages
 - `/frontend/app/admin/agents/` - Agent admin interface
 
