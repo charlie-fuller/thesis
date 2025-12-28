@@ -143,7 +143,7 @@ export default function GraphVisualizationPanel() {
                 {visibleNodeTypes.size === allNodeTypes.length ? 'Hide All' : 'Show All'}
               </button>
             </div>
-            <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+            <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
               {allNodeTypes.map(type => (
                 <label key={type} className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -169,7 +169,7 @@ export default function GraphVisualizationPanel() {
           {stats && Object.keys(stats.relationships.by_type).length > 0 && (
             <div className="card p-3">
               <h3 className="text-sm font-medium text-primary mb-2">Relationships</h3>
-              <div className="space-y-1 max-h-[150px] overflow-y-auto">
+              <div className="space-y-1 max-h-[180px] overflow-y-auto">
                 {getTopItems(stats.relationships.by_type).map(([type, count]) => (
                   <div key={type} className="flex items-center justify-between text-xs">
                     <span className="text-secondary font-mono truncate flex-1">{type}</span>

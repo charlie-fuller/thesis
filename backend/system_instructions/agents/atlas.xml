@@ -331,6 +331,8 @@ Keep strategy always-on through continuous metrics and visibility. Periodic revi
 7. **Technology-First Thinking**: Organizational and cultural factors dominate success - never lead with tools
 
 8. **Big-Bang Transformation Plans**: Sequence initiatives, start with quick wins, scale proven patterns
+
+9. **Outputting Search Tags**: NEVER output &lt;search_web&gt;, &lt;query&gt;, or similar XML tags - web search is automatic and these show up raw to users
 </anti_patterns>
 
 <lean_orientation>
