@@ -41,47 +41,87 @@ class GraphSyncService:
         """
         Perform a full sync of all entities for a client.
 
+        Syncs ALL platform data including:
+        - Core: clients, users, agents, documents, chunks
+        - Conversations: conversations, messages
+        - Meetings: transcripts, meeting rooms, room messages
+        - Stakeholders: stakeholders, insights, concerns
+        - Business: ROI opportunities
+        - Knowledge: agent KB links, agent handoffs
+
         Args:
             client_id: The client ID to sync
 
         Returns:
             Dict with sync statistics
         """
-        logger.info(f"Starting full sync for client {client_id}")
+        logger.info(f"Starting FULL sync for client {client_id}")
         start_time = datetime.now(timezone.utc)
 
         results = {
             "client_id": client_id,
             "started_at": start_time.isoformat(),
+            # Core entities
+            "client": {"synced": 0, "errors": 0},
+            "users": {"synced": 0, "errors": 0},
             "agents": {"synced": 0, "errors": 0},
-            "stakeholders": {"synced": 0, "errors": 0},
-            "meetings": {"synced": 0, "errors": 0},
-            "insights": {"synced": 0, "errors": 0},
             "documents": {"synced": 0, "errors": 0},
+            "chunks": {"synced": 0, "errors": 0},
+            # Conversations
+            "conversations": {"synced": 0, "errors": 0},
+            "messages": {"synced": 0, "errors": 0},
+            # Meetings
+            "meetings": {"synced": 0, "errors": 0},
+            "meeting_rooms": {"synced": 0, "errors": 0},
+            "meeting_room_messages": {"synced": 0, "errors": 0},
+            # Stakeholders
+            "stakeholders": {"synced": 0, "errors": 0},
+            "insights": {"synced": 0, "errors": 0},
+            # Business
             "roi_opportunities": {"synced": 0, "errors": 0},
+            # Knowledge
+            "agent_knowledge_base": {"synced": 0, "errors": 0},
+            "agent_handoffs": {"synced": 0, "errors": 0},
+            # Relationships
             "relationships": {"created": 0, "errors": 0},
         }
 
         try:
-            # Sync agents first (global, not client-specific)
-            agent_result = await self.sync_agents()
-            results["agents"] = agent_result
+            # Phase 1: Core entities (no dependencies)
+            logger.info("Phase 1: Syncing core entities...")
+            results["client"] = await self.sync_client(client_id)
+            results["agents"] = await self.sync_agents()
+            results["users"] = await self.sync_users(client_id)
 
-            # Sync in order of dependencies
-            stakeholder_result = await self.sync_stakeholders(client_id)
-            results["stakeholders"] = stakeholder_result
+            # Phase 2: Documents and chunks
+            logger.info("Phase 2: Syncing documents...")
+            results["documents"] = await self.sync_documents(client_id)
+            results["chunks"] = await self.sync_document_chunks(client_id)
 
-            meeting_result = await self.sync_meetings(client_id)
-            results["meetings"] = meeting_result
+            # Phase 3: Conversations and messages
+            logger.info("Phase 3: Syncing conversations...")
+            results["conversations"] = await self.sync_conversations(client_id)
+            results["messages"] = await self.sync_messages(client_id)
 
-            insight_result = await self.sync_insights(client_id)
-            results["insights"] = insight_result
+            # Phase 4: Meetings
+            logger.info("Phase 4: Syncing meetings...")
+            results["meetings"] = await self.sync_meetings(client_id)
+            results["meeting_rooms"] = await self.sync_meeting_rooms(client_id)
+            results["meeting_room_messages"] = await self.sync_meeting_room_messages(client_id)
 
-            document_result = await self.sync_documents(client_id)
-            results["documents"] = document_result
+            # Phase 5: Stakeholders and insights
+            logger.info("Phase 5: Syncing stakeholders...")
+            results["stakeholders"] = await self.sync_stakeholders(client_id)
+            results["insights"] = await self.sync_insights(client_id)
 
-            roi_result = await self.sync_roi_opportunities(client_id)
-            results["roi_opportunities"] = roi_result
+            # Phase 6: Business entities
+            logger.info("Phase 6: Syncing business entities...")
+            results["roi_opportunities"] = await self.sync_roi_opportunities(client_id)
+
+            # Phase 7: Knowledge graph links
+            logger.info("Phase 7: Syncing knowledge links...")
+            results["agent_knowledge_base"] = await self.sync_agent_knowledge_base()
+            results["agent_handoffs"] = await self.sync_agent_handoffs(client_id)
 
             # Log sync completion
             await self._log_sync(client_id, "full", results)
@@ -93,7 +133,444 @@ class GraphSyncService:
         results["completed_at"] = datetime.now(timezone.utc).isoformat()
         results["duration_seconds"] = (datetime.now(timezone.utc) - start_time).total_seconds()
 
+        # Calculate totals
+        total_synced = sum(
+            v.get("synced", 0) for k, v in results.items()
+            if isinstance(v, dict) and "synced" in v
+        )
+        total_errors = sum(
+            v.get("errors", 0) for k, v in results.items()
+            if isinstance(v, dict) and "errors" in v
+        )
+        results["totals"] = {"synced": total_synced, "errors": total_errors}
+
+        logger.info(f"Full sync completed: {total_synced} entities synced, {total_errors} errors")
         return results
+
+    # ==========================================================================
+    # Core Entity Sync Methods
+    # ==========================================================================
+
+    async def sync_client(self, client_id: str) -> dict:
+        """
+        Sync a single client to Neo4j.
+
+        Args:
+            client_id: The client ID to sync
+
+        Returns:
+            Dict with sync counts
+        """
+        result = {"synced": 0, "errors": 0}
+
+        try:
+            response = self.supabase.table("clients") \
+                .select("*") \
+                .eq("id", client_id) \
+                .single() \
+                .execute()
+
+            if response.data:
+                client = response.data
+                await self.neo4j.execute_write(
+                    CYPHER_TEMPLATES["upsert_client"],
+                    {
+                        "id": client["id"],
+                        "name": client.get("name", "Unknown"),
+                        "assistant_name": client.get("assistant_name", "Thesis"),
+                    }
+                )
+                result["synced"] = 1
+                logger.info(f"Synced client: {client.get('name')}")
+
+        except Exception as e:
+            logger.error(f"Client sync failed: {e}")
+            result["errors"] = 1
+
+        return result
+
+    async def sync_users(self, client_id: str) -> dict:
+        """
+        Sync all users for a client.
+
+        Args:
+            client_id: The client ID
+
+        Returns:
+            Dict with sync counts
+        """
+        result = {"synced": 0, "errors": 0}
+
+        try:
+            response = self.supabase.table("users") \
+                .select("*") \
+                .eq("client_id", client_id) \
+                .execute()
+
+            users = response.data or []
+            logger.info(f"Syncing {len(users)} users for client {client_id}")
+
+            for user in users:
+                try:
+                    await self.neo4j.execute_write(
+                        CYPHER_TEMPLATES["upsert_user"],
+                        {
+                            "id": user["id"],
+                            "email": user.get("email", ""),
+                            "name": user.get("name", ""),
+                            "role": user.get("role", "user"),
+                            "client_id": client_id,
+                        }
+                    )
+                    result["synced"] += 1
+                except Exception as e:
+                    logger.error(f"Failed to sync user {user['id']}: {e}")
+                    result["errors"] += 1
+
+        except Exception as e:
+            logger.error(f"User sync failed: {e}")
+            result["errors"] += 1
+
+        return result
+
+    async def sync_document_chunks(self, client_id: str, max_chunks_per_doc: int = 50) -> dict:
+        """
+        Sync document chunks to Neo4j.
+
+        Only syncs a preview of content to keep graph lightweight.
+
+        Args:
+            client_id: The client ID
+            max_chunks_per_doc: Max chunks to sync per document
+
+        Returns:
+            Dict with sync counts
+        """
+        result = {"synced": 0, "errors": 0}
+
+        try:
+            # Get documents for this client
+            doc_response = self.supabase.table("documents") \
+                .select("id") \
+                .eq("client_id", client_id) \
+                .eq("processing_status", "completed") \
+                .execute()
+
+            doc_ids = [d["id"] for d in (doc_response.data or [])]
+            logger.info(f"Syncing chunks for {len(doc_ids)} documents")
+
+            for doc_id in doc_ids:
+                try:
+                    chunk_response = self.supabase.table("document_chunks") \
+                        .select("id, document_id, chunk_index, content") \
+                        .eq("document_id", doc_id) \
+                        .order("chunk_index") \
+                        .limit(max_chunks_per_doc) \
+                        .execute()
+
+                    for chunk in (chunk_response.data or []):
+                        # Truncate content for graph storage
+                        content_preview = (chunk.get("content", "") or "")[:500]
+
+                        await self.neo4j.execute_write(
+                            CYPHER_TEMPLATES["upsert_chunk"],
+                            {
+                                "id": chunk["id"],
+                                "document_id": doc_id,
+                                "chunk_index": chunk.get("chunk_index", 0),
+                                "content_preview": content_preview,
+                            }
+                        )
+                        result["synced"] += 1
+
+                except Exception as e:
+                    logger.error(f"Failed to sync chunks for document {doc_id}: {e}")
+                    result["errors"] += 1
+
+        except Exception as e:
+            logger.error(f"Document chunk sync failed: {e}")
+            result["errors"] += 1
+
+        return result
+
+    async def sync_conversations(self, client_id: str) -> dict:
+        """
+        Sync conversations for a client.
+
+        Args:
+            client_id: The client ID
+
+        Returns:
+            Dict with sync counts
+        """
+        result = {"synced": 0, "errors": 0}
+
+        try:
+            response = self.supabase.table("conversations") \
+                .select("*") \
+                .eq("client_id", client_id) \
+                .execute()
+
+            conversations = response.data or []
+            logger.info(f"Syncing {len(conversations)} conversations for client {client_id}")
+
+            for conv in conversations:
+                try:
+                    await self.neo4j.execute_write(
+                        CYPHER_TEMPLATES["upsert_conversation"],
+                        {
+                            "id": conv["id"],
+                            "title": conv.get("title", "Untitled"),
+                            "client_id": client_id,
+                            "user_id": conv.get("user_id"),
+                            "archived": conv.get("archived", False),
+                            "in_knowledge_base": conv.get("in_knowledge_base", False),
+                        }
+                    )
+                    result["synced"] += 1
+                except Exception as e:
+                    logger.error(f"Failed to sync conversation {conv['id']}: {e}")
+                    result["errors"] += 1
+
+        except Exception as e:
+            logger.error(f"Conversation sync failed: {e}")
+            result["errors"] += 1
+
+        return result
+
+    async def sync_messages(self, client_id: str, max_messages_per_conv: int = 100) -> dict:
+        """
+        Sync messages for a client's conversations.
+
+        Only syncs a preview of content to keep graph lightweight.
+
+        Args:
+            client_id: The client ID
+            max_messages_per_conv: Max messages per conversation
+
+        Returns:
+            Dict with sync counts
+        """
+        result = {"synced": 0, "errors": 0, "agent_links": 0}
+
+        try:
+            # Get conversations for this client
+            conv_response = self.supabase.table("conversations") \
+                .select("id") \
+                .eq("client_id", client_id) \
+                .execute()
+
+            conv_ids = [c["id"] for c in (conv_response.data or [])]
+
+            for conv_id in conv_ids:
+                try:
+                    msg_response = self.supabase.table("messages") \
+                        .select("*") \
+                        .eq("conversation_id", conv_id) \
+                        .order("created_at") \
+                        .limit(max_messages_per_conv) \
+                        .execute()
+
+                    for msg in (msg_response.data or []):
+                        content_preview = (msg.get("content", "") or "")[:300]
+                        agent_id = msg.get("agent_id")
+
+                        await self.neo4j.execute_write(
+                            CYPHER_TEMPLATES["upsert_message"],
+                            {
+                                "id": msg["id"],
+                                "conversation_id": conv_id,
+                                "role": msg.get("role", "user"),
+                                "content_preview": content_preview,
+                                "agent_id": agent_id,
+                            }
+                        )
+                        result["synced"] += 1
+
+                        # Link to agent if assistant message
+                        if agent_id and msg.get("role") == "assistant":
+                            try:
+                                await self.neo4j.execute_write(
+                                    CYPHER_TEMPLATES["link_message_agent"],
+                                    {"message_id": msg["id"], "agent_id": agent_id}
+                                )
+                                result["agent_links"] += 1
+                            except Exception:
+                                pass  # Agent might not exist yet
+
+                except Exception as e:
+                    logger.error(f"Failed to sync messages for conversation {conv_id}: {e}")
+                    result["errors"] += 1
+
+        except Exception as e:
+            logger.error(f"Message sync failed: {e}")
+            result["errors"] += 1
+
+        return result
+
+    async def sync_meeting_rooms(self, client_id: str) -> dict:
+        """
+        Sync meeting rooms and participants.
+
+        Args:
+            client_id: The client ID
+
+        Returns:
+            Dict with sync counts
+        """
+        result = {"synced": 0, "errors": 0, "participants": 0}
+
+        try:
+            response = self.supabase.table("meeting_rooms") \
+                .select("*") \
+                .eq("client_id", client_id) \
+                .execute()
+
+            rooms = response.data or []
+            logger.info(f"Syncing {len(rooms)} meeting rooms for client {client_id}")
+
+            for room in rooms:
+                try:
+                    await self.neo4j.execute_write(
+                        CYPHER_TEMPLATES["upsert_meeting_room"],
+                        {
+                            "id": room["id"],
+                            "name": room.get("name", "Untitled Room"),
+                            "description": room.get("description", ""),
+                            "client_id": client_id,
+                            "status": room.get("status", "active"),
+                        }
+                    )
+                    result["synced"] += 1
+
+                    # Sync participants
+                    participant_response = self.supabase.table("meeting_room_participants") \
+                        .select("agent_id") \
+                        .eq("meeting_room_id", room["id"]) \
+                        .execute()
+
+                    for participant in (participant_response.data or []):
+                        try:
+                            await self.neo4j.execute_write(
+                                CYPHER_TEMPLATES["add_meeting_room_participant"],
+                                {
+                                    "meeting_room_id": room["id"],
+                                    "agent_id": participant["agent_id"],
+                                }
+                            )
+                            result["participants"] += 1
+                        except Exception:
+                            pass  # Agent might not exist
+
+                except Exception as e:
+                    logger.error(f"Failed to sync meeting room {room['id']}: {e}")
+                    result["errors"] += 1
+
+        except Exception as e:
+            logger.error(f"Meeting room sync failed: {e}")
+            result["errors"] += 1
+
+        return result
+
+    async def sync_meeting_room_messages(self, client_id: str, max_per_room: int = 200) -> dict:
+        """
+        Sync meeting room messages.
+
+        Args:
+            client_id: The client ID
+            max_per_room: Max messages per room
+
+        Returns:
+            Dict with sync counts
+        """
+        result = {"synced": 0, "errors": 0}
+
+        try:
+            # Get meeting rooms for this client
+            room_response = self.supabase.table("meeting_rooms") \
+                .select("id") \
+                .eq("client_id", client_id) \
+                .execute()
+
+            room_ids = [r["id"] for r in (room_response.data or [])]
+
+            for room_id in room_ids:
+                try:
+                    msg_response = self.supabase.table("meeting_room_messages") \
+                        .select("*") \
+                        .eq("meeting_room_id", room_id) \
+                        .order("created_at") \
+                        .limit(max_per_room) \
+                        .execute()
+
+                    for msg in (msg_response.data or []):
+                        content_preview = (msg.get("content", "") or "")[:300]
+
+                        await self.neo4j.execute_write(
+                            CYPHER_TEMPLATES["upsert_meeting_room_message"],
+                            {
+                                "id": msg["id"],
+                                "meeting_room_id": room_id,
+                                "agent_id": msg.get("agent_id"),
+                                "content_preview": content_preview,
+                            }
+                        )
+                        result["synced"] += 1
+
+                except Exception as e:
+                    logger.error(f"Failed to sync messages for room {room_id}: {e}")
+                    result["errors"] += 1
+
+        except Exception as e:
+            logger.error(f"Meeting room message sync failed: {e}")
+            result["errors"] += 1
+
+        return result
+
+    async def sync_agent_knowledge_base(self) -> dict:
+        """
+        Sync agent knowledge base links.
+
+        Creates HAS_KNOWLEDGE_OF relationships between agents and documents.
+
+        Returns:
+            Dict with sync counts
+        """
+        result = {"synced": 0, "errors": 0}
+
+        try:
+            response = self.supabase.table("agent_knowledge_base") \
+                .select("*") \
+                .execute()
+
+            kb_links = response.data or []
+            logger.info(f"Syncing {len(kb_links)} agent knowledge base links")
+
+            for link in kb_links:
+                try:
+                    await self.neo4j.execute_write(
+                        CYPHER_TEMPLATES["link_agent_knowledge"],
+                        {
+                            "agent_id": link["agent_id"],
+                            "document_id": link["document_id"],
+                            "priority": link.get("priority", 0),
+                            "notes": link.get("notes", ""),
+                        }
+                    )
+                    result["synced"] += 1
+                except Exception as e:
+                    logger.error(f"Failed to sync KB link: {e}")
+                    result["errors"] += 1
+
+        except Exception as e:
+            logger.error(f"Agent knowledge base sync failed: {e}")
+            result["errors"] += 1
+
+        return result
+
+    # ==========================================================================
+    # Stakeholder Sync Methods
+    # ==========================================================================
 
     async def sync_stakeholders(self, client_id: str) -> dict:
         """
@@ -362,7 +839,7 @@ class GraphSyncService:
 
     async def sync_documents(self, client_id: str) -> dict:
         """
-        Sync documents to graph.
+        Sync documents to graph with full metadata and uploader links.
 
         Args:
             client_id: The client ID
@@ -370,7 +847,7 @@ class GraphSyncService:
         Returns:
             Dict with sync counts
         """
-        result = {"synced": 0, "errors": 0}
+        result = {"synced": 0, "errors": 0, "uploader_links": 0}
 
         try:
             response = self.supabase.table("documents") \
@@ -383,22 +860,32 @@ class GraphSyncService:
 
             for doc in documents:
                 try:
-                    await self.neo4j.execute_write("""
-                        MERGE (d:Document {id: $id})
-                        SET d.title = $title,
-                            d.doc_type = $doc_type,
-                            d.summary = $summary,
-                            d.client_id = $client_id,
-                            d.updated_at = datetime()
-                        RETURN d
-                    """, {
-                        "id": doc["id"],
-                        "title": doc.get("title", "Untitled"),
-                        "doc_type": doc.get("doc_type", "document"),
-                        "summary": doc.get("summary", ""),
-                        "client_id": client_id,
-                    })
+                    await self.neo4j.execute_write(
+                        CYPHER_TEMPLATES["upsert_document"],
+                        {
+                            "id": doc["id"],
+                            "filename": doc.get("filename", "Untitled"),
+                            "file_type": doc.get("file_type", "unknown"),
+                            "source_platform": doc.get("source_platform", "upload"),
+                            "is_core_document": doc.get("is_core_document", False),
+                            "client_id": client_id,
+                            "processing_status": doc.get("processing_status", "pending"),
+                        }
+                    )
                     result["synced"] += 1
+
+                    # Link to uploader if exists
+                    uploaded_by = doc.get("uploaded_by")
+                    if uploaded_by:
+                        try:
+                            await self.neo4j.execute_write(
+                                CYPHER_TEMPLATES["link_document_uploader"],
+                                {"document_id": doc["id"], "user_id": uploaded_by}
+                            )
+                            result["uploader_links"] += 1
+                        except Exception:
+                            pass  # User might not be synced yet
+
                 except Exception as e:
                     logger.error(f"Failed to sync document {doc['id']}: {e}")
                     result["errors"] += 1
@@ -543,9 +1030,10 @@ class GraphSyncService:
 
     async def sync_agents(self) -> dict:
         """
-        Sync agents to Neo4j.
+        Sync agents to Neo4j with full metadata and expertise mappings.
 
         Agents are global (not client-specific) so we sync all active agents.
+        Includes all 15 agents with their expertise areas.
 
         Returns:
             Dict with sync counts
@@ -561,33 +1049,43 @@ class GraphSyncService:
             agents = response.data or []
             logger.info(f"Syncing {len(agents)} agents to Neo4j")
 
-            # Agent expertise mapping (which concepts each agent is expert in)
+            # Comprehensive agent expertise mapping for all 15 agents
             agent_expertise = {
-                "atlas": ["research", "consulting", "case studies", "thought leadership", "genai"],
-                "fortuna": ["roi", "finance", "budget", "cost savings", "investment"],
-                "guardian": ["governance", "security", "infrastructure", "it", "compliance"],
-                "counselor": ["legal", "contracts", "compliance", "risk", "policy"],
-                "oracle": ["transcripts", "meetings", "stakeholders", "sentiment", "insights"],
+                # Stakeholder Perspective Agents
+                "atlas": ["research", "consulting", "case studies", "thought leadership", "genai", "lean methodology", "benchmarking"],
+                "fortuna": ["roi", "finance", "budget", "cost savings", "investment", "sox compliance", "business case"],
+                "guardian": ["governance", "security", "infrastructure", "it", "compliance", "vendor evaluation", "shadow it"],
+                "counselor": ["legal", "contracts", "compliance", "risk", "policy", "data privacy", "liability"],
+                "sage": ["change management", "human flourishing", "adoption", "people", "culture", "training"],
+                "oracle": ["transcripts", "meetings", "stakeholders", "sentiment", "insights", "dynamics"],
+                # Consulting/Implementation Agents
+                "strategist": ["strategy", "executive", "c-suite", "governance", "politics", "organizational"],
+                "architect": ["architecture", "technical", "rag", "integration", "build vs buy", "enterprise ai"],
+                "operator": ["operations", "process", "automation", "metrics", "optimization", "workflow"],
+                "pioneer": ["innovation", "r&d", "emerging technology", "hype", "maturity assessment"],
+                # Internal Enablement Agents
+                "catalyst": ["communications", "messaging", "employee engagement", "ai anxiety", "internal"],
+                "scholar": ["training", "learning", "development", "champion enablement", "adult learning"],
+                "echo": ["brand voice", "style", "tone", "voice analysis", "ai emulation"],
+                # Systems/Coordination Agents
+                "nexus": ["systems thinking", "interconnections", "feedback loops", "leverage points", "unintended consequences"],
+                "coordinator": ["orchestration", "routing", "synthesis", "coordination"],
             }
 
             for agent in agents:
                 try:
-                    # Upsert agent node
-                    await self.neo4j.execute_write("""
-                        MERGE (a:Agent {id: $id})
-                        SET a.name = $name,
-                            a.display_name = $display_name,
-                            a.description = $description,
-                            a.is_active = $is_active,
-                            a.updated_at = datetime()
-                        RETURN a
-                    """, {
-                        "id": agent["id"],
-                        "name": agent.get("name", ""),
-                        "display_name": agent.get("display_name", ""),
-                        "description": agent.get("description", ""),
-                        "is_active": agent.get("is_active", True),
-                    })
+                    # Upsert agent node using template
+                    await self.neo4j.execute_write(
+                        CYPHER_TEMPLATES["upsert_agent"],
+                        {
+                            "id": agent["id"],
+                            "name": agent.get("name", ""),
+                            "display_name": agent.get("display_name", ""),
+                            "description": agent.get("description", ""),
+                            "persona": agent.get("persona", ""),
+                            "is_active": agent.get("is_active", True),
+                        }
+                    )
                     result["synced"] += 1
 
                     # Create expertise relationships
@@ -596,22 +1094,18 @@ class GraphSyncService:
 
                     for concept_name in expertise_concepts:
                         try:
-                            await self.neo4j.execute_write("""
-                                MERGE (c:Concept {name: $concept_name})
-                                SET c.category = 'agent_expertise',
-                                    c.updated_at = datetime()
-                                WITH c
-                                MATCH (a:Agent {id: $agent_id})
-                                MERGE (a)-[r:EXPERT_IN]->(c)
-                                SET r.confidence = 0.9
-                                RETURN r
-                            """, {
-                                "concept_name": concept_name,
-                                "agent_id": agent["id"],
-                            })
+                            await self.neo4j.execute_write(
+                                CYPHER_TEMPLATES["link_agent_expertise"],
+                                {
+                                    "agent_id": agent["id"],
+                                    "expertise_name": concept_name,
+                                    "category": "agent_expertise",
+                                    "confidence": 0.9,
+                                }
+                            )
                             result["expertise_links"] += 1
                         except Exception as e:
-                            logger.error(f"Failed to link agent {agent['id']} to concept {concept_name}: {e}")
+                            logger.error(f"Failed to link agent {agent['id']} to expertise {concept_name}: {e}")
 
                 except Exception as e:
                     logger.error(f"Failed to sync agent {agent['id']}: {e}")

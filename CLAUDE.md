@@ -32,23 +32,48 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 
 **Forked from Walter** - This codebase is based on the Walter L&D assistant platform, adapted for multi-agent GenAI strategy support.
 
-### Core Agents
+### Agent Roster (15 Agents)
 
+#### Stakeholder Perspective Agents
+| Agent | Name | Persona Alignment | Purpose |
+|-------|------|-------------------|---------|
+| Atlas | Research | Chris Baumgartner | GenAI research, Lean methodology, benchmarking |
+| Fortuna | Finance | Raul Rivera III | ROI analysis, SOX compliance, business cases |
+| Guardian | IT/Governance | Danny Leal | Security, compliance, shadow IT, vendor evaluation |
+| Counselor | Legal | Ashley Adams | Contracts, AI risks, liability, data privacy |
+| Sage | People | Chad Meek | Change management, human flourishing, adoption |
+| Oracle | Meeting Intelligence | CIPHER v2.1 | Transcript analysis, stakeholder dynamics, sentiment extraction with evidence |
+
+#### Consulting/Implementation Agents
 | Agent | Name | Purpose |
 |-------|------|---------|
-| Research | Atlas | Track GenAI research, consulting approaches, case studies, thought leadership |
-| Finance | Fortuna | ROI analysis, budget justification, Finance stakeholder support |
-| IT/Governance | Guardian | Navigate governance, security, infrastructure considerations |
-| Legal | Counselor | Legal considerations, contracts, compliance |
-| Transcript Analyzer | Oracle | Extract stakeholder sentiment from meeting transcripts |
+| Strategist | Executive Strategy | C-suite engagement, organizational politics, governance |
+| Architect | Technical Architecture | Enterprise AI patterns, RAG, integration, build vs. buy |
+| Operator | Business Operations | Process optimization, automation, operational metrics |
+| Pioneer | Innovation/R&D | Emerging technology, hype filtering, maturity assessment |
+
+#### Internal Enablement Agents
+| Agent | Name | Purpose |
+|-------|------|---------|
+| Catalyst | Internal Communications | AI messaging, employee engagement, AI anxiety |
+| Scholar | Learning & Development | Training programs, champion enablement, adult learning |
+| Echo | Brand Voice | Voice analysis, style profiling, AI emulation guidelines |
+
+#### Systems/Coordination Agents
+| Agent | Name | Purpose |
+|-------|------|---------|
+| Nexus | Systems Thinking | Interconnections, feedback loops, leverage points, unintended consequences |
+| Coordinator | Thesis | Central orchestrator, query routing, response synthesis |
 
 ### Key Capabilities
 
-1. **Transcript Analysis**: Upload meeting transcripts (Granola/Otter format), extract stakeholder insights
+1. **Meeting Intelligence**: Upload meeting transcripts (Granola/Otter/Teams/Zoom), extract stakeholder insights with evidence-based sentiment analysis, power dynamics, and strategic recommendations
 2. **Stakeholder Tracking**: Full CRM-style tracking with sentiment, engagement, alignment scores
 3. **Research Intelligence**: Proactive monitoring of GenAI implementation research
 4. **Agent Coordination**: Hybrid model - some agents work independently, others collaborate
 5. **Persistent Memory**: Mem0 integration for cross-conversation learning
+6. **Meeting Room**: Multi-agent collaboration with selected agents for focused discussions
+7. **Dig Deeper**: One-click elaboration on any assistant response for more detail
 
 ## Tech Stack
 
@@ -114,18 +139,57 @@ python -m pytest                         # Run tests
 - **Commits**: Conventional commits (fix:, feat:, docs:, etc.)
 - **No emojis**: Keep documentation and code professional
 
+## Agent Instruction Methodology
+
+Agent system instructions use the **Gigawatt v4.0 RCCI Framework** with:
+
+- **XML Structure**: `<version>`, `<role>`, `<context>`, `<capabilities>`, `<instructions>`, `<criteria>`, `<few_shot_examples>`, `<wisdom>`, `<anti_patterns>`
+- **Chain-of-Thought**: Step-by-step analysis processes
+- **Evidence-Based**: All insights backed by quotes/data
+- **Persona Alignment**: Agents embody specific stakeholder perspectives
+- **Few-Shot Examples**: Comprehensive examples showing expected output format
+
+Canonical instructions live in `/backend/system_instructions/agents/*.xml` with fallbacks in each agent's `_get_default_instruction()` method.
+
 ## Thesis-Specific Tables
 
 ```sql
--- Core new tables (see /database for full schema)
-agents                    -- Agent registry
-stakeholders              -- CRM-style stakeholder tracking
-stakeholder_insights      -- Extracted insights from transcripts
-meeting_transcripts       -- Processed transcript metadata
-roi_opportunities         -- Identified ROI opportunities
-agent_instruction_versions -- Per-agent system instruction versioning
-agent_handoffs            -- Tracking agent-to-agent handoffs
+-- Agent System
+agents                       -- Agent registry (15 agents)
+agent_instruction_versions   -- Per-agent versioned instructions (single source of truth)
+agent_handoffs               -- Agent-to-agent handoff tracking
+agent_knowledge_base         -- Document-to-agent links for RAG
+
+-- Stakeholder Management
+stakeholders                 -- CRM-style stakeholder tracking
+stakeholder_insights         -- Extracted insights from transcripts
+
+-- Meeting Intelligence
+meeting_transcripts          -- Processed transcript metadata
+meeting_rooms                -- Multi-agent meeting sessions
+meeting_room_participants    -- Agents in each meeting
+meeting_room_messages        -- Messages with agent attribution
+
+-- Business Intelligence
+roi_opportunities            -- Identified ROI opportunities
 ```
+
+## Database Migrations
+
+Run migrations in order from `/database/migrations/`:
+
+| # | File | Description |
+|---|------|-------------|
+| 001 | thesis_agents_and_stakeholders | Core agents and stakeholders |
+| 002 | agent_knowledge_base | Document-agent linking for RAG |
+| 003 | add_coordinator | Coordinator agent |
+| 004 | graph_sync_tracking | Neo4j sync tracking |
+| 005 | add_sage_agent | Sage (People/Change) agent |
+| 006 | add_new_specialist_agents | Strategist, Architect, Operator, Pioneer, Catalyst, Scholar |
+| 007 | meeting_rooms | Multi-agent meeting rooms |
+| 008 | add_nexus_systems_thinking_agent | Nexus (Systems Thinking) agent |
+| 009 | add_bard_agent | Echo (Brand Voice) agent |
+| 010 | rename_bard_to_echo | Rename bard to echo |
 
 ## Environment Variables
 
@@ -143,11 +207,50 @@ Key variables:
 - `/docs/planning/IMPLEMENTATION_PLAN.md` - Detailed implementation roadmap
 - `/docs/planning/2024-12-26-planning-session.md` - Planning session transcript
 
+## Testing & Code Quality
+
+### Testing Infrastructure
+- `/docs/testing/TESTING_PROMPT.md` - Reusable prompt for comprehensive code review and auto-fix
+- `/docs/testing/COMPREHENSIVE_TEST_PLAN.md` - Full testing framework and strategy
+- `/docs/testing/CODE_REVIEW_FINDINGS.md` - Latest code review findings
+
+### Running Tests
+```bash
+cd /backend
+source venv/bin/activate
+python -m pytest tests/ -v --tb=short
+```
+
+### Code Quality Targets
+| Metric | Target |
+|--------|--------|
+| Code Quality Score | 9.0/10 |
+| Test Pass Rate | 100% |
+| Bare except blocks | 0 |
+| Deprecated patterns | 0 |
+| Print statements (prod) | 0 |
+
 ## Important Files
 
+### Backend
 - `/backend/main.py` - FastAPI app entry point
-- `/backend/agents/` - Agent implementations
-- `/backend/services/transcript_analyzer.py` - Meeting analysis
-- `/backend/system_instructions/` - Agent behavior configuration
+- `/backend/agents/` - Agent implementations (14 agents)
+- `/backend/agents/agent_factory.py` - Agent creation and registration
+- `/backend/agents/base_agent.py` - Base class with instruction loading
+- `/backend/services/transcript_analyzer.py` - Meeting transcript analysis
+- `/backend/services/meeting_orchestrator.py` - Multi-agent meeting coordination
+- `/backend/services/instruction_loader.py` - XML instruction file loading
+- `/backend/system_instructions/agents/*.xml` - Agent behavior configuration (Gigawatt v4.0)
+- `/backend/api/routes/chat.py` - Chat endpoints including Dig Deeper
+- `/backend/api/routes/meeting_rooms.py` - Meeting room CRUD and streaming
+- `/backend/api/routes/agents.py` - Agent management endpoints
+
+### Frontend
 - `/frontend/app/layout.tsx` - Root layout with providers
+- `/frontend/components/ChatInterface.tsx` - Main chat with Dig Deeper integration
+- `/frontend/app/meeting-room/` - Meeting room pages
+- `/frontend/app/admin/agents/` - Agent admin interface
+
+### Database
 - `/database/thesis_schema.sql` - Complete DB schema
+- `/database/migrations/` - All migration scripts (001-009)

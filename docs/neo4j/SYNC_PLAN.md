@@ -1,39 +1,98 @@
 # Neo4j ↔ Supabase Sync Implementation Plan
 
-> **Context**: Thesis is a multi-agent platform with Supabase (PostgreSQL) as the primary database. We're adding Neo4j to test graph capabilities for stakeholder networks, agent coordination, and concept mapping. The goal is to sync data during the Neo4j trial period to evaluate whether graph queries provide enough value to justify the cost.
+> **Context**: Thesis is a multi-agent platform with Supabase (PostgreSQL) as the primary database. Neo4j provides comprehensive graph capabilities for stakeholder networks, agent coordination, knowledge graph, and semantic relationships across ALL platform data.
 
-## Current State
+## Design Principles
 
-### Supabase Schema (Source of Truth)
-- `stakeholders` - CRM-style stakeholder tracking
-- `stakeholder_insights` - Extracted insights from transcripts
-- `meeting_transcripts` - Uploaded meeting transcripts
-- `roi_opportunities` - Identified ROI opportunities
-- `agents` - Agent registry (atlas, fortuna, guardian, counselor, oracle)
-- `agent_handoffs` - Agent-to-agent handoff tracking
-- `agent_knowledge_base` - Links documents to agents
+1. **Comprehensive Coverage**: Every entity in the platform is graphed - documents, transcripts, conversations, meetings, stakeholders, agents, and all their relationships
+2. **One-Way Sync**: Supabase is source of truth. Neo4j is a derived graph view.
+3. **Relationship-First**: The value is in the connections - inferred relationships, concept links, influence patterns
+4. **Multi-Tenant Isolation**: All nodes include `client_id` for data isolation
 
-### Neo4j Schema (Already Defined)
-Location: `backend/services/graph/schema.py`
+---
 
-**Nodes:**
-- `Stakeholder` - id, name, role, organization, client_id, sentiment_score, total_interactions
-- `Agent` - id (need to add)
-- `Meeting` - id, title, meeting_date, meeting_type, client_id
-- `Insight` - id, insight_type, content, confidence
-- `ROIOpportunity` - id, title, status, annual_savings, client_id
-- `Concept` - name, category
-- `Concern` - id (extracted concerns)
-- `Document` - id, client_id
+## Complete Entity Mapping
 
-**Relationships:**
-- `(:Stakeholder)-[:REPORTS_TO]->(:Stakeholder)`
-- `(:Stakeholder)-[:INFLUENCES {strength, influence_type}]->(:Stakeholder)`
-- `(:Stakeholder)-[:ATTENDED {sentiment, speaking_time}]->(:Meeting)`
-- `(:Stakeholder)-[:HAS_INSIGHT]->(:Insight)`
-- `(:Stakeholder)-[:SUPPORTS {commitment_level}]->(:ROIOpportunity)`
-- `(:Stakeholder)-[:BLOCKS {reason}]->(:ROIOpportunity)`
-- `(:Meeting)-[:DISCUSSES {frequency}]->(:Concept)`
+### Core Entities (Direct Sync from Supabase)
+
+| Supabase Table | Neo4j Node | Properties | Priority |
+|----------------|------------|------------|----------|
+| `clients` | `:Client` | id, name, assistant_name | P0 |
+| `users` | `:User` | id, email, name, role, client_id | P0 |
+| `agents` | `:Agent` | id, name, display_name, persona, is_active | P0 |
+| `documents` | `:Document` | id, filename, file_type, source_platform, client_id, is_core_document | P0 |
+| `document_chunks` | `:Chunk` | id, document_id, chunk_index, content (truncated) | P1 |
+| `conversations` | `:Conversation` | id, title, user_id, client_id, archived, in_knowledge_base | P0 |
+| `messages` | `:Message` | id, conversation_id, role, content (truncated), agent_id | P1 |
+| `meeting_transcripts` | `:Meeting` | id, title, meeting_date, meeting_type, client_id | P0 |
+| `meeting_rooms` | `:MeetingRoom` | id, name, description, client_id, status | P0 |
+| `meeting_room_messages` | `:MeetingRoomMessage` | id, meeting_room_id, agent_id, content (truncated) | P1 |
+| `stakeholders` | `:Stakeholder` | id, name, role, organization, sentiment_score, client_id | P0 |
+| `stakeholder_insights` | `:Insight` | id, insight_type, content, confidence, sentiment | P0 |
+| `roi_opportunities` | `:ROIOpportunity` | id, title, status, annual_savings, client_id | P0 |
+| `agent_instruction_versions` | `:AgentInstruction` | id, agent_id, version, is_active | P2 |
+
+### Inferred Entities (LLM-Extracted)
+
+| Entity | Source | Neo4j Node | Extraction Method |
+|--------|--------|------------|-------------------|
+| Concepts/Topics | Document chunks, Transcripts, Messages | `:Concept` | LLM topic extraction |
+| Concerns | Stakeholder insights | `:Concern` | Insight parsing |
+| Action Items | Meeting transcripts | `:ActionItem` | LLM extraction |
+| Skills/Expertise | Agent instructions, KB docs | `:Expertise` | LLM analysis |
+
+### Relationship Types
+
+**Organizational/Structural:**
+```
+(:User)-[:BELONGS_TO]->(:Client)
+(:Document)-[:OWNED_BY]->(:Client)
+(:Document)-[:UPLOADED_BY]->(:User)
+(:Chunk)-[:PART_OF]->(:Document)
+(:Message)-[:IN_CONVERSATION]->(:Conversation)
+(:Conversation)-[:OWNED_BY]->(:User)
+```
+
+**Agent-Related:**
+```
+(:Agent)-[:HAS_KNOWLEDGE_OF {priority}]->(:Document)
+(:Agent)-[:EXPERT_IN {confidence}]->(:Expertise)
+(:Agent)-[:HANDED_OFF_TO {reason, timestamp}]->(:Agent)
+(:Agent)-[:PARTICIPATED_IN]->(:MeetingRoom)
+(:Agent)-[:AUTHORED]->(:Message)
+(:Agent)-[:AUTHORED]->(:MeetingRoomMessage)
+```
+
+**Stakeholder-Related:**
+```
+(:Stakeholder)-[:REPORTS_TO]->(:Stakeholder)
+(:Stakeholder)-[:INFLUENCES {strength, type}]->(:Stakeholder)
+(:Stakeholder)-[:ATTENDED {sentiment, speaking_time}]->(:Meeting)
+(:Stakeholder)-[:HAS_INSIGHT]->(:Insight)
+(:Stakeholder)-[:SUPPORTS {commitment_level}]->(:ROIOpportunity)
+(:Stakeholder)-[:BLOCKS {reason}]->(:ROIOpportunity)
+(:Stakeholder)-[:RAISED]->(:Concern)
+(:Stakeholder)-[:ASSIGNED]->(:ActionItem)
+```
+
+**Semantic/Content:**
+```
+(:Document)-[:DISCUSSES {frequency}]->(:Concept)
+(:Chunk)-[:MENTIONS]->(:Concept)
+(:Meeting)-[:DISCUSSES {frequency}]->(:Concept)
+(:Conversation)-[:ABOUT]->(:Concept)
+(:Message)-[:REFERENCES]->(:Document)
+(:Insight)-[:RELATES_TO]->(:Concept)
+(:Concept)-[:RELATED_TO {strength}]->(:Concept)
+```
+
+**Cross-Entity:**
+```
+(:Conversation)-[:MENTIONS]->(:Stakeholder)
+(:Document)-[:ABOUT]->(:Stakeholder)
+(:Meeting)-[:GENERATED]->(:Insight)
+(:Meeting)-[:IDENTIFIED]->(:ROIOpportunity)
+```
 
 ---
 
@@ -331,30 +390,124 @@ Drop Neo4j if:
 
 ---
 
-## Implementation Order
+## Implementation Status
 
-1. **Week 1**: Sync Service Foundation
-   - [ ] Create `sync_service.py` with stakeholder/meeting/ROI sync
-   - [ ] Add application-level sync triggers to existing routes
-   - [ ] Create initial sync script
-   - [ ] Test with sample data
+> **Last Updated**: December 27, 2024
 
-2. **Week 2**: Relationship Inference
-   - [ ] Build `relationship_extractor.py`
-   - [ ] Add concept extraction (LLM-based)
-   - [ ] Create influence inference from co-attendance patterns
-   - [ ] Sync relationships to Neo4j
+### Completed Components
 
-3. **Week 3**: Graph Query API
-   - [ ] Implement stakeholder influence queries
-   - [ ] Add meeting network endpoints
-   - [ ] Build ROI path analysis
-   - [ ] Add agent routing queries
+| Component | Status | File |
+|-----------|--------|------|
+| Connection Manager | Done | `backend/services/graph/connection.py` |
+| Schema Definition (20 node types) | Done | `backend/services/graph/schema.py` |
+| Full Sync Service (15 entity types) | Done | `backend/services/graph/sync_service.py` |
+| Relationship Extractor | Done | `backend/services/graph/relationship_extractor.py` |
+| Query Service | Done | `backend/services/graph/query_service.py` |
+| Graph API Routes | Done | `backend/api/routes/graph.py` |
 
-4. **Week 4**: Evaluation
-   - [ ] Compare query performance
-   - [ ] Assess visualization value
-   - [ ] Make keep/drop decision before trial ends
+### Entities Synced
+
+**Core Entities (P0)**:
+- [x] Clients
+- [x] Users (with BELONGS_TO Client)
+- [x] Agents (15 agents with expertise mapping)
+- [x] Documents (with UPLOADED_BY User, OWNED_BY Client)
+- [x] Conversations (with OWNED_BY User)
+- [x] Stakeholders
+- [x] Meetings (meeting_transcripts)
+- [x] Meeting Rooms
+- [x] Insights (stakeholder_insights)
+- [x] ROI Opportunities
+
+**Extended Entities (P1)**:
+- [x] Document Chunks (with PART_OF Document)
+- [x] Messages (with IN_CONVERSATION, AUTHORED by Agent)
+- [x] Meeting Room Messages
+- [x] Agent Knowledge Base links (HAS_KNOWLEDGE_OF)
+- [x] Agent Handoffs (HANDED_OFF_TO)
+
+**Inferred Entities**:
+- [x] Concepts (extracted from meetings via LLM)
+- [x] Expertise (agent capability areas)
+- [x] Clusters (stakeholder groupings)
+- [ ] Concerns (pending: insight parsing)
+- [ ] Action Items (pending: meeting extraction)
+
+### Cypher Templates (40 total)
+
+The schema includes comprehensive Cypher templates for:
+- All CRUD operations for each entity type
+- Relationship creation (INFLUENCES, REPORTS_TO, ATTENDED, etc.)
+- Agent knowledge and expertise linking
+- Cross-entity references (MESSAGE-REFERENCES-DOCUMENT, etc.)
+
+### API Endpoints Available
+
+```
+# Health & Admin
+GET  /graph/health
+POST /graph/schema/init
+GET  /graph/schema/verify
+GET  /graph/stats
+
+# Sync Operations
+POST /graph/sync/full
+POST /graph/sync/incremental
+POST /graph/sync/stakeholders
+
+# Stakeholder Network
+GET  /graph/stakeholder/{id}/network
+GET  /graph/stakeholder/{id}/concerns
+GET  /graph/stakeholder/{id}/aligned
+GET  /graph/influence/path
+GET  /graph/influence/key-influencers
+GET  /graph/influence/chains/{target_id}
+
+# ROI Analysis
+GET  /graph/roi/{id}/analysis
+GET  /graph/roi/{id}/blockers
+GET  /graph/roi/{id}/strategy
+
+# Meetings & Concepts
+GET  /graph/meeting/{id}/network
+GET  /graph/concepts/{name}/advocates
+GET  /graph/concerns/shared
+
+# Agent Routing
+GET  /graph/agents/routing
+GET  /graph/agents/{id}/expertise
+GET  /graph/agents/handoff-patterns
+
+# Inference Operations
+POST /graph/infer/influences
+POST /graph/infer/concepts
+POST /graph/infer/clusters
+POST /graph/meetings/{id}/concepts
+```
+
+---
+
+## Remaining Work
+
+1. **Concern & Action Item Extraction**
+   - [ ] Parse insights to extract concerns with severity
+   - [ ] Extract action items from meeting transcripts
+   - [ ] Link to responsible stakeholders
+
+2. **Concept Extraction Enhancement**
+   - [ ] Run concept extraction on document chunks
+   - [ ] Create RELATED_TO relationships between concepts
+   - [ ] Build concept co-occurrence graph
+
+3. **Frontend Integration**
+   - [ ] Add graph visualization component
+   - [ ] Show stakeholder network on profile page
+   - [ ] Display influence paths in ROI analysis
+
+4. **Performance Testing**
+   - [ ] Benchmark graph queries vs SQL for multi-hop traversals
+   - [ ] Test with larger data volumes
+   - [ ] Evaluate keep/drop decision
 
 ---
 

@@ -23,13 +23,6 @@ interface StakeholderMetrics {
   average_alignment: number;
 }
 
-interface Agent {
-  id: string;
-  name: string;
-  display_name: string;
-  is_active: boolean;
-}
-
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats>({
     totalConversations: 0,
@@ -38,7 +31,6 @@ export default function AdminDashboard() {
     totalMessages: 0
   });
   const [stakeholderMetrics, setStakeholderMetrics] = useState<StakeholderMetrics | null>(null);
-  const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'analytics'>('overview');
 
@@ -48,10 +40,9 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      const [statsData, stakeholderData, agentsData] = await Promise.all([
+      const [statsData, stakeholderData] = await Promise.all([
         apiGet<{ total_conversations: number; total_documents: number; total_users: number; total_messages: number }>('/api/admin/stats').catch(() => null),
-        apiGet<StakeholderMetrics>('/api/stakeholders/dashboard').catch(() => null),
-        apiGet<{ agents: Agent[] }>('/api/agents/').catch(() => ({ agents: [] }))
+        apiGet<StakeholderMetrics>('/api/stakeholders/dashboard').catch(() => null)
       ]);
 
       if (statsData) {
@@ -64,7 +55,6 @@ export default function AdminDashboard() {
       }
 
       setStakeholderMetrics(stakeholderData);
-      setAgents(agentsData?.agents || []);
     } catch (error) {
       logger.error('Error fetching stats:', error);
     } finally {
@@ -218,39 +208,6 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* Agents Status */}
-            <div className="card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-primary">Agents</h2>
-                <Link href="/admin/agents" className="text-sm text-teal-500 hover:underline">
-                  Manage
-                </Link>
-              </div>
-              {agents.length === 0 ? (
-                <p className="text-secondary text-sm">No agents configured</p>
-              ) : (
-                <div className="space-y-3">
-                  {agents.map(agent => (
-                    <Link
-                      key={agent.id}
-                      href={`/admin/agents/${agent.id}`}
-                      className="flex items-center justify-between p-3 bg-hover rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${agent.is_active ? 'bg-green-500' : 'bg-gray-400'}`} />
-                        <div>
-                          <div className="font-medium text-primary">{agent.display_name}</div>
-                          <div className="text-xs text-secondary">{agent.name}</div>
-                        </div>
-                      </div>
-                      <span className={`text-xs px-2 py-1 rounded ${agent.is_active ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
-                        {agent.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Quick Actions */}

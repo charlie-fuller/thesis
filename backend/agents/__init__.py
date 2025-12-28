@@ -21,6 +21,7 @@ Consulting/Implementation Agents:
 Internal Enablement Agents:
 - Catalyst: Internal Communications Partner - AI messaging, employee engagement
 - Scholar: L&D Partner - training programs, champion enablement
+- Echo: Brand Voice Partner - voice analysis, style profiling, AI emulation guidelines
 
 Systems Thinking Agent:
 - Nexus: Systems thinking, interconnections, feedback loops, leverage points
@@ -41,6 +42,7 @@ from .operator import OperatorAgent
 from .pioneer import PioneerAgent
 from .catalyst import CatalystAgent
 from .scholar import ScholarAgent
+from .echo import EchoAgent
 from .nexus import NexusAgent
 from .agent_factory import create_coordinator, create_specialist
 
@@ -68,6 +70,7 @@ __all__ = [
     # Internal Enablement Agents
     "CatalystAgent",
     "ScholarAgent",
+    "EchoAgent",
     # Systems Thinking Agent
     "NexusAgent",
     # Factory functions

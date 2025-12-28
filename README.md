@@ -1,33 +1,394 @@
 # Thesis - Multi-Agent GenAI Strategy Platform
 
-AI-powered multi-agent platform that helps enterprises implement successful GenAI strategies. Thesis provides specialized agents for research, finance, IT/governance, legal, and meeting analysis to support AI Solutions Partners and strategy teams.
+AI-powered multi-agent platform that helps enterprises implement successful GenAI strategies. Thesis provides 15 specialized agents representing real stakeholder perspectives, consulting expertise, and internal enablement capabilities to support AI Solutions Partners and strategy teams.
 
 ## Quick Links
 
+- [Agent Roster](#agent-roster) - All 15 specialized agents
+- [Agent Persona Alignment Report](docs/AGENT_PERSONA_ALIGNMENT_REPORT.md) - How agents map to interview subjects
 - [Planning Documentation](docs/planning/) - Implementation plan and session transcripts
 - [Context Document](docs/CONTEXT.md) - Project discovery and requirements
 - [Getting Started](#getting-started) - Setup and installation instructions
 
 ## Overview
 
-Thesis is a multi-agent platform designed for enterprise GenAI strategy implementation. It provides:
+Thesis is a multi-agent platform designed for enterprise GenAI strategy implementation. Unlike generic AI assistants, each Thesis agent embodies a specific stakeholder perspective or consulting expertise, providing authentic guidance grounded in real enterprise concerns.
 
-- **Specialized Agents** - Research (Atlas), Finance (Fortuna), IT/Governance (Guardian), Legal (Counselor), and Transcript Analysis (Oracle)
-- **Stakeholder Intelligence** - Full CRM-style tracking with sentiment analysis, engagement scoring, and relationship mapping
-- **Meeting Analysis** - Upload transcripts and extract stakeholder insights, concerns, and action items
-- **Research Monitoring** - Proactive tracking of GenAI implementation research, case studies, and thought leadership
-- **Agent Coordination** - Hybrid model where agents work independently or collaborate on complex tasks
-- **Persistent Memory** - Mem0 integration for cross-conversation context and learning
+### Key Capabilities
 
-## Core Agents
+- **15 Specialized Agents** - Stakeholder perspectives, consulting expertise, internal enablement, and systems coordination
+- **Persona-Aligned Responses** - Agents embody real interview subjects with authentic concerns
+- **Meeting Room** - Multi-agent collaboration space for focused cross-functional discussions
+- **Stakeholder Intelligence** - CRM-style tracking with sentiment analysis and relationship mapping
+- **Meeting Analysis** - Upload transcripts and extract stakeholder insights with evidence
+- **Agent Coordination** - Coordinator seamlessly routes queries to appropriate specialists
+- **Persistent Memory** - Mem0 integration for cross-conversation learning
+- **Dig Deeper** - One-click elaboration on any response for more detail
 
-| Agent | Name | Purpose |
-|-------|------|---------|
-| Research | Atlas | Track GenAI research, consulting approaches, case studies, thought leadership |
-| Finance | Fortuna | ROI analysis, budget justification, Finance stakeholder support |
-| IT/Governance | Guardian | Navigate governance, security, infrastructure considerations |
-| Legal | Counselor | Legal considerations, contracts, compliance |
-| Transcript Analyzer | Oracle | Extract stakeholder sentiment from meeting transcripts |
+## Agent Roster
+
+Thesis includes 15 specialized agents organized into five categories:
+
+| Category | Agents | Purpose |
+|----------|--------|---------|
+| [Stakeholder Perspectives](#stakeholder-perspective-agents) | Atlas, Fortuna, Guardian, Counselor, Sage, Oracle | Embody real enterprise stakeholder viewpoints |
+| [Consulting/Implementation](#consultingimplementation-agents) | Strategist, Architect, Operator, Pioneer | Professional consulting and technical guidance |
+| [Internal Enablement](#internal-enablement-agents) | Catalyst, Scholar, Echo | Support internal AI adoption and communication |
+| [Systems/Coordination](#systemscoordination-agents) | Nexus, Coordinator | Systems thinking and agent orchestration |
+
+---
+
+### Stakeholder Perspective Agents
+
+These agents embody real enterprise stakeholder perspectives, each aligned to an interview subject from discovery research. They provide authentic responses reflecting genuine enterprise concerns, priorities, and communication styles.
+
+#### Atlas - Research Intelligence
+
+| | |
+|---|---|
+| **Display Name** | Research |
+| **Persona Alignment** | Chris Baumgartner (AI Program Manager) |
+| **Domain Focus** | GenAI research, Lean methodology, benchmarking |
+
+Atlas serves as the research intelligence engine, monitoring the GenAI implementation landscape across consulting approaches (Big 4, McKinsey, BCG, Accenture), academic research, and corporate case studies. Grounded in Lean/Toyota Production System principles, Atlas provides evidence-based recommendations with specific metrics and benchmarks.
+
+**Key Capabilities:**
+- Monitor and synthesize GenAI implementation research
+- Benchmark organizational AI maturity against industry standards
+- Apply Lean methodology to AI initiatives (eliminate waste, continuous improvement)
+- Track consulting firm approaches and methodologies
+- Provide evidence-backed recommendations with citations
+
+---
+
+#### Fortuna - Financial Analysis
+
+| | |
+|---|---|
+| **Display Name** | Finance |
+| **Persona Alignment** | Raul Rivera III (Sr. Director, Global Controller) |
+| **Domain Focus** | ROI analysis, SOX compliance, business cases |
+
+Fortuna provides the CFO/Controller perspective on AI investments, ensuring financial rigor and regulatory compliance. With deep understanding of SOX requirements, audit trails, and business case development, Fortuna helps justify AI investments with quantifiable returns.
+
+**Key Capabilities:**
+- Build comprehensive AI ROI models and business cases
+- Ensure SOX compliance for AI-powered financial processes
+- Develop audit trail requirements for AI decisions
+- Analyze total cost of ownership (TCO) for AI solutions
+- Assess financial risk and create mitigation strategies
+- Compare build vs. buy economics
+
+---
+
+#### Guardian - IT/Governance
+
+| | |
+|---|---|
+| **Display Name** | IT & Governance |
+| **Persona Alignment** | Danny Leal (Director of IT) |
+| **Domain Focus** | Security, compliance, shadow IT, vendor evaluation |
+
+Guardian represents IT leadership concerns around security, governance, and infrastructure. With experience managing shadow IT and vendor relationships, Guardian helps organizations implement AI securely while maintaining control and compliance.
+
+**Key Capabilities:**
+- Evaluate AI vendor security postures and certifications
+- Design AI governance frameworks and policies
+- Identify and address shadow AI usage
+- Assess integration requirements with existing infrastructure
+- Create security requirements for AI implementations
+- Develop data handling and privacy controls
+
+---
+
+#### Counselor - Legal Expertise
+
+| | |
+|---|---|
+| **Display Name** | Legal |
+| **Persona Alignment** | Ashley Adams (Director, Legal Operations) |
+| **Domain Focus** | Contracts, AI risks, liability, data privacy |
+
+Counselor provides legal operations perspective on AI adoption, addressing contract requirements, liability concerns, and regulatory compliance. With focus on practical legal risk mitigation, Counselor helps navigate the evolving AI regulatory landscape.
+
+**Key Capabilities:**
+- Review AI vendor contracts and licensing terms
+- Assess liability exposure from AI-generated content/decisions
+- Navigate AI-specific regulatory requirements (EU AI Act, state laws)
+- Develop AI acceptable use policies
+- Address intellectual property concerns (training data, outputs)
+- Create data privacy compliance frameworks for AI
+
+---
+
+#### Sage - People & Change
+
+| | |
+|---|---|
+| **Display Name** | People |
+| **Persona Alignment** | Chad Meek (VP People Team) |
+| **Domain Focus** | Change management, adoption, human flourishing |
+
+Sage brings the HR/People perspective focused on the human side of AI transformation. Beyond traditional change management, Sage emphasizes human flourishing, ensuring AI augments rather than diminishes the employee experience.
+
+**Key Capabilities:**
+- Design change management strategies for AI adoption
+- Address AI anxiety and workforce concerns
+- Develop reskilling and upskilling programs
+- Create adoption metrics and success measures
+- Build AI champion networks within organizations
+- Ensure AI initiatives support employee wellbeing
+
+---
+
+#### Oracle - Meeting Intelligence
+
+| | |
+|---|---|
+| **Display Name** | Meeting Analyst |
+| **Persona Alignment** | CIPHER v2.1 (analytical system) |
+| **Domain Focus** | Transcript analysis, stakeholder dynamics, sentiment extraction |
+
+Oracle specializes in analyzing meeting transcripts to extract stakeholder insights, power dynamics, and strategic recommendations. Using evidence-based analysis, Oracle identifies concerns, enthusiasm signals, and relationship patterns from meeting content.
+
+**Key Capabilities:**
+- Analyze meeting transcripts (Granola, Otter.ai, Teams, Zoom)
+- Extract attendees with inferred roles and influence levels
+- Identify sentiment per speaker with supporting evidence
+- Detect concerns, objections, and enthusiasm signals
+- Map stakeholder relationships and power dynamics
+- Generate actionable meeting summaries and follow-ups
+
+---
+
+### Consulting/Implementation Agents
+
+These agents provide professional consulting and implementation guidance, representing expertise areas typically found in management consulting and technical architecture roles.
+
+#### Strategist - Executive Strategy
+
+| | |
+|---|---|
+| **Display Name** | Executive Strategy |
+| **Domain Focus** | C-suite engagement, organizational politics, governance design |
+
+Strategist provides executive-level guidance on AI strategy, helping navigate organizational politics, board dynamics, and governance structures. With focus on C-suite communication and strategic positioning, Strategist helps build executive alignment for AI initiatives.
+
+**Key Capabilities:**
+- Develop executive communication strategies for AI initiatives
+- Navigate organizational politics and power structures
+- Design AI governance and steering committee frameworks
+- Create board-level AI briefings and presentations
+- Align AI initiatives with corporate strategy
+- Manage stakeholder expectations and competing priorities
+
+---
+
+#### Architect - Technical Architecture
+
+| | |
+|---|---|
+| **Display Name** | Technical Architecture |
+| **Domain Focus** | Enterprise AI patterns, RAG, integration, build vs. buy |
+
+Architect provides technical leadership for AI implementations, specializing in enterprise architecture patterns, integration strategies, and technology selection. With deep knowledge of RAG systems, LLM deployment, and enterprise integration, Architect guides sound technical decisions.
+
+**Key Capabilities:**
+- Design enterprise AI architecture patterns
+- Evaluate build vs. buy decisions for AI capabilities
+- Architect RAG (Retrieval-Augmented Generation) systems
+- Plan LLM deployment strategies (cloud, on-premise, hybrid)
+- Design API and integration patterns for AI services
+- Assess technical feasibility and create implementation roadmaps
+
+---
+
+#### Operator - Business Operations
+
+| | |
+|---|---|
+| **Display Name** | Business Operations |
+| **Domain Focus** | Process optimization, automation, operational metrics |
+
+Operator focuses on the operational aspects of AI implementation, identifying automation opportunities and optimizing business processes. With emphasis on measurable outcomes and operational efficiency, Operator ensures AI delivers tangible business value.
+
+**Key Capabilities:**
+- Identify high-value automation opportunities
+- Map and optimize business processes for AI integration
+- Design operational metrics and KPIs for AI initiatives
+- Create pilot programs with clear success criteria
+- Assess process readiness for AI augmentation
+- Develop scaling strategies from pilot to production
+
+---
+
+#### Pioneer - Innovation/R&D
+
+| | |
+|---|---|
+| **Display Name** | Innovation & R&D |
+| **Domain Focus** | Emerging technology, hype filtering, maturity assessment |
+
+Pioneer monitors the AI innovation landscape, separating signal from noise in emerging technologies. With focus on practical innovation adoption, Pioneer helps organizations understand which new capabilities are ready for enterprise use and which need more maturation.
+
+**Key Capabilities:**
+- Evaluate emerging AI technologies and capabilities
+- Filter hype from practical enterprise applications
+- Assess technology maturity and enterprise readiness
+- Identify innovation opportunities aligned with business needs
+- Track AI research trends with enterprise implications
+- Create technology watch briefs for leadership
+
+---
+
+### Internal Enablement Agents
+
+These agents support internal AI adoption, communication, and capability building, helping organizations develop sustainable AI competencies.
+
+#### Catalyst - Internal Communications
+
+| | |
+|---|---|
+| **Display Name** | Internal Communications |
+| **Domain Focus** | AI messaging, employee engagement, AI anxiety |
+
+Catalyst specializes in internal AI communications, helping organizations message AI initiatives in ways that build engagement rather than anxiety. With focus on transparent, empathetic communication, Catalyst helps employees understand and embrace AI transformation.
+
+**Key Capabilities:**
+- Develop internal AI communication strategies
+- Create messaging that addresses AI anxiety and concerns
+- Design employee engagement campaigns for AI initiatives
+- Build AI awareness and literacy programs
+- Craft leadership talking points for AI announcements
+- Monitor and respond to employee sentiment around AI
+
+---
+
+#### Scholar - Learning & Development
+
+| | |
+|---|---|
+| **Display Name** | Learning & Development |
+| **Domain Focus** | Training programs, champion enablement, adult learning |
+
+Scholar designs learning experiences that build AI capabilities across the organization. Grounded in adult learning principles, Scholar creates practical training programs that develop both AI literacy and hands-on skills.
+
+**Key Capabilities:**
+- Design AI training curricula for various skill levels
+- Create AI champion enablement programs
+- Develop hands-on learning experiences with AI tools
+- Apply adult learning principles to AI education
+- Build competency frameworks for AI skills
+- Measure learning outcomes and capability growth
+
+---
+
+#### Echo - Brand Voice
+
+| | |
+|---|---|
+| **Display Name** | Brand Voice |
+| **Domain Focus** | Voice analysis, style profiling, AI emulation guidelines |
+
+Echo analyzes and codifies brand voice characteristics, helping organizations maintain consistent voice across AI-generated content. By understanding tone, style, and communication patterns, Echo ensures AI outputs align with brand identity.
+
+**Key Capabilities:**
+- Analyze existing content for voice characteristics
+- Create brand voice profiles and guidelines
+- Develop AI prompt strategies for voice consistency
+- Evaluate AI-generated content for brand alignment
+- Build voice quality metrics and assessment criteria
+- Train teams on maintaining voice in AI workflows
+
+---
+
+### Systems/Coordination Agents
+
+These agents provide meta-level capabilities for systems thinking and agent coordination.
+
+#### Nexus - Systems Thinking
+
+| | |
+|---|---|
+| **Display Name** | Systems Thinking |
+| **Domain Focus** | Interconnections, feedback loops, leverage points, unintended consequences |
+
+Nexus applies systems thinking methodology to AI initiatives, helping organizations understand complex interdependencies and avoid unintended consequences. By mapping feedback loops and identifying leverage points, Nexus enables more effective interventions.
+
+**Key Capabilities:**
+- Map system interconnections and dependencies
+- Identify feedback loops (reinforcing and balancing)
+- Find high-leverage intervention points
+- Anticipate unintended consequences of AI adoption
+- Analyze emergent behavior in complex systems
+- Create system diagrams and mental models
+
+---
+
+#### Coordinator - Thesis Orchestrator
+
+| | |
+|---|---|
+| **Display Name** | Thesis |
+| **Domain Focus** | Query routing, agent coordination, response synthesis |
+
+Coordinator serves as the unified interface to all Thesis agents, intelligently routing queries to appropriate specialists and synthesizing multi-agent responses. For complex queries spanning multiple domains, Coordinator consults multiple specialists and presents a coherent, integrated response.
+
+**Key Capabilities:**
+- Analyze queries to identify relevant domains and agents
+- Route to appropriate specialist agents
+- Synthesize multi-agent perspectives into coherent responses
+- Manage context across agent consultations
+- Provide seamless single-interface experience
+- Handle handoffs between agents transparently
+
+---
+
+## How It Works
+
+### Single-Agent Mode (Default)
+
+The **Coordinator** agent serves as the unified interface, seamlessly routing queries to the appropriate specialist agents based on the topic:
+
+```
+User Query
+    |
+    v
+[Coordinator] --> Analyzes query, identifies relevant domains
+    |
+    v
+[Specialist Agent(s)] --> Atlas, Fortuna, Guardian, etc.
+    |
+    v
+[Synthesized Response] --> Unified answer from relevant perspectives
+```
+
+For complex queries spanning multiple domains, the Coordinator consults multiple specialists and synthesizes their perspectives into a coherent response.
+
+### Meeting Room Mode (Multi-Agent Collaboration)
+
+For focused cross-functional discussions, users can create Meeting Rooms with 2+ selected agents:
+
+```
+User creates Meeting Room with: Guardian + Fortuna + Architect
+    |
+    v
+User Query: "Evaluate this AI vendor proposal"
+    |
+    v
+[Guardian] --> Security assessment (parallel)
+[Fortuna]  --> Financial analysis    (parallel)
+[Architect]--> Technical evaluation  (parallel)
+    |
+    v
+Three distinct responses, each from agent's perspective
+```
+
+Meeting Rooms are ideal for:
+- Security investment discussions (Guardian + Fortuna)
+- Technical architecture reviews (Architect + Pioneer + Operator)
+- Change management planning (Sage + Catalyst + Scholar)
+- Comprehensive vendor evaluations (Guardian + Fortuna + Counselor + Architect)
 
 ## Tech Stack
 
@@ -36,15 +397,98 @@ Thesis is a multi-agent platform designed for enterprise GenAI strategy implemen
 | Frontend | Next.js 16, React 19, Tailwind CSS 4 |
 | Backend | FastAPI (Python 3.11), Uvicorn |
 | Database | Supabase (PostgreSQL + pgvector) |
+| Graph DB | Neo4j (stakeholder network analysis) |
 | AI - Chat | Anthropic Claude |
 | AI - Embeddings | Voyage AI |
 | AI - Images | Google Gemini 2.5 Flash |
 | Memory | Mem0 |
-| Integrations | Google Drive, Notion |
+
+### Why Dual Databases: PostgreSQL + Neo4j
+
+Thesis uses a polyglot persistence architecture combining PostgreSQL (via Supabase) with Neo4j, each optimized for different data patterns:
+
+**PostgreSQL handles:**
+- Transactional data (users, conversations, agent configurations)
+- Document storage (transcripts, meeting records)
+- Vector embeddings for semantic search (pgvector)
+- Row-level security for multi-tenancy
+
+**Neo4j handles:**
+- Stakeholder relationship networks
+- Influence and reporting hierarchies
+- Cross-organizational connection patterns
+- Dynamic relationship traversal
+
+#### Why This Matters for Stakeholder Intelligence
+
+Enterprise AI initiatives succeed or fail based on stakeholder dynamics. Understanding who influences whom, where resistance clusters form, and which relationships can accelerate adoption requires graph-native thinking:
+
+| Query Type | PostgreSQL Approach | Neo4j Approach |
+|------------|---------------------|----------------|
+| "Who reports to the CTO?" | Single JOIN, fast | Single hop, fast |
+| "Who are 3 levels below the CEO?" | 3 recursive JOINs | 3 hops, still fast |
+| "Find all paths between skeptic CFO and champion CTO" | Complex recursive CTE, slow | Native path finding, fast |
+| "Which stakeholders connect Finance to Engineering?" | Very complex, potentially infeasible | Simple traversal query |
+| "Find influence clusters and bottlenecks" | Not practical | Native graph algorithms |
+
+**Concrete example:** When Oracle analyzes a meeting transcript and identifies that a Finance Director expressed concerns, Thesis can instantly query Neo4j to find:
+- Who that Director influences (direct reports, cross-functional peers)
+- Whether they have connections to known champions who might help address concerns
+- If their skepticism could spread through specific organizational pathways
+
+This relationship intelligence would require expensive recursive queries in PostgreSQL but is a simple 2-3 line Cypher query in Neo4j.
+
+#### Synchronization Architecture
+
+Data flows from PostgreSQL (source of truth) to Neo4j via an event-driven sync service:
+
+```
+[Supabase PostgreSQL] ---> [Sync Service] ---> [Neo4j]
+     (CRUD operations)      (transforms)       (graph queries)
+```
+
+The sync service maintains consistency while allowing each database to excel at its strengths. See [docs/neo4j/SYNC_PLAN.md](docs/neo4j/SYNC_PLAN.md) for implementation details.
 
 ## Features
 
+### Meeting Room
+
+Multi-agent collaboration space for focused discussions with selected agents:
+
+- **Create Meetings** - Select 2+ agents for focused cross-functional discussions
+- **Collaboration Mode** - Real-time multi-agent responses to your queries
+- **Meeting Prep Mode** - Practice stakeholder conversations and develop talking points
+- **Smart Brevity** - Agents use headline-first, bullet-point format for clarity
+- **Streaming Responses** - See each agent's response as it's generated
+- **Token Tracking** - Monitor meeting token usage
+
+Use cases:
+- Security investment discussions with Guardian + Fortuna
+- Change management planning with Sage + Catalyst
+- Technical architecture reviews with Architect + Pioneer
+
+### Dig Deeper
+
+Request elaboration on any assistant response:
+
+- **One-Click Expansion** - Click "Dig Deeper" on any substantial response
+- **Streaming Response** - See elaboration generated in real-time
+- **Contextual** - AI remembers the full conversation for relevant expansion
+- **More Examples** - Get specific case studies and practical illustrations
+- **Next Steps** - Receive actionable implementation guidance
+- **Considerations** - Uncover potential challenges not covered initially
+
+Appears on emails, meeting summaries, reports, and any response over 100 characters.
+
+### Agent System Instruction Management
+
+- **Version Control** - Track changes to agent system instructions over time
+- **Compare Versions** - Diff view with AI-generated summaries of changes
+- **Activate Versions** - Roll forward or back to any instruction version
+- **XML-Based Instructions** - Externalized, structured agent configurations
+
 ### Transcript Analysis (Oracle)
+
 - Upload meeting transcripts (Granola, Otter.ai, or plain text)
 - Extract attendees with inferred roles
 - Analyze sentiment per speaker
@@ -53,34 +497,29 @@ Thesis is a multi-agent platform designed for enterprise GenAI strategy implemen
 - Auto-link speakers to existing stakeholders
 
 ### Stakeholder Tracking
+
 - Full CRM-style profiles (contact info, history, touchpoints)
 - Sentiment scoring and trend tracking
 - Engagement level classification (champion, supporter, neutral, skeptic, blocker)
-- Alignment scoring for AI initiatives
-- Relationship mapping (influences, reports to)
+- Relationship mapping with Neo4j graph database
 - Key concerns and interests tracking
 
 ### Research Intelligence (Atlas)
+
 - Monitor consulting approaches (Big 4, McKinsey, BCG, Accenture)
 - Track corporate case studies
-- Ingest thought leadership articles and whitepapers
-- Academic research tracking (MIT Sloan, HBR, Gartner, Forrester)
-- Proactive alerts when research relates to active work
-
-### Morning Dashboard
-- Sentiment trends across stakeholders
-- Engagement frequency metrics
-- Open concerns summary
-- Alignment scores visualization
-- Recent transcripts with summaries
+- Lean/Toyota Production System orientation
+- Evidence-based recommendations with specific metrics
 
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js 18+
 - Python 3.11+
 - Supabase account
 - API keys for Anthropic, Voyage AI, and optionally Gemini
+- Neo4j instance (optional, for stakeholder graph)
 
 ### Installation
 
@@ -114,21 +553,110 @@ npm run dev
 uvicorn main:app --reload --port 8000
 ```
 
+## Project Structure
+
+```
+thesis/
+├── frontend/                    # Next.js frontend
+│   ├── app/                     # App Router pages
+│   │   ├── admin/agents/        # Agent management UI
+│   │   ├── chat/                # Main chat interface
+│   │   └── meeting-room/        # Multi-agent meeting rooms
+│   │       └── [id]/            # Individual meeting page
+│   └── components/
+│       ├── ChatInterface.tsx    # Main chat with Dig Deeper
+│       ├── ChatMessage.tsx      # Message display component
+│       └── meeting-room/        # Meeting room components
+│           ├── CreateMeetingModal.tsx
+│           ├── MeetingMessage.tsx
+│           └── ParticipantBar.tsx
+├── backend/
+│   ├── agents/                  # Agent implementations
+│   │   ├── coordinator.py       # Central orchestrator
+│   │   ├── base_agent.py        # Base agent class
+│   │   └── [agent].py           # Individual agents
+│   ├── system_instructions/
+│   │   └── agents/              # XML system instructions
+│   ├── api/routes/
+│   │   ├── chat.py              # Chat + Dig Deeper endpoints
+│   │   └── meeting_rooms.py     # Meeting room endpoints
+│   └── services/
+│       └── meeting_orchestrator.py  # Multi-agent orchestration
+├── database/
+│   └── migrations/
+│       └── 007_meeting_rooms.sql    # Meeting room tables
+└── docs/                        # Documentation
+    ├── AGENT_PERSONA_ALIGNMENT_REPORT.md
+    ├── CONTEXT.md
+    └── planning/
+```
+
 ## Documentation
 
 - [CLAUDE.md](CLAUDE.md) - Development guidance for AI assistants
+- [docs/AGENT_PERSONA_ALIGNMENT_REPORT.md](docs/AGENT_PERSONA_ALIGNMENT_REPORT.md) - Agent persona mappings
 - [docs/CONTEXT.md](docs/CONTEXT.md) - Project context and requirements
 - [docs/planning/](docs/planning/) - Implementation plan and session transcripts
+- [docs/testing/](docs/testing/) - Testing infrastructure and code quality
 
-## Architecture
+## Testing & Code Quality
 
-Thesis is forked from the [Walter](https://github.com/motorthings/walter) L&D assistant platform, adapted for multi-agent GenAI strategy support. Key architectural additions:
+The project includes a comprehensive testing and code review framework:
 
-- **Agent Router** - Intent detection and agent selection
-- **Agent Orchestrator** - Multi-agent coordination for complex tasks
-- **Transcript Analyzer** - Meeting intelligence extraction
-- **Stakeholder Service** - CRM-style people tracking
-- **ROI Detector** - Opportunity identification from conversations
+```bash
+# Run backend tests
+cd backend
+source venv/bin/activate
+python -m pytest tests/ -v --tb=short
+```
+
+### Testing Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [TESTING_PROMPT.md](docs/testing/TESTING_PROMPT.md) | Reusable prompt for automated code review and fixes |
+| [COMPREHENSIVE_TEST_PLAN.md](docs/testing/COMPREHENSIVE_TEST_PLAN.md) | Full testing framework and strategy |
+| [CODE_REVIEW_FINDINGS.md](docs/testing/CODE_REVIEW_FINDINGS.md) | Latest code review findings and action items |
+
+### Code Quality Targets
+
+| Metric | Current | Target |
+|--------|---------|--------|
+| Backend Tests | 55 | 75+ |
+| Test Pass Rate | 100% | 100% |
+| Code Quality Score | 7.0 | 9.0 |
+
+The testing prompt enables autonomous code quality improvement with safety-first principles - it will automatically fix high-confidence issues (bare excepts, deprecated patterns, print statements) while reporting low-confidence issues for manual review.
+
+## Development Status
+
+### Completed
+
+- Multi-agent coordinator with intelligent query routing
+- 15 specialized agents with XML system instructions (Gigawatt v4.0 framework)
+- Agent instruction versioning system with diff comparison
+- Persona alignment for stakeholder perspective agents
+- Neo4j graph integration for stakeholder networks
+- Admin UI for agent management
+- Meeting Room feature for multi-agent collaboration
+- Dig Deeper feature for response elaboration
+- Smart Brevity formatting for meeting responses
+- Systems thinking agent (Nexus) for complex interdependencies
+- Brand voice agent (Echo) for content consistency
+
+### In Progress
+
+- Code quality improvements (target: 9.0/10 score)
+- Integration testing across agent roster
+- Meeting Room polish (add/remove participants mid-meeting)
+
+### Planned
+
+- Customer-facing AI use case agents
+- Engineering/Product Management perspectives
+- External communications capabilities
+- Advanced analytics dashboard
+- Expanded test coverage (target: 75+ backend tests)
 
 ## License
 

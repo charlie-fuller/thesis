@@ -1,180 +1,216 @@
-# System Instructions - Per-User Configuration
+# System Instructions
 
-This directory contains system instructions (system prompts) for the AI assistant. Instructions are customized per-user and managed via GitHub.
+This directory contains system instructions (system prompts) for the Thesis multi-agent platform.
 
 ## Directory Structure
 
 ```
 system_instructions/
 ├── README.md              # This file
-├── default.txt            # Default/fallback template (used when no user-specific file exists)
-└── users/
-    ├── {user_id_1}.txt    # User 1's custom instructions
-    ├── {user_id_2}.txt    # User 2's custom instructions
-    └── ...
+├── agents/                # Agent-specific XML instructions (SOURCE OF TRUTH)
+│   ├── atlas.xml          # Research agent
+│   ├── fortuna.xml        # Finance agent
+│   ├── guardian.xml       # IT/Governance agent
+│   ├── counselor.xml      # Legal agent
+│   ├── oracle.xml         # Transcript analysis agent
+│   ├── sage.xml           # People/Change agent
+│   ├── strategist.xml     # Executive strategy agent
+│   ├── architect.xml      # Technical architecture agent
+│   ├── operator.xml       # Business operations agent
+│   ├── pioneer.xml        # Innovation/R&D agent
+│   ├── catalyst.xml       # Internal communications agent
+│   ├── scholar.xml        # Learning & development agent
+│   ├── nexus.xml          # Systems thinking agent
+│   ├── echo.xml           # Brand voice agent
+│   └── coordinator.xml    # Central orchestrator
+├── default.txt            # Legacy fallback (deprecated)
+├── system_prompt.txt      # Legacy template (deprecated)
+└── users/                 # Legacy per-user instructions (deprecated)
 ```
 
-## How It Works
+## Agent Instructions Architecture
 
-1. **Per-User Instructions**: Each user can have their own custom system instructions stored in `users/{user_id}.txt`
+### Single Source of Truth
 
-2. **Fallback to Default**: If a user-specific file doesn't exist, the system loads `default.txt`
+**XML files in `agents/` are the canonical source** for agent system instructions:
 
-3. **Template Variables**: All instructions support template variables that are automatically replaced at runtime
+1. **Edit**: Modify XML files in `agents/` directory
+2. **Sync**: Run sync script to push changes to database
+3. **Activate**: Database `agent_instruction_versions` table serves runtime
 
-## Template Variables
+### Instruction Loading Hierarchy
 
-Use these variables in your system instructions - they'll be replaced with actual values at runtime:
+When an agent initializes, it loads instructions in this order:
 
-| Variable | Description | Example Value |
-|----------|-------------|---------------|
-| `{user_name}` | User's full name | "John Doe" |
-| `{user_email}` | User's email address | "john@example.com" |
-| `{user_role}` | User's role | "admin", "client_admin", or "user" |
-| `{client_name}` | Client organization name | "Acme Corporation" |
-| `{client_id}` | Client UUID | "123e4567-e89b-12d3-a456-426614174000" |
-| `{assistant_name}` | Custom assistant name | "MitCH", "Thesis", etc. |
+1. **Database** (`agent_instruction_versions` table with `is_active=true`)
+2. **XML File** (if database has no entry or placeholder)
+3. **Python Default** (`_get_default_instruction()` method in agent class)
 
-### Example Usage:
+### Syncing XML to Database
 
-```
-You are {assistant_name}, an AI assistant for {user_name} at {client_name}.
-
-The user's role is {user_role}, so you should tailor your responses accordingly.
-```
-
-Will become:
-
-```
-You are MitCH, an AI assistant for John Doe at Acme Corporation.
-
-The user's role is admin, so you should tailor your responses accordingly.
-```
-
-## Creating User-Specific Instructions
-
-### Method 1: GitHub Direct Edit (Recommended)
-
-1. Navigate to `backend/system_instructions/users/` in GitHub
-2. Click "Add file" → "Create new file"
-3. Name it `{user_id}.txt` (get the user ID from the Supabase users table)
-4. Paste your system instructions (you can use template variables)
-5. Commit the file
-6. Railway will auto-deploy and pick up the new instructions on next server restart
-
-### Method 2: Local Development
-
-1. Create a file: `backend/system_instructions/users/{user_id}.txt`
-2. Add your system instructions with template variables
-3. Test locally
-4. Commit and push to GitHub
-5. Railway auto-deploys
-
-## Finding a User's ID
-
-To get a user's UUID for naming their instruction file:
-
-1. **Via Supabase Dashboard**:
-   - Go to Supabase → Table Editor → `users` table
-   - Find the user by email
-   - Copy their `id` (UUID format)
-
-2. **Via Admin Panel**:
-   - Log in to admin account
-   - Go to Clients → Select client → Users
-   - The user ID will be visible in the URL when viewing user details
-
-## Updating Default Instructions
-
-The `default.txt` file serves as the fallback for all users who don't have custom instructions.
-
-To update:
-1. Edit `backend/system_instructions/default.txt` in GitHub
-2. Commit the changes
-3. Railway auto-deploys
-4. New default applies to all users without custom instructions
-
-## Template Format Guidelines
-
-### Good Practices:
-
- Use clear, specific instructions
- Include template variables for personalization
- Structure with clear sections
- Define the assistant's role and capabilities
- Set boundaries and limitations
-
-### Example Structure:
-
-```
-You are {assistant_name}, an AI executive assistant for {user_name} at {client_name}.
-
-## Your Role
-[Define what the assistant does]
-
-## Capabilities
-- Capability 1
-- Capability 2
-
-## Interaction Guidelines
-- Guideline 1
-- Guideline 2
-
-## Limitations
-- What you cannot do
-```
-
-## Testing Instructions
-
-To test system instructions locally:
+After editing XML files, sync them to the database:
 
 ```bash
 cd backend
-python system_instructions_loader.py
+
+# Using direct PostgreSQL connection (bypasses schema cache issues)
+DATABASE_URL="postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres" \
+  ./venv/bin/python scripts/sync_all_xml_to_db_direct.py
+
+# Or using Supabase REST API (may have schema cache delays)
+./venv/bin/python scripts/sync_all_xml_to_db.py
 ```
 
-This will:
-- Load the default instructions
-- Test template variable replacement
-- Verify file structure
+The sync script will:
+- Create new versions for agents without instructions
+- Replace placeholder instructions with real XML content
+- Skip agents that already have real instructions (>200 chars)
 
-## Deployment
+## XML Instruction Format (Gigawatt v4.0 RCCI Framework)
 
-**Automatic Deployment**:
-- Any commit to `main` branch triggers Railway deployment
-- Server restart picks up new/modified instruction files
-- No manual deployment needed
+Each agent XML file follows this structure:
 
-**Note**: Changes to system instructions require a server restart to take effect. Railway handles this automatically on deployment.
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<system>
 
-## Troubleshooting
+<version>
+Name: Agent Name
+Version: 1.0
+Date: 2025-01-01
+Created_By: Author Name
+</version>
 
-### Issue: User not getting custom instructions
-**Solution**:
-- Verify file name matches user UUID exactly: `users/{user_id}.txt`
-- Check Railway logs for file loading messages
-- Ensure file is committed to GitHub `main` branch
+<role>
+Core role and mission statement.
+</role>
 
-### Issue: Template variables not replaced
-**Solution**:
-- Verify variable names match exactly (case-sensitive)
-- Check Railway logs for loading messages
-- Ensure using curly braces: `{user_name}` not `$user_name`
+<context>
+Background information and domain knowledge.
+</context>
 
-### Issue: Instructions not updating
-**Solution**:
-- Commit changes to GitHub
-- Wait for Railway auto-deployment (~30 seconds)
-- Server must restart to load new files
+<capabilities>
+1. Capability Area One
+   - Sub-capability
+   - Sub-capability
 
-## Security Notes
+2. Capability Area Two
+   - Sub-capability
+</capabilities>
 
-- System instructions are server-side only - users never see them
-- Instructions files are NOT exposed via API
-- Only server-side code can read these files
-- Version controlled via GitHub for audit trail
+<instructions>
+## Section One
+Step-by-step instructions...
+
+## Section Two
+More instructions...
+</instructions>
+
+<criteria>
+## Quality Standards
+- Standard 1
+- Standard 2
+
+## Output Format
+Expected format specifications...
+</criteria>
+
+<few_shot_examples>
+Example inputs and outputs...
+</few_shot_examples>
+
+<wisdom>
+Key insights and principles...
+</wisdom>
+
+<anti_patterns>
+What NOT to do...
+</anti_patterns>
+
+</system>
+```
+
+## Agent Roster (15 Agents)
+
+### Stakeholder Perspective Agents
+| Agent | XML File | Purpose |
+|-------|----------|---------|
+| Atlas | `atlas.xml` | GenAI research, Lean methodology, benchmarking |
+| Fortuna | `fortuna.xml` | ROI analysis, SOX compliance, business cases |
+| Guardian | `guardian.xml` | Security, compliance, shadow IT, vendor evaluation |
+| Counselor | `counselor.xml` | Contracts, AI risks, liability, data privacy |
+| Sage | `sage.xml` | Change management, human flourishing, adoption |
+| Oracle | `oracle.xml` | Transcript analysis, stakeholder dynamics, sentiment |
+
+### Consulting/Implementation Agents
+| Agent | XML File | Purpose |
+|-------|----------|---------|
+| Strategist | `strategist.xml` | C-suite engagement, organizational politics, governance |
+| Architect | `architect.xml` | Enterprise AI patterns, RAG, integration, build vs. buy |
+| Operator | `operator.xml` | Process optimization, automation, operational metrics |
+| Pioneer | `pioneer.xml` | Emerging technology, hype filtering, maturity assessment |
+
+### Internal Enablement Agents
+| Agent | XML File | Purpose |
+|-------|----------|---------|
+| Catalyst | `catalyst.xml` | AI messaging, employee engagement, AI anxiety |
+| Scholar | `scholar.xml` | Training programs, champion enablement, adult learning |
+| Echo | `echo.xml` | Voice analysis, style profiling, AI emulation guidelines |
+
+### Systems/Coordination Agents
+| Agent | XML File | Purpose |
+|-------|----------|---------|
+| Nexus | `nexus.xml` | Interconnections, feedback loops, leverage points |
+| Coordinator | `coordinator.xml` | Central orchestrator, query routing, response synthesis |
+
+## Version Management
+
+The `agent_instruction_versions` table tracks instruction versions:
+
+```sql
+SELECT
+    a.name,
+    v.version_number,
+    v.is_active,
+    LENGTH(v.instructions) as chars,
+    v.activated_at
+FROM agent_instruction_versions v
+JOIN agents a ON v.agent_id = a.id
+ORDER BY a.name, v.version_number;
+```
+
+### Creating New Versions via Admin UI
+
+1. Go to Admin > Agents > Select agent
+2. Edit instructions in the textarea or upload an XML file
+3. Click "Save & Activate"
+4. New version is created and marked active
+
+### Activating Previous Versions
+
+1. Go to Admin > Agents > Select agent > Version History
+2. Click "Activate" on desired version
+3. Previous active version is deactivated
+
+## Legacy Files (Deprecated)
+
+The following files are from the original Walter system and are no longer used:
+
+- `default.txt` - Legacy fallback template
+- `system_prompt.txt` - Legacy system prompt template
+- `users/` - Legacy per-user instruction files
+
+These remain for reference but are not loaded by the multi-agent system.
+
+## Related Files
+
+- `backend/services/instruction_loader.py` - XML file loading utilities
+- `backend/scripts/sync_all_xml_to_db.py` - REST API sync script
+- `backend/scripts/sync_all_xml_to_db_direct.py` - Direct PostgreSQL sync script
+- `backend/agents/base_agent.py` - Base agent class with instruction loading
+- `backend/api/routes/agents.py` - Agent management endpoints
 
 ---
 
-**Last Updated**: November 3, 2025
-**System**: Per-user system instructions with template variables
+**Last Updated**: December 27, 2025
+**System**: Multi-agent XML instructions with database versioning

@@ -15,30 +15,61 @@ from .connection import Neo4jConnection
 logger = logging.getLogger(__name__)
 
 
-# Schema definition
+# Schema definition - Comprehensive node types for full platform coverage
 SCHEMA_CONSTRAINTS = [
-    # Unique constraints on IDs
-    ("Stakeholder", "id", "stakeholder_id_unique"),
+    # Core entities - unique ID constraints
+    ("Client", "id", "client_id_unique"),
+    ("User", "id", "user_id_unique"),
     ("Agent", "id", "agent_id_unique"),
     ("Document", "id", "document_id_unique"),
+    ("Chunk", "id", "chunk_id_unique"),
+    ("Conversation", "id", "conversation_id_unique"),
+    ("Message", "id", "message_id_unique"),
     ("Meeting", "id", "meeting_id_unique"),
+    ("MeetingRoom", "id", "meeting_room_id_unique"),
+    ("MeetingRoomMessage", "id", "meeting_room_message_id_unique"),
+    ("Stakeholder", "id", "stakeholder_id_unique"),
     ("Insight", "id", "insight_id_unique"),
     ("ROIOpportunity", "id", "roi_opportunity_id_unique"),
+    ("AgentInstruction", "id", "agent_instruction_id_unique"),
+    # Inferred entities
     ("Concept", "name", "concept_name_unique"),
     ("Concern", "id", "concern_id_unique"),
+    ("ActionItem", "id", "action_item_id_unique"),
+    ("Expertise", "name", "expertise_name_unique"),
+    ("Cluster", "name", "cluster_name_unique"),
 ]
 
 SCHEMA_INDEXES = [
-    # Performance indexes for common queries
+    # Multi-tenant isolation indexes (client_id on all tenant-scoped entities)
+    ("Client", "name", "client_name_idx"),
+    ("User", "client_id", "user_client_idx"),
+    ("User", "email", "user_email_idx"),
+    ("Document", "client_id", "document_client_idx"),
+    ("Document", "filename", "document_filename_idx"),
+    ("Document", "is_core_document", "document_core_idx"),
+    ("Chunk", "document_id", "chunk_document_idx"),
+    ("Conversation", "client_id", "conversation_client_idx"),
+    ("Conversation", "user_id", "conversation_user_idx"),
+    ("Message", "conversation_id", "message_conversation_idx"),
+    ("Message", "role", "message_role_idx"),
+    ("Meeting", "client_id", "meeting_client_idx"),
+    ("Meeting", "meeting_date", "meeting_date_idx"),
+    ("MeetingRoom", "client_id", "meeting_room_client_idx"),
+    ("MeetingRoom", "status", "meeting_room_status_idx"),
+    ("MeetingRoomMessage", "meeting_room_id", "mrm_room_idx"),
+    ("MeetingRoomMessage", "agent_id", "mrm_agent_idx"),
     ("Stakeholder", "client_id", "stakeholder_client_idx"),
     ("Stakeholder", "name", "stakeholder_name_idx"),
     ("Stakeholder", "organization", "stakeholder_org_idx"),
-    ("Document", "client_id", "document_client_idx"),
-    ("Meeting", "client_id", "meeting_client_idx"),
-    ("Meeting", "meeting_date", "meeting_date_idx"),
     ("Insight", "insight_type", "insight_type_idx"),
+    ("ROIOpportunity", "client_id", "roi_client_idx"),
     ("ROIOpportunity", "status", "roi_status_idx"),
+    ("Agent", "name", "agent_name_idx"),
+    ("Agent", "is_active", "agent_active_idx"),
     ("Concept", "category", "concept_category_idx"),
+    ("Concern", "severity", "concern_severity_idx"),
+    ("ActionItem", "status", "action_item_status_idx"),
 ]
 
 
@@ -172,7 +203,149 @@ async def clear_all_data(connection: Neo4jConnection, confirm: bool = False) -> 
 
 # Cypher templates for common operations
 CYPHER_TEMPLATES = {
-    # Stakeholder operations
+    # ==========================================================================
+    # Core Entity Operations
+    # ==========================================================================
+
+    # Client operations
+    "upsert_client": """
+        MERGE (c:Client {id: $id})
+        SET c.name = $name,
+            c.assistant_name = $assistant_name,
+            c.updated_at = datetime()
+        RETURN c
+    """,
+
+    # User operations
+    "upsert_user": """
+        MERGE (u:User {id: $id})
+        SET u.email = $email,
+            u.name = $name,
+            u.role = $role,
+            u.client_id = $client_id,
+            u.updated_at = datetime()
+        WITH u
+        MATCH (c:Client {id: $client_id})
+        MERGE (u)-[:BELONGS_TO]->(c)
+        RETURN u
+    """,
+
+    # Agent operations
+    "upsert_agent": """
+        MERGE (a:Agent {id: $id})
+        SET a.name = $name,
+            a.display_name = $display_name,
+            a.description = $description,
+            a.persona = $persona,
+            a.is_active = $is_active,
+            a.updated_at = datetime()
+        RETURN a
+    """,
+
+    # Document operations
+    "upsert_document": """
+        MERGE (d:Document {id: $id})
+        SET d.filename = $filename,
+            d.file_type = $file_type,
+            d.source_platform = $source_platform,
+            d.is_core_document = $is_core_document,
+            d.client_id = $client_id,
+            d.processing_status = $processing_status,
+            d.updated_at = datetime()
+        WITH d
+        MATCH (c:Client {id: $client_id})
+        MERGE (d)-[:OWNED_BY]->(c)
+        RETURN d
+    """,
+
+    "link_document_uploader": """
+        MATCH (d:Document {id: $document_id})
+        MATCH (u:User {id: $user_id})
+        MERGE (d)-[:UPLOADED_BY]->(u)
+        RETURN d
+    """,
+
+    # Document chunk operations
+    "upsert_chunk": """
+        MERGE (ch:Chunk {id: $id})
+        SET ch.chunk_index = $chunk_index,
+            ch.content_preview = $content_preview,
+            ch.updated_at = datetime()
+        WITH ch
+        MATCH (d:Document {id: $document_id})
+        MERGE (ch)-[:PART_OF]->(d)
+        RETURN ch
+    """,
+
+    # Conversation operations
+    "upsert_conversation": """
+        MERGE (conv:Conversation {id: $id})
+        SET conv.title = $title,
+            conv.client_id = $client_id,
+            conv.archived = $archived,
+            conv.in_knowledge_base = $in_knowledge_base,
+            conv.updated_at = datetime()
+        WITH conv
+        MATCH (u:User {id: $user_id})
+        MERGE (conv)-[:OWNED_BY]->(u)
+        RETURN conv
+    """,
+
+    # Message operations
+    "upsert_message": """
+        MERGE (m:Message {id: $id})
+        SET m.role = $role,
+            m.content_preview = $content_preview,
+            m.agent_id = $agent_id,
+            m.updated_at = datetime()
+        WITH m
+        MATCH (conv:Conversation {id: $conversation_id})
+        MERGE (m)-[:IN_CONVERSATION]->(conv)
+        RETURN m
+    """,
+
+    "link_message_agent": """
+        MATCH (m:Message {id: $message_id})
+        MATCH (a:Agent {id: $agent_id})
+        MERGE (a)-[:AUTHORED]->(m)
+        RETURN m
+    """,
+
+    # Meeting Room operations
+    "upsert_meeting_room": """
+        MERGE (mr:MeetingRoom {id: $id})
+        SET mr.name = $name,
+            mr.description = $description,
+            mr.client_id = $client_id,
+            mr.status = $status,
+            mr.updated_at = datetime()
+        RETURN mr
+    """,
+
+    "add_meeting_room_participant": """
+        MATCH (mr:MeetingRoom {id: $meeting_room_id})
+        MATCH (a:Agent {id: $agent_id})
+        MERGE (a)-[:PARTICIPATED_IN]->(mr)
+        RETURN mr
+    """,
+
+    "upsert_meeting_room_message": """
+        MERGE (mrm:MeetingRoomMessage {id: $id})
+        SET mrm.content_preview = $content_preview,
+            mrm.updated_at = datetime()
+        WITH mrm
+        MATCH (mr:MeetingRoom {id: $meeting_room_id})
+        MERGE (mrm)-[:IN_MEETING_ROOM]->(mr)
+        WITH mrm
+        MATCH (a:Agent {id: $agent_id})
+        MERGE (a)-[:AUTHORED]->(mrm)
+        RETURN mrm
+    """,
+
+    # ==========================================================================
+    # Stakeholder Operations
+    # ==========================================================================
+
     "upsert_stakeholder": """
         MERGE (s:Stakeholder {id: $id})
         SET s.name = $name,
@@ -201,7 +374,10 @@ CYPHER_TEMPLATES = {
         RETURN r
     """,
 
-    # Meeting operations
+    # ==========================================================================
+    # Meeting Operations
+    # ==========================================================================
+
     "upsert_meeting": """
         MERGE (m:Meeting {id: $id})
         SET m.title = $title,
@@ -221,12 +397,16 @@ CYPHER_TEMPLATES = {
         RETURN r
     """,
 
-    # Insight operations
+    # ==========================================================================
+    # Insight Operations
+    # ==========================================================================
+
     "upsert_insight": """
         MERGE (i:Insight {id: $id})
         SET i.insight_type = $insight_type,
             i.content = $content,
             i.confidence = $confidence,
+            i.sentiment = $sentiment,
             i.updated_at = datetime()
         RETURN i
     """,
@@ -238,7 +418,17 @@ CYPHER_TEMPLATES = {
         RETURN r
     """,
 
-    # ROI operations
+    "link_meeting_insight": """
+        MATCH (m:Meeting {id: $meeting_id})
+        MATCH (i:Insight {id: $insight_id})
+        MERGE (m)-[r:GENERATED]->(i)
+        RETURN r
+    """,
+
+    # ==========================================================================
+    # ROI Operations
+    # ==========================================================================
+
     "upsert_roi_opportunity": """
         MERGE (r:ROIOpportunity {id: $id})
         SET r.title = $title,
@@ -265,7 +455,53 @@ CYPHER_TEMPLATES = {
         RETURN rel
     """,
 
-    # Concept operations
+    "link_meeting_roi": """
+        MATCH (m:Meeting {id: $meeting_id})
+        MATCH (r:ROIOpportunity {id: $roi_id})
+        MERGE (m)-[rel:IDENTIFIED]->(r)
+        RETURN rel
+    """,
+
+    # ==========================================================================
+    # Agent Knowledge Base Operations
+    # ==========================================================================
+
+    "link_agent_knowledge": """
+        MATCH (a:Agent {id: $agent_id})
+        MATCH (d:Document {id: $document_id})
+        MERGE (a)-[r:HAS_KNOWLEDGE_OF]->(d)
+        SET r.priority = $priority,
+            r.notes = $notes,
+            r.updated_at = datetime()
+        RETURN r
+    """,
+
+    "link_agent_expertise": """
+        MERGE (e:Expertise {name: $expertise_name})
+        SET e.category = $category,
+            e.updated_at = datetime()
+        WITH e
+        MATCH (a:Agent {id: $agent_id})
+        MERGE (a)-[r:EXPERT_IN]->(e)
+        SET r.confidence = $confidence
+        RETURN r
+    """,
+
+    "create_agent_handoff": """
+        MATCH (from:Agent {id: $from_agent_id})
+        MATCH (to:Agent {id: $to_agent_id})
+        CREATE (from)-[r:HANDED_OFF_TO {
+            conversation_id: $conversation_id,
+            reason: $reason,
+            timestamp: datetime($timestamp)
+        }]->(to)
+        RETURN r
+    """,
+
+    # ==========================================================================
+    # Concept & Semantic Operations
+    # ==========================================================================
+
     "upsert_concept": """
         MERGE (c:Concept {name: $name})
         SET c.category = $category,
@@ -277,7 +513,100 @@ CYPHER_TEMPLATES = {
         MATCH (m:Meeting {id: $meeting_id})
         MATCH (c:Concept {name: $concept_name})
         MERGE (m)-[r:DISCUSSES]->(c)
-        SET r.frequency = $frequency
+        SET r.frequency = coalesce(r.frequency, 0) + $frequency
+        RETURN r
+    """,
+
+    "link_document_concept": """
+        MATCH (d:Document {id: $document_id})
+        MATCH (c:Concept {name: $concept_name})
+        MERGE (d)-[r:DISCUSSES]->(c)
+        SET r.frequency = coalesce(r.frequency, 0) + 1
+        RETURN r
+    """,
+
+    "link_chunk_concept": """
+        MATCH (ch:Chunk {id: $chunk_id})
+        MERGE (c:Concept {name: $concept_name})
+        ON CREATE SET c.category = $category
+        MERGE (ch)-[r:MENTIONS]->(c)
+        RETURN r
+    """,
+
+    "link_conversation_concept": """
+        MATCH (conv:Conversation {id: $conversation_id})
+        MERGE (c:Concept {name: $concept_name})
+        ON CREATE SET c.category = $category
+        MERGE (conv)-[r:ABOUT]->(c)
+        RETURN r
+    """,
+
+    "create_concept_relationship": """
+        MATCH (c1:Concept {name: $concept1})
+        MATCH (c2:Concept {name: $concept2})
+        MERGE (c1)-[r:RELATED_TO]->(c2)
+        SET r.strength = $strength
+        RETURN r
+    """,
+
+    # ==========================================================================
+    # Concern & Action Item Operations
+    # ==========================================================================
+
+    "upsert_concern": """
+        MERGE (c:Concern {id: $id})
+        SET c.content = $content,
+            c.severity = $severity,
+            c.updated_at = datetime()
+        RETURN c
+    """,
+
+    "link_stakeholder_concern": """
+        MATCH (s:Stakeholder {id: $stakeholder_id})
+        MATCH (c:Concern {id: $concern_id})
+        MERGE (s)-[r:RAISED]->(c)
+        SET r.quote = $quote
+        RETURN r
+    """,
+
+    "upsert_action_item": """
+        MERGE (a:ActionItem {id: $id})
+        SET a.description = $description,
+            a.status = $status,
+            a.due_date = $due_date,
+            a.updated_at = datetime()
+        RETURN a
+    """,
+
+    "link_stakeholder_action_item": """
+        MATCH (s:Stakeholder {id: $stakeholder_id})
+        MATCH (a:ActionItem {id: $action_item_id})
+        MERGE (s)-[r:ASSIGNED]->(a)
+        RETURN r
+    """,
+
+    # ==========================================================================
+    # Cross-Entity Reference Operations
+    # ==========================================================================
+
+    "link_message_document": """
+        MATCH (m:Message {id: $message_id})
+        MATCH (d:Document {id: $document_id})
+        MERGE (m)-[r:REFERENCES]->(d)
+        RETURN r
+    """,
+
+    "link_conversation_stakeholder": """
+        MATCH (conv:Conversation {id: $conversation_id})
+        MATCH (s:Stakeholder {id: $stakeholder_id})
+        MERGE (conv)-[r:MENTIONS]->(s)
+        RETURN r
+    """,
+
+    "link_document_stakeholder": """
+        MATCH (d:Document {id: $document_id})
+        MATCH (s:Stakeholder {id: $stakeholder_id})
+        MERGE (d)-[r:ABOUT]->(s)
         RETURN r
     """,
 }

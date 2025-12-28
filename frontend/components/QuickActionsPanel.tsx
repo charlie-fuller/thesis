@@ -10,9 +10,9 @@ export default function QuickActionsPanel() {
   const [healthMetrics, setHealthMetrics] = useState({
     supabase: { status: 'checking', responseTime: 0 },
     railway: { status: 'checking', uptime: false },
-    vercel: { status: 'checking', build: '' },
     anthropic: { status: 'checking', latency: 0 },
-    voyageAI: { status: 'checking', latency: 0 }
+    voyageAI: { status: 'checking', latency: 0 },
+    neo4j: { status: 'checking', responseTime: 0 }
   });
   const [loading, setLoading] = useState(true);
 
@@ -28,9 +28,9 @@ export default function QuickActionsPanel() {
       const response = await apiGet<{ success: boolean; health: {
         supabase: { status: string; responseTime: number };
         railway: { status: string; uptime: boolean };
-        vercel: { status: string; build: string };
         anthropic: { status: string; latency: number };
         voyageAI: { status: string; latency: number };
+        neo4j: { status: string; responseTime: number };
       } }>('/api/admin/health');
       logger.debug('Health check response:', response);
 
@@ -39,23 +39,24 @@ export default function QuickActionsPanel() {
         setHealthMetrics(response.health);
 
         // Determine overall system status based on all services
-        const { supabase, railway, anthropic, voyageAI } = response.health;
+        const { supabase, railway, anthropic, voyageAI, neo4j } = response.health;
 
         // Critical services: Supabase and Railway must be up
         if (supabase.status === 'error' || railway.status === 'error') {
           setSystemStatus('down');
         }
         // All critical services operational
-        // Non-critical services (Anthropic, Voyage AI) can be idle, active, or unknown
+        // Non-critical services (Anthropic, Voyage AI, Neo4j) can be idle, active, not_configured, or unknown
         else if (
           supabase.status === 'connected' &&
           railway.status === 'running'
         ) {
-          // Check if auxiliary services have actual errors (not just unknown/idle)
+          // Check if auxiliary services have actual errors (not just unknown/idle/not_configured)
           const anthropicOk = anthropic.status !== 'error' && anthropic.status !== 'down';
           const voyageOk = voyageAI.status !== 'error' && voyageAI.status !== 'down';
+          const neo4jOk = neo4j.status !== 'error' && neo4j.status !== 'down';
 
-          if (anthropicOk && voyageOk) {
+          if (anthropicOk && voyageOk && neo4jOk) {
             setSystemStatus('healthy');
           } else {
             setSystemStatus('degraded');
@@ -221,6 +222,43 @@ export default function QuickActionsPanel() {
     return 'text-red-400';
   };
 
+  const formatNeo4jStatus = () => {
+    const status = healthMetrics.neo4j?.status || 'checking';
+    const responseTime = healthMetrics.neo4j?.responseTime || 0;
+
+    if (status === 'error' || status === 'down') {
+      return 'Error';
+    }
+
+    if (status === 'not_configured') {
+      return 'Not Set';
+    }
+
+    if (status === 'checking' || responseTime === 0) {
+      return 'Checking';
+    }
+
+    // Return performance description based on response time
+    if (responseTime <= 200) return 'Fast';
+    if (responseTime <= 500) return 'Good';
+    return 'Slow';
+  };
+
+  const getNeo4jColor = () => {
+    const status = healthMetrics.neo4j?.status || 'checking';
+    const responseTime = healthMetrics.neo4j?.responseTime || 0;
+
+    if (status === 'error' || status === 'down') return 'text-red-400';
+    if (status === 'not_configured') return 'text-yellow-400';
+    if (status === 'checking') return 'text-secondary';
+
+    // Color based on response time if connected
+    if (responseTime === 0) return 'text-green-400';
+    if (responseTime <= 200) return 'text-green-400';
+    if (responseTime <= 500) return 'text-yellow-400';
+    return 'text-red-400';
+  };
+
   if (loading) {
     return (
       <div className="card p-6">
@@ -244,19 +282,19 @@ export default function QuickActionsPanel() {
       </div>
 
       {/* Service Status Grid */}
-      <div className="grid grid-cols-4 gap-8 md:gap-12">
+      <div className="grid grid-cols-5 gap-4 md:gap-8">
         {/* Supabase (DB) */}
         <div className="text-center group relative">
-          <div className={`text-3xl font-bold mb-2 ${getSupabaseColor()}`}>
+          <div className={`text-2xl md:text-3xl font-bold mb-2 ${getSupabaseColor()}`}>
             {formatSupabaseStatus()}
           </div>
-          <div className="text-base font-medium text-secondary mb-1 flex items-center justify-center gap-1">
+          <div className="text-sm md:text-base font-medium text-secondary mb-1 flex items-center justify-center gap-1">
             Supabase
             <svg className="w-4 h-4 text-muted opacity-50 group-hover:opacity-100 transition-opacity cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <div className="text-sm text-muted">DB</div>
+          <div className="text-xs md:text-sm text-muted">PostgreSQL</div>
           {/* Tooltip */}
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-48 z-10 pointer-events-none">
             <div className="font-medium mb-1">Database Connection</div>
@@ -265,18 +303,38 @@ export default function QuickActionsPanel() {
           </div>
         </div>
 
+        {/* Neo4j (Graph DB) */}
+        <div className="text-center group relative">
+          <div className={`text-2xl md:text-3xl font-bold mb-2 ${getNeo4jColor()}`}>
+            {formatNeo4jStatus()}
+          </div>
+          <div className="text-sm md:text-base font-medium text-secondary mb-1 flex items-center justify-center gap-1">
+            Neo4j
+            <svg className="w-4 h-4 text-muted opacity-50 group-hover:opacity-100 transition-opacity cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div className="text-xs md:text-sm text-muted">Graph DB</div>
+          {/* Tooltip */}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-52 z-10 pointer-events-none">
+            <div className="font-medium mb-1">Graph Database</div>
+            <div className="text-gray-300">Neo4j Aura graph database. Stores stakeholder relationships, agent connections, and knowledge graphs.</div>
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+          </div>
+        </div>
+
         {/* Railway (API) */}
         <div className="text-center group relative">
-          <div className={`text-3xl font-bold mb-2 capitalize ${getServiceStatusColor(healthMetrics.railway?.status || 'checking')}`}>
+          <div className={`text-2xl md:text-3xl font-bold mb-2 capitalize ${getServiceStatusColor(healthMetrics.railway?.status || 'checking')}`}>
             {healthMetrics.railway?.status || 'Checking'}
           </div>
-          <div className="text-base font-medium text-secondary mb-1 flex items-center justify-center gap-1">
+          <div className="text-sm md:text-base font-medium text-secondary mb-1 flex items-center justify-center gap-1">
             Railway
             <svg className="w-4 h-4 text-muted opacity-50 group-hover:opacity-100 transition-opacity cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <div className="text-sm text-muted">Backend API</div>
+          <div className="text-xs md:text-sm text-muted">Backend</div>
           {/* Tooltip */}
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-48 z-10 pointer-events-none">
             <div className="font-medium mb-1">Backend API Server</div>
@@ -287,16 +345,16 @@ export default function QuickActionsPanel() {
 
         {/* Anthropic (Claude) */}
         <div className="text-center group relative">
-          <div className={`text-3xl font-bold mb-2 ${getAnthropicColor()}`}>
+          <div className={`text-2xl md:text-3xl font-bold mb-2 ${getAnthropicColor()}`}>
             {formatAnthropicStatus()}
           </div>
-          <div className="text-base font-medium text-secondary mb-1 flex items-center justify-center gap-1">
+          <div className="text-sm md:text-base font-medium text-secondary mb-1 flex items-center justify-center gap-1">
             Anthropic
             <svg className="w-4 h-4 text-muted opacity-50 group-hover:opacity-100 transition-opacity cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <div className="text-sm text-muted">LLM</div>
+          <div className="text-xs md:text-sm text-muted">LLM</div>
           {/* Tooltip */}
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-52 z-10 pointer-events-none">
             <div className="font-medium mb-1">Claude AI (LLM)</div>
@@ -307,16 +365,16 @@ export default function QuickActionsPanel() {
 
         {/* Voyage AI (Embeddings) */}
         <div className="text-center group relative">
-          <div className={`text-3xl font-bold mb-2 ${getVoyageColor()}`}>
+          <div className={`text-2xl md:text-3xl font-bold mb-2 ${getVoyageColor()}`}>
             {formatVoyageStatus()}
           </div>
-          <div className="text-base font-medium text-secondary mb-1 flex items-center justify-center gap-1">
+          <div className="text-sm md:text-base font-medium text-secondary mb-1 flex items-center justify-center gap-1">
             Voyage AI
             <svg className="w-4 h-4 text-muted opacity-50 group-hover:opacity-100 transition-opacity cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <div className="text-sm text-muted">Embeddings</div>
+          <div className="text-xs md:text-sm text-muted">Embeddings</div>
           {/* Tooltip */}
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-52 z-10 pointer-events-none">
             <div className="font-medium mb-1">Vector Embeddings</div>

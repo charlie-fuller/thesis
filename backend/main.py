@@ -172,6 +172,7 @@ from api.routes import (
     graph,
     help_chat,
     images,
+    meeting_rooms,
     notion,
     projects,
     quick_prompts,
@@ -204,8 +205,9 @@ app.include_router(system_instructions.router)
 app.include_router(transcripts.router)
 app.include_router(stakeholders.router)
 app.include_router(graph.router)
+app.include_router(meeting_rooms.router)
 
-logger.info("✅ All route modules registered (including Thesis multi-agent and graph routes)")
+logger.info("✅ All route modules registered (including Thesis multi-agent, graph, and meeting room routes)")
 
 # ============================================================================
 # Backward Compatibility Routes

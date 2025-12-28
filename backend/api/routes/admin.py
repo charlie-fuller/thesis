@@ -413,10 +413,12 @@ async def get_system_health(
         health_data = {
             'supabase': {'status': 'checking', 'responseTime': 0},
             'railway': {'status': 'running'},
-            'vercel': {'status': 'deployed'},
             'anthropic': {'status': 'checking', 'latency': 0},
-            'voyageAI': {'status': 'checking', 'latency': 0}
+            'voyageAI': {'status': 'checking', 'latency': 0},
+            'neo4j': {'status': 'checking', 'responseTime': 0}
         }
+
+        db_time = 0
 
         # 1. Check Supabase (Database) Health
         try:
@@ -442,13 +444,7 @@ async def get_system_health(
             'uptime': True
         }
 
-        # 3. Vercel (Frontend) - Mark as deployed (frontend wouldn't load if it wasn't)
-        health_data['vercel'] = {
-            'status': 'deployed',
-            'build': 'success'
-        }
-
-        # 4. Check Anthropic (Claude) - Check recent AI interactions
+        # 3. Check Anthropic (Claude) - Check recent AI interactions
         try:
             one_hour_ago = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
             recent_messages = await asyncio.to_thread(
@@ -477,7 +473,7 @@ async def get_system_health(
                 'latency': 0
             }
 
-        # 5. Check Voyage AI (Embeddings) - Check if embeddings service is available
+        # 4. Check Voyage AI (Embeddings) - Check if embeddings service is available
         try:
             # Check if we have recent documents with embeddings
             one_day_ago = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
@@ -506,7 +502,41 @@ async def get_system_health(
                 'latency': 0
             }
 
-        logger.info(f"🏥 Health check: Supabase {db_time}ms, Railway ✓, Vercel ✓, Anthropic {health_data['anthropic']['status']}, Voyage {health_data['voyageAI']['status']}")
+        # 5. Check Neo4j (Graph Database) Health
+        neo4j_time = 0
+        try:
+            from services.graph.connection import get_neo4j_connection
+            neo4j_start = time.time()
+            connection = await get_neo4j_connection()
+            neo4j_health = await connection.health_check()
+            neo4j_time = round((time.time() - neo4j_start) * 1000)
+
+            if neo4j_health.get('status') == 'healthy':
+                health_data['neo4j'] = {
+                    'status': 'connected',
+                    'responseTime': neo4j_time
+                }
+            else:
+                health_data['neo4j'] = {
+                    'status': 'error',
+                    'responseTime': 0,
+                    'error': neo4j_health.get('error', 'Unknown error')
+                }
+        except ValueError as e:
+            # Neo4j not configured (missing env vars)
+            logger.warning(f"⚠️ Neo4j not configured: {str(e)}")
+            health_data['neo4j'] = {
+                'status': 'not_configured',
+                'responseTime': 0
+            }
+        except Exception as e:
+            logger.error(f"❌ Neo4j health check failed: {str(e)}")
+            health_data['neo4j'] = {
+                'status': 'error',
+                'responseTime': 0
+            }
+
+        logger.info(f"🏥 Health check: Supabase {db_time}ms, Railway ✓, Anthropic {health_data['anthropic']['status']}, Voyage {health_data['voyageAI']['status']}, Neo4j {health_data['neo4j']['status']} ({neo4j_time}ms)")
 
         return {
             'success': True,

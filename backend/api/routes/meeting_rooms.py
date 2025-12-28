@@ -1,0 +1,809 @@
+"""
+Meeting Room routes
+Handles creation, management, and chat for multi-agent meeting rooms
+"""
+import asyncio
+import json
+import os
+from datetime import datetime, timezone
+from typing import Optional
+
+from anthropic import Anthropic
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+from auth import get_current_user
+from config import get_default_client_id
+from database import get_supabase
+from logger_config import get_logger
+from validation import validate_uuid
+
+from ..models.meeting_rooms import (
+    MeetingRoomCreateRequest,
+    MeetingRoomUpdateRequest,
+    MeetingChatRequest,
+    ParticipantAddRequest,
+    ParticipantUpdateRequest,
+    MeetingRoomResponse,
+    MeetingRoomListResponse,
+    MeetingMessageResponse,
+    ParticipantResponse,
+)
+
+logger = get_logger(__name__)
+router = APIRouter(prefix="/api/meeting-rooms", tags=["meeting-rooms"])
+limiter = Limiter(key_func=get_remote_address)
+supabase = get_supabase()
+
+# Initialize Anthropic client
+anthropic_client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+# Global orchestrator instance (initialized lazily)
+_meeting_orchestrator = None
+
+
+# ============================================================================
+# MEETING ROOM CRUD OPERATIONS
+# ============================================================================
+
+@router.post("")
+async def create_meeting_room(
+    request: MeetingRoomCreateRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new meeting room with selected agent participants."""
+    try:
+        user_id = current_user['id']
+        client_id = get_default_client_id()
+
+        # Validate all agent IDs exist and are active
+        agent_ids = request.participant_agent_ids
+        agents_result = await asyncio.to_thread(
+            lambda: supabase.table('agents')
+                .select('id, name, display_name')
+                .in_('id', agent_ids)
+                .eq('is_active', True)
+                .execute()
+        )
+
+        found_agents = {a['id']: a for a in agents_result.data}
+        missing_agents = [aid for aid in agent_ids if aid not in found_agents]
+
+        if missing_agents:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid or inactive agent IDs: {missing_agents}"
+            )
+
+        # Create the meeting room
+        meeting_data = {
+            'client_id': client_id,
+            'user_id': user_id,
+            'title': request.title,
+            'description': request.description,
+            'meeting_type': request.meeting_type,
+            'status': 'active',
+            'config': request.config or {},
+        }
+
+        meeting_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_rooms')
+                .insert(meeting_data)
+                .execute()
+        )
+
+        meeting = meeting_result.data[0]
+        meeting_id = meeting['id']
+        logger.info(f"Created meeting room: {meeting_id}")
+
+        # Add participants
+        participants_data = [
+            {
+                'meeting_room_id': meeting_id,
+                'agent_id': agent_id,
+                'priority': idx,
+            }
+            for idx, agent_id in enumerate(agent_ids)
+        ]
+
+        await asyncio.to_thread(
+            lambda: supabase.table('meeting_room_participants')
+                .insert(participants_data)
+                .execute()
+        )
+
+        logger.info(f"Added {len(agent_ids)} participants to meeting {meeting_id}")
+
+        # Build response with participant details
+        participants = [
+            ParticipantResponse(
+                id=str(idx),  # Temporary ID
+                agent_id=agent_id,
+                agent_name=found_agents[agent_id]['name'],
+                agent_display_name=found_agents[agent_id]['display_name'],
+                role_description=None,
+                priority=idx,
+                turns_taken=0,
+                tokens_used=0,
+                created_at=datetime.now(timezone.utc),
+            )
+            for idx, agent_id in enumerate(agent_ids)
+        ]
+
+        return {
+            'success': True,
+            'meeting_room': MeetingRoomResponse(
+                id=meeting['id'],
+                client_id=meeting['client_id'],
+                user_id=meeting['user_id'],
+                title=meeting['title'],
+                description=meeting['description'],
+                meeting_type=meeting['meeting_type'],
+                status=meeting['status'],
+                config=meeting['config'],
+                total_tokens_used=meeting['total_tokens_used'],
+                created_at=meeting['created_at'],
+                updated_at=meeting['updated_at'],
+                participants=participants,
+            )
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating meeting room: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("")
+async def list_meeting_rooms(
+    status: Optional[str] = None,
+    meeting_type: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user)
+):
+    """List user's meeting rooms."""
+    try:
+        user_id = current_user['id']
+
+        # Build query
+        query = supabase.table('meeting_rooms')\
+            .select('*', count='exact')\
+            .eq('user_id', user_id)
+
+        if status:
+            query = query.eq('status', status)
+        if meeting_type:
+            query = query.eq('meeting_type', meeting_type)
+
+        query = query.order('updated_at', desc=True)\
+            .range(offset, offset + limit - 1)
+
+        result = await asyncio.to_thread(lambda: query.execute())
+
+        meetings = result.data
+
+        # Get participant counts for all meetings
+        if meetings:
+            meeting_ids = [m['id'] for m in meetings]
+            participants_result = await asyncio.to_thread(
+                lambda: supabase.table('meeting_room_participants')
+                    .select('meeting_room_id')
+                    .in_('meeting_room_id', meeting_ids)
+                    .execute()
+            )
+
+            # Count participants per meeting
+            participant_counts = {}
+            for p in participants_result.data:
+                mid = p['meeting_room_id']
+                participant_counts[mid] = participant_counts.get(mid, 0) + 1
+
+            # Add counts to meetings
+            for meeting in meetings:
+                meeting['participant_count'] = participant_counts.get(meeting['id'], 0)
+
+        return {
+            'success': True,
+            'meeting_rooms': [
+                MeetingRoomListResponse(
+                    id=m['id'],
+                    title=m['title'],
+                    description=m['description'],
+                    meeting_type=m['meeting_type'],
+                    status=m['status'],
+                    total_tokens_used=m['total_tokens_used'],
+                    participant_count=m.get('participant_count', 0),
+                    created_at=m['created_at'],
+                    updated_at=m['updated_at'],
+                )
+                for m in meetings
+            ],
+            'total': result.count,
+            'limit': limit,
+            'offset': offset,
+        }
+
+    except Exception as e:
+        logger.error(f"Error listing meeting rooms: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{meeting_id}")
+async def get_meeting_room(
+    meeting_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get meeting room details with participants."""
+    try:
+        validate_uuid(meeting_id, "meeting_id")
+        user_id = current_user['id']
+
+        # Get meeting room
+        meeting_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_rooms')
+                .select('*')
+                .eq('id', meeting_id)
+                .eq('user_id', user_id)
+                .single()
+                .execute()
+        )
+
+        if not meeting_result.data:
+            raise HTTPException(status_code=404, detail="Meeting room not found")
+
+        meeting = meeting_result.data
+
+        # Get participants with agent details
+        participants_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_room_participants')
+                .select('*, agents(id, name, display_name, description)')
+                .eq('meeting_room_id', meeting_id)
+                .order('priority')
+                .execute()
+        )
+
+        participants = [
+            ParticipantResponse(
+                id=p['id'],
+                agent_id=p['agent_id'],
+                agent_name=p['agents']['name'],
+                agent_display_name=p['agents']['display_name'],
+                role_description=p['role_description'],
+                priority=p['priority'],
+                turns_taken=p['turns_taken'],
+                tokens_used=p['tokens_used'],
+                created_at=p['created_at'],
+            )
+            for p in participants_result.data
+        ]
+
+        return {
+            'success': True,
+            'meeting_room': MeetingRoomResponse(
+                id=meeting['id'],
+                client_id=meeting['client_id'],
+                user_id=meeting['user_id'],
+                title=meeting['title'],
+                description=meeting['description'],
+                meeting_type=meeting['meeting_type'],
+                status=meeting['status'],
+                config=meeting['config'],
+                total_tokens_used=meeting['total_tokens_used'],
+                created_at=meeting['created_at'],
+                updated_at=meeting['updated_at'],
+                participants=participants,
+            )
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting meeting room: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/{meeting_id}")
+async def update_meeting_room(
+    meeting_id: str,
+    request: MeetingRoomUpdateRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update meeting room details."""
+    try:
+        validate_uuid(meeting_id, "meeting_id")
+        user_id = current_user['id']
+
+        # Build update data
+        update_data = {}
+        if request.title is not None:
+            update_data['title'] = request.title
+        if request.description is not None:
+            update_data['description'] = request.description
+        if request.status is not None:
+            update_data['status'] = request.status
+        if request.config is not None:
+            update_data['config'] = request.config
+
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_rooms')
+                .update(update_data)
+                .eq('id', meeting_id)
+                .eq('user_id', user_id)
+                .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Meeting room not found")
+
+        return {
+            'success': True,
+            'meeting_room': result.data[0]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating meeting room: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{meeting_id}")
+async def delete_meeting_room(
+    meeting_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a meeting room and all its messages."""
+    try:
+        validate_uuid(meeting_id, "meeting_id")
+        user_id = current_user['id']
+
+        # Verify ownership first
+        meeting_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_rooms')
+                .select('id')
+                .eq('id', meeting_id)
+                .eq('user_id', user_id)
+                .execute()
+        )
+
+        if not meeting_result.data:
+            raise HTTPException(status_code=404, detail="Meeting room not found")
+
+        # Delete meeting (cascades to participants and messages)
+        await asyncio.to_thread(
+            lambda: supabase.table('meeting_rooms')
+                .delete()
+                .eq('id', meeting_id)
+                .execute()
+        )
+
+        logger.info(f"Deleted meeting room: {meeting_id}")
+
+        return {
+            'success': True,
+            'message': 'Meeting room deleted successfully'
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting meeting room: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# PARTICIPANT MANAGEMENT
+# ============================================================================
+
+@router.post("/{meeting_id}/participants")
+async def add_participant(
+    meeting_id: str,
+    request: ParticipantAddRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Add a participant to an existing meeting."""
+    try:
+        validate_uuid(meeting_id, "meeting_id")
+        validate_uuid(request.agent_id, "agent_id")
+        user_id = current_user['id']
+
+        # Verify meeting ownership
+        meeting_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_rooms')
+                .select('id')
+                .eq('id', meeting_id)
+                .eq('user_id', user_id)
+                .execute()
+        )
+
+        if not meeting_result.data:
+            raise HTTPException(status_code=404, detail="Meeting room not found")
+
+        # Verify agent exists and is active
+        agent_result = await asyncio.to_thread(
+            lambda: supabase.table('agents')
+                .select('id, name, display_name')
+                .eq('id', request.agent_id)
+                .eq('is_active', True)
+                .single()
+                .execute()
+        )
+
+        if not agent_result.data:
+            raise HTTPException(status_code=400, detail="Invalid or inactive agent")
+
+        agent = agent_result.data
+
+        # Add participant
+        participant_data = {
+            'meeting_room_id': meeting_id,
+            'agent_id': request.agent_id,
+            'role_description': request.role_description,
+            'priority': request.priority,
+        }
+
+        result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_room_participants')
+                .insert(participant_data)
+                .execute()
+        )
+
+        participant = result.data[0]
+
+        return {
+            'success': True,
+            'participant': ParticipantResponse(
+                id=participant['id'],
+                agent_id=participant['agent_id'],
+                agent_name=agent['name'],
+                agent_display_name=agent['display_name'],
+                role_description=participant['role_description'],
+                priority=participant['priority'],
+                turns_taken=0,
+                tokens_used=0,
+                created_at=participant['created_at'],
+            )
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adding participant: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/{meeting_id}/participants/{participant_id}")
+async def update_participant(
+    meeting_id: str,
+    participant_id: str,
+    request: ParticipantUpdateRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a participant's configuration."""
+    try:
+        validate_uuid(meeting_id, "meeting_id")
+        validate_uuid(participant_id, "participant_id")
+        user_id = current_user['id']
+
+        # Verify meeting ownership
+        meeting_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_rooms')
+                .select('id')
+                .eq('id', meeting_id)
+                .eq('user_id', user_id)
+                .execute()
+        )
+
+        if not meeting_result.data:
+            raise HTTPException(status_code=404, detail="Meeting room not found")
+
+        # Build update data
+        update_data = {}
+        if request.role_description is not None:
+            update_data['role_description'] = request.role_description
+        if request.priority is not None:
+            update_data['priority'] = request.priority
+
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_room_participants')
+                .update(update_data)
+                .eq('id', participant_id)
+                .eq('meeting_room_id', meeting_id)
+                .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Participant not found")
+
+        return {
+            'success': True,
+            'participant': result.data[0]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating participant: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{meeting_id}/participants/{participant_id}")
+async def remove_participant(
+    meeting_id: str,
+    participant_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Remove a participant from a meeting."""
+    try:
+        validate_uuid(meeting_id, "meeting_id")
+        validate_uuid(participant_id, "participant_id")
+        user_id = current_user['id']
+
+        # Verify meeting ownership
+        meeting_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_rooms')
+                .select('id')
+                .eq('id', meeting_id)
+                .eq('user_id', user_id)
+                .execute()
+        )
+
+        if not meeting_result.data:
+            raise HTTPException(status_code=404, detail="Meeting room not found")
+
+        # Check we're not removing the last participant(s)
+        count_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_room_participants')
+                .select('id', count='exact')
+                .eq('meeting_room_id', meeting_id)
+                .execute()
+        )
+
+        if count_result.count <= 2:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot remove participant: meeting requires at least 2 agents"
+            )
+
+        # Remove participant
+        result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_room_participants')
+                .delete()
+                .eq('id', participant_id)
+                .eq('meeting_room_id', meeting_id)
+                .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Participant not found")
+
+        return {
+            'success': True,
+            'message': 'Participant removed successfully'
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing participant: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# MESSAGE RETRIEVAL
+# ============================================================================
+
+@router.get("/{meeting_id}/messages")
+async def get_meeting_messages(
+    meeting_id: str,
+    limit: int = 100,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get messages from a meeting room."""
+    try:
+        validate_uuid(meeting_id, "meeting_id")
+        user_id = current_user['id']
+
+        # Verify meeting ownership
+        meeting_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_rooms')
+                .select('id')
+                .eq('id', meeting_id)
+                .eq('user_id', user_id)
+                .execute()
+        )
+
+        if not meeting_result.data:
+            raise HTTPException(status_code=404, detail="Meeting room not found")
+
+        # Get messages
+        result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_room_messages')
+                .select('*', count='exact')
+                .eq('meeting_room_id', meeting_id)
+                .order('created_at', desc=False)
+                .range(offset, offset + limit - 1)
+                .execute()
+        )
+
+        messages = [
+            MeetingMessageResponse(
+                id=m['id'],
+                meeting_room_id=m['meeting_room_id'],
+                role=m['role'],
+                agent_id=m['agent_id'],
+                agent_name=m['agent_name'],
+                agent_display_name=m['agent_display_name'],
+                content=m['content'],
+                metadata=m['metadata'] or {},
+                turn_number=m['turn_number'],
+                created_at=m['created_at'],
+            )
+            for m in result.data
+        ]
+
+        return {
+            'success': True,
+            'messages': messages,
+            'total_count': result.count,
+            'has_more': (offset + limit) < result.count,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting meeting messages: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# STREAMING CHAT ENDPOINT
+# ============================================================================
+
+async def get_orchestrator():
+    """Get or initialize the meeting orchestrator."""
+    global _meeting_orchestrator
+    if _meeting_orchestrator is None:
+        from services.meeting_orchestrator import get_meeting_orchestrator
+        _meeting_orchestrator = await get_meeting_orchestrator(supabase, anthropic_client)
+    return _meeting_orchestrator
+
+
+@router.post("/{meeting_id}/chat/stream")
+@limiter.limit("20/minute")
+async def stream_meeting_chat(
+    request: Request,
+    meeting_id: str,
+    chat_request: MeetingChatRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Send a message in a meeting room and stream responses from agents.
+
+    Returns Server-Sent Events (SSE) with the following event types:
+    - agent_turn_start: When an agent begins responding
+    - agent_token: Individual tokens from agent response
+    - agent_turn_end: When an agent finishes
+    - round_complete: When all agents have responded
+    - error: If something goes wrong
+    """
+    try:
+        validate_uuid(meeting_id, "meeting_id")
+        user_id = current_user['id']
+        client_id = get_default_client_id()
+
+        # Verify meeting ownership and get meeting details
+        meeting_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_rooms')
+                .select('*')
+                .eq('id', meeting_id)
+                .eq('user_id', user_id)
+                .single()
+                .execute()
+        )
+
+        if not meeting_result.data:
+            raise HTTPException(status_code=404, detail="Meeting room not found")
+
+        meeting = meeting_result.data
+
+        # Get participants with agent details
+        participants_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_room_participants')
+                .select('*, agents(id, name, display_name)')
+                .eq('meeting_room_id', meeting_id)
+                .order('priority')
+                .execute()
+        )
+
+        participants = [
+            {
+                'id': p['id'],
+                'agent_id': p['agent_id'],
+                'agent_name': p['agents']['name'],
+                'agent_display_name': p['agents']['display_name'],
+                'role_description': p['role_description'],
+                'priority': p['priority'],
+            }
+            for p in participants_result.data
+        ]
+
+        if not participants:
+            raise HTTPException(status_code=400, detail="No participants in meeting")
+
+        # Get message history
+        messages_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_room_messages')
+                .select('*')
+                .eq('meeting_room_id', meeting_id)
+                .order('created_at', desc=False)
+                .limit(50)  # Last 50 messages for context
+                .execute()
+        )
+
+        message_history = [
+            {
+                'role': m['role'],
+                'content': m['content'],
+                'agent_name': m['agent_name'],
+                'agent_display_name': m['agent_display_name'],
+            }
+            for m in messages_result.data
+        ]
+
+        # Calculate turn number
+        turn_number = len([m for m in messages_result.data if m['role'] == 'user']) + 1
+
+        # Build meeting context
+        from services.meeting_orchestrator import MeetingContext
+
+        meeting_context = MeetingContext(
+            user_id=user_id,
+            client_id=client_id,
+            meeting_room_id=meeting_id,
+            user_message=chat_request.message,
+            message_history=message_history,
+            participants=participants,
+            meeting_type=meeting['meeting_type'],
+            config=meeting['config'] or {},
+            turn_number=turn_number,
+        )
+
+        # Get orchestrator and process the turn
+        orchestrator = await get_orchestrator()
+
+        async def generate_stream():
+            """Generate SSE stream from orchestrator."""
+            try:
+                async for event in orchestrator.process_meeting_turn(meeting_context):
+                    yield f"data: {json.dumps(event)}\n\n"
+            except Exception as e:
+                logger.error(f"Meeting stream error: {e}")
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+        return StreamingResponse(
+            generate_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in meeting chat stream: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

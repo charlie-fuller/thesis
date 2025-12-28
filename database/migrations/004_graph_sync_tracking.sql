@@ -73,12 +73,14 @@ ALTER TABLE graph_sync_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE graph_sync_state ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies (users can only see their client's sync data)
+DROP POLICY IF EXISTS "Users can view own client sync logs" ON graph_sync_log;
 CREATE POLICY "Users can view own client sync logs"
     ON graph_sync_log FOR SELECT
     USING (client_id IN (
         SELECT client_id FROM users WHERE id = auth.uid()
     ));
 
+DROP POLICY IF EXISTS "Users can view own client sync state" ON graph_sync_state;
 CREATE POLICY "Users can view own client sync state"
     ON graph_sync_state FOR SELECT
     USING (client_id IN (
@@ -86,10 +88,12 @@ CREATE POLICY "Users can view own client sync state"
     ));
 
 -- Service role can do everything
+DROP POLICY IF EXISTS "Service role full access to sync logs" ON graph_sync_log;
 CREATE POLICY "Service role full access to sync logs"
     ON graph_sync_log FOR ALL
     USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "Service role full access to sync state" ON graph_sync_state;
 CREATE POLICY "Service role full access to sync state"
     ON graph_sync_state FOR ALL
     USING (auth.role() = 'service_role');

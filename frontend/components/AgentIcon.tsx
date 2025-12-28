@@ -13,6 +13,8 @@ import {
   GraduationCap,
   Network,
   Bot,
+  Mic,
+  Workflow,
 } from 'lucide-react';
 
 const AGENT_ICONS: Record<string, React.ElementType> = {
@@ -29,6 +31,8 @@ const AGENT_ICONS: Record<string, React.ElementType> = {
   catalyst: Megaphone,    // Internal Communications
   scholar: GraduationCap, // L&D
   nexus: Network,         // Systems Thinking
+  echo: Mic,              // Brand Voice
+  coordinator: Workflow,  // Central Orchestrator
 };
 
 interface AgentIconProps {
@@ -61,6 +65,8 @@ export const AGENT_COLORS: Record<string, string> = {
   catalyst: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   scholar: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
   nexus: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
+  echo: 'bg-fuchsia-500/20 text-fuchsia-400 border-fuchsia-500/30',
+  coordinator: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
 };
 
 export function getAgentColor(name: string): string {

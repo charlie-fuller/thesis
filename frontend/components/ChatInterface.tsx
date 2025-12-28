@@ -72,6 +72,7 @@ export default function ChatInterface({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- setStreamingEnabled kept for future toggle feature
   const [streamingEnabled, _setStreamingEnabled] = useState(true) // Enable streaming by default
   const [isSendingFirstMessage, setIsSendingFirstMessage] = useState(false) // Track when creating new conversation
+  const [digDeeperLoading, setDigDeeperLoading] = useState<string | null>(null) // Track which message is being elaborated
 
   // Project assignment state
   const [projects, setProjects] = useState<Project[]>([])
@@ -515,6 +516,101 @@ export default function ChatInterface({
     }, 100)
   }
 
+  async function handleDigDeeper(messageId: string, originalContent: string) {
+    if (!currentConversationId || digDeeperLoading) return
+
+    setDigDeeperLoading(messageId)
+
+    // Create placeholder message for streaming content
+    const placeholderMessage: Message = {
+      content: '',
+      role: 'assistant',
+      timestamp: new Date().toISOString(),
+      metadata: { dig_deeper_response: true }
+    }
+
+    // Add placeholder immediately
+    let messageIndex = -1
+    setMessages(prev => {
+      messageIndex = prev.length
+      return [...prev, placeholderMessage]
+    })
+
+    let fullResponse = ''
+
+    try {
+      const response = await authenticatedFetch('/api/chat/dig-deeper', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversation_id: currentConversationId,
+          message_id: messageId,
+          original_content: originalContent
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Dig deeper failed: ${response.statusText}`)
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('Stream not available')
+      }
+
+      const decoder = new TextDecoder()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.substring(6))
+
+              if (data.type === 'token') {
+                fullResponse += data.content
+                setMessages(prev => {
+                  const updated = [...prev]
+                  if (updated[messageIndex]) {
+                    updated[messageIndex] = {
+                      ...updated[messageIndex],
+                      content: fullResponse
+                    }
+                  }
+                  return updated
+                })
+              } else if (data.type === 'done') {
+                logger.debug('Dig deeper complete:', data.tokens)
+              } else if (data.type === 'error') {
+                throw new Error(data.error)
+              }
+            } catch (parseError) {
+              logger.warn('Failed to parse SSE data:', line, parseError)
+            }
+          }
+        }
+      }
+
+      // Reload messages to get server-assigned IDs
+      await loadConversation(currentConversationId)
+
+    } catch (err) {
+      logger.error('Dig deeper error:', err)
+      toast.error('Failed to elaborate on response')
+      // Remove the placeholder message on error
+      setMessages(prev => prev.filter((_, i) => i !== messageIndex))
+    } finally {
+      setDigDeeperLoading(null)
+    }
+  }
+
   function handleKeyPress(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -654,6 +750,8 @@ export default function ChatInterface({
                       documents={msg.documents}
                       conversationId={currentConversationId || undefined}
                       messageId={msg.id}
+                      onDigDeeper={handleDigDeeper}
+                      isDigDeeperLoading={digDeeperLoading === msg.id}
                     />
                   </div>
                 </div>

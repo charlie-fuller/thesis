@@ -30,10 +30,12 @@ CREATE INDEX IF NOT EXISTS idx_agent_kb_priority ON agent_knowledge_base(agent_i
 ALTER TABLE agent_knowledge_base ENABLE ROW LEVEL SECURITY;
 
 -- All authenticated users can view agent KB links
+DROP POLICY IF EXISTS "Users can view agent knowledge base" ON agent_knowledge_base;
 CREATE POLICY "Users can view agent knowledge base" ON agent_knowledge_base
     FOR SELECT USING (true);
 
 -- Only admins can manage agent KB links
+DROP POLICY IF EXISTS "Admins can manage agent knowledge base" ON agent_knowledge_base;
 CREATE POLICY "Admins can manage agent knowledge base" ON agent_knowledge_base
     FOR ALL USING (
         EXISTS (

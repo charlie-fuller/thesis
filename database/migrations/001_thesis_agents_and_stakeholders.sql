@@ -148,12 +148,19 @@ CREATE TABLE IF NOT EXISTS meeting_transcripts (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Add foreign key for stakeholder_insights
-ALTER TABLE stakeholder_insights
-    ADD CONSTRAINT fk_meeting_transcript
-    FOREIGN KEY (meeting_transcript_id)
-    REFERENCES meeting_transcripts(id)
-    ON DELETE SET NULL;
+-- Add foreign key for stakeholder_insights (only if not exists)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_meeting_transcript'
+    ) THEN
+        ALTER TABLE stakeholder_insights
+            ADD CONSTRAINT fk_meeting_transcript
+            FOREIGN KEY (meeting_transcript_id)
+            REFERENCES meeting_transcripts(id)
+            ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- ============================================================================
 -- ROI OPPORTUNITIES
@@ -274,13 +281,16 @@ ALTER TABLE roi_opportunities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agent_handoffs ENABLE ROW LEVEL SECURITY;
 
 -- Agents are readable by all authenticated users
+DROP POLICY IF EXISTS "Users can view active agents" ON agents;
 CREATE POLICY "Users can view active agents" ON agents
     FOR SELECT USING (is_active = TRUE);
 
 -- Agent instructions - admins can manage, users can view active
+DROP POLICY IF EXISTS "Users can view active agent instructions" ON agent_instruction_versions;
 CREATE POLICY "Users can view active agent instructions" ON agent_instruction_versions
     FOR SELECT USING (is_active = TRUE);
 
+DROP POLICY IF EXISTS "Admins can manage agent instructions" ON agent_instruction_versions;
 CREATE POLICY "Admins can manage agent instructions" ON agent_instruction_versions
     FOR ALL USING (
         EXISTS (
@@ -291,6 +301,7 @@ CREATE POLICY "Admins can manage agent instructions" ON agent_instruction_versio
     );
 
 -- Stakeholders - users can view/manage within their client
+DROP POLICY IF EXISTS "Users can view stakeholders in their client" ON stakeholders;
 CREATE POLICY "Users can view stakeholders in their client" ON stakeholders
     FOR SELECT USING (
         client_id IN (
@@ -298,6 +309,7 @@ CREATE POLICY "Users can view stakeholders in their client" ON stakeholders
         )
     );
 
+DROP POLICY IF EXISTS "Users can manage stakeholders in their client" ON stakeholders;
 CREATE POLICY "Users can manage stakeholders in their client" ON stakeholders
     FOR ALL USING (
         client_id IN (
@@ -306,6 +318,7 @@ CREATE POLICY "Users can manage stakeholders in their client" ON stakeholders
     );
 
 -- Stakeholder Insights - via stakeholder access
+DROP POLICY IF EXISTS "Users can view insights for their stakeholders" ON stakeholder_insights;
 CREATE POLICY "Users can view insights for their stakeholders" ON stakeholder_insights
     FOR SELECT USING (
         stakeholder_id IN (
@@ -315,6 +328,7 @@ CREATE POLICY "Users can view insights for their stakeholders" ON stakeholder_in
         )
     );
 
+DROP POLICY IF EXISTS "Users can manage insights for their stakeholders" ON stakeholder_insights;
 CREATE POLICY "Users can manage insights for their stakeholders" ON stakeholder_insights
     FOR ALL USING (
         stakeholder_id IN (
@@ -325,13 +339,16 @@ CREATE POLICY "Users can manage insights for their stakeholders" ON stakeholder_
     );
 
 -- Meeting Transcripts - users can manage their own
+DROP POLICY IF EXISTS "Users can view their transcripts" ON meeting_transcripts;
 CREATE POLICY "Users can view their transcripts" ON meeting_transcripts
     FOR SELECT USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can manage their transcripts" ON meeting_transcripts;
 CREATE POLICY "Users can manage their transcripts" ON meeting_transcripts
     FOR ALL USING (user_id = auth.uid());
 
 -- ROI Opportunities - client-level access
+DROP POLICY IF EXISTS "Users can view ROI opportunities in their client" ON roi_opportunities;
 CREATE POLICY "Users can view ROI opportunities in their client" ON roi_opportunities
     FOR SELECT USING (
         client_id IN (
@@ -339,6 +356,7 @@ CREATE POLICY "Users can view ROI opportunities in their client" ON roi_opportun
         )
     );
 
+DROP POLICY IF EXISTS "Users can manage ROI opportunities in their client" ON roi_opportunities;
 CREATE POLICY "Users can manage ROI opportunities in their client" ON roi_opportunities
     FOR ALL USING (
         client_id IN (
@@ -347,6 +365,7 @@ CREATE POLICY "Users can manage ROI opportunities in their client" ON roi_opport
     );
 
 -- Agent Handoffs - via conversation access
+DROP POLICY IF EXISTS "Users can view handoffs in their conversations" ON agent_handoffs;
 CREATE POLICY "Users can view handoffs in their conversations" ON agent_handoffs
     FOR SELECT USING (
         conversation_id IN (
@@ -393,6 +412,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_stakeholder_sentiment ON stakeholder_insights;
 CREATE TRIGGER trigger_update_stakeholder_sentiment
 AFTER INSERT ON stakeholder_insights
 FOR EACH ROW
@@ -418,6 +438,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_stakeholder_interactions ON meeting_transcripts;
 CREATE TRIGGER trigger_update_stakeholder_interactions
 AFTER INSERT ON meeting_transcripts
 FOR EACH ROW

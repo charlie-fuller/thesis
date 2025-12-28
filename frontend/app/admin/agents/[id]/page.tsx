@@ -86,6 +86,35 @@ interface AgentData {
   };
 }
 
+interface DefaultInstructionsResponse {
+  success: boolean;
+  has_default: boolean;
+  agent_name: string;
+  display_name: string;
+  default_instructions: string;
+  character_count: number;
+  word_count: number;
+}
+
+interface XmlInstructionsResponse {
+  success: boolean;
+  has_xml: boolean;
+  agent_name: string;
+  display_name: string;
+  xml_instructions: string;
+  character_count: number;
+  word_count: number;
+  file_modified_at: string | null;
+}
+
+// Helper to detect placeholder text in instructions
+function isPlaceholderInstruction(instruction: string | null | undefined): boolean {
+  if (!instruction) return true;
+  if (instruction.trim().length < 100) return true;
+  if (instruction.trim().startsWith('--')) return true;
+  return false;
+}
+
 type TabType = 'instructions' | 'compare' | 'knowledge' | 'config' | 'stats';
 
 export default function AgentDetailPage() {
@@ -124,6 +153,13 @@ export default function AgentDetailPage() {
   const [availableDocs, setAvailableDocs] = useState<Document[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
 
+  // XML instructions state
+  const [xmlInstructions, setXmlInstructions] = useState<string | null>(null);
+  const [xmlModifiedAt, setXmlModifiedAt] = useState<string | null>(null);
+  const [hasXmlFile, setHasXmlFile] = useState(false);
+  const [loadingXml, setLoadingXml] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
   useEffect(() => {
     fetchAgent();
   }, [agentId]);
@@ -133,9 +169,24 @@ export default function AgentDetailPage() {
       setLoading(true);
       const result = await apiGet<AgentData>(`/api/agents/${agentId}`);
       setData(result);
-      // Prefer active version instructions over agent.system_instruction
-      const instructions = result.active_instruction_version?.instructions || result.agent.system_instruction || '';
-      setNewInstructions(instructions);
+
+      // Check if DB instructions are placeholder text
+      const dbInstructions = result.active_instruction_version?.instructions || result.agent.system_instruction || '';
+      const hasPlaceholder = isPlaceholderInstruction(dbInstructions);
+
+      // Also fetch XML file info and get the instructions directly
+      const xmlContent = await fetchXmlInstructions();
+
+      // Determine which instructions to display
+      if (hasPlaceholder && xmlContent) {
+        // Use XML instructions if DB has placeholder
+        setNewInstructions(xmlContent);
+      } else if (!hasPlaceholder) {
+        setNewInstructions(dbInstructions);
+      } else if (xmlContent) {
+        // Fallback to XML if available
+        setNewInstructions(xmlContent);
+      }
     } catch (err) {
       logger.error('Failed to fetch agent:', err);
       setError('Failed to load agent');
@@ -144,30 +195,94 @@ export default function AgentDetailPage() {
     }
   };
 
-  const handleSaveInstructions = async () => {
+  const fetchXmlInstructions = async (): Promise<string | null> => {
+    try {
+      setLoadingXml(true);
+      const result = await apiGet<XmlInstructionsResponse>(`/api/agents/${agentId}/xml-instructions`);
+      if (result.success && result.has_xml) {
+        setXmlInstructions(result.xml_instructions);
+        setXmlModifiedAt(result.file_modified_at);
+        setHasXmlFile(true);
+        return result.xml_instructions;
+      } else {
+        setHasXmlFile(false);
+        return null;
+      }
+    } catch (err) {
+      logger.error('Failed to fetch XML instructions:', err);
+      setHasXmlFile(false);
+      return null;
+    } finally {
+      setLoadingXml(false);
+    }
+  };
+
+  const handleSyncFromXml = async () => {
+    try {
+      setSyncing(true);
+      await apiPost(`/api/agents/${agentId}/sync-from-xml`, {
+        description: 'Synced from XML file'
+      });
+      toast.success('Instructions synced from XML file');
+      await fetchAgent();
+    } catch (err) {
+      logger.error('Failed to sync from XML:', err);
+      toast.error('Failed to sync from XML file');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleSyncToXml = async () => {
+    try {
+      setSyncing(true);
+      await apiPost(`/api/agents/${agentId}/sync-to-xml`, {});
+      toast.success('Instructions saved to XML file');
+      await fetchXmlInstructions();
+    } catch (err) {
+      logger.error('Failed to sync to XML:', err);
+      toast.error('Failed to save to XML file');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleDeployInstructions = async () => {
     if (!newInstructions.trim()) return;
 
     try {
       setSaving(true);
-      // Create new version
+
+      // Create new version in database
       const result = await apiPost<{ version: InstructionVersion }>(
         `/api/agents/${agentId}/instructions`,
         {
           instructions: newInstructions,
-          description: versionDescription || null,
+          description: versionDescription || 'Updated via admin UI',
         }
       );
 
       // Activate it immediately
       await apiPost(`/api/agents/${agentId}/instructions/${result.version.id}/activate`, {});
 
+      // Also sync to XML file to keep it as the source of truth
+      try {
+        await apiPost(`/api/agents/${agentId}/sync-to-xml`, {});
+      } catch (xmlErr) {
+        // XML sync is not critical, just log it
+        logger.warn('Failed to sync to XML file:', xmlErr);
+      }
+
+      toast.success(`Instructions deployed as version ${result.version.version_number}`);
+
       // Refresh data
       await fetchAgent();
       setEditingInstructions(false);
       setVersionDescription('');
+      setUploadedFile(null);
     } catch (err) {
-      logger.error('Failed to save instructions:', err);
-      alert('Failed to save instructions');
+      logger.error('Failed to deploy instructions:', err);
+      toast.error('Failed to deploy instructions');
     } finally {
       setSaving(false);
     }
@@ -434,14 +549,6 @@ export default function AgentDetailPage() {
 
   return (
     <div>
-      {/* Back Link */}
-      <Link
-        href="/admin/agents"
-        className="text-secondary hover:text-primary text-sm mb-4 inline-flex items-center gap-1"
-      >
-        <span>&larr;</span> Back to Agents
-      </Link>
-
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div className="flex items-center gap-4">
@@ -487,15 +594,47 @@ export default function AgentDetailPage() {
       {/* Tab Content */}
       {activeTab === 'instructions' && (
         <div className="space-y-6">
+          {/* XML File Status Banner */}
+          {hasXmlFile && (
+            <div className="card p-3 bg-blue-500/10 border-blue-500/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-blue-400" />
+                  <div>
+                    <p className="text-sm text-blue-400">
+                      <span className="font-medium">{agent.name}.xml</span>
+                      {xmlModifiedAt && <span className="text-blue-300/70"> - modified {formatDate(xmlModifiedAt)}</span>}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleSyncFromXml}
+                  disabled={syncing}
+                  className="px-3 py-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-lg hover:border-blue-500/50 transition-colors disabled:opacity-50"
+                  title="Reload instructions from the XML file (if you edited it externally)"
+                >
+                  {syncing ? 'Loading...' : 'Reload from XML'}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Current Instructions */}
           <div className="card p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-primary">System Instructions</h2>
-              {active_instruction_version && (
-                <span className="text-sm text-secondary">
-                  Version {active_instruction_version.version_number}
-                </span>
-              )}
+              <div className="flex items-center gap-3">
+                {active_instruction_version && (
+                  <span className="text-sm text-secondary">
+                    Version {active_instruction_version.version_number}
+                  </span>
+                )}
+                {!active_instruction_version && hasXmlFile && (
+                  <span className="text-sm text-blue-400">
+                    From XML file
+                  </span>
+                )}
+              </div>
             </div>
 
             {editingInstructions ? (
@@ -603,18 +742,21 @@ export default function AgentDetailPage() {
                 />
                 <div className="flex gap-3">
                   <button
-                    onClick={handleSaveInstructions}
+                    onClick={handleDeployInstructions}
                     disabled={saving || !newInstructions.trim()}
                     className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {saving ? 'Saving...' : 'Save & Activate'}
+                    {saving ? 'Deploying...' : 'Deploy Instructions'}
                   </button>
                   <button
                     onClick={() => {
                       setEditingInstructions(false);
                       setEditMode('text');
                       setUploadedFile(null);
-                      setNewInstructions(active_instruction_version?.instructions || agent.system_instruction || '');
+                      // Reset to best available instructions
+                      const dbInstructions = active_instruction_version?.instructions || agent.system_instruction || '';
+                      const hasValidDb = !isPlaceholderInstruction(dbInstructions);
+                      setNewInstructions(hasValidDb ? dbInstructions : (xmlInstructions || ''));
                     }}
                     className="btn-secondary"
                   >
@@ -624,9 +766,28 @@ export default function AgentDetailPage() {
               </div>
             ) : (
               <div>
-                <pre className="bg-page p-4 rounded-lg text-sm text-secondary overflow-auto max-h-96 whitespace-pre-wrap font-mono">
-                  {active_instruction_version?.instructions || agent.system_instruction || 'No instructions configured'}
-                </pre>
+                {(() => {
+                  // Determine what to display: DB version, XML file, or empty message
+                  const dbInstructions = active_instruction_version?.instructions || agent.system_instruction;
+                  const hasValidDb = !isPlaceholderInstruction(dbInstructions);
+                  const displayContent = hasValidDb ? dbInstructions : (xmlInstructions || 'No instructions configured');
+                  const isFromXml = !hasValidDb && xmlInstructions;
+
+                  return (
+                    <>
+                      {isFromXml && (
+                        <div className="mb-3 p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                          <p className="text-xs text-blue-400">
+                            Showing instructions from XML file. Click &quot;Sync from XML&quot; above to create a versioned copy.
+                          </p>
+                        </div>
+                      )}
+                      <pre className="bg-page p-4 rounded-lg text-sm text-secondary overflow-auto max-h-96 whitespace-pre-wrap font-mono">
+                        {displayContent}
+                      </pre>
+                    </>
+                  );
+                })()}
                 <button
                   onClick={() => setEditingInstructions(true)}
                   className="mt-4 btn-primary"

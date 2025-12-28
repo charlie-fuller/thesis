@@ -29,6 +29,8 @@ from .catalyst import CatalystAgent
 from .scholar import ScholarAgent
 # Systems Thinking Agent
 from .nexus import NexusAgent
+# Brand & Voice Agent
+from .echo import EchoAgent
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +80,8 @@ async def create_coordinator(
             "scholar": ScholarAgent(supabase, anthropic_client),
             # Systems Thinking Agent
             "nexus": NexusAgent(supabase, anthropic_client),
+            # Brand & Voice Agent
+            "echo": EchoAgent(supabase, anthropic_client),
         }
 
         # Initialize all specialists
@@ -101,7 +105,7 @@ async def create_specialist(
     Create a single specialist agent by name.
 
     Args:
-        name: Name of the specialist (all 12 agents supported)
+        name: Name of the specialist (all 14 agents supported)
         supabase: Supabase client
         anthropic_client: Anthropic client
 
@@ -126,6 +130,8 @@ async def create_specialist(
         "scholar": ScholarAgent,
         # Systems Thinking Agent
         "nexus": NexusAgent,
+        # Brand & Voice Agent
+        "echo": EchoAgent,
     }
 
     agent_class = agent_classes.get(name.lower())

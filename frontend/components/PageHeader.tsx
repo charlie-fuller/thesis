@@ -31,14 +31,15 @@ export default function PageHeader({
     ? [
         { href: '/admin', label: 'Dashboard' },
         { href: '/admin/agents', label: 'Agents' },
-        { href: '/admin/documents', label: 'Documents' },
+        { href: '/admin/documents', label: 'Global Documents' },
         { href: '/admin/conversations', label: 'Conversations' },
       ]
     : [
         { href: '/chat', label: 'Chat' },
+        { href: '/meeting-room', label: 'Meeting Room' },
         { href: '/stakeholders', label: 'Stakeholders' },
         { href: '/transcripts', label: 'Transcripts' },
-        { href: '/documents', label: 'Documents' },
+        { href: '/documents', label: 'Global Documents' },
         { href: '/projects', label: 'Initiatives' },
       ]
 
