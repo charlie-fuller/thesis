@@ -87,7 +87,7 @@ export default function TranscriptsPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex flex-col min-h-screen bg-page">
       <PageHeader />
       <div className="max-w-6xl mx-auto px-4 py-8 w-full">
         {/* Header */}

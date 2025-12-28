@@ -651,9 +651,10 @@ thesis/
 │       ├── ChatInterface.tsx    # Main chat with Dig Deeper
 │       ├── ChatMessage.tsx      # Message display component
 │       └── meeting-room/        # Meeting room components
+│           ├── AutonomousDiscussionPanel.tsx  # Autonomous mode controls
 │           ├── CreateMeetingModal.tsx
 │           ├── MeetingMessage.tsx
-│           └── ParticipantBar.tsx
+│           └── ParticipantBar.tsx             # With speaking order display
 ├── backend/
 │   ├── agents/                  # Agent implementations
 │   │   ├── coordinator.py       # Central orchestrator
@@ -667,7 +668,7 @@ thesis/
 │   │   ├── meeting_rooms.py     # Meeting room endpoints
 │   │   └── research.py          # Atlas research endpoints
 │   └── services/
-│       ├── meeting_orchestrator.py  # Multi-agent orchestration
+│       ├── meeting_orchestrator.py  # Multi-agent + autonomous orchestration
 │       ├── research_scheduler.py    # Daily research scheduler
 │       ├── research_context.py      # Topic prioritization
 │       ├── agent_observer.py        # Cross-agent monitoring
@@ -675,7 +676,8 @@ thesis/
 ├── database/
 │   └── migrations/
 │       ├── 007_meeting_rooms.sql    # Meeting room tables
-│       └── 011_research_system.sql  # Research tables
+│       ├── 011_research_system.sql  # Research tables
+│       └── 012_autonomous_discussion.sql  # Autonomous discussion mode
 └── docs/                        # Documentation
     ├── AGENT_PERSONA_ALIGNMENT_REPORT.md
     ├── CONTEXT.md

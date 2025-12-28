@@ -31,12 +31,10 @@ export default function PageHeader({
     { href: '/chat', label: 'Chat' },
     { href: '/meeting-room', label: 'Meeting Room' },
     { href: '/stakeholders', label: 'Stakeholders' },
-    { href: '/transcripts', label: 'Transcripts' },
   ]
 
   // Admin navigation links
   const adminLinks = [
-    { href: '/admin', label: 'Admin' },
     { href: '/admin/agents', label: 'Agents' },
     { href: '/admin/documents', label: 'Documents' },
     { href: '/admin/conversations', label: 'Conversations' },
