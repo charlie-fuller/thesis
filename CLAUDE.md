@@ -73,7 +73,8 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 4. **Agent Coordination**: Hybrid model - some agents work independently, others collaborate
 5. **Persistent Memory**: Mem0 integration for cross-conversation learning
 6. **Meeting Room**: Multi-agent collaboration with selected agents for focused discussions
-7. **Dig Deeper**: One-click elaboration on any assistant response for more detail
+7. **Autonomous Discussion**: Agents discuss topics amongst themselves with discourse moves (Question, Connect, Challenge, Extend, Synthesize) - user can interject anytime
+8. **Dig Deeper**: One-click elaboration on any assistant response for more detail
 
 ## Tech Stack
 
@@ -271,7 +272,7 @@ python -m pytest tests/ -v --tb=short
 
 ### Database
 - `/database/thesis_schema.sql` - Complete DB schema
-- `/database/migrations/` - All migration scripts (001-011)
+- `/database/migrations/` - All migration scripts (001-012)
 
 ### Documentation
 - `/docs/atlas/PROACTIVE_RESEARCH_PLAN.md` - Atlas research system architecture

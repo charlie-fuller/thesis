@@ -19,6 +19,7 @@ Thesis is a multi-agent platform designed for enterprise GenAI strategy implemen
 - **15 Specialized Agents** - Stakeholder perspectives, consulting expertise, internal enablement, and systems coordination
 - **Persona-Aligned Responses** - Agents embody real interview subjects with authentic concerns
 - **Meeting Room** - Multi-agent collaboration space for focused cross-functional discussions
+- **Autonomous Discussion** - Agents debate topics amongst themselves for configurable rounds; user can interject anytime
 - **Stakeholder Intelligence** - CRM-style tracking with sentiment analysis and relationship mapping
 - **Meeting Analysis** - Upload transcripts and extract stakeholder insights with evidence
 - **Agent Coordination** - Coordinator seamlessly routes queries to appropriate specialists
@@ -390,6 +391,50 @@ Meeting Rooms are ideal for:
 - Change management planning (Sage + Catalyst + Scholar)
 - Comprehensive vendor evaluations (Guardian + Fortuna + Counselor + Architect)
 
+### Autonomous Discussion Mode
+
+Within any Meeting Room, agents can discuss a topic amongst themselves for a configurable number of rounds (1-10). This enables rich cross-functional debate without constant user prompting.
+
+**How it works:**
+1. User enters a topic and selects number of discussion rounds
+2. Agents take turns responding, building on each other's points
+3. Each agent sees the full conversation history and other agents' expertise areas
+4. User can interject at any point (pauses discussion for user input)
+5. Discussion completes after all rounds or when manually stopped
+
+**Discourse Moves (in priority order):**
+1. **QUESTION** - Ask clarifying questions to other agents (curiosity is king!)
+2. **CONNECT** - Link ideas across different domains
+3. **CHALLENGE** - Respectfully push back with alternative perspectives
+4. **EXTEND** - Build on another agent's point with additional depth
+5. **SYNTHESIZE** - Combine multiple viewpoints into integrated insight
+
+**Expert Deference:** Agents are aware of each other's specialties and defer to the relevant expert rather than overstepping their domain. For example, Guardian defers to Fortuna on ROI calculations, while Fortuna defers to Guardian on security architecture.
+
+```
+User: "Discuss the implications of shadow AI in our organization"
+    |
+    v
+[Start Autonomous Discussion: 3 rounds]
+    |
+    v
+Round 1: Each agent establishes their initial position
+    Guardian: Security risks and detection strategies
+    Counselor: Legal liability and policy gaps
+    Sage: Employee anxiety and adoption patterns
+    |
+    v
+Round 2: Agents respond to each other, ask questions, challenge
+    Guardian asks Counselor about liability precedents
+    Sage connects to Catalyst about communication strategy
+    |
+    v
+Round 3: Synthesis and actionable recommendations
+    |
+    v
+[Discussion Complete]
+```
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -457,15 +502,19 @@ Multi-agent collaboration space for focused discussions with selected agents:
 
 - **Create Meetings** - Select 2+ agents for focused cross-functional discussions
 - **Collaboration Mode** - Real-time multi-agent responses to your queries
+- **Autonomous Discussion** - Let agents debate a topic for multiple rounds without constant prompting
+- **User Interjection** - Jump into autonomous discussions anytime; agents pause and respond to you
 - **Meeting Prep Mode** - Practice stakeholder conversations and develop talking points
 - **Smart Brevity** - Agents use headline-first, bullet-point format for clarity
 - **Streaming Responses** - See each agent's response as it's generated
+- **Speaking Order Display** - See the priority-based agent queue during autonomous discussions
 - **Token Tracking** - Monitor meeting token usage
 
 Use cases:
 - Security investment discussions with Guardian + Fortuna
 - Change management planning with Sage + Catalyst
 - Technical architecture reviews with Architect + Pioneer
+- Cross-functional debates on AI governance (Guardian + Counselor + Strategist)
 
 ### Dig Deeper
 
@@ -699,6 +748,13 @@ The testing prompt enables autonomous code quality improvement with safety-first
   - Research context aggregation (stakeholder concerns, ROI opportunities)
   - Cross-agent knowledge distribution
   - Research API endpoints
+- **Autonomous Discussion Mode**:
+  - Multi-round agent-to-agent discussions (1-10 rounds)
+  - Discourse moves: Question, Connect, Challenge, Extend, Synthesize
+  - Expert deference system (agents know each other's specialties)
+  - User interjection support (pause/resume)
+  - Speaking order display with progress tracking
+  - Priority-based turn ordering
 
 ### In Progress
 
