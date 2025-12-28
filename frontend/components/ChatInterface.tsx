@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import ChatMessage from './ChatMessage'
 import LoadingSpinner from './LoadingSpinner'
+import AgentSelector from './AgentSelector'
+import { AgentIcon, getAgentColor } from './AgentIcon'
 import {
   authenticatedFetch,
   apiGet,
@@ -85,6 +87,10 @@ export default function ChatInterface({
   const CLAUDE_CONTEXT_WINDOW = 200000
   const [totalTokensUsed, setTotalTokensUsed] = useState(0)
   const contextPercentage = Math.min((totalTokensUsed / CLAUDE_CONTEXT_WINDOW) * 100, 100)
+
+  // Agent selection state
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([]) // Empty = auto (coordinator)
+  const [currentResponseAgent, setCurrentResponseAgent] = useState<{ name: string; displayName: string } | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -424,6 +430,9 @@ export default function ChatInterface({
     let fullResponse = ''
 
     try {
+      // Reset current response agent before new request
+      setCurrentResponseAgent(null)
+
       const response = await authenticatedFetch('/api/chat/stream', {
         method: 'POST',
         headers: {
@@ -434,7 +443,8 @@ export default function ChatInterface({
           client_id: clientId,
           conversation_id: conversationIdToUse,
           use_rag: true,
-          document_ids: documentIds.length > 0 ? documentIds : undefined
+          document_ids: documentIds.length > 0 ? documentIds : undefined,
+          agent_ids: selectedAgents.length > 0 ? selectedAgents : undefined
         })
       })
 
@@ -476,6 +486,29 @@ export default function ChatInterface({
                     updated[messageIndex] = {
                       ...updated[messageIndex],
                       content: fullResponse
+                    }
+                  }
+                  return updated
+                })
+              } else if (data.type === 'agent') {
+                // Track which agent is responding
+                setCurrentResponseAgent({
+                  name: data.agent,
+                  displayName: data.display_name
+                })
+                logger.debug(`Agent responding: ${data.display_name}`)
+
+                // Update message metadata with agent info
+                setMessages(prev => {
+                  const updated = [...prev]
+                  if (updated[messageIndex]) {
+                    updated[messageIndex] = {
+                      ...updated[messageIndex],
+                      metadata: {
+                        ...updated[messageIndex].metadata,
+                        agent_name: data.agent,
+                        agent_display_name: data.display_name
+                      }
                     }
                   }
                   return updated
@@ -752,6 +785,7 @@ export default function ChatInterface({
                       messageId={msg.id}
                       onDigDeeper={handleDigDeeper}
                       isDigDeeperLoading={digDeeperLoading === msg.id}
+                      metadata={msg.metadata}
                     />
                   </div>
                 </div>
@@ -805,6 +839,26 @@ export default function ChatInterface({
       {/* Input area */}
       <div className="bg-card border-t border-default px-6 py-4 shadow-lg">
         <div className="max-w-4xl mx-auto">
+
+          {/* Agent Selector */}
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-medium text-muted">Agent:</span>
+              <AgentSelector
+                selectedAgents={selectedAgents}
+                onAgentsChange={setSelectedAgents}
+                maxAgents={3}
+                disabled={loading}
+              />
+            </div>
+            {/* Show current responding agent during streaming */}
+            {loading && currentResponseAgent && (
+              <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border ${getAgentColor(currentResponseAgent.name)}`}>
+                <AgentIcon name={currentResponseAgent.name} size="sm" />
+                <span>{currentResponseAgent.displayName} responding...</span>
+              </div>
+            )}
+          </div>
 
           {/* Attached Files Preview */}
           {attachedFiles.length > 0 && (

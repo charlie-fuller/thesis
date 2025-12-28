@@ -8,11 +8,18 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { logger } from '@/lib/logger';
 import { apiPost } from '@/lib/api';
 import SourceCitations, { SourceDocument } from './SourceCitations';
+import { AgentIcon, getAgentColor } from './AgentIcon';
 
 interface Document {
   id: string
   filename: string
   mime_type?: string
+}
+
+interface MessageMetadata {
+  agent_name?: string
+  agent_display_name?: string
+  [key: string]: unknown
 }
 
 interface ChatMessageProps {
@@ -26,6 +33,7 @@ interface ChatMessageProps {
   messageId?: string
   onDigDeeper?: (messageId: string, content: string) => void
   isDigDeeperLoading?: boolean
+  metadata?: MessageMetadata
 }
 
 // Code block component with copy button
@@ -102,7 +110,7 @@ function CodeBlock({
   );
 }
 
-function ChatMessage({ content, role, timestamp, documents, sources, onSourceClick, conversationId, messageId, onDigDeeper, isDigDeeperLoading }: ChatMessageProps) {
+function ChatMessage({ content, role, timestamp, documents, sources, onSourceClick, conversationId, messageId, onDigDeeper, isDigDeeperLoading, metadata }: ChatMessageProps) {
   // Track text selection copy events for assistant messages
   const handleCopyEvent = useCallback(async () => {
     if (role !== 'assistant' || !conversationId || !messageId) return;
@@ -166,6 +174,16 @@ function ChatMessage({ content, role, timestamp, documents, sources, onSourceCli
             ))}
           </div>
         )}
+        {/* Agent badge for assistant messages */}
+        {role === 'assistant' && metadata?.agent_name && (
+          <div className="mb-2">
+            <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${getAgentColor(metadata.agent_name)}`}>
+              <AgentIcon name={metadata.agent_name} size="sm" />
+              <span>{metadata.agent_display_name || metadata.agent_name}</span>
+            </div>
+          </div>
+        )}
+
         {role === 'assistant' ? (
           <div className="text-sm md:text-base prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-headings:my-3">
             <ReactMarkdown

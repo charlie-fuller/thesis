@@ -174,7 +174,6 @@ from api.routes import (
     images,
     meeting_rooms,
     notion,
-    projects,
     research,
     stakeholders,
     system_instructions,
@@ -197,7 +196,6 @@ app.include_router(clients.router)
 app.include_router(theme.router)
 app.include_router(images.router)
 app.include_router(help_chat.router)
-app.include_router(projects.router)
 app.include_router(system_instructions.router)
 app.include_router(transcripts.router)
 app.include_router(stakeholders.router)

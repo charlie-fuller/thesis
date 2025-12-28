@@ -18,6 +18,7 @@ from database import get_supabase
 from document_processor import search_similar_chunks
 from logger_config import get_logger
 from services.conversation_service import get_conversation_service
+from services.chat_agent_service import get_chat_agent_service
 from services.useable_output_detector import process_conversation_for_useable_output
 from system_instructions_loader import (
     get_active_system_instruction_version,
@@ -1069,19 +1070,53 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
             else:
                 logger.info(f"Skipping RAG - use_rag={chat_request.use_rag}, is_simple_message={is_simple_message}")
 
-            # Load per-user system instructions
+            # Select agent and load system instructions
+            # Priority: 1) Explicit agent_ids from request, 2) @mention in message, 3) Coordinator routing
+            chat_agent_service = get_chat_agent_service()
+
+            # Get conversation context for agent continuity
+            conversation_context = None
+            if chat_request.conversation_id:
+                conversation_context = await chat_agent_service.get_conversation_agent_context(
+                    chat_request.conversation_id
+                )
+
+            # Get fallback instruction (per-user) in case no agent instruction found
             try:
-                system_prompt = get_system_instructions_for_user(
+                fallback_instruction = get_system_instructions_for_user(
                     user_id=current_user['id'],
                     user_data=current_user
                 )
-            except FileNotFoundError as e:
-                logger.warning(f"Could not load system instructions: {e}")
+            except FileNotFoundError:
                 user_name = current_user.get('name', 'User')
-                system_prompt = (
+                fallback_instruction = (
                     f"You are Thesis, a helpful AI assistant for {user_name}. "
                     "Provide clear, accurate, and professional assistance."
                 )
+
+            # Select the agent and get their instruction
+            agent_selection = await chat_agent_service.select_agent(
+                message=chat_request.message,
+                agent_ids=chat_request.agent_ids,
+                conversation_context=conversation_context,
+                fallback_instruction=fallback_instruction,
+            )
+
+            system_prompt = agent_selection.system_instruction
+            selected_agent = agent_selection.primary_agent
+            agent_display_name = agent_selection.display_name
+
+            logger.info(
+                f"Agent selected: {selected_agent} ({agent_selection.reason})",
+                extra={
+                    "agent": selected_agent,
+                    "confidence": agent_selection.confidence,
+                    "supporting_agents": agent_selection.supporting_agents
+                }
+            )
+
+            # Send agent info to client
+            yield f"data: {json.dumps({'type': 'agent', 'agent': selected_agent, 'display_name': agent_display_name})}\n\n"
 
             user_prompt = chat_request.message
 
@@ -1249,7 +1284,10 @@ Instructions:
                     )
 
                     # Prepare assistant message metadata
-                    assistant_metadata = {}
+                    assistant_metadata = {
+                        'agent_name': selected_agent,
+                        'agent_display_name': agent_display_name,
+                    }
                     if suggestion.get('suggest'):
                         assistant_metadata['image_suggestion'] = {
                             'suggested_prompt': suggestion['suggested_prompt'],
