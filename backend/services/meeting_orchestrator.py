@@ -402,18 +402,20 @@ The user's message will follow. Respond from your perspective as {agent_display_
     ) -> Optional[str]:
         """Store a message in the meeting room and queue for embedding."""
         try:
+            # Build insert data - core fields only
+            insert_data = {
+                "meeting_room_id": meeting_room_id,
+                "role": role,
+                "content": content,
+                "agent_id": agent_id,
+                "agent_name": agent_name,
+                "agent_display_name": agent_display_name,
+                "turn_number": turn_number,
+                "metadata": metadata or {},
+            }
+
             result = await asyncio.to_thread(
-                lambda: self.supabase.table("meeting_room_messages").insert({
-                    "meeting_room_id": meeting_room_id,
-                    "role": role,
-                    "content": content,
-                    "agent_id": agent_id,
-                    "agent_name": agent_name,
-                    "agent_display_name": agent_display_name,
-                    "turn_number": turn_number,
-                    "metadata": metadata or {},
-                    "embedding_status": "pending"  # Mark for background embedding
-                }).execute()
+                lambda: self.supabase.table("meeting_room_messages").insert(insert_data).execute()
             )
 
             # Get the message ID for embedding
@@ -1015,20 +1017,20 @@ Please share your perspective and engage with what other agents have said."""
     ) -> Optional[str]:
         """Store an autonomous discussion message and queue for embedding."""
         try:
+            # Build insert data - core fields only (avoid columns that might not exist)
+            insert_data = {
+                "meeting_room_id": meeting_room_id,
+                "role": "agent",
+                "content": content,
+                "agent_id": agent_id,
+                "agent_name": agent_name,
+                "agent_display_name": agent_display_name,
+                "turn_number": discussion_round,
+                "metadata": metadata or {},
+            }
+
             result = await asyncio.to_thread(
-                lambda: self.supabase.table("meeting_room_messages").insert({
-                    "meeting_room_id": meeting_room_id,
-                    "role": "agent",
-                    "content": content,
-                    "agent_id": agent_id,
-                    "agent_name": agent_name,
-                    "agent_display_name": agent_display_name,
-                    "discussion_round": discussion_round,
-                    "responding_to_agent": responding_to_agent,
-                    "turn_number": discussion_round,
-                    "metadata": metadata or {},
-                    "embedding_status": "pending"  # Mark for background embedding
-                }).execute()
+                lambda: self.supabase.table("meeting_room_messages").insert(insert_data).execute()
             )
 
             # Get the message ID for embedding

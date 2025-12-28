@@ -786,7 +786,14 @@ async def stream_meeting_chat(
         )
 
         # Get orchestrator and process the turn
-        orchestrator = await get_orchestrator()
+        logger.info(f"Getting orchestrator for meeting {meeting_id}")
+        try:
+            orchestrator = await get_orchestrator()
+            logger.info(f"Orchestrator ready with agents: {list(orchestrator.agents.keys())}")
+        except Exception as orch_err:
+            import traceback
+            logger.error(f"Failed to get orchestrator: {orch_err}\n{traceback.format_exc()}")
+            raise HTTPException(status_code=500, detail=f"Orchestrator initialization failed: {str(orch_err)}")
 
         async def generate_stream():
             """Generate SSE stream from orchestrator."""
