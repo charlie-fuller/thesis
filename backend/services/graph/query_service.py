@@ -549,42 +549,6 @@ class GraphQueryService:
                 relationships: { total: int, by_type: { type: count, ... } }
             }
         """
-        # Use OPTIONAL MATCH from the start to handle empty graphs gracefully
-        result = await self.neo4j.execute_query("""
-            // Count stakeholders and their relationships
-            OPTIONAL MATCH (s:Stakeholder {client_id: $client_id})
-            OPTIONAL MATCH (s)-[influences:INFLUENCES]->()
-            OPTIONAL MATCH (s)-[reports:REPORTS_TO]->()
-            OPTIONAL MATCH (s)-[attended:ATTENDED]->()
-            OPTIONAL MATCH (s)-[:HAS_INSIGHT]->(i:Insight)
-            OPTIONAL MATCH (s)-[:RAISED_CONCERN]->(c:Concern)
-            WITH count(DISTINCT s) as stakeholder_count,
-                 count(DISTINCT influences) as influence_count,
-                 count(DISTINCT reports) as reporting_count,
-                 count(DISTINCT attended) as attended_count,
-                 count(DISTINCT i) as insight_count,
-                 count(DISTINCT c) as concern_count
-
-            // Count other node types independently
-            OPTIONAL MATCH (m:Meeting {client_id: $client_id})
-            WITH stakeholder_count, influence_count, reporting_count, attended_count,
-                 insight_count, concern_count, count(DISTINCT m) as meeting_count
-
-            OPTIONAL MATCH (d:Document {client_id: $client_id})
-            WITH stakeholder_count, influence_count, reporting_count, attended_count,
-                 insight_count, concern_count, meeting_count, count(DISTINCT d) as document_count
-
-            OPTIONAL MATCH (r:ROIOpportunity {client_id: $client_id})
-            WITH stakeholder_count, influence_count, reporting_count, attended_count,
-                 insight_count, concern_count, meeting_count, document_count,
-                 count(DISTINCT r) as roi_count
-
-            RETURN
-                stakeholder_count, meeting_count, document_count, roi_count,
-                insight_count, concern_count, influence_count, reporting_count,
-                attended_count
-        """, {"client_id": client_id})
-
         # Helper to extract integer from Neo4j result (handles {low, high} format)
         def to_int(val) -> int:
             if val is None:
@@ -593,43 +557,43 @@ class GraphQueryService:
                 return val['low']
             return int(val)
 
-        if result and len(result) > 0:
-            r = result[0]
-            # Build node counts by label
-            by_label = {
-                'Stakeholder': to_int(r.get('stakeholder_count', 0)),
-                'Meeting': to_int(r.get('meeting_count', 0)),
-                'Document': to_int(r.get('document_count', 0)),
-                'ROIOpportunity': to_int(r.get('roi_count', 0)),
-                'Insight': to_int(r.get('insight_count', 0)),
-                'Concern': to_int(r.get('concern_count', 0)),
-            }
-            # Filter out zero counts
-            by_label = {k: v for k, v in by_label.items() if v > 0}
+        # Get all node labels and their counts
+        node_result = await self.neo4j.execute_query("""
+            MATCH (n)
+            RETURN labels(n)[0] as label, count(n) as count
+            ORDER BY count DESC
+        """)
 
-            # Build relationship counts by type
-            by_type = {
-                'INFLUENCES': to_int(r.get('influence_count', 0)),
-                'REPORTS_TO': to_int(r.get('reporting_count', 0)),
-                'ATTENDED': to_int(r.get('attended_count', 0)),
-            }
-            # Filter out zero counts
-            by_type = {k: v for k, v in by_type.items() if v > 0}
+        by_label = {}
+        for record in node_result:
+            label = record.get('label')
+            count = to_int(record.get('count', 0))
+            if label and count > 0:
+                by_label[label] = count
 
-            return {
-                "nodes": {
-                    "total": sum(by_label.values()),
-                    "by_label": by_label
-                },
-                "relationships": {
-                    "total": sum(by_type.values()),
-                    "by_type": by_type
-                }
-            }
+        # Get all relationship types and their counts
+        rel_result = await self.neo4j.execute_query("""
+            MATCH ()-[r]->()
+            RETURN type(r) as rel_type, count(r) as count
+            ORDER BY count DESC
+        """)
+
+        by_type = {}
+        for record in rel_result:
+            rel_type = record.get('rel_type')
+            count = to_int(record.get('count', 0))
+            if rel_type and count > 0:
+                by_type[rel_type] = count
 
         return {
-            "nodes": {"total": 0, "by_label": {}},
-            "relationships": {"total": 0, "by_type": {}}
+            "nodes": {
+                "total": sum(by_label.values()),
+                "by_label": by_label
+            },
+            "relationships": {
+                "total": sum(by_type.values()),
+                "by_type": by_type
+            }
         }
 
     # =========================================================================
