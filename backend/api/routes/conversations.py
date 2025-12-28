@@ -3,7 +3,6 @@ Conversation management routes
 Handles creation, retrieval, updating, and deletion of conversations
 """
 import asyncio
-from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -33,10 +32,6 @@ class ConversationCreateRequest(BaseModel):
 
 class ConversationUpdateRequest(BaseModel):
     title: str
-
-
-class ConversationPhaseUpdateRequest(BaseModel):
-    addie_phase: str
 
 
 class ConversationSearchRequest(BaseModel):
@@ -82,6 +77,55 @@ async def create_conversation(
 
     except Exception as e:
         logger.error(f"❌ Error creating conversation: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{conversation_id}")
+async def get_conversation(
+    conversation_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get a single conversation by ID"""
+    try:
+        validate_uuid(conversation_id, "conversation_id")
+
+        # Fetch conversation with client and user details
+        result = await asyncio.to_thread(
+            lambda: supabase.table('conversations')\
+                .select('*, clients(name), users(name, email)')\
+                .eq('id', conversation_id)\
+                .single()\
+                .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        conversation = result.data
+
+        # Check access: admins can see all, regular users only their own
+        is_admin = current_user.get('role') == 'admin'
+        if not is_admin and conversation.get('user_id') != current_user.get('id'):
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        # Get message count
+        msg_result = await asyncio.to_thread(
+            lambda: supabase.table('messages')\
+                .select('id', count='exact')\
+                .eq('conversation_id', conversation_id)\
+                .execute()
+        )
+        conversation['message_count'] = msg_result.count or 0
+
+        return {
+            'success': True,
+            'conversation': conversation
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error fetching conversation: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -182,53 +226,6 @@ async def update_conversation(
         raise
     except Exception as e:
         logger.error(f"❌ Error updating conversation: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.patch("/{conversation_id}/phase")
-async def update_conversation_phase(
-    conversation_id: str,
-    request: ConversationPhaseUpdateRequest,
-    current_user: dict = Depends(get_current_user)
-):
-    """Update conversation ADDIE phase"""
-    try:
-        validate_uuid(conversation_id, "conversation_id")
-
-        # Validate phase value
-        valid_phases = ['Analysis', 'Design', 'Development', 'Implementation', 'Evaluation', 'General']
-        if request.addie_phase not in valid_phases:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid phase. Must be one of: {', '.join(valid_phases)}"
-            )
-
-        # Update conversation phase
-        result = await asyncio.to_thread(
-            lambda: supabase.table('conversations')\
-                .update({
-                    'addie_phase': request.addie_phase,
-                    'phase_updated_at': datetime.now(timezone.utc).isoformat()
-                })\
-                .eq('id', conversation_id)\
-                .execute()
-        )
-
-        if not result.data:
-            raise HTTPException(status_code=404, detail="Conversation not found")
-
-        logger.info(f"✅ Updated conversation {conversation_id} phase to {request.addie_phase}")
-
-        return {
-            'success': True,
-            'conversation_id': conversation_id,
-            'addie_phase': request.addie_phase
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Error updating conversation phase: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
