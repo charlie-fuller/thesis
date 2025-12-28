@@ -279,6 +279,7 @@ Please search thoroughly and return the most credible and relevant sources."""
 
         # Run with 60 second timeout to avoid hanging
         loop = asyncio.get_event_loop()
+        logger.info("Starting web search API call with 60s timeout...")
         try:
             response = await asyncio.wait_for(
                 loop.run_in_executor(None, make_web_search_call),
@@ -297,7 +298,12 @@ Please search thoroughly and return the most credible and relevant sources."""
         return sources[:max_results]
 
     except anthropic.APIError as e:
-        logger.error(f"Anthropic API error during web search: {e}", exc_info=True)
+        logger.error(f"Anthropic API error during web search: {e}")
+        logger.error(f"API Error details - status: {getattr(e, 'status_code', 'N/A')}, message: {getattr(e, 'message', str(e))}")
+        return []
+    except anthropic.BadRequestError as e:
+        logger.error(f"Anthropic BadRequestError: {e}")
+        logger.error(f"This may indicate web search is not enabled for this API key/org")
         return []
     except Exception as e:
         logger.error(f"Web search failed: {type(e).__name__}: {e}", exc_info=True)

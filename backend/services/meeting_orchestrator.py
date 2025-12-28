@@ -20,9 +20,23 @@ import anthropic
 from supabase import Client
 
 from agents.base_agent import AgentContext, AgentResponse, BaseAgent
-from services.embeddings import embed_meeting_room_message
 
 logger = logging.getLogger(__name__)
+
+# Lazy import for embeddings to avoid crash if VOYAGE_API_KEY is not set
+_embed_meeting_room_message = None
+
+async def _get_embed_function():
+    """Lazily load the embedding function."""
+    global _embed_meeting_room_message
+    if _embed_meeting_room_message is None:
+        try:
+            from services.embeddings import embed_meeting_room_message
+            _embed_meeting_room_message = embed_meeting_room_message
+        except Exception as e:
+            logger.warning(f"Embeddings not available: {e}")
+            _embed_meeting_room_message = lambda *args, **kwargs: None
+    return _embed_meeting_room_message
 
 
 @dataclass
