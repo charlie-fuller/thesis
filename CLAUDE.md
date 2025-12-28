@@ -69,18 +69,23 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
    - UI selector above chat input to pick agents (max 3)
    - `@mention` syntax in messages (e.g., `@atlas`, `@fortuna`) to invoke agents inline
    - Agent badge displayed on each response showing which agent answered
-2. **Meeting Intelligence**: Upload meeting transcripts (Granola/Otter/Teams/Zoom), extract stakeholder insights with evidence-based sentiment analysis, power dynamics, and strategic recommendations
-3. **Stakeholder Tracking**: Full CRM-style tracking with sentiment, engagement, alignment scores
-4. **Research Intelligence**: Proactive monitoring of GenAI implementation research
+2. **Knowledge Base**: Unified document and conversation management (`/kb` page)
+   - Upload documents (txt, md, docx, csv, json, xml)
+   - Connect Google Drive and Notion for auto-sync
+   - Assign documents to specific agents or make them global (available to all)
+   - View and manage conversation history
+3. **Meeting Intelligence**: Upload meeting transcripts (Granola/Otter/Teams/Zoom), extract stakeholder insights with evidence-based sentiment analysis, power dynamics, and strategic recommendations
+4. **Stakeholder Tracking**: Full CRM-style tracking with sentiment, engagement, alignment scores
+5. **Research Intelligence**: Proactive monitoring of GenAI implementation research
    - Atlas auto-performs web research when no knowledge base results found
    - Uses Anthropic's native web search with credibility-tiered source filtering
    - Sources appended with citations organized by tier (Tier 1-4)
-5. **Agent Coordination**: Hybrid model - some agents work independently, others collaborate
-6. **Persistent Memory**: Mem0 integration for cross-conversation learning
-7. **Meeting Room**: Multi-agent collaboration with selected agents for focused discussions
-8. **Autonomous Discussion**: Agents discuss topics amongst themselves with discourse moves (Question, Connect, Challenge, Extend, Synthesize) - user can interject anytime
-9. **Dig Deeper**: One-click elaboration on any assistant response for more detail
-10. **Auto-Generated Titles**: Conversation titles auto-generated from initial message using Claude
+6. **Agent Coordination**: Hybrid model - some agents work independently, others collaborate
+7. **Persistent Memory**: Mem0 integration for cross-conversation learning
+8. **Meeting Room**: Multi-agent collaboration with selected agents for focused discussions
+9. **Autonomous Discussion**: Agents discuss topics amongst themselves with discourse moves (Question, Connect, Challenge, Extend, Synthesize) - user can interject anytime
+10. **Dig Deeper**: One-click elaboration on any assistant response for more detail
+11. **Auto-Generated Titles**: Conversation titles auto-generated from initial message using Claude
 
 ## Tech Stack
 
@@ -100,14 +105,19 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 ```
 /frontend
   /app           - Next.js App Router pages
+    /kb          - Knowledge Base page (documents + conversations management)
+    /chat        - Main chat interface
+    /meeting-room - Multi-agent meeting rooms
+    /admin       - Admin dashboard
   /components    - React components
+    /kb          - Knowledge Base components (KBDocumentsContent)
   /contexts      - AuthContext, HelpChatContext, ThemeContext
 
 /backend
   /api/routes    - FastAPI endpoints
-  /agents        - Agent implementations (NEW)
-  /services      - Business logic including transcript_analyzer (NEW)
-  /system_instructions - Agent-specific prompts
+  /agents        - Agent implementations (15 agents)
+  /services      - Business logic including transcript_analyzer
+  /system_instructions - Agent-specific prompts (XML files)
 
 /database
   /migrations    - SQL migration scripts
@@ -306,5 +316,9 @@ The following features were removed to simplify the platform:
 - **Quick Prompts**: User-defined prompt shortcuts - removed in favor of agent commands
 - **Projects**: Manual folder organization - replaced by vector DB + Neo4j graph for dynamic semantic search
 - **Templates**: Template-based prompt generation - functionality moved to agent instructions
+- **Core Documents**: Special protected documents - all documents now treated equally, deletable by owner
+- **Standalone Documents Page**: `/documents` route removed - document management now integrated into `/kb` (Knowledge Base) page
 
-Related database table `user_quick_prompts` (migration 025) can be dropped if present.
+Related database tables/columns that can be cleaned up:
+- `user_quick_prompts` (migration 025)
+- `documents.is_core_document` column
