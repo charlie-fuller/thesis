@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api'
+import { apiGet, apiPost, apiDelete } from '@/lib/api'
 import PageHeader from '@/components/PageHeader'
 
 interface Stakeholder {
@@ -135,7 +135,7 @@ export default function StakeholdersPage() {
   function getSentimentColor(score: number) {
     if (score > 0.3) return 'text-green-600 dark:text-green-400'
     if (score < -0.3) return 'text-red-600 dark:text-red-400'
-    return 'text-gray-600 dark:text-gray-400'
+    return 'text-muted'
   }
 
   function getEngagementBadge(level: string) {
@@ -157,9 +157,24 @@ export default function StakeholdersPage() {
 
   function getTrendIcon(trend: string) {
     switch (trend) {
-      case 'improving': return '&#8599;'
-      case 'declining': return '&#8600;'
-      default: return '&#8594;'
+      case 'improving':
+        return (
+          <svg className="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17l5-5 5 5" />
+          </svg>
+        )
+      case 'declining':
+        return (
+          <svg className="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 7l-5 5-5-5" />
+          </svg>
+        )
+      default:
+        return (
+          <svg className="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" />
+          </svg>
+        )
     }
   }
 
@@ -170,10 +185,10 @@ export default function StakeholdersPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-2xl font-bold text-primary">
               Stakeholder Intelligence
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
+            <p className="text-secondary mt-1">
               Track sentiment, engagement, and alignment across your stakeholders
             </p>
           </div>
@@ -181,44 +196,58 @@ export default function StakeholdersPage() {
             onClick={() => setShowCreateForm(!showCreateForm)}
             className="btn-primary flex items-center gap-2"
           >
-            {showCreateForm ? <>&times; Close</> : <>+ Add Stakeholder</>}
+            {showCreateForm ? (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Close
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Stakeholder
+              </>
+            )}
           </button>
         </div>
 
         {/* Dashboard Metrics */}
         {metrics && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            <div className="card p-6">
+              <div className="text-3xl font-bold text-primary">
                 {metrics.total_stakeholders}
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Total Stakeholders</div>
+              <div className="text-sm text-muted">Total Stakeholders</div>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="card p-6">
               <div className={`text-3xl font-bold ${getSentimentColor(metrics.average_sentiment)}`}>
                 {metrics.average_sentiment > 0 ? '+' : ''}{metrics.average_sentiment.toFixed(2)}
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Avg Sentiment</div>
+              <div className="text-sm text-muted">Avg Sentiment</div>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="card p-6">
               <div className="text-3xl font-bold text-teal-600 dark:text-teal-400">
                 {Math.round(metrics.average_alignment * 100)}%
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Avg Alignment</div>
+              <div className="text-sm text-muted">Avg Alignment</div>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="card p-6">
               <div className="text-3xl font-bold text-orange-600 dark:text-orange-400">
                 {metrics.stakeholders_needing_attention.length}
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Need Attention</div>
+              <div className="text-sm text-muted">Need Attention</div>
             </div>
           </div>
         )}
 
         {/* Engagement Distribution */}
         {metrics && Object.keys(metrics.engagement_distribution).length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          <div className="card p-6 mb-8">
+            <h3 className="text-lg font-semibold text-primary mb-4">
               Engagement Distribution
             </h3>
             <div className="flex gap-4 flex-wrap">
@@ -232,7 +261,7 @@ export default function StakeholdersPage() {
                     <span className={`px-3 py-1 rounded-full text-sm capitalize ${getEngagementBadge(level)}`}>
                       {level}
                     </span>
-                    <span className="text-gray-600 dark:text-gray-400">
+                    <span className="text-secondary">
                       {count} ({percentage}%)
                     </span>
                   </div>
@@ -244,36 +273,36 @@ export default function StakeholdersPage() {
 
         {/* Create Form */}
         {showCreateForm && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          <div className="card p-6 mb-8">
+            <h3 className="text-lg font-semibold text-primary mb-4">
               Add New Stakeholder
             </h3>
             <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-secondary mb-1">
                   Name *
                 </label>
                 <input
                   type="text"
                   value={createForm.name}
                   onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                  className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-secondary mb-1">
                   Email
                 </label>
                 <input
                   type="email"
                   value={createForm.email}
                   onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                  className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-secondary mb-1">
                   Role
                 </label>
                 <input
@@ -281,17 +310,17 @@ export default function StakeholdersPage() {
                   value={createForm.role}
                   onChange={e => setCreateForm(f => ({ ...f, role: e.target.value }))}
                   placeholder="e.g., VP of Engineering"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                  className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-secondary mb-1">
                   Department
                 </label>
                 <select
                   value={createForm.department}
                   onChange={e => setCreateForm(f => ({ ...f, department: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                  className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary"
                 >
                   <option value="">Select department...</option>
                   {DEPARTMENTS.map(d => (
@@ -300,32 +329,32 @@ export default function StakeholdersPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-secondary mb-1">
                   Organization
                 </label>
                 <input
                   type="text"
                   value={createForm.organization}
                   onChange={e => setCreateForm(f => ({ ...f, organization: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                  className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-secondary mb-1">
                   Notes
                 </label>
                 <input
                   type="text"
                   value={createForm.notes}
                   onChange={e => setCreateForm(f => ({ ...f, notes: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                  className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary"
                 />
               </div>
               <div className="md:col-span-2 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                  className="px-4 py-2 text-secondary hover:text-primary"
                 >
                   Cancel
                 </button>
@@ -343,19 +372,21 @@ export default function StakeholdersPage() {
 
         {/* Recent Concerns */}
         {metrics && metrics.recent_concerns.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-orange-200 dark:border-orange-800 p-6 mb-8">
+          <div className="card border-orange-200 dark:border-orange-800 p-6 mb-8">
             <h3 className="text-lg font-semibold text-orange-700 dark:text-orange-300 mb-4">
               Recent Unresolved Concerns
             </h3>
             <div className="space-y-3">
               {metrics.recent_concerns.slice(0, 5).map(concern => (
                 <div key={concern.id} className="flex items-start gap-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                  <span className="text-orange-500 mt-0.5">&#9888;</span>
+                  <svg className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
                   <div>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                    <span className="font-medium text-primary">
                       {concern.stakeholder_name}:
                     </span>
-                    <span className="text-gray-600 dark:text-gray-400 ml-2">
+                    <span className="text-secondary ml-2">
                       {concern.content}
                     </span>
                   </div>
@@ -370,7 +401,7 @@ export default function StakeholdersPage() {
           <select
             value={filterDepartment}
             onChange={e => setFilterDepartment(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+            className="px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm"
           >
             <option value="">All Departments</option>
             {DEPARTMENTS.map(d => (
@@ -380,7 +411,7 @@ export default function StakeholdersPage() {
           <select
             value={filterEngagement}
             onChange={e => setFilterEngagement(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+            className="px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm"
           >
             <option value="">All Engagement Levels</option>
             {ENGAGEMENT_LEVELS.map(l => (
@@ -402,18 +433,22 @@ export default function StakeholdersPage() {
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
           </div>
         )}
 
         {/* Empty State */}
         {!loading && !error && stakeholders.length === 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
-            <div className="text-4xl mb-4">&#128101;</div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          <div className="card p-12 text-center">
+            <div className="flex justify-center mb-4">
+              <svg className="w-12 h-12 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-primary mb-2">
               No stakeholders yet
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <p className="text-secondary mb-4">
               Add stakeholders manually or upload transcripts to auto-populate.
             </p>
             <div className="flex justify-center gap-4">
@@ -433,15 +468,15 @@ export default function StakeholdersPage() {
             {stakeholders.map(stakeholder => (
               <div
                 key={stakeholder.id}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow"
+                className="card p-6 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                    <h3 className="font-semibold text-primary">
                       {stakeholder.name}
                     </h3>
                     {stakeholder.role && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{stakeholder.role}</p>
+                      <p className="text-sm text-muted">{stakeholder.role}</p>
                     )}
                   </div>
                   <span className={`px-2 py-1 text-xs rounded-full capitalize ${getEngagementBadge(stakeholder.engagement_level)}`}>
@@ -451,42 +486,46 @@ export default function StakeholdersPage() {
 
                 <div className="space-y-2 text-sm">
                   {stakeholder.department && (
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                      <span>&#127970;</span>
+                    <div className="flex items-center gap-2 text-secondary">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
                       <span className="capitalize">{stakeholder.department}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                    <span>&#127965;</span>
+                  <div className="flex items-center gap-2 text-secondary">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
                     <span>{stakeholder.organization}</span>
                   </div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 grid grid-cols-3 gap-2 text-center">
+                <div className="mt-4 pt-4 border-t border-default grid grid-cols-3 gap-2 text-center">
                   <div>
                     <div className={`text-lg font-semibold ${getSentimentColor(stakeholder.sentiment_score)}`}>
                       {stakeholder.sentiment_score > 0 ? '+' : ''}{stakeholder.sentiment_score.toFixed(1)}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Sentiment <span dangerouslySetInnerHTML={{ __html: getTrendIcon(stakeholder.sentiment_trend) }} />
+                    <div className="text-xs text-muted flex items-center justify-center gap-1">
+                      Sentiment {getTrendIcon(stakeholder.sentiment_trend)}
                     </div>
                   </div>
                   <div>
                     <div className="text-lg font-semibold text-teal-600 dark:text-teal-400">
                       {Math.round(stakeholder.alignment_score * 100)}%
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Alignment</div>
+                    <div className="text-xs text-muted">Alignment</div>
                   </div>
                   <div>
-                    <div className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                    <div className="text-lg font-semibold text-secondary">
                       {stakeholder.total_interactions}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Meetings</div>
+                    <div className="text-xs text-muted">Meetings</div>
                   </div>
                 </div>
 
                 {stakeholder.key_concerns.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <div className="mt-4 pt-4 border-t border-default">
                     <div className="text-xs text-orange-600 dark:text-orange-400 font-medium mb-1">
                       Key Concerns
                     </div>
@@ -503,7 +542,7 @@ export default function StakeholdersPage() {
                 <div className="mt-4 flex justify-end gap-2">
                   <button
                     onClick={() => router.push(`/stakeholders/${stakeholder.id}`)}
-                    className="text-sm text-teal-600 dark:text-teal-400 hover:underline"
+                    className="text-sm text-brand hover:underline"
                   >
                     View
                   </button>

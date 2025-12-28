@@ -25,18 +25,17 @@ export default function PageHeader({
   const { theme } = useTheme()
   const pathname = usePathname()
 
-  // User-facing navigation links
+  // Navigation links
   const userLinks = [
     { href: '/', label: 'Home' },
     { href: '/chat', label: 'Chat' },
     { href: '/meeting-room', label: 'Meeting Room' },
-    { href: '/stakeholders', label: 'Stakeholders' },
+    { href: '/admin/documents', label: 'Documents' },
   ]
 
-  // Admin navigation links
+  // Admin-only navigation links
   const adminLinks = [
     { href: '/admin/agents', label: 'Agents' },
-    { href: '/admin/documents', label: 'Documents' },
     { href: '/admin/conversations', label: 'Conversations' },
   ]
 
