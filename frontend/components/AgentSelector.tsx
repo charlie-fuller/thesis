@@ -240,9 +240,9 @@ export default function AgentSelector({
 
       {/* Dropdown menu - opens upward */}
       {isOpen && (
-        <div className="absolute z-50 bottom-full mb-2 w-72 max-h-[40rem] overflow-y-auto rounded-lg border border-neutral-700 bg-neutral-800 shadow-xl">
-          <div className="p-2">
-            <div className="text-xs font-medium text-neutral-500 px-2 py-1 mb-1">
+        <div className="absolute z-50 bottom-full mb-2 w-80 rounded-lg border border-neutral-700 bg-neutral-800 shadow-xl">
+          <div className="p-1.5">
+            <div className="text-xs font-medium text-neutral-500 px-2 py-0.5 mb-0.5">
               Select agents (max {maxAgents})
             </div>
 
@@ -253,19 +253,19 @@ export default function AgentSelector({
                 setIsOpen(false)
               }}
               className={`
-                w-full flex items-center gap-3 px-2 py-2 rounded-md text-left
+                w-full flex items-center gap-2 px-2 py-1 rounded-md text-left
                 hover:bg-neutral-700 transition-colors
                 ${selectedAgents.length === 0 ? 'bg-neutral-700/50' : ''}
               `}
             >
-              <div className={`p-1.5 rounded-md ${getAgentColor('coordinator')}`}>
+              <div className={`p-1 rounded-md ${getAgentColor('coordinator')}`}>
                 <AgentIcon name="coordinator" size="sm" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-neutral-200">
+                <div className="text-sm font-medium text-neutral-200 leading-tight">
                   Auto (Coordinator)
                 </div>
-                <div className="text-xs text-neutral-500 truncate">
+                <div className="text-xs text-neutral-500 truncate leading-tight">
                   Automatically routes to the best agent
                 </div>
               </div>
@@ -274,7 +274,7 @@ export default function AgentSelector({
               )}
             </button>
 
-            <div className="border-t border-neutral-700 my-2" />
+            <div className="border-t border-neutral-700 my-1" />
 
             {/* Agent list grouped by category */}
             {['Stakeholder', 'Consulting', 'Enablement', 'Systems'].map(category => {
@@ -284,8 +284,8 @@ export default function AgentSelector({
               if (categoryAgents.length === 0) return null
 
               return (
-                <div key={category} className="mb-2">
-                  <div className="text-xs font-medium text-neutral-500 px-2 py-1">
+                <div key={category} className="mb-1">
+                  <div className="text-xs font-medium text-neutral-500 px-2 py-0.5">
                     {category}
                   </div>
                   {categoryAgents.map(agent => {
@@ -299,20 +299,20 @@ export default function AgentSelector({
                         onClick={() => !isDisabled && toggleAgent(agent)}
                         disabled={isDisabled}
                         className={`
-                          w-full flex items-center gap-3 px-2 py-2 rounded-md text-left
+                          w-full flex items-center gap-2 px-2 py-1 rounded-md text-left
                           transition-colors
                           ${isSelected ? 'bg-neutral-700/50' : 'hover:bg-neutral-700'}
                           ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}
                         `}
                       >
-                        <div className={`p-1.5 rounded-md ${getAgentColor(agent)}`}>
+                        <div className={`p-1 rounded-md ${getAgentColor(agent)}`}>
                           <AgentIcon name={agent} size="sm" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-neutral-200">
+                          <div className="text-sm font-medium text-neutral-200 leading-tight">
                             {info?.displayName || agent}
                           </div>
-                          <div className="text-xs text-neutral-500 truncate">
+                          <div className="text-xs text-neutral-500 truncate leading-tight">
                             {info?.description || ''}
                           </div>
                         </div>

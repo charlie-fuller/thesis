@@ -664,3 +664,50 @@ async def extract_meeting_concepts(
     except Exception as e:
         logger.error(f"Failed to extract concepts from meeting: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Scheduler Management Endpoints
+# =============================================================================
+
+@router.get("/sync/scheduler-status")
+async def get_scheduler_status(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get the status of the graph sync scheduler.
+    """
+    try:
+        from services.graph_sync_scheduler import get_graph_scheduler_status
+        status = get_graph_scheduler_status()
+        return {
+            "success": True,
+            **status
+        }
+    except Exception as e:
+        logger.error(f"Failed to get scheduler status: {e}")
+        return {
+            "success": False,
+            "running": False,
+            "error": str(e)
+        }
+
+
+@router.post("/sync/trigger")
+async def trigger_sync(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Trigger an immediate graph sync for the current user's client.
+    This runs asynchronously in the background.
+    """
+    try:
+        from services.graph_sync_scheduler import trigger_manual_sync
+        result = trigger_manual_sync()
+        return {
+            "success": True,
+            **result
+        }
+    except Exception as e:
+        logger.error(f"Failed to trigger sync: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { apiGet } from '@/lib/api';
+import { apiGet, apiPost } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import LoadingSpinner from './LoadingSpinner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,12 +23,24 @@ interface GraphHealth {
   error?: string;
 }
 
+interface SchedulerStatus {
+  running: boolean;
+  jobs: Array<{
+    id: string;
+    name: string;
+    next_run_time: string | null;
+  }>;
+}
+
 export default function GraphStatsPanel() {
   const { user, session, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<GraphStats | null>(null);
   const [health, setHealth] = useState<GraphHealth | null>(null);
+  const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   useEffect(() => {
     // Wait for auth to complete and session to be available before fetching data
@@ -51,10 +63,14 @@ export default function GraphStatsPanel() {
       }));
       setHealth(healthData);
 
-      // If healthy, fetch stats
+      // If healthy, fetch stats and scheduler status
       if (healthData.status === 'healthy') {
-        const statsData = await apiGet<GraphStats>('/api/graph/stats').catch(() => null);
+        const [statsData, schedulerData] = await Promise.all([
+          apiGet<GraphStats>('/api/graph/stats').catch(() => null),
+          apiGet<SchedulerStatus>('/api/graph/sync/scheduler-status').catch(() => null)
+        ]);
         setStats(statsData);
+        setSchedulerStatus(schedulerData);
       }
     } catch (err) {
       logger.error('Error fetching graph data:', err);
@@ -64,11 +80,48 @@ export default function GraphStatsPanel() {
     }
   };
 
+  const triggerSync = async () => {
+    try {
+      setSyncing(true);
+      setSyncMessage(null);
+
+      const result = await apiPost<{ success: boolean; status: string; message: string }>(
+        '/api/graph/sync/trigger',
+        {}
+      );
+
+      if (result.success) {
+        setSyncMessage('Sync started. Refreshing in 5 seconds...');
+        // Refresh data after a delay to allow sync to complete
+        setTimeout(() => {
+          fetchGraphData();
+          setSyncMessage(null);
+        }, 5000);
+      }
+    } catch (err) {
+      logger.error('Error triggering sync:', err);
+      setSyncMessage('Failed to start sync');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   // Helper to get top N items from a record
   const getTopItems = (record: Record<string, number>, n: number = 5) => {
     return Object.entries(record)
       .sort((a, b) => b[1] - a[1])
       .slice(0, n);
+  };
+
+  // Format next run time
+  const formatNextRun = (isoString: string | null): string => {
+    if (!isoString) return 'Not scheduled';
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleString();
+    } catch {
+      return 'Unknown';
+    }
   };
 
   if (loading) {
@@ -144,7 +197,7 @@ export default function GraphStatsPanel() {
 
           {/* Relationship Types */}
           {Object.keys(stats.relationships.by_type).length > 0 && (
-            <div>
+            <div className="mb-4">
               <h3 className="text-sm font-medium text-secondary mb-2">Top Relationships</h3>
               <div className="space-y-1">
                 {getTopItems(stats.relationships.by_type).map(([type, count]) => (
@@ -156,10 +209,52 @@ export default function GraphStatsPanel() {
               </div>
             </div>
           )}
+
+          {/* Sync Controls */}
+          <div className="border-t border-border pt-4 mt-4">
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-secondary">
+                {schedulerStatus?.running ? (
+                  <>
+                    Next sync: {formatNextRun(schedulerStatus.jobs[0]?.next_run_time || null)}
+                  </>
+                ) : (
+                  'Scheduler not running'
+                )}
+              </div>
+              <button
+                onClick={triggerSync}
+                disabled={syncing}
+                className="text-xs px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {syncing ? 'Syncing...' : 'Sync Now'}
+              </button>
+            </div>
+            {syncMessage && (
+              <div className="mt-2 text-xs text-center text-secondary">
+                {syncMessage}
+              </div>
+            )}
+          </div>
         </>
       ) : (
-        <div className="text-center py-4 text-secondary">
-          No graph statistics available
+        <div className="text-center py-4">
+          <div className="text-secondary mb-4">No graph statistics available</div>
+          <p className="text-xs text-secondary mb-4">
+            The graph needs to be populated with data from the platform.
+          </p>
+          <button
+            onClick={triggerSync}
+            disabled={syncing}
+            className="text-sm px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {syncing ? 'Syncing...' : 'Sync Data to Graph'}
+          </button>
+          {syncMessage && (
+            <div className="mt-2 text-xs text-secondary">
+              {syncMessage}
+            </div>
+          )}
         </div>
       )}
     </div>

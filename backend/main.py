@@ -362,6 +362,12 @@ async def shutdown_event():
         logger.error(f"⚠️ Warning during research scheduler shutdown: {e}")
 
     try:
+        from services.graph_sync_scheduler import stop_graph_sync_scheduler
+        stop_graph_sync_scheduler()
+    except Exception as e:
+        logger.error(f"⚠️ Warning during graph sync scheduler shutdown: {e}")
+
+    try:
         from services.graph import close_neo4j_connection
         await close_neo4j_connection()
         logger.info("✅ Neo4j connection closed")
