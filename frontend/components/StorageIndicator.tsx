@@ -76,10 +76,10 @@ function StorageIndicator({
 
   if (loading) {
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-lg shadow-sm px-3 py-2">
+      <div className="bg-tertiary border border-default rounded-lg shadow-sm px-3 py-2">
         <div className="animate-pulse flex items-center space-x-2">
-          <div className="h-2 bg-gray-200 rounded flex-1"></div>
-          <div className="h-4 w-20 bg-gray-200 rounded"></div>
+          <div className="h-2 bg-secondary rounded flex-1"></div>
+          <div className="h-4 w-20 bg-secondary rounded"></div>
         </div>
       </div>
     )
@@ -101,23 +101,23 @@ function StorageIndicator({
   const getProgressColor = () => {
     if (usage_percentage >= 90) return 'bg-red-500'
     if (usage_percentage >= 75) return 'bg-yellow-500'
-    return 'bg-green-500'
+    return 'bg-brand'
   }
 
   const getBackgroundColor = () => {
-    if (usage_percentage >= 90) return 'bg-red-50'
-    if (usage_percentage >= 75) return 'bg-yellow-50'
-    return 'bg-[#F2FFF4]'
+    if (usage_percentage >= 90) return 'bg-red-50 dark:bg-red-900/20'
+    if (usage_percentage >= 75) return 'bg-yellow-50 dark:bg-yellow-900/20'
+    return 'bg-tertiary'
   }
 
   const getTextColor = () => {
-    if (usage_percentage >= 90) return 'text-red-700'
-    if (usage_percentage >= 75) return 'text-yellow-700'
-    return 'text-green-700'
+    if (usage_percentage >= 90) return 'text-red-700 dark:text-red-400'
+    if (usage_percentage >= 75) return 'text-yellow-700 dark:text-yellow-400'
+    return 'text-brand'
   }
 
   return (
-    <div className={`${getBackgroundColor()} border border-gray-200 rounded-lg shadow-sm transition-colors duration-300 px-3 py-2`}>
+    <div className={`${getBackgroundColor()} border border-default rounded-lg shadow-sm transition-colors duration-300 px-3 py-2`}>
       <div className="flex items-center justify-between mb-1.5">
         <span className={`text-xs font-medium ${getTextColor()}`}>
           Storage: {storage_used_formatted} / {storage_quota_formatted}
@@ -126,7 +126,7 @@ function StorageIndicator({
           {usage_percentage.toFixed(1)}%
         </span>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+      <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
         <div
           className={`${getProgressColor()} h-full rounded-full transition-all duration-500 ease-out`}
           style={{ width: `${Math.min(displayPercentage, 100)}%` }}

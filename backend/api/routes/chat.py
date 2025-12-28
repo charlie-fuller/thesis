@@ -1123,6 +1123,39 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
             # Track if RAG was attempted but found nothing
             rag_attempted_no_results = chat_request.use_rag and not is_simple_message and not context_chunks
 
+            # ============================================================================
+            # ATLAS WEB RESEARCH - Auto-research when knowledge base has no results
+            # ============================================================================
+            web_research_context = None
+            web_research_citations = []
+
+            if selected_agent == "atlas" and rag_attempted_no_results:
+                # Atlas was selected but no KB results - perform web research automatically
+                logger.info("Atlas selected with no KB results - performing web research")
+                yield f"data: {json.dumps({'type': 'status', 'message': 'Researching the web...'})}\n\n"
+
+                try:
+                    from services.web_researcher import research_topic_with_web
+
+                    # Perform web research on the user's query
+                    web_context, citations = await research_topic_with_web(
+                        topic=chat_request.message,
+                        focus_area="general",
+                        max_sources=8
+                    )
+
+                    if web_context and citations:
+                        web_research_context = web_context
+                        web_research_citations = citations
+                        logger.info(f"Web research found {len(citations)} sources")
+                        yield f"data: {json.dumps({'type': 'status', 'message': f'Found {len(citations)} sources'})}\n\n"
+                    else:
+                        logger.info("Web research returned no results")
+
+                except Exception as web_err:
+                    logger.warning(f"Web research failed: {web_err}")
+                    # Continue without web research - don't fail the request
+
             # Only add context if we have relevant chunks (above threshold)
             source_documents = []
             if context_chunks:
@@ -1169,8 +1202,28 @@ Instructions:
 - Be specific about which parts of your answer come from the knowledge base versus general knowledge"""
             elif rag_attempted_no_results:
                 # RAG was attempted but no relevant documents were found
-                # Add a note so the assistant can be honest about this
-                user_prompt = f"""<knowledge_base_search_result>
+                if web_research_context:
+                    # Atlas with web research results - provide comprehensive context
+                    user_prompt = f"""<knowledge_base_search_result>
+I searched your knowledge base but found no relevant documents for this query.
+However, I performed web research and found the following sources:
+</knowledge_base_search_result>
+
+<web_research_context>
+{web_research_context}
+</web_research_context>
+
+User's question: {chat_request.message}
+
+Instructions:
+- Use the web research context above to provide a comprehensive, evidence-based response
+- Cite specific sources when making claims (use the source names/URLs provided)
+- Prioritize Tier 1-2 sources for key claims, use Tier 3-4 as supporting signals
+- Follow your standard research synthesis format
+- Be clear that this information comes from web research, not the user's internal knowledge base"""
+                else:
+                    # No KB results and no web research - standard fallback
+                    user_prompt = f"""<knowledge_base_search_result>
 I searched your knowledge base but could not find any documents relevant to this query. This could mean:
 - The document hasn't finished processing yet (try again in a moment)
 - The document content doesn't closely match your question's wording
@@ -1255,6 +1308,17 @@ Instructions:
                 }
             )
 
+            # Append web research citations if we used web research
+            if web_research_citations:
+                from services.web_researcher import format_citations_for_output
+                citation_section = format_citations_for_output(web_research_citations)
+                if citation_section:
+                    # Stream the citations to the client
+                    for char in citation_section:
+                        yield f"data: {json.dumps({'type': 'token', 'content': char})}\n\n"
+                    full_response += citation_section
+                    logger.info(f"Appended {len(web_research_citations)} web citations to response")
+
             # Save messages to database if conversation_id provided
             image_suggestion_data = None  # Will hold suggestion to send as SSE event
 
@@ -1288,6 +1352,18 @@ Instructions:
                         'agent_name': selected_agent,
                         'agent_display_name': agent_display_name,
                     }
+
+                    # Add web research metadata if used
+                    if web_research_citations:
+                        assistant_metadata['web_research'] = {
+                            'used': True,
+                            'source_count': len(web_research_citations),
+                            'sources': [
+                                {'url': c.get('url'), 'title': c.get('title'), 'tier': c.get('credibility_tier')}
+                                for c in web_research_citations[:5]  # Store top 5 for reference
+                            ]
+                        }
+
                     if suggestion.get('suggest'):
                         assistant_metadata['image_suggestion'] = {
                             'suggested_prompt': suggestion['suggested_prompt'],
