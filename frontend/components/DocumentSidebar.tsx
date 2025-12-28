@@ -12,7 +12,6 @@ interface Document {
   filename: string
   uploaded_at: string
   processed: boolean
-  is_core_document?: boolean
 }
 
 interface DocumentSidebarProps {
@@ -174,11 +173,6 @@ export default function DocumentSidebar({
                     <div className="text-sm font-medium text-primary truncate">
                       {doc.filename}
                     </div>
-                    {doc.is_core_document && (
-                      <div className="text-xs text-green-600 dark:text-green-400 mt-1">
-                        Core Document
-                      </div>
-                    )}
                   </div>
                   <div>
                     {doc.processed ? (

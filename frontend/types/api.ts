@@ -48,7 +48,6 @@ export interface Document {
   google_drive_file_id?: string;
   notion_page_id?: string;
   sync_cadence?: 'manual' | 'daily' | 'weekly' | 'monthly';
-  is_core_document?: boolean;
 }
 
 export interface DocumentWithRelations extends Document {

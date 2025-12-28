@@ -380,13 +380,6 @@ async def delete_document(
 
         document = doc_result.data
 
-        # Check if document is a core document (cannot be deleted)
-        if document.get('is_core_document'):
-            raise HTTPException(
-                status_code=403,
-                detail="Cannot delete core document. This document is referenced in system instructions."
-            )
-
         # Authorization check
         if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
             raise HTTPException(status_code=403, detail="Not authorized to delete this document")
@@ -443,22 +436,6 @@ async def bulk_delete_documents(
         for doc_id in document_ids:
             try:
                 validate_uuid(doc_id, "document_id")
-
-                # Check if document is core
-                doc_result = await asyncio.to_thread(
-                    lambda: supabase.table('documents')\
-                        .select('is_core_document, filename')\
-                        .eq('id', doc_id)\
-                        .single()\
-                        .execute()
-                )
-
-                if doc_result.data and doc_result.data.get('is_core_document'):
-                    errors.append({
-                        'document_id': doc_id,
-                        'error': f"Cannot delete core document: {doc_result.data.get('filename')}"
-                    })
-                    continue
 
                 # Delete chunks
                 await asyncio.to_thread(
