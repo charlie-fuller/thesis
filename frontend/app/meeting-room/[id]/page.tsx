@@ -72,8 +72,13 @@ export default function MeetingRoomPage() {
   const [autonomousTopic, setAutonomousTopic] = useState<string | null>(null)
   const [autonomousPaused, setAutonomousPaused] = useState(false)
 
+  // Title editing state
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [editedTitle, setEditedTitle] = useState('')
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const titleInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -123,6 +128,55 @@ export default function MeetingRoomPage() {
       console.error('Error loading messages:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleStartEditingTitle = () => {
+    if (meeting) {
+      setEditedTitle(meeting.title)
+      setIsEditingTitle(true)
+      // Focus the input after state update
+      setTimeout(() => titleInputRef.current?.focus(), 0)
+    }
+  }
+
+  const handleSaveTitle = async () => {
+    if (!editedTitle.trim() || !meeting) return
+
+    const newTitle = editedTitle.trim()
+    if (newTitle === meeting.title) {
+      setIsEditingTitle(false)
+      return
+    }
+
+    try {
+      const response = await authenticatedFetch(`/api/meeting-rooms/${meetingId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ title: newTitle })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setMeeting({ ...meeting, title: newTitle })
+        toast.success('Title updated')
+      } else {
+        throw new Error(data.detail || 'Failed to update title')
+      }
+    } catch (error) {
+      console.error('Error updating title:', error)
+      toast.error('Failed to update title')
+    } finally {
+      setIsEditingTitle(false)
+    }
+  }
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSaveTitle()
+    } else if (e.key === 'Escape') {
+      setIsEditingTitle(false)
     }
   }
 
@@ -428,8 +482,34 @@ export default function MeetingRoomPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
             </button>
-            <div>
-              <h1 className="text-lg font-semibold text-primary">{meeting.title}</h1>
+            <div className="flex-1 min-w-0">
+              {isEditingTitle ? (
+                <input
+                  ref={titleInputRef}
+                  type="text"
+                  value={editedTitle}
+                  onChange={(e) => setEditedTitle(e.target.value)}
+                  onBlur={handleSaveTitle}
+                  onKeyDown={handleTitleKeyDown}
+                  className="text-lg font-semibold text-primary bg-transparent border-b-2 border-primary focus:outline-none w-full max-w-md"
+                />
+              ) : (
+                <h1
+                  className="text-lg font-semibold text-primary cursor-pointer hover:text-primary/80 inline-flex items-center gap-2 group"
+                  onClick={handleStartEditingTitle}
+                  title="Click to edit title"
+                >
+                  {meeting.title}
+                  <svg
+                    className="w-4 h-4 opacity-0 group-hover:opacity-50 transition-opacity"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </h1>
+              )}
               {meeting.description && (
                 <p className="text-sm text-secondary">{meeting.description}</p>
               )}
