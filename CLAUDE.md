@@ -30,8 +30,6 @@ If the conversation included important decisions or unfinished work, save a summ
 
 Thesis is a multi-agent platform for enterprise GenAI strategy implementation. It helps AI Solutions Partners guide and manage successful AI initiatives by providing specialized agents for research, finance, IT/governance, legal, and meeting analysis.
 
-**Forked from Walter** - This codebase is based on the Walter L&D assistant platform, adapted for multi-agent GenAI strategy support.
-
 ### Agent Roster (15 Agents)
 
 #### Stakeholder Perspective Agents
@@ -146,12 +144,22 @@ python -m pytest                         # Run tests
 Agent system instructions use the **Gigawatt v4.0 RCCI Framework** with:
 
 - **XML Structure**: `<version>`, `<role>`, `<context>`, `<capabilities>`, `<instructions>`, `<criteria>`, `<few_shot_examples>`, `<wisdom>`, `<anti_patterns>`
+- **Smart Brevity**: All agents include `shared/smart_brevity.xml` for concise, scannable responses (150-250 words max)
 - **Chain-of-Thought**: Step-by-step analysis processes
 - **Evidence-Based**: All insights backed by quotes/data
 - **Persona Alignment**: Agents embody specific stakeholder perspectives
 - **Few-Shot Examples**: Comprehensive examples showing expected output format
+- **No Emojis**: Professional formatting throughout - emojis are explicitly banned
 
 Canonical instructions live in `/backend/system_instructions/agents/*.xml` with fallbacks in each agent's `_get_default_instruction()` method.
+
+### Smart Brevity Format
+
+All agent responses follow this mandatory structure:
+1. **The Big Thing** (1-2 sentences) - Key insight with metric
+2. **Why It Matters** (1-2 sentences) - Business impact
+3. **Key Details** (3-5 bullets or table) - Scannable facts
+4. **Dig-Deeper Links** (2-4 links) - Expandable detail via `[text](dig-deeper:section_id)`
 
 ## Thesis-Specific Tables
 
@@ -258,6 +266,7 @@ python -m pytest tests/ -v --tb=short
 - `/backend/services/agent_observer.py` - Cross-agent conversation monitoring
 - `/backend/services/web_researcher.py` - Anthropic web search with credibility filtering
 - `/backend/system_instructions/agents/*.xml` - Agent behavior configuration (Gigawatt v4.0)
+- `/backend/system_instructions/shared/smart_brevity.xml` - Mandatory response format directive
 - `/backend/api/routes/chat.py` - Chat endpoints including Dig Deeper
 - `/backend/api/routes/meeting_rooms.py` - Meeting room CRUD and streaming
 - `/backend/api/routes/agents.py` - Agent management endpoints
@@ -277,3 +286,13 @@ python -m pytest tests/ -v --tb=short
 ### Documentation
 - `/docs/atlas/PROACTIVE_RESEARCH_PLAN.md` - Atlas research system architecture
 - `/docs/neo4j/SYNC_PLAN.md` - PostgreSQL to Neo4j sync architecture
+
+## Removed Features (December 2025)
+
+The following features were removed to simplify the platform:
+
+- **Quick Prompts**: User-defined prompt shortcuts - removed in favor of agent commands
+- **Projects**: Manual folder organization - replaced by vector DB + Neo4j graph for dynamic semantic search
+- **Templates**: Template-based prompt generation - functionality moved to agent instructions
+
+Related database table `user_quick_prompts` (migration 025) can be dropped if present.
