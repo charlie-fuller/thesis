@@ -8,10 +8,14 @@ When instructions are updated:
 1. XML files are the authoritative source
 2. On save in admin UI, create a new version in agent_instruction_versions
 3. Running agents hot-reload from the active version in DB
+
+Supports <include> directive for shared instruction fragments:
+  <include file="shared/smart_brevity.xml" />
 """
 
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
@@ -20,6 +24,10 @@ logger = logging.getLogger(__name__)
 
 # Base path for instruction files
 INSTRUCTIONS_DIR = Path(__file__).parent.parent / "system_instructions" / "agents"
+SHARED_DIR = Path(__file__).parent.parent / "system_instructions" / "shared"
+
+# Regex pattern to match <include file="..." /> tags
+INCLUDE_PATTERN = re.compile(r'<include\s+file=["\']([^"\']+)["\']\s*/>', re.IGNORECASE)
 
 
 def get_instruction_file_path(agent_name: str) -> Path:
@@ -27,12 +35,70 @@ def get_instruction_file_path(agent_name: str) -> Path:
     return INSTRUCTIONS_DIR / f"{agent_name.lower()}.xml"
 
 
-def load_instruction_from_file(agent_name: str) -> Optional[str]:
+def load_shared_file(relative_path: str) -> Optional[str]:
+    """
+    Load a shared instruction fragment file.
+
+    Args:
+        relative_path: Path relative to system_instructions/ (e.g., "shared/smart_brevity.xml")
+
+    Returns:
+        The file content as a string, or None if file doesn't exist.
+    """
+    base_dir = Path(__file__).parent.parent / "system_instructions"
+    file_path = base_dir / relative_path
+
+    if not file_path.exists():
+        logger.warning(f"Shared file not found: {file_path}")
+        return None
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        logger.debug(f"Loaded shared file: {relative_path} ({len(content)} chars)")
+        return content
+    except Exception as e:
+        logger.error(f"Failed to load shared file {relative_path}: {e}")
+        return None
+
+
+def resolve_includes(content: str, max_depth: int = 3, current_depth: int = 0) -> str:
+    """
+    Resolve <include file="..." /> directives in instruction content.
+
+    Args:
+        content: The instruction content with potential include tags
+        max_depth: Maximum nesting depth to prevent infinite loops
+        current_depth: Current recursion depth
+
+    Returns:
+        Content with all includes resolved.
+    """
+    if current_depth >= max_depth:
+        logger.warning(f"Max include depth ({max_depth}) reached, skipping further includes")
+        return content
+
+    def replace_include(match):
+        relative_path = match.group(1)
+        included_content = load_shared_file(relative_path)
+
+        if included_content is None:
+            logger.warning(f"Include failed for {relative_path}, leaving placeholder")
+            return f"<!-- Include failed: {relative_path} -->"
+
+        # Recursively resolve includes in the included content
+        return resolve_includes(included_content, max_depth, current_depth + 1)
+
+    return INCLUDE_PATTERN.sub(replace_include, content)
+
+
+def load_instruction_from_file(agent_name: str, resolve_include_tags: bool = True) -> Optional[str]:
     """
     Load an agent's system instruction from its XML file.
 
     Args:
         agent_name: The agent's name (e.g., "atlas", "fortuna")
+        resolve_include_tags: Whether to resolve <include> directives (default: True)
 
     Returns:
         The instruction content as a string, or None if file doesn't exist.
@@ -46,6 +112,10 @@ def load_instruction_from_file(agent_name: str) -> Optional[str]:
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
+
+        # Resolve include tags if requested
+        if resolve_include_tags:
+            content = resolve_includes(content)
 
         logger.info(f"Loaded instruction for {agent_name} from {file_path} ({len(content)} chars)")
         return content

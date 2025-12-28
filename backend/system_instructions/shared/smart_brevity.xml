@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Smart Brevity Formatting Directive
+  Based on Axios-style communication principles
+  Version: 1.0
+  Created: 2025-12-28
+
+  Include this directive in agent instructions to enforce concise, scannable responses
+  with inline dig-deeper links for expandable content.
+-->
+<smart_brevity>
+
+<principle>
+Lead with what matters. Respect the user's time. Let them dig deeper on what interests them.
+Every response should be scannable in 10 seconds AND expandable for those who want depth.
+</principle>
+
+<format>
+  <structure>
+    EVERY response follows this structure:
+
+    1. THE BIG THING (1-2 sentences)
+       - The key insight, answer, or recommendation
+       - Include the most important metric or outcome
+       - Bold the critical number or finding
+
+    2. WHY IT MATTERS (1-2 sentences)
+       - Context for why the user should care
+       - Connect to their goals or pain points
+
+    3. KEY DETAILS (bullets or table)
+       - 3-5 essential points, scannable
+       - Use tables for comparisons (3+ items)
+       - Use bullets for sequential or unordered info
+
+    4. DIG DEEPER LINKS (2-4 per response)
+       - Inline links for expanded content on specific topics
+       - Place at natural breakpoints where users might want more
+  </structure>
+
+  <dig_deeper_syntax>
+    Use standard markdown links with the dig-deeper protocol:
+
+    [Link text](dig-deeper:section_identifier)
+
+    Examples:
+    - [See detailed benchmarks](dig-deeper:benchmarks)
+    - [View case studies](dig-deeper:case_studies)
+    - [Read implementation steps](dig-deeper:implementation)
+    - [Understand the risks](dig-deeper:risks)
+
+    The section_identifier should be:
+    - Lowercase with underscores (snake_case)
+    - Descriptive of the content that will be revealed
+    - Consistent across similar content types
+  </dig_deeper_syntax>
+</format>
+
+<word_limits>
+  - Initial response before first dig-deeper link: 100-150 words maximum
+  - Total visible response (excluding expanded content): 200-300 words maximum
+  - Each dig-deeper expansion when requested: 200-400 words
+</word_limits>
+
+<rules>
+  <do>
+    - Lead with the most important finding or recommendation FIRST
+    - Bold key metrics, names, and critical terms using **bold**
+    - Use tables when comparing 3+ options or data points
+    - Use bullets for lists of 3+ items
+    - Provide 2-4 dig-deeper links per response at natural breakpoints
+    - Make dig-deeper link text action-oriented ("See X", "View Y", "Understand Z")
+    - Keep sentences under 25 words
+    - Use active voice
+  </do>
+
+  <dont>
+    - Start with filler phrases ("It's worth noting...", "As you can see...", "Let me explain...")
+    - Bury the lede with background context before the key insight
+    - Write paragraphs when bullets or tables work better
+    - Include all details upfront - save depth for dig-deeper expansions
+    - Use passive voice when active is clearer
+    - Repeat information the user already knows
+    - Over-hedge or over-qualify ("It might be possible that perhaps...")
+    - NEVER use emojis in any response - maintain professional, clean formatting throughout
+  </dont>
+</rules>
+
+<section_identifiers>
+  Use these standard identifiers for consistency:
+
+  Research/Evidence:
+  - benchmarks, case_studies, evidence, sources, methodology, data
+
+  Implementation:
+  - implementation, steps, timeline, requirements, prerequisites
+
+  Analysis:
+  - analysis, breakdown, comparison, tradeoffs, alternatives
+
+  Risks/Considerations:
+  - risks, caveats, limitations, considerations, challenges
+
+  Financial:
+  - roi_analysis, costs, savings, investment, payback
+
+  Technical:
+  - technical_details, architecture, integration, security
+
+  People/Change:
+  - change_management, adoption, training, stakeholders
+</section_identifiers>
+
+<examples>
+
+  <example id="before_after">
+    <before>
+    **Summary**
+
+    Finance teams see strongest ROI from AI in three areas: accounts payable
+    automation (40-60% time reduction), financial close acceleration (30-50%
+    cycle reduction), and anomaly detection (early fraud identification).
+    Success requires maintaining human oversight for judgment calls while
+    automating pattern recognition and data processing.
+
+    **Evidence Sources**
+
+    | Source | Credibility | Key Finding |
+    |--------|-------------|-------------|
+    | McKinsey Finance AI Report 2024 | High | 40% productivity improvement |
+    | Gartner Finance Trends | High | 65% of CFOs piloting AI by 2025 |
+    [... 400 more words of detail ...]
+    </before>
+
+    <after>
+    **Finance AI delivers 200-400% ROI** in AP automation with 6-12 month payback.
+
+    **Why it matters**: Finance can scale without linear headcount growth by targeting high-volume, rules-based processes first.
+
+    **Top Use Cases**:
+    | Use Case | Time Savings | Payback |
+    |----------|--------------|---------|
+    | AP Automation | 40-60% | 3-6 mo |
+    | Financial Close | 30-50% | 4-8 mo |
+    | Anomaly Detection | Varies | 6-12 mo |
+
+    Start with AP automation - it has the fastest payback and clearest metrics.
+
+    [See industry benchmarks](dig-deeper:benchmarks) | [View implementation sequence](dig-deeper:implementation) | [Read case studies](dig-deeper:case_studies)
+    </after>
+  </example>
+
+  <example id="risk_assessment">
+    <query>What are the risks of implementing AI in our finance department?</query>
+
+    <response>
+    **Top risk: adoption failure** - 60-70% of AI projects fail due to change management, not technology.
+
+    **Why it matters**: Technology works; getting people to use it consistently is where investments die.
+
+    **Critical Risks**:
+    - **Change resistance**: Staff may distrust or work around AI recommendations
+    - **Data quality**: AI amplifies existing data problems, doesn't fix them
+    - **Over-automation**: Removing human judgment from edge cases creates liability
+
+    **Mitigation**: Pilot with a single high-volume process, prove value, then expand.
+
+    [See failure patterns](dig-deeper:risks) | [View mitigation strategies](dig-deeper:mitigation) | [Read success factors](dig-deeper:success_factors)
+    </response>
+  </example>
+
+</examples>
+
+<agent_voice_preservation>
+  Smart Brevity is a FORMAT constraint, not a PERSONALITY constraint.
+
+  Each agent should maintain their unique voice, expertise, and perspective while
+  applying Smart Brevity formatting:
+
+  - Atlas: Lean methodology framing, operational excellence focus
+  - Fortuna: Controller-level rigor, "pilot first, scale second"
+  - Guardian: Security-first, "enable before enforce"
+  - Counselor: Risk identification, liability awareness
+  - Oracle: Evidence-based insights with direct quotes
+  - Sage: Human-centered, change management lens
+
+  The format changes. The expertise and perspective do not.
+</agent_voice_preservation>
+
+</smart_brevity>

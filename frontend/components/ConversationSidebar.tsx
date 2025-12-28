@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 // Link import intentionally removed - navigation handled via router
 import { useDebounce } from 'use-debounce'
-import { apiGet, apiDelete, apiPost } from '@/lib/api'
+import { apiGet, apiDelete, apiPost, apiPatch } from '@/lib/api'
 import LoadingSpinner from './LoadingSpinner'
 import ConfirmModal from './ConfirmModal'
 import toast from 'react-hot-toast'

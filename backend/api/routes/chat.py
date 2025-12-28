@@ -1406,6 +1406,15 @@ class DigDeeperRequest(BaseModel):
     custom_prompt: Optional[str] = Field(None, max_length=500)  # Optional specific request
 
 
+class DigDeeperSectionRequest(BaseModel):
+    """Request to expand a specific section of an assistant response (inline dig-deeper)."""
+    conversation_id: str
+    message_id: str  # The assistant message ID containing the section
+    original_content: str  # The full content of the original message
+    section_id: str  # The section identifier from dig-deeper:section_id link
+    section_context: Optional[str] = None  # Optional surrounding context for the section
+
+
 # ============================================================================
 # Dig Deeper Endpoint
 # ============================================================================
@@ -1574,5 +1583,195 @@ Maintain the same format and style as your original response, but provide more c
             "X-Accel-Buffering": "no"
         }
     )
+
+
+# ============================================================================
+# Dig Deeper Section Expansion Endpoint (Inline)
+# ============================================================================
+
+
+# Mapping of section IDs to human-readable topics for prompt clarity
+SECTION_TOPIC_MAP = {
+    # Research/Evidence
+    "benchmarks": "industry benchmarks and comparative data",
+    "case_studies": "real-world case studies and examples",
+    "evidence": "supporting evidence and research",
+    "sources": "source citations and references",
+    "methodology": "methodology and approach",
+    "data": "underlying data and statistics",
+    # Implementation
+    "implementation": "implementation steps and approach",
+    "steps": "detailed step-by-step process",
+    "timeline": "timeline and milestones",
+    "requirements": "requirements and prerequisites",
+    "prerequisites": "prerequisites and preparation",
+    # Analysis
+    "analysis": "detailed analysis",
+    "breakdown": "detailed breakdown",
+    "comparison": "comparison of options",
+    "tradeoffs": "tradeoffs and considerations",
+    "alternatives": "alternative approaches",
+    # Risks
+    "risks": "risks and potential issues",
+    "caveats": "caveats and limitations",
+    "limitations": "limitations and constraints",
+    "considerations": "important considerations",
+    "challenges": "challenges and obstacles",
+    # Financial
+    "roi_analysis": "ROI analysis and financial metrics",
+    "costs": "cost breakdown and estimates",
+    "savings": "potential savings and benefits",
+    "investment": "investment requirements",
+    "payback": "payback period analysis",
+    # Technical
+    "technical_details": "technical details and specifications",
+    "architecture": "architecture and design",
+    "integration": "integration approach",
+    "security": "security considerations",
+    # People/Change
+    "change_management": "change management approach",
+    "adoption": "adoption strategy",
+    "training": "training requirements",
+    "stakeholders": "stakeholder considerations",
+    # Actions
+    "next_steps": "next steps and actions",
+    "recommendations": "specific recommendations",
+    "success_factors": "success factors",
+    "mitigation": "mitigation strategies",
+}
+
+
+@router.post("/dig-deeper-section")
+@limiter.limit("20/minute")
+async def dig_deeper_section(
+    request: Request,
+    section_request: DigDeeperSectionRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Expand a specific section of an assistant response (inline dig-deeper).
+
+    When users click on inline [link](dig-deeper:section_id) links, this endpoint
+    provides focused elaboration on just that topic without repeating the full response.
+
+    Returns the expanded content directly (not streamed) for inline insertion.
+    """
+    logger.info(
+        "Dig deeper section request received",
+        extra={
+            "user_id": current_user['id'],
+            "conversation_id": section_request.conversation_id,
+            "message_id": section_request.message_id,
+            "section_id": section_request.section_id
+        }
+    )
+
+    try:
+        # Get human-readable topic from section ID
+        section_topic = SECTION_TOPIC_MAP.get(
+            section_request.section_id,
+            section_request.section_id.replace("_", " ")
+        )
+
+        # Build the section expansion prompt
+        expansion_prompt = f"""The user clicked on an inline "dig deeper" link requesting more detail on: **{section_topic}**
+
+Your previous response was:
+---
+{section_request.original_content}
+---
+
+Please provide a focused expansion on just the "{section_topic}" topic. Guidelines:
+- Provide 200-400 words of additional detail
+- Stay focused on this specific topic - don't repeat the full response
+- Include specific examples, metrics, or actionable details
+- Maintain the same professional tone and formatting style
+- Use bullets or tables if they help clarity
+- If relevant, include additional dig-deeper links using [link text](dig-deeper:section_id) format
+
+DO NOT:
+- Repeat the summary or main points already covered
+- Provide generic information - be specific and actionable
+- Exceed 400 words - this is an expansion, not a full new response"""
+
+        # Load system instructions
+        try:
+            system_prompt = get_system_instructions_for_user(
+                user_id=current_user['id'],
+                user_data=current_user
+            )
+        except FileNotFoundError:
+            user_name = current_user.get('name', 'User')
+            system_prompt = (
+                f"You are Thesis, a helpful AI assistant for {user_name}. "
+                "Provide clear, accurate, and professional assistance."
+            )
+
+        # Get conversation history for context (limited to recent messages)
+        conversation_messages = []
+        if section_request.conversation_id:
+            history_result = supabase.table('messages')\
+                .select('role,content')\
+                .eq('conversation_id', section_request.conversation_id)\
+                .order('created_at', desc=False)\
+                .limit(10)\
+                .execute()
+
+            if history_result.data:
+                for msg in history_result.data:
+                    if msg['role'] in ['user', 'assistant'] and msg.get('content'):
+                        conversation_messages.append({
+                            "role": msg['role'],
+                            "content": msg['content']
+                        })
+
+        # Add the expansion request
+        conversation_messages.append({"role": "user", "content": expansion_prompt})
+
+        # Generate the expansion (non-streaming for inline insertion)
+        response = anthropic_client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=1024,  # Shorter for focused expansion
+            temperature=0.3,
+            system=[
+                {
+                    "type": "text",
+                    "text": system_prompt,
+                    "cache_control": {"type": "ephemeral"}
+                }
+            ],
+            messages=conversation_messages
+        )
+
+        expanded_content = response.content[0].text
+
+        # Save the expansion to the conversation (as metadata, not as separate messages)
+        # This avoids cluttering the chat but preserves the data
+        if section_request.conversation_id:
+            try:
+                # Update the original message's metadata to include expansions
+                await asyncio.to_thread(
+                    lambda: supabase.rpc('append_message_expansion', {
+                        'p_message_id': section_request.message_id,
+                        'p_section_id': section_request.section_id,
+                        'p_expanded_content': expanded_content
+                    }).execute()
+                )
+            except Exception as save_err:
+                # Log but don't fail - expansion still works even if save fails
+                logger.warning(f"Could not save expansion to message metadata: {save_err}")
+
+        return {
+            "section_id": section_request.section_id,
+            "expanded_content": expanded_content,
+            "tokens": {
+                "input": response.usage.input_tokens,
+                "output": response.usage.output_tokens
+            }
+        }
+
+    except Exception as e:
+        logger.exception("Error processing dig deeper section request", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
