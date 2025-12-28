@@ -41,7 +41,7 @@ const ENGAGEMENT_LEVELS = ['champion', 'supporter', 'neutral', 'skeptic', 'block
 
 export default function ThesisDashboard() {
   const router = useRouter()
-  const { user, loading: authLoading, effectiveRole } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [recentTranscripts, setRecentTranscripts] = useState<RecentTranscript[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,16 +50,14 @@ export default function ThesisDashboard() {
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth/login')
-    } else if (!authLoading && effectiveRole === 'admin') {
-      router.push('/admin')
     }
-  }, [authLoading, user, effectiveRole, router])
+  }, [authLoading, user, router])
 
   useEffect(() => {
-    if (user && effectiveRole !== 'admin') {
+    if (user) {
       loadDashboardData()
     }
-  }, [user, effectiveRole])
+  }, [user])
 
   async function loadDashboardData() {
     try {
@@ -123,8 +121,8 @@ export default function ThesisDashboard() {
     )
   }
 
-  // Don't render if not authenticated or if admin (they get redirected)
-  if (!user || effectiveRole === 'admin') {
+  // Don't render if not authenticated
+  if (!user) {
     return null
   }
 
