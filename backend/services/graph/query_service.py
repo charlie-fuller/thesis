@@ -571,13 +571,16 @@ class GraphQueryService:
                  insight_count, concern_count, meeting_count, count(DISTINCT d) as document_count
 
             OPTIONAL MATCH (r:ROIOpportunity {client_id: $client_id})
+            WITH stakeholder_count, influence_count, reporting_count, attendance_count,
+                 insight_count, concern_count, meeting_count, document_count,
+                 count(DISTINCT r) as roi_count
 
             RETURN {
                 nodes: {
                     stakeholders: stakeholder_count,
                     meetings: meeting_count,
                     documents: document_count,
-                    roi_opportunities: count(DISTINCT r),
+                    roi_opportunities: roi_count,
                     insights: insight_count,
                     concerns: concern_count
                 },
