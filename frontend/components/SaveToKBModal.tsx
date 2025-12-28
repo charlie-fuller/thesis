@@ -86,24 +86,24 @@ export default function SaveToKBModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-primary rounded-lg shadow-xl w-full max-w-md mx-4 p-6 border border-default">
+      <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 p-6 border border-gray-200 dark:border-gray-700">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <BookmarkPlus className="h-5 w-5 text-brand" />
-            <h2 className="text-lg font-semibold text-primary">Save to Knowledge Base</h2>
+            <BookmarkPlus className="h-5 w-5 text-teal-600" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Save to Knowledge Base</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-hover rounded-md transition-colors"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
           >
-            <X className="h-5 w-5 text-muted" />
+            <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
         {/* Title input */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-primary mb-1">
+          <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
             Document Title
           </label>
           <input
@@ -111,14 +111,14 @@ export default function SaveToKBModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Enter a title for this document..."
-            className="w-full px-3 py-2 bg-secondary border border-default rounded-md text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+            className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
             autoFocus
           />
         </div>
 
         {/* Scope selection */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-primary mb-2">
+          <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
             Document Availability
           </label>
 
@@ -128,8 +128,8 @@ export default function SaveToKBModal({
               onClick={() => setIsGlobal(true)}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-colors ${
                 isGlobal
-                  ? 'bg-brand/10 border-brand text-brand'
-                  : 'bg-secondary border-default text-muted hover:border-brand/50'
+                  ? 'bg-teal-50 dark:bg-teal-900/30 border-teal-500 text-teal-700 dark:text-teal-400'
+                  : 'bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-teal-300 dark:hover:border-teal-600'
               }`}
             >
               <Globe className="h-4 w-4" />
@@ -140,8 +140,8 @@ export default function SaveToKBModal({
               onClick={() => setIsGlobal(false)}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-colors ${
                 !isGlobal
-                  ? 'bg-brand/10 border-brand text-brand'
-                  : 'bg-secondary border-default text-muted hover:border-brand/50'
+                  ? 'bg-teal-50 dark:bg-teal-900/30 border-teal-500 text-teal-700 dark:text-teal-400'
+                  : 'bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-teal-300 dark:hover:border-teal-600'
               }`}
             >
               <Users className="h-4 w-4" />
@@ -149,7 +149,7 @@ export default function SaveToKBModal({
             </button>
           </div>
 
-          <p className="text-xs text-muted mt-2">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
             {isGlobal
               ? 'All agents will be able to access this document.'
               : 'Only selected agents will be able to access this document.'}
@@ -158,15 +158,15 @@ export default function SaveToKBModal({
 
         {/* Agent selection (only shown when agent-specific is selected) */}
         {!isGlobal && (
-          <div className="mb-4 p-3 bg-tertiary rounded-lg border border-default">
-            <p className="text-xs text-muted mb-2">Select agents:</p>
+          <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Select agents:</p>
             {loadingAgents ? (
-              <div className="flex items-center gap-2 text-sm text-muted py-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand"></div>
+              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 py-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-500"></div>
                 Loading agents...
               </div>
             ) : agents.length === 0 ? (
-              <p className="text-sm text-muted py-2">No agents available</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 py-2">No agents available</p>
             ) : (
               <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                 {agents.map(agent => (
@@ -174,8 +174,8 @@ export default function SaveToKBModal({
                     key={agent.id}
                     className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors ${
                       selectedAgentIds.has(agent.id)
-                        ? 'bg-brand/10 border-brand'
-                        : 'bg-secondary border-default hover:border-brand/50'
+                        ? 'bg-teal-50 dark:bg-teal-900/30 border-teal-500'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 hover:border-teal-300 dark:hover:border-teal-600'
                     }`}
                   >
                     <input
@@ -187,13 +187,13 @@ export default function SaveToKBModal({
                     <div className={`w-5 h-5 rounded flex items-center justify-center ${getAgentColor(agent.name)}`}>
                       <AgentIcon name={agent.name} size="sm" />
                     </div>
-                    <span className="text-sm text-primary truncate">{agent.display_name}</span>
+                    <span className="text-sm text-gray-900 dark:text-gray-100 truncate">{agent.display_name}</span>
                   </label>
                 ))}
               </div>
             )}
             {selectedAgentIds.size === 0 && agents.length > 0 && (
-              <p className="text-xs text-amber-600 mt-2">
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
                 Select at least one agent, or choose &quot;Global&quot;.
               </p>
             )}
@@ -205,14 +205,14 @@ export default function SaveToKBModal({
           <button
             onClick={onClose}
             disabled={isSaving}
-            className="flex-1 px-4 py-2 text-sm font-medium text-muted bg-secondary hover:bg-hover border border-default rounded-md transition-colors disabled:opacity-50"
+            className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 rounded-md transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={!canSave || isSaving}
-            className="flex-1 px-4 py-2 text-sm font-medium text-white bg-brand hover:bg-brand/90 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="flex-1 px-4 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isSaving ? (
               <>
