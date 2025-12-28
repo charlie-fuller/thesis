@@ -226,14 +226,8 @@ async def save_from_chat(
         # Get storage URL
         storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
 
-        # Create database record with source metadata
-        doc_metadata = {}
-        if request.message_id:
-            doc_metadata['source_message_id'] = request.message_id
-        if request.conversation_id:
-            doc_metadata['source_conversation_id'] = request.conversation_id
-        doc_metadata['saved_from_chat'] = True
-
+        # Create database record
+        # Note: metadata stored in document content header, not DB column
         doc_record = {
             'client_id': client_id,
             'uploaded_by': user_id,
@@ -242,8 +236,7 @@ async def save_from_chat(
             'storage_url': storage_url,
             'mime_type': 'text/markdown',
             'file_size': len(file_content),
-            'processed': False,
-            'metadata': doc_metadata
+            'processed': False
         }
 
         result = await asyncio.to_thread(
