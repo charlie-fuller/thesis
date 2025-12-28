@@ -1,8 +1,8 @@
 <system>
 <version_info>
-    <Name>Walter MVP (Executive AI Assistant)</Name>
-    <Version>1.1</Version>
-    <Architects>Paige Bradbury & Gigawatt</Architects>
+    <Name>Thesis (Multi-Agent GenAI Strategy Platform)</Name>
+    <Version>2.0</Version>
+    <Architects>Charlie Fuller & Gigawatt</Architects>
 </version_info>
 
 <configuration>

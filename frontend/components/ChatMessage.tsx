@@ -22,6 +22,12 @@ interface MessageMetadata {
   [key: string]: unknown
 }
 
+// State for expanded sections
+interface ExpandedSection {
+  content: string
+  isLoading: boolean
+}
+
 interface ChatMessageProps {
   content: string
   role: 'user' | 'assistant'
@@ -32,6 +38,7 @@ interface ChatMessageProps {
   conversationId?: string
   messageId?: string
   onDigDeeper?: (messageId: string, content: string) => void
+  onDigDeeperSection?: (messageId: string, content: string, sectionId: string) => Promise<string>
   isDigDeeperLoading?: boolean
   metadata?: MessageMetadata
 }
@@ -110,7 +117,46 @@ function CodeBlock({
   );
 }
 
-function ChatMessage({ content, role, timestamp, documents, sources, onSourceClick, conversationId, messageId, onDigDeeper, isDigDeeperLoading, metadata }: ChatMessageProps) {
+function ChatMessage({ content, role, timestamp, documents, sources, onSourceClick, conversationId, messageId, onDigDeeper, onDigDeeperSection, isDigDeeperLoading, metadata }: ChatMessageProps) {
+  // State for inline dig-deeper expanded sections
+  const [expandedSections, setExpandedSections] = useState<Record<string, ExpandedSection>>({});
+
+  // Handle inline dig-deeper link click
+  const handleDigDeeperSection = useCallback(async (sectionId: string) => {
+    if (!messageId || !onDigDeeperSection) return;
+
+    // If already expanded, toggle collapse
+    if (expandedSections[sectionId]?.content) {
+      setExpandedSections(prev => {
+        const updated = { ...prev };
+        delete updated[sectionId];
+        return updated;
+      });
+      return;
+    }
+
+    // Set loading state
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: { content: '', isLoading: true }
+    }));
+
+    try {
+      const expandedContent = await onDigDeeperSection(messageId, content, sectionId);
+      setExpandedSections(prev => ({
+        ...prev,
+        [sectionId]: { content: expandedContent, isLoading: false }
+      }));
+    } catch (err) {
+      logger.error('Failed to expand section:', err);
+      setExpandedSections(prev => {
+        const updated = { ...prev };
+        delete updated[sectionId];
+        return updated;
+      });
+    }
+  }, [messageId, content, onDigDeeperSection, expandedSections]);
+
   // Track text selection copy events for assistant messages
   const handleCopyEvent = useCallback(async () => {
     if (role !== 'assistant' || !conversationId || !messageId) return;
@@ -207,6 +253,75 @@ function ChatMessage({ content, role, timestamp, documents, sources, onSourceCli
                   );
                 },
                 a({ children, href }: { children?: React.ReactNode; href?: string }) {
+                  // Check if this is a dig-deeper link
+                  if (href?.startsWith('dig-deeper:')) {
+                    const sectionId = href.replace('dig-deeper:', '');
+                    const section = expandedSections[sectionId];
+                    const isLoading = section?.isLoading;
+                    const isExpanded = section?.content;
+
+                    return (
+                      <span className="inline-block">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleDigDeeperSection(sectionId);
+                          }}
+                          disabled={isLoading}
+                          className="inline-flex items-center gap-1 text-teal-600 hover:text-teal-700 underline text-sm font-medium disabled:opacity-50 disabled:cursor-wait"
+                          title={isExpanded ? 'Click to collapse' : 'Click to expand'}
+                        >
+                          {isLoading ? (
+                            <>
+                              <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              <span>Loading...</span>
+                            </>
+                          ) : (
+                            <>
+                              {children}
+                              <svg
+                                className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </>
+                          )}
+                        </button>
+                        {/* Expanded content inline */}
+                        {isExpanded && (
+                          <div className="mt-2 mb-3 pl-3 border-l-2 border-teal-300 bg-teal-50/50 rounded-r-md py-2 pr-2">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                // Simpler rendering for expanded content - no nested dig-deeper
+                                a({ children: linkChildren, href: linkHref }: { children?: React.ReactNode; href?: string }) {
+                                  if (linkHref?.startsWith('dig-deeper:')) {
+                                    // Render nested dig-deeper as plain text for now
+                                    return <span className="text-teal-600 font-medium">{linkChildren}</span>;
+                                  }
+                                  return (
+                                    <a href={linkHref} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:text-teal-700 underline">
+                                      {linkChildren}
+                                    </a>
+                                  );
+                                },
+                              }}
+                            >
+                              {section.content}
+                            </ReactMarkdown>
+                          </div>
+                        )}
+                      </span>
+                    );
+                  }
+
+                  // Regular external link
                   return (
                     <a
                       href={href}

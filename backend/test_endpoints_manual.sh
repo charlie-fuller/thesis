@@ -3,7 +3,7 @@
 ADMIN_TOKEN='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMTNkNWZkMi03ZTBkLTRjMmUtOWMzOS1lNjQyM2Q1MTNmZjYiLCJlbWFpbCI6ImlkYnlwYWlnZUBnbWFpbC5jb20iLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJ1c2VyX21ldGFkYXRhIjp7InJvbGUiOiJhZG1pbiJ9LCJpYXQiOjE3NjM0MjI1MzEsImV4cCI6MTc2MzUwODkzMX0.LLNommWGUByVVyRKFxt2143R-vCzW_cF9g5JjzkxWS8'
 
 echo "========================================="
-echo "Walter API Endpoint Tests"
+echo "Thesis API Endpoint Tests"
 echo "========================================="
 echo ""
 

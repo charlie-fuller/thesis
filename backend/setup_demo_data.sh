@@ -75,13 +75,13 @@ echo "✅ Created: /tmp/demo_documents/white_rabbit_facts.txt"
 
 # 2. Generic demo document
 cat > /tmp/demo_documents/demo_test_general.txt << 'EOF'
-# Walter Demo Test Document
+# Thesis Demo Test Document
 
 This is a general test document for verifying document upload and processing functionality.
 
-## About Walter
+## About Thesis
 
-Walter is an AI-powered executive assistant designed to help leaders with:
+Thesis is a multi-agent GenAI strategy platform designed to help AI Solutions Partners with:
 
 ### Strategic Planning
 - Long-term vision development
@@ -112,10 +112,11 @@ Walter is an AI-powered executive assistant designed to help leaders with:
 
 ## Technical Architecture
 
-Walter uses:
-- FastAPI backend
+Thesis uses:
+- FastAPI backend with 15 specialized agents
 - Supabase PostgreSQL with pgvector
-- Anthropic Claude Sonnet 4.5
+- Neo4j Aura for knowledge graphs
+- Anthropic Claude
 - Voyage AI embeddings
 - RAG (Retrieval Augmented Generation)
 
@@ -199,7 +200,7 @@ This quarter focuses on three key areas: product innovation, market expansion, a
 - Agile sprint methodology for quick pivots
 - Buffer time built into all timelines
 
-This document demonstrates Walter's ability to handle strategic planning documents and provide context-aware assistance.
+This document demonstrates Thesis's ability to handle strategic planning documents and provide context-aware assistance.
 EOF
 
 echo "✅ Created: /tmp/demo_documents/q1_strategic_priorities.txt"

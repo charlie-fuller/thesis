@@ -194,7 +194,7 @@ ORDER BY a.name, v.version_number;
 
 ## Legacy Files (Deprecated)
 
-The following files are from the original Walter system and are no longer used:
+The following files are from the original system and are no longer used:
 
 - `default.txt` - Legacy fallback template
 - `system_prompt.txt` - Legacy system prompt template
