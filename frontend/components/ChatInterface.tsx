@@ -277,14 +277,20 @@ export default function ChatInterface({
         router.push(`/chat?id=${conversationIdToUse}`)
 
         // Generate a title for the conversation in the background (don't await)
-        apiPost(`/api/conversations/${conversationIdToUse}/generate-title`, {
+        // Include agent name if exactly one agent is selected
+        const titlePayload: { message: string; agent_name?: string } = {
           message: userMessage.content
-        }).then(() => {
-          // Refresh the sidebar to show the new title
-          onConversationCreated?.()
-        }).catch((err) => {
-          logger.warn('Failed to generate conversation title:', err)
-        })
+        }
+        if (selectedAgents.length === 1) {
+          titlePayload.agent_name = selectedAgents[0]
+        }
+        apiPost(`/api/conversations/${conversationIdToUse}/generate-title`, titlePayload)
+          .then(() => {
+            // Refresh the sidebar to show the new title
+            onConversationCreated?.()
+          }).catch((err) => {
+            logger.warn('Failed to generate conversation title:', err)
+          })
 
         // Notify parent that a new conversation was created
         onConversationCreated?.()

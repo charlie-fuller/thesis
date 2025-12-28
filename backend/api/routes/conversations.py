@@ -44,6 +44,7 @@ class ConversationSearchRequest(BaseModel):
 
 class GenerateTitleRequest(BaseModel):
     message: str
+    agent_name: Optional[str] = None  # If provided, prefix title with agent name
 
 
 # ============================================================================
@@ -280,6 +281,7 @@ async def generate_conversation_title(
     """
     Generate a concise title for a conversation based on the initial message.
     Uses Claude to create a short, descriptive title (3-6 words).
+    Optionally prefixes with agent name if a single agent is being used.
     """
     try:
         validate_uuid(conversation_id, "conversation_id")
@@ -301,7 +303,15 @@ Message: {request.message[:500]}"""
         )
 
         # Extract the title from the response
-        title = response.content[0].text.strip()
+        generated_title = response.content[0].text.strip()
+
+        # If agent name provided, prefix the title with it
+        if request.agent_name:
+            # Capitalize agent name for display
+            agent_display = request.agent_name.capitalize()
+            title = f"{agent_display}: {generated_title}"
+        else:
+            title = generated_title
 
         # Ensure title is not too long (max 100 chars for UI)
         if len(title) > 100:

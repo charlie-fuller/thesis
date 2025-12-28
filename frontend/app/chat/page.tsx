@@ -142,7 +142,6 @@ function ChatPageContent() {
       />
 
       <LazyUnifiedWorkspace
-        key={conversationId || timestamp || 'new'}
         clientId={profile.client_id}  // Optional - auto-assigned by backend
         userId={user!.id}
         conversationId={conversationId}
