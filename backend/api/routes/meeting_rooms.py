@@ -739,10 +739,13 @@ async def stream_meeting_chat(
                 'priority': p['priority'],
             }
             for p in participants_result.data
+            if p.get('agents')  # Skip participants with missing agent data
         ]
 
         if not participants:
             raise HTTPException(status_code=400, detail="No participants in meeting")
+
+        logger.info(f"Meeting {meeting_id} has {len(participants)} participants: {[p['agent_name'] for p in participants]}")
 
         # Get message history
         messages_result = await asyncio.to_thread(
