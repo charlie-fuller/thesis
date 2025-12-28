@@ -167,13 +167,86 @@ export default function DocumentUpload({
     e.stopPropagation()
   }, [])
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  // Recursively get all files from a directory entry
+  async function getFilesFromEntry(entry: FileSystemEntry): Promise<File[]> {
+    if (entry.isFile) {
+      return new Promise((resolve) => {
+        (entry as FileSystemFileEntry).file(
+          (file) => resolve([file]),
+          () => resolve([])
+        )
+      })
+    } else if (entry.isDirectory) {
+      const dirReader = (entry as FileSystemDirectoryEntry).createReader()
+      const files: File[] = []
+
+      // Read entries in batches (readEntries may not return all at once)
+      const readEntries = (): Promise<FileSystemEntry[]> => {
+        return new Promise((resolve) => {
+          dirReader.readEntries(
+            (entries) => resolve(entries),
+            () => resolve([])
+          )
+        })
+      }
+
+      let entries = await readEntries()
+      while (entries.length > 0) {
+        for (const childEntry of entries) {
+          const childFiles = await getFilesFromEntry(childEntry)
+          files.push(...childFiles)
+        }
+        entries = await readEntries()
+      }
+
+      return files
+    }
+    return []
+  }
+
+  // Extract all files from dropped items (handles both files and folders)
+  async function getFilesFromDataTransfer(dataTransfer: DataTransfer): Promise<File[]> {
+    const files: File[] = []
+    const items = dataTransfer.items
+
+    // Use DataTransferItemList if available (supports folders)
+    if (items && items.length > 0) {
+      const entries: FileSystemEntry[] = []
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+        if (item.kind === 'file') {
+          const entry = item.webkitGetAsEntry?.()
+          if (entry) {
+            entries.push(entry)
+          } else {
+            // Fallback for browsers without webkitGetAsEntry
+            const file = item.getAsFile()
+            if (file) files.push(file)
+          }
+        }
+      }
+
+      // Process all entries (files and directories)
+      for (const entry of entries) {
+        const entryFiles = await getFilesFromEntry(entry)
+        files.push(...entryFiles)
+      }
+    } else if (dataTransfer.files.length > 0) {
+      // Fallback to files list (doesn't support folders)
+      files.push(...Array.from(dataTransfer.files))
+    }
+
+    return files
+  }
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setIsDragOver(false)
 
-    const files = e.dataTransfer.files
-    if (files && files.length > 0) {
+    const files = await getFilesFromDataTransfer(e.dataTransfer)
+    if (files.length > 0) {
       addFilesToQueue(files)
     }
   }, [fileQueue])

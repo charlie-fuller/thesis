@@ -11,7 +11,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import PageHeader from '@/components/PageHeader'
 import InterfaceHealthPanel from '@/components/InterfaceHealthPanel'
 import GraphStatsPanel from '@/components/GraphStatsPanel'
-import GraphVisualization from '@/components/admin/GraphVisualization'
+import GraphVisualizationPanel from '@/components/admin/GraphVisualizationPanel'
 
 // Lazy load analytics to reduce initial bundle size
 const LazyUsageAnalytics = dynamic(() => import('@/components/LazyUsageAnalytics'), {
@@ -399,13 +399,7 @@ export default function HomePage() {
             {/* Sub-tab Content */}
             {systemSubTab === 'interfaces' && <InterfaceHealthPanel />}
             {systemSubTab === 'graph-data' && <GraphStatsPanel />}
-            {systemSubTab === 'graph-visualization' && (
-              <div className="card p-4">
-                <div className="h-[500px]">
-                  <GraphVisualization />
-                </div>
-              </div>
-            )}
+            {systemSubTab === 'graph-visualization' && <GraphVisualizationPanel />}
           </div>
         )}
 
