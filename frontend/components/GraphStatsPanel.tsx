@@ -24,19 +24,20 @@ interface GraphHealth {
 }
 
 export default function GraphStatsPanel() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<GraphStats | null>(null);
   const [health, setHealth] = useState<GraphHealth | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Wait for auth to complete before fetching data
-    if (authLoading || !user) {
+    // Wait for auth to complete and session to be available before fetching data
+    // This prevents 401 errors from race conditions during auth initialization
+    if (authLoading || !user || !session) {
       return;
     }
     fetchGraphData();
-  }, [authLoading, user]);
+  }, [authLoading, user, session]);
 
   const fetchGraphData = async () => {
     try {

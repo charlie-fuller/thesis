@@ -53,7 +53,7 @@ const ENGAGEMENT_LEVELS = ['champion', 'supporter', 'neutral', 'skeptic', 'block
 
 export default function ThesisDashboard() {
   const router = useRouter()
-  const { user, loading: authLoading, isAdmin } = useAuth()
+  const { user, session, loading: authLoading, isAdmin } = useAuth()
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [recentTranscripts, setRecentTranscripts] = useState<RecentTranscript[]>([])
   const [stats, setStats] = useState<Stats>({
@@ -73,10 +73,12 @@ export default function ThesisDashboard() {
   }, [authLoading, user, router])
 
   useEffect(() => {
-    if (user) {
+    // Wait for both user AND session to be available before making API calls
+    // This prevents 401 errors from race conditions during auth initialization
+    if (user && session) {
       loadDashboardData()
     }
-  }, [user])
+  }, [user, session])
 
   async function loadDashboardData() {
     try {
