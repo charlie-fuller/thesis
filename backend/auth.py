@@ -39,11 +39,22 @@ def decode_jwt(token: str) -> Optional[dict]:
         return None
 
     try:
+        # First, peek at the token header to see what algorithm is used
+        unverified_header = jwt.get_unverified_header(token)
+        token_alg = unverified_header.get('alg', 'HS256')
+        logger.debug(f"Token algorithm: {token_alg}")
+
+        # Supabase uses HS256, but allow the token's algorithm if it's a valid HMAC type
+        allowed_algorithms = ['HS256', 'HS384', 'HS512']
+        if token_alg not in allowed_algorithms:
+            logger.error(f"JWT validation error: Unsupported algorithm {token_alg}")
+            return None
+
         # Decode the JWT token
         payload = jwt.decode(
             token,
             SUPABASE_JWT_SECRET,
-            algorithms=['HS256'],
+            algorithms=allowed_algorithms,
             audience='authenticated'  # Supabase default audience
         )
         return payload
