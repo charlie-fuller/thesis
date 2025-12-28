@@ -1,6 +1,5 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
@@ -25,19 +24,6 @@ export default function PageHeader({
   const { isAdmin } = useAuth()
   const { theme } = useTheme()
   const pathname = usePathname()
-  const [kbDropdownOpen, setKbDropdownOpen] = useState(false)
-  const kbDropdownRef = useRef<HTMLDivElement>(null)
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (kbDropdownRef.current && !kbDropdownRef.current.contains(event.target as Node)) {
-        setKbDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   // Navigation links
   const userLinks = [
@@ -45,12 +31,7 @@ export default function PageHeader({
     { href: '/chat', label: 'Chat' },
     { href: '/meeting-room', label: 'Meeting Room' },
     { href: '/intelligence', label: 'Intelligence' },
-  ]
-
-  // KB dropdown links
-  const kbLinks = [
-    { href: '/admin/documents', label: 'Documents' },
-    { href: '/admin/conversations', label: 'Conversations' },
+    { href: '/kb', label: 'KB' },
   ]
 
   const isActive = (href: string) => {
@@ -87,7 +68,6 @@ export default function PageHeader({
 
             {/* Navigation Links */}
             <div className="hidden md:flex items-center gap-1">
-              {/* User Links */}
               {userLinks.map((link) => (
                 <Link
                   key={link.href}
@@ -102,43 +82,6 @@ export default function PageHeader({
                   {link.label}
                 </Link>
               ))}
-
-              {/* KB Dropdown */}
-              <div className="relative" ref={kbDropdownRef}>
-                <button
-                  onClick={() => setKbDropdownOpen(!kbDropdownOpen)}
-                  className="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-hover flex items-center gap-1"
-                  style={{
-                    color: kbLinks.some(l => isActive(l.href))
-                      ? theme.header_nav_active_color || 'var(--header-nav-active-color)'
-                      : theme.header_nav_color || 'var(--header-nav-color)'
-                  }}
-                >
-                  KB
-                  <svg className={`w-3 h-3 transition-transform ${kbDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {kbDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 py-1 bg-card border border-default rounded-lg shadow-lg min-w-[140px] z-50">
-                    {kbLinks.map((link) => (
-                      <Link
-                        key={link.href}
-                        href={link.href}
-                        onClick={() => setKbDropdownOpen(false)}
-                        className="block px-4 py-2 text-sm transition-colors hover:bg-hover"
-                        style={{
-                          color: isActive(link.href)
-                            ? theme.header_nav_active_color || 'var(--header-nav-active-color)'
-                            : theme.header_nav_color || 'var(--header-nav-color)'
-                        }}
-                      >
-                        {link.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
           </div>
 
