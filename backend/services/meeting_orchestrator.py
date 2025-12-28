@@ -7,6 +7,8 @@ Manages multi-agent conversations in meeting rooms:
 - Streams responses with agent identification
 - Tracks token usage and turn counts
 - Creates vector embeddings for semantic search
+
+Updated: 2025-12-28 - Fixed f-string syntax for Python 3.12+
 """
 
 import asyncio
