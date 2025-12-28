@@ -392,7 +392,7 @@ Drop Neo4j if:
 
 ## Implementation Status
 
-> **Last Updated**: December 27, 2024
+> **Last Updated**: December 28, 2024
 
 ### Completed Components
 
@@ -404,6 +404,8 @@ Drop Neo4j if:
 | Relationship Extractor | Done | `backend/services/graph/relationship_extractor.py` |
 | Query Service | Done | `backend/services/graph/query_service.py` |
 | Graph API Routes | Done | `backend/api/routes/graph.py` |
+| Graph Sync Scheduler | Done | `backend/services/graph_sync_scheduler.py` |
+| Admin Dashboard Integration | Done | Manual sync trigger in System Health panel |
 
 ### Entities Synced
 
@@ -454,6 +456,8 @@ GET  /graph/stats
 POST /graph/sync/full
 POST /graph/sync/incremental
 POST /graph/sync/stakeholders
+POST /graph/sync/trigger              # Manual sync trigger from dashboard
+GET  /graph/sync/scheduler-status     # Get scheduler status
 
 # Stakeholder Network
 GET  /graph/stakeholder/{id}/network
@@ -500,6 +504,7 @@ POST /graph/meetings/{id}/concepts
    - [ ] Build concept co-occurrence graph
 
 3. **Frontend Integration**
+   - [x] Admin dashboard sync trigger button (System Health panel)
    - [ ] Add graph visualization component
    - [ ] Show stakeholder network on profile page
    - [ ] Display influence paths in ROI analysis
