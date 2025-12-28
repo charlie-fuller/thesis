@@ -567,22 +567,22 @@ class GraphQueryService:
 
             // Count other node types independently
             OPTIONAL MATCH (m:Meeting {client_id: $client_id})
-            WITH stakeholder_count, influence_count, reporting_count, attendance_count,
+            WITH stakeholder_count, influence_count, reporting_count, attended_count,
                  insight_count, concern_count, count(DISTINCT m) as meeting_count
 
             OPTIONAL MATCH (d:Document {client_id: $client_id})
-            WITH stakeholder_count, influence_count, reporting_count, attendance_count,
+            WITH stakeholder_count, influence_count, reporting_count, attended_count,
                  insight_count, concern_count, meeting_count, count(DISTINCT d) as document_count
 
             OPTIONAL MATCH (r:ROIOpportunity {client_id: $client_id})
-            WITH stakeholder_count, influence_count, reporting_count, attendance_count,
+            WITH stakeholder_count, influence_count, reporting_count, attended_count,
                  insight_count, concern_count, meeting_count, document_count,
                  count(DISTINCT r) as roi_count
 
             RETURN
                 stakeholder_count, meeting_count, document_count, roi_count,
                 insight_count, concern_count, influence_count, reporting_count,
-                attendance_count
+                attended_count
         """, {"client_id": client_id})
 
         # Helper to extract integer from Neo4j result (handles {low, high} format)
@@ -611,7 +611,7 @@ class GraphQueryService:
             by_type = {
                 'INFLUENCES': to_int(r.get('influence_count', 0)),
                 'REPORTS_TO': to_int(r.get('reporting_count', 0)),
-                'ATTENDED': to_int(r.get('attendance_count', 0)),
+                'ATTENDED': to_int(r.get('attended_count', 0)),
             }
             # Filter out zero counts
             by_type = {k: v for k, v in by_type.items() if v > 0}
