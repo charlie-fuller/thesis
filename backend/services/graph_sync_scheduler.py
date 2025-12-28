@@ -30,12 +30,12 @@ async def _execute_full_sync(client_id: str) -> dict:
     Returns:
         Dict with sync statistics
     """
-    from services.graph import get_graph_sync_service
+    from services.graph import GraphSyncService, get_neo4j_connection
 
-    sync_service = get_graph_sync_service()
-    if not sync_service:
-        raise Exception("Graph sync service not available")
+    supabase = get_supabase()
+    neo4j_connection = await get_neo4j_connection()
 
+    sync_service = GraphSyncService(supabase, neo4j_connection)
     return await sync_service.full_sync(client_id)
 
 
