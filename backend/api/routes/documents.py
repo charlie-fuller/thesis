@@ -172,6 +172,8 @@ async def save_from_chat(
 ):
     """Save a chat response as a markdown document in the knowledge base.
 
+    NOTE: This endpoint was added 2025-12-28. If you see 405 errors, Railway deploy failed.
+
     Args:
         request.title: Document title
         request.content: The markdown content to save
