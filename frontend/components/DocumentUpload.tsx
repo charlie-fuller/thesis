@@ -1,13 +1,21 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { API_BASE_URL } from '@/lib/config'
-import { authenticatedFetch } from '@/lib/api'
+import { authenticatedFetch, apiGet } from '@/lib/api'
+
+interface Agent {
+  id: string
+  name: string
+  display_name: string
+  is_active: boolean
+}
 
 interface DocumentUploadProps {
   clientId?: string  // Optional - backend auto-assigns default client
   apiBaseUrl?: string
   onUploadComplete?: () => void
+  showAgentSelector?: boolean  // Whether to show agent assignment options
 }
 
 interface UploadStatus {
@@ -19,7 +27,8 @@ interface UploadStatus {
 export default function DocumentUpload({
   clientId: _clientId,
   apiBaseUrl = API_BASE_URL,
-  onUploadComplete
+  onUploadComplete,
+  showAgentSelector = false
 }: DocumentUploadProps) {
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>({
     status: 'idle',
@@ -27,6 +36,43 @@ export default function DocumentUpload({
   })
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Agent selection state
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [selectedAgentIds, setSelectedAgentIds] = useState<Set<string>>(new Set())
+  const [isGlobal, setIsGlobal] = useState(true)
+  const [loadingAgents, setLoadingAgents] = useState(false)
+
+  // Load agents when agent selector is enabled
+  useEffect(() => {
+    if (showAgentSelector) {
+      loadAgents()
+    }
+  }, [showAgentSelector])
+
+  async function loadAgents() {
+    try {
+      setLoadingAgents(true)
+      const data = await apiGet<{ agents: Agent[] }>('/api/agents?include_inactive=false')
+      setAgents(data.agents || [])
+    } catch (err) {
+      console.error('Failed to load agents:', err)
+    } finally {
+      setLoadingAgents(false)
+    }
+  }
+
+  function toggleAgentSelection(agentId: string) {
+    setSelectedAgentIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(agentId)) {
+        newSet.delete(agentId)
+      } else {
+        newSet.add(agentId)
+      }
+      return newSet
+    })
+  }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -59,6 +105,11 @@ export default function DocumentUpload({
 
       const formData = new FormData()
       formData.append('file', selectedFile)
+
+      // Add agent IDs if not global and agents are selected
+      if (showAgentSelector && !isGlobal && selectedAgentIds.size > 0) {
+        formData.append('agent_ids', JSON.stringify(Array.from(selectedAgentIds)))
+      }
 
       const uploadResponse = await authenticatedFetch(`${apiBaseUrl}/api/documents/upload`, {
         method: 'POST',
@@ -140,14 +191,84 @@ export default function DocumentUpload({
           accept=".txt,.md,.docx,.doc,.csv,.json,.xml"
           onChange={handleFileSelect}
           disabled={uploadStatus.status === 'uploading' || uploadStatus.status === 'processing'}
-          className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-500 file:text-white hover:file:bg-teal-600"
+          className="block w-full text-sm text-primary border border-default rounded-lg cursor-pointer bg-tertiary focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand file:text-white hover:file:bg-brand-hover"
         />
         {selectedFile && (
-          <p className="text-sm text-gray-600 mt-2">
+          <p className="text-sm text-secondary mt-2">
             Selected: <span className="font-medium">{selectedFile.name}</span> ({(selectedFile.size / 1024).toFixed(1)} KB)
           </p>
         )}
       </div>
+
+      {/* Agent Assignment Selector */}
+      {showAgentSelector && (
+        <div className="mb-4 p-4 bg-tertiary rounded-lg border border-default">
+          <label className="block text-sm font-medium text-primary mb-3">Document Availability</label>
+
+          {/* Global vs Agent-specific toggle */}
+          <div className="flex gap-4 mb-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="documentScope"
+                checked={isGlobal}
+                onChange={() => setIsGlobal(true)}
+                className="w-4 h-4 text-brand focus:ring-brand"
+              />
+              <span className="text-sm text-primary">Global (all agents)</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="documentScope"
+                checked={!isGlobal}
+                onChange={() => setIsGlobal(false)}
+                className="w-4 h-4 text-brand focus:ring-brand"
+              />
+              <span className="text-sm text-primary">Agent-specific</span>
+            </label>
+          </div>
+
+          {/* Agent selection (only shown when agent-specific is selected) */}
+          {!isGlobal && (
+            <div className="mt-3 pt-3 border-t border-default">
+              <p className="text-xs text-muted mb-2">Select which agents can access this document:</p>
+              {loadingAgents ? (
+                <div className="flex items-center gap-2 text-sm text-muted">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand"></div>
+                  Loading agents...
+                </div>
+              ) : agents.length === 0 ? (
+                <p className="text-sm text-muted">No agents available</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                  {agents.map(agent => (
+                    <label
+                      key={agent.id}
+                      className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors ${
+                        selectedAgentIds.has(agent.id)
+                          ? 'bg-brand/10 border-brand'
+                          : 'bg-secondary border-default hover:border-brand/50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedAgentIds.has(agent.id)}
+                        onChange={() => toggleAgentSelection(agent.id)}
+                        className="w-4 h-4 text-brand focus:ring-brand rounded"
+                      />
+                      <span className="text-sm text-primary truncate">{agent.display_name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {!isGlobal && selectedAgentIds.size === 0 && agents.length > 0 && (
+                <p className="text-xs text-amber-600 mt-2">Select at least one agent, or choose &quot;Global&quot; to make available to all.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Upload Button */}
       <button

@@ -1673,26 +1673,30 @@ async def dig_deeper_section(
             section_request.section_id.replace("_", " ")
         )
 
-        # Build the section expansion prompt
-        expansion_prompt = f"""The user clicked on an inline "dig deeper" link requesting more detail on: **{section_topic}**
+        # Build the section expansion prompt - CONCISE expansion
+        expansion_prompt = f"""The user clicked "dig deeper" on: **{section_topic}**
 
-Your previous response was:
+Original response (for context only - do NOT repeat):
 ---
 {section_request.original_content}
 ---
 
-Please provide a focused expansion on just the "{section_topic}" topic. Guidelines:
-- Provide 200-400 words of additional detail
-- Stay focused on this specific topic - don't repeat the full response
-- Include specific examples, metrics, or actionable details
-- Maintain the same professional tone and formatting style
-- Use bullets or tables if they help clarity
-- If relevant, include additional dig-deeper links using [link text](dig-deeper:section_id) format
+EXPAND ONLY the "{section_topic}" topic. STRICT RULES:
 
-DO NOT:
-- Repeat the summary or main points already covered
-- Provide generic information - be specific and actionable
-- Exceed 400 words - this is an expansion, not a full new response"""
+1. MAXIMUM 100-150 words - this is a focused mini-expansion, NOT a full response
+2. Start IMMEDIATELY with the first useful detail - no intro sentences
+3. Use 3-5 bullet points MAX
+4. Include ONE specific example or metric if relevant
+5. NO paragraphs - bullets only
+6. Do NOT repeat anything from the original response
+7. Do NOT add dig-deeper links in expansions (keep them simple)
+
+FORMAT:
+- Bullet 1: specific detail
+- Bullet 2: specific detail
+- Bullet 3: example or metric
+
+That's it. Keep it SHORT."""
 
         # Load system instructions
         try:
@@ -1731,7 +1735,7 @@ DO NOT:
         # Generate the expansion (non-streaming for inline insertion)
         response = anthropic_client.messages.create(
             model="claude-sonnet-4-5-20250929",
-            max_tokens=1024,  # Shorter for focused expansion
+            max_tokens=400,  # Short - ~100-150 words max for focused expansion
             temperature=0.3,
             system=[
                 {

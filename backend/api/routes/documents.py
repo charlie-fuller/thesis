@@ -3,11 +3,12 @@ Document management routes
 Handles document upload, processing, retrieval, and deletion
 """
 import asyncio
+import json
 import os
 import uuid
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 
 from auth import get_current_user, require_admin
 from config import get_default_client_id
@@ -30,9 +31,16 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    agent_ids: Optional[str] = Form(None),  # JSON array of agent IDs, or empty for global
     current_user: dict = Depends(get_current_user)
 ):
-    """Upload a document to Supabase Storage and create database record"""
+    """Upload a document to Supabase Storage and create database record.
+
+    Args:
+        file: The file to upload
+        agent_ids: JSON array of agent IDs to link the document to (e.g., '["uuid1", "uuid2"]').
+                   If empty/null, document is global (available to all agents via RAG).
+    """
     try:
         # Validate file
         validate_file_upload(file)
@@ -40,6 +48,17 @@ async def upload_document(
         # Read file content
         file_content = await file.read()
         validate_file_size(file_content)
+
+        # Parse agent_ids if provided
+        parsed_agent_ids: List[str] = []
+        if agent_ids and agent_ids.strip():
+            try:
+                parsed_agent_ids = json.loads(agent_ids)
+                if not isinstance(parsed_agent_ids, list):
+                    parsed_agent_ids = [parsed_agent_ids] if parsed_agent_ids else []
+            except json.JSONDecodeError:
+                # Maybe it's a single ID
+                parsed_agent_ids = [agent_ids] if agent_ids else []
 
         # Auto-assign default client
         client_id = current_user.get('client_id') or get_default_client_id()
@@ -65,6 +84,8 @@ async def upload_document(
         storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
 
         # Create database record
+        # Note: If document is linked to specific agents, it's agent-specific.
+        # If not linked to any agent (parsed_agent_ids empty), it's global (available to all).
         doc_record = {
             'client_id': client_id,
             'uploaded_by': user_id,
@@ -81,17 +102,42 @@ async def upload_document(
         )
 
         document = result.data[0]
+        document_id = document['id']
 
-        logger.info(f"✅ Document uploaded: {document['id']}")
+        logger.info(f"Document uploaded: {document_id}")
+
+        # Link to specific agents if provided
+        linked_agents = []
+        if parsed_agent_ids:
+            for agent_id in parsed_agent_ids:
+                try:
+                    validate_uuid(agent_id, "agent_id")
+                    link_result = await asyncio.to_thread(
+                        lambda aid=agent_id: supabase.table('agent_knowledge_base').insert({
+                            'agent_id': aid,
+                            'document_id': document_id,
+                            'added_by': user_id,
+                            'priority': 0
+                        }).execute()
+                    )
+                    linked_agents.append(agent_id)
+                    logger.info(f"Linked document {document_id} to agent {agent_id}")
+                except Exception as link_error:
+                    logger.warning(f"Failed to link document to agent {agent_id}: {link_error}")
 
         # Automatically trigger processing in background
-        background_tasks.add_task(process_document, document['id'])
-        logger.info(f"📋 Processing queued for document: {document['id']}")
+        background_tasks.add_task(process_document, document_id)
+        logger.info(f"Processing queued for document: {document_id}")
+
+        # Determine if global (no specific agents) or agent-specific
+        is_global = len(parsed_agent_ids) == 0
 
         return {
             'success': True,
-            'document_id': document['id'],
+            'document_id': document_id,
             'filename': file.filename,
+            'is_global': is_global,
+            'linked_agents': linked_agents,
             'message': 'Document uploaded successfully. Processing started in background.'
         }
 

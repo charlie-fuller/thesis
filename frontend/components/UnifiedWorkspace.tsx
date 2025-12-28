@@ -11,14 +11,12 @@ interface UnifiedWorkspaceProps {
   clientId?: string  // Optional - backend auto-assigns default client
   userId: string
   conversationId?: string
-  initialProjectId?: string | null  // Auto-assign new conversations to this project
 }
 
 export default function UnifiedWorkspace({
   clientId,
   userId,
-  conversationId,
-  initialProjectId
+  conversationId
 }: UnifiedWorkspaceProps) {
   useAuth()  // Auth context is used for component initialization
 
@@ -92,7 +90,6 @@ export default function UnifiedWorkspace({
             userId={userId}
             conversationId={conversationId}
             onConversationCreated={handleConversationCreated}
-            initialProjectId={initialProjectId}
           />
         </div>
 

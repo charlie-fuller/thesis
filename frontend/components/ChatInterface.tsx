@@ -9,11 +9,7 @@ import { AgentIcon, getAgentColor } from './AgentIcon'
 import {
   authenticatedFetch,
   apiGet,
-  apiPost,
-  getProjects,
-  addConversationToProject,
-  removeConversationFromProject,
-  type Project
+  apiPost
 } from '@/lib/api'
 import toast from 'react-hot-toast'
 import { API_BASE_URL } from '@/lib/config'
@@ -42,7 +38,6 @@ interface ChatInterfaceProps {
   initialPromptText?: string | null
   onPromptUsed?: () => void
   onConversationCreated?: () => void
-  initialProjectId?: string | null  // Auto-assign new conversations to this project
 }
 
 export default function ChatInterface({
@@ -54,8 +49,7 @@ export default function ChatInterface({
   apiBaseUrl: _apiBaseUrl = API_BASE_URL,
   initialPromptText,
   onPromptUsed,
-  onConversationCreated,
-  initialProjectId
+  onConversationCreated
 }: ChatInterfaceProps) {
   const router = useRouter()
   const [messages, setMessages] = useState<Message[]>([])
@@ -76,12 +70,6 @@ export default function ChatInterface({
   const [isSendingFirstMessage, setIsSendingFirstMessage] = useState(false) // Track when creating new conversation
   const [digDeeperLoading, setDigDeeperLoading] = useState<string | null>(null) // Track which message is being elaborated
 
-  // Project assignment state
-  const [projects, setProjects] = useState<Project[]>([])
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
-  const [showProjectDropdown, setShowProjectDropdown] = useState(false)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- loadingProjects kept for future loading state UI
-  const [_loadingProjects, setLoadingProjects] = useState(false)
 
   // Context window tracking - Claude Sonnet 4 has 200K token context
   const CLAUDE_CONTEXT_WINDOW = 200000
@@ -147,66 +135,6 @@ export default function ChatInterface({
       onPromptUsed?.()
     }
   }, [initialPromptText, onPromptUsed])
-
-  // Load projects for assignment dropdown
-  useEffect(() => {
-    loadProjects()
-  }, [])
-
-  // Load conversation's current project when conversation changes
-  useEffect(() => {
-    if (currentConversationId) {
-      loadConversationProject(currentConversationId)
-    } else {
-      setCurrentProjectId(null)
-    }
-  }, [currentConversationId])
-
-  async function loadProjects() {
-    try {
-      setLoadingProjects(true)
-      const response = await getProjects('active')
-      if (response.success) {
-        setProjects(response.projects)
-      }
-    } catch (err) {
-      logger.error('Error loading projects:', err)
-    } finally {
-      setLoadingProjects(false)
-    }
-  }
-
-  async function loadConversationProject(convId: string) {
-    try {
-      const data = await apiGet<{ project_id?: string | null }>(`/api/conversations/${convId}`)
-      setCurrentProjectId(data.project_id || null)
-    } catch (err) {
-      logger.error('Error loading conversation project:', err)
-    }
-  }
-
-  async function handleAssignToProject(projectId: string | null) {
-    if (!currentConversationId) {
-      toast.error('Save the conversation first by sending a message')
-      return
-    }
-
-    try {
-      if (projectId) {
-        await addConversationToProject(projectId, currentConversationId)
-        const project = projects.find(p => p.id === projectId)
-        toast.success(`Added to "${project?.title || 'project'}"`)
-      } else if (currentProjectId) {
-        await removeConversationFromProject(currentProjectId, currentConversationId)
-        toast.success('Removed from project')
-      }
-      setCurrentProjectId(projectId)
-      setShowProjectDropdown(false)
-    } catch (err) {
-      logger.error('Error updating project assignment:', err)
-      toast.error('Failed to update project')
-    }
-  }
 
   async function loadConversation(convId?: string) {
     const idToLoad = convId || currentConversationId
@@ -344,17 +272,6 @@ export default function ChatInterface({
 
         // Update URL to include the conversation ID
         router.push(`/chat?id=${conversationIdToUse}`)
-
-        // Auto-assign to project if initialProjectId was provided
-        if (initialProjectId) {
-          try {
-            await addConversationToProject(initialProjectId, conversationIdToUse)
-            setCurrentProjectId(initialProjectId)
-          } catch (err) {
-            logger.error('Failed to auto-assign conversation to project:', err)
-            // Don't fail the whole operation, just log the error
-          }
-        }
 
         // Notify parent that a new conversation was created
         onConversationCreated?.()
@@ -708,75 +625,8 @@ export default function ChatInterface({
     }
   }, [searchQuery, messages])
 
-  const currentProject = projects.find(p => p.id === currentProjectId)
-
   return (
     <div className="flex flex-col h-full page-bg">
-      {/* Project assignment bar - only show when there's a conversation */}
-      {currentConversationId && (
-        <div className="border-b border-default px-4 py-2 flex items-center justify-between bg-card">
-          <div className="relative">
-            <button
-              onClick={() => setShowProjectDropdown(!showProjectDropdown)}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md hover:bg-hover transition-colors"
-            >
-              <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-              </svg>
-              {currentProject ? (
-                <span className="text-primary font-medium">{currentProject.title}</span>
-              ) : (
-                <span className="text-muted">Add to project...</span>
-              )}
-              <svg className="w-3 h-3 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {/* Dropdown */}
-            {showProjectDropdown && (
-              <div className="absolute top-full left-0 mt-1 w-64 bg-card border border-default rounded-lg shadow-lg z-50">
-                <div className="py-1">
-                  {currentProjectId && (
-                    <button
-                      onClick={() => handleAssignToProject(null)}
-                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-hover flex items-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      Remove from project
-                    </button>
-                  )}
-                  {projects.length === 0 ? (
-                    <div className="px-4 py-3 text-sm text-muted">
-                      No projects yet. Create one from the Projects page.
-                    </div>
-                  ) : (
-                    projects.map(project => (
-                      <button
-                        key={project.id}
-                        onClick={() => handleAssignToProject(project.id)}
-                        className={`w-full text-left px-4 py-2 text-sm hover:bg-hover flex items-center justify-between ${
-                          project.id === currentProjectId ? 'bg-accent' : ''
-                        }`}
-                      >
-                        <span className="text-primary truncate">{project.title}</span>
-                        {project.id === currentProjectId && (
-                          <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Messages area */}
       <div
         ref={messagesContainerRef}

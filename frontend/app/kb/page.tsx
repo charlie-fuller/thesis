@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import PageHeader from '@/components/PageHeader'
@@ -8,7 +8,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import dynamic from 'next/dynamic'
 
 // Lazy load the heavy components
-const DocumentsContent = dynamic(() => import('@/components/admin/DocumentsContent'), {
+const KBDocumentsContent = dynamic(() => import('@/components/kb/KBDocumentsContent'), {
   loading: () => <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div></div>
 })
 
@@ -74,7 +74,11 @@ export default function KnowledgeBasePage() {
           </div>
 
           {/* Tab Content */}
-          {activeTab === 'documents' && <DocumentsContent />}
+          {activeTab === 'documents' && (
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div></div>}>
+              <KBDocumentsContent />
+            </Suspense>
+          )}
           {activeTab === 'conversations' && <ConversationsContent />}
         </div>
       </div>

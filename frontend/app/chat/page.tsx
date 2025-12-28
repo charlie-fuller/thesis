@@ -17,7 +17,6 @@ function ChatPageContent() {
   const searchParams = useSearchParams()
   const conversationId = searchParams.get('id') || undefined
   const timestamp = searchParams.get('t') || undefined
-  const projectId = searchParams.get('project') || undefined
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
 
   // Redirect to login if not authenticated
@@ -147,7 +146,6 @@ function ChatPageContent() {
         clientId={profile.client_id}  // Optional - auto-assigned by backend
         userId={user!.id}
         conversationId={conversationId}
-        initialProjectId={projectId}
       />
     </>
   )

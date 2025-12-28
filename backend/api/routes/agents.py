@@ -156,7 +156,7 @@ async def list_agents(
                 "conversations_count": convs_result.count or 0,
             })
 
-        return {"agents": agents}
+        return {"success": True, "agents": agents}
 
     except Exception as e:
         logger.error(f"Failed to list agents: {e}")
