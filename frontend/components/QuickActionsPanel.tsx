@@ -51,15 +51,25 @@ export default function QuickActionsPanel() {
           supabase.status === 'connected' &&
           railway.status === 'running'
         ) {
-          // Check if auxiliary services have actual errors (not just unknown/idle/not_configured)
-          const anthropicOk = anthropic.status !== 'error' && anthropic.status !== 'down';
-          const voyageOk = voyageAI.status !== 'error' && voyageAI.status !== 'down';
-          const neo4jOk = neo4j.status !== 'error' && neo4j.status !== 'down';
+          // Check if auxiliary services have actual errors
+          const errorStatuses = ['error', 'down', 'auth_error'];
+          const warningStatuses = ['not_configured', 'rate_limited'];
 
-          if (anthropicOk && voyageOk && neo4jOk) {
+          const anthropicError = errorStatuses.includes(anthropic.status);
+          const voyageError = errorStatuses.includes(voyageAI.status);
+          const neo4jError = errorStatuses.includes(neo4j.status);
+
+          const anthropicWarning = warningStatuses.includes(anthropic.status);
+          const voyageWarning = warningStatuses.includes(voyageAI.status);
+          const neo4jWarning = warningStatuses.includes(neo4j.status);
+
+          if (anthropicError || voyageError || neo4jError) {
+            setSystemStatus('degraded');
+          } else if (anthropicWarning || voyageWarning || neo4jWarning) {
+            // Warnings are still considered healthy overall, but could show degraded if desired
             setSystemStatus('healthy');
           } else {
-            setSystemStatus('degraded');
+            setSystemStatus('healthy');
           }
         }
         // Some services degraded but system functional
@@ -162,8 +172,15 @@ export default function QuickActionsPanel() {
   const formatAnthropicStatus = () => {
     const status = healthMetrics.anthropic?.status || 'checking';
     const latency = healthMetrics.anthropic?.latency || 0;
+
+    // Handle special statuses
+    if (status === 'not_configured') return 'Not Set';
+    if (status === 'auth_error') return 'Auth Error';
+    if (status === 'rate_limited') return 'Rate Limited';
+    if (status === 'error') return 'Error';
+
     if (latency > 0) {
-      return `${status.charAt(0).toUpperCase() + status.slice(1)} (${latency.toFixed(1)}s)`;
+      return `Connected (${latency.toFixed(1)}s)`;
     }
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
@@ -171,8 +188,15 @@ export default function QuickActionsPanel() {
   const formatVoyageStatus = () => {
     const status = healthMetrics.voyageAI?.status || 'checking';
     const latency = healthMetrics.voyageAI?.latency || 0;
+
+    // Handle special statuses
+    if (status === 'not_configured') return 'Not Set';
+    if (status === 'auth_error') return 'Auth Error';
+    if (status === 'rate_limited') return 'Rate Limited';
+    if (status === 'error') return 'Error';
+
     if (latency > 0) {
-      return `${status.charAt(0).toUpperCase() + status.slice(1)} (${latency.toFixed(1)}s)`;
+      return `Connected (${latency.toFixed(1)}s)`;
     }
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
@@ -196,11 +220,13 @@ export default function QuickActionsPanel() {
     const status = healthMetrics.anthropic?.status || 'checking';
     const latency = healthMetrics.anthropic?.latency || 0;
 
-    if (status === 'error' || status === 'down') return 'text-red-400';
+    if (status === 'error' || status === 'down' || status === 'auth_error') return 'text-red-400';
+    if (status === 'not_configured') return 'text-yellow-400';
+    if (status === 'rate_limited') return 'text-orange-400';
     if (status === 'checking') return 'text-secondary';
     if (status === 'idle') return 'text-blue-400';
 
-    // Color based on latency if active
+    // Color based on latency if connected
     if (latency === 0) return 'text-green-400';
     if (latency <= 2) return 'text-green-400';
     if (latency <= 5) return 'text-yellow-400';
@@ -211,11 +237,13 @@ export default function QuickActionsPanel() {
     const status = healthMetrics.voyageAI?.status || 'checking';
     const latency = healthMetrics.voyageAI?.latency || 0;
 
-    if (status === 'error' || status === 'down') return 'text-red-400';
+    if (status === 'error' || status === 'down' || status === 'auth_error') return 'text-red-400';
+    if (status === 'not_configured') return 'text-yellow-400';
+    if (status === 'rate_limited') return 'text-orange-400';
     if (status === 'checking') return 'text-secondary';
     if (status === 'idle') return 'text-blue-400';
 
-    // Color based on latency if active
+    // Color based on latency if connected
     if (latency === 0) return 'text-green-400';
     if (latency <= 2) return 'text-green-400';
     if (latency <= 5) return 'text-yellow-400';

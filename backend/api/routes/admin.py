@@ -12,6 +12,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
+import os
+
 from auth import require_admin
 from database import get_supabase
 from logger_config import get_logger
@@ -444,63 +446,94 @@ async def get_system_health(
             'uptime': True
         }
 
-        # 3. Check Anthropic (Claude) - Check recent AI interactions
+        # 3. Check Anthropic (Claude) - Make a real API call to verify connectivity
         try:
-            one_hour_ago = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
-            recent_messages = await asyncio.to_thread(
-                lambda: supabase.table('messages')\
-                    .select('role, created_at')\
-                    .eq('role', 'assistant')\
-                    .gte('created_at', one_hour_ago)\
-                    .limit(1)\
-                    .execute()
-            )
-
-            if recent_messages.data and len(recent_messages.data) > 0:
+            import anthropic
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not api_key:
                 health_data['anthropic'] = {
-                    'status': 'active',
-                    'latency': 1.2  # TODO: Track actual response times
-                }
-            else:
-                health_data['anthropic'] = {
-                    'status': 'idle',
+                    'status': 'not_configured',
                     'latency': 0
                 }
+            else:
+                anthropic_start = time.time()
+                client = anthropic.Anthropic(api_key=api_key)
+                # Use count_tokens as a lightweight health check (doesn't consume tokens)
+                await asyncio.to_thread(
+                    lambda: client.messages.count_tokens(
+                        model="claude-sonnet-4-20250514",
+                        messages=[{"role": "user", "content": "health check"}]
+                    )
+                )
+                anthropic_latency = round(time.time() - anthropic_start, 2)
+                health_data['anthropic'] = {
+                    'status': 'connected',
+                    'latency': anthropic_latency
+                }
+        except anthropic.AuthenticationError:
+            logger.error("❌ Anthropic authentication failed - invalid API key")
+            health_data['anthropic'] = {
+                'status': 'auth_error',
+                'latency': 0
+            }
+        except anthropic.RateLimitError:
+            # Rate limited but API key is valid
+            health_data['anthropic'] = {
+                'status': 'rate_limited',
+                'latency': 0
+            }
         except Exception as e:
             logger.error(f"❌ Anthropic health check failed: {str(e)}")
             health_data['anthropic'] = {
-                'status': 'unknown',
+                'status': 'error',
                 'latency': 0
             }
 
-        # 4. Check Voyage AI (Embeddings) - Check if embeddings service is available
+        # 4. Check Voyage AI (Embeddings) - Make a real API call to verify connectivity
         try:
-            # Check if we have recent documents with embeddings
-            one_day_ago = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
-            recent_docs = await asyncio.to_thread(
-                lambda: supabase.table('documents')\
-                    .select('id')\
-                    .gte('uploaded_at', one_day_ago)\
-                    .limit(1)\
-                    .execute()
-            )
-
-            if recent_docs.data and len(recent_docs.data) > 0:
+            import voyageai
+            api_key = os.getenv("VOYAGE_API_KEY")
+            if not api_key:
                 health_data['voyageAI'] = {
-                    'status': 'active',
-                    'latency': 0.8  # TODO: Track actual embedding times
-                }
-            else:
-                health_data['voyageAI'] = {
-                    'status': 'idle',
+                    'status': 'not_configured',
                     'latency': 0
                 }
+            else:
+                voyage_start = time.time()
+                vo = voyageai.Client(api_key=api_key)
+                # Make a minimal embedding call as health check
+                await asyncio.to_thread(
+                    lambda: vo.embed(
+                        texts=["health check"],
+                        model="voyage-large-2",
+                        input_type="query"
+                    )
+                )
+                voyage_latency = round(time.time() - voyage_start, 2)
+                health_data['voyageAI'] = {
+                    'status': 'connected',
+                    'latency': voyage_latency
+                }
         except Exception as e:
-            logger.error(f"❌ Voyage AI health check failed: {str(e)}")
-            health_data['voyageAI'] = {
-                'status': 'unknown',
-                'latency': 0
-            }
+            error_str = str(e).lower()
+            if 'authentication' in error_str or 'unauthorized' in error_str or 'api key' in error_str:
+                logger.error("❌ Voyage AI authentication failed - invalid API key")
+                health_data['voyageAI'] = {
+                    'status': 'auth_error',
+                    'latency': 0
+                }
+            elif 'rate limit' in error_str or 'too many requests' in error_str:
+                # Rate limited but API key is valid
+                health_data['voyageAI'] = {
+                    'status': 'rate_limited',
+                    'latency': 0
+                }
+            else:
+                logger.error(f"❌ Voyage AI health check failed: {str(e)}")
+                health_data['voyageAI'] = {
+                    'status': 'error',
+                    'latency': 0
+                }
 
         # 5. Check Neo4j (Graph Database) Health
         neo4j_time = 0
