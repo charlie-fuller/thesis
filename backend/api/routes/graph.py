@@ -711,3 +711,91 @@ async def trigger_sync(
     except Exception as e:
         logger.error(f"Failed to trigger sync: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Visualization Endpoints
+# =============================================================================
+
+@router.get("/visualization")
+async def get_visualization_data(
+    limit: int = Query(default=500, ge=1, le=1000),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get graph data formatted for visualization (react-force-graph-2d).
+
+    Returns nodes and links arrays suitable for force-directed graph rendering.
+    """
+    try:
+        connection = await get_neo4j_connection()
+        client_id = current_user["client_id"]
+
+        # Query all nodes and relationships for this client
+        # Include global nodes (Agents, Expertise) that don't have client_id
+        result = await connection.execute_query("""
+            // Get client-specific nodes
+            MATCH (n)
+            WHERE n.client_id = $client_id OR n:Agent OR n:Expertise
+            WITH collect(DISTINCT n) as nodes
+
+            // Get relationships between these nodes
+            UNWIND nodes as n
+            OPTIONAL MATCH (n)-[r]->(m)
+            WHERE m IN nodes
+
+            WITH nodes, collect(DISTINCT {
+                source: id(startNode(r)),
+                target: id(endNode(r)),
+                type: type(r),
+                sourceId: startNode(r).id,
+                targetId: endNode(r).id
+            }) as rels
+
+            // Format nodes for visualization
+            UNWIND nodes as node
+            WITH rels, collect(DISTINCT {
+                id: node.id,
+                neo4jId: id(node),
+                label: labels(node)[0],
+                name: COALESCE(node.name, node.display_name, node.filename, node.title, labels(node)[0]),
+                properties: properties(node)
+            }) as formattedNodes
+
+            RETURN formattedNodes as nodes,
+                   [r IN rels WHERE r.source IS NOT NULL | {
+                       source: r.sourceId,
+                       target: r.targetId,
+                       type: r.type
+                   }] as links
+        """, {"client_id": client_id})
+
+        if result and len(result) > 0:
+            data = result[0]
+            nodes = data.get("nodes", [])
+            links = data.get("links", [])
+
+            # Apply limit to nodes if needed
+            if len(nodes) > limit:
+                nodes = nodes[:limit]
+                # Filter links to only include those between limited nodes
+                node_ids = {n["id"] for n in nodes}
+                links = [l for l in links if l["source"] in node_ids and l["target"] in node_ids]
+
+            return {
+                "nodes": nodes,
+                "links": links,
+                "total_nodes": len(nodes),
+                "total_links": len(links)
+            }
+
+        return {
+            "nodes": [],
+            "links": [],
+            "total_nodes": 0,
+            "total_links": 0
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get visualization data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

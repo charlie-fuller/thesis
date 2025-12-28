@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { apiGet, apiPost } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import LoadingSpinner from './LoadingSpinner';
@@ -158,9 +159,17 @@ export default function GraphStatsPanel() {
     <div className="card p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-primary">Knowledge Graph</h2>
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-green-500"></span>
-          <span className="text-xs text-secondary">Connected</span>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/knowledge-graph"
+            className="text-xs text-purple-400 hover:text-purple-300 hover:underline"
+          >
+            View Full Graph
+          </Link>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-500"></span>
+            <span className="text-xs text-secondary">Connected</span>
+          </div>
         </div>
       </div>
 
