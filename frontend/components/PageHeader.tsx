@@ -89,26 +89,21 @@ export default function PageHeader({
                 </Link>
               ))}
 
-              {/* Admin Links with separator */}
-              {isAdmin && (
-                <>
-                  <div className="w-px h-6 bg-border mx-2" />
-                  {adminLinks.map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-hover"
-                      style={{
-                        color: isActive(link.href)
-                          ? theme.header_nav_active_color || 'var(--header-nav-active-color)'
-                          : theme.header_nav_color || 'var(--header-nav-color)'
-                      }}
-                    >
-                      {link.label}
-                    </Link>
-                  ))}
-                </>
-              )}
+              {/* Admin Links */}
+              {isAdmin && adminLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-hover"
+                  style={{
+                    color: isActive(link.href)
+                      ? theme.header_nav_active_color || 'var(--header-nav-active-color)'
+                      : theme.header_nav_color || 'var(--header-nav-color)'
+                  }}
+                >
+                  {link.label}
+                </Link>
+              ))}
             </div>
           </div>
 
