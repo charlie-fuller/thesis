@@ -236,7 +236,10 @@ async def _anthropic_web_search(query: str, max_results: int) -> list[WebSource]
         # Use Claude with web search tool
         # web_search_20250305 requires Claude 3.5/3.7 Sonnet or Haiku
         # Claude 4 models do NOT support web search yet
-        response = client.messages.create(
+        # Run sync client in executor to avoid blocking event loop
+        import asyncio
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(None, lambda: client.messages.create(
             model="claude-3-7-sonnet-20250219",
             max_tokens=4096,
             tools=[
@@ -267,7 +270,9 @@ For each source found, I need:
 Please search thoroughly and return the most credible and relevant sources."""
                 }
             ]
-        )
+        ))
+
+        logger.info(f"Web search API call completed, extracting sources...")
 
         # Extract sources from the response
         sources = _extract_sources_from_response(response)
@@ -276,10 +281,10 @@ Please search thoroughly and return the most credible and relevant sources."""
         return sources[:max_results]
 
     except anthropic.APIError as e:
-        logger.error(f"Anthropic API error during web search: {e}")
+        logger.error(f"Anthropic API error during web search: {e}", exc_info=True)
         return []
     except Exception as e:
-        logger.error(f"Web search failed: {e}")
+        logger.error(f"Web search failed: {type(e).__name__}: {e}", exc_info=True)
         return []
 
 
