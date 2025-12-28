@@ -34,6 +34,10 @@ def decode_jwt(token: str) -> Optional[dict]:
     Returns:
         dict: Decoded token payload if valid, None otherwise
     """
+    if not SUPABASE_JWT_SECRET:
+        logger.error("JWT validation failed: SUPABASE_JWT_SECRET is not set")
+        return None
+
     try:
         # Decode the JWT token
         payload = jwt.decode(
@@ -43,8 +47,17 @@ def decode_jwt(token: str) -> Optional[dict]:
             audience='authenticated'  # Supabase default audience
         )
         return payload
+    except jwt.ExpiredSignatureError:
+        logger.error("JWT validation error: Token has expired")
+        return None
+    except jwt.InvalidAudienceError:
+        logger.error("JWT validation error: Invalid audience claim")
+        return None
+    except jwt.InvalidSignatureError:
+        logger.error("JWT validation error: Signature verification failed - check SUPABASE_JWT_SECRET")
+        return None
     except PyJWTError as e:
-        logger.error(f"JWT validation error: {e}")
+        logger.error(f"JWT validation error: {type(e).__name__}: {e}")
         return None
 
 
