@@ -148,19 +148,19 @@ export default function IntelligencePage() {
     }
   }, [authLoading, user, router])
 
-  // Load data when authenticated
+  // Load data when authenticated and auth is fully ready
   useEffect(() => {
-    if (user && session) {
+    if (!authLoading && user && session) {
       loadStakeholderData()
       loadAgentData()
     }
-  }, [user, session])
+  }, [authLoading, user, session])
 
   useEffect(() => {
-    if (user && session && activeTab === 'stakeholders') {
+    if (!authLoading && user && session && activeTab === 'stakeholders') {
       loadStakeholderData()
     }
-  }, [filterDepartment, filterEngagement, user, session])
+  }, [authLoading, filterDepartment, filterEngagement, user, session])
 
   async function handleCreateStakeholder(e: React.FormEvent) {
     e.preventDefault()

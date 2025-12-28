@@ -32,7 +32,7 @@ interface Message {
 }
 
 export default function ConversationsContent() {
-  const { user, session } = useAuth()
+  const { user, session, loading: authLoading } = useAuth()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,10 +44,10 @@ export default function ConversationsContent() {
   const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
-    if (user && session) {
+    if (!authLoading && user && session) {
       loadConversations()
     }
-  }, [user, session])
+  }, [authLoading, user, session])
 
   const loadConversations = async () => {
     try {

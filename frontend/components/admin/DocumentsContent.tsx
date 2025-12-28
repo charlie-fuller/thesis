@@ -29,7 +29,7 @@ interface DocumentDetails extends Document {
 }
 
 export default function DocumentsContent() {
-  const { user, session } = useAuth()
+  const { user, session, loading: authLoading } = useAuth()
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -60,19 +60,19 @@ export default function DocumentsContent() {
   })
 
   useEffect(() => {
-    if (!user || !session) return
+    if (authLoading || !user || !session) return
     const timer = setTimeout(() => {
       setOffset(0)
       loadDocuments()
     }, 300)
     return () => clearTimeout(timer)
-  }, [searchQuery, selectedType, selectedStatus, dateRange, sortBy, sortOrder, user, session])
+  }, [authLoading, searchQuery, selectedType, selectedStatus, dateRange, sortBy, sortOrder, user, session])
 
   useEffect(() => {
-    if (user && session) {
+    if (!authLoading && user && session) {
       loadDocuments()
     }
-  }, [offset, limit, user, session])
+  }, [authLoading, offset, limit, user, session])
 
   const loadDocuments = async () => {
     try {
