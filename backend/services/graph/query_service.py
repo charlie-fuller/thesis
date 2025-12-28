@@ -543,7 +543,11 @@ class GraphQueryService:
             client_id: Client ID
 
         Returns:
-            Dict with node and relationship counts
+            Dict with node and relationship counts in format expected by frontend:
+            {
+                nodes: { total: int, by_label: { label: count, ... } },
+                relationships: { total: int, by_type: { type: count, ... } }
+            }
         """
         # Use OPTIONAL MATCH from the start to handle empty graphs gracefully
         result = await self.neo4j.execute_query("""
@@ -557,7 +561,7 @@ class GraphQueryService:
             WITH count(DISTINCT s) as stakeholder_count,
                  count(DISTINCT influences) as influence_count,
                  count(DISTINCT reports) as reporting_count,
-                 count(DISTINCT attended) as attendance_count,
+                 count(DISTINCT attended) as attended_count,
                  count(DISTINCT i) as insight_count,
                  count(DISTINCT c) as concern_count
 
@@ -575,26 +579,58 @@ class GraphQueryService:
                  insight_count, concern_count, meeting_count, document_count,
                  count(DISTINCT r) as roi_count
 
-            RETURN {
-                nodes: {
-                    stakeholders: stakeholder_count,
-                    meetings: meeting_count,
-                    documents: document_count,
-                    roi_opportunities: roi_count,
-                    insights: insight_count,
-                    concerns: concern_count
-                },
-                relationships: {
-                    influences: influence_count,
-                    reports_to: reporting_count,
-                    attended: attendance_count
-                }
-            } as stats
+            RETURN
+                stakeholder_count, meeting_count, document_count, roi_count,
+                insight_count, concern_count, influence_count, reporting_count,
+                attendance_count
         """, {"client_id": client_id})
 
-        if result:
-            return result[0]["stats"]
-        return {"nodes": {}, "relationships": {}}
+        # Helper to extract integer from Neo4j result (handles {low, high} format)
+        def to_int(val) -> int:
+            if val is None:
+                return 0
+            if isinstance(val, dict) and 'low' in val:
+                return val['low']
+            return int(val)
+
+        if result and len(result) > 0:
+            r = result[0]
+            # Build node counts by label
+            by_label = {
+                'Stakeholder': to_int(r.get('stakeholder_count', 0)),
+                'Meeting': to_int(r.get('meeting_count', 0)),
+                'Document': to_int(r.get('document_count', 0)),
+                'ROIOpportunity': to_int(r.get('roi_count', 0)),
+                'Insight': to_int(r.get('insight_count', 0)),
+                'Concern': to_int(r.get('concern_count', 0)),
+            }
+            # Filter out zero counts
+            by_label = {k: v for k, v in by_label.items() if v > 0}
+
+            # Build relationship counts by type
+            by_type = {
+                'INFLUENCES': to_int(r.get('influence_count', 0)),
+                'REPORTS_TO': to_int(r.get('reporting_count', 0)),
+                'ATTENDED': to_int(r.get('attendance_count', 0)),
+            }
+            # Filter out zero counts
+            by_type = {k: v for k, v in by_type.items() if v > 0}
+
+            return {
+                "nodes": {
+                    "total": sum(by_label.values()),
+                    "by_label": by_label
+                },
+                "relationships": {
+                    "total": sum(by_type.values()),
+                    "by_type": by_type
+                }
+            }
+
+        return {
+            "nodes": {"total": 0, "by_label": {}},
+            "relationships": {"total": 0, "by_type": {}}
+        }
 
     # =========================================================================
     # Agent Coordination Queries
