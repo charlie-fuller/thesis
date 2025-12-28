@@ -8,24 +8,54 @@ import { logger } from '@/lib/logger';
 
 interface TrendData {
   date: string;
-  users: number;
   conversations: number;
   documents: number;
   messages: number;
+  [key: string]: string | number;  // Dynamic agent keys
 }
 
-interface ActiveUsersData {
-  last_7_days: number;
-  last_30_days: number;
-  total_users: number;
+interface TrendsResponse {
+  trends?: TrendData[];
+  agents?: string[];  // List of agent names sorted by usage
+  agent_totals?: Record<string, number>;
+}
+
+// Distinct colors for agents
+const AGENT_COLORS: Record<string, string> = {
+  'Atlas': '#8b5cf6',      // purple
+  'Coordinator': '#3b82f6', // blue
+  'Guardian': '#10b981',   // green
+  'Fortuna': '#f59e0b',    // amber
+  'Oracle': '#ef4444',     // red
+  'Sage': '#ec4899',       // pink
+  'Architect': '#06b6d4',  // cyan
+  'Strategist': '#84cc16', // lime
+  'Pioneer': '#f97316',    // orange
+  'Operator': '#6366f1',   // indigo
+  'Catalyst': '#14b8a6',   // teal
+  'Scholar': '#a855f7',    // fuchsia
+  'Counselor': '#eab308',  // yellow
+  'Echo': '#0ea5e9',       // sky
+  'Nexus': '#22c55e',      // emerald
+};
+
+// Fallback colors for unknown agents
+const FALLBACK_COLORS = [
+  '#f472b6', '#60a5fa', '#34d399', '#fbbf24', '#f87171',
+  '#c084fc', '#2dd4bf', '#a3e635', '#fb923c', '#818cf8',
+];
+
+function getAgentColor(agentName: string, index: number): string {
+  return AGENT_COLORS[agentName] || FALLBACK_COLORS[index % FALLBACK_COLORS.length];
 }
 
 export default function UsageAnalytics() {
   const [trends, setTrends] = useState<TrendData[]>([]);
-  const [activeUsers, setActiveUsers] = useState<ActiveUsersData | null>(null);
+  const [agents, setAgents] = useState<string[]>([]);
+  const [agentTotals, setAgentTotals] = useState<Record<string, number>>({});
   const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'trends' | 'activity'>('trends');
+  const [activeTab, setActiveTab] = useState<'agents' | 'activity'>('agents');
 
   useEffect(() => {
     fetchAnalytics();
@@ -35,19 +65,17 @@ export default function UsageAnalytics() {
     setLoading(true);
     try {
       // Fetch usage trends
-      const trendsData = await apiGet<{ trends?: TrendData[] }>(`/api/admin/analytics/usage-trends?days=${days}`);
+      const trendsData = await apiGet<TrendsResponse>(`/api/admin/analytics/usage-trends?days=${days}`);
       logger.debug('📊 Usage Trends Response:', trendsData);
       setTrends(trendsData?.trends || []);
-
-      // Fetch active users
-      const activeUsersData = await apiGet<{ active_users?: ActiveUsersData }>('/api/admin/analytics/active-users');
-      logger.debug('👥 Active Users Response:', activeUsersData);
-      setActiveUsers(activeUsersData?.active_users || null);
+      setAgents(trendsData?.agents || []);
+      setAgentTotals(trendsData?.agent_totals || {});
     } catch (error) {
       logger.error('❌ Error fetching analytics:', error);
       // Set empty data on error to prevent crashes
       setTrends([]);
-      setActiveUsers(null);
+      setAgents([]);
+      setAgentTotals({});
     } finally {
       setLoading(false);
     }
@@ -67,12 +95,11 @@ export default function UsageAnalytics() {
   }
 
   // Show helpful message if no data available
-  // Check for meaningful data, not just empty arrays/objects
   const hasTrends = trends.length > 0 && trends.some(t => t.conversations > 0 || t.documents > 0 || t.messages > 0);
-  const hasActiveUsers = activeUsers !== null && activeUsers.total_users > 0;
-  const hasData = hasTrends || hasActiveUsers;
+  const hasAgentData = agents.length > 0;
+  const hasData = hasTrends || hasAgentData;
 
-  logger.debug('📈 Data Check:', { hasTrends, hasActiveUsers, hasData, trendsLength: trends.length, activeUsers });
+  logger.debug('📈 Data Check:', { hasTrends, hasAgentData, hasData, trendsLength: trends.length });
 
   if (!hasData) {
     return (
@@ -83,7 +110,7 @@ export default function UsageAnalytics() {
           </svg>
           <h3 className="text-lg font-semibold text-primary mb-2">No Analytics Data Available</h3>
           <p className="text-sm text-secondary mb-4">
-            Analytics data will appear here once users start creating conversations and uploading documents.
+            Analytics data will appear here once you start having conversations with agents.
           </p>
           <p className="text-xs text-muted">
             If you have existing data and still see this message, the backend may still be deploying.
@@ -95,35 +122,6 @@ export default function UsageAnalytics() {
 
   return (
     <div className="space-y-6">
-      {/* Active Users Stats */}
-      {activeUsers && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="card p-4">
-            <div className="text-sm text-secondary mb-1">Active (7 Days)</div>
-            <div className="stat-number text-2xl">{activeUsers.last_7_days}</div>
-            <div className="text-xs text-secondary mt-1">
-              {activeUsers.total_users > 0
-                ? `${((activeUsers.last_7_days / activeUsers.total_users) * 100).toFixed(1)}% of total`
-                : '0% of total'}
-            </div>
-          </div>
-          <div className="card p-4">
-            <div className="text-sm text-secondary mb-1">Active (30 Days)</div>
-            <div className="stat-number text-2xl">{activeUsers.last_30_days}</div>
-            <div className="text-xs text-secondary mt-1">
-              {activeUsers.total_users > 0
-                ? `${((activeUsers.last_30_days / activeUsers.total_users) * 100).toFixed(1)}% of total`
-                : '0% of total'}
-            </div>
-          </div>
-          <div className="card p-4">
-            <div className="text-sm text-secondary mb-1">Total Users</div>
-            <div className="stat-number text-2xl">{activeUsers.total_users}</div>
-            <div className="text-xs text-secondary mt-1">All registered users</div>
-          </div>
-        </div>
-      )}
-
       {/* Time Range Selector */}
       <div className="flex items-center gap-2">
         <span className="text-sm text-secondary">Time Range:</span>
@@ -150,14 +148,14 @@ export default function UsageAnalytics() {
       {/* Tab Selector */}
       <div className="flex border-b border-border">
         <button
-          onClick={() => setActiveTab('trends')}
+          onClick={() => setActiveTab('agents')}
           className={`px-4 py-2 text-sm font-medium border-b-2 ${
-            activeTab === 'trends'
+            activeTab === 'agents'
               ? 'border-primary text-primary'
               : 'border-transparent text-secondary hover:text-primary'
           }`}
         >
-          Usage Trends
+          Agent Usage
         </button>
         <button
           onClick={() => setActiveTab('activity')}
@@ -173,53 +171,43 @@ export default function UsageAnalytics() {
 
       {/* Charts */}
       <div className="card p-6">
-        {activeTab === 'trends' ? (
+        {activeTab === 'agents' ? (
           <div>
-            <h3 className="text-lg font-semibold text-primary mb-4">Usage Trends Over Time</h3>
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={trends}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={formatDate}
-                  stroke="#888"
-                />
-                <YAxis stroke="#888" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333' }}
-                  labelStyle={{ color: '#fff' }}
-                />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="messages"
-                  stroke="#8b5cf6"
-                  strokeWidth={2}
-                  name="Messages"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="conversations"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  name="Conversations"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="documents"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  name="Documents"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="users"
-                  stroke="#f59e0b"
-                  strokeWidth={2}
-                  name="New Users"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <h3 className="text-lg font-semibold text-primary mb-4">Agent Usage Over Time</h3>
+            {agents.length > 0 ? (
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={trends}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={formatDate}
+                    stroke="#888"
+                  />
+                  <YAxis stroke="#888" />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333' }}
+                    labelStyle={{ color: '#fff' }}
+                    labelFormatter={formatDate}
+                  />
+                  <Legend />
+                  {agents.map((agentName, idx) => (
+                    <Line
+                      key={agentName}
+                      type="monotone"
+                      dataKey={agentName}
+                      stroke={getAgentColor(agentName, idx)}
+                      strokeWidth={2}
+                      name={agentName}
+                      dot={false}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-center py-12 text-secondary">
+                No agent usage data available for this period.
+              </div>
+            )}
           </div>
         ) : (
           <div>
@@ -236,6 +224,7 @@ export default function UsageAnalytics() {
                 <Tooltip
                   contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333' }}
                   labelStyle={{ color: '#fff' }}
+                  labelFormatter={formatDate}
                 />
                 <Legend />
                 <Bar dataKey="messages" fill="#8b5cf6" name="Messages" />
@@ -247,8 +236,32 @@ export default function UsageAnalytics() {
         )}
       </div>
 
+      {/* Agent Usage Summary */}
+      {agents.length > 0 && (
+        <div>
+          <h3 className="text-sm font-medium text-secondary mb-3">Agent Usage ({days} Days)</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            {agents.slice(0, 10).map((agentName, idx) => (
+              <div key={agentName} className="card p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: getAgentColor(agentName, idx) }}
+                  />
+                  <span className="text-sm font-medium text-primary truncate">{agentName}</span>
+                </div>
+                <div className="text-xl font-bold text-secondary">
+                  {agentTotals[agentName]?.toLocaleString() || 0}
+                </div>
+                <div className="text-xs text-muted">messages</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="card p-4">
           <div className="text-sm text-secondary mb-1">Total Messages</div>
           <div className="stat-number text-xl">
@@ -265,12 +278,6 @@ export default function UsageAnalytics() {
           <div className="text-sm text-secondary mb-1">Total Documents</div>
           <div className="stat-number text-xl">
             {trends.reduce((sum, day) => sum + day.documents, 0)}
-          </div>
-        </div>
-        <div className="card p-4">
-          <div className="text-sm text-secondary mb-1">New Users ({days} Days)</div>
-          <div className="stat-number text-xl">
-            {trends.length > 0 ? trends[trends.length - 1].users - trends[0].users : 0}
           </div>
         </div>
       </div>

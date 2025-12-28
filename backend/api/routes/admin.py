@@ -72,7 +72,7 @@ async def get_usage_trends(
     current_user: dict = Depends(require_admin),
     days: int = 30
 ):
-    """Get usage trends over time"""
+    """Get usage trends over time, grouped by agent"""
     try:
         from datetime import datetime, timedelta
 
@@ -80,55 +80,84 @@ async def get_usage_trends(
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
-        # Get all conversations in range
+        # Get all agents for reference
+        agents_result = await asyncio.to_thread(
+            lambda: supabase.table('agents')
+                .select('id, name, display_name')
+                .execute()
+        )
+        agents = {a['id']: a for a in (agents_result.data or [])}
+
+        # Get all assistant messages with agent_id in range
+        messages = await asyncio.to_thread(
+            lambda: supabase.table('messages')
+                .select('created_at, agent_id')
+                .eq('role', 'assistant')
+                .gte('created_at', start_date.isoformat())
+                .lte('created_at', end_date.isoformat())
+                .execute()
+        )
+
+        # Also get meeting room messages for multi-agent conversations
+        meeting_messages = await asyncio.to_thread(
+            lambda: supabase.table('meeting_room_messages')
+                .select('created_at, agent_id, agent_name')
+                .gte('created_at', start_date.isoformat())
+                .lte('created_at', end_date.isoformat())
+                .not_.is_('agent_id', 'null')
+                .execute()
+        )
+
+        # Get all conversations in range for the trends
         convos = await asyncio.to_thread(
-            lambda: supabase.table('conversations')\
-                .select('created_at')\
-                .gte('created_at', start_date.isoformat())\
-                .lte('created_at', end_date.isoformat())\
+            lambda: supabase.table('conversations')
+                .select('created_at')
+                .gte('created_at', start_date.isoformat())
+                .lte('created_at', end_date.isoformat())
                 .execute()
         )
 
         # Get all documents in range
         docs = await asyncio.to_thread(
-            lambda: supabase.table('documents')\
-                .select('uploaded_at')\
-                .gte('uploaded_at', start_date.isoformat())\
-                .lte('uploaded_at', end_date.isoformat())\
+            lambda: supabase.table('documents')
+                .select('uploaded_at')
+                .gte('uploaded_at', start_date.isoformat())
+                .lte('uploaded_at', end_date.isoformat())
                 .execute()
         )
 
-        # Get all messages in range
-        messages = await asyncio.to_thread(
-            lambda: supabase.table('messages')\
-                .select('created_at')\
-                .gte('created_at', start_date.isoformat())\
-                .lte('created_at', end_date.isoformat())\
-                .execute()
-        )
-
-        # Get all users (for trend line)
-        users = await asyncio.to_thread(
-            lambda: supabase.table('users')\
-                .select('created_at')\
-                .execute()
-        )
-
-        # Group by date
+        # Initialize trends by date with agent tracking
         trends_by_date = {}
-
-        # Initialize all dates in range
         current_date = start_date.date()
         while current_date <= end_date.date():
             date_str = current_date.isoformat()
             trends_by_date[date_str] = {
                 'date': date_str,
-                'users': 0,
                 'conversations': 0,
                 'documents': 0,
-                'messages': 0
+                'messages': 0,
+                'agent_usage': {}  # agent_name -> count
             }
             current_date += timedelta(days=1)
+
+        # Count messages by date and agent
+        for msg in (messages.data or []):
+            date = datetime.fromisoformat(msg['created_at'].replace('Z', '+00:00')).date().isoformat()
+            if date in trends_by_date:
+                trends_by_date[date]['messages'] += 1
+                agent_id = msg.get('agent_id')
+                if agent_id and agent_id in agents:
+                    agent_name = agents[agent_id].get('display_name') or agents[agent_id].get('name', 'Unknown')
+                    trends_by_date[date]['agent_usage'][agent_name] = trends_by_date[date]['agent_usage'].get(agent_name, 0) + 1
+
+        # Count meeting room messages by date and agent
+        for msg in (meeting_messages.data or []):
+            date = datetime.fromisoformat(msg['created_at'].replace('Z', '+00:00')).date().isoformat()
+            if date in trends_by_date:
+                trends_by_date[date]['messages'] += 1
+                agent_name = msg.get('agent_name', 'Unknown')
+                if agent_name:
+                    trends_by_date[date]['agent_usage'][agent_name] = trends_by_date[date]['agent_usage'].get(agent_name, 0) + 1
 
         # Count conversations by date
         for convo in (convos.data or []):
@@ -142,34 +171,40 @@ async def get_usage_trends(
             if date in trends_by_date:
                 trends_by_date[date]['documents'] += 1
 
-        # Count messages by date
-        for msg in (messages.data or []):
-            date = datetime.fromisoformat(msg['created_at'].replace('Z', '+00:00')).date().isoformat()
-            if date in trends_by_date:
-                trends_by_date[date]['messages'] += 1
+        # Collect all agent names for consistent series
+        all_agents = set()
+        for day_data in trends_by_date.values():
+            all_agents.update(day_data['agent_usage'].keys())
 
-        # Count cumulative users by date
-        user_counts_by_date = {}
-        for user in (users.data or []):
-            user_date = datetime.fromisoformat(user['created_at'].replace('Z', '+00:00')).date()
-            if user_date not in user_counts_by_date:
-                user_counts_by_date[user_date] = 0
-            user_counts_by_date[user_date] += 1
-
-        # Set cumulative user count for each date
-        cumulative_users = 0
+        # Build final trends with per-agent columns
+        trends = []
         for date_str in sorted(trends_by_date.keys()):
-            date_obj = datetime.fromisoformat(date_str).date()
-            if date_obj in user_counts_by_date:
-                cumulative_users += user_counts_by_date[date_obj]
-            trends_by_date[date_str]['users'] = cumulative_users
+            day = trends_by_date[date_str]
+            trend_entry = {
+                'date': day['date'],
+                'conversations': day['conversations'],
+                'documents': day['documents'],
+                'messages': day['messages'],
+            }
+            # Add per-agent counts (default to 0 if not used that day)
+            for agent_name in all_agents:
+                trend_entry[agent_name] = day['agent_usage'].get(agent_name, 0)
+            trends.append(trend_entry)
 
-        # Convert to sorted list
-        trends = [trends_by_date[date] for date in sorted(trends_by_date.keys())]
+        # Build agent summary (total usage across the period)
+        agent_totals = {}
+        for day_data in trends_by_date.values():
+            for agent_name, count in day_data['agent_usage'].items():
+                agent_totals[agent_name] = agent_totals.get(agent_name, 0) + count
+
+        # Sort agents by total usage (descending) for chart legend order
+        sorted_agents = sorted(agent_totals.items(), key=lambda x: -x[1])
 
         return {
             'success': True,
-            'trends': trends
+            'trends': trends,
+            'agents': [a[0] for a in sorted_agents],  # List of agent names sorted by usage
+            'agent_totals': dict(sorted_agents)  # Agent name -> total count
         }
     except Exception as e:
         logger.error(f"❌ Analytics error: {str(e)}")
@@ -757,8 +792,6 @@ async def get_interface_health(
         # Calculate average response length (word count)
         total_words = 0
         response_count = 0
-        image_suggestions = 0
-        images_generated = 0
 
         for msg in messages:
             content = msg.get('content', '')
@@ -767,14 +800,29 @@ async def get_interface_health(
                 total_words += word_count
                 response_count += 1
 
-            # Track image generation from metadata
-            metadata = msg.get('metadata') or {}
-            if metadata.get('image_suggestion'):
-                image_suggestions += 1
-            if metadata.get('image_generated') or metadata.get('generated_image_url'):
-                images_generated += 1
-
         avg_response_length = round(total_words / response_count) if response_count > 0 else 0
+
+        # Get conversation count for the period
+        convos_result = await asyncio.to_thread(
+            lambda: supabase.table('conversations')
+                .select('id', count='exact')
+                .gte('created_at', seven_days_ago)
+                .execute()
+        )
+        total_conversations_7d = convos_result.count or 0
+
+        # Get active users count (users who had conversations in the last 7 days)
+        active_users_result = await asyncio.to_thread(
+            lambda: supabase.table('conversations')
+                .select('user_id')
+                .gte('updated_at', seven_days_ago)
+                .execute()
+        )
+        active_user_ids = set()
+        for convo in (active_users_result.data or []):
+            if convo.get('user_id'):
+                active_user_ids.add(convo['user_id'])
+        active_users_count = len(active_user_ids)
 
         # Get conversations with useable output tracking (if column exists)
         avg_turns = 0
@@ -827,7 +875,7 @@ async def get_interface_health(
         response_status = 'healthy' if avg_response_length <= 500 else ('warning' if avg_response_length <= 800 else 'critical')
         stuck_status = 'healthy' if len(stuck_conversations) == 0 else ('warning' if len(stuck_conversations) <= 2 else 'critical')
 
-        logger.info(f"📊 Interface health: {avg_response_length} avg words, {len(stuck_conversations)} stuck, {images_generated} images")
+        logger.info(f"📊 Interface health: {avg_response_length} avg words, {len(stuck_conversations)} stuck, {total_conversations_7d} chats, {active_users_count} active users")
 
         return {
             'success': True,
@@ -837,10 +885,9 @@ async def get_interface_health(
                 'target': 500,
                 'status': response_status
             },
-            'image_metrics': {
-                'suggestions': image_suggestions,
-                'generated': images_generated,
-                'completion_rate': round(images_generated / image_suggestions * 100, 1) if image_suggestions > 0 else 0
+            'activity_metrics': {
+                'conversations_7d': total_conversations_7d,
+                'active_users_7d': active_users_count
             },
             'workflow_metrics': {
                 'avg_turns_to_useable': avg_turns,

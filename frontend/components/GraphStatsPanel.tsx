@@ -45,7 +45,7 @@ export default function GraphStatsPanel() {
       setError(null);
 
       // Fetch health first
-      const healthData = await apiGet<GraphHealth>('/graph/health').catch(() => ({
+      const healthData = await apiGet<GraphHealth>('/api/graph/health').catch(() => ({
         status: 'unhealthy' as const,
         error: 'Could not connect to graph service'
       }));
@@ -53,7 +53,7 @@ export default function GraphStatsPanel() {
 
       // If healthy, fetch stats
       if (healthData.status === 'healthy') {
-        const statsData = await apiGet<GraphStats>('/graph/stats').catch(() => null);
+        const statsData = await apiGet<GraphStats>('/api/graph/stats').catch(() => null);
         setStats(statsData);
       }
     } catch (err) {
