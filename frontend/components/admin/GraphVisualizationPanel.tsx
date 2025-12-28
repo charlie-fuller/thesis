@@ -182,7 +182,7 @@ export default function GraphVisualizationPanel() {
         </div>
 
         {/* Graph Visualization */}
-        <div className="lg:col-span-2 h-[400px]">
+        <div className="lg:col-span-2 h-[500px]">
           <GraphVisualization
             onNodeSelect={setSelectedNode}
             selectedNode={selectedNode}
@@ -192,7 +192,7 @@ export default function GraphVisualizationPanel() {
 
         {/* Right Sidebar - Node Details */}
         <div className="lg:col-span-1">
-          <div className="card p-3 h-[400px] overflow-y-auto">
+          <div className="card p-3 h-[500px] overflow-y-auto">
             {selectedNode ? (
               <div>
                 <div className="flex items-center gap-2 mb-3">

@@ -134,7 +134,7 @@ export default function HomePage() {
     <div className="flex flex-col min-h-screen bg-page">
       <PageHeader />
 
-      <main className="flex-1 max-w-5xl mx-auto w-full p-6">
+      <main className={`flex-1 mx-auto w-full p-6 ${activeTab === 'system' ? 'max-w-7xl' : 'max-w-5xl'}`}>
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-primary">Dashboard</h1>
@@ -179,7 +179,8 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* Quick Navigation */}
+        {/* Quick Navigation - hidden on System Health tab */}
+        {activeTab !== 'system' && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <Link
             href="/chat"
@@ -241,6 +242,7 @@ export default function HomePage() {
             </div>
           </Link>
         </div>
+        )}
 
         {/* Tab Content */}
         {activeTab === 'research' && (

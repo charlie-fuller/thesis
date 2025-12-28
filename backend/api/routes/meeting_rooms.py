@@ -705,29 +705,40 @@ async def stream_meeting_chat(
         user_id = current_user['id']
         client_id = get_default_client_id()
 
+        logger.info(f"[Meeting Chat] Starting for meeting {meeting_id}, user {user_id}")
+
         # Verify meeting ownership and get meeting details
-        meeting_result = await asyncio.to_thread(
-            lambda: supabase.table('meeting_rooms')
-                .select('*')
-                .eq('id', meeting_id)
-                .eq('user_id', user_id)
-                .single()
-                .execute()
-        )
+        try:
+            meeting_result = await asyncio.to_thread(
+                lambda: supabase.table('meeting_rooms')
+                    .select('*')
+                    .eq('id', meeting_id)
+                    .eq('user_id', user_id)
+                    .single()
+                    .execute()
+            )
+        except Exception as db_err:
+            logger.error(f"[Meeting Chat] DB error fetching meeting: {db_err}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(db_err)}")
 
         if not meeting_result.data:
             raise HTTPException(status_code=404, detail="Meeting room not found")
 
         meeting = meeting_result.data
+        logger.info(f"[Meeting Chat] Found meeting: {meeting.get('title', 'Unknown')}")
 
         # Get participants with agent details
-        participants_result = await asyncio.to_thread(
-            lambda: supabase.table('meeting_room_participants')
-                .select('*, agents(id, name, display_name)')
-                .eq('meeting_room_id', meeting_id)
-                .order('priority')
-                .execute()
-        )
+        try:
+            participants_result = await asyncio.to_thread(
+                lambda: supabase.table('meeting_room_participants')
+                    .select('*, agents(id, name, display_name)')
+                    .eq('meeting_room_id', meeting_id)
+                    .order('priority')
+                    .execute()
+            )
+        except Exception as db_err:
+            logger.error(f"[Meeting Chat] DB error fetching participants: {db_err}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(db_err)}")
 
         participants = [
             {
@@ -735,8 +746,8 @@ async def stream_meeting_chat(
                 'agent_id': p['agent_id'],
                 'agent_name': p['agents']['name'],
                 'agent_display_name': p['agents']['display_name'],
-                'role_description': p['role_description'],
-                'priority': p['priority'],
+                'role_description': p.get('role_description'),
+                'priority': p.get('priority', 0),
             }
             for p in participants_result.data
             if p.get('agents')  # Skip participants with missing agent data
@@ -748,27 +759,33 @@ async def stream_meeting_chat(
         logger.info(f"Meeting {meeting_id} has {len(participants)} participants: {[p['agent_name'] for p in participants]}")
 
         # Get message history
-        messages_result = await asyncio.to_thread(
-            lambda: supabase.table('meeting_room_messages')
-                .select('*')
-                .eq('meeting_room_id', meeting_id)
-                .order('created_at', desc=False)
-                .limit(50)  # Last 50 messages for context
-                .execute()
-        )
+        try:
+            messages_result = await asyncio.to_thread(
+                lambda: supabase.table('meeting_room_messages')
+                    .select('id, role, content, agent_name, agent_display_name, created_at')
+                    .eq('meeting_room_id', meeting_id)
+                    .order('created_at', desc=False)
+                    .limit(50)  # Last 50 messages for context
+                    .execute()
+            )
+        except Exception as db_err:
+            logger.error(f"[Meeting Chat] DB error fetching messages: {db_err}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(db_err)}")
 
         message_history = [
             {
-                'role': m['role'],
-                'content': m['content'],
-                'agent_name': m['agent_name'],
-                'agent_display_name': m['agent_display_name'],
+                'role': m.get('role', 'user'),
+                'content': m.get('content', ''),
+                'agent_name': m.get('agent_name'),
+                'agent_display_name': m.get('agent_display_name'),
             }
             for m in messages_result.data
         ]
 
+        logger.info(f"[Meeting Chat] Found {len(message_history)} messages in history")
+
         # Calculate turn number
-        turn_number = len([m for m in messages_result.data if m['role'] == 'user']) + 1
+        turn_number = len([m for m in messages_result.data if m.get('role') == 'user']) + 1
 
         # Build meeting context
         from services.meeting_orchestrator import MeetingContext
