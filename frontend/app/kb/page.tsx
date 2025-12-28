@@ -1,7 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 import PageHeader from '@/components/PageHeader'
+import LoadingSpinner from '@/components/LoadingSpinner'
 import dynamic from 'next/dynamic'
 
 // Lazy load the heavy components
@@ -14,7 +17,30 @@ const ConversationsContent = dynamic(() => import('@/components/admin/Conversati
 })
 
 export default function KnowledgeBasePage() {
+  const router = useRouter()
+  const { user, session, loading: authLoading } = useAuth()
   const [activeTab, setActiveTab] = useState<'documents' | 'conversations'>('documents')
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth/login')
+    }
+  }, [authLoading, user, router])
+
+  // Show loading state while auth is initializing
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-page flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
+  }
+
+  // Don't render if not authenticated
+  if (!user) {
+    return null
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-page">

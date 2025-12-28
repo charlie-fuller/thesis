@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
+import { useAuth } from '@/contexts/AuthContext'
 import { apiGet, apiDelete } from '@/lib/api'
 import ConfirmModal from '@/components/ConfirmModal'
 import { logger } from '@/lib/logger'
@@ -28,6 +29,7 @@ interface DocumentDetails extends Document {
 }
 
 export default function DocumentsContent() {
+  const { user, session } = useAuth()
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -58,16 +60,19 @@ export default function DocumentsContent() {
   })
 
   useEffect(() => {
+    if (!user || !session) return
     const timer = setTimeout(() => {
       setOffset(0)
       loadDocuments()
     }, 300)
     return () => clearTimeout(timer)
-  }, [searchQuery, selectedType, selectedStatus, dateRange, sortBy, sortOrder])
+  }, [searchQuery, selectedType, selectedStatus, dateRange, sortBy, sortOrder, user, session])
 
   useEffect(() => {
-    loadDocuments()
-  }, [offset, limit])
+    if (user && session) {
+      loadDocuments()
+    }
+  }, [offset, limit, user, session])
 
   const loadDocuments = async () => {
     try {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { apiGet } from '@/lib/api'
 import { logger } from '@/lib/logger'
@@ -31,6 +32,7 @@ interface Message {
 }
 
 export default function ConversationsContent() {
+  const { user, session } = useAuth()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -42,8 +44,10 @@ export default function ConversationsContent() {
   const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
-    loadConversations()
-  }, [])
+    if (user && session) {
+      loadConversations()
+    }
+  }, [user, session])
 
   const loadConversations = async () => {
     try {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useAuth } from '@/contexts/AuthContext'
 import { apiGet, apiPost, apiDelete } from '@/lib/api'
 import { logger } from '@/lib/logger'
 import PageHeader from '@/components/PageHeader'
@@ -75,6 +76,7 @@ const DEPARTMENTS = ['finance', 'it', 'legal', 'governance', 'hr', 'marketing', 
 
 export default function IntelligencePage() {
   const router = useRouter()
+  const { user, session, loading: authLoading } = useAuth()
   const [activeTab, setActiveTab] = useState<TabType>('stakeholders')
 
   // Stakeholder state
@@ -139,16 +141,26 @@ export default function IntelligencePage() {
     }
   }
 
+  // Redirect if not authenticated
   useEffect(() => {
-    loadStakeholderData()
-    loadAgentData()
-  }, [])
+    if (!authLoading && !user) {
+      router.push('/auth/login')
+    }
+  }, [authLoading, user, router])
+
+  // Load data when authenticated
+  useEffect(() => {
+    if (user && session) {
+      loadStakeholderData()
+      loadAgentData()
+    }
+  }, [user, session])
 
   useEffect(() => {
-    if (activeTab === 'stakeholders') {
+    if (user && session && activeTab === 'stakeholders') {
       loadStakeholderData()
     }
-  }, [filterDepartment, filterEngagement])
+  }, [filterDepartment, filterEngagement, user, session])
 
   async function handleCreateStakeholder(e: React.FormEvent) {
     e.preventDefault()
@@ -229,6 +241,20 @@ export default function IntelligencePage() {
           </svg>
         )
     }
+  }
+
+  // Show loading state while auth is initializing
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-page flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
+  }
+
+  // Don't render if not authenticated
+  if (!user) {
+    return null
   }
 
   return (
