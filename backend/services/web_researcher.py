@@ -238,21 +238,22 @@ async def _anthropic_web_search(query: str, max_results: int) -> list[WebSource]
         # Claude 4 models do NOT support web search yet
         # Run sync client in executor to avoid blocking event loop
         import asyncio
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, lambda: client.messages.create(
-            model="claude-3-7-sonnet-20250219",
-            max_tokens=4096,
-            tools=[
-                {
-                    "type": "web_search_20250305",
-                    "name": "web_search",
-                    "max_uses": 5
-                }
-            ],
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"""Search the web for the following research query and return relevant sources:
+
+        def make_web_search_call():
+            return client.messages.create(
+                model="claude-3-7-sonnet-20250219",
+                max_tokens=4096,
+                tools=[
+                    {
+                        "type": "web_search_20250305",
+                        "name": "web_search",
+                        "max_uses": 5
+                    }
+                ],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"""Search the web for the following research query and return relevant sources:
 
 Query: {query}
 
@@ -268,9 +269,20 @@ For each source found, I need:
 - A brief snippet/summary of the relevant content
 
 Please search thoroughly and return the most credible and relevant sources."""
-                }
-            ]
-        ))
+                    }
+                ]
+            )
+
+        # Run with 60 second timeout to avoid hanging
+        loop = asyncio.get_event_loop()
+        try:
+            response = await asyncio.wait_for(
+                loop.run_in_executor(None, make_web_search_call),
+                timeout=60.0
+            )
+        except asyncio.TimeoutError:
+            logger.error("Web search timed out after 60 seconds")
+            return []
 
         logger.info(f"Web search API call completed, extracting sources...")
 
