@@ -1167,6 +1167,18 @@ async def get_meeting_orchestrator(
     except ImportError:
         pass
 
+    try:
+        from agents.nexus import NexusAgent
+        agents["nexus"] = NexusAgent(supabase, anthropic_client)
+    except ImportError:
+        pass
+
+    try:
+        from agents.echo import EchoAgent
+        agents["echo"] = EchoAgent(supabase, anthropic_client)
+    except ImportError:
+        pass
+
     # Initialize all loaded agents
     for agent in agents.values():
         try:

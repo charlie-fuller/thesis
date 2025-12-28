@@ -7,6 +7,7 @@ import { authenticatedFetch } from '@/lib/api'
 import { API_BASE_URL } from '@/lib/config'
 import { supabase } from '@/lib/supabase'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import PageHeader from '@/components/PageHeader'
 import MeetingMessage from '@/components/meeting-room/MeetingMessage'
 import ParticipantBar from '@/components/meeting-room/ParticipantBar'
 import AutonomousDiscussionPanel from '@/components/meeting-room/AutonomousDiscussionPanel'
@@ -412,8 +413,11 @@ export default function MeetingRoomPage() {
 
   return (
     <div className="flex flex-col h-screen bg-page">
-      {/* Header */}
-      <div className="bg-panel border-b border-default px-6 py-4">
+      {/* Top Navigation */}
+      <PageHeader />
+
+      {/* Meeting Header */}
+      <div className="bg-panel border-b border-default px-6 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button

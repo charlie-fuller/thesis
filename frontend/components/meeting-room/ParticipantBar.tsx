@@ -76,7 +76,7 @@ export default function ParticipantBar({
                 {Math.round((currentRound / totalRounds) * 100)}%
               </span>
             </div>
-            <div className="mt-1.5 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div className="mt-1.5 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
               <div
                 className="h-full bg-primary rounded-full transition-all duration-500"
                 style={{ width: `${(currentRound / totalRounds) * 100}%` }}
@@ -102,7 +102,7 @@ export default function ParticipantBar({
                   className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
                     isActive
                       ? 'bg-primary text-white'
-                      : 'bg-gray-100 text-secondary'
+                      : 'bg-gray-100 dark:bg-gray-700 text-secondary'
                   }`}
                 >
                   <span className="font-medium">{index + 1}.</span>
@@ -127,7 +127,7 @@ export default function ParticipantBar({
             <div
               key={participant.id}
               className={`p-3 rounded-lg transition-colors ${
-                isActive ? 'bg-primary/10 border border-primary' : 'bg-gray-50 hover:bg-gray-100'
+                isActive ? 'bg-primary/10 border border-primary' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -138,12 +138,12 @@ export default function ParticipantBar({
                     {participant.agent_display_name.charAt(0)}
                   </div>
                   {isActive && (
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-900 flex items-center justify-center">
                       <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                     </div>
                   )}
                   {isAutonomous && !isActive && (
-                    <div className="absolute -top-1 -left-1 w-5 h-5 bg-gray-600 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-medium">
+                    <div className="absolute -top-1 -left-1 w-5 h-5 bg-gray-600 rounded-full border-2 border-white dark:border-gray-900 flex items-center justify-center text-[10px] text-white font-medium">
                       {index + 1}
                     </div>
                   )}
@@ -187,7 +187,7 @@ export default function ParticipantBar({
             <span className="text-secondary">Currently responding</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-gray-300 rounded-full" />
+            <div className="w-3 h-3 bg-gray-300 dark:bg-gray-600 rounded-full" />
             <span className="text-secondary">Idle</span>
           </div>
         </div>
