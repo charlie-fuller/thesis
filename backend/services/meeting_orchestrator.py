@@ -454,11 +454,13 @@ The user's message will follow. Respond from your perspective as {agent_display_
     ) -> None:
         """Background task to embed a message."""
         try:
-            await embed_meeting_room_message(
-                self.supabase,
-                UUID(message_id),
-                content
-            )
+            embed_func = await _get_embed_function()
+            if embed_func:
+                await embed_func(
+                    self.supabase,
+                    UUID(message_id),
+                    content
+                )
         except Exception as e:
             logger.warning(f"Background embedding failed for {message_id}: {e}")
 
