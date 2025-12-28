@@ -11,6 +11,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import PageHeader from '@/components/PageHeader'
 import InterfaceHealthPanel from '@/components/InterfaceHealthPanel'
 import GraphStatsPanel from '@/components/GraphStatsPanel'
+import GraphVisualization from '@/components/admin/GraphVisualization'
 
 // Lazy load analytics to reduce initial bundle size
 const LazyUsageAnalytics = dynamic(() => import('@/components/LazyUsageAnalytics'), {
@@ -34,7 +35,7 @@ interface StakeholderMetrics {
 }
 
 type HomeTab = 'research' | 'system' | 'analytics'
-type SystemSubTab = 'interfaces' | 'knowledge-graph'
+type SystemSubTab = 'interfaces' | 'graph-data' | 'graph-visualization'
 
 export default function HomePage() {
   const router = useRouter()
@@ -362,10 +363,10 @@ export default function HomePage() {
         {activeTab === 'system' && (
           <div className="space-y-6">
             {/* Sub-tab Navigation */}
-            <div className="flex gap-2 bg-hover rounded-lg p-1">
+            <div className="flex gap-1 bg-hover rounded-lg p-1">
               <button
                 onClick={() => setSystemSubTab('interfaces')}
-                className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                   systemSubTab === 'interfaces'
                     ? 'bg-card text-primary shadow-sm'
                     : 'text-muted hover:text-primary'
@@ -374,20 +375,37 @@ export default function HomePage() {
                 Interfaces
               </button>
               <button
-                onClick={() => setSystemSubTab('knowledge-graph')}
-                className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  systemSubTab === 'knowledge-graph'
+                onClick={() => setSystemSubTab('graph-data')}
+                className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  systemSubTab === 'graph-data'
                     ? 'bg-card text-primary shadow-sm'
                     : 'text-muted hover:text-primary'
                 }`}
               >
-                Knowledge Graph
+                Graph Data
+              </button>
+              <button
+                onClick={() => setSystemSubTab('graph-visualization')}
+                className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  systemSubTab === 'graph-visualization'
+                    ? 'bg-card text-primary shadow-sm'
+                    : 'text-muted hover:text-primary'
+                }`}
+              >
+                Graph Visualization
               </button>
             </div>
 
             {/* Sub-tab Content */}
             {systemSubTab === 'interfaces' && <InterfaceHealthPanel />}
-            {systemSubTab === 'knowledge-graph' && <GraphStatsPanel />}
+            {systemSubTab === 'graph-data' && <GraphStatsPanel />}
+            {systemSubTab === 'graph-visualization' && (
+              <div className="card p-4">
+                <div className="h-[500px]">
+                  <GraphVisualization />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
