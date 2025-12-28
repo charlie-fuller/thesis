@@ -260,27 +260,6 @@ export default function UsageAnalytics() {
         </div>
       )}
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="card p-4">
-          <div className="text-sm text-secondary mb-1">Total Messages</div>
-          <div className="stat-number text-xl">
-            {trends.reduce((sum, day) => sum + day.messages, 0)}
-          </div>
-        </div>
-        <div className="card p-4">
-          <div className="text-sm text-secondary mb-1">Total Conversations</div>
-          <div className="stat-number text-xl">
-            {trends.reduce((sum, day) => sum + day.conversations, 0)}
-          </div>
-        </div>
-        <div className="card p-4">
-          <div className="text-sm text-secondary mb-1">Total Documents</div>
-          <div className="stat-number text-xl">
-            {trends.reduce((sum, day) => sum + day.documents, 0)}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

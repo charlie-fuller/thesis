@@ -149,6 +149,157 @@ async def upload_document(
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
+# ============================================================================
+# Save Chat Response to KB
+# ============================================================================
+# NOTE: This endpoint MUST be defined BEFORE any /{document_id}/* routes
+# to avoid the path parameter capturing "save-from-chat" as a document_id
+
+class SaveFromChatRequest(BaseModel):
+    """Request body for saving a chat response to the knowledge base."""
+    title: str
+    content: str
+    message_id: Optional[str] = None
+    conversation_id: Optional[str] = None
+    agent_ids: Optional[List[str]] = None  # None = global, [] = global, [...] = agent-specific
+
+
+@router.post("/save-from-chat")
+async def save_from_chat(
+    request: SaveFromChatRequest,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user)
+):
+    """Save a chat response as a markdown document in the knowledge base.
+
+    Args:
+        request.title: Document title
+        request.content: The markdown content to save
+        request.message_id: Optional source message ID for reference
+        request.conversation_id: Optional source conversation ID for reference
+        request.agent_ids: List of agent IDs to link to, or None/empty for global
+
+    Returns:
+        Document ID and status
+    """
+    try:
+        # Validate content
+        if not request.content or not request.content.strip():
+            raise HTTPException(status_code=400, detail="Content cannot be empty")
+
+        if not request.title or not request.title.strip():
+            raise HTTPException(status_code=400, detail="Title cannot be empty")
+
+        client_id = current_user.get('client_id') or get_default_client_id()
+        user_id = current_user['id']
+
+        # Create markdown content with metadata header
+        markdown_content = f"""# {request.title}
+
+{request.content}
+
+---
+*Saved from chat on {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M')}*
+"""
+
+        # Generate unique filename
+        safe_title = "".join(c if c.isalnum() or c in ' -_' else '_' for c in request.title)[:50]
+        unique_filename = f"{safe_title}_{uuid.uuid4().hex[:8]}.md"
+        storage_path = f"{client_id}/{unique_filename}"
+
+        # Convert content to bytes
+        file_content = markdown_content.encode('utf-8')
+
+        # Upload to Supabase Storage
+        logger.info(f"Saving chat response to storage: {storage_path}")
+
+        upload_result = await asyncio.to_thread(
+            lambda: supabase.storage.from_('documents').upload(
+                storage_path,
+                file_content,
+                file_options={"content-type": "text/markdown"}
+            )
+        )
+
+        # Get storage URL
+        storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
+
+        # Create database record with source metadata
+        doc_metadata = {}
+        if request.message_id:
+            doc_metadata['source_message_id'] = request.message_id
+        if request.conversation_id:
+            doc_metadata['source_conversation_id'] = request.conversation_id
+        doc_metadata['saved_from_chat'] = True
+
+        doc_record = {
+            'client_id': client_id,
+            'uploaded_by': user_id,
+            'filename': unique_filename,
+            'storage_path': storage_path,
+            'storage_url': storage_url,
+            'mime_type': 'text/markdown',
+            'file_size': len(file_content),
+            'processed': False,
+            'metadata': doc_metadata
+        }
+
+        result = await asyncio.to_thread(
+            lambda: supabase.table('documents').insert(doc_record).execute()
+        )
+
+        document = result.data[0]
+        document_id = document['id']
+
+        logger.info(f"Chat response saved as document: {document_id}")
+
+        # Link to specific agents if provided
+        linked_agents = []
+        parsed_agent_ids = request.agent_ids or []
+
+        if parsed_agent_ids:
+            for agent_id in parsed_agent_ids:
+                try:
+                    validate_uuid(agent_id, "agent_id")
+                    link_result = await asyncio.to_thread(
+                        lambda aid=agent_id: supabase.table('agent_knowledge_base').insert({
+                            'agent_id': aid,
+                            'document_id': document_id,
+                            'added_by': user_id,
+                            'priority': 0
+                        }).execute()
+                    )
+                    linked_agents.append(agent_id)
+                    logger.info(f"Linked document {document_id} to agent {agent_id}")
+                except Exception as link_error:
+                    logger.warning(f"Failed to link document to agent {agent_id}: {link_error}")
+
+        # Trigger processing in background
+        background_tasks.add_task(process_document, document_id)
+        logger.info(f"Processing queued for saved document: {document_id}")
+
+        is_global = len(parsed_agent_ids) == 0
+
+        return {
+            'success': True,
+            'document_id': document_id,
+            'filename': unique_filename,
+            'is_global': is_global,
+            'linked_agents': linked_agents,
+            'message': 'Chat response saved to knowledge base. Processing started.'
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Save from chat error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to save: {str(e)}")
+
+
+# ============================================================================
+# Document Processing
+# ============================================================================
+
 @router.post("/{document_id}/process")
 async def process_document_endpoint(
     document_id: str,
