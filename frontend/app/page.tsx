@@ -3,11 +3,19 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { useAuth } from '@/contexts/AuthContext'
 import { apiGet } from '@/lib/api'
 import { logger } from '@/lib/logger'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import PageHeader from '@/components/PageHeader'
+import InterfaceHealthPanel from '@/components/InterfaceHealthPanel'
+import GraphStatsPanel from '@/components/GraphStatsPanel'
+
+// Lazy load analytics to reduce initial bundle size
+const LazyUsageAnalytics = dynamic(() => import('@/components/LazyUsageAnalytics'), {
+  loading: () => <div className="flex items-center justify-center py-12"><LoadingSpinner size="lg" /></div>
+})
 
 interface ResearchInsight {
   id: string
@@ -25,9 +33,12 @@ interface StakeholderMetrics {
   stakeholders_needing_attention: Array<{ id: string; name: string }>
 }
 
+type HomeTab = 'research' | 'system' | 'analytics'
+
 export default function HomePage() {
   const router = useRouter()
-  const { user, session, loading: authLoading } = useAuth()
+  const { user, session, loading: authLoading, isAdmin } = useAuth()
+  const [activeTab, setActiveTab] = useState<HomeTab>('research')
   const [insights, setInsights] = useState<ResearchInsight[]>([])
   const [metrics, setMetrics] = useState<StakeholderMetrics | null>(null)
   const [loading, setLoading] = useState(true)
@@ -40,10 +51,10 @@ export default function HomePage() {
   }, [authLoading, user, router])
 
   useEffect(() => {
-    if (user && session) {
+    if (user && session && activeTab === 'research') {
       loadData()
     }
-  }, [user, session])
+  }, [user, session, activeTab])
 
   async function loadData() {
     try {
@@ -122,9 +133,47 @@ export default function HomePage() {
 
       <main className="flex-1 max-w-5xl mx-auto w-full p-6">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-primary">Research Intelligence</h1>
-          <p className="text-secondary mt-1">Latest insights from Atlas proactive research</p>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-primary">Dashboard</h1>
+          <p className="text-secondary mt-1">Platform overview and insights</p>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex gap-1 mb-6 border-b border-default">
+          <button
+            onClick={() => setActiveTab('research')}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              activeTab === 'research'
+                ? 'border-brand text-brand'
+                : 'border-transparent text-muted hover:text-primary'
+            }`}
+          >
+            Research
+          </button>
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => setActiveTab('system')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  activeTab === 'system'
+                    ? 'border-brand text-brand'
+                    : 'border-transparent text-muted hover:text-primary'
+                }`}
+              >
+                System Health
+              </button>
+              <button
+                onClick={() => setActiveTab('analytics')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  activeTab === 'analytics'
+                    ? 'border-brand text-brand'
+                    : 'border-transparent text-muted hover:text-primary'
+                }`}
+              >
+                Analytics
+              </button>
+            </>
+          )}
         </div>
 
         {/* Quick Navigation */}
@@ -190,115 +239,135 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {/* Summary Stats Row */}
-        {metrics && (
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="card p-4 text-center">
-              <div className="text-2xl font-bold text-primary">{metrics.total_stakeholders}</div>
-              <div className="text-xs text-muted">Stakeholders</div>
-            </div>
-            <div className="card p-4 text-center">
-              <div className={`text-2xl font-bold ${metrics.average_sentiment > 0.3 ? 'text-green-600 dark:text-green-400' : metrics.average_sentiment < -0.3 ? 'text-red-600 dark:text-red-400' : 'text-secondary'}`}>
-                {metrics.average_sentiment > 0 ? '+' : ''}{metrics.average_sentiment.toFixed(2)}
-              </div>
-              <div className="text-xs text-muted">Avg Sentiment</div>
-            </div>
-            <div className="card p-4 text-center">
-              <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">
-                {Math.round(metrics.average_alignment * 100)}%
-              </div>
-              <div className="text-xs text-muted">Avg Alignment</div>
-            </div>
-          </div>
-        )}
-
-        {/* Loading State */}
-        {loading && (
-          <div className="flex items-center justify-center py-12">
-            <LoadingSpinner size="lg" />
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
-            <p className="text-red-800 dark:text-red-200">{error}</p>
-            <button onClick={loadData} className="mt-2 text-sm text-red-600 hover:underline">
-              Try again
-            </button>
-          </div>
-        )}
-
-        {/* Research Insights */}
-        {!loading && !error && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-primary">Latest Research</h2>
-              <Link href="/chat" className="text-sm text-brand hover:underline">
-                Ask Atlas for more
-              </Link>
-            </div>
-
-            {insights.length > 0 ? (
-              <div className="space-y-4">
-                {insights.map(insight => (
-                  <div key={insight.id} className="card p-5">
-                    <div className="flex items-start justify-between gap-4 mb-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`px-2 py-1 text-xs rounded-full ${getFocusAreaColor(insight.focus_area)}`}>
-                          {getFocusAreaLabel(insight.focus_area)}
-                        </span>
-                        <span className="text-xs text-muted">
-                          {formatDate(insight.completed_at)}
-                        </span>
-                      </div>
-                    </div>
-                    <h3 className="font-medium text-primary mb-2">{insight.topic}</h3>
-                    <p className="text-sm text-secondary leading-relaxed">
-                      {insight.result_summary}
-                    </p>
-                    {insight.web_sources && insight.web_sources.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-default">
-                        <div className="text-xs text-muted mb-1">Sources:</div>
-                        <div className="flex flex-wrap gap-2">
-                          {insight.web_sources.slice(0, 3).map((source, idx) => (
-                            <a
-                              key={idx}
-                              href={source.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-brand hover:underline truncate max-w-[200px]"
-                              title={source.title}
-                            >
-                              {source.title || new URL(source.url).hostname}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="card p-12 text-center">
-                <div className="flex justify-center mb-4">
-                  <svg className="w-12 h-12 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
+        {/* Tab Content */}
+        {activeTab === 'research' && (
+          <>
+            {/* Summary Stats Row */}
+            {metrics && (
+              <div className="grid grid-cols-3 gap-4 mb-8">
+                <div className="card p-4 text-center">
+                  <div className="text-2xl font-bold text-primary">{metrics.total_stakeholders}</div>
+                  <div className="text-xs text-muted">Stakeholders</div>
                 </div>
-                <h3 className="text-lg font-semibold text-primary mb-2">No Research Yet</h3>
-                <p className="text-secondary mb-4">
-                  Atlas will proactively research GenAI strategy topics.<br />
-                  You can also ask Atlas directly for specific research.
-                </p>
-                <Link href="/chat" className="btn-primary inline-flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                  Ask Atlas
-                </Link>
+                <div className="card p-4 text-center">
+                  <div className={`text-2xl font-bold ${metrics.average_sentiment > 0.3 ? 'text-green-600 dark:text-green-400' : metrics.average_sentiment < -0.3 ? 'text-red-600 dark:text-red-400' : 'text-secondary'}`}>
+                    {metrics.average_sentiment > 0 ? '+' : ''}{metrics.average_sentiment.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-muted">Avg Sentiment</div>
+                </div>
+                <div className="card p-4 text-center">
+                  <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">
+                    {Math.round(metrics.average_alignment * 100)}%
+                  </div>
+                  <div className="text-xs text-muted">Avg Alignment</div>
+                </div>
               </div>
             )}
+
+            {/* Loading State */}
+            {loading && (
+              <div className="flex items-center justify-center py-12">
+                <LoadingSpinner size="lg" />
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+                <p className="text-red-800 dark:text-red-200">{error}</p>
+                <button onClick={loadData} className="mt-2 text-sm text-red-600 hover:underline">
+                  Try again
+                </button>
+              </div>
+            )}
+
+            {/* Research Insights */}
+            {!loading && !error && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-primary">Latest Research</h2>
+                  <Link href="/chat" className="text-sm text-brand hover:underline">
+                    Ask Atlas for more
+                  </Link>
+                </div>
+
+                {insights.length > 0 ? (
+                  <div className="space-y-4">
+                    {insights.map(insight => (
+                      <div key={insight.id} className="card p-5">
+                        <div className="flex items-start justify-between gap-4 mb-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`px-2 py-1 text-xs rounded-full ${getFocusAreaColor(insight.focus_area)}`}>
+                              {getFocusAreaLabel(insight.focus_area)}
+                            </span>
+                            <span className="text-xs text-muted">
+                              {formatDate(insight.completed_at)}
+                            </span>
+                          </div>
+                        </div>
+                        <h3 className="font-medium text-primary mb-2">{insight.topic}</h3>
+                        <p className="text-sm text-secondary leading-relaxed">
+                          {insight.result_summary}
+                        </p>
+                        {insight.web_sources && insight.web_sources.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-default">
+                            <div className="text-xs text-muted mb-1">Sources:</div>
+                            <div className="flex flex-wrap gap-2">
+                              {insight.web_sources.slice(0, 3).map((source, idx) => (
+                                <a
+                                  key={idx}
+                                  href={source.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-brand hover:underline truncate max-w-[200px]"
+                                  title={source.title}
+                                >
+                                  {source.title || new URL(source.url).hostname}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="card p-12 text-center">
+                    <div className="flex justify-center mb-4">
+                      <svg className="w-12 h-12 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-primary mb-2">No Research Yet</h3>
+                    <p className="text-secondary mb-4">
+                      Atlas will proactively research GenAI strategy topics.<br />
+                      You can also ask Atlas directly for specific research.
+                    </p>
+                    <Link href="/chat" className="btn-primary inline-flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      Ask Atlas
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* System Health Tab */}
+        {activeTab === 'system' && (
+          <div className="space-y-6">
+            <InterfaceHealthPanel />
+            <GraphStatsPanel />
+          </div>
+        )}
+
+        {/* Analytics Tab */}
+        {activeTab === 'analytics' && (
+          <div>
+            <LazyUsageAnalytics />
           </div>
         )}
       </main>
