@@ -18,8 +18,6 @@ from database import get_supabase
 from document_processor import search_similar_chunks
 from logger_config import get_logger
 from services.conversation_service import get_conversation_service
-from services.phase_guidance import get_phase_guidance, get_phase_prompts
-from services.quick_prompt_generator import detect_addie_phase_from_conversation
 from services.useable_output_detector import process_conversation_for_useable_output
 from system_instructions_loader import (
     get_active_system_instruction_version,
@@ -394,33 +392,6 @@ Instructions:
             }
         )
 
-        # Detect ADDIE phase from conversation
-        addie_phase = "General"
-        if chat_request.conversation_id:
-            try:
-                # Get recent messages for ADDIE phase detection
-                recent_messages_result = supabase.table('messages')\
-                    .select('*')\
-                    .eq('conversation_id', chat_request.conversation_id)\
-                    .order('created_at', desc=True)\
-                    .limit(10)\
-                    .execute()
-
-                recent_messages = recent_messages_result.data if recent_messages_result.data else []
-
-                # Build conversation text from recent messages including the current exchange
-                conversation_parts = []
-                for msg in reversed(recent_messages[-5:]):  # Last 5 messages
-                    conversation_parts.append(f"{msg['role']}: {msg['content']}")
-                conversation_parts.append(f"user: {chat_request.message}")
-                conversation_parts.append(f"assistant: {response_text}")
-
-                conversation_text = "\n".join(conversation_parts)
-                addie_phase = detect_addie_phase_from_conversation(conversation_text)
-            except Exception as phase_error:
-                logger.warning(f"ADDIE phase detection failed: {phase_error}")
-                addie_phase = "General"
-
         # Save messages to database if conversation_id provided
         if chat_request.conversation_id:
             # Check if we should suggest an image
@@ -497,26 +468,11 @@ Instructions:
                 # Log but don't fail the request if detection fails
                 logger.warning(f"Useable output detection failed: {detection_error}")
 
-            # Update conversation ADDIE phase
-            try:
-                from datetime import datetime, timezone
-                supabase.table('conversations')\
-                    .update({
-                        'addie_phase': addie_phase,
-                        'phase_updated_at': datetime.now(timezone.utc).isoformat()
-                    })\
-                    .eq('id', chat_request.conversation_id)\
-                    .execute()
-                logger.debug(f"Updated conversation phase to: {addie_phase}")
-            except Exception as phase_update_error:
-                logger.warning(f"Failed to update conversation phase: {phase_update_error}")
-
         return {
             'success': True,
             'response': response_text,
             'context_used': len(context_chunks),
             'source_documents': source_documents,
-            'addie_phase': addie_phase,
             'tokens': {
                 'input': message.usage.input_tokens,
                 'output': message.usage.output_tokens,
@@ -1264,33 +1220,6 @@ Instructions:
                 }
             )
 
-            # Detect ADDIE phase from conversation
-            addie_phase = "General"
-            if chat_request.conversation_id:
-                try:
-                    # Get recent messages for ADDIE phase detection
-                    recent_messages_result = supabase.table('messages')\
-                        .select('*')\
-                        .eq('conversation_id', chat_request.conversation_id)\
-                        .order('created_at', desc=True)\
-                        .limit(10)\
-                        .execute()
-
-                    recent_messages = recent_messages_result.data if recent_messages_result.data else []
-
-                    # Build conversation text from recent messages including the current exchange
-                    conversation_parts = []
-                    for msg in reversed(recent_messages[-5:]):  # Last 5 messages
-                        conversation_parts.append(f"{msg['role']}: {msg['content']}")
-                    conversation_parts.append(f"user: {chat_request.message}")
-                    conversation_parts.append(f"assistant: {full_response}")
-
-                    conversation_text = "\n".join(conversation_parts)
-                    addie_phase = detect_addie_phase_from_conversation(conversation_text)
-                except Exception as phase_error:
-                    logger.warning(f"ADDIE phase detection failed: {phase_error}")
-                    addie_phase = "General"
-
             # Save messages to database if conversation_id provided
             image_suggestion_data = None  # Will hold suggestion to send as SSE event
 
@@ -1384,28 +1313,9 @@ Instructions:
                 except Exception as detection_error:
                     logger.warning(f"Useable output detection failed: {detection_error}")
 
-                # Update conversation ADDIE phase
-                try:
-                    from datetime import datetime, timezone
-                    await asyncio.to_thread(
-                        lambda: supabase.table('conversations')\
-                            .update({
-                                'addie_phase': addie_phase,
-                                'phase_updated_at': datetime.now(timezone.utc).isoformat()
-                            })\
-                            .eq('id', chat_request.conversation_id)\
-                            .execute()
-                    )
-                    logger.debug(f"Updated conversation phase to: {addie_phase}")
-                except Exception as phase_update_error:
-                    logger.warning(f"Failed to update conversation phase: {phase_update_error}")
-
             # Send source documents if available
             if source_documents:
                 yield f"data: {json.dumps({'type': 'sources', 'sources': source_documents})}\n\n"
-
-            # Send ADDIE phase event
-            yield f"data: {json.dumps({'type': 'addie_phase', 'phase': addie_phase})}\n\n"
 
             # Send image suggestion event if we have one (BEFORE done event)
             if image_suggestion_data:
@@ -1446,18 +1356,8 @@ Instructions:
     )
 
 
-# ============================================================================
-# Phase Guidance Endpoint
-# ============================================================================
-
-
 from pydantic import BaseModel, Field
 from typing import Optional
-
-
-class PhaseGuidanceRequest(BaseModel):
-    conversation_id: str
-    include_prompts: bool = True
 
 
 class DigDeeperRequest(BaseModel):
@@ -1638,78 +1538,3 @@ Maintain the same format and style as your original response, but provide more c
     )
 
 
-@router.post("/phase-guidance")
-@limiter.limit("30/minute")
-async def get_conversation_phase_guidance(
-    request: Request,
-    guidance_request: PhaseGuidanceRequest,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Get proactive phase guidance for a conversation.
-
-    Analyzes the conversation to determine:
-    - Current ADDIE phase
-    - Missing required elements for the phase
-    - Missing recommended elements
-    - Completeness percentage
-    - Suggested prompts to address gaps
-    """
-    try:
-        # Get conversation messages
-        result = await asyncio.to_thread(
-            lambda: supabase.table('messages')\
-                .select('*')\
-                .eq('conversation_id', guidance_request.conversation_id)\
-                .order('created_at', desc=False)\
-                .execute()
-        )
-
-        messages = result.data if result.data else []
-
-        if not messages:
-            return {
-                'success': True,
-                'phase': 'Analysis',  # Default to Analysis for empty conversations
-                'missing_required': [],
-                'missing_recommended': [],
-                'completeness': 0,
-                'suggestion': 'Start by identifying your target audience and the business problem you\'re solving.',
-                'suggested_prompts': [
-                    'Who is the target audience for this learning experience?',
-                    'What business problem are we trying to solve with this training?'
-                ]
-            }
-
-        # Build conversation text from all messages
-        conversation_text = "\n".join([
-            f"{msg['role']}: {msg['content']}" for msg in messages
-        ])
-
-        # Detect current phase
-        current_phase = detect_addie_phase_from_conversation(conversation_text)
-
-        # Get phase guidance
-        guidance = get_phase_guidance(current_phase, conversation_text)
-
-        # Get suggested prompts if requested
-        suggested_prompts = []
-        if guidance_request.include_prompts and guidance['missing_required']:
-            suggested_prompts = get_phase_prompts(current_phase, guidance['missing_required'])
-
-        return {
-            'success': True,
-            'phase': guidance['phase'],
-            'missing_required': guidance['missing_required'],
-            'missing_recommended': guidance['missing_recommended'],
-            'completeness': guidance['completeness'],
-            'suggestion': guidance['suggestion'],
-            'suggested_prompts': suggested_prompts
-        }
-
-    except Exception as e:
-        logger.error(f"Error getting phase guidance: {str(e)}")
-        return {
-            'success': False,
-            'error': str(e)
-        }

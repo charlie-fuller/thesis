@@ -104,7 +104,7 @@ async def list_projects(
         user_id = current_user['id']
 
         query = supabase.table('projects')\
-            .select('*, conversations(id, title, created_at, addie_phase)')\
+            .select('*, conversations(id, title, created_at)')\
             .eq('user_id', user_id)\
             .order('updated_at', desc=True)
 
@@ -140,7 +140,7 @@ async def get_project(
 
         result = await asyncio.to_thread(
             lambda: supabase.table('projects')\
-                .select('*, conversations(id, title, created_at, updated_at, addie_phase)')\
+                .select('*, conversations(id, title, created_at, updated_at)')\
                 .eq('id', project_id)\
                 .eq('user_id', user_id)\
                 .single()\
@@ -376,7 +376,7 @@ async def get_project_conversations(
         # Get conversations
         result = await asyncio.to_thread(
             lambda: supabase.table('conversations')\
-                .select('id, title, created_at, updated_at, addie_phase, message_count:messages(count)')\
+                .select('id, title, created_at, updated_at, message_count:messages(count)')\
                 .eq('project_id', project_id)\
                 .order('updated_at', desc=True)\
                 .execute()

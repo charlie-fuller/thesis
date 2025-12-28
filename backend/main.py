@@ -175,11 +175,9 @@ from api.routes import (
     meeting_rooms,
     notion,
     projects,
-    quick_prompts,
     research,
     stakeholders,
     system_instructions,
-    templates,
     theme,
     transcripts,
     users,
@@ -196,11 +194,9 @@ app.include_router(notion.router)
 app.include_router(admin.router)
 app.include_router(document_mappings.router)
 app.include_router(clients.router)
-app.include_router(quick_prompts.router)
 app.include_router(theme.router)
 app.include_router(images.router)
 app.include_router(help_chat.router)
-app.include_router(templates.router)
 app.include_router(projects.router)
 app.include_router(system_instructions.router)
 app.include_router(transcripts.router)
