@@ -199,6 +199,7 @@ Run migrations in order from `/database/migrations/`:
 | 009 | add_bard_agent | Echo (Brand Voice) agent |
 | 010 | rename_bard_to_echo | Rename bard to echo |
 | 011 | research_system | Atlas research tables, sources, schedule, gaps |
+| 012 | autonomous_discussion | Autonomous discussion mode for meeting rooms |
 
 ## Environment Variables
 

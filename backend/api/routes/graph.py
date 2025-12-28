@@ -24,7 +24,7 @@ from services.graph import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/graph", tags=["graph"])
+router = APIRouter(prefix="/api/graph", tags=["graph"])
 
 
 # =============================================================================

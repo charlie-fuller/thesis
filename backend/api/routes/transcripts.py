@@ -156,7 +156,13 @@ async def upload_transcript(
     return await analyze_transcript(request, current_user, supabase)
 
 
-@router.get("/", response_model=list[TranscriptResponse])
+class TranscriptsListResponse(BaseModel):
+    """Response for list transcripts endpoint."""
+    transcripts: list[TranscriptResponse]
+    total: int
+
+
+@router.get("/", response_model=TranscriptsListResponse)
 async def list_transcripts(
     limit: int = 20,
     offset: int = 0,
@@ -164,6 +170,15 @@ async def list_transcripts(
     supabase = Depends(get_supabase)
 ):
     """List all transcripts for the current user."""
+    # Get count first
+    count_result = supabase.table("meeting_transcripts") \
+        .select("id", count="exact") \
+        .eq("user_id", current_user["id"]) \
+        .execute()
+
+    total = count_result.count if count_result.count is not None else 0
+
+    # Get paginated results
     result = supabase.table("meeting_transcripts") \
         .select("*") \
         .eq("user_id", current_user["id"]) \
@@ -171,7 +186,7 @@ async def list_transcripts(
         .range(offset, offset + limit - 1) \
         .execute()
 
-    return [
+    transcripts = [
         TranscriptResponse(
             id=t["id"],
             title=t["title"] or "Untitled Meeting",
@@ -185,6 +200,8 @@ async def list_transcripts(
         )
         for t in result.data
     ]
+
+    return TranscriptsListResponse(transcripts=transcripts, total=total)
 
 
 @router.get("/{transcript_id}", response_model=TranscriptResponse)

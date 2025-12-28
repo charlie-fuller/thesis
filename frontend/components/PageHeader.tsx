@@ -34,25 +34,14 @@ export default function PageHeader({
     { href: '/transcripts', label: 'Transcripts' },
   ]
 
-  // Admin section navigation links
-  const adminSectionLinks = [
-    { href: '/admin', label: 'Dashboard' },
+  // Admin navigation links
+  const adminLinks = [
+    { href: '/admin', label: 'Admin' },
     { href: '/admin/agents', label: 'Agents' },
-    { href: '/admin/users', label: 'Users' },
     { href: '/admin/documents', label: 'Documents' },
     { href: '/admin/conversations', label: 'Conversations' },
     { href: '/admin/theme', label: 'Theme' },
   ]
-
-  // Check if we're in the admin section
-  const isInAdminSection = pathname?.startsWith('/admin')
-
-  // Determine which links to show
-  const navLinks = isInAdminSection && isAdmin
-    ? adminSectionLinks
-    : isAdmin
-      ? [...userLinks, { href: '/admin', label: 'Admin' }]
-      : userLinks
 
   const isActive = (href: string) => {
     // Home route - exact match only
@@ -88,7 +77,8 @@ export default function PageHeader({
 
             {/* Navigation Links */}
             <div className="hidden md:flex items-center gap-1">
-              {navLinks.map((link) => (
+              {/* User Links */}
+              {userLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
@@ -102,6 +92,27 @@ export default function PageHeader({
                   {link.label}
                 </Link>
               ))}
+
+              {/* Admin Links with separator */}
+              {isAdmin && (
+                <>
+                  <div className="w-px h-6 bg-border mx-2" />
+                  {adminLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-hover"
+                      style={{
+                        color: isActive(link.href)
+                          ? theme.header_nav_active_color || 'var(--header-nav-active-color)'
+                          : theme.header_nav_color || 'var(--header-nav-color)'
+                      }}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </>
+              )}
             </div>
           </div>
 
