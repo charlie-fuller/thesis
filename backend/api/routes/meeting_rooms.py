@@ -791,7 +791,8 @@ async def stream_meeting_chat(
                 async for event in orchestrator.process_meeting_turn(meeting_context):
                     yield f"data: {json.dumps(event)}\n\n"
             except Exception as e:
-                logger.error(f"Meeting stream error: {e}")
+                import traceback
+                logger.error(f"Meeting stream error: {e}\n{traceback.format_exc()}")
                 yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
         return StreamingResponse(
@@ -807,7 +808,8 @@ async def stream_meeting_chat(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error in meeting chat stream: {str(e)}")
+        import traceback
+        logger.error(f"Error in meeting chat stream: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
