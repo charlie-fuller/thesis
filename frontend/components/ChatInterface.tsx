@@ -651,7 +651,7 @@ export default function ChatInterface({
     }
 
     try {
-      const response = await apiPost('/api/chat/dig-deeper-section', {
+      const response = await apiPost<{ expanded_content?: string }>('/api/chat/dig-deeper-section', {
         conversation_id: currentConversationId,
         message_id: messageId,
         original_content: originalContent,
