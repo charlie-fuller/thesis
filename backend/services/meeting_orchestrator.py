@@ -585,7 +585,7 @@ DISCUSSION TOPIC: {autonomous_context.topic}
 PARTICIPANT EXPERTISE DIRECTORY:
 {expertise_directory}
 
-{f"RECENT CONTRIBUTIONS FROM OTHER AGENTS:\\n{recent_contributions}" if recent_contributions else "You are the first to speak in this round."}
+{("RECENT CONTRIBUTIONS FROM OTHER AGENTS:\n" + recent_contributions) if recent_contributions else "You are the first to speak in this round."}
 
 {round_guidance}
 
