@@ -78,8 +78,10 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 4. **Stakeholder Tracking**: Full CRM-style tracking with sentiment, engagement, alignment scores
 5. **Research Intelligence**: Proactive monitoring of GenAI implementation research
    - Atlas auto-performs web research when no knowledge base results found
-   - Uses Anthropic's native web search with credibility-tiered source filtering
-   - Sources appended with citations organized by tier (Tier 1-4)
+   - Uses Anthropic's native web search tool (`web_search_20250305`) with Claude 3.7 Sonnet
+   - Requires beta header: `anthropic-beta: web-search-2025-03-05`
+   - Credibility-tiered source filtering (Tier 1: consulting firms, Tier 2: Big 4/tech, Tier 3: industry pubs, Tier 4: blogs)
+   - Sources appended with citations organized by tier
 6. **Agent Coordination**: Hybrid model - some agents work independently, others collaborate
 7. **Persistent Memory**: Mem0 integration for cross-conversation learning
 8. **Meeting Room**: Multi-agent collaboration with selected agents for focused discussions
