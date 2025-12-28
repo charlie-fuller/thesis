@@ -240,9 +240,13 @@ async def _anthropic_web_search(query: str, max_results: int) -> list[WebSource]
         import asyncio
 
         def make_web_search_call():
+            # Web search requires beta header
             return client.messages.create(
                 model="claude-3-7-sonnet-20250219",
                 max_tokens=4096,
+                extra_headers={
+                    "anthropic-beta": "web-search-2025-03-05"
+                },
                 tools=[
                     {
                         "type": "web_search_20250305",
