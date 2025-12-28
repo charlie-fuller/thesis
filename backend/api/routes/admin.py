@@ -88,10 +88,10 @@ async def get_usage_trends(
         )
         agents = {a['id']: a for a in (agents_result.data or [])}
 
-        # Get all assistant messages with agent_id in range
+        # Get all assistant messages in range (messages table doesn't have agent_id)
         messages = await asyncio.to_thread(
             lambda: supabase.table('messages')
-                .select('created_at, agent_id')
+                .select('created_at')
                 .eq('role', 'assistant')
                 .gte('created_at', start_date.isoformat())
                 .lte('created_at', end_date.isoformat())
@@ -140,15 +140,11 @@ async def get_usage_trends(
             }
             current_date += timedelta(days=1)
 
-        # Count messages by date and agent
+        # Count messages by date (regular chat messages don't have agent tracking)
         for msg in (messages.data or []):
             date = datetime.fromisoformat(msg['created_at'].replace('Z', '+00:00')).date().isoformat()
             if date in trends_by_date:
                 trends_by_date[date]['messages'] += 1
-                agent_id = msg.get('agent_id')
-                if agent_id and agent_id in agents:
-                    agent_name = agents[agent_id].get('display_name') or agents[agent_id].get('name', 'Unknown')
-                    trends_by_date[date]['agent_usage'][agent_name] = trends_by_date[date]['agent_usage'].get(agent_name, 0) + 1
 
         # Count meeting room messages by date and agent
         for msg in (meeting_messages.data or []):
