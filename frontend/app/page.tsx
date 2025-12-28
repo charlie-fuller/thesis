@@ -2,11 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useAuth } from '@/contexts/AuthContext'
-import { apiGet } from '@/lib/api'
-import { logger } from '@/lib/logger'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import PageHeader from '@/components/PageHeader'
 import InterfaceHealthPanel from '@/components/InterfaceHealthPanel'
@@ -53,7 +50,7 @@ export default function HomePage() {
     <div className="flex flex-col min-h-screen bg-page">
       <PageHeader />
 
-      <main className={`flex-1 mx-auto w-full p-6 ${activeTab === 'system' || activeTab === 'knowledge-graph' || activeTab === 'analytics' ? 'max-w-7xl' : 'max-w-5xl'}`}>
+      <main className="flex-1 mx-auto w-full p-6 max-w-7xl">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-primary">Dashboard</h1>
