@@ -67,7 +67,9 @@ export default function ChatInterface({
   const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- setStreamingEnabled kept for future toggle feature
   const [streamingEnabled, _setStreamingEnabled] = useState(true) // Enable streaming by default
-  const [isSendingFirstMessage, setIsSendingFirstMessage] = useState(false) // Track when creating new conversation
+  // Use a ref to track when we're sending the first message - this prevents the useEffect
+  // from reloading the conversation and overwriting our optimistic message update
+  const isSendingFirstMessageRef = useRef(false)
   const [digDeeperLoading, setDigDeeperLoading] = useState<string | null>(null) // Track which message is being elaborated
 
 
@@ -119,14 +121,15 @@ export default function ChatInterface({
 
     // If there's a conversation ID, load it - BUT skip if we're currently sending the first message
     // (This prevents overwriting messages during streaming after creating a new conversation)
-    if (conversationId && !isSendingFirstMessage) {
+    // Using a ref here prevents the effect from re-running when the flag changes
+    if (conversationId && !isSendingFirstMessageRef.current) {
       loadConversation(conversationId)
     } else if (!conversationId) {
       // No conversation ID means start fresh (new chat)
       setMessages([])
       setError(null)
     }
-  }, [conversationId, isSendingFirstMessage]) // Run when conversationId prop changes
+  }, [conversationId]) // Only run when conversationId prop changes, not when the flag changes
 
   // Handle prompt text from sidebar
   useEffect(() => {
@@ -259,7 +262,7 @@ export default function ChatInterface({
       if (!conversationIdToUse) {
         // Mark that we're sending the first message - this prevents loadConversation
         // from overwriting our messages when the URL updates
-        setIsSendingFirstMessage(true)
+        isSendingFirstMessageRef.current = true
 
         const createData = await apiPost<{ conversation_id: string }>('/api/conversations/create', {
           client_id: clientId,
@@ -325,7 +328,7 @@ export default function ChatInterface({
       setMessages(prev => [...prev, errorMsg])
     } finally {
       setLoading(false)
-      setIsSendingFirstMessage(false) // Reset after message is complete
+      isSendingFirstMessageRef.current = false // Reset after message is complete
     }
   }
 
