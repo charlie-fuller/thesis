@@ -82,6 +82,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 | Frontend | Next.js 16, React 19, TypeScript 5, Tailwind CSS 4 |
 | Backend | FastAPI (Python 3.11), Uvicorn, Pydantic |
 | Database | Supabase (PostgreSQL) with Row-Level Security |
+| Graph DB | Neo4j Aura (stakeholder networks, agent expertise routing) |
 | AI/ML | Anthropic Claude, Voyage AI embeddings, Google Gemini 2.5 Flash (images) |
 | Memory | Mem0 for persistent agent memory |
 | Integrations | Google Drive, Notion |
@@ -172,6 +173,13 @@ meeting_room_messages        -- Messages with agent attribution
 
 -- Business Intelligence
 roi_opportunities            -- Identified ROI opportunities
+
+-- Research Intelligence (Atlas)
+research_tasks               -- Research task queue and history
+research_schedule            -- Daily/weekly research schedule by focus area
+research_sources             -- Credible sources with tier ratings (1-4)
+knowledge_gaps               -- Detected knowledge gaps from agent conversations
+agent_topic_mapping          -- Maps topics to relevant agents for distribution
 ```
 
 ## Database Migrations
@@ -190,6 +198,7 @@ Run migrations in order from `/database/migrations/`:
 | 008 | add_nexus_systems_thinking_agent | Nexus (Systems Thinking) agent |
 | 009 | add_bard_agent | Echo (Brand Voice) agent |
 | 010 | rename_bard_to_echo | Rename bard to echo |
+| 011 | research_system | Atlas research tables, sources, schedule, gaps |
 
 ## Environment Variables
 
@@ -234,16 +243,23 @@ python -m pytest tests/ -v --tb=short
 
 ### Backend
 - `/backend/main.py` - FastAPI app entry point
-- `/backend/agents/` - Agent implementations (14 agents)
+- `/backend/agents/` - Agent implementations (15 agents)
 - `/backend/agents/agent_factory.py` - Agent creation and registration
 - `/backend/agents/base_agent.py` - Base class with instruction loading
+- `/backend/agents/atlas.py` - Research agent with web search capability
 - `/backend/services/transcript_analyzer.py` - Meeting transcript analysis
 - `/backend/services/meeting_orchestrator.py` - Multi-agent meeting coordination
 - `/backend/services/instruction_loader.py` - XML instruction file loading
+- `/backend/services/research_scheduler.py` - Daily Atlas research scheduler
+- `/backend/services/research_context.py` - Topic prioritization from platform context
+- `/backend/services/agent_observer.py` - Cross-agent conversation monitoring
+- `/backend/services/web_researcher.py` - Anthropic web search with credibility filtering
 - `/backend/system_instructions/agents/*.xml` - Agent behavior configuration (Gigawatt v4.0)
 - `/backend/api/routes/chat.py` - Chat endpoints including Dig Deeper
 - `/backend/api/routes/meeting_rooms.py` - Meeting room CRUD and streaming
 - `/backend/api/routes/agents.py` - Agent management endpoints
+- `/backend/api/routes/research.py` - Atlas research API endpoints
+- `/backend/api/routes/admin.py` - Admin dashboard with real API health checks
 
 ### Frontend
 - `/frontend/app/layout.tsx` - Root layout with providers
@@ -253,4 +269,8 @@ python -m pytest tests/ -v --tb=short
 
 ### Database
 - `/database/thesis_schema.sql` - Complete DB schema
-- `/database/migrations/` - All migration scripts (001-009)
+- `/database/migrations/` - All migration scripts (001-011)
+
+### Documentation
+- `/docs/atlas/PROACTIVE_RESEARCH_PLAN.md` - Atlas research system architecture
+- `/docs/neo4j/SYNC_PLAN.md` - PostgreSQL to Neo4j sync architecture

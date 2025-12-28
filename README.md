@@ -506,10 +506,45 @@ Appears on emails, meeting summaries, reports, and any response over 100 charact
 
 ### Research Intelligence (Atlas)
 
-- Monitor consulting approaches (Big 4, McKinsey, BCG, Accenture)
-- Track corporate case studies
-- Lean/Toyota Production System orientation
-- Evidence-based recommendations with specific metrics
+Atlas provides proactive research intelligence beyond just answering questions:
+
+**Automated Research Pipeline**
+- **Daily Scheduled Research** - Runs at 6 AM UTC with focus areas by day of week:
+  - Monday: Strategic Planning / C-suite engagement
+  - Tuesday: Finance ROI / Business cases
+  - Wednesday: Governance / Compliance frameworks
+  - Thursday: Change Management / Adoption patterns
+  - Friday: Weekly synthesis / Emerging trends
+
+**Web Search with Anthropic**
+- Uses Claude's native web search tool for real-time research
+- **4-Tier Credibility System**:
+  | Tier | Sources | Trust Level |
+  |------|---------|-------------|
+  | 1 | McKinsey, BCG, Gartner, HBR, MIT Sloan | High - cite directly |
+  | 2 | Big 4 (Deloitte, PwC, EY, KPMG), major tech | High - cite directly |
+  | 3 | Industry publications, WSJ, FT | Medium - verify claims |
+  | 4 | Blogs, vendor marketing | Low - signals only |
+
+**Cross-Agent Intelligence**
+- **Agent Observation** - Monitors all agent conversations for knowledge gaps
+- **Uncertainty Detection** - Identifies when agents express uncertainty in responses
+- **Anticipatory Research** - Proactively researches topics based on:
+  - New stakeholders added (prepares relevant use cases)
+  - ROI opportunities created (gathers supporting benchmarks)
+  - Stakeholder concerns raised (researches solutions)
+- **Knowledge Distribution** - Research auto-links to relevant agent knowledge bases
+
+**API Endpoints**
+```
+POST /api/research/trigger    - Trigger immediate research
+GET  /api/research/tasks      - View research history
+GET  /api/research/schedule   - View/edit schedule
+GET  /api/research/gaps       - View knowledge gaps
+GET  /api/research/sources    - View credible sources
+```
+
+See [Atlas Proactive Research Plan](docs/atlas/PROACTIVE_RESEARCH_PLAN.md) for full architecture.
 
 ## Getting Started
 
@@ -574,20 +609,29 @@ thesis/
 │   ├── agents/                  # Agent implementations
 │   │   ├── coordinator.py       # Central orchestrator
 │   │   ├── base_agent.py        # Base agent class
+│   │   ├── atlas.py             # Research agent with web search
 │   │   └── [agent].py           # Individual agents
 │   ├── system_instructions/
 │   │   └── agents/              # XML system instructions
 │   ├── api/routes/
 │   │   ├── chat.py              # Chat + Dig Deeper endpoints
-│   │   └── meeting_rooms.py     # Meeting room endpoints
+│   │   ├── meeting_rooms.py     # Meeting room endpoints
+│   │   └── research.py          # Atlas research endpoints
 │   └── services/
-│       └── meeting_orchestrator.py  # Multi-agent orchestration
+│       ├── meeting_orchestrator.py  # Multi-agent orchestration
+│       ├── research_scheduler.py    # Daily research scheduler
+│       ├── research_context.py      # Topic prioritization
+│       ├── agent_observer.py        # Cross-agent monitoring
+│       └── web_researcher.py        # Anthropic web search
 ├── database/
 │   └── migrations/
-│       └── 007_meeting_rooms.sql    # Meeting room tables
+│       ├── 007_meeting_rooms.sql    # Meeting room tables
+│       └── 011_research_system.sql  # Research tables
 └── docs/                        # Documentation
     ├── AGENT_PERSONA_ALIGNMENT_REPORT.md
     ├── CONTEXT.md
+    ├── atlas/                   # Atlas research documentation
+    │   └── PROACTIVE_RESEARCH_PLAN.md
     └── planning/
 ```
 
@@ -596,6 +640,8 @@ thesis/
 - [CLAUDE.md](CLAUDE.md) - Development guidance for AI assistants
 - [docs/AGENT_PERSONA_ALIGNMENT_REPORT.md](docs/AGENT_PERSONA_ALIGNMENT_REPORT.md) - Agent persona mappings
 - [docs/CONTEXT.md](docs/CONTEXT.md) - Project context and requirements
+- [docs/atlas/PROACTIVE_RESEARCH_PLAN.md](docs/atlas/PROACTIVE_RESEARCH_PLAN.md) - Atlas research system architecture
+- [docs/neo4j/SYNC_PLAN.md](docs/neo4j/SYNC_PLAN.md) - PostgreSQL to Neo4j sync architecture
 - [docs/planning/](docs/planning/) - Implementation plan and session transcripts
 - [docs/testing/](docs/testing/) - Testing infrastructure and code quality
 
@@ -636,26 +682,37 @@ The testing prompt enables autonomous code quality improvement with safety-first
 - 15 specialized agents with XML system instructions (Gigawatt v4.0 framework)
 - Agent instruction versioning system with diff comparison
 - Persona alignment for stakeholder perspective agents
-- Neo4j graph integration for stakeholder networks
-- Admin UI for agent management
+- Neo4j graph integration for stakeholder networks (schema + sync working)
+- Admin UI for agent management with graph stats panel
 - Meeting Room feature for multi-agent collaboration
 - Dig Deeper feature for response elaboration
 - Smart Brevity formatting for meeting responses
 - Systems thinking agent (Nexus) for complex interdependencies
 - Brand voice agent (Echo) for content consistency
+- Graph-based agent routing with expertise matching (8/11 accuracy)
+- Real API health checks for Anthropic and Voyage AI services
+- Auth-aware frontend components (no more 401 race conditions)
+- **Atlas Proactive Research System**:
+  - Daily research scheduler (APScheduler, 6 AM UTC)
+  - Anthropic web search integration with credibility filtering
+  - Agent observation for knowledge gap detection
+  - Research context aggregation (stakeholder concerns, ROI opportunities)
+  - Cross-agent knowledge distribution
+  - Research API endpoints
 
 ### In Progress
 
 - Code quality improvements (target: 9.0/10 score)
 - Integration testing across agent roster
-- Meeting Room polish (add/remove participants mid-meeting)
+- Populating stakeholder/meeting data for full graph functionality
 
 ### Planned
 
+- Research dashboard UI for Atlas insights
 - Customer-facing AI use case agents
 - Engineering/Product Management perspectives
 - External communications capabilities
-- Advanced analytics dashboard
+- Stakeholder network visualization component
 - Expanded test coverage (target: 75+ backend tests)
 
 ## License
