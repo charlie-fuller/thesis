@@ -43,6 +43,7 @@ class AgentRouter:
 
     # Keyword patterns for each agent
     AGENT_KEYWORDS = {
+        # Stakeholder Perspective Agents
         "atlas": [
             r"\bresearch\b", r"\bstudy\b", r"\bstudies\b", r"\bcase study\b",
             r"\bconsulting\b", r"\bmckinsey\b", r"\bbcg\b", r"\bbain\b",
@@ -83,15 +84,88 @@ class AgentRouter:
             r"\bupload\b", r"\banalyze\b", r"\bextract\b",
             r"\bwho said\b", r"\bwhat did .+ say\b", r"\bstakeholder\b",
         ],
+        "sage": [
+            r"\bpeople\b", r"\bchange management\b", r"\badoption\b", r"\bresistance\b",
+            r"\bfear\b", r"\banxiety\b", r"\bburnout\b", r"\bchampion\b",
+            r"\bculture\b", r"\bhuman\b", r"\bflourishing\b", r"\bpsychology\b",
+            r"\bsafety\b", r"\bmorale\b", r"\bengagement\b", r"\bemployee\b",
+            r"\bteam\b", r"\bpeople-first\b", r"\bhuman-centered\b",
+        ],
+        # Consulting/Implementation Agents
+        "strategist": [
+            r"\bexecutive\b", r"\bc-suite\b", r"\bceo\b", r"\bboard\b", r"\bsponsor\b",
+            r"\bstakeholder management\b", r"\bcoalition\b", r"\bpolitics\b",
+            r"\bgovernance structure\b", r"\bstrategic alignment\b", r"\btransformation\b",
+            r"\bleadership\b", r"\bbuy-in\b",
+        ],
+        "architect": [
+            r"\barchitecture\b", r"\bintegration\b", r"\bapi\b", r"\btechnical design\b",
+            r"\bbuild vs buy\b", r"\brag\b", r"\bvector\b", r"\bembedding\b",
+            r"\bmlops\b", r"\bdevops\b", r"\bmicroservices\b", r"\bdata pipeline\b",
+            r"\bsystem design\b", r"\btechnical\b",
+        ],
+        "operator": [
+            r"\bprocess\b", r"\bworkflow\b", r"\bautomation\b", r"\bmetrics\b",
+            r"\bkpi\b", r"\bbaseline\b", r"\bexception\b", r"\bsop\b",
+            r"\boperations\b", r"\befficiency\b", r"\bthroughput\b",
+            r"\bbottleneck\b", r"\bfrontline\b", r"\bday-to-day\b",
+        ],
+        "pioneer": [
+            r"\bemerging\b", r"\binnovation\b", r"\br&d\b", r"\bnew technology\b",
+            r"\bcutting edge\b", r"\bexperimental\b", r"\bprototype\b",
+            r"\bhype\b", r"\bmaturity\b", r"\breadiness\b",
+            r"\bquantum\b", r"\bfuture\b", r"\bhorizon\b",
+        ],
+        # Internal Enablement Agents
+        "catalyst": [
+            r"\binternal communications\b", r"\bmessaging\b", r"\bnarrative\b",
+            r"\bemployee engagement\b", r"\bannouncement\b", r"\ball-hands\b",
+            r"\btown hall\b", r"\binternal marketing\b", r"\bai anxiety\b",
+            r"\btransparency\b", r"\bemail\b",
+        ],
+        "scholar": [
+            r"\btraining\b", r"\blearning\b", r"\bl&d\b", r"\benablement\b",
+            r"\bcurriculum\b", r"\bcourse\b", r"\bworkshop\b", r"\bcertification\b",
+            r"\bchampion program\b", r"\bskill development\b", r"\badult learning\b",
+            r"\bcapability building\b", r"\bonboarding\b",
+        ],
+        "echo": [
+            r"\bbrand voice\b", r"\bstyle\b", r"\btone\b", r"\bvoice analysis\b",
+            r"\bai emulation\b", r"\bwriting style\b", r"\bvoice profile\b",
+            r"\bbrand guidelines\b", r"\btone of voice\b", r"\bstyle guide\b",
+            r"\bcommunication style\b", r"\bbrand consistency\b",
+        ],
+        # Systems/Coordination Agents
+        "nexus": [
+            r"\bsystems thinking\b", r"\bfeedback loop\b", r"\bleverage point\b",
+            r"\bunintended consequence\b", r"\binterconnection\b", r"\bcomplexity\b",
+            r"\bsecond-order effect\b", r"\bsystem dynamics\b", r"\barchetype\b",
+            r"\breinforcing loop\b", r"\bbalancing loop\b", r"\bmental model\b",
+            r"\broot cause\b", r"\bholistic\b", r"\bripple effect\b",
+        ],
     }
 
     # Explicit agent mentions
     AGENT_MENTIONS = {
+        # Stakeholder Perspective Agents
         "@atlas": "atlas",
         "@fortuna": "fortuna",
         "@guardian": "guardian",
         "@counselor": "counselor",
         "@oracle": "oracle",
+        "@sage": "sage",
+        # Consulting/Implementation Agents
+        "@strategist": "strategist",
+        "@architect": "architect",
+        "@operator": "operator",
+        "@pioneer": "pioneer",
+        # Internal Enablement Agents
+        "@catalyst": "catalyst",
+        "@scholar": "scholar",
+        "@echo": "echo",
+        # Systems/Coordination Agents
+        "@nexus": "nexus",
+        "@coordinator": "coordinator",
         # Alternate names
         "@research": "atlas",
         "@finance": "fortuna",
@@ -99,6 +173,16 @@ class AgentRouter:
         "@governance": "guardian",
         "@legal": "counselor",
         "@transcript": "oracle",
+        "@people": "sage",
+        "@change": "sage",
+        "@executive": "strategist",
+        "@technical": "architect",
+        "@operations": "operator",
+        "@innovation": "pioneer",
+        "@comms": "catalyst",
+        "@training": "scholar",
+        "@voice": "echo",
+        "@systems": "nexus",
     }
 
     def __init__(self, supabase: Client, anthropic_client: anthropic.Anthropic):
@@ -204,12 +288,21 @@ Available agents:
 - guardian: IT/Governance agent for security, compliance, infrastructure, policy
 - counselor: Legal agent for contracts, IP, licensing, legal considerations
 - oracle: Transcript analyzer for meeting transcripts, stakeholder sentiment
+- sage: People/Change agent for change management, adoption, human factors, employee concerns
+- strategist: Executive strategy for C-suite engagement, organizational politics, governance
+- architect: Technical architecture for AI patterns, RAG, integration, build vs. buy
+- operator: Operations for process optimization, automation, metrics, frontline workflows
+- pioneer: Innovation/R&D for emerging tech, hype filtering, maturity assessment
+- catalyst: Internal communications for AI messaging, employee engagement, announcements
+- scholar: L&D for training programs, champion enablement, skill development
+- echo: Brand voice for style analysis, voice profiling, AI emulation guidelines
+- nexus: Systems thinking for interconnections, feedback loops, unintended consequences
 
 Message: "{message}"
 
 {f"Context: {context}" if context else ""}
 
-Respond with ONLY the agent name (atlas, fortuna, guardian, counselor, or oracle) and a brief reason.
+Respond with ONLY the agent name and a brief reason.
 Format: AGENT_NAME: reason"""
 
         try:
@@ -251,11 +344,24 @@ Format: AGENT_NAME: reason"""
 
         # Map common handoff reasons to agents
         handoff_mappings = {
+            # Stakeholder Perspective Agents
+            "atlas": ["research", "study", "analysis", "trend", "benchmark", "case study"],
             "fortuna": ["cost", "budget", "roi", "financial", "money", "investment"],
             "guardian": ["security", "compliance", "governance", "it", "infrastructure"],
             "counselor": ["legal", "contract", "license", "ip", "liability"],
             "oracle": ["transcript", "meeting", "stakeholder", "sentiment"],
-            "atlas": ["research", "study", "analysis", "trend"],
+            "sage": ["people", "change", "adoption", "resistance", "employee", "human"],
+            # Consulting/Implementation Agents
+            "strategist": ["executive", "c-suite", "sponsor", "politics", "leadership"],
+            "architect": ["architecture", "technical", "integration", "api", "rag"],
+            "operator": ["process", "workflow", "automation", "operations", "metrics"],
+            "pioneer": ["innovation", "emerging", "future", "experimental", "r&d"],
+            # Internal Enablement Agents
+            "catalyst": ["communications", "messaging", "announcement", "engagement"],
+            "scholar": ["training", "learning", "enablement", "curriculum", "onboarding"],
+            "echo": ["voice", "style", "tone", "brand", "writing"],
+            # Systems Agent
+            "nexus": ["systems", "interconnection", "feedback", "unintended", "holistic"],
         }
 
         for agent, keywords in handoff_mappings.items():

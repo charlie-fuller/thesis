@@ -5,9 +5,11 @@ import Link from 'next/link';
 import LazyUsageAnalytics from '@/components/LazyUsageAnalytics';
 import QuickActionsPanel from '@/components/QuickActionsPanel';
 import InterfaceHealthPanel from '@/components/InterfaceHealthPanel';
+import GraphStatsPanel from '@/components/GraphStatsPanel';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { apiGet } from '@/lib/api';
 import { logger } from '@/lib/logger';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Stats {
   totalConversations: number;
@@ -24,6 +26,7 @@ interface StakeholderMetrics {
 }
 
 export default function AdminDashboard() {
+  const { user, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<Stats>({
     totalConversations: 0,
     totalDocuments: 0,
@@ -35,8 +38,12 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'analytics'>('overview');
 
   useEffect(() => {
+    // Wait for auth to complete before fetching data
+    if (authLoading || !user) {
+      return;
+    }
     fetchData();
-  }, []);
+  }, [authLoading, user]);
 
   const fetchData = async () => {
     try {
@@ -86,6 +93,15 @@ export default function AdminDashboard() {
   }
 
   const ENGAGEMENT_LEVELS = ['champion', 'supporter', 'neutral', 'skeptic', 'blocker'];
+
+  // Show loading while auth is in progress
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -155,6 +171,9 @@ export default function AdminDashboard() {
 
           {/* Two Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Knowledge Graph Stats */}
+            <GraphStatsPanel />
+
             {/* Stakeholder Metrics */}
             {stakeholderMetrics && (
               <div className="card p-6">

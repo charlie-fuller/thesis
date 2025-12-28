@@ -16,7 +16,7 @@ from database import get_supabase
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/stakeholders", tags=["stakeholders"])
+router = APIRouter(prefix="/api/stakeholders", tags=["stakeholders"])
 
 
 class StakeholderCreate(BaseModel):

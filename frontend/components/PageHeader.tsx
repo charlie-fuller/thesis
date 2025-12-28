@@ -34,13 +34,25 @@ export default function PageHeader({
     { href: '/transcripts', label: 'Transcripts' },
   ]
 
-  // Admin-only navigation links
-  const adminLinks = [
-    { href: '/admin', label: 'Admin' },
+  // Admin section navigation links
+  const adminSectionLinks = [
+    { href: '/admin', label: 'Dashboard' },
+    { href: '/admin/agents', label: 'Agents' },
+    { href: '/admin/users', label: 'Users' },
+    { href: '/admin/documents', label: 'Documents' },
+    { href: '/admin/conversations', label: 'Conversations' },
+    { href: '/admin/theme', label: 'Theme' },
   ]
 
-  // Admins get all links, regular users only get user links
-  const navLinks = isAdmin ? [...userLinks, ...adminLinks] : userLinks
+  // Check if we're in the admin section
+  const isInAdminSection = pathname?.startsWith('/admin')
+
+  // Determine which links to show
+  const navLinks = isInAdminSection && isAdmin
+    ? adminSectionLinks
+    : isAdmin
+      ? [...userLinks, { href: '/admin', label: 'Admin' }]
+      : userLinks
 
   const isActive = (href: string) => {
     // Home route - exact match only

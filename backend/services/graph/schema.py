@@ -332,14 +332,28 @@ CYPHER_TEMPLATES = {
     "upsert_meeting_room_message": """
         MERGE (mrm:MeetingRoomMessage {id: $id})
         SET mrm.content_preview = $content_preview,
+            mrm.role = $role,
+            mrm.discussion_round = $discussion_round,
+            mrm.responding_to_agent = $responding_to_agent,
+            mrm.is_autonomous = $is_autonomous,
             mrm.updated_at = datetime()
         WITH mrm
         MATCH (mr:MeetingRoom {id: $meeting_room_id})
         MERGE (mrm)-[:IN_MEETING_ROOM]->(mr)
         WITH mrm
-        MATCH (a:Agent {id: $agent_id})
-        MERGE (a)-[:AUTHORED]->(mrm)
+        OPTIONAL MATCH (a:Agent {id: $agent_id})
+        WHERE $agent_id IS NOT NULL
+        FOREACH (_ IN CASE WHEN a IS NOT NULL THEN [1] ELSE [] END |
+            MERGE (a)-[:AUTHORED]->(mrm)
+        )
         RETURN mrm
+    """,
+
+    "link_meeting_room_message_response": """
+        MATCH (msg:MeetingRoomMessage {id: $message_id})
+        MATCH (responded_to:MeetingRoomMessage {id: $responded_to_id})
+        MERGE (msg)-[r:RESPONDS_TO]->(responded_to)
+        RETURN r
     """,
 
     # ==========================================================================

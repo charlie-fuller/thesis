@@ -1,6 +1,6 @@
 # Thesis Platform - Comprehensive Testing, Review & Auto-Fix Prompt
 
-**Version:** 2.0
+**Version:** 2.1
 **Last Updated:** 2025-12-27
 
 ---
@@ -372,6 +372,26 @@ All tests passing: [COUNT]
 
 ---
 
+## PHASE E: Generate Report
+
+Save the final report to a markdown file in the docs/testing directory with today's date:
+
+**Filename format:** `docs/testing/CODE_REVIEW_YYYY-MM-DD.md`
+
+Example: `docs/testing/CODE_REVIEW_2025-12-27.md`
+
+The report file should contain:
+1. The complete Pre-Fix Assessment
+2. All Fixes Applied (table format)
+3. Post-Fix Assessment with final score
+4. Issues Requiring Manual Review
+5. Safety Checklist results
+6. Git commit hash for the changes
+
+This creates a permanent record of each code review session for tracking quality improvements over time.
+
+---
+
 ## Output Format
 
 Provide a structured report:
@@ -543,5 +563,6 @@ def validate(cls, v):
 
 ## Changelog
 
+- **2025-12-27 v2.1**: Added Phase E for generating dated report files in docs/testing/
 - **2025-12-27 v2.0**: Added automated fix capabilities, safety checks, iterative improvement cycle
 - **2025-12-27 v1.0**: Initial version (analysis only)

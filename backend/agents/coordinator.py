@@ -101,7 +101,11 @@ class CoordinatorAgent(BaseAgent):
         "nexus": ["systems thinking", "feedback loop", "leverage point", "unintended consequences",
                  "interconnection", "complexity", "second-order effect", "system dynamics",
                  "archetype", "reinforcing loop", "balancing loop", "mental model",
-                 "paradigm", "root cause", "holistic", "emergent", "ripple effect"]
+                 "paradigm", "root cause", "holistic", "emergent", "ripple effect"],
+        # Brand voice agent
+        "echo": ["brand voice", "style", "tone", "voice analysis", "ai emulation", "writing style",
+                "voice profile", "brand guidelines", "tone of voice", "style guide",
+                "communication style", "brand consistency", "voice cloning", "voice match"]
     }
 
     def __init__(

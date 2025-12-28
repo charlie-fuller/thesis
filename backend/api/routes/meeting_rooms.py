@@ -30,6 +30,8 @@ from ..models.meeting_rooms import (
     MeetingRoomListResponse,
     MeetingMessageResponse,
     ParticipantResponse,
+    AutonomousDiscussionRequest,
+    AutonomousDiscussionStatus,
 )
 
 logger = get_logger(__name__)
@@ -806,4 +808,287 @@ async def stream_meeting_chat(
         raise
     except Exception as e:
         logger.error(f"Error in meeting chat stream: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# AUTONOMOUS DISCUSSION ENDPOINTS
+# ============================================================================
+
+@router.post("/{meeting_id}/autonomous/start")
+@limiter.limit("10/minute")
+async def start_autonomous_discussion(
+    request: Request,
+    meeting_id: str,
+    discussion_request: AutonomousDiscussionRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Start an autonomous discussion in a meeting room.
+    Agents will discuss the provided topic for the specified number of rounds.
+
+    Returns Server-Sent Events (SSE) with the following event types:
+    - discussion_round_start: When a round begins
+    - agent_turn_start: When an agent begins responding
+    - agent_token: Individual tokens from agent response
+    - agent_turn_end: When an agent finishes
+    - discussion_round_end: When a round completes
+    - discussion_complete: When all rounds are finished
+    - discussion_paused: If user interjects or error occurs
+    - error: If something goes wrong
+    """
+    try:
+        validate_uuid(meeting_id, "meeting_id")
+        user_id = current_user['id']
+        client_id = get_default_client_id()
+
+        # Verify meeting ownership and get meeting details
+        meeting_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_rooms')
+                .select('*')
+                .eq('id', meeting_id)
+                .eq('user_id', user_id)
+                .single()
+                .execute()
+        )
+
+        if not meeting_result.data:
+            raise HTTPException(status_code=404, detail="Meeting room not found")
+
+        meeting = meeting_result.data
+
+        # Check if autonomous discussion is already active
+        config = meeting.get('config', {})
+        autonomous = config.get('autonomous', {})
+        if autonomous.get('is_active', False):
+            raise HTTPException(
+                status_code=400,
+                detail="Autonomous discussion is already active in this meeting room"
+            )
+
+        # Get participants with agent details
+        participants_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_room_participants')
+                .select('*, agents(id, name, display_name)')
+                .eq('meeting_room_id', meeting_id)
+                .order('priority')
+                .execute()
+        )
+
+        participants = [
+            {
+                'id': p['id'],
+                'agent_id': p['agent_id'],
+                'agent_name': p['agents']['name'],
+                'agent_display_name': p['agents']['display_name'],
+                'role_description': p['role_description'],
+                'priority': p['priority'],
+            }
+            for p in participants_result.data
+        ]
+
+        if len(participants) < 2:
+            raise HTTPException(
+                status_code=400,
+                detail="At least 2 participants are required for autonomous discussion"
+            )
+
+        # Get recent message history for context
+        messages_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_room_messages')
+                .select('*')
+                .eq('meeting_room_id', meeting_id)
+                .order('created_at', desc=False)
+                .limit(20)  # Limited history for context
+                .execute()
+        )
+
+        message_history = [
+            {
+                'role': m['role'],
+                'content': m['content'],
+                'agent_name': m['agent_name'],
+                'agent_display_name': m['agent_display_name'],
+            }
+            for m in messages_result.data
+        ]
+
+        # Build meeting context
+        from services.meeting_orchestrator import MeetingContext
+
+        meeting_context = MeetingContext(
+            user_id=user_id,
+            client_id=client_id,
+            meeting_room_id=meeting_id,
+            user_message=discussion_request.topic,  # Topic becomes the initial message
+            message_history=message_history,
+            participants=participants,
+            meeting_type=meeting['meeting_type'],
+            config=meeting['config'] or {},
+            turn_number=0,
+        )
+
+        # Get orchestrator and process autonomous discussion
+        orchestrator = await get_orchestrator()
+
+        async def generate_stream():
+            """Generate SSE stream from autonomous discussion."""
+            try:
+                async for event in orchestrator.process_autonomous_discussion(
+                    context=meeting_context,
+                    topic=discussion_request.topic,
+                    total_rounds=discussion_request.rounds,
+                    speaking_order=discussion_request.speaking_order
+                ):
+                    yield f"data: {json.dumps(event)}\n\n"
+            except Exception as e:
+                logger.error(f"Autonomous discussion stream error: {e}")
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+        return StreamingResponse(
+            generate_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error starting autonomous discussion: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{meeting_id}/autonomous/stop")
+async def stop_autonomous_discussion(
+    meeting_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Stop an ongoing autonomous discussion."""
+    try:
+        validate_uuid(meeting_id, "meeting_id")
+        user_id = current_user['id']
+
+        # Verify meeting ownership
+        meeting_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_rooms')
+                .select('id, config')
+                .eq('id', meeting_id)
+                .eq('user_id', user_id)
+                .single()
+                .execute()
+        )
+
+        if not meeting_result.data:
+            raise HTTPException(status_code=404, detail="Meeting room not found")
+
+        # Stop the discussion
+        orchestrator = await get_orchestrator()
+        await orchestrator.stop_autonomous_discussion(meeting_id)
+
+        return {
+            'success': True,
+            'message': 'Autonomous discussion stopped'
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error stopping autonomous discussion: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{meeting_id}/autonomous/status")
+async def get_autonomous_status(
+    meeting_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get the current autonomous discussion status."""
+    try:
+        validate_uuid(meeting_id, "meeting_id")
+        user_id = current_user['id']
+
+        # Verify meeting ownership
+        meeting_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_rooms')
+                .select('id')
+                .eq('id', meeting_id)
+                .eq('user_id', user_id)
+                .single()
+                .execute()
+        )
+
+        if not meeting_result.data:
+            raise HTTPException(status_code=404, detail="Meeting room not found")
+
+        # Get status from orchestrator
+        orchestrator = await get_orchestrator()
+        status = await orchestrator.get_autonomous_status(meeting_id)
+
+        return {
+            'success': True,
+            'status': AutonomousDiscussionStatus(**status)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting autonomous status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{meeting_id}/chat/interject")
+@limiter.limit("20/minute")
+async def interject_in_discussion(
+    request: Request,
+    meeting_id: str,
+    chat_request: MeetingChatRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Send a user message during an autonomous discussion.
+    This will pause the discussion and mark the message as an interjection.
+    """
+    try:
+        validate_uuid(meeting_id, "meeting_id")
+        user_id = current_user['id']
+
+        # Verify meeting ownership
+        meeting_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_rooms')
+                .select('id, config')
+                .eq('id', meeting_id)
+                .eq('user_id', user_id)
+                .single()
+                .execute()
+        )
+
+        if not meeting_result.data:
+            raise HTTPException(status_code=404, detail="Meeting room not found")
+
+        # Store the user message with interjection flag
+        await asyncio.to_thread(
+            lambda: supabase.table('meeting_room_messages')
+                .insert({
+                    'meeting_room_id': meeting_id,
+                    'role': 'user',
+                    'content': chat_request.message,
+                    'pending_interjection': True,
+                    'metadata': {'interjection': True}
+                })
+                .execute()
+        )
+
+        return {
+            'success': True,
+            'message': 'Interjection sent. Discussion will pause after current agent finishes.'
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error sending interjection: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

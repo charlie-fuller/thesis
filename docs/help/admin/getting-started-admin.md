@@ -54,51 +54,28 @@ The admin interface has six main sections accessible from the top navigation bar
 5. **Theme** - Customize the platform's appearance and branding
 6. **Help System** - Manage help documentation and monitor help effectiveness
 
-## View Mode Toggle
+## Unified Admin Experience
 
-Administrators can experience the platform as a regular user would by switching to "User View Mode."
+Administrators have full access to both admin and user features in a single unified navigation. There's no need to switch between modes - you can access everything from one interface.
 
-### Switching to User View
+### Navigation
 
-1. Click on your user menu (avatar/name) in the top navigation bar
-2. Find the **View Mode** toggle or option
-3. Select **User View** to switch perspectives
-4. The navigation will change to show user pages: Chat, Projects, My Impact
+The top navigation bar shows all available sections:
 
-### What Changes in User View
+**User Features:**
+- **Home** - Morning briefing dashboard with stakeholder metrics
+- **Chat** - Conversation interface with AI agents
+- **Meeting Room** - Multi-agent collaboration sessions
+- **Stakeholders** - CRM-style stakeholder tracking
+- **Transcripts** - Meeting transcript analysis
 
-When you switch to User View:
-- **Navigation changes** - You see Chat, Projects, and My Impact instead of admin pages
-- **Interface simplifies** - You see exactly what regular users see
-- **Your data is preserved** - You're still logged in as yourself
-- **Admin access remains** - Toggle back anytime to return to admin mode
+**Admin Features:**
+- **Admin** - Access to admin dashboard, users, documents, conversations, theme, and system settings
 
-### What You Can Do in User View
-
-- Start conversations with Thesis as a user would
-- Upload and manage documents from the user perspective
-- Access the user help chat for user-focused assistance
-- Test projects and impact dashboard features
-
-### What You Cannot Do in User View
-
-- Access admin pages (Dashboard, Users, Documents, Conversations, Theme, Help System)
-- View other users' data
-- Modify system settings
-
-### Returning to Admin View
-
-1. Click on your user menu again
-2. Toggle the view mode back to **Admin View**
-3. Full admin navigation and capabilities are restored
-
-### When to Use View Mode
-
-This feature is valuable for:
-- **Testing user experience** - See exactly what users see
-- **Troubleshooting issues** - Reproduce problems users report
-- **Training and demos** - Show the user interface without a separate account
-- **Quality assurance** - Verify user-facing features work correctly
+This unified approach means you can:
+- See exactly what users see alongside admin tools
+- Quickly test user-facing features without switching accounts
+- Access admin controls from any page via the Admin link
 
 ## Using the Admin Help Chat
 

@@ -605,10 +605,13 @@ class GraphQueryService:
         Returns:
             List of agents with relevance scores
         """
+        # Match against both Expertise nodes (from agent sync) and Concept nodes (from document extraction)
         result = await self.neo4j.execute_query("""
-            MATCH (a:Agent)-[e:EXPERT_IN]->(c:Concept)
-            WHERE c.name IN $concepts AND a.is_active = true
-            WITH a, sum(e.confidence) as relevance, collect(c.name) as matched_concepts
+            MATCH (a:Agent)-[e:EXPERT_IN]->(exp)
+            WHERE (exp:Expertise OR exp:Concept)
+              AND toLower(exp.name) IN $concepts
+              AND a.is_active = true
+            WITH a, sum(e.confidence) as relevance, collect(exp.name) as matched_concepts
             RETURN {
                 id: a.id,
                 name: a.name,
@@ -733,28 +736,119 @@ class GraphQueryService:
         """
         Extract potential topic keywords from text.
 
-        Simple keyword extraction for agent routing.
+        Maps common question terms to expertise areas in the graph.
         """
-        # Common topic keywords to look for
-        topic_keywords = {
-            "roi": ["roi", "return", "investment", "savings", "cost", "budget", "financial"],
-            "finance": ["finance", "budget", "money", "revenue", "profit"],
-            "security": ["security", "governance", "compliance", "risk", "policy"],
-            "infrastructure": ["infrastructure", "it", "technology", "systems", "architecture"],
-            "legal": ["legal", "contract", "agreement", "terms", "liability", "compliance"],
-            "research": ["research", "study", "analysis", "trends", "insights"],
-            "genai": ["ai", "genai", "artificial intelligence", "machine learning", "llm"],
-            "meetings": ["meeting", "transcript", "discussion", "conversation"],
-            "stakeholders": ["stakeholder", "team", "people", "sentiment", "engagement"],
+        # Map keywords in questions to expertise names in the graph
+        # Each expertise name maps to trigger words that might appear in questions
+        keyword_triggers = {
+            # Fortuna (Finance)
+            "roi": ["roi", "return on investment", "payback"],
+            "finance": ["finance", "financial", "money", "revenue"],
+            "budget": ["budget", "cost", "expense", "spending"],
+            "investment": ["investment", "invest", "funding"],
+            "sox compliance": ["sox", "sarbanes"],
+            "business case": ["business case", "justification"],
+            "cost savings": ["cost savings", "save money", "reduce costs"],
+            # Guardian (IT/Governance)
+            "security": ["security", "secure", "protect"],
+            "compliance": ["compliance", "compliant", "regulatory"],
+            "governance": ["governance", "govern", "oversight"],
+            "infrastructure": ["infrastructure", "it infrastructure"],
+            "vendor evaluation": ["vendor", "evaluate vendor", "compare vendors"],
+            "shadow it": ["shadow it", "unsanctioned"],
+            "it": ["it department", "information technology"],
+            # Counselor (Legal)
+            "legal": ["legal", "lawyer", "attorney"],
+            "contracts": ["contract", "agreement", "terms"],
+            "liability": ["liability", "liable", "responsible"],
+            "risk": ["risk", "risks", "risky"],
+            "data privacy": ["privacy", "gdpr", "data protection", "pii"],
+            "policy": ["policy", "policies"],
+            # Sage (People/Change)
+            "change management": ["change management", "change resistance", "organizational change"],
+            "adoption": ["adoption", "adopt", "rollout", "implementation"],
+            "culture": ["culture", "cultural"],
+            "people": ["people", "employees", "staff", "workforce"],
+            "human flourishing": ["flourishing", "wellbeing", "well-being"],
+            "training": ["training", "train", "upskill"],
+            # Scholar (L&D)
+            "learning": ["learning", "education", "course"],
+            "champion enablement": ["champion", "power user"],
+            "adult learning": ["adult learning", "andragogy"],
+            "development": ["development", "develop skills"],
+            # Atlas (Research)
+            "research": ["research", "study", "analysis", "findings"],
+            "genai": ["ai", "genai", "artificial intelligence", "machine learning", "llm", "gpt", "claude"],
+            "benchmarking": ["benchmark", "compare", "best practice"],
+            "consulting": ["consulting", "consultant", "advisory"],
+            "thought leadership": ["thought leadership", "insights"],
+            "case studies": ["case study", "case studies", "example"],
+            "lean methodology": ["lean", "methodology"],
+            # Oracle (Meeting Intelligence)
+            "meetings": ["meeting", "meetings"],
+            "transcripts": ["transcript", "recording"],
+            "sentiment": ["sentiment", "feeling", "mood"],
+            "stakeholders": ["stakeholder", "stakeholders"],
+            "insights": ["insights", "insight"],
+            "dynamics": ["dynamics", "dynamic", "interaction"],
+            # Architect (Technical)
+            "architecture": ["architecture", "architectural", "design pattern"],
+            "integration": ["integration", "integrate", "api"],
+            "rag": ["rag", "retrieval", "vector"],
+            "enterprise ai": ["enterprise ai", "enterprise-grade"],
+            "build vs buy": ["build vs buy", "build or buy", "make or buy"],
+            "technical": ["technical", "tech stack"],
+            # Operator (Business Ops)
+            "operations": ["operations", "operational"],
+            "automation": ["automation", "automate", "automated"],
+            "process": ["process", "workflow", "procedure"],
+            "metrics": ["metrics", "kpi", "measurement"],
+            "optimization": ["optimization", "optimize", "improve efficiency"],
+            "workflow": ["workflow", "workflows"],
+            # Pioneer (Innovation)
+            "innovation": ["innovation", "innovative", "new technology"],
+            "emerging technology": ["emerging", "cutting-edge", "new tech"],
+            "hype": ["hype", "overhyped", "realistic"],
+            "maturity assessment": ["maturity", "readiness"],
+            "r&d": ["r&d", "research and development"],
+            # Strategist (Executive)
+            "strategy": ["strategy", "strategic", "roadmap"],
+            "executive": ["executive", "c-suite", "ceo", "cfo", "cto", "cio"],
+            "c-suite": ["c-suite", "board", "leadership"],
+            "organizational": ["organizational", "org structure"],
+            "politics": ["politics", "political", "stakeholder management"],
+            # Catalyst (Communications)
+            "communications": ["communications", "communicate", "messaging"],
+            "messaging": ["messaging", "message", "announce"],
+            "employee engagement": ["engagement", "engaged", "morale"],
+            "ai anxiety": ["anxiety", "worried", "fear", "concern about ai"],
+            "internal": ["internal", "internally"],
+            # Echo (Brand Voice)
+            "brand voice": ["brand voice", "brand identity"],
+            "voice analysis": ["voice", "tone of voice"],
+            "style": ["style", "writing style"],
+            "tone": ["tone", "tonality"],
+            "ai emulation": ["emulation", "emulate", "mimic"],
+            # Nexus (Systems Thinking)
+            "systems thinking": ["systems thinking", "systemic"],
+            "interconnections": ["interconnection", "connected", "dependencies"],
+            "feedback loops": ["feedback loop", "reinforcing", "balancing"],
+            "leverage points": ["leverage point", "high impact"],
+            "unintended consequences": ["unintended", "side effect", "ripple"],
+            # Coordinator
+            "coordination": ["coordinate", "coordination"],
+            "orchestration": ["orchestrate", "orchestration"],
+            "routing": ["route", "routing", "which agent"],
+            "synthesis": ["synthesize", "synthesis", "combine"],
         }
 
         text_lower = text.lower()
         found_keywords = []
 
-        for topic, keywords in topic_keywords.items():
-            for keyword in keywords:
-                if keyword in text_lower:
-                    found_keywords.append(topic)
+        for expertise, triggers in keyword_triggers.items():
+            for trigger in triggers:
+                if trigger in text_lower:
+                    found_keywords.append(expertise)
                     break
 
-        return list(set(found_keywords)) or ["general"]
+        return list(set(found_keywords)) or ["genai"]  # Default to genai if nothing matches

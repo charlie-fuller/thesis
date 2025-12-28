@@ -13,6 +13,9 @@ interface Message {
   content: string
   agent_name?: string
   agent_display_name?: string
+  discussion_round?: number
+  responding_to_agent?: string
+  metadata?: Record<string, unknown>
   created_at: string
 }
 
@@ -73,28 +76,55 @@ export default function MeetingMessage({
     )
   }
 
+  const isAutonomous = message.metadata?.autonomous === true || message.discussion_round !== undefined
+
   // Agent message
   return (
     <div className="flex gap-3">
       {/* Agent Avatar */}
-      <div
-        className={`w-10 h-10 rounded-full ${colors.bg} flex items-center justify-center text-white font-semibold text-sm flex-shrink-0`}
-      >
-        {message.agent_display_name?.charAt(0) || 'A'}
+      <div className="relative flex-shrink-0">
+        <div
+          className={`w-10 h-10 rounded-full ${colors.bg} flex items-center justify-center text-white font-semibold text-sm`}
+        >
+          {message.agent_display_name?.charAt(0) || 'A'}
+        </div>
+        {/* Round indicator badge */}
+        {isAutonomous && message.discussion_round && (
+          <div className="absolute -top-1 -right-1 w-5 h-5 bg-indigo-600 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-medium">
+            R{message.discussion_round}
+          </div>
+        )}
       </div>
 
       {/* Message Content */}
       <div className="flex-1 max-w-[80%]">
-        {/* Agent Name */}
-        <div className={`text-sm font-medium ${colors.text} mb-1`}>
-          {message.agent_display_name || agentName}
+        {/* Agent Name + Autonomous Badge */}
+        <div className="flex items-center gap-2 mb-1">
+          <span className={`text-sm font-medium ${colors.text}`}>
+            {message.agent_display_name || agentName}
+          </span>
+          {isAutonomous && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-100 text-indigo-700">
+              Autonomous
+            </span>
+          )}
           {isStreaming && (
-            <span className="ml-2 inline-flex items-center">
-              <span className="animate-pulse">typing</span>
-              <span className="animate-bounce ml-1">...</span>
+            <span className="inline-flex items-center">
+              <span className="animate-pulse text-sm text-secondary">typing</span>
+              <span className="animate-bounce ml-1 text-secondary">...</span>
             </span>
           )}
         </div>
+
+        {/* Responding to indicator */}
+        {message.responding_to_agent && (
+          <div className="text-xs text-secondary mb-1 flex items-center gap-1">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+            Responding to {message.responding_to_agent}
+          </div>
+        )}
 
         {/* Message Bubble */}
         <div className="bg-panel border border-default rounded-lg px-4 py-3 prose prose-sm max-w-none text-primary">

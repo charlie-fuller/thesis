@@ -7,6 +7,7 @@ The Atlas agent specializes in:
 - Finding and synthesizing case studies
 - Tracking thought leadership and academic research
 - Providing evidence-based recommendations
+- Proactive research with web search capability
 """
 
 import logging
@@ -18,6 +19,25 @@ from supabase import Client
 from .base_agent import BaseAgent, AgentContext, AgentResponse
 
 logger = logging.getLogger(__name__)
+
+
+# Web search prompt addition for research enhancement
+WEB_RESEARCH_CONTEXT_TEMPLATE = """
+## Web Research Context
+
+The following sources were found through web search to inform your response.
+Use these as supporting evidence and cite them appropriately.
+
+{web_context}
+
+---
+
+When synthesizing your research:
+1. Prioritize Tier 1 sources (McKinsey, BCG, Gartner, HBR) for key claims
+2. Use Tier 2 sources (Big 4, major tech) to support findings
+3. Treat Tier 3/4 sources as directional signals only
+4. Always note the source credibility when citing statistics
+"""
 
 
 class AtlasAgent(BaseAgent):
@@ -603,6 +623,135 @@ Apply Lean principles to AI research and recommendations:
             save_to_memory=save_to_memory,
             memory_content=f"Research query: {context.user_message[:100]}..." if save_to_memory else None
         )
+
+    async def process_with_web_research(
+        self,
+        context: AgentContext,
+        focus_area: str = "general"
+    ) -> AgentResponse:
+        """
+        Process a research query with web search enhancement.
+
+        Used by the research scheduler for proactive research tasks.
+        Performs web search first, then synthesizes with Atlas persona.
+        """
+        from services.web_researcher import research_topic_with_web, format_citations_for_output
+
+        # Extract topic from user message
+        topic = context.user_message
+
+        # Perform web research
+        try:
+            web_context, citations = await research_topic_with_web(
+                topic=topic,
+                focus_area=focus_area,
+                max_sources=8
+            )
+        except Exception as e:
+            logger.warning(f"Web research failed, proceeding without: {e}")
+            web_context = ""
+            citations = []
+
+        # Build enhanced system prompt with web context
+        enhanced_system = self.system_instruction
+        if web_context:
+            web_section = WEB_RESEARCH_CONTEXT_TEMPLATE.format(web_context=web_context)
+            enhanced_system = enhanced_system + "\n\n" + web_section
+
+        # Build messages
+        messages = self._build_messages(context)
+
+        # Add memory context
+        if context.memories:
+            memory_context = "\n\nRelevant previous context:\n"
+            for memory in context.memories[:5]:
+                memory_context += f"- {memory.get('content', '')}\n"
+            messages[0]["content"] = memory_context + "\n\n" + messages[0]["content"]
+
+        # Execute with enhanced system prompt
+        response = self.anthropic.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=8192,  # Larger for research output
+            system=enhanced_system,
+            messages=messages
+        )
+
+        content = response.content[0].text
+
+        # Append citation list if we have sources
+        if citations:
+            citation_section = format_citations_for_output(citations)
+            content = content + citation_section
+
+        return AgentResponse(
+            content=content,
+            agent_name=self.name,
+            agent_display_name=self.display_name,
+            save_to_memory=True,  # Always save research
+            memory_content=f"Research on: {topic[:100]}...",
+            metadata={
+                'focus_area': focus_area,
+                'web_sources': len(citations),
+                'citations': citations
+            }
+        )
+
+    async def synthesize_research(
+        self,
+        topic: str,
+        web_sources: list,
+        context: Optional[dict] = None
+    ) -> str:
+        """
+        Synthesize research from web sources into a cohesive output.
+
+        Used when web search has already been performed externally.
+        """
+        from services.web_researcher import prepare_web_context, format_citations_for_output
+
+        # Prepare web context
+        web_context = prepare_web_context(web_sources)
+
+        # Build synthesis prompt
+        synthesis_prompt = f"""
+Based on the research sources provided, synthesize a comprehensive analysis on:
+
+**Topic**: {topic}
+
+Please follow the standard Atlas output format:
+1. Summary (2-3 sentences with key findings)
+2. Evidence Sources (with credibility assessment)
+3. Industry Benchmarks (specific metrics where available)
+4. Quick Win Opportunities
+5. Implementation Considerations
+6. Caveats & Limitations
+
+Focus on evidence-based insights and actionable recommendations.
+"""
+
+        # Build enhanced system prompt
+        enhanced_system = self.system_instruction
+        if web_context.formatted_context:
+            web_section = WEB_RESEARCH_CONTEXT_TEMPLATE.format(
+                web_context=web_context.formatted_context
+            )
+            enhanced_system = enhanced_system + "\n\n" + web_section
+
+        response = self.anthropic.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=8192,
+            system=enhanced_system,
+            messages=[{"role": "user", "content": synthesis_prompt}]
+        )
+
+        content = response.content[0].text
+
+        # Append citations
+        if web_context.citation_list:
+            citation_section = format_citations_for_output(web_context.citation_list)
+            content = content + citation_section
+
+        return content
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""

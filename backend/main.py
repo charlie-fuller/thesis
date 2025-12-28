@@ -176,6 +176,7 @@ from api.routes import (
     notion,
     projects,
     quick_prompts,
+    research,
     stakeholders,
     system_instructions,
     templates,
@@ -206,8 +207,9 @@ app.include_router(transcripts.router)
 app.include_router(stakeholders.router)
 app.include_router(graph.router)
 app.include_router(meeting_rooms.router)
+app.include_router(research.router)
 
-logger.info("✅ All route modules registered (including Thesis multi-agent, graph, and meeting room routes)")
+logger.info("✅ All route modules registered (including Thesis multi-agent, graph, meeting room, and research routes)")
 
 # ============================================================================
 # Backward Compatibility Routes
@@ -320,14 +322,25 @@ async def get_user_documents(
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on application startup"""
+    # Start Google Drive sync scheduler
     try:
         from services.sync_scheduler import start_scheduler
         # Start the Google Drive sync scheduler (checks every 5 minutes)
         start_scheduler(check_interval_minutes=5)
-        logger.info("✅ Application startup complete - Sync scheduler started")
+        logger.info("✅ Google Drive sync scheduler started")
     except Exception as e:
-        logger.error(f"⚠️ Warning: Could not start scheduler: {e}")
-        # Don't fail startup if scheduler fails
+        logger.error(f"⚠️ Warning: Could not start sync scheduler: {e}")
+
+    # Start Atlas research scheduler
+    try:
+        from services.research_scheduler import start_research_scheduler
+        # Start the research scheduler (runs daily at 6 AM UTC)
+        start_research_scheduler(hour_utc=6, minute=0)
+        logger.info("✅ Atlas research scheduler started")
+    except Exception as e:
+        logger.error(f"⚠️ Warning: Could not start research scheduler: {e}")
+
+    logger.info("✅ Application startup complete")
 
 
 @app.on_event("shutdown")
@@ -337,7 +350,13 @@ async def shutdown_event():
         from services.sync_scheduler import stop_scheduler
         stop_scheduler()
     except Exception as e:
-        logger.error(f"⚠️ Warning during scheduler shutdown: {e}")
+        logger.error(f"⚠️ Warning during sync scheduler shutdown: {e}")
+
+    try:
+        from services.research_scheduler import stop_research_scheduler
+        stop_research_scheduler()
+    except Exception as e:
+        logger.error(f"⚠️ Warning during research scheduler shutdown: {e}")
 
     try:
         from services.graph import close_neo4j_connection

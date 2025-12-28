@@ -474,7 +474,7 @@ class GraphSyncService:
 
     async def sync_meeting_room_messages(self, client_id: str, max_per_room: int = 200) -> dict:
         """
-        Sync meeting room messages.
+        Sync meeting room messages including autonomous discussion metadata.
 
         Args:
             client_id: The client ID
@@ -483,7 +483,7 @@ class GraphSyncService:
         Returns:
             Dict with sync counts
         """
-        result = {"synced": 0, "errors": 0}
+        result = {"synced": 0, "errors": 0, "response_links": 0}
 
         try:
             # Get meeting rooms for this client
@@ -503,8 +503,12 @@ class GraphSyncService:
                         .limit(max_per_room) \
                         .execute()
 
-                    for msg in (msg_response.data or []):
+                    messages = msg_response.data or []
+
+                    for msg in messages:
                         content_preview = (msg.get("content", "") or "")[:300]
+                        metadata = msg.get("metadata") or {}
+                        is_autonomous = metadata.get("autonomous", False) or msg.get("discussion_round") is not None
 
                         await self.neo4j.execute_write(
                             CYPHER_TEMPLATES["upsert_meeting_room_message"],
@@ -513,9 +517,22 @@ class GraphSyncService:
                                 "meeting_room_id": room_id,
                                 "agent_id": msg.get("agent_id"),
                                 "content_preview": content_preview,
+                                "role": msg.get("role", "user"),
+                                "discussion_round": msg.get("discussion_round"),
+                                "responding_to_agent": msg.get("responding_to_agent"),
+                                "is_autonomous": is_autonomous,
                             }
                         )
                         result["synced"] += 1
+
+                        # Update graph_synced_at timestamp
+                        try:
+                            self.supabase.table("meeting_room_messages") \
+                                .update({"graph_synced_at": datetime.now(timezone.utc).isoformat()}) \
+                                .eq("id", msg["id"]) \
+                                .execute()
+                        except Exception:
+                            pass  # Non-critical
 
                 except Exception as e:
                     logger.error(f"Failed to sync messages for room {room_id}: {e}")
@@ -526,6 +543,59 @@ class GraphSyncService:
             result["errors"] += 1
 
         return result
+
+    async def sync_single_meeting_room_message(
+        self,
+        message_id: str,
+        meeting_room_id: str,
+        content: str,
+        role: str,
+        agent_id: Optional[str] = None,
+        discussion_round: Optional[int] = None,
+        responding_to_agent: Optional[str] = None,
+        is_autonomous: bool = False
+    ) -> bool:
+        """
+        Sync a single meeting room message to Neo4j immediately.
+
+        Used for real-time sync during conversations.
+
+        Args:
+            message_id: The message UUID
+            meeting_room_id: The meeting room UUID
+            content: Message content
+            role: Message role (user/agent/system)
+            agent_id: Optional agent UUID
+            discussion_round: Optional round number for autonomous discussions
+            responding_to_agent: Optional agent name this message responds to
+            is_autonomous: Whether this is an autonomous discussion message
+
+        Returns:
+            True if successful
+        """
+        try:
+            content_preview = (content or "")[:300]
+
+            await self.neo4j.execute_write(
+                CYPHER_TEMPLATES["upsert_meeting_room_message"],
+                {
+                    "id": message_id,
+                    "meeting_room_id": meeting_room_id,
+                    "agent_id": agent_id,
+                    "content_preview": content_preview,
+                    "role": role,
+                    "discussion_round": discussion_round,
+                    "responding_to_agent": responding_to_agent,
+                    "is_autonomous": is_autonomous,
+                }
+            )
+
+            logger.debug(f"Synced meeting room message {message_id} to Neo4j")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to sync message {message_id} to Neo4j: {e}")
+            return False
 
     async def sync_agent_knowledge_base(self) -> dict:
         """

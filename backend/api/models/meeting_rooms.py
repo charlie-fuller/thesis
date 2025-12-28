@@ -195,3 +195,75 @@ class MeetingErrorEvent(BaseModel):
     type: Literal['error'] = 'error'
     agent_name: Optional[str] = None
     message: str
+
+
+# ============================================================================
+# AUTONOMOUS DISCUSSION MODELS
+# ============================================================================
+
+class AutonomousDiscussionRequest(BaseModel):
+    """Request to start an autonomous discussion."""
+    topic: str = Field(min_length=1, max_length=5000)
+    rounds: int = Field(ge=1, le=10, default=3)
+    speaking_order: Literal['priority', 'round_robin'] = 'priority'
+
+    @field_validator('topic')
+    @classmethod
+    def validate_topic(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Topic cannot be empty')
+        return v.strip()
+
+
+class AutonomousDiscussionConfig(BaseModel):
+    """Config stored in meeting_rooms.config for autonomous mode."""
+    is_active: bool = False
+    topic: Optional[str] = None
+    total_rounds: int = 3
+    current_round: int = 0
+    speaking_order: str = 'priority'
+    is_paused: bool = False
+    agents_spoken_this_round: list[str] = []
+
+
+class AutonomousDiscussionStatus(BaseModel):
+    """Response for autonomous discussion status."""
+    is_active: bool
+    topic: Optional[str] = None
+    total_rounds: int = 0
+    current_round: int = 0
+    speaking_order: str = 'priority'
+    is_paused: bool = False
+    can_resume: bool = False
+
+
+# ============================================================================
+# AUTONOMOUS DISCUSSION SSE EVENTS
+# ============================================================================
+
+class DiscussionRoundStartEvent(BaseModel):
+    """SSE event when a discussion round begins."""
+    type: Literal['discussion_round_start'] = 'discussion_round_start'
+    round_number: int
+    total_rounds: int
+
+
+class DiscussionRoundEndEvent(BaseModel):
+    """SSE event when a discussion round completes."""
+    type: Literal['discussion_round_end'] = 'discussion_round_end'
+    round_number: int
+    agents_responded: list[str]
+
+
+class DiscussionCompleteEvent(BaseModel):
+    """SSE event when all discussion rounds are finished."""
+    type: Literal['discussion_complete'] = 'discussion_complete'
+    total_rounds_completed: int
+    total_tokens: dict  # {input: int, output: int}
+
+
+class DiscussionPausedEvent(BaseModel):
+    """SSE event when discussion is paused (e.g., user interjection)."""
+    type: Literal['discussion_paused'] = 'discussion_paused'
+    reason: Literal['user_interjection', 'error', 'manual_stop']
+    current_round: int

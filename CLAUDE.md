@@ -206,6 +206,7 @@ See `/frontend/.env.example` and `/backend/.env.example` for complete reference.
 
 Key variables:
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` (graph database)
 - `ANTHROPIC_API_KEY` (Claude)
 - `VOYAGE_API_KEY` (embeddings)
 - `MEM0_API_KEY` (agent memory)

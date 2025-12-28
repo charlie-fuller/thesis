@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import MeetingMessage from '@/components/meeting-room/MeetingMessage'
 import ParticipantBar from '@/components/meeting-room/ParticipantBar'
+import AutonomousDiscussionPanel from '@/components/meeting-room/AutonomousDiscussionPanel'
 import toast from 'react-hot-toast'
 
 interface Participant {
@@ -43,6 +44,9 @@ interface Message {
   agent_name?: string
   agent_display_name?: string
   turn_number?: number
+  discussion_round?: number
+  responding_to_agent?: string
+  metadata?: Record<string, unknown>
   created_at: string
 }
 
@@ -59,6 +63,13 @@ export default function MeetingRoomPage() {
   const [sending, setSending] = useState(false)
   const [activeAgent, setActiveAgent] = useState<string | null>(null)
   const [streamingContent, setStreamingContent] = useState<Record<string, string>>({})
+
+  // Autonomous discussion state
+  const [isAutonomous, setIsAutonomous] = useState(false)
+  const [autonomousRound, setAutonomousRound] = useState(0)
+  const [autonomousTotalRounds, setAutonomousTotalRounds] = useState(0)
+  const [autonomousTopic, setAutonomousTopic] = useState<string | null>(null)
+  const [autonomousPaused, setAutonomousPaused] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -242,6 +253,151 @@ export default function MeetingRoomPage() {
     }
   }
 
+  // Autonomous discussion handlers
+  const handleStartAutonomousDiscussion = async (topic: string, rounds: number) => {
+    setSending(true)
+    setIsAutonomous(true)
+    setAutonomousTopic(topic)
+    setAutonomousTotalRounds(rounds)
+    setAutonomousRound(1)
+    setAutonomousPaused(false)
+    setStreamingContent({})
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        throw new Error('Not authenticated')
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/meeting-rooms/${meetingId}/autonomous/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ topic, rounds, speaking_order: 'priority' })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to start autonomous discussion')
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('No response body')
+      }
+
+      const decoder = new TextDecoder()
+      const agentResponses: Record<string, string> = {}
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+
+              switch (data.type) {
+                case 'discussion_round_start':
+                  setAutonomousRound(data.round_number)
+                  setAutonomousTotalRounds(data.total_rounds)
+                  break
+
+                case 'agent_turn_start':
+                  setActiveAgent(data.agent_display_name)
+                  agentResponses[data.agent_name] = ''
+                  break
+
+                case 'agent_token':
+                  if (data.agent_name) {
+                    agentResponses[data.agent_name] = (agentResponses[data.agent_name] || '') + data.content
+                    setStreamingContent({ ...agentResponses })
+                  }
+                  break
+
+                case 'agent_turn_end':
+                  if (agentResponses[data.agent_name]) {
+                    const agentMessage: Message = {
+                      id: `agent-${data.agent_name}-${Date.now()}`,
+                      role: 'agent',
+                      content: agentResponses[data.agent_name],
+                      agent_name: data.agent_name,
+                      agent_display_name: meeting?.participants.find(
+                        p => p.agent_name === data.agent_name
+                      )?.agent_display_name || data.agent_name,
+                      discussion_round: autonomousRound,
+                      metadata: { autonomous: true },
+                      created_at: new Date().toISOString()
+                    }
+                    setMessages(prev => [...prev, agentMessage])
+                    // Clear this agent from streaming content
+                    delete agentResponses[data.agent_name]
+                    setStreamingContent({ ...agentResponses })
+                  }
+                  setActiveAgent(null)
+                  break
+
+                case 'discussion_round_end':
+                  // Round complete
+                  break
+
+                case 'discussion_complete':
+                  setIsAutonomous(false)
+                  setAutonomousRound(0)
+                  setAutonomousTopic(null)
+                  toast.success('Discussion complete')
+                  break
+
+                case 'discussion_paused':
+                  setIsAutonomous(false)
+                  setAutonomousPaused(true)
+                  if (data.reason === 'user_interjection') {
+                    toast('Discussion paused for your input')
+                  }
+                  break
+
+                case 'error':
+                  toast.error(data.message || 'An error occurred')
+                  break
+              }
+            } catch {
+              // Ignore parse errors for incomplete chunks
+            }
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Error in autonomous discussion:', error)
+      toast.error('Failed to start autonomous discussion')
+      setIsAutonomous(false)
+    } finally {
+      setSending(false)
+      setActiveAgent(null)
+      setStreamingContent({})
+      loadMessages()
+    }
+  }
+
+  const handleStopAutonomousDiscussion = async () => {
+    try {
+      await authenticatedFetch(`/api/meeting-rooms/${meetingId}/autonomous/stop`, {
+        method: 'POST'
+      })
+      setIsAutonomous(false)
+      setAutonomousPaused(true)
+      toast('Discussion stopped')
+    } catch (error) {
+      console.error('Error stopping discussion:', error)
+      toast.error('Failed to stop discussion')
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-page">
@@ -286,11 +442,24 @@ export default function MeetingRoomPage() {
         {/* Messages */}
         <div className="flex-1 flex flex-col">
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            {messages.length === 0 && !sending && (
+            {/* Autonomous Discussion Panel */}
+            <AutonomousDiscussionPanel
+              meetingId={meetingId}
+              isActive={isAutonomous}
+              isPaused={autonomousPaused}
+              currentRound={autonomousRound}
+              totalRounds={autonomousTotalRounds}
+              topic={autonomousTopic}
+              onStart={handleStartAutonomousDiscussion}
+              onStop={handleStopAutonomousDiscussion}
+              disabled={sending}
+            />
+
+            {messages.length === 0 && !sending && !isAutonomous && (
               <div className="text-center py-16 text-secondary">
                 <p className="mb-2">Start the conversation</p>
                 <p className="text-sm">
-                  Ask a question and the participating agents will share their perspectives
+                  Ask a question or start an autonomous discussion to have agents share their perspectives
                 </p>
               </div>
             )}
@@ -361,6 +530,9 @@ export default function MeetingRoomPage() {
         <ParticipantBar
           participants={meeting.participants}
           activeAgent={activeAgent}
+          isAutonomous={isAutonomous}
+          currentRound={autonomousRound}
+          totalRounds={autonomousTotalRounds}
         />
       </div>
     </div>

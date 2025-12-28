@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { apiGet } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import LoadingSpinner from './LoadingSpinner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UploadHealth {
   periods: {
@@ -66,17 +67,23 @@ interface InterfaceHealth {
 }
 
 export default function InterfaceHealthPanel() {
+  const { user, loading: authLoading } = useAuth();
   const [uploadHealth, setUploadHealth] = useState<UploadHealth | null>(null);
   const [interfaceHealth, setInterfaceHealth] = useState<InterfaceHealth | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Wait for auth to complete before fetching data
+    if (authLoading || !user) {
+      return;
+    }
+
     fetchHealthData();
     // Refresh every 2 minutes
     const interval = setInterval(fetchHealthData, 120000);
     return () => clearInterval(interval);
-  }, []);
+  }, [authLoading, user]);
 
   const fetchHealthData = async () => {
     try {

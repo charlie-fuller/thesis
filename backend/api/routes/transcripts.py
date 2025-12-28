@@ -16,7 +16,7 @@ from database import get_supabase
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/transcripts", tags=["transcripts"])
+router = APIRouter(prefix="/api/transcripts", tags=["transcripts"])
 
 
 class TranscriptAnalysisRequest(BaseModel):

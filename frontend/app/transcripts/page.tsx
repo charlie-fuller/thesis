@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import TranscriptUpload from '@/components/TranscriptUpload'
+import PageHeader from '@/components/PageHeader'
 import { apiGet, apiDelete } from '@/lib/api'
 
 interface Transcript {
@@ -86,8 +87,9 @@ export default function TranscriptsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
+      <PageHeader />
+      <div className="max-w-6xl mx-auto px-4 py-8 w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -149,7 +151,11 @@ export default function TranscriptsPage() {
         {/* Empty State */}
         {!loading && !error && transcripts.length === 0 && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
-            <div className="text-4xl mb-4">&#128221;</div>
+            <div className="flex justify-center mb-4">
+              <svg className="w-12 h-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
               No transcripts yet
             </h3>
@@ -192,9 +198,19 @@ export default function TranscriptsPage() {
 
                     <div className="flex flex-wrap gap-3 text-sm text-gray-500 dark:text-gray-400 mb-3">
                       {transcript.meeting_date && (
-                        <span>&#128197; {transcript.meeting_date}</span>
+                        <span className="flex items-center gap-1">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {transcript.meeting_date}
+                        </span>
                       )}
-                      <span>&#128101; {transcript.attendee_count} attendees</span>
+                      <span className="flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        {transcript.attendee_count} attendees
+                      </span>
                       <span className="capitalize">{transcript.meeting_type}</span>
                     </div>
 

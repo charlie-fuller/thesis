@@ -14,6 +14,9 @@ interface Participant {
 interface ParticipantBarProps {
   participants: Participant[]
   activeAgent: string | null
+  isAutonomous?: boolean
+  currentRound?: number
+  totalRounds?: number
 }
 
 const AGENT_COLORS: Record<string, string> = {
@@ -46,7 +49,16 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
   scholar: 'Learning & Development'
 }
 
-export default function ParticipantBar({ participants, activeAgent }: ParticipantBarProps) {
+export default function ParticipantBar({
+  participants,
+  activeAgent,
+  isAutonomous = false,
+  currentRound = 0,
+  totalRounds = 0
+}: ParticipantBarProps) {
+  // Sort participants by priority for speaking order display
+  const sortedParticipants = [...participants].sort((a, b) => a.priority - b.priority)
+
   return (
     <div className="w-64 border-l border-default bg-panel flex-shrink-0 overflow-y-auto">
       <div className="p-4 border-b border-default">
@@ -54,10 +66,59 @@ export default function ParticipantBar({ participants, activeAgent }: Participan
         <p className="text-xs text-secondary mt-1">
           {participants.length} agents in this meeting
         </p>
+
+        {/* Autonomous Discussion Progress */}
+        {isAutonomous && currentRound > 0 && (
+          <div className="mt-3 p-2 bg-primary/5 rounded-lg border border-primary/20">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-primary font-medium">Round {currentRound} of {totalRounds}</span>
+              <span className="text-secondary">
+                {Math.round((currentRound / totalRounds) * 100)}%
+              </span>
+            </div>
+            <div className="mt-1.5 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-500"
+                style={{ width: `${(currentRound / totalRounds) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Speaking Order (shown during autonomous mode) */}
+      {isAutonomous && (
+        <div className="p-4 border-b border-default">
+          <h4 className="text-xs font-medium text-secondary mb-2 uppercase tracking-wide">
+            Speaking Order
+          </h4>
+          <div className="flex flex-wrap gap-1">
+            {sortedParticipants.map((participant, index) => {
+              const isActive = activeAgent === participant.agent_display_name
+              const color = AGENT_COLORS[participant.agent_name] || 'bg-gray-500'
+              return (
+                <div
+                  key={participant.id}
+                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
+                    isActive
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-secondary'
+                  }`}
+                >
+                  <span className="font-medium">{index + 1}.</span>
+                  <div className={`w-2 h-2 rounded-full ${color}`} />
+                  <span className="truncate max-w-[60px]">
+                    {participant.agent_display_name.split(' ')[0]}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="p-4 space-y-3">
-        {participants.map((participant) => {
+        {(isAutonomous ? sortedParticipants : participants).map((participant, index) => {
           const isActive = activeAgent === participant.agent_display_name
           const color = AGENT_COLORS[participant.agent_name] || 'bg-gray-500'
           const description = AGENT_DESCRIPTIONS[participant.agent_name] || ''
@@ -79,6 +140,11 @@ export default function ParticipantBar({ participants, activeAgent }: Participan
                   {isActive && (
                     <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
                       <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                    </div>
+                  )}
+                  {isAutonomous && !isActive && (
+                    <div className="absolute -top-1 -left-1 w-5 h-5 bg-gray-600 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-medium">
+                      {index + 1}
                     </div>
                   )}
                 </div>
