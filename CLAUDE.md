@@ -80,6 +80,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 7. **Meeting Room**: Multi-agent collaboration with selected agents for focused discussions
 8. **Autonomous Discussion**: Agents discuss topics amongst themselves with discourse moves (Question, Connect, Challenge, Extend, Synthesize) - user can interject anytime
 9. **Dig Deeper**: One-click elaboration on any assistant response for more detail
+10. **Auto-Generated Titles**: Conversation titles auto-generated from initial message using Claude
 
 ## Tech Stack
 
