@@ -69,7 +69,7 @@ def process_automatic_syncs():
         users_to_sync = result.data
 
         if not users_to_sync:
-            print("   ℹ️  No syncs due at this time")
+            logger.info("   No syncs due at this time")
             logger.info(f"{'='*60}\n")
             return
 
@@ -106,7 +106,7 @@ def process_automatic_syncs():
                     .eq('user_id', user_id)\
                     .execute()
 
-                print(f"      ✅ Sync completed: +{sync_result['documents_added']} added, "
+                logger.info(f"      Sync completed: +{sync_result['documents_added']} added, "
                       f"~{sync_result['documents_updated']} updated, "
                       f"-{sync_result['documents_skipped']} skipped")
                 logger.info(f"      ⏰ Next sync: {next_sync.strftime('%Y-%m-%d %H:%M UTC')}")
@@ -145,7 +145,7 @@ def start_scheduler(check_interval_minutes: int = 5):
     global scheduler
 
     if scheduler is not None and scheduler.running:
-        print("⚠️  Scheduler is already running")
+        logger.warning("Scheduler is already running")
         return
 
     scheduler = BackgroundScheduler(timezone='UTC')
@@ -182,7 +182,7 @@ def stop_scheduler():
 
     if scheduler is not None and scheduler.running:
         scheduler.shutdown(wait=True)
-        print("\n🛑 Google Drive Sync Scheduler Stopped\n")
+        logger.info("Google Drive Sync Scheduler Stopped")
 
 
 def get_scheduler_status() -> dict:

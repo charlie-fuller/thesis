@@ -21,7 +21,7 @@ security = HTTPBearer()
 SUPABASE_JWT_SECRET = os.getenv('SUPABASE_JWT_SECRET', '')
 
 if not SUPABASE_JWT_SECRET:
-    print("⚠️  Warning: SUPABASE_JWT_SECRET not set in environment variables")
+    logger.warning("SUPABASE_JWT_SECRET not set in environment variables")
 
 
 def decode_jwt(token: str) -> Optional[dict]:

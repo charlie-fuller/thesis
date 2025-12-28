@@ -5,8 +5,12 @@ This module provides centralized configuration management, including
 support for single-tenant mode with a default client.
 """
 
+import logging
 import os
 from typing import Optional
+
+# Use basic logger for config module (runs at import time)
+logger = logging.getLogger(__name__)
 
 # ============================================================================
 # Default Client Configuration (Single-Tenant Mode)
@@ -174,4 +178,4 @@ try:
     validate_config()
 except ValueError as e:
     # Log warning but don't crash - allow app to start for debugging
-    print(f"  Configuration Warning: {e}")
+    logger.warning(f"Configuration Warning: {e}")

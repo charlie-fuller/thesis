@@ -185,7 +185,7 @@ View Solomon Review Dashboard: {review_url}
         admin_emails = await get_admin_emails()
 
         if not admin_emails:
-            print("[Admin Notifications] No admin users found")
+            logger.warning("[Admin Notifications] No admin users found")
             return {
                 "success": False,
                 "emails_sent": 0,
@@ -224,14 +224,14 @@ View Solomon Review Dashboard: {review_url}
                 # Fall through to log-only mode
 
         # Fallback: Log notification details
-        print("=" * 80)
-        print("[Admin Notifications] EMAIL NOTIFICATION (Log Only)")
-        print("=" * 80)
+        logger.info("=" * 80)
+        logger.info("[Admin Notifications] EMAIL NOTIFICATION (Log Only)")
+        logger.info("=" * 80)
         logger.info(f"To: {', '.join(admin_emails)}")
         logger.info(f"Subject: {subject}")
-        print("-" * 80)
-        print(text_body)
-        print("=" * 80)
+        logger.info("-" * 80)
+        logger.info(text_body)
+        logger.info("=" * 80)
 
         return {
             "success": True,

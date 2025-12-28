@@ -12,8 +12,11 @@ The improved validation catches:
 4. Binary patterns that look printable
 """
 
+import logging
 import re
 from typing import Tuple
+
+logger = logging.getLogger(__name__)
 
 
 def is_valid_text_content_improved(
@@ -100,19 +103,19 @@ def test_validation():
         ("   \n\t  ", False, "Whitespace only"),
     ]
 
-    print("\n" + "="*80)
-    print("VALIDATION TEST RESULTS")
-    print("="*80 + "\n")
+    logger.info("\n" + "="*80)
+    logger.info("VALIDATION TEST RESULTS")
+    logger.info("="*80 + "\n")
 
     for text, expected_valid, description in test_cases:
         is_valid, reason = is_valid_text_content_improved(text)
-        status = "✅ PASS" if is_valid == expected_valid else "❌ FAIL"
+        status = "PASS" if is_valid == expected_valid else "FAIL"
 
-        print(f"{status} | {description}")
-        print(f"     Expected: {expected_valid}, Got: {is_valid}")
-        print(f"     Reason: {reason}")
-        print(f"     Text preview: {text[:60]}...")
-        print()
+        logger.info(f"{status} | {description}")
+        logger.info(f"     Expected: {expected_valid}, Got: {is_valid}")
+        logger.info(f"     Reason: {reason}")
+        logger.info(f"     Text preview: {text[:60]}...")
+        logger.info("")
 
 
 # Drop-in replacement for google_drive_sync.py

@@ -315,25 +315,25 @@ def cache_health_check() -> dict:
 
 # For testing
 if __name__ == "__main__":
-    print("Cache Health Check:")
+    logger.info("Cache Health Check:")
     health = cache_health_check()
-    print(json.dumps(health, indent=2))
+    logger.info(json.dumps(health, indent=2))
 
     if health["status"] == "healthy":
-        print("\nTesting cache operations...")
+        logger.info("\nTesting cache operations...")
 
         # Test set/get
         cache_set("test_key", {"hello": "world"}, ttl=10)
         value = cache_get("test_key")
-        print(f"Set/Get test: {value}")
+        logger.info(f"Set/Get test: {value}")
 
         # Test hash function
         key = hash_cache_key("query", client_id="123")
-        print(f"Hash test: {key}")
+        logger.info(f"Hash test: {key}")
 
         # Test delete
         cache_delete("test_key")
         value = cache_get("test_key")
-        print(f"Delete test (should be None): {value}")
+        logger.info(f"Delete test (should be None): {value}")
 
-        print("\n✅ All tests passed!")
+        logger.info("\nAll tests passed!")

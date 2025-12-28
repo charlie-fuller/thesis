@@ -174,7 +174,7 @@ def _test_encryption():
         assert decrypted == test_token
         logger.info(f"✓ Decrypted: {decrypted[:30]}...")
 
-        print("✓ Encryption test passed!")
+        logger.info("Encryption test passed!")
         return True
     except Exception as e:
         logger.error(f"✗ Encryption test failed: {e}")

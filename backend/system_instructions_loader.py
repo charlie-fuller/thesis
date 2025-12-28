@@ -361,8 +361,8 @@ def get_default_system_instructions() -> str:
     Returns:
         str: The default system instructions
     """
-    print("   ⚠️  WARNING: Using deprecated get_default_system_instructions()")
-    print("   ⚠️  Upgrade to get_system_instructions_for_user() for per-user customization")
+    logger.warning("Using deprecated get_default_system_instructions()")
+    logger.warning("Upgrade to get_system_instructions_for_user() for per-user customization")
 
     if DEFAULT_PROMPT_FILE.exists():
         with open(DEFAULT_PROMPT_FILE, 'r', encoding='utf-8') as f:
@@ -375,18 +375,18 @@ def get_default_system_instructions() -> str:
 
 # For testing/debugging
 if __name__ == "__main__":
-    print("System Instructions Loader - Test Mode\n")
+    logger.info("System Instructions Loader - Test Mode\n")
 
     # Test loading default
     try:
         default_instructions = get_default_system_instructions()
-        logger.info(f"✓ Default instructions loaded: {len(default_instructions)} characters")
+        logger.info(f"Default instructions loaded: {len(default_instructions)} characters")
         logger.info(f"  First 100 characters: {default_instructions[:100]}...\n")
     except FileNotFoundError as e:
-        logger.info(f"✗ Could not load default instructions: {e}\n")
+        logger.info(f"Could not load default instructions: {e}\n")
 
     # Test template variable replacement
-    print("Testing template variable replacement:")
+    logger.info("Testing template variable replacement:")
     test_template = "Hello {user_name} from {client_name}! Your role is {user_role}."
     test_variables = {
         "user_name": "John Doe",
@@ -396,10 +396,10 @@ if __name__ == "__main__":
     result = replace_template_variables(test_template, test_variables)
     logger.info(f"  Template: {test_template}")
     logger.info(f"  Result: {result}")
-    logger.info("  ✓ Variables replaced successfully\n")
+    logger.info("  Variables replaced successfully\n")
 
     # Test loading user-specific instructions
-    print("Testing user-specific loading:")
+    logger.info("Testing user-specific loading:")
     test_user_id = "test-user-123"
     try:
         user_instructions = load_user_system_instructions(
@@ -407,6 +407,6 @@ if __name__ == "__main__":
             user_name="Test User",
             client_name="Test Corp"
         )
-        logger.info(f"✓ Loaded instructions for {test_user_id}: {len(user_instructions)} characters")
+        logger.info(f"Loaded instructions for {test_user_id}: {len(user_instructions)} characters")
     except FileNotFoundError:
-        logger.info("  → No user-specific file found (expected), fell back to default")
+        logger.info("  No user-specific file found (expected), fell back to default")

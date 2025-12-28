@@ -50,7 +50,7 @@ def setup_logging(log_level=None):
             try:
                 os.makedirs(log_dir, exist_ok=True)
             except OSError as e:
-                print(f"⚠️  Could not create log directory {log_dir}: {e}")
+                sys.stderr.write(f"Warning: Could not create log directory {log_dir}: {e}\n")
                 # Fall back to console-only logging
                 return logger
 
@@ -64,7 +64,7 @@ def setup_logging(log_level=None):
             file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
         except OSError as e:
-            print(f"⚠️  Could not create log file {log_file}: {e}")
+            sys.stderr.write(f"Warning: Could not create log file {log_file}: {e}\n")
             # Continue with console-only logging
 
     return logger
