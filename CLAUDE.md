@@ -72,6 +72,9 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 2. **Meeting Intelligence**: Upload meeting transcripts (Granola/Otter/Teams/Zoom), extract stakeholder insights with evidence-based sentiment analysis, power dynamics, and strategic recommendations
 3. **Stakeholder Tracking**: Full CRM-style tracking with sentiment, engagement, alignment scores
 4. **Research Intelligence**: Proactive monitoring of GenAI implementation research
+   - Atlas auto-performs web research when no knowledge base results found
+   - Uses Anthropic's native web search with credibility-tiered source filtering
+   - Sources appended with citations organized by tier (Tier 1-4)
 5. **Agent Coordination**: Hybrid model - some agents work independently, others collaborate
 6. **Persistent Memory**: Mem0 integration for cross-conversation learning
 7. **Meeting Room**: Multi-agent collaboration with selected agents for focused discussions
