@@ -700,6 +700,9 @@ async def stream_meeting_chat(
     - round_complete: When all agents have responded
     - error: If something goes wrong
     """
+    # Ultra-early logging to confirm we enter the function
+    logger.info(f"[Meeting Chat] === ENTERING stream_meeting_chat for {meeting_id} ===")
+
     try:
         validate_uuid(meeting_id, "meeting_id")
         user_id = current_user['id']
@@ -788,7 +791,14 @@ async def stream_meeting_chat(
         turn_number = len([m for m in messages_result.data if m.get('role') == 'user']) + 1
 
         # Build meeting context
-        from services.meeting_orchestrator import MeetingContext
+        logger.info(f"[Meeting Chat] Importing MeetingContext...")
+        try:
+            from services.meeting_orchestrator import MeetingContext
+            logger.info(f"[Meeting Chat] MeetingContext imported successfully")
+        except Exception as import_err:
+            import traceback
+            logger.error(f"[Meeting Chat] Failed to import MeetingContext: {import_err}\n{traceback.format_exc()}")
+            raise HTTPException(status_code=500, detail=f"Import error: {str(import_err)}")
 
         meeting_context = MeetingContext(
             user_id=user_id,
@@ -801,9 +811,10 @@ async def stream_meeting_chat(
             config=meeting['config'] or {},
             turn_number=turn_number,
         )
+        logger.info(f"[Meeting Chat] MeetingContext created for turn {turn_number}")
 
         # Get orchestrator and process the turn
-        logger.info(f"Getting orchestrator for meeting {meeting_id}")
+        logger.info(f"[Meeting Chat] Getting orchestrator for meeting {meeting_id}")
         try:
             orchestrator = await get_orchestrator()
             logger.info(f"Orchestrator ready with agents: {list(orchestrator.agents.keys())}")

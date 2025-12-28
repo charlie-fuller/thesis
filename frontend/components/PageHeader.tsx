@@ -27,7 +27,7 @@ export default function PageHeader({
 
   // Navigation links
   const userLinks = [
-    { href: '/', label: 'Home' },
+    { href: '/', label: 'Dashboard' },
     { href: '/chat', label: 'Chat' },
     { href: '/meeting-room', label: 'Meeting Room' },
     { href: '/intelligence', label: 'Intelligence' },

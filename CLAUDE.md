@@ -164,7 +164,7 @@ python -m pytest                         # Run tests
 Agent system instructions use the **Gigawatt v4.0 RCCI Framework** with:
 
 - **XML Structure**: `<version>`, `<role>`, `<context>`, `<capabilities>`, `<instructions>`, `<criteria>`, `<few_shot_examples>`, `<wisdom>`, `<anti_patterns>`
-- **Smart Brevity**: All agents include `shared/smart_brevity.xml` for concise, scannable responses (150-250 words max)
+- **Smart Brevity**: All agents include `shared/smart_brevity.xml` for concise, scannable responses (100-150 words max, ask-first behavior for unclear intent)
 - **Chain-of-Thought**: Step-by-step analysis processes
 - **Evidence-Based**: All insights backed by quotes/data
 - **Persona Alignment**: Agents embody specific stakeholder perspectives
@@ -180,6 +180,14 @@ All agent responses follow this mandatory structure:
 2. **Why It Matters** (1-2 sentences) - Business impact
 3. **Key Details** (3-5 bullets or table) - Scannable facts
 4. **Dig-Deeper Links** (2-4 links) - Expandable detail via `[text](dig-deeper:section_id)`
+
+### Ask-First Behavior
+
+When user intent is unclear (greetings, broad topics, first messages), agents ask a clarifying question before providing detailed answers:
+- Present 2-4 domain-specific options
+- Keep clarifying responses under 75 words
+- Include dig-deeper link to capabilities
+- Mantra: "When in doubt, ask. When too long, cut."
 
 ## Thesis-Specific Tables
 
