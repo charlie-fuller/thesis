@@ -22,7 +22,6 @@ export default function UnifiedWorkspace({
 }: UnifiedWorkspaceProps) {
   useAuth()  // Auth context is used for component initialization
 
-  const [selectedPromptText, setSelectedPromptText] = useState<string | null>(null)
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0)
 
   // Panel visibility state - default to true, load from localStorage after mount
@@ -55,10 +54,6 @@ export default function UnifiedWorkspace({
     }
   }, [showRightPanel, panelStateLoaded])
 
-  const handlePromptSelect = (promptText: string) => {
-    setSelectedPromptText(promptText)
-  }
-
   const handleConversationCreated = () => {
     // Trigger sidebar refresh when a new conversation is created
     setSidebarRefreshTrigger(prev => prev + 1)
@@ -84,7 +79,6 @@ export default function UnifiedWorkspace({
               clientId={clientId}
               userId={userId}
               currentConversationId={conversationId}
-              onPromptSelect={handlePromptSelect}
               refreshTrigger={sidebarRefreshTrigger}
               className="h-full"
             />
@@ -97,8 +91,6 @@ export default function UnifiedWorkspace({
             clientId={clientId}
             userId={userId}
             conversationId={conversationId}
-            initialPromptText={selectedPromptText}
-            onPromptUsed={() => setSelectedPromptText(null)}
             onConversationCreated={handleConversationCreated}
             initialProjectId={initialProjectId}
           />
