@@ -7,7 +7,6 @@ import { useDebounce } from 'use-debounce'
 import { apiGet, apiDelete, apiPatch, apiPost } from '@/lib/api'
 import LoadingSpinner from './LoadingSpinner'
 import ConfirmModal from './ConfirmModal'
-import VisualQuickActions from './VisualQuickActions'
 import toast from 'react-hot-toast'
 import { API_BASE_URL } from '@/lib/config'
 import { logger } from '@/lib/logger'
@@ -635,18 +634,6 @@ async function toggleKnowledgeBase(conversationId: string, currentStatus: boolea
           )}
         </div>
 
-        {/* Visual Quick Actions Section */}
-        {userId && (
-          <div className="border-t border-default flex-shrink-0">
-            <div className="p-3">
-              <VisualQuickActions
-                onActionSelect={(prompt) => {
-                  onPromptSelect?.(prompt)
-                }}
-              />
-            </div>
-          </div>
-        )}
 
         {/* Quick Prompts Section - max 50% height, scrollable */}
         {userId && (
