@@ -53,10 +53,9 @@ def process_graph_sync():
 
         supabase = get_supabase()
 
-        # Get all active clients
+        # Get all clients (clients table doesn't have is_active column)
         result = supabase.table('clients')\
             .select('id, name')\
-            .eq('is_active', True)\
             .execute()
 
         clients = result.data or []
