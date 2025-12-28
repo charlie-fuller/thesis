@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { API_BASE_URL } from '@/lib/config'
 import { authenticatedFetch, apiGet } from '@/lib/api'
 
@@ -18,10 +18,13 @@ interface DocumentUploadProps {
   showAgentSelector?: boolean  // Whether to show agent assignment options
 }
 
-interface UploadStatus {
-  status: 'idle' | 'uploading' | 'processing' | 'complete' | 'error'
+interface FileUploadStatus {
+  file: File
+  status: 'pending' | 'uploading' | 'processing' | 'complete' | 'error'
   message: string
-  progress?: number
+  progress: number
+  documentId?: string
+  chunksCreated?: number
 }
 
 export default function DocumentUpload({
@@ -30,12 +33,11 @@ export default function DocumentUpload({
   onUploadComplete,
   showAgentSelector = false
 }: DocumentUploadProps) {
-  const [uploadStatus, setUploadStatus] = useState<UploadStatus>({
-    status: 'idle',
-    message: ''
-  })
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [fileQueue, setFileQueue] = useState<FileUploadStatus[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const dropZoneRef = useRef<HTMLDivElement>(null)
 
   // Agent selection state
   const [agents, setAgents] = useState<Agent[]>([])
@@ -74,37 +76,119 @@ export default function DocumentUpload({
     })
   }
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) {
-      setSelectedFile(file)
-      setUploadStatus({ status: 'idle', message: '' })
+  const ACCEPTED_EXTENSIONS = ['.txt', '.md', '.docx', '.doc', '.csv', '.json', '.xml']
+  const ACCEPTED_MIME_TYPES = [
+    'text/plain',
+    'text/markdown',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/msword',
+    'text/csv',
+    'application/json',
+    'text/xml',
+    'application/xml'
+  ]
+
+  function isValidFile(file: File): boolean {
+    const extension = '.' + file.name.split('.').pop()?.toLowerCase()
+    return ACCEPTED_EXTENSIONS.includes(extension) || ACCEPTED_MIME_TYPES.includes(file.type)
+  }
+
+  function addFilesToQueue(files: FileList | File[]) {
+    const newFiles: FileUploadStatus[] = []
+    const invalidFiles: string[] = []
+
+    Array.from(files).forEach(file => {
+      // Check if file is already in queue
+      const alreadyInQueue = fileQueue.some(f => f.file.name === file.name && f.file.size === file.size)
+      if (alreadyInQueue) return
+
+      if (isValidFile(file)) {
+        if (file.size === 0) {
+          invalidFiles.push(`${file.name} (empty file)`)
+        } else {
+          newFiles.push({
+            file,
+            status: 'pending',
+            message: 'Ready to upload',
+            progress: 0
+          })
+        }
+      } else {
+        invalidFiles.push(`${file.name} (unsupported format)`)
+      }
+    })
+
+    if (invalidFiles.length > 0) {
+      console.warn('Skipped invalid files:', invalidFiles)
+    }
+
+    if (newFiles.length > 0) {
+      setFileQueue(prev => [...prev, ...newFiles])
     }
   }
 
-  async function handleUpload() {
-    if (!selectedFile) return
-
-    // Check if file is empty
-    if (selectedFile.size === 0) {
-      setUploadStatus({
-        status: 'error',
-        message: 'Error: File is empty. Please select a file with content.',
-        progress: 0
-      })
-      return
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files
+    if (files && files.length > 0) {
+      addFilesToQueue(files)
     }
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  function removeFromQueue(index: number) {
+    setFileQueue(prev => prev.filter((_, i) => i !== index))
+  }
+
+  function clearCompleted() {
+    setFileQueue(prev => prev.filter(f => f.status !== 'complete' && f.status !== 'error'))
+  }
+
+  // Drag and drop handlers
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // Only set dragOver to false if we're leaving the drop zone entirely
+    if (dropZoneRef.current && !dropZoneRef.current.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false)
+    }
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      addFilesToQueue(files)
+    }
+  }, [fileQueue])
+
+  async function uploadSingleFile(fileStatus: FileUploadStatus, index: number): Promise<boolean> {
+    const { file } = fileStatus
 
     try {
-      // Step 1: Upload file
-      setUploadStatus({
-        status: 'uploading',
-        message: `Uploading ${selectedFile.name}...`,
-        progress: 0
-      })
+      // Update status to uploading
+      setFileQueue(prev => prev.map((f, i) =>
+        i === index ? { ...f, status: 'uploading', message: 'Uploading...', progress: 10 } : f
+      ))
 
       const formData = new FormData()
-      formData.append('file', selectedFile)
+      formData.append('file', file)
 
       // Add agent IDs if not global and agents are selected
       if (showAgentSelector && !isGlobal && selectedAgentIds.size > 0) {
@@ -117,30 +201,22 @@ export default function DocumentUpload({
       })
 
       if (!uploadResponse.ok) {
-        throw new Error(`Upload failed: ${uploadResponse.statusText}`)
+        const errorData = await uploadResponse.json().catch(() => ({}))
+        throw new Error(errorData.detail || `Upload failed: ${uploadResponse.statusText}`)
       }
 
       const uploadData = await uploadResponse.json()
       const documentId = uploadData.document_id
 
-      setUploadStatus({
-        status: 'uploading',
-        message: 'Upload complete! Processing document...',
-        progress: 50
-      })
+      // Update to processing
+      setFileQueue(prev => prev.map((f, i) =>
+        i === index ? { ...f, status: 'processing', message: 'Processing...', progress: 50, documentId } : f
+      ))
 
-      // Step 2: Process document (chunk and embed)
-      setUploadStatus({
-        status: 'processing',
-        message: 'Chunking text and generating embeddings...',
-        progress: 60
-      })
-
+      // Process document
       const processResponse = await authenticatedFetch(
         `${apiBaseUrl}/api/documents/${documentId}/process`,
-        {
-          method: 'POST'
-        }
+        { method: 'POST' }
       )
 
       if (!processResponse.ok) {
@@ -149,59 +225,204 @@ export default function DocumentUpload({
 
       const processData = await processResponse.json()
 
-      setUploadStatus({
-        status: 'complete',
-        message: `Success! Created ${processData.chunks_created} searchable chunks`,
-        progress: 100
-      })
+      // Update to complete
+      setFileQueue(prev => prev.map((f, i) =>
+        i === index ? {
+          ...f,
+          status: 'complete',
+          message: `${processData.chunks_created} chunks created`,
+          progress: 100,
+          chunksCreated: processData.chunks_created
+        } : f
+      ))
 
-      // Clear the file input after successful upload
-      setSelectedFile(null)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-
-      // Notify parent component
-      if (onUploadComplete) {
-        onUploadComplete()
-      }
-
-      // Reset after 3 seconds
-      setTimeout(() => {
-        setUploadStatus({ status: 'idle', message: '' })
-      }, 3000)
+      return true
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-      setUploadStatus({
-        status: 'error',
-        message: `Error: ${errorMessage}`,
-        progress: 0
-      })
+      setFileQueue(prev => prev.map((f, i) =>
+        i === index ? { ...f, status: 'error', message: errorMessage, progress: 0 } : f
+      ))
+      return false
     }
   }
 
+  async function handleUploadAll() {
+    const pendingFiles = fileQueue.filter(f => f.status === 'pending')
+    if (pendingFiles.length === 0) return
+
+    setIsUploading(true)
+
+    // Upload files sequentially to avoid overwhelming the server
+    for (let i = 0; i < fileQueue.length; i++) {
+      if (fileQueue[i].status === 'pending') {
+        await uploadSingleFile(fileQueue[i], i)
+      }
+    }
+
+    setIsUploading(false)
+
+    // Notify parent component
+    if (onUploadComplete) {
+      onUploadComplete()
+    }
+  }
+
+  const pendingCount = fileQueue.filter(f => f.status === 'pending').length
+  const completedCount = fileQueue.filter(f => f.status === 'complete').length
+  const errorCount = fileQueue.filter(f => f.status === 'error').length
+
   return (
     <div>
-      {/* File Input */}
-      <div className="mb-4">
+      {/* Drag and Drop Zone */}
+      <div
+        ref={dropZoneRef}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        className={`relative border-2 border-dashed rounded-lg p-6 mb-4 transition-all duration-200 ${
+          isDragOver
+            ? 'border-brand bg-brand/10 scale-[1.02]'
+            : 'border-default bg-tertiary hover:border-brand/50'
+        }`}
+      >
         <input
           ref={fileInputRef}
           type="file"
           accept=".txt,.md,.docx,.doc,.csv,.json,.xml"
           onChange={handleFileSelect}
-          disabled={uploadStatus.status === 'uploading' || uploadStatus.status === 'processing'}
-          className="block w-full text-sm text-primary border border-default rounded-lg cursor-pointer bg-tertiary focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand file:text-white hover:file:bg-brand-hover"
+          multiple
+          disabled={isUploading}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         />
-        {selectedFile && (
-          <p className="text-sm text-secondary mt-2">
-            Selected: <span className="font-medium">{selectedFile.name}</span> ({(selectedFile.size / 1024).toFixed(1)} KB)
+
+        <div className="text-center pointer-events-none">
+          {/* Upload Icon */}
+          <svg
+            className={`mx-auto h-12 w-12 mb-3 transition-colors ${isDragOver ? 'text-brand' : 'text-muted'}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+            />
+          </svg>
+
+          <p className={`text-sm font-medium mb-1 ${isDragOver ? 'text-brand' : 'text-primary'}`}>
+            {isDragOver ? 'Drop files here' : 'Drag and drop files here'}
           </p>
-        )}
+          <p className="text-xs text-muted">
+            or click to browse
+          </p>
+        </div>
       </div>
 
+      {/* File Queue */}
+      {fileQueue.length > 0 && (
+        <div className="mb-4 border border-default rounded-lg overflow-hidden">
+          <div className="bg-secondary px-3 py-2 border-b border-default flex items-center justify-between">
+            <span className="text-sm font-medium text-primary">
+              {fileQueue.length} file{fileQueue.length !== 1 ? 's' : ''} selected
+            </span>
+            <div className="flex items-center gap-2 text-xs">
+              {completedCount > 0 && (
+                <span className="text-green-600 dark:text-green-400">{completedCount} completed</span>
+              )}
+              {errorCount > 0 && (
+                <span className="text-red-600 dark:text-red-400">{errorCount} failed</span>
+              )}
+              {(completedCount > 0 || errorCount > 0) && (
+                <button
+                  onClick={clearCompleted}
+                  className="text-brand hover:underline"
+                >
+                  Clear done
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="max-h-48 overflow-y-auto">
+            {fileQueue.map((fileStatus, index) => (
+              <div
+                key={`${fileStatus.file.name}-${index}`}
+                className="px-3 py-2 border-b border-default last:border-b-0 flex items-center gap-3"
+              >
+                {/* Status Icon */}
+                <div className="flex-shrink-0">
+                  {fileStatus.status === 'pending' && (
+                    <div className="w-5 h-5 rounded-full border-2 border-muted" />
+                  )}
+                  {fileStatus.status === 'uploading' && (
+                    <div className="w-5 h-5 rounded-full border-2 border-brand border-t-transparent animate-spin" />
+                  )}
+                  {fileStatus.status === 'processing' && (
+                    <div className="w-5 h-5 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
+                  )}
+                  {fileStatus.status === 'complete' && (
+                    <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                  {fileStatus.status === 'error' && (
+                    <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                </div>
+
+                {/* File Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-primary truncate">{fileStatus.file.name}</p>
+                  <p className={`text-xs ${
+                    fileStatus.status === 'error' ? 'text-red-600 dark:text-red-400' :
+                    fileStatus.status === 'complete' ? 'text-green-600 dark:text-green-400' :
+                    'text-muted'
+                  }`}>
+                    {fileStatus.status === 'pending'
+                      ? `${(fileStatus.file.size / 1024).toFixed(1)} KB`
+                      : fileStatus.message
+                    }
+                  </p>
+
+                  {/* Progress bar for uploading/processing */}
+                  {(fileStatus.status === 'uploading' || fileStatus.status === 'processing') && (
+                    <div className="mt-1 w-full bg-secondary rounded-full h-1">
+                      <div
+                        className={`h-1 rounded-full transition-all duration-300 ${
+                          fileStatus.status === 'processing' ? 'bg-amber-500' : 'bg-brand'
+                        }`}
+                        style={{ width: `${fileStatus.progress}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Remove button (only for pending files) */}
+                {fileStatus.status === 'pending' && (
+                  <button
+                    onClick={() => removeFromQueue(index)}
+                    className="flex-shrink-0 p-1 text-muted hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                    title="Remove from queue"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Agent Assignment Selector */}
-      {showAgentSelector && (
+      {showAgentSelector && fileQueue.length > 0 && pendingCount > 0 && (
         <div className="mb-4 p-4 bg-tertiary rounded-lg border border-default">
           <label className="block text-sm font-medium text-primary mb-3">Document Availability</label>
 
@@ -232,7 +453,7 @@ export default function DocumentUpload({
           {/* Agent selection (only shown when agent-specific is selected) */}
           {!isGlobal && (
             <div className="mt-3 pt-3 border-t border-default">
-              <p className="text-xs text-muted mb-2">Select which agents can access this document:</p>
+              <p className="text-xs text-muted mb-2">Select which agents can access these documents:</p>
               {loadingAgents ? (
                 <div className="flex items-center gap-2 text-sm text-muted">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand"></div>
@@ -272,37 +493,17 @@ export default function DocumentUpload({
 
       {/* Upload Button */}
       <button
-        onClick={handleUpload}
-        disabled={!selectedFile || uploadStatus.status === 'uploading' || uploadStatus.status === 'processing'}
-        className="w-full btn-primary"
+        onClick={handleUploadAll}
+        disabled={pendingCount === 0 || isUploading}
+        className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {uploadStatus.status === 'uploading' ? 'Uploading...' :
-         uploadStatus.status === 'processing' ? 'Processing...' :
-         'Upload & Process'}
+        {isUploading
+          ? `Uploading ${fileQueue.filter(f => f.status === 'uploading' || f.status === 'processing').length} of ${pendingCount + completedCount}...`
+          : pendingCount === 0
+            ? 'Select files to upload'
+            : `Upload ${pendingCount} file${pendingCount !== 1 ? 's' : ''}`
+        }
       </button>
-
-      {/* Progress Bar */}
-      {(uploadStatus.status === 'uploading' || uploadStatus.status === 'processing') && uploadStatus.progress !== undefined && (
-        <div className="mt-4">
-          <div className="w-full bg-secondary rounded-full h-2">
-            <div
-              className="bg-brand h-2 rounded-full transition-all duration-300"
-              style={{ width: `${uploadStatus.progress}%` }}
-            ></div>
-          </div>
-        </div>
-      )}
-
-      {/* Status Message */}
-      {uploadStatus.message && (
-        <div className={`mt-4 p-3 rounded-lg text-sm ${
-          uploadStatus.status === 'complete' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300' :
-          uploadStatus.status === 'error' ? 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300' :
-          'bg-brand/10 text-brand'
-        }`}>
-          {uploadStatus.message}
-        </div>
-      )}
 
       {/* Supported Formats */}
       <div className="mt-4 text-xs text-muted">

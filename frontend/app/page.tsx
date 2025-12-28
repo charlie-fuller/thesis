@@ -34,11 +34,13 @@ interface StakeholderMetrics {
 }
 
 type HomeTab = 'research' | 'system' | 'analytics'
+type SystemSubTab = 'interfaces' | 'knowledge-graph'
 
 export default function HomePage() {
   const router = useRouter()
   const { user, session, loading: authLoading, isAdmin } = useAuth()
   const [activeTab, setActiveTab] = useState<HomeTab>('research')
+  const [systemSubTab, setSystemSubTab] = useState<SystemSubTab>('interfaces')
   const [insights, setInsights] = useState<ResearchInsight[]>([])
   const [metrics, setMetrics] = useState<StakeholderMetrics | null>(null)
   const [loading, setLoading] = useState(true)
@@ -359,8 +361,33 @@ export default function HomePage() {
         {/* System Health Tab */}
         {activeTab === 'system' && (
           <div className="space-y-6">
-            <InterfaceHealthPanel />
-            <GraphStatsPanel />
+            {/* Sub-tab Navigation */}
+            <div className="flex gap-2 bg-hover rounded-lg p-1">
+              <button
+                onClick={() => setSystemSubTab('interfaces')}
+                className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  systemSubTab === 'interfaces'
+                    ? 'bg-card text-primary shadow-sm'
+                    : 'text-muted hover:text-primary'
+                }`}
+              >
+                Interfaces
+              </button>
+              <button
+                onClick={() => setSystemSubTab('knowledge-graph')}
+                className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  systemSubTab === 'knowledge-graph'
+                    ? 'bg-card text-primary shadow-sm'
+                    : 'text-muted hover:text-primary'
+                }`}
+              >
+                Knowledge Graph
+              </button>
+            </div>
+
+            {/* Sub-tab Content */}
+            {systemSubTab === 'interfaces' && <InterfaceHealthPanel />}
+            {systemSubTab === 'knowledge-graph' && <GraphStatsPanel />}
           </div>
         )}
 

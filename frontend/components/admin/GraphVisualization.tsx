@@ -123,6 +123,7 @@ export default function GraphVisualization({
     const nodeIds = new Set(filteredNodes.map(n => n.id));
 
     const filteredLinks = graphData.links.filter(l => {
+      if (!l.source || !l.target) return false;
       const sourceId = typeof l.source === 'string' ? l.source : l.source.id;
       const targetId = typeof l.target === 'string' ? l.target : l.target.id;
       return nodeIds.has(sourceId) && nodeIds.has(targetId);
