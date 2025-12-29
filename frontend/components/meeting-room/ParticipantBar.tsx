@@ -31,7 +31,9 @@ const AGENT_COLORS: Record<string, string> = {
   operator: 'bg-orange-500',
   pioneer: 'bg-emerald-500',
   catalyst: 'bg-pink-500',
-  scholar: 'bg-teal-500'
+  scholar: 'bg-teal-500',
+  echo: 'bg-violet-500',
+  nexus: 'bg-sky-500'
 }
 
 const AGENT_DESCRIPTIONS: Record<string, string> = {
@@ -46,7 +48,9 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
   operator: 'Business Operations',
   pioneer: 'Innovation & R&D',
   catalyst: 'Internal Communications',
-  scholar: 'Learning & Development'
+  scholar: 'Learning & Development',
+  echo: 'Brand Voice & Style',
+  nexus: 'Systems Thinking'
 }
 
 export default function ParticipantBar({

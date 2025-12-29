@@ -117,7 +117,9 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
       operator: 'bg-orange-500',
       pioneer: 'bg-emerald-500',
       catalyst: 'bg-pink-500',
-      scholar: 'bg-teal-500'
+      scholar: 'bg-teal-500',
+      echo: 'bg-violet-500',
+      nexus: 'bg-sky-500'
     }
     return colors[name] || 'bg-gray-500'
   }
