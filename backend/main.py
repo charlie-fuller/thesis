@@ -390,7 +390,7 @@ async def root():
         "message": "Thesis API is running",
         "version": "1.0.1",
         "status": "healthy",
-        "deploy_marker": "2025-12-28-save-from-chat"
+        "deploy_marker": "2025-12-28-meeting-cors-verify"
     }
 
 

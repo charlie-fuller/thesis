@@ -577,6 +577,12 @@ Focus on: Key takeaways, areas of agreement/disagreement, actionable recommendat
             round_guidance = f"""This is Round {autonomous_context.current_round} - the discussion is developing.
 Focus on: Responding to what's been said, adding new dimensions, challenging assumptions."""
 
+        # Pre-format recent contributions section (avoid backslash in f-string expression)
+        if recent_contributions:
+            contributions_section = f"RECENT CONTRIBUTIONS FROM OTHER AGENTS:\n{recent_contributions}"
+        else:
+            contributions_section = "You are the first to speak in this round."
+
         discourse_context = f"""
 
 --- AUTONOMOUS DISCUSSION MODE ---
@@ -587,7 +593,7 @@ DISCUSSION TOPIC: {autonomous_context.topic}
 PARTICIPANT EXPERTISE DIRECTORY:
 {expertise_directory}
 
-{("RECENT CONTRIBUTIONS FROM OTHER AGENTS:\n" + recent_contributions) if recent_contributions else "You are the first to speak in this round."}
+{contributions_section}
 
 {round_guidance}
 
