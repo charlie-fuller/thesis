@@ -128,7 +128,7 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-card rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-card rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-default">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-primary">Create Meeting Room</h2>
@@ -227,25 +227,22 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
                     <div className="text-xs font-medium text-secondary uppercase tracking-wide mb-2">
                       Always Attending
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       {metaAgents.map((agent) => (
                         <div
                           key={agent.id}
-                          className="p-3 border rounded-lg border-primary/30 bg-primary/5"
+                          className="p-2 border rounded-lg border-primary/30 bg-primary/5"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-lg ${getAgentColor(agent.name)} flex items-center justify-center flex-shrink-0 border`}>
-                              <AgentIcon name={agent.name} size="sm" />
+                          <div className="flex items-center gap-2">
+                            <div className={`w-6 h-6 rounded-md ${getAgentColor(agent.name)} flex items-center justify-center flex-shrink-0 border`}>
+                              <AgentIcon name={agent.name} size="sm" className="w-3.5 h-3.5" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium text-primary text-sm">
+                              <div className="font-medium text-primary text-xs truncate">
                                 {agent.display_name}
                               </div>
-                              <div className="text-xs text-secondary truncate">
-                                {AGENT_SHORT_DESCRIPTIONS[agent.name] || agent.description || 'AI Agent'}
-                              </div>
                             </div>
-                            <svg className="w-5 h-5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-4 h-4 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
                           </div>
@@ -260,32 +257,29 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
                   <div className="text-xs font-medium text-secondary uppercase tracking-wide mb-2">
                     Select Additional Agents
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     {selectableAgents.map((agent) => (
                       <button
                         key={agent.id}
                         type="button"
                         onClick={() => toggleAgent(agent.id)}
-                        className={`p-3 border rounded-lg text-left transition-colors ${
+                        className={`p-2 border rounded-lg text-left transition-colors ${
                           selectedAgents.includes(agent.id)
                             ? 'border-primary bg-primary/10'
                             : 'border-default hover:border-primary/50'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-lg ${getAgentColor(agent.name)} flex items-center justify-center flex-shrink-0 border`}>
-                            <AgentIcon name={agent.name} size="sm" />
+                        <div className="flex items-center gap-2">
+                          <div className={`w-6 h-6 rounded-md ${getAgentColor(agent.name)} flex items-center justify-center flex-shrink-0 border`}>
+                            <AgentIcon name={agent.name} size="sm" className="w-3.5 h-3.5" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium text-primary text-sm">
+                            <div className="font-medium text-primary text-xs truncate">
                               {agent.display_name}
-                            </div>
-                            <div className="text-xs text-secondary truncate">
-                              {AGENT_SHORT_DESCRIPTIONS[agent.name] || agent.description || 'AI Agent'}
                             </div>
                           </div>
                           {selectedAgents.includes(agent.id) && (
-                            <svg className="w-5 h-5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-4 h-4 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
                           )}
