@@ -150,18 +150,25 @@ async def list_agents(
                 .eq("agent_id", agent["id"])\
                 .execute()
 
-            # Get meeting room participation count
-            meetings_result = supabase.table("meeting_room_participants")\
-                .select("id", count="exact")\
+            # Get meeting room participation count (count unique meetings where agent has messages)
+            meetings_result = supabase.table("meeting_room_messages")\
+                .select("meeting_room_id", count="exact")\
                 .eq("agent_id", agent["id"])\
                 .execute()
+
+            # Count unique meeting rooms from messages
+            unique_meetings = set()
+            if meetings_result.data:
+                for msg in meetings_result.data:
+                    if msg.get("meeting_room_id"):
+                        unique_meetings.add(msg["meeting_room_id"])
 
             agents.append({
                 **agent,
                 "instruction_versions_count": versions_result.count or 0,
                 "kb_documents_count": kb_result.count or 0,
                 "conversations_count": convs_result.count or 0,
-                "meeting_rooms_count": meetings_result.count or 0,
+                "meeting_rooms_count": len(unique_meetings),
             })
 
         return {"success": True, "agents": agents}
