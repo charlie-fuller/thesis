@@ -1,5 +1,7 @@
 'use client'
 
+import { AgentIcon, getAgentColor } from '@/components/AgentIcon'
+
 interface Participant {
   id: string
   agent_id: string
@@ -17,30 +19,6 @@ interface ParticipantBarProps {
   isAutonomous?: boolean
   currentRound?: number
   totalRounds?: number
-}
-
-const AGENT_COLORS: Record<string, string> = {
-  // Meta-Agents (always present)
-  facilitator: 'bg-yellow-500',
-  reporter: 'bg-lime-600',
-  // Stakeholder Perspective Agents
-  atlas: 'bg-blue-500',
-  fortuna: 'bg-green-500',
-  guardian: 'bg-purple-500',
-  counselor: 'bg-amber-500',
-  oracle: 'bg-cyan-500',
-  sage: 'bg-rose-500',
-  // Consulting/Implementation Agents
-  strategist: 'bg-indigo-500',
-  architect: 'bg-slate-500',
-  operator: 'bg-orange-500',
-  pioneer: 'bg-emerald-500',
-  // Internal Enablement Agents
-  catalyst: 'bg-pink-500',
-  scholar: 'bg-teal-500',
-  echo: 'bg-violet-500',
-  // Systems Agent
-  nexus: 'bg-sky-500'
 }
 
 const AGENT_DESCRIPTIONS: Record<string, string> = {
@@ -113,7 +91,6 @@ export default function ParticipantBar({
           <div className="flex flex-wrap gap-0.5">
             {sortedParticipants.map((participant, index) => {
               const isActive = activeAgent === participant.agent_display_name
-              const color = AGENT_COLORS[participant.agent_name] || 'bg-gray-500'
               return (
                 <div
                   key={participant.id}
@@ -124,7 +101,7 @@ export default function ParticipantBar({
                   }`}
                 >
                   <span className="font-medium">{index + 1}.</span>
-                  <div className={`w-1.5 h-1.5 rounded-full ${color}`} />
+                  <AgentIcon name={participant.agent_name} size="sm" className="w-3 h-3" />
                   <span className="truncate max-w-[50px]">
                     {participant.agent_display_name.split(' ')[0]}
                   </span>
@@ -138,7 +115,7 @@ export default function ParticipantBar({
       <div className="p-3 space-y-1.5">
         {(isAutonomous ? sortedParticipants : participants).map((participant, index) => {
           const isActive = activeAgent === participant.agent_display_name
-          const color = AGENT_COLORS[participant.agent_name] || 'bg-gray-500'
+          const color = getAgentColor(participant.agent_name)
           const description = AGENT_DESCRIPTIONS[participant.agent_name] || ''
 
           return (
@@ -151,9 +128,9 @@ export default function ParticipantBar({
               <div className="flex items-center gap-2">
                 <div className="relative flex-shrink-0">
                   <div
-                    className={`w-7 h-7 rounded-full ${color} flex items-center justify-center text-white font-semibold text-xs`}
+                    className={`w-7 h-7 rounded-lg ${color} flex items-center justify-center border`}
                   >
-                    {participant.agent_display_name.charAt(0)}
+                    <AgentIcon name={participant.agent_name} size="sm" />
                   </div>
                   {isActive && (
                     <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border border-white dark:border-gray-900 flex items-center justify-center">

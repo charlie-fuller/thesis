@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { authenticatedFetch } from '@/lib/api'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { AgentIcon, getAgentColor } from '@/components/AgentIcon'
 
 interface Agent {
   id: string
@@ -11,6 +12,9 @@ interface Agent {
   description: string | null
   is_active: boolean
 }
+
+// Meta-agents that always attend meetings
+const META_AGENTS = ['facilitator', 'reporter']
 
 const AGENT_SHORT_DESCRIPTIONS: Record<string, string> = {
   // Meta-Agents
@@ -51,7 +55,8 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
   const [description, setDescription] = useState('')
   const [meetingType, setMeetingType] = useState('collaboration')
   const [selectedAgents, setSelectedAgents] = useState<string[]>([])
-  const [agents, setAgents] = useState<Agent[]>([])
+  const [metaAgents, setMetaAgents] = useState<Agent[]>([])
+  const [selectableAgents, setSelectableAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
@@ -69,7 +74,13 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
         const activeAgents = data.agents.filter(
           (a: Agent) => a.is_active && a.name !== 'coordinator'
         )
-        setAgents(activeAgents)
+
+        // Separate meta-agents from selectable agents
+        const meta = activeAgents.filter((a: Agent) => META_AGENTS.includes(a.name))
+        const selectable = activeAgents.filter((a: Agent) => !META_AGENTS.includes(a.name))
+
+        setMetaAgents(meta)
+        setSelectableAgents(selectable)
       }
     } catch (error) {
       console.error('Error loading agents:', error)
@@ -100,42 +111,19 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
     setSubmitting(true)
 
     try {
+      // Include meta-agents (always attending) plus selected agents
+      const metaAgentIds = metaAgents.map(a => a.id)
+      const allParticipantIds = [...metaAgentIds, ...selectedAgents]
+
       await onCreate({
         title: title.trim(),
         description: description.trim() || undefined,
         meeting_type: meetingType,
-        participant_agent_ids: selectedAgents
+        participant_agent_ids: allParticipantIds
       })
     } finally {
       setSubmitting(false)
     }
-  }
-
-  const getAgentColor = (name: string): string => {
-    const colors: Record<string, string> = {
-      // Meta-Agents
-      facilitator: 'bg-yellow-500',
-      reporter: 'bg-lime-600',
-      // Stakeholder Perspective Agents
-      atlas: 'bg-blue-500',
-      fortuna: 'bg-green-500',
-      guardian: 'bg-purple-500',
-      counselor: 'bg-amber-500',
-      oracle: 'bg-cyan-500',
-      sage: 'bg-rose-500',
-      // Consulting/Implementation Agents
-      strategist: 'bg-indigo-500',
-      architect: 'bg-slate-500',
-      operator: 'bg-orange-500',
-      pioneer: 'bg-emerald-500',
-      // Internal Enablement Agents
-      catalyst: 'bg-pink-500',
-      scholar: 'bg-teal-500',
-      echo: 'bg-violet-500',
-      // Systems Agent
-      nexus: 'bg-sky-500'
-    }
-    return colors[name] || 'bg-gray-500'
   }
 
   return (
@@ -232,38 +220,80 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
                 <LoadingSpinner size="md" />
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {agents.map((agent) => (
-                  <button
-                    key={agent.id}
-                    type="button"
-                    onClick={() => toggleAgent(agent.id)}
-                    className={`p-3 border rounded-lg text-left transition-colors ${
-                      selectedAgents.includes(agent.id)
-                        ? 'border-primary bg-primary/10'
-                        : 'border-default hover:border-primary/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full ${getAgentColor(agent.name)} flex items-center justify-center text-white font-semibold text-sm flex-shrink-0`}>
-                        {agent.display_name.charAt(0)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-primary text-sm">
-                          {agent.display_name}
-                        </div>
-                        <div className="text-xs text-secondary truncate">
-                          {AGENT_SHORT_DESCRIPTIONS[agent.name] || agent.description || 'AI Agent'}
-                        </div>
-                      </div>
-                      {selectedAgents.includes(agent.id) && (
-                        <svg className="w-5 h-5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
+              <div className="space-y-4">
+                {/* Meta-Agents - Always Attending */}
+                {metaAgents.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-secondary uppercase tracking-wide mb-2">
+                      Always Attending
                     </div>
-                  </button>
-                ))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {metaAgents.map((agent) => (
+                        <div
+                          key={agent.id}
+                          className="p-3 border rounded-lg border-primary/30 bg-primary/5"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg ${getAgentColor(agent.name)} flex items-center justify-center flex-shrink-0 border`}>
+                              <AgentIcon name={agent.name} size="sm" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-primary text-sm">
+                                {agent.display_name}
+                              </div>
+                              <div className="text-xs text-secondary truncate">
+                                {AGENT_SHORT_DESCRIPTIONS[agent.name] || agent.description || 'AI Agent'}
+                              </div>
+                            </div>
+                            <svg className="w-5 h-5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Selectable Agents */}
+                <div>
+                  <div className="text-xs font-medium text-secondary uppercase tracking-wide mb-2">
+                    Select Additional Agents
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {selectableAgents.map((agent) => (
+                      <button
+                        key={agent.id}
+                        type="button"
+                        onClick={() => toggleAgent(agent.id)}
+                        className={`p-3 border rounded-lg text-left transition-colors ${
+                          selectedAgents.includes(agent.id)
+                            ? 'border-primary bg-primary/10'
+                            : 'border-default hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-lg ${getAgentColor(agent.name)} flex items-center justify-center flex-shrink-0 border`}>
+                            <AgentIcon name={agent.name} size="sm" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-primary text-sm">
+                              {agent.display_name}
+                            </div>
+                            <div className="text-xs text-secondary truncate">
+                              {AGENT_SHORT_DESCRIPTIONS[agent.name] || agent.description || 'AI Agent'}
+                            </div>
+                          </div>
+                          {selectedAgents.includes(agent.id) && (
+                            <svg className="w-5 h-5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
             {selectedAgents.length < 2 && (

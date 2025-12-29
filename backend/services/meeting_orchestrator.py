@@ -3,7 +3,9 @@ Meeting Orchestrator Service
 
 Manages multi-agent conversations in meeting rooms:
 - Uses Facilitator agent to analyze intent and manage turn-taking
+- Uses Reporter agent for summary/documentation requests (single voice)
 - Facilitator is ALWAYS present and speaks first on greetings/unclear intent
+- Reporter is ALWAYS present and handles all summary requests
 - Ensures balanced participation (no single agent dominates)
 - Invokes systems thinking (Nexus) before conclusions
 - Coordinates agent responses with proper attribution
@@ -12,6 +14,7 @@ Manages multi-agent conversations in meeting rooms:
 - Creates vector embeddings for semantic search
 
 Updated: 2025-12-28 - Added Facilitator-based orchestration
+Updated: 2025-12-28 - Added Reporter for unified summaries
 """
 
 import asyncio
@@ -32,6 +35,27 @@ logger = logging.getLogger(__name__)
 GREETING_PATTERNS = [
     'hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening',
     'howdy', 'greetings', "what's up", 'yo', 'hi there', 'hello there'
+]
+
+# Summary patterns that trigger Reporter (single voice for synthesis)
+SUMMARY_PATTERNS = [
+    'summary', 'summarize', 'summarise', 'sum up', 'sum it up',
+    'recap', 'recapitulate',
+    'takeaway', 'take away', 'takeaways', 'key takeaway',
+    'action item', 'action items', 'next step', 'next steps',
+    'what did we', 'what have we', 'what was discussed',
+    'wrap up', 'wrap-up', 'wrapping up',
+    'highlight', 'highlights', 'key highlight',
+    'key point', 'key points', 'main point',
+    'conclude', 'conclusion', 'in conclusion',
+    'document', 'documentation',
+    'brief', 'briefing', 'executive brief',
+    'share with', 'send to', 'forward to',
+    'bottom line', 'bottomline',
+    'tldr', 'tl;dr',
+    'give me the gist', 'give me the highlights',
+    'what should i take', 'what do i need to know',
+    'pull together', 'bring it together'
 ]
 
 # Lazy import for embeddings to avoid crash if VOYAGE_API_KEY is not set
@@ -149,12 +173,14 @@ class MeetingOrchestrator:
         supabase: Client,
         anthropic_client: anthropic.Anthropic,
         agents: dict[str, BaseAgent],
-        facilitator: Optional[BaseAgent] = None
+        facilitator: Optional[BaseAgent] = None,
+        reporter: Optional[BaseAgent] = None
     ):
         self.supabase = supabase
         self.anthropic = anthropic_client
         self.agents = agents
         self.facilitator = facilitator  # The Facilitator meta-agent (always present)
+        self.reporter = reporter  # The Reporter meta-agent (always present for summaries)
 
     def _is_greeting(self, message: str) -> bool:
         """Check if a message is a greeting that should trigger facilitator welcome."""
@@ -166,6 +192,14 @@ class MeetingOrchestrator:
         # Also catch very short messages that are likely greetings
         if len(message_lower) < 20 and any(g in message_lower for g in GREETING_PATTERNS[:6]):
             return True
+        return False
+
+    def _is_summary_request(self, message: str) -> bool:
+        """Check if a message is requesting a summary - should route to Reporter only."""
+        message_lower = message.lower().strip()
+        for pattern in SUMMARY_PATTERNS:
+            if pattern in message_lower:
+                return True
         return False
 
     def _track_agents_spoken(self, context: MeetingContext) -> set[str]:
@@ -253,31 +287,50 @@ class MeetingOrchestrator:
         agent_display_name: str,
         context: MeetingContext,
         base_instruction: str,
-        other_participants: list[str]
+        other_participants: list[str],
+        recent_agent_turns: list[dict] = None
     ) -> str:
-        """Build a meeting-aware system prompt for an agent."""
+        """Build a meeting-aware system prompt for an agent.
+
+        Includes recent contributions from other agents so the current agent
+        can build on or segue from what was just said.
+        """
+        # Format recent contributions from other agents in this turn
+        recent_context = ""
+        if recent_agent_turns:
+            recent_lines = []
+            for turn in recent_agent_turns:
+                turn_name = turn.get('agent_display_name', turn.get('agent_name', 'Agent'))
+                turn_content = turn.get('content', '')
+                # Truncate if too long
+                if len(turn_content) > 300:
+                    turn_content = turn_content[:300] + "..."
+                recent_lines.append(f"**{turn_name}** just said: {turn_content}")
+
+            if recent_lines:
+                recent_contributions = "\n".join(recent_lines)
+                recent_context = f"""
+RECENT CONTRIBUTIONS (respond to or build on these):
+{recent_contributions}
+
+"""
+
         meeting_context = f"""
 
 --- MEETING CONTEXT ---
-You are participating in a multi-agent meeting discussion.
-Meeting Type: {context.meeting_type}
-Other participants in this meeting: {', '.join(other_participants)}
+Multi-agent meeting. Other participants: {', '.join(other_participants)}
+{recent_context}
+CRITICAL - BREVITY IS MANDATORY:
+- 50-100 words MAX. Not a suggestion - a hard limit.
+- ONE key insight from your domain. That's it.
+- NO preamble, NO "Great question", NO filler.
+- Start with your point. End when you've made it.
+- If another agent just spoke, acknowledge/segue briefly before your point.
+- If not your domain, say "I'll defer to [Agent]" and stop.
 
-Guidelines for meeting participation:
-1. Focus on your domain expertise - don't repeat what others might say
-2. Reference other participants when relevant: "Building on what [Agent] mentioned..."
-3. If the question isn't relevant to your domain, you can say so briefly and yield
-4. For meeting_prep meetings, help prepare the user with talking points and anticipate concerns
+Format: Lead sentence + 2-3 bullets max. Bold **key terms** only.
 
-SMART BREVITY FORMAT (required):
-- Lead with the headline: Start with your key insight or recommendation in the first sentence
-- Use bullet points for lists of 3+ items
-- Bold key terms and important numbers using **bold**
-- Keep responses to 150-300 words maximum - others are also responding
-- One idea per paragraph, short paragraphs (2-3 sentences max)
-- End with a clear next step or handoff if relevant
-
-The user's message will follow. Respond from your perspective as {agent_display_name}.
+The user can always ask you to expand. Default to SHORT.
 --- END MEETING CONTEXT ---
 
 """
@@ -322,21 +375,149 @@ The user's message will follow. Respond from your perspective as {agent_display_
             "agent_name": "facilitator"
         }
 
+    async def _stream_reporter_response(
+        self,
+        context: MeetingContext
+    ) -> AsyncGenerator[dict, None]:
+        """
+        Stream a Reporter response for summary/documentation requests.
+
+        The Reporter synthesizes the entire meeting discussion into a single
+        unified summary, preventing multiple agents from each giving their own
+        summary which causes confusion.
+        """
+        if not self.reporter:
+            yield {
+                "type": "error",
+                "message": "Reporter agent not available"
+            }
+            return
+
+        # Signal reporter turn start
+        yield {
+            "type": "agent_turn_start",
+            "agent_name": "reporter",
+            "agent_display_name": "Reporter",
+            "turn_number": context.turn_number
+        }
+
+        try:
+            # Build the meeting history context for the Reporter
+            meeting_history_text = self._format_meeting_history_for_reporter(context)
+
+            # Build the system prompt with meeting context
+            reporter_system = self.reporter.system_instruction + f"""
+
+--- MEETING CONTEXT FOR SYNTHESIS ---
+The following is the discussion you need to synthesize:
+
+{meeting_history_text}
+
+The user's current request is below. Create a unified summary based on what the agents discussed.
+--- END MEETING CONTEXT ---
+"""
+
+            # Build messages for the API
+            messages = [{"role": "user", "content": context.user_message}]
+
+            # Stream the response
+            full_response = ""
+            tokens_input = 0
+            tokens_output = 0
+
+            with self.anthropic.messages.stream(
+                model="claude-sonnet-4-20250514",
+                max_tokens=1024,  # Summaries can be slightly longer
+                system=reporter_system,
+                messages=messages,
+            ) as stream:
+                for text in stream.text_stream:
+                    full_response += text
+                    yield {
+                        "type": "agent_token",
+                        "agent_name": "reporter",
+                        "content": text
+                    }
+
+                final_message = stream.get_final_message()
+                tokens_input = final_message.usage.input_tokens
+                tokens_output = final_message.usage.output_tokens
+
+            # Store the reporter's response
+            await self._store_message(
+                meeting_room_id=context.meeting_room_id,
+                role="agent",
+                content=full_response,
+                agent_name="reporter",
+                agent_display_name="Reporter",
+                turn_number=context.turn_number,
+                metadata={
+                    "is_reporter": True,
+                    "is_summary": True,
+                    "tokens": {"input": tokens_input, "output": tokens_output}
+                }
+            )
+
+            # Signal turn end
+            yield {
+                "type": "agent_turn_end",
+                "agent_name": "reporter",
+                "tokens": {"input": tokens_input, "output": tokens_output}
+            }
+
+            # Signal round complete
+            yield {
+                "type": "round_complete",
+                "agents_responded": ["reporter"],
+                "reporter_only": True,
+                "total_tokens": {"input": tokens_input, "output": tokens_output}
+            }
+
+        except Exception as e:
+            logger.error(f"Error in Reporter response: {e}")
+            yield {
+                "type": "error",
+                "agent_name": "reporter",
+                "message": str(e)
+            }
+
+    def _format_meeting_history_for_reporter(self, context: MeetingContext) -> str:
+        """Format the meeting history for the Reporter to synthesize."""
+        lines = []
+        for msg in context.message_history:
+            role = msg.get('role', 'unknown')
+            if role == 'user':
+                lines.append(f"**User**: {msg.get('content', '')}")
+            elif role == 'agent':
+                agent_name = msg.get('agent_display_name', msg.get('agent_name', 'Agent'))
+                lines.append(f"**{agent_name}**: {msg.get('content', '')}")
+            # Skip system messages
+        return "\n\n".join(lines)
+
     def _generate_facilitator_welcome(self, participants: list[dict]) -> str:
-        """Generate a brief welcome message from the Facilitator."""
-        # Get participant display names with brief domain labels
-        participant_labels = []
+        """Generate a brief welcome message from the Facilitator.
+
+        Uses first-person voice and excludes meta-agents (Facilitator, Reporter)
+        from the participant list since they're always present.
+        """
+        # Get participant display names, excluding meta-agents
+        meta_agent_names = {'facilitator', 'reporter'}
+        participant_names = []
         for p in participants:
-            name = p.get('agent_display_name', p.get('agent_name', 'Agent'))
-            domain = self._get_agent_domain_label(p.get('agent_name', ''))
-            participant_labels.append(f"{name} ({domain})")
+            agent_name = p.get('agent_name', '').lower()
+            if agent_name not in meta_agent_names:
+                display_name = p.get('agent_display_name', p.get('agent_name', 'Agent'))
+                participant_names.append(display_name)
 
-        if len(participant_labels) <= 4:
-            names_str = ", ".join(participant_labels)
+        if len(participant_names) == 0:
+            return "Welcome! I'm the Facilitator - I'll be guiding our discussion today. What would you like us to explore together?"
+
+        if len(participant_names) <= 4:
+            names_str = ", ".join(participant_names)
         else:
-            names_str = ", ".join(participant_labels[:4]) + f", and {len(participant_labels) - 4} others"
+            names_str = ", ".join(participant_names[:4]) + f", and {len(participant_names) - 4} others"
 
-        return f"Welcome! Today we have {names_str} with us. What would you like us to explore together?"
+        return f"Welcome! I'm the Facilitator - I'll be guiding our discussion today. We have {names_str} joining us. What would you like us to explore together?"
 
     def _get_agent_domain_label(self, agent_name: str) -> str:
         """Get a brief domain label for an agent."""
@@ -422,6 +603,13 @@ The user's message will follow. Respond from your perspective as {agent_display_
                 }
                 return
 
+            # Check if this is a summary request - Reporter handles alone
+            # This prevents multiple agents from each giving their own summary
+            if self._is_summary_request(context.user_message) and self.reporter:
+                async for event in self._stream_reporter_response(context):
+                    yield event
+                return
+
             # Select which agents should respond
             responding_agents = self.select_responding_agents(context)
 
@@ -447,6 +635,9 @@ The user's message will follow. Respond from your perspective as {agent_display_
 
             # Get list of other participant names for context
             all_participant_names = [p['agent_display_name'] for p in context.participants]
+
+            # Track agent turns in this round for context passing
+            current_round_turns: list[dict] = []
 
             # Process each responding agent sequentially with streaming
             for participant in responding_agents:
@@ -477,7 +668,8 @@ The user's message will follow. Respond from your perspective as {agent_display_
                         agent_display_name=agent_display_name,
                         context=context,
                         base_instruction=agent.system_instruction,
-                        other_participants=other_participants
+                        other_participants=other_participants,
+                        recent_agent_turns=current_round_turns  # Pass recent turns for context
                     )
 
                     # Collect response while streaming
@@ -490,7 +682,7 @@ The user's message will follow. Respond from your perspective as {agent_display_
 
                     with self.anthropic.messages.stream(
                         model="claude-sonnet-4-20250514",
-                        max_tokens=2048,  # Shorter for meeting responses
+                        max_tokens=300,  # Enforce brevity - 50-100 words target
                         system=meeting_system_prompt,
                         messages=messages,
                     ) as stream:
@@ -529,6 +721,13 @@ The user's message will follow. Respond from your perspective as {agent_display_
                     total_tokens_input += tokens_input
                     total_tokens_output += tokens_output
                     agents_responded.append(agent_name)
+
+                    # Add this agent's turn to context for next agents
+                    current_round_turns.append({
+                        'agent_name': agent_name,
+                        'agent_display_name': agent_display_name,
+                        'content': full_response
+                    })
 
                     # Signal turn end
                     yield {
@@ -772,58 +971,22 @@ Focus on: Responding to what's been said, adding new dimensions, challenging ass
 
         discourse_context = f"""
 
---- AUTONOMOUS DISCUSSION MODE ---
-You are in Round {autonomous_context.current_round} of {autonomous_context.total_rounds} in an agent-to-agent discussion.
-
-DISCUSSION TOPIC: {autonomous_context.topic}
-
-PARTICIPANT EXPERTISE DIRECTORY:
-{expertise_directory}
+--- AUTONOMOUS DISCUSSION ---
+Round {autonomous_context.current_round}/{autonomous_context.total_rounds} | Topic: {autonomous_context.topic}
 
 {contributions_section}
 
 {round_guidance}
 
-AGENT-TO-AGENT DISCOURSE GUIDELINES:
-You are speaking TO other agents, not the user. The user is observing.
+CRITICAL - 75 WORDS MAX:
+- ONE point per turn. Make it count.
+- Address agents by name: "@Fortuna, but what about..."
+- Question > Agree. Challenge assumptions.
+- Not your domain? Defer and stop: "That's for Guardian."
+- NO filler. NO preamble. Start with substance.
 
-COMMUNICATION STYLE:
-- Address other agents by name: "Fortuna, your ROI analysis is compelling, but..."
-- Build on previous points: "Adding to what Guardian mentioned..."
-- Respectfully disagree when warranted
-- Synthesize across domains
-
-DISCOURSE MOVES (in order of importance):
-1. QUESTION: Ask clarifying questions to other agents - curiosity is KING! Seek to understand before responding.
-2. CONNECT: Link ideas across different domains - find the threads between perspectives
-3. CHALLENGE: Respectfully push back with alternative perspective - healthy debate is valuable
-4. EXTEND: Build on another agent's point with additional depth
-5. SYNTHESIZE: Combine multiple viewpoints into integrated insight
-
-DEFERRING TO EXPERTS:
-- You do NOT need to be the smartest agent in the room on every topic
-- When a topic falls outside your expertise, DEFER to the specialist
-- Examples:
-  - For financial implications → defer to Fortuna
-  - For security concerns → defer to Guardian
-  - For legal questions → defer to Counselor
-  - For people/adoption → defer to Sage
-  - For technical architecture → defer to Architect
-- Say: "I'll defer to [Agent] on this, but from my perspective..."
-
-WHAT TO AVOID:
-- Echoing what others said without adding value
-- Overstepping into another agent's domain of expertise
-- Ignoring relevant points from other agents
-- Being overly agreeable (healthy debate is valuable)
-- Trying to have an opinion on everything (stay in your lane!)
-
-SMART BREVITY FORMAT (required):
-- 150-300 words maximum
-- Lead with your key insight
-- Use bullet points for multiple points
-- Bold key terms using **bold**
---- END AUTONOMOUS DISCUSSION MODE ---
+Format: 1-2 sentences + optional question to another agent.
+--- END ---
 
 """
         return base_instruction + discourse_context
@@ -1054,7 +1217,7 @@ SMART BREVITY FORMAT (required):
 
                         with self.anthropic.messages.stream(
                             model="claude-sonnet-4-20250514",
-                            max_tokens=1024,  # Shorter for autonomous responses
+                            max_tokens=200,  # Enforce brevity - 75 words target
                             system=autonomous_system_prompt,
                             messages=messages,
                         ) as stream:
@@ -1321,7 +1484,9 @@ async def get_meeting_orchestrator(
 ) -> MeetingOrchestrator:
     """
     Factory function to create a MeetingOrchestrator with all agents loaded.
-    Includes the Facilitator meta-agent which is always present in meetings.
+    Includes the Facilitator and Reporter meta-agents which are always present in meetings.
+    - Facilitator: Orchestrates conversation flow, routes to agents
+    - Reporter: Synthesizes discussions into unified summaries
     """
     from agents.atlas import AtlasAgent
     from agents.fortuna import FortunaAgent
@@ -1339,6 +1504,16 @@ async def get_meeting_orchestrator(
         logger.info("Facilitator meta-agent initialized")
     except Exception as e:
         logger.warning(f"Could not load Facilitator agent: {e}")
+
+    # Initialize the Reporter meta-agent (always present for summaries)
+    reporter = None
+    try:
+        from agents.reporter import ReporterAgent
+        reporter = ReporterAgent(supabase, anthropic_client)
+        await reporter.initialize()
+        logger.info("Reporter meta-agent initialized")
+    except Exception as e:
+        logger.warning(f"Could not load Reporter agent: {e}")
 
     # Initialize all available agents
     agents: dict[str, BaseAgent] = {}
@@ -1413,5 +1588,7 @@ async def get_meeting_orchestrator(
     logger.info(f"MeetingOrchestrator initialized with {len(agents)} agents: {list(agents.keys())}")
     if facilitator:
         logger.info("Facilitator is active and will orchestrate meetings")
+    if reporter:
+        logger.info("Reporter is active and will handle summary requests")
 
-    return MeetingOrchestrator(supabase, anthropic_client, agents, facilitator)
+    return MeetingOrchestrator(supabase, anthropic_client, agents, facilitator, reporter)
