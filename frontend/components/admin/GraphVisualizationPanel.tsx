@@ -222,7 +222,11 @@ export default function GraphVisualizationPanel() {
             ) : (
               <div className="flex items-center justify-center h-full text-center">
                 <div>
-                  <div className="text-3xl mb-3 opacity-20">🔍</div>
+                  <div className="text-3xl mb-3 opacity-20">
+                    <svg className="w-8 h-8 mx-auto text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
                   <p className="text-secondary text-xs">Click a node to view details</p>
                 </div>
               </div>

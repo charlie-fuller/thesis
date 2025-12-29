@@ -66,12 +66,12 @@ export default function UsageAnalytics() {
     try {
       // Fetch usage trends
       const trendsData = await apiGet<TrendsResponse>(`/api/admin/analytics/usage-trends?days=${days}`);
-      logger.debug('📊 Usage Trends Response:', trendsData);
+      logger.debug('Usage Trends Response:', trendsData);
       setTrends(trendsData?.trends || []);
       setAgents(trendsData?.agents || []);
       setAgentTotals(trendsData?.agent_totals || {});
     } catch (error) {
-      logger.error('❌ Error fetching analytics:', error);
+      logger.error('Error fetching analytics:', error);
       // Set empty data on error to prevent crashes
       setTrends([]);
       setAgents([]);
@@ -99,7 +99,7 @@ export default function UsageAnalytics() {
   const hasAgentData = agents.length > 0;
   const hasData = hasTrends || hasAgentData;
 
-  logger.debug('📈 Data Check:', { hasTrends, hasAgentData, hasData, trendsLength: trends.length });
+  logger.debug('Data Check:', { hasTrends, hasAgentData, hasData, trendsLength: trends.length });
 
   if (!hasData) {
     return (

@@ -348,7 +348,11 @@ export default function KnowledgeGraphPage() {
             ) : (
               <div className="flex items-center justify-center h-full text-center">
                 <div>
-                  <div className="text-4xl mb-4 opacity-20">🔍</div>
+                  <div className="text-4xl mb-4 opacity-20">
+                    <svg className="w-10 h-10 mx-auto text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
                   <p className="text-secondary text-sm">Click a node to view details</p>
                 </div>
               </div>

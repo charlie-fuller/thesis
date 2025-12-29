@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { Upload, FileText, X } from 'lucide-react';
+import { Upload, FileText, X, ArrowLeft } from 'lucide-react';
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -549,6 +549,15 @@ export default function AgentDetailPage() {
 
   return (
     <div>
+      {/* Back Link */}
+      <Link
+        href="/admin/agents"
+        className="inline-flex items-center gap-2 text-secondary hover:text-primary transition-colors mb-6"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        <span>All Agents</span>
+      </Link>
+
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div className="flex items-center gap-4">
@@ -603,44 +612,197 @@ export default function AgentDetailPage() {
               </svg>
             </summary>
             <div className="px-6 pb-6 pt-2 border-t border-border">
-              {/* Description */}
-              <p className="text-secondary leading-relaxed mb-6">
-                {agent.description || 'No description configured for this agent.'}
-              </p>
-
-              {/* Stats Row */}
-              <div className="flex items-center gap-6 pt-4 border-t border-border">
-                <div className="text-center">
-                  <div className="text-xl font-bold text-primary">{stats.instruction_versions_count}</div>
-                  <div className="text-xs text-secondary">Versions</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-primary">{stats.kb_documents_count || kb_documents.length}</div>
-                  <div className="text-xs text-secondary">KB Docs</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-primary">{stats.conversations_count}</div>
-                  <div className="text-xs text-secondary">Chats</div>
-                </div>
-                {(() => {
-                  const personas: Record<string, string> = {
-                    atlas: 'Chris Baumgartner',
-                    fortuna: 'Raul Rivera III',
-                    guardian: 'Danny Leal',
-                    counselor: 'Ashley Adams',
-                    sage: 'Chad Meek',
-                    oracle: 'CIPHER v2.1',
-                  };
-                  const persona = personas[agent.name.toLowerCase()];
-                  if (!persona) return null;
+              {(() => {
+                const agentOverviews: Record<string, {
+                  summary: string;
+                  keyActions: string[];
+                  persona?: string;
+                }> = {
+                  atlas: {
+                    summary: 'Research intelligence agent specializing in GenAI implementation. Atlas performs live web searches with credibility-tiered source filtering, synthesizes knowledge base documents, and applies Lean methodology to deliver actionable insights backed by consulting firms, Big 4, and industry publications.',
+                    keyActions: [
+                      'Searches web with 4-tier credibility filtering (consulting firms, Big 4/tech, industry pubs, blogs)',
+                      'Synthesizes research from knowledge base with RAG retrieval',
+                      'Provides industry benchmarks and competitive analysis',
+                      'Applies Lean methodology to prioritize actionable over theoretical insights'
+                    ],
+                    persona: 'Chris Baumgartner'
+                  },
+                  fortuna: {
+                    summary: 'Financial analysis agent for AI investment justification. Fortuna builds defensible business cases, calculates ROI projections, identifies hidden costs, and ensures SOX compliance. Bridges the gap between AI potential and financial reality with CFO-ready analysis.',
+                    keyActions: [
+                      'Builds business cases with ROI frameworks and TCO calculations',
+                      'Identifies hidden costs beyond licensing fees',
+                      'Provides risk-adjusted financial projections',
+                      'Ensures SOX and financial regulatory alignment'
+                    ],
+                    persona: 'Raul Rivera III'
+                  },
+                  guardian: {
+                    summary: 'IT governance and security agent for enterprise AI deployments. Guardian evaluates vendor security posture, detects shadow AI usage, maps implementations to compliance frameworks, and designs unified AI governance policies that enable innovation while maintaining protection.',
+                    keyActions: [
+                      'Evaluates AI vendors against security frameworks (SOC 2, GDPR, etc.)',
+                      'Detects and manages unauthorized shadow AI usage',
+                      'Designs AI governance policies and steering structures',
+                      'Maps AI implementations to regulatory requirements'
+                    ],
+                    persona: 'Danny Leal'
+                  },
+                  counselor: {
+                    summary: 'Legal guidance agent for AI contracts, compliance, and risk. Counselor reviews vendor terms for red flags, clarifies IP ownership questions, navigates data privacy regulations, and provides practical legal guidance that enables AI adoption without undue exposure.',
+                    keyActions: [
+                      'Reviews AI vendor contracts for problematic terms',
+                      'Clarifies IP ownership for fine-tuned models and AI outputs',
+                      'Navigates GDPR, CCPA, and evolving AI legislation',
+                      'Assesses liability exposure for AI-generated content'
+                    ],
+                    persona: 'Ashley Adams'
+                  },
+                  oracle: {
+                    summary: 'Meeting intelligence agent that transforms recordings into strategic insights. Oracle parses transcripts to extract stakeholder positions with evidence-based sentiment, maps power dynamics and influence patterns, and surfaces key decisions and action items.',
+                    keyActions: [
+                      'Extracts stakeholder positions with supporting quotes',
+                      'Maps power dynamics and influence relationships',
+                      'Identifies decision-makers and their concerns',
+                      'Synthesizes action items and ownership from discussions'
+                    ],
+                    persona: 'CIPHER v2.1'
+                  },
+                  sage: {
+                    summary: 'People and change management agent focused on human flourishing. Sage diagnoses adoption challenges using incentive analysis (Buffett principle), designs champion programs that prevent burnout, addresses AI anxiety with empathy, and ensures AI augments rather than replaces human judgment.',
+                    keyActions: [
+                      'Diagnoses adoption stalls through incentive and motivation analysis',
+                      'Designs sustainable champion programs and peer networks',
+                      'Addresses employee fear and AI anxiety with transparency',
+                      'Evaluates implementations for human sovereignty preservation'
+                    ],
+                    persona: 'Chad Meek'
+                  },
+                  strategist: {
+                    summary: 'Executive strategy agent for C-suite engagement and organizational alignment. Strategist builds sponsorship coalitions, navigates political landscapes, designs governance frameworks, and crafts board-ready communications that align AI initiatives with executive priorities.',
+                    keyActions: [
+                      'Builds executive sponsorship and coalition support',
+                      'Navigates organizational politics and stakeholder dynamics',
+                      'Designs AI steering committees and governance structures',
+                      'Crafts board presentations and executive communications'
+                    ]
+                  },
+                  architect: {
+                    summary: 'Technical architecture agent for enterprise AI system design. Architect designs coherent AI patterns including RAG implementations, plans system integrations, provides build-vs-buy frameworks, and ensures scalability while balancing innovation with enterprise stability.',
+                    keyActions: [
+                      'Designs enterprise AI architecture patterns',
+                      'Plans RAG implementations and system integrations',
+                      'Provides frameworks for build-vs-buy technology decisions',
+                      'Anticipates scalability and growth requirements'
+                    ]
+                  },
+                  operator: {
+                    summary: 'Business operations agent for process optimization and automation. Operator identifies automation opportunities, defines meaningful KPIs for AI initiatives, maps workflows to find bottlenecks, and establishes baselines for measuring improvement.',
+                    keyActions: [
+                      'Identifies high-value automation opportunities',
+                      'Defines KPIs and metrics for AI initiatives',
+                      'Maps workflows and identifies efficiency bottlenecks',
+                      'Establishes baselines for measuring AI impact'
+                    ]
+                  },
+                  pioneer: {
+                    summary: 'Innovation and emerging technology agent that separates signal from noise. Pioneer scouts new AI capabilities, assesses technology maturity for enterprise readiness, filters hype from practical value, and scopes proof-of-concept experiments.',
+                    keyActions: [
+                      'Scouts emerging AI capabilities and trends',
+                      'Assesses technology maturity using hype cycle positioning',
+                      'Filters marketing hype from practical enterprise value',
+                      'Scopes proof-of-concept experiments for new technologies'
+                    ]
+                  },
+                  catalyst: {
+                    summary: 'Internal communications agent for AI messaging and employee engagement. Catalyst drafts launch announcements, creates FAQs addressing common concerns, designs engagement campaigns, and builds trust through transparent communication about AI initiatives.',
+                    keyActions: [
+                      'Drafts all-hands announcements and town hall talking points',
+                      'Creates FAQs addressing employee AI concerns',
+                      'Designs engagement campaigns for AI adoption',
+                      'Develops narratives that build trust and enthusiasm'
+                    ]
+                  },
+                  scholar: {
+                    summary: 'Learning and development agent applying adult learning principles to AI skill building. Scholar designs role-based training curricula, creates champion enablement programs, builds peer learning communities, and measures training effectiveness.',
+                    keyActions: [
+                      'Designs AI literacy curricula for different skill levels',
+                      'Creates learning paths for AI champions',
+                      'Builds peer learning and knowledge-sharing structures',
+                      'Measures and reinforces training effectiveness'
+                    ]
+                  },
+                  echo: {
+                    summary: 'Brand voice agent ensuring AI-generated content maintains authenticity. Echo analyzes writing samples to define voice, creates AI writing guidelines aligned with brand identity, reviews content for consistency, and balances AI efficiency with human authenticity.',
+                    keyActions: [
+                      'Analyzes writing samples to define brand voice attributes',
+                      'Creates AI writing guidelines for content generation',
+                      'Reviews AI-generated content for brand alignment',
+                      'Develops persona guidelines for multi-channel consistency'
+                    ]
+                  },
+                  nexus: {
+                    summary: 'Systems thinking agent that reveals hidden connections and consequences. Nexus maps dependencies between AI initiatives, identifies feedback loops and leverage points, models ripple effects of decisions, and catches blind spots that siloed thinking misses.',
+                    keyActions: [
+                      'Maps dependencies and interconnections between initiatives',
+                      'Identifies feedback loops and high-impact leverage points',
+                      'Models unintended consequences and ripple effects',
+                      'Challenges consensus to surface hidden assumptions'
+                    ]
+                  },
+                  coordinator: {
+                    summary: 'Central orchestration agent for multi-agent collaboration in chat. Coordinator routes queries to the best specialist, synthesizes perspectives from multiple agents, maintains conversation coherence, and makes the full agent roster accessible without requiring user expertise.',
+                    keyActions: [
+                      'Routes queries to the most relevant specialist agent',
+                      'Synthesizes multi-agent perspectives into coherent responses',
+                      'Maintains context across agent handoffs',
+                      'Identifies when multiple agents should collaborate'
+                    ]
+                  },
+                  facilitator: {
+                    summary: 'Meeting orchestration meta-agent that makes other agents brilliant. Facilitator welcomes participants, clarifies user intent before opening discussion, routes topics to relevant specialists, enforces balanced participation, and synthesizes multi-agent discussions into actionable conclusions.',
+                    keyActions: [
+                      'Welcomes users and clarifies intent before inviting specialists',
+                      'Routes topics to relevant agents with brief context',
+                      'Enforces balanced participation - no single agent dominates',
+                      'Invokes systems thinking before conclusions are reached'
+                    ]
+                  }
+                };
+                const overview = agentOverviews[agent.name.toLowerCase()];
+                if (!overview) {
                   return (
-                    <div className="ml-auto text-right">
-                      <div className="text-xs text-secondary">Informed By</div>
-                      <div className="text-sm text-primary font-medium">{persona}</div>
-                    </div>
+                    <p className="text-secondary leading-relaxed">
+                      {agent.description || 'No description configured for this agent.'}
+                    </p>
                   );
-                })()}
-              </div>
+                }
+
+                return (
+                  <div className="space-y-4">
+                    <p className="text-secondary leading-relaxed">
+                      {overview.summary}
+                    </p>
+                    <div>
+                      <h4 className="text-sm font-semibold text-primary mb-2">Key Actions</h4>
+                      <ul className="space-y-1.5">
+                        {overview.keyActions.map((action, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-secondary">
+                            <span className="text-primary mt-0.5">&#8226;</span>
+                            {action}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    {overview.persona && (
+                      <div className="pt-3 border-t border-border">
+                        <span className="text-xs text-secondary">Informed by: </span>
+                        <span className="text-sm text-primary font-medium">{overview.persona}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </details>
 
@@ -1604,10 +1766,8 @@ export default function AgentDetailPage() {
                     className="flex items-center justify-between p-4 bg-page rounded-lg border border-border"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-card border border-border flex items-center justify-center text-lg">
-                        {kbDoc.document.content_type?.includes('pdf') ? '📄' :
-                         kbDoc.document.content_type?.includes('word') ? '📝' :
-                         kbDoc.document.content_type?.includes('text') ? '📃' : '📁'}
+                      <div className="w-10 h-10 rounded-lg bg-card border border-border flex items-center justify-center">
+                        <FileText className="w-5 h-5 text-secondary" />
                       </div>
                       <div>
                         <p className="font-medium text-primary">{kbDoc.document.filename}</p>
@@ -1638,7 +1798,7 @@ export default function AgentDetailPage() {
                     onClick={() => setShowDocPicker(false)}
                     className="text-secondary hover:text-primary"
                   >
-                    ✕
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
 
@@ -1662,10 +1822,8 @@ export default function AgentDetailPage() {
                         onClick={() => handleLinkDocument(doc.id)}
                         className="w-full flex items-center gap-3 p-3 bg-page rounded-lg border border-border hover:border-primary transition-colors text-left"
                       >
-                        <div className="w-10 h-10 rounded-lg bg-card border border-border flex items-center justify-center text-lg">
-                          {doc.content_type?.includes('pdf') ? '📄' :
-                           doc.content_type?.includes('word') ? '📝' :
-                           doc.content_type?.includes('text') ? '📃' : '📁'}
+                        <div className="w-10 h-10 rounded-lg bg-card border border-border flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-secondary" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-primary truncate">{doc.filename}</p>

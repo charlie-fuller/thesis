@@ -261,7 +261,11 @@ export default function ProjectsPage() {
           </div>
         ) : filteredProjects.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-6xl mb-4">📁</div>
+            <div className="text-6xl mb-4 text-secondary opacity-30">
+              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+            </div>
             <h3 className="text-lg font-medium text-primary mb-2">
               {statusFilter === 'active' ? 'No active initiatives' :
                statusFilter === 'archived' ? 'No archived initiatives' : 'No initiatives yet'}

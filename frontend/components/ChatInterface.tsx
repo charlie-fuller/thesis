@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { X, AlertTriangle } from 'lucide-react'
 import ChatMessage from './ChatMessage'
 import LoadingSpinner from './LoadingSpinner'
 import AgentSelector from './AgentSelector'
@@ -746,7 +747,10 @@ export default function ChatInterface({
         <div className="bg-red-50 border-t border-red-200 px-6 py-3">
           <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 flex-1">
-              <span className="text-red-600 text-sm">⚠ {error}</span>
+              <span className="text-red-600 text-sm flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4" />
+                {error}
+              </span>
               {lastFailedMessage && (
                 <button
                   onClick={retryLastMessage}
@@ -762,9 +766,9 @@ export default function ChatInterface({
                 setError(null)
                 setLastFailedMessage(null)
               }}
-              className="text-red-600 hover:opacity-70 transition-opacity font-bold"
+              className="text-red-600 hover:opacity-70 transition-opacity"
             >
-              ✕
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -802,9 +806,9 @@ export default function ChatInterface({
                   <span className="text-primary">{file.name}</span>
                   <button
                     onClick={() => removeAttachment(index)}
-                    className="text-xs text-muted hover:opacity-70"
+                    className="text-muted hover:opacity-70"
                   >
-                    ✕
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ))}
