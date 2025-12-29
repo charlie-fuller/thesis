@@ -626,10 +626,9 @@ export default function MeetingRoomPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Type your message..."
+                placeholder={sending ? "Agents responding... type your next message" : "Type your message..."}
                 className="flex-1 resize-none rounded-lg border border-default bg-card px-4 py-3 text-primary placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
                 rows={2}
-                disabled={sending}
               />
               <button
                 onClick={handleSendMessage}
