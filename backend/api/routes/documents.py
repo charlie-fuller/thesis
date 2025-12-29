@@ -226,11 +226,11 @@ async def save_from_chat(
         # Get storage URL
         storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
 
-        # Create database record
-        # Note: metadata stored in document content header, not DB column
+        # Create database record with title for display
         doc_record = {
             'client_id': client_id,
             'uploaded_by': user_id,
+            'title': request.title.strip(),  # Store original title for display
             'filename': unique_filename,
             'storage_path': storage_path,
             'storage_url': storage_url,
