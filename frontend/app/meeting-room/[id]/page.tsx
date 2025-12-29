@@ -329,8 +329,9 @@ export default function MeetingRoomPage() {
       setSending(false)
       setActiveAgent(null)
       setStreamingContent({})
-      // Refresh messages to get server-assigned IDs
-      loadMessages()
+      // NOTE: We don't reload messages here anymore to prevent flickering.
+      // The local state is already accurate from streaming events.
+      // Server-assigned IDs will be fetched on next page load.
     }
   }
 
@@ -422,10 +423,10 @@ export default function MeetingRoomPage() {
                       metadata: { autonomous: true },
                       created_at: new Date().toISOString()
                     }
-                    setMessages(prev => [...prev, agentMessage])
-                    // Clear this agent from streaming content
+                    // Clear streaming content BEFORE adding message to prevent duplicate display
                     delete agentResponses[data.agent_name]
                     setStreamingContent({ ...agentResponses })
+                    setMessages(prev => [...prev, agentMessage])
                   }
                   setActiveAgent(null)
                   break
@@ -468,7 +469,8 @@ export default function MeetingRoomPage() {
       setSending(false)
       setActiveAgent(null)
       setStreamingContent({})
-      loadMessages()
+      // NOTE: We don't reload messages here to prevent flickering.
+      // The local state is already accurate from streaming events.
     }
   }
 

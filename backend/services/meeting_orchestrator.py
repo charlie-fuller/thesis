@@ -219,6 +219,10 @@ class MeetingOrchestrator:
     # These provide essential perspectives that should never be overlooked
     ESSENTIAL_PERSPECTIVES = ['sage', 'nexus']  # People + Systems thinking
 
+    # Meta-agents that should not be selected as responding agents
+    # (they have their own orchestration roles)
+    META_AGENT_NAMES = {'facilitator', 'reporter'}
+
     def select_responding_agents(
         self,
         context: MeetingContext,
@@ -229,13 +233,22 @@ class MeetingOrchestrator:
 
         Uses keyword matching to score relevance, but ensures essential perspectives
         (Sage for people/change, Nexus for systems thinking) are always considered.
+
+        Meta-agents (Facilitator, Reporter) are excluded - they have their own roles.
         """
         message_lower = context.user_message.lower()
-        participant_names = {p['agent_name'] for p in context.participants}
 
-        # Score each participating agent based on keyword matching
+        # Filter out meta-agents from consideration
+        eligible_participants = [
+            p for p in context.participants
+            if p.get('agent_name', '').lower() not in self.META_AGENT_NAMES
+        ]
+
+        participant_names = {p['agent_name'] for p in eligible_participants}
+
+        # Score each eligible agent based on keyword matching
         scores: dict[str, int] = {}
-        for participant in context.participants:
+        for participant in eligible_participants:
             agent_name = participant['agent_name']
             keywords = self.SPECIALIST_DOMAINS.get(agent_name, [])
             score = sum(1 for kw in keywords if kw in message_lower)
@@ -243,7 +256,7 @@ class MeetingOrchestrator:
 
         # Get agents with positive scores
         relevant_agents = [
-            p for p in context.participants
+            p for p in eligible_participants
             if scores.get(p['agent_name'], 0) > 0
         ]
 
@@ -255,8 +268,8 @@ class MeetingOrchestrator:
             )
             selected = relevant_agents[:max_agents]
         else:
-            # If no clear matches, start with first participant
-            selected = context.participants[:1] if context.participants else []
+            # If no clear matches, start with first eligible participant
+            selected = eligible_participants[:1] if eligible_participants else []
 
         # Ensure essential perspectives are included if they're participants
         # and we have room (or make room for them)
@@ -264,8 +277,8 @@ class MeetingOrchestrator:
 
         for essential_agent in self.ESSENTIAL_PERSPECTIVES:
             if essential_agent not in selected_names:
-                # Find this agent in participants
-                for p in context.participants:
+                # Find this agent in eligible participants
+                for p in eligible_participants:
                     if p['agent_name'] == essential_agent:
                         # Add essential agent, respecting max_agents by replacing lowest scored
                         if len(selected) < max_agents:
@@ -539,24 +552,86 @@ The user's current request is below. Create a unified summary based on what the 
         }
         return labels.get(agent_name.lower(), 'specialist')
 
-    def _generate_facilitator_routing_intro(
+    async def _generate_facilitator_routing_intro(
         self,
         responding_agents: list[dict],
         user_message: str
     ) -> Optional[str]:
-        """Generate a brief intro from the Facilitator when routing to agents."""
-        if not responding_agents:
+        """
+        Generate a conversational routing intro using the Facilitator LLM.
+
+        Instead of hardcoded templates like "Let's hear from X and Y", this uses
+        the Facilitator to craft human-level handoffs that give each agent a
+        specific angle or question to address.
+        """
+        if not responding_agents or not self.facilitator:
             return None
 
-        agent_names = [p.get('agent_display_name', p.get('agent_name')) for p in responding_agents]
+        # Filter out meta-agents (facilitator, reporter) from the list
+        meta_agents = {'facilitator', 'reporter'}
+        filtered_agents = [
+            p for p in responding_agents
+            if p.get('agent_name', '').lower() not in meta_agents
+        ]
 
-        if len(agent_names) == 1:
-            return f"Let me bring in {agent_names[0]} on this."
-        elif len(agent_names) == 2:
-            return f"This touches on a couple areas. {agent_names[0]} and {agent_names[1]} - what do you see here?"
-        else:
-            names_str = ", ".join(agent_names[:-1]) + f", and {agent_names[-1]}"
-            return f"Good question. Let's hear from {names_str}."
+        if not filtered_agents:
+            return None
+
+        # Build agent info for the prompt
+        agent_info_lines = []
+        for agent in filtered_agents:
+            agent_name = agent.get('agent_name', '')
+            display_name = agent.get('agent_display_name', agent_name)
+            domain = self._get_agent_domain_label(agent_name)
+            agent_info_lines.append(f"- {display_name} ({domain})")
+
+        agents_context = "\n".join(agent_info_lines)
+
+        # Create a focused prompt for the Facilitator to generate a handoff
+        routing_prompt = f"""The user asked: "{user_message}"
+
+You need to invite these agents to respond:
+{agents_context}
+
+Generate a brief, conversational handoff (2-3 sentences max) that:
+1. Acknowledges the question briefly (half a sentence)
+2. For EACH agent, explains what perspective or angle you're curious about from them
+3. Sounds natural - like a skilled meeting facilitator
+
+EXAMPLES of good handoffs:
+- "That's a layered question. Fortuna, I'd love to understand the financial dynamics here. And Sage, how might this land with the team from a people perspective?"
+- "Interesting challenge. Guardian, what security considerations should we have on our radar? And Architect, how would this fit into the technical landscape?"
+
+DO NOT:
+- Just list names ("Let's hear from X and Y")
+- Use generic prompts ("thoughts?" or "what do you think?")
+- Include yourself (Facilitator) or Reporter in the list
+
+Respond with ONLY the handoff message, nothing else."""
+
+        try:
+            # Use a quick, focused LLM call
+            response = self.anthropic.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=150,
+                system=self.facilitator.system_instruction,
+                messages=[{"role": "user", "content": routing_prompt}]
+            )
+
+            if response.content and len(response.content) > 0:
+                return response.content[0].text.strip()
+
+        except Exception as e:
+            logger.warning(f"Facilitator routing intro generation failed: {e}")
+            # Fallback to simple but correct format (no self-reference)
+            agent_names = [p.get('agent_display_name', p.get('agent_name')) for p in filtered_agents]
+            if len(agent_names) == 1:
+                return f"Let me bring in {agent_names[0]} on this."
+            else:
+                names_str = ", ".join(agent_names[:-1]) + f" and {agent_names[-1]}"
+                return f"I'd like to hear from {names_str} on this."
+
+        return None
 
     async def process_meeting_turn(
         self,
@@ -621,7 +696,7 @@ The user's current request is below. Create a unified summary based on what the 
                 return
 
             # Facilitator introduces the agents (brief routing message)
-            routing_intro = self._generate_facilitator_routing_intro(
+            routing_intro = await self._generate_facilitator_routing_intro(
                 responding_agents,
                 context.user_message
             )
