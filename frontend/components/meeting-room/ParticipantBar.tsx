@@ -44,7 +44,7 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
   guardian: 'Security & Governance',
   counselor: 'Legal & Compliance',
   oracle: 'Stakeholder Intelligence',
-  sage: 'People & Change Management',
+  sage: 'People, Incentives & Human-Centered AI',
   strategist: 'Executive Strategy',
   architect: 'Technical Architecture',
   operator: 'Business Operations',

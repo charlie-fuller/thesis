@@ -593,206 +593,559 @@ export default function AgentDetailPage() {
 
       {/* Tab Content */}
       {activeTab === 'overview' && (
-        <div className="card p-6">
-          {/* Description */}
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-primary mb-2">What This Agent Does</h2>
-            <p className="text-secondary leading-relaxed">
-              {agent.description || 'No description configured for this agent.'}
-            </p>
-          </div>
-
-          {/* Why & How */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <h3 className="text-sm font-semibold text-primary mb-2">Why It Exists</h3>
-              <p className="text-secondary text-sm leading-relaxed">
-                {(() => {
-                  const purposes: Record<string, string> = {
-                    atlas: 'Research intelligence for GenAI implementation using Lean methodology and competitive benchmarking.',
-                    fortuna: 'Financial analysis including ROI, business cases, and SOX compliance for AI investments.',
-                    guardian: 'IT governance, security compliance, shadow IT detection, and vendor evaluation.',
-                    counselor: 'Legal considerations: contracts, AI risk, liability, and data privacy.',
-                    oracle: 'Meeting transcript analysis for stakeholder insights and sentiment with evidence.',
-                    sage: 'Change management, human flourishing, and AI adoption strategies.',
-                    strategist: 'C-suite engagement, organizational politics, and governance design.',
-                    architect: 'Technical architecture for enterprise AI: RAG, integrations, build vs. buy.',
-                    operator: 'Business process optimization, automation, and operational metrics.',
-                    pioneer: 'Emerging technology scouting, hype filtering, and maturity assessment.',
-                    catalyst: 'Internal AI communications, employee engagement, and AI anxiety.',
-                    scholar: 'Training programs, champion enablement, and adult learning principles.',
-                    echo: 'Brand voice analysis, style profiling, and AI content guidelines.',
-                    nexus: 'Systems thinking: interconnections, feedback loops, and leverage points.',
-                    coordinator: 'Multi-agent orchestration, query routing, and response synthesis.',
-                  };
-                  return purposes[agent.name.toLowerCase()] || 'Specialized capabilities within the Thesis platform.';
-                })()}
+        <div className="space-y-4">
+          {/* Panel 1: What This Agent Does - Open by default */}
+          <details open className="card group">
+            <summary className="cursor-pointer p-4 flex items-center justify-between hover:bg-page/50 transition-colors rounded-t-lg">
+              <h2 className="text-lg font-semibold text-primary">What This Agent Does</h2>
+              <svg className="w-5 h-5 text-secondary transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </summary>
+            <div className="px-6 pb-6 pt-2 border-t border-border">
+              {/* Description */}
+              <p className="text-secondary leading-relaxed mb-6">
+                {agent.description || 'No description configured for this agent.'}
               </p>
-            </div>
 
-            <div>
-              <h3 className="text-sm font-semibold text-primary mb-2">How To Use It</h3>
-              <p className="text-secondary text-sm leading-relaxed">
+              {/* Stats Row */}
+              <div className="flex items-center gap-6 pt-4 border-t border-border">
+                <div className="text-center">
+                  <div className="text-xl font-bold text-primary">{stats.instruction_versions_count}</div>
+                  <div className="text-xs text-secondary">Versions</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl font-bold text-primary">{stats.kb_documents_count || kb_documents.length}</div>
+                  <div className="text-xs text-secondary">KB Docs</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl font-bold text-primary">{stats.conversations_count}</div>
+                  <div className="text-xs text-secondary">Chats</div>
+                </div>
                 {(() => {
-                  const howTo: Record<string, string> = {
-                    atlas: 'Ask research questions about GenAI trends or best practices. Atlas searches web and KB for sourced answers.',
-                    fortuna: 'Request ROI projections or business case frameworks with context about your AI initiative.',
-                    guardian: 'Consult on security, compliance, or vendor evaluations. Share technical details.',
-                    counselor: 'Ask about contracts, compliance, or risk. Include stakeholder and jurisdiction context.',
-                    oracle: 'Upload meeting transcripts to extract stakeholder positions and sentiment with quotes.',
-                    sage: 'Discuss change strategies or adoption challenges. Sage designs people-first plans.',
-                    strategist: 'Seek executive engagement or governance guidance. Share organizational context.',
-                    architect: 'Discuss technical requirements or integration approaches with system details.',
-                    operator: 'Identify automation opportunities or metrics. Share workflow details.',
-                    pioneer: 'Explore emerging tech or assess innovation maturity. Separates signal from noise.',
-                    catalyst: 'Draft communications or plan engagement. Share audience context.',
-                    scholar: 'Design training or learning paths. Specify skill levels and objectives.',
-                    echo: 'Analyze voice samples or review content for brand alignment. Provide examples.',
-                    nexus: 'Map dependencies or explore feedback loops. Describe interconnected elements.',
-                    coordinator: 'Use Auto mode for routing or request multi-agent collaboration.',
+                  const personas: Record<string, string> = {
+                    atlas: 'Chris Baumgartner',
+                    fortuna: 'Raul Rivera III',
+                    guardian: 'Danny Leal',
+                    counselor: 'Ashley Adams',
+                    sage: 'Chad Meek',
+                    oracle: 'CIPHER v2.1',
                   };
-                  return howTo[agent.name.toLowerCase()] || 'Chat or include in meeting rooms for specialized insights.';
+                  const persona = personas[agent.name.toLowerCase()];
+                  if (!persona) return null;
+                  return (
+                    <div className="ml-auto text-right">
+                      <div className="text-xs text-secondary">Informed By</div>
+                      <div className="text-sm text-primary font-medium">{persona}</div>
+                    </div>
+                  );
                 })()}
-              </p>
+              </div>
             </div>
-          </div>
+          </details>
 
-          {/* Stats Row */}
-          <div className="flex items-center gap-6 pt-4 border-t border-border">
-            <div className="text-center">
-              <div className="text-xl font-bold text-primary">{stats.instruction_versions_count}</div>
-              <div className="text-xs text-secondary">Versions</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-primary">{stats.kb_documents_count || kb_documents.length}</div>
-              <div className="text-xs text-secondary">KB Docs</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-primary">{stats.conversations_count}</div>
-              <div className="text-xs text-secondary">Chats</div>
-            </div>
-            {(() => {
-              const personas: Record<string, string> = {
-                atlas: 'Chris Baumgartner',
-                fortuna: 'Raul Rivera III',
-                guardian: 'Danny Leal',
-                counselor: 'Ashley Adams',
-                sage: 'Chad Meek',
-                oracle: 'CIPHER v2.1',
-              };
-              const persona = personas[agent.name.toLowerCase()];
-              if (!persona) return null;
-              return (
-                <div className="ml-auto text-right">
-                  <div className="text-xs text-secondary">Persona</div>
-                  <div className="text-sm text-primary font-medium">{persona}</div>
-                </div>
-              );
-            })()}
-          </div>
+          {/* Panel 2: Why It Exists - Collapsed by default */}
+          <details className="card group">
+            <summary className="cursor-pointer p-4 flex items-center justify-between hover:bg-page/50 transition-colors rounded-t-lg">
+              <h2 className="text-lg font-semibold text-primary">Why It Exists</h2>
+              <svg className="w-5 h-5 text-secondary transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </summary>
+            <div className="px-6 pb-6 pt-2 border-t border-border">
+              {(() => {
+                const agentDetails: Record<string, {
+                  purpose: string;
+                  problemsSolved: string[];
+                  uniqueValue: string;
+                  keyPrinciples?: string[];
+                }> = {
+                  atlas: {
+                    purpose: 'Research intelligence for GenAI implementation using Lean methodology and competitive benchmarking.',
+                    problemsSolved: [
+                      'Information overload - filters signal from noise in AI research',
+                      'Credibility gaps - uses tiered source filtering (Tier 1: consulting firms, Tier 2: Big 4/tech, Tier 3: industry pubs)',
+                      'Knowledge silos - synthesizes insights from multiple sources with citations',
+                      'Outdated recommendations - performs live web search for current data'
+                    ],
+                    uniqueValue: 'Combines web search with knowledge base RAG, applying Lean methodology to prioritize actionable over theoretical insights.'
+                  },
+                  fortuna: {
+                    purpose: 'Financial analysis including ROI, business cases, and SOX compliance for AI investments.',
+                    problemsSolved: [
+                      'Justification hurdles - builds compelling business cases for AI investment',
+                      'Hidden costs - identifies total cost of ownership beyond licensing fees',
+                      'Compliance risk - ensures SOX and financial regulatory alignment',
+                      'Stakeholder skepticism - provides CFO-ready financial projections'
+                    ],
+                    uniqueValue: 'Bridges the gap between AI potential and financial reality with defensible projections and risk-adjusted returns.'
+                  },
+                  guardian: {
+                    purpose: 'IT governance, security compliance, shadow IT detection, and vendor evaluation.',
+                    problemsSolved: [
+                      'Shadow AI proliferation - detects unauthorized AI tool usage',
+                      'Vendor risk - evaluates AI providers against security frameworks',
+                      'Compliance gaps - maps AI implementations to regulatory requirements',
+                      'Governance fragmentation - creates unified AI governance policies'
+                    ],
+                    uniqueValue: 'Proactive security posture that enables innovation while maintaining enterprise-grade protection and compliance.'
+                  },
+                  counselor: {
+                    purpose: 'Legal considerations: contracts, AI risk, liability, and data privacy.',
+                    problemsSolved: [
+                      'Contract blind spots - identifies risky AI vendor terms',
+                      'Liability exposure - clarifies AI-generated content ownership',
+                      'Privacy violations - ensures GDPR, CCPA, and data protection compliance',
+                      'Regulatory uncertainty - navigates evolving AI legislation'
+                    ],
+                    uniqueValue: 'Practical legal guidance that enables AI adoption without exposing the organization to undue legal risk.'
+                  },
+                  oracle: {
+                    purpose: 'Meeting transcript analysis for stakeholder insights and sentiment with evidence.',
+                    problemsSolved: [
+                      'Lost meeting insights - extracts key decisions and action items',
+                      'Stakeholder blindness - maps positions, concerns, and influence',
+                      'Sentiment ambiguity - provides evidence-based sentiment with quotes',
+                      'Power dynamics opacity - reveals who influences whom'
+                    ],
+                    uniqueValue: 'Transforms meeting recordings into strategic intelligence with evidence-backed stakeholder analysis.'
+                  },
+                  sage: {
+                    purpose: 'Change management, human flourishing, incentive analysis, and human-centered AI adoption.',
+                    problemsSolved: [
+                      'Adoption resistance - addresses fear and skepticism with empathy',
+                      'Champion burnout - designs sustainable support structures',
+                      'Misaligned incentives - diagnoses why adoption stalls using Buffett principle',
+                      'Human sovereignty erosion - ensures AI augments rather than replaces human judgment'
+                    ],
+                    uniqueValue: 'People-first approach that treats adoption as a community problem, not a technology problem.',
+                    keyPrinciples: [
+                      'Incentives Drive Outcomes: "Show me the incentive and I\'ll show you the outcome" (Buffett)',
+                      'Human Sovereignty: AI recommends, humans decide - always',
+                      'Augmentation Over Automation: Focus on tedious tasks, preserve meaningful work',
+                      'Fear Is Rational: 1/3 of employees may fear job loss - address honestly'
+                    ]
+                  },
+                  strategist: {
+                    purpose: 'C-suite engagement, organizational politics, and governance design.',
+                    problemsSolved: [
+                      'Executive misalignment - builds sponsorship and coalition',
+                      'Political landmines - navigates organizational dynamics',
+                      'Governance gaps - designs AI steering committees and policies',
+                      'Communication failures - crafts board-ready messaging'
+                    ],
+                    uniqueValue: 'Strategic perspective that aligns AI initiatives with executive priorities and organizational reality.'
+                  },
+                  architect: {
+                    purpose: 'Technical architecture for enterprise AI: RAG, integrations, build vs. buy.',
+                    problemsSolved: [
+                      'Architecture sprawl - designs coherent enterprise AI patterns',
+                      'Integration complexity - plans system interconnections',
+                      'Build vs buy paralysis - provides framework for technology decisions',
+                      'Scalability blind spots - anticipates growth requirements'
+                    ],
+                    uniqueValue: 'Pragmatic architecture guidance balancing innovation with enterprise stability and maintainability.'
+                  },
+                  operator: {
+                    purpose: 'Business process optimization, automation, and operational metrics.',
+                    problemsSolved: [
+                      'Process inefficiency - identifies automation opportunities',
+                      'Metric gaps - defines meaningful KPIs for AI initiatives',
+                      'Workflow bottlenecks - maps and optimizes business processes',
+                      'ROI invisibility - establishes baselines for measuring improvement'
+                    ],
+                    uniqueValue: 'Operational lens that grounds AI in measurable business outcomes and sustainable process improvement.'
+                  },
+                  pioneer: {
+                    purpose: 'Emerging technology scouting, hype filtering, and maturity assessment.',
+                    problemsSolved: [
+                      'Hype overload - separates viable innovation from marketing noise',
+                      'Timing risk - assesses technology maturity for enterprise readiness',
+                      'Opportunity blindness - scouts emerging capabilities competitors may miss',
+                      'POC paralysis - scopes practical proof-of-concept experiments'
+                    ],
+                    uniqueValue: 'Forward-looking perspective that balances innovation enthusiasm with pragmatic maturity assessment.'
+                  },
+                  catalyst: {
+                    purpose: 'Internal AI communications, employee engagement, and AI anxiety.',
+                    problemsSolved: [
+                      'Communication void - fills the gap with proactive AI messaging',
+                      'AI anxiety - addresses fear and uncertainty with transparent communication',
+                      'Engagement gaps - designs campaigns that build AI enthusiasm',
+                      'Message fragmentation - creates consistent narrative across channels'
+                    ],
+                    uniqueValue: 'Human-centered communications that build trust and excitement while honestly addressing concerns.'
+                  },
+                  scholar: {
+                    purpose: 'Training programs, champion enablement, and adult learning principles.',
+                    problemsSolved: [
+                      'Skill gaps - designs targeted AI upskilling programs',
+                      'One-size-fits-all training - creates role-based learning paths',
+                      'Champion isolation - builds peer learning communities',
+                      'Knowledge decay - designs reinforcement and continuous learning'
+                    ],
+                    uniqueValue: 'Adult learning expertise applied to AI skill development with sustainable champion enablement.'
+                  },
+                  echo: {
+                    purpose: 'Brand voice analysis, style profiling, and AI content guidelines.',
+                    problemsSolved: [
+                      'Voice inconsistency - maintains brand identity in AI-generated content',
+                      'Style drift - creates guidelines for AI writing alignment',
+                      'Authenticity concerns - balances AI efficiency with human voice',
+                      'Multi-channel fragmentation - ensures consistent tone everywhere'
+                    ],
+                    uniqueValue: 'Brand guardian that ensures AI-generated content sounds authentically like your organization.'
+                  },
+                  nexus: {
+                    purpose: 'Systems thinking: interconnections, feedback loops, and leverage points.',
+                    problemsSolved: [
+                      'Siloed thinking - reveals hidden dependencies between initiatives',
+                      'Unintended consequences - models ripple effects of AI decisions',
+                      'Leverage blindness - identifies high-impact intervention points',
+                      'Complexity paralysis - maps systems into actionable insights'
+                    ],
+                    uniqueValue: 'Holistic perspective that prevents AI initiatives from creating new problems while solving old ones.'
+                  },
+                  coordinator: {
+                    purpose: 'Multi-agent orchestration, query routing, and response synthesis.',
+                    problemsSolved: [
+                      'Agent selection confusion - automatically routes to best specialist',
+                      'Response fragmentation - synthesizes multi-agent perspectives',
+                      'Context loss - maintains conversation coherence across agents',
+                      'Expertise gaps - identifies when multiple agents should collaborate'
+                    ],
+                    uniqueValue: 'Intelligent orchestration that makes the full agent roster accessible without requiring user expertise.'
+                  },
+                  facilitator: {
+                    purpose: 'Meeting orchestration - welcomes users, clarifies intent, routes to specialists, ensures balanced participation.',
+                    problemsSolved: [
+                      'Meeting chaos - provides structure and flow to multi-agent discussions',
+                      'Agent dominance - ensures balanced participation across specialists',
+                      'Intent ambiguity - clarifies user goals before diving into discussion',
+                      'Premature conclusions - invokes systems thinking before finalizing'
+                    ],
+                    uniqueValue: 'Meta-agent that makes other agents brilliant - not a domain expert, but a skilled conductor of expertise.'
+                  }
+                };
+                const detail = agentDetails[agent.name.toLowerCase()];
+                if (!detail) {
+                  return <p className="text-secondary">Specialized capabilities within the Thesis platform.</p>;
+                }
 
-          {/* Dig Deeper - Expandable Details */}
-          {(() => {
-            const details: Record<string, { capabilities: string[]; bestFor: string[] }> = {
-              atlas: {
-                capabilities: ['Web search with credibility filtering (Tier 1-4 sources)', 'Knowledge base RAG retrieval', 'Competitive benchmarking', 'Lean methodology application'],
-                bestFor: ['Industry trend analysis', 'Best practice research', 'Vendor comparisons', 'Academic/consulting firm insights']
-              },
-              fortuna: {
-                capabilities: ['ROI calculation frameworks', 'Business case templates', 'SOX compliance checklists', 'Cost-benefit analysis'],
-                bestFor: ['Investment justification', 'Budget planning', 'Financial risk assessment', 'Stakeholder financial reporting']
-              },
-              guardian: {
-                capabilities: ['Security assessment frameworks', 'Compliance mapping', 'Shadow IT detection', 'Vendor security evaluation'],
-                bestFor: ['AI governance policies', 'Risk assessments', 'Technology audits', 'Regulatory compliance']
-              },
-              counselor: {
-                capabilities: ['Contract review guidance', 'AI liability analysis', 'Privacy compliance', 'Regulatory navigation'],
-                bestFor: ['Vendor agreements', 'Data processing terms', 'IP considerations', 'Cross-border compliance']
-              },
-              oracle: {
-                capabilities: ['Transcript parsing', 'Sentiment extraction with quotes', 'Stakeholder position mapping', 'Power dynamics analysis'],
-                bestFor: ['Meeting debriefs', 'Stakeholder tracking', 'Decision archaeology', 'Communication patterns']
-              },
-              sage: {
-                capabilities: ['Change readiness assessment', 'Adoption strategy design', 'Resistance management', 'Culture alignment'],
-                bestFor: ['Rollout planning', 'Training needs analysis', 'Champion networks', 'Communication strategies']
-              },
-              strategist: {
-                capabilities: ['Stakeholder mapping', 'Political landscape analysis', 'Governance framework design', 'Executive communication'],
-                bestFor: ['Board presentations', 'Coalition building', 'Strategic alignment', 'Organizational change']
-              },
-              architect: {
-                capabilities: ['Architecture patterns', 'Integration design', 'Technology selection', 'Scalability planning'],
-                bestFor: ['System design', 'Build vs buy decisions', 'RAG implementation', 'API strategy']
-              },
-              operator: {
-                capabilities: ['Process mapping', 'Automation opportunity identification', 'KPI definition', 'Efficiency analysis'],
-                bestFor: ['Workflow optimization', 'Bottleneck identification', 'Metrics dashboards', 'SLA design']
-              },
-              pioneer: {
-                capabilities: ['Technology radar', 'Maturity assessment', 'Hype cycle positioning', 'Innovation portfolio'],
-                bestFor: ['Emerging tech evaluation', 'Proof of concept scoping', 'Future state planning', 'Competitive differentiation']
-              },
-              catalyst: {
-                capabilities: ['Internal messaging', 'FAQ development', 'Anxiety addressing', 'Engagement campaigns'],
-                bestFor: ['Launch communications', 'Town hall prep', 'Newsletter content', 'Feedback collection']
-              },
-              scholar: {
-                capabilities: ['Curriculum design', 'Learning path creation', 'Skill gap analysis', 'Training effectiveness'],
-                bestFor: ['Onboarding programs', 'Upskilling initiatives', 'Certification paths', 'Knowledge transfer']
-              },
-              echo: {
-                capabilities: ['Voice analysis', 'Style guide creation', 'Tone consistency', 'Brand alignment'],
-                bestFor: ['AI writing guidelines', 'Content review', 'Multi-channel consistency', 'Persona development']
-              },
-              nexus: {
-                capabilities: ['Dependency mapping', 'Feedback loop identification', 'Leverage point analysis', 'Consequence modeling'],
-                bestFor: ['Complex problem solving', 'Initiative interconnection', 'Risk cascades', 'System optimization']
-              },
-              coordinator: {
-                capabilities: ['Query routing', 'Multi-agent synthesis', 'Context management', 'Response orchestration'],
-                bestFor: ['Complex queries', 'Cross-domain questions', 'Collaborative analysis', 'Holistic recommendations']
-              },
-            };
-            const detail = details[agent.name.toLowerCase()];
-            if (!detail) return null;
+                return (
+                  <div className="space-y-6">
+                    <p className="text-secondary leading-relaxed">{detail.purpose}</p>
 
-            return (
-              <details className="mt-6 pt-4 border-t border-border group">
-                <summary className="cursor-pointer text-sm text-blue-400 hover:text-blue-300 list-none flex items-center gap-1">
-                  <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                  Dig Deeper
-                </summary>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="text-xs font-semibold text-secondary uppercase mb-2">Capabilities</h4>
-                    <ul className="text-sm text-secondary space-y-1">
-                      {detail.capabilities.map((cap, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="text-primary mt-1">•</span>
-                          {cap}
-                        </li>
-                      ))}
-                    </ul>
+                    <div>
+                      <h4 className="text-sm font-semibold text-primary mb-3">Problems Solved</h4>
+                      <ul className="space-y-2">
+                        {detail.problemsSolved.map((problem, i) => (
+                          <li key={i} className="flex items-start gap-3 text-sm text-secondary">
+                            <span className="text-green-400 mt-0.5">&#10003;</span>
+                            {problem}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {detail.keyPrinciples && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-primary mb-3">Key Principles</h4>
+                        <ul className="space-y-2">
+                          {detail.keyPrinciples.map((principle, i) => (
+                            <li key={i} className="flex items-start gap-3 text-sm text-secondary">
+                              <span className="text-blue-400 mt-0.5">&#9670;</span>
+                              {principle}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="pt-4 border-t border-border">
+                      <h4 className="text-sm font-semibold text-primary mb-2">Unique Value</h4>
+                      <p className="text-secondary text-sm leading-relaxed">{detail.uniqueValue}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-secondary uppercase mb-2">Best For</h4>
-                    <ul className="text-sm text-secondary space-y-1">
-                      {detail.bestFor.map((item, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="text-primary mt-1">•</span>
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
+                );
+              })()}
+            </div>
+          </details>
+
+          {/* Panel 3: How To Use It - Collapsed by default */}
+          <details className="card group">
+            <summary className="cursor-pointer p-4 flex items-center justify-between hover:bg-page/50 transition-colors rounded-t-lg">
+              <h2 className="text-lg font-semibold text-primary">How To Use It</h2>
+              <svg className="w-5 h-5 text-secondary transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </summary>
+            <div className="px-6 pb-6 pt-2 border-t border-border">
+              {(() => {
+                const usageDetails: Record<string, {
+                  howToUse: string;
+                  capabilities: string[];
+                  bestFor: string[];
+                  examplePrompts: string[];
+                  tips?: string[];
+                }> = {
+                  atlas: {
+                    howToUse: 'Ask research questions about GenAI trends or best practices. Atlas searches web and KB for sourced answers.',
+                    capabilities: ['Web search with credibility filtering (Tier 1-4 sources)', 'Knowledge base RAG retrieval', 'Competitive benchmarking', 'Lean methodology application'],
+                    bestFor: ['Industry trend analysis', 'Best practice research', 'Vendor comparisons', 'Academic/consulting firm insights'],
+                    examplePrompts: [
+                      'What are the latest best practices for enterprise RAG implementation?',
+                      'How are Fortune 500 companies measuring AI ROI?',
+                      'Compare the AI strategies of Microsoft, Google, and Anthropic',
+                      'What does McKinsey say about AI adoption barriers?'
+                    ],
+                    tips: ['Specify the industry context for more relevant results', 'Ask for sources to verify credibility']
+                  },
+                  fortuna: {
+                    howToUse: 'Request ROI projections or business case frameworks with context about your AI initiative.',
+                    capabilities: ['ROI calculation frameworks', 'Business case templates', 'SOX compliance checklists', 'Cost-benefit analysis'],
+                    bestFor: ['Investment justification', 'Budget planning', 'Financial risk assessment', 'Stakeholder financial reporting'],
+                    examplePrompts: [
+                      'Build a business case for an AI-powered customer service chatbot',
+                      'What ROI metrics should we track for our document automation project?',
+                      'Help me calculate the 3-year TCO for implementing Claude Enterprise',
+                      'What are the hidden costs of AI implementation I should budget for?'
+                    ],
+                    tips: ['Provide specific numbers (headcount, volume, costs) for more accurate projections']
+                  },
+                  guardian: {
+                    howToUse: 'Consult on security, compliance, or vendor evaluations. Share technical details.',
+                    capabilities: ['Security assessment frameworks', 'Compliance mapping', 'Shadow IT detection', 'Vendor security evaluation'],
+                    bestFor: ['AI governance policies', 'Risk assessments', 'Technology audits', 'Regulatory compliance'],
+                    examplePrompts: [
+                      'Evaluate the security posture of this AI vendor for enterprise use',
+                      'What governance policies should we have before deploying AI company-wide?',
+                      'How do we detect and manage shadow AI usage?',
+                      'Map our AI implementation to SOC 2 and GDPR requirements'
+                    ],
+                    tips: ['Share vendor security documentation for more specific assessments']
+                  },
+                  counselor: {
+                    howToUse: 'Ask about contracts, compliance, or risk. Include stakeholder and jurisdiction context.',
+                    capabilities: ['Contract review guidance', 'AI liability analysis', 'Privacy compliance', 'Regulatory navigation'],
+                    bestFor: ['Vendor agreements', 'Data processing terms', 'IP considerations', 'Cross-border compliance'],
+                    examplePrompts: [
+                      'Review these AI vendor terms for red flags',
+                      'Who owns the IP when we fine-tune a model on our data?',
+                      'What are the GDPR implications of using AI for customer profiling?',
+                      'How should we handle AI-generated content copyright issues?'
+                    ],
+                    tips: ['Specify jurisdictions when relevant', 'Note: Counselor provides guidance, not legal advice']
+                  },
+                  oracle: {
+                    howToUse: 'Upload meeting transcripts to extract stakeholder positions and sentiment with quotes.',
+                    capabilities: ['Transcript parsing', 'Sentiment extraction with quotes', 'Stakeholder position mapping', 'Power dynamics analysis'],
+                    bestFor: ['Meeting debriefs', 'Stakeholder tracking', 'Decision archaeology', 'Communication patterns'],
+                    examplePrompts: [
+                      'Analyze this meeting transcript and identify key stakeholder positions',
+                      'Who were the decision-makers and influencers in this meeting?',
+                      'Extract action items and ownership from this transcript',
+                      'What concerns did stakeholders raise about the AI initiative?'
+                    ],
+                    tips: ['Include speaker names in transcripts for better attribution', 'Provide context about the meeting purpose']
+                  },
+                  sage: {
+                    howToUse: 'Discuss change strategies, adoption challenges, or incentive alignment. Sage designs people-first plans with human sovereignty in mind.',
+                    capabilities: ['Change readiness assessment', 'Adoption strategy design', 'Incentive analysis (Buffett principle)', 'Human-centered AI framework', 'Resistance management', 'Champion program design'],
+                    bestFor: ['Rollout planning', 'Adoption troubleshooting', 'Champion networks', 'Incentive realignment', 'Human sovereignty evaluation'],
+                    examplePrompts: [
+                      'Our AI adoption is stalling after initial excitement. What\'s going wrong?',
+                      'Design a champion program that won\'t burn people out',
+                      'How do we address employee fear about AI replacing jobs?',
+                      'Evaluate whether this AI implementation preserves human sovereignty',
+                      'Map the incentive conflicts in our AI rollout'
+                    ],
+                    tips: ['Share the actual incentive structures (how people are measured)', 'Be honest about organizational politics']
+                  },
+                  strategist: {
+                    howToUse: 'Seek executive engagement or governance guidance. Share organizational context.',
+                    capabilities: ['Stakeholder mapping', 'Political landscape analysis', 'Governance framework design', 'Executive communication'],
+                    bestFor: ['Board presentations', 'Coalition building', 'Strategic alignment', 'Organizational change'],
+                    examplePrompts: [
+                      'How should we structure our AI steering committee?',
+                      'Help me build executive sponsorship for our AI initiative',
+                      'What governance framework should we adopt for AI?',
+                      'Craft a board presentation on our AI strategy'
+                    ],
+                    tips: ['Share org chart context for better political navigation advice']
+                  },
+                  architect: {
+                    howToUse: 'Discuss technical requirements or integration approaches with system details.',
+                    capabilities: ['Architecture patterns', 'Integration design', 'Technology selection', 'Scalability planning'],
+                    bestFor: ['System design', 'Build vs buy decisions', 'RAG implementation', 'API strategy'],
+                    examplePrompts: [
+                      'Should we build or buy our AI capabilities?',
+                      'Design a RAG architecture for our document corpus',
+                      'How should we integrate AI into our existing tech stack?',
+                      'What infrastructure do we need for enterprise AI?'
+                    ],
+                    tips: ['Share your current tech stack for integration-aware recommendations']
+                  },
+                  operator: {
+                    howToUse: 'Identify automation opportunities or metrics. Share workflow details.',
+                    capabilities: ['Process mapping', 'Automation opportunity identification', 'KPI definition', 'Efficiency analysis'],
+                    bestFor: ['Workflow optimization', 'Bottleneck identification', 'Metrics dashboards', 'SLA design'],
+                    examplePrompts: [
+                      'What processes in our workflow are good candidates for AI automation?',
+                      'Help me define KPIs for our AI document processing system',
+                      'How do we establish a baseline before AI implementation?',
+                      'Map this workflow and identify efficiency opportunities'
+                    ],
+                    tips: ['Provide volume and frequency data for better prioritization']
+                  },
+                  pioneer: {
+                    howToUse: 'Explore emerging tech or assess innovation maturity. Separates signal from noise.',
+                    capabilities: ['Technology radar', 'Maturity assessment', 'Hype cycle positioning', 'Innovation portfolio'],
+                    bestFor: ['Emerging tech evaluation', 'Proof of concept scoping', 'Future state planning', 'Competitive differentiation'],
+                    examplePrompts: [
+                      'Is this new AI technology ready for enterprise adoption?',
+                      'What AI capabilities should we be watching for 2025?',
+                      'Help me separate AI hype from practical capabilities',
+                      'Scope a proof of concept for this emerging AI technology'
+                    ],
+                    tips: ['Specify your risk tolerance and innovation budget']
+                  },
+                  catalyst: {
+                    howToUse: 'Draft communications or plan engagement. Share audience context.',
+                    capabilities: ['Internal messaging', 'FAQ development', 'Anxiety addressing', 'Engagement campaigns'],
+                    bestFor: ['Launch communications', 'Town hall prep', 'Newsletter content', 'Feedback collection'],
+                    examplePrompts: [
+                      'Draft an all-hands announcement for our AI rollout',
+                      'Create an FAQ addressing common AI concerns',
+                      'Design an engagement campaign for AI adoption',
+                      'Help me prepare talking points for the AI town hall'
+                    ],
+                    tips: ['Share employee sentiment data if available']
+                  },
+                  scholar: {
+                    howToUse: 'Design training or learning paths. Specify skill levels and objectives.',
+                    capabilities: ['Curriculum design', 'Learning path creation', 'Skill gap analysis', 'Training effectiveness'],
+                    bestFor: ['Onboarding programs', 'Upskilling initiatives', 'Certification paths', 'Knowledge transfer'],
+                    examplePrompts: [
+                      'Design an AI literacy curriculum for non-technical staff',
+                      'Create a learning path for our AI champions',
+                      'What skills should we prioritize in our AI training program?',
+                      'How do we measure training effectiveness for AI skills?'
+                    ],
+                    tips: ['Specify current skill levels and available training time']
+                  },
+                  echo: {
+                    howToUse: 'Analyze voice samples or review content for brand alignment. Provide examples.',
+                    capabilities: ['Voice analysis', 'Style guide creation', 'Tone consistency', 'Brand alignment'],
+                    bestFor: ['AI writing guidelines', 'Content review', 'Multi-channel consistency', 'Persona development'],
+                    examplePrompts: [
+                      'Analyze these writing samples and define our brand voice',
+                      'Create AI writing guidelines that match our brand',
+                      'Review this AI-generated content for brand alignment',
+                      'How do we maintain authenticity with AI-assisted content?'
+                    ],
+                    tips: ['Provide multiple examples of content you consider on-brand']
+                  },
+                  nexus: {
+                    howToUse: 'Map dependencies or explore feedback loops. Describe interconnected elements.',
+                    capabilities: ['Dependency mapping', 'Feedback loop identification', 'Leverage point analysis', 'Consequence modeling'],
+                    bestFor: ['Complex problem solving', 'Initiative interconnection', 'Risk cascades', 'System optimization'],
+                    examplePrompts: [
+                      'Map the dependencies between our AI initiatives',
+                      'What unintended consequences might this AI deployment cause?',
+                      'Identify the leverage points for maximum AI impact',
+                      'How do these AI projects interact with each other?'
+                    ],
+                    tips: ['List all related initiatives and stakeholders for complete mapping']
+                  },
+                  coordinator: {
+                    howToUse: 'Use Auto mode for routing or request multi-agent collaboration.',
+                    capabilities: ['Query routing', 'Multi-agent synthesis', 'Context management', 'Response orchestration'],
+                    bestFor: ['Complex queries', 'Cross-domain questions', 'Collaborative analysis', 'Holistic recommendations'],
+                    examplePrompts: [
+                      'I need help with an AI initiative - where should I start?',
+                      'Get perspectives from multiple agents on this challenge',
+                      'Route this question to the right specialist',
+                      'Synthesize recommendations across domains'
+                    ],
+                    tips: ['Use Coordinator when unsure which specialist to engage']
+                  },
+                  facilitator: {
+                    howToUse: 'Facilitator is automatically present in meeting rooms to orchestrate multi-agent discussions.',
+                    capabilities: ['Meeting orchestration', 'Intent clarification', 'Agent routing', 'Balanced participation', 'Discussion synthesis'],
+                    bestFor: ['Multi-agent meetings', 'Complex discussions', 'Cross-domain collaboration', 'Structured decision-making'],
+                    examplePrompts: [
+                      'Start a meeting to discuss our AI governance strategy',
+                      'I need multiple perspectives on this adoption challenge',
+                      'Help me think through this AI initiative from all angles',
+                      'Facilitate a discussion between specialists'
+                    ],
+                    tips: ['Let Facilitator guide the flow - it will bring in specialists as needed']
+                  }
+                };
+                const detail = usageDetails[agent.name.toLowerCase()];
+                if (!detail) {
+                  return <p className="text-secondary">Chat or include in meeting rooms for specialized insights.</p>;
+                }
+
+                return (
+                  <div className="space-y-6">
+                    <p className="text-secondary leading-relaxed">{detail.howToUse}</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="text-sm font-semibold text-primary mb-3">Capabilities</h4>
+                        <ul className="space-y-1">
+                          {detail.capabilities.map((cap, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-secondary">
+                              <span className="text-primary mt-0.5">&#8226;</span>
+                              {cap}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-primary mb-3">Best For</h4>
+                        <ul className="space-y-1">
+                          {detail.bestFor.map((item, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-secondary">
+                              <span className="text-primary mt-0.5">&#8226;</span>
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-semibold text-primary mb-3">Example Prompts</h4>
+                      <div className="space-y-2">
+                        {detail.examplePrompts.map((prompt, i) => (
+                          <div key={i} className="bg-page border border-border rounded-lg px-4 py-2 text-sm text-secondary italic">
+                            &ldquo;{prompt}&rdquo;
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {detail.tips && (
+                      <div className="pt-4 border-t border-border">
+                        <h4 className="text-sm font-semibold text-primary mb-3">Pro Tips</h4>
+                        <ul className="space-y-1">
+                          {detail.tips.map((tip, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-secondary">
+                              <span className="text-yellow-400 mt-0.5">&#9733;</span>
+                              {tip}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
-                </div>
-              </details>
-            );
-          })()}
+                );
+              })()}
+            </div>
+          </details>
         </div>
       )}
 
