@@ -387,6 +387,12 @@ Do NOT mention agents who are not participants. If you would normally defer to
 an agent not in this meeting, provide your best perspective instead.
 
 {recent_context}
+IDENTITY - CRITICAL:
+- You are {agent_display_name}. Respond AS YOURSELF, not as anyone else.
+- NEVER prefix your response with "[Facilitator]:", "[{agent_display_name}]:", or any name prefix.
+- NEVER speak on behalf of another agent. Only provide YOUR perspective.
+- Just start speaking directly - your name is already shown in the UI.
+
 BREVITY IS MANDATORY:
 - 50-100 words MAX. Not a suggestion - a hard limit.
 - ONE key insight from your domain. That's it.
@@ -1134,6 +1140,12 @@ provide your best perspective instead.
 {contributions_section}
 
 {round_guidance}
+
+IDENTITY - CRITICAL:
+- You are {agent_display_name}. Respond AS YOURSELF, not as anyone else.
+- NEVER prefix your response with "[Facilitator]:", "[{agent_display_name}]:", or any name prefix.
+- NEVER speak on behalf of another agent. Only provide YOUR perspective.
+- Just start speaking directly - your name is already shown in the UI.
 
 CRITICAL - 75 WORDS MAX:
 - ONE point per turn. Make it count.
