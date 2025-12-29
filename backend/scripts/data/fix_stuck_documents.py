@@ -53,17 +53,18 @@ def fix_stuck_documents():
             user = user_result.data
 
             # Generate a temporary token for this user
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
             import jwt
 
+            now = datetime.now(timezone.utc)
             payload = {
                 'sub': user['id'],
                 'email': user['email'],
                 'aud': 'authenticated',
                 'role': 'authenticated',
-                'iat': int(datetime.utcnow().timestamp()),
-                'exp': int((datetime.utcnow() + timedelta(hours=1)).timestamp())
+                'iat': int(now.timestamp()),
+                'exp': int((now + timedelta(hours=1)).timestamp())
             }
 
             token = jwt.encode(payload, os.getenv('SUPABASE_JWT_SECRET'), algorithm='HS256')

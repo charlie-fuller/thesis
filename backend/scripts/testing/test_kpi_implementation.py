@@ -4,7 +4,7 @@ Tests database access, query logic, and data flow
 """
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -149,7 +149,7 @@ def test_kpi_query_logic():
         print(f"   User has client_id: {client_id is not None}")
 
         # Try the query approach from kpis.py
-        start_date = (datetime.utcnow() - timedelta(days=30)).isoformat()
+        start_date = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
 
         messages_result = supabase.table('messages').select(
             'id, conversation_id, content, created_at'

@@ -14,7 +14,7 @@ This script generates:
 import os
 import random
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -85,7 +85,7 @@ def generate_test_data(user_id: str, num_weeks: int = 4):
         return
 
     # Generate conversations across the time period
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     start_date = now - timedelta(days=num_weeks * 7)
 
     conversations_created = 0

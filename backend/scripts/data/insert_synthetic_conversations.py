@@ -19,7 +19,7 @@ Total: 10 conversations over 4 weeks = 2.5 drafts/week average ✅
 import json
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import requests
 
@@ -99,7 +99,7 @@ def main():
 
     # Date distribution: Spread 10 conversations across 4 weeks
     # Starting 4 weeks ago (28 days)
-    now = datetime.now(datetime.UTC) if hasattr(datetime, 'UTC') else datetime.utcnow()
+    now = datetime.now(timezone.utc)
     base_date = now - timedelta(days=28)
 
     # Week distribution: [2, 3, 2, 3] conversations per week

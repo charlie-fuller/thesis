@@ -14,7 +14,7 @@ Run from backend directory:
 import os
 import sys
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -29,7 +29,7 @@ supabase = get_supabase()
 def analyze_help_data(days: int = 90):
     """Analyze help conversations and identify documentation gaps."""
 
-    end_date = datetime.utcnow()
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=days)
 
     print(f"\n{'='*60}")

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import requests
 
@@ -13,7 +13,7 @@ headers = {
 }
 
 # Get all conversations for Charlie (past 30 days)
-now = datetime.utcnow()
+now = datetime.now(timezone.utc)
 start_date = now - timedelta(days=30)
 
 url = f"{SUPABASE_URL}/rest/v1/conversations"

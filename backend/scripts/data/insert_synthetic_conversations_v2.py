@@ -22,7 +22,7 @@ Date Distribution (past 7 days):
 import json
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import requests
 
@@ -101,7 +101,7 @@ def main():
         conversations = json.load(f)
 
     # Date distribution: Spread 10 conversations across 7 days (past week)
-    now = datetime.now(datetime.UTC) if hasattr(datetime, 'UTC') else datetime.utcnow()
+    now = datetime.now(timezone.utc)
     base_date = now - timedelta(days=7)
 
     # Distribution pattern: Realistic usage with 1-2 conversations per day

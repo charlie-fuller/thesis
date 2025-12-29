@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 import requests
 
@@ -27,7 +27,7 @@ if response.status_code == 200:
     conversations = response.json()
 
     # Filter to only synthetic ones (created recently - within last hour)
-    now = datetime.now(datetime.UTC) if hasattr(datetime, 'UTC') else datetime.utcnow()
+    now = datetime.now(timezone.utc)
     synthetic_titles = [
         "Weekly Team Meeting Scheduling",
         "Investor Meeting Prep",

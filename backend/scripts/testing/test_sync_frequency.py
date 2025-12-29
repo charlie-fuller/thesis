@@ -2,7 +2,7 @@
 """Test script for Google Drive sync frequency feature"""
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from supabase import create_client
@@ -95,7 +95,7 @@ for freq in test_frequencies:
 
         # Calculate expected next_sync
         from datetime import timedelta
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expected_next_sync = None
 
         if freq == 'daily':

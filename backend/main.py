@@ -6,6 +6,7 @@ Provides specialized agents for research (Atlas), finance (Fortuna),
 IT/governance (Guardian), legal (Counselor), and transcript analysis (Oracle).
 """
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
@@ -30,11 +31,78 @@ logger = get_logger(__name__)
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
 
+
+# ============================================================================
+# Application Lifespan Context Manager
+# ============================================================================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application startup and shutdown lifecycle"""
+    # Startup
+    # Start Google Drive sync scheduler
+    try:
+        from services.sync_scheduler import start_scheduler
+        start_scheduler(check_interval_minutes=5)
+        logger.info("Google Drive sync scheduler started")
+    except Exception as e:
+        logger.error(f"Warning: Could not start sync scheduler: {e}")
+
+    # Start Atlas research scheduler
+    try:
+        from services.research_scheduler import start_research_scheduler
+        start_research_scheduler(hour_utc=6, minute=0)
+        logger.info("Atlas research scheduler started")
+    except Exception as e:
+        logger.error(f"Warning: Could not start research scheduler: {e}")
+
+    # Start Knowledge Graph sync scheduler
+    try:
+        from services.graph_sync_scheduler import start_graph_sync_scheduler
+        start_graph_sync_scheduler(hour_utc=3, minute=0)
+        logger.info("Knowledge Graph sync scheduler started")
+    except Exception as e:
+        logger.error(f"Warning: Could not start graph sync scheduler: {e}")
+
+    logger.info("Application startup complete")
+
+    yield  # Application is running
+
+    # Shutdown
+    try:
+        from services.sync_scheduler import stop_scheduler
+        stop_scheduler()
+    except Exception as e:
+        logger.error(f"Warning during sync scheduler shutdown: {e}")
+
+    try:
+        from services.research_scheduler import stop_research_scheduler
+        stop_research_scheduler()
+    except Exception as e:
+        logger.error(f"Warning during research scheduler shutdown: {e}")
+
+    try:
+        from services.graph_sync_scheduler import stop_graph_sync_scheduler
+        stop_graph_sync_scheduler()
+    except Exception as e:
+        logger.error(f"Warning during graph sync scheduler shutdown: {e}")
+
+    try:
+        from services.graph import close_neo4j_connection
+        await close_neo4j_connection()
+        logger.info("Neo4j connection closed")
+    except Exception as e:
+        logger.error(f"Warning during Neo4j shutdown: {e}")
+
+    logger.info("Application shutdown complete")
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Thesis API",
     description="Multi-agent platform for enterprise GenAI strategy - Research, Finance, IT/Governance, Legal, and Transcript Analysis agents",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Configure app state
@@ -310,74 +378,6 @@ async def get_user_documents(
     except Exception as e:
         logger.error(f"❌ Error fetching user documents: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-# ============================================================================
-# Application Lifecycle Events
-# ============================================================================
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on application startup"""
-    # Start Google Drive sync scheduler
-    try:
-        from services.sync_scheduler import start_scheduler
-        # Start the Google Drive sync scheduler (checks every 5 minutes)
-        start_scheduler(check_interval_minutes=5)
-        logger.info("✅ Google Drive sync scheduler started")
-    except Exception as e:
-        logger.error(f"⚠️ Warning: Could not start sync scheduler: {e}")
-
-    # Start Atlas research scheduler
-    try:
-        from services.research_scheduler import start_research_scheduler
-        # Start the research scheduler (runs daily at 6 AM UTC)
-        start_research_scheduler(hour_utc=6, minute=0)
-        logger.info("✅ Atlas research scheduler started")
-    except Exception as e:
-        logger.error(f"⚠️ Warning: Could not start research scheduler: {e}")
-
-    # Start Knowledge Graph sync scheduler
-    try:
-        from services.graph_sync_scheduler import start_graph_sync_scheduler
-        # Start the graph sync scheduler (runs daily at 3 AM UTC)
-        start_graph_sync_scheduler(hour_utc=3, minute=0)
-        logger.info("✅ Knowledge Graph sync scheduler started")
-    except Exception as e:
-        logger.error(f"⚠️ Warning: Could not start graph sync scheduler: {e}")
-
-    logger.info("✅ Application startup complete")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on application shutdown"""
-    try:
-        from services.sync_scheduler import stop_scheduler
-        stop_scheduler()
-    except Exception as e:
-        logger.error(f"⚠️ Warning during sync scheduler shutdown: {e}")
-
-    try:
-        from services.research_scheduler import stop_research_scheduler
-        stop_research_scheduler()
-    except Exception as e:
-        logger.error(f"⚠️ Warning during research scheduler shutdown: {e}")
-
-    try:
-        from services.graph_sync_scheduler import stop_graph_sync_scheduler
-        stop_graph_sync_scheduler()
-    except Exception as e:
-        logger.error(f"⚠️ Warning during graph sync scheduler shutdown: {e}")
-
-    try:
-        from services.graph import close_neo4j_connection
-        await close_neo4j_connection()
-        logger.info("✅ Neo4j connection closed")
-    except Exception as e:
-        logger.error(f"⚠️ Warning during Neo4j shutdown: {e}")
-
-    logger.info("✅ Application shutdown complete")
-
 
 # ============================================================================
 # Core Health Endpoints
