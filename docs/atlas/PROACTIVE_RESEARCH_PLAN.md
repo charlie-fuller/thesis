@@ -8,11 +8,11 @@
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| Phase 1: Core Infrastructure | ✅ Complete | Scheduler, routes, migration deployed |
-| Phase 2: Web Search Integration | 🔄 In Progress | Web researcher service exists |
-| Phase 3: Agent Observation | ⏳ Planned | |
-| Phase 4: Knowledge Distribution | ⏳ Planned | |
-| Phase 5: Admin UI | ⏳ Planned | |
+| Phase 1: Core Infrastructure | Complete | Scheduler, routes, migration deployed |
+| Phase 2: Web Search Integration | In Progress | Web researcher service exists |
+| Phase 3: Agent Observation | Planned | |
+| Phase 4: Knowledge Distribution | Planned | |
+| Phase 5: Admin UI | Planned | |
 
 ### Phase 1 Completed Items
 - `backend/services/research_scheduler.py` - APScheduler with daily research at 6 AM UTC
