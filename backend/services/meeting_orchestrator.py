@@ -328,18 +328,31 @@ RECENT CONTRIBUTIONS (respond to or build on these):
 
 """
 
+        # Build explicit participant list
+        all_participants = [agent_display_name] + other_participants
+        participant_list = ", ".join(all_participants)
+
         meeting_context = f"""
 
 --- MEETING CONTEXT ---
-Multi-agent meeting. Other participants: {', '.join(other_participants)}
+You are in a multi-agent meeting room.
+
+PARTICIPANTS IN THIS MEETING (ONLY these agents are present):
+{participant_list}
+
+CRITICAL: Only refer to or defer to agents who are actually IN THIS MEETING.
+Do NOT mention agents who are not participants. If you would normally defer to
+an agent not in this meeting, provide your best perspective instead.
+
 {recent_context}
-CRITICAL - BREVITY IS MANDATORY:
+BREVITY IS MANDATORY:
 - 50-100 words MAX. Not a suggestion - a hard limit.
 - ONE key insight from your domain. That's it.
 - NO preamble, NO "Great question", NO filler.
 - Start with your point. End when you've made it.
 - If another agent just spoke, acknowledge/segue briefly before your point.
-- If not your domain, say "I'll defer to [Agent]" and stop.
+- If not your domain AND a relevant agent IS in the meeting, say "I'll defer to [Agent]" and stop.
+- If not your domain AND no relevant agent is present, provide your best perspective.
 
 Format: Lead sentence + 2-3 bullets max. Bold **key terms** only.
 
@@ -1044,10 +1057,21 @@ Focus on: Responding to what's been said, adding new dimensions, challenging ass
         else:
             contributions_section = "You are the first to speak in this round."
 
+        # Build participant list for this specific meeting
+        all_participant_names = [agent_display_name] + other_participants
+        participant_list = ", ".join(all_participant_names)
+
         discourse_context = f"""
 
 --- AUTONOMOUS DISCUSSION ---
 Round {autonomous_context.current_round}/{autonomous_context.total_rounds} | Topic: {autonomous_context.topic}
+
+PARTICIPANTS IN THIS MEETING (ONLY these agents are present):
+{participant_list}
+
+CRITICAL: Only refer to or defer to agents who are IN THIS MEETING.
+Do NOT mention agents not listed above. If you would defer to an absent agent,
+provide your best perspective instead.
 
 {contributions_section}
 
@@ -1055,12 +1079,13 @@ Round {autonomous_context.current_round}/{autonomous_context.total_rounds} | Top
 
 CRITICAL - 75 WORDS MAX:
 - ONE point per turn. Make it count.
-- Address agents by name: "@Fortuna, but what about..."
+- Address ONLY agents in this meeting by name: "@Fortuna, but what about..."
 - Question > Agree. Challenge assumptions.
-- Not your domain? Defer and stop: "That's for Guardian."
+- Not your domain AND relevant agent IS present? Defer to them.
+- Not your domain AND no relevant agent present? Give your best take.
 - NO filler. NO preamble. Start with substance.
 
-Format: 1-2 sentences + optional question to another agent.
+Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
 --- END ---
 
 """
