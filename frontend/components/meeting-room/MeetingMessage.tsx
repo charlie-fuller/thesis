@@ -129,7 +129,7 @@ export default function MeetingMessage({
         )}
 
         {/* Message Bubble */}
-        <div className="bg-panel border border-default rounded-lg px-4 py-3 prose prose-sm max-w-none text-primary">
+        <div className="bg-card border border-default rounded-lg px-4 py-3 prose prose-sm max-w-none text-primary">
           <ReactMarkdown
             components={{
               p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,

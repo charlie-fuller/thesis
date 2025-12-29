@@ -737,6 +737,42 @@ Provide a clear, bulleted summary of the changes (3-7 bullet points)."""
 # Knowledge Base Document Routes
 # ============================================================================
 
+# IMPORTANT: Static routes must be defined BEFORE parameterized routes
+# /documents/available must come before /{agent_id}/documents
+# Otherwise FastAPI matches "documents" as an agent_id
+
+@router.get("/documents/available")
+async def get_available_documents(
+    agent_id: Optional[str] = None,
+    supabase: Client = Depends(get_supabase)
+):
+    """Get all documents available for linking. If agent_id provided, excludes already linked docs."""
+    try:
+        # Get all documents
+        docs_result = supabase.table("documents")\
+            .select("id, filename, content_type, file_size, uploaded_at")\
+            .order("uploaded_at", desc=True)\
+            .execute()
+
+        documents = docs_result.data or []
+
+        # If agent_id provided, filter out already linked documents
+        if agent_id:
+            linked = supabase.table("agent_knowledge_base")\
+                .select("document_id")\
+                .eq("agent_id", agent_id)\
+                .execute()
+
+            linked_ids = {link["document_id"] for link in linked.data or []}
+            documents = [doc for doc in documents if doc["id"] not in linked_ids]
+
+        return {"documents": documents}
+
+    except Exception as e:
+        logger.error(f"Failed to get available documents: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{agent_id}/documents")
 async def get_agent_documents(
     agent_id: str,
@@ -872,38 +908,6 @@ async def unlink_document_from_agent(
         raise
     except Exception as e:
         logger.error(f"Failed to unlink document from agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/documents/available")
-async def get_available_documents(
-    agent_id: Optional[str] = None,
-    supabase: Client = Depends(get_supabase)
-):
-    """Get all documents available for linking. If agent_id provided, excludes already linked docs."""
-    try:
-        # Get all documents
-        docs_result = supabase.table("documents")\
-            .select("id, filename, content_type, file_size, uploaded_at")\
-            .order("uploaded_at", desc=True)\
-            .execute()
-
-        documents = docs_result.data or []
-
-        # If agent_id provided, filter out already linked documents
-        if agent_id:
-            linked = supabase.table("agent_knowledge_base")\
-                .select("document_id")\
-                .eq("agent_id", agent_id)\
-                .execute()
-
-            linked_ids = {link["document_id"] for link in linked.data or []}
-            documents = [doc for doc in documents if doc["id"] not in linked_ids]
-
-        return {"documents": documents}
-
-    except Exception as e:
-        logger.error(f"Failed to get available documents: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

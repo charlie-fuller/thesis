@@ -20,38 +20,50 @@ interface ParticipantBarProps {
 }
 
 const AGENT_COLORS: Record<string, string> = {
+  // Meta-Agents (always present)
   facilitator: 'bg-yellow-500',
+  reporter: 'bg-lime-600',
+  // Stakeholder Perspective Agents
   atlas: 'bg-blue-500',
   fortuna: 'bg-green-500',
   guardian: 'bg-purple-500',
   counselor: 'bg-amber-500',
   oracle: 'bg-cyan-500',
   sage: 'bg-rose-500',
+  // Consulting/Implementation Agents
   strategist: 'bg-indigo-500',
   architect: 'bg-slate-500',
   operator: 'bg-orange-500',
   pioneer: 'bg-emerald-500',
+  // Internal Enablement Agents
   catalyst: 'bg-pink-500',
   scholar: 'bg-teal-500',
   echo: 'bg-violet-500',
+  // Systems Agent
   nexus: 'bg-sky-500'
 }
 
 const AGENT_DESCRIPTIONS: Record<string, string> = {
+  // Meta-Agents
   facilitator: 'Meeting Orchestration',
+  reporter: 'Synthesis & Documentation',
+  // Stakeholder Perspective Agents
   atlas: 'Research & Best Practices',
   fortuna: 'Financial Analysis & ROI',
   guardian: 'Security & Governance',
   counselor: 'Legal & Compliance',
   oracle: 'Stakeholder Intelligence',
   sage: 'People, Incentives & Human-Centered AI',
+  // Consulting/Implementation Agents
   strategist: 'Executive Strategy',
   architect: 'Technical Architecture',
   operator: 'Business Operations',
   pioneer: 'Innovation & R&D',
+  // Internal Enablement Agents
   catalyst: 'Internal Communications',
   scholar: 'Learning & Development',
   echo: 'Brand Voice & Style',
+  // Systems Agent
   nexus: 'Systems Thinking'
 }
 
@@ -66,7 +78,7 @@ export default function ParticipantBar({
   const sortedParticipants = [...participants].sort((a, b) => a.priority - b.priority)
 
   return (
-    <div className="w-64 border-l border-default bg-panel flex-shrink-0 overflow-y-auto">
+    <div className="w-64 border-l border-default bg-card flex-shrink-0 overflow-y-auto">
       <div className="px-3 py-2 border-b border-default">
         <div className="flex items-center justify-between">
           <h3 className="font-medium text-primary text-sm">Participants</h3>

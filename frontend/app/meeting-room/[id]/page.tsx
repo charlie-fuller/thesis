@@ -500,7 +500,7 @@ export default function MeetingRoomPage() {
       <PageHeader />
 
       {/* Meeting Header */}
-      <div className="bg-panel border-b border-default px-6 py-3">
+      <div className="bg-card border-b border-default px-6 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
@@ -621,7 +621,7 @@ export default function MeetingRoomPage() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Type your message..."
-                className="flex-1 resize-none rounded-lg border border-default bg-panel px-4 py-3 text-primary placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
+                className="flex-1 resize-none rounded-lg border border-default bg-card px-4 py-3 text-primary placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
                 rows={2}
                 disabled={sending}
               />

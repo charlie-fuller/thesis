@@ -332,7 +332,9 @@ Sarah (Engineering Lead): I have some concerns about the timeline..."
                   <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
                     {attendee.name}
                     {attendee.stakeholder_id && (
-                      <Check className="inline-block w-3.5 h-3.5 ml-1 text-teal-500" title="Linked to stakeholder" />
+                      <span title="Linked to stakeholder">
+                        <Check className="inline-block w-3.5 h-3.5 ml-1 text-teal-500" />
+                      </span>
                     )}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">

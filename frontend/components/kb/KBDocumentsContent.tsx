@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
@@ -30,7 +30,7 @@ import {
   type NotionStatus,
   type NotionPage
 } from '@/lib/notion'
-import { apiGet, apiPatch, apiPost, apiDelete } from '@/lib/api'
+import { apiGet, apiPatch, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { API_BASE_URL } from '@/lib/config'
 
 interface Document {
@@ -101,6 +101,42 @@ export default function KBDocumentsContent() {
   const [docToDelete, setDocToDelete] = useState<Document | null>(null)
   const [docSyncCadence, setDocSyncCadence] = useState<string>('manual')
   const [tempSyncCadence, setTempSyncCadence] = useState<string>('manual')
+
+  // Agent assignment state for document info modal
+  interface Agent {
+    id: string
+    name: string
+    display_name: string
+  }
+  const [allAgents, setAllAgents] = useState<Agent[]>([])
+  const [docIsGlobal, setDocIsGlobal] = useState<boolean>(true)
+  const [docLinkedAgentIds, setDocLinkedAgentIds] = useState<Set<string>>(new Set())
+  const [loadingAgentAssignments, setLoadingAgentAssignments] = useState(false)
+  const [savingAgentAssignments, setSavingAgentAssignments] = useState(false)
+
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState<string>('')
+  const [sourceFilter, setSourceFilter] = useState<string>('all') // 'all', 'upload', 'google_drive', 'notion'
+
+  // Filtered documents based on search query and source filter
+  const filteredDocuments = useMemo(() => {
+    return documents.filter(doc => {
+      // Search filter - match filename or title
+      const matchesSearch = searchQuery.trim() === '' ||
+        doc.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (doc.title && doc.title.toLowerCase().includes(searchQuery.toLowerCase()))
+
+      // Source filter
+      let matchesSource = true
+      if (sourceFilter === 'upload') {
+        matchesSource = !doc.source_platform
+      } else if (sourceFilter !== 'all') {
+        matchesSource = doc.source_platform === sourceFilter
+      }
+
+      return matchesSearch && matchesSource
+    })
+  }, [documents, searchQuery, sourceFilter])
 
   // General document notifications (separate from Drive/Notion specific ones)
   const [generalSuccess, setGeneralSuccess] = useState<string | null>(null)
@@ -700,31 +736,80 @@ export default function KBDocumentsContent() {
     }
   }
 
+  // Load all agents (for agent assignment selector)
+  async function loadAllAgents() {
+    try {
+      const data = await apiGet<{ agents: Agent[] }>('/api/agents?include_inactive=false')
+      setAllAgents(data.agents || [])
+    } catch (err) {
+      logger.error('Failed to load agents:', err)
+    }
+  }
+
+  // Load document's current agent assignments
+  async function loadDocumentAgentAssignments(documentId: string) {
+    try {
+      setLoadingAgentAssignments(true)
+      const data = await apiGet<{
+        is_global: boolean
+        linked_agents: Array<{ id: string; name: string; display_name: string }>
+      }>(`/api/documents/${documentId}/agents`)
+
+      setDocIsGlobal(data.is_global)
+      setDocLinkedAgentIds(new Set(data.linked_agents.map(a => a.id)))
+    } catch (err) {
+      logger.error('Failed to load document agent assignments:', err)
+      // Default to global if we can't load
+      setDocIsGlobal(true)
+      setDocLinkedAgentIds(new Set())
+    } finally {
+      setLoadingAgentAssignments(false)
+    }
+  }
+
   // Document action handlers
-  function handleDocumentInfo(doc: Document) {
+  async function handleDocumentInfo(doc: Document) {
     setSelectedDoc(doc)
     // Load actual sync cadence from document, default to 'manual'
     const currentCadence = doc.sync_cadence || 'manual'
     setDocSyncCadence(currentCadence)
     setTempSyncCadence(currentCadence)
     setShowInfoModal(true)
+
+    // Load agents list if not already loaded
+    if (allAgents.length === 0) {
+      loadAllAgents()
+    }
+
+    // Load this document's agent assignments
+    loadDocumentAgentAssignments(doc.id)
+  }
+
+  function toggleDocAgentSelection(agentId: string) {
+    setDocLinkedAgentIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(agentId)) {
+        newSet.delete(agentId)
+      } else {
+        newSet.add(agentId)
+      }
+      return newSet
+    })
   }
 
   async function handleSaveDocumentInfo() {
     if (!selectedDoc) return
 
     try {
-      // Only save if cadence changed
+      let hasChanges = false
+
+      // Save sync cadence if changed
       if (tempSyncCadence !== docSyncCadence) {
-        // Save to backend
         await apiPatch(`/api/documents/${selectedDoc.id}/sync-cadence`, {
           sync_cadence: tempSyncCadence
         })
 
-        // Update local state
         setDocSyncCadence(tempSyncCadence)
-
-        // Update the document in the documents list
         setDocuments(prevDocs =>
           prevDocs.map(doc =>
             doc.id === selectedDoc.id
@@ -732,16 +817,32 @@ export default function KBDocumentsContent() {
               : doc
           )
         )
+        hasChanges = true
+      }
 
-        setGeneralSuccess(`Sync cadence updated to ${tempSyncCadence}`)
+      // Save agent assignments
+      setSavingAgentAssignments(true)
+      const newAgentIds = docIsGlobal ? [] : Array.from(docLinkedAgentIds)
+
+      await apiPut(`/api/documents/${selectedDoc.id}/agents`, {
+        agent_ids: newAgentIds
+      })
+      hasChanges = true
+
+      if (hasChanges) {
+        const agentMsg = docIsGlobal
+          ? 'Available to all agents'
+          : `Linked to ${newAgentIds.length} agent(s)`
+        setGeneralSuccess(`Document updated: ${agentMsg}`)
         setTimeout(() => setGeneralSuccess(null), 3000)
       }
 
-      // Close modal
       setShowInfoModal(false)
     } catch (err) {
-      setGeneralError(err instanceof Error ? err.message : 'Failed to update sync cadence')
+      setGeneralError(err instanceof Error ? err.message : 'Failed to update document')
       setTimeout(() => setGeneralError(null), 3000)
+    } finally {
+      setSavingAgentAssignments(false)
     }
   }
 
@@ -1075,7 +1176,11 @@ export default function KBDocumentsContent() {
               )}
             </button>
             <h2 className="heading-3">Your Documents</h2>
-            <span className="text-sm text-muted">({documents.length})</span>
+            <span className="text-sm text-muted">
+              {searchQuery || sourceFilter !== 'all'
+                ? `(${filteredDocuments.length} of ${documents.length})`
+                : `(${documents.length})`}
+            </span>
           </div>
         </div>
 
@@ -1100,6 +1205,52 @@ export default function KBDocumentsContent() {
             </div>
           )}
 
+          {/* Search and Filter Bar */}
+          {documents.length > 0 && (
+            <div className="mb-4 flex flex-col sm:flex-row gap-3">
+              {/* Search Input */}
+              <div className="relative flex-1">
+                <svg
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search documents..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-default rounded-lg text-sm bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-primary"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {/* Source Filter */}
+              <select
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+                className="px-3 py-2 border border-default rounded-lg text-sm bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Sources</option>
+                <option value="upload">Direct Upload</option>
+                <option value="google_drive">Google Drive</option>
+                <option value="notion">Notion</option>
+              </select>
+            </div>
+          )}
+
           {loading ? (
             <div className="text-center py-8 text-muted">
               <LoadingSpinner size="md" />
@@ -1113,6 +1264,16 @@ export default function KBDocumentsContent() {
             <div className="text-center py-8 text-muted">
               <p>No documents uploaded yet</p>
               <p className="text-sm mt-2">Upload your first document or connect Google Drive to get started!</p>
+            </div>
+          ) : filteredDocuments.length === 0 ? (
+            <div className="text-center py-8 text-muted">
+              <p>No documents match your search</p>
+              <button
+                onClick={() => { setSearchQuery(''); setSourceFilter('all'); }}
+                className="text-sm text-blue-600 hover:underline mt-2"
+              >
+                Clear filters
+              </button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -1167,7 +1328,7 @@ export default function KBDocumentsContent() {
                 </div>
               )}
 
-              {documents.map((doc) => (
+              {filteredDocuments.map((doc) => (
                 <div
                   key={doc.id}
                   className="border rounded-lg p-2 transition-colors border-default hover:bg-hover"
@@ -1371,32 +1532,98 @@ export default function KBDocumentsContent() {
                   </p>
                 </div>
               )}
+
+              {/* Agent Assignment Section */}
+              <div className="border-t border-default pt-3 mt-3">
+                <label className="text-sm font-medium text-secondary block mb-2">
+                  Agent Visibility
+                </label>
+
+                {loadingAgentAssignments ? (
+                  <div className="flex items-center gap-2 text-sm text-muted py-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                    Loading...
+                  </div>
+                ) : (
+                  <>
+                    {/* Global vs Agent-specific toggle */}
+                    <div className="flex gap-4 mb-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="docScope"
+                          checked={docIsGlobal}
+                          onChange={() => setDocIsGlobal(true)}
+                          className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-primary">Global (all agents)</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="docScope"
+                          checked={!docIsGlobal}
+                          onChange={() => setDocIsGlobal(false)}
+                          className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-primary">Agent-specific</span>
+                      </label>
+                    </div>
+
+                    {/* Agent selection grid (only shown when agent-specific is selected) */}
+                    {!docIsGlobal && (
+                      <div className="mt-2">
+                        <p className="text-xs text-muted mb-2">Select which agents can access this document:</p>
+                        {allAgents.length === 0 ? (
+                          <p className="text-sm text-muted">Loading agents...</p>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                            {allAgents.map(agent => (
+                              <label
+                                key={agent.id}
+                                className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors ${
+                                  docLinkedAgentIds.has(agent.id)
+                                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500'
+                                    : 'bg-gray-50 dark:bg-gray-800 border-default hover:border-blue-300'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={docLinkedAgentIds.has(agent.id)}
+                                  onChange={() => toggleDocAgentSelection(agent.id)}
+                                  className="w-4 h-4 text-blue-600 focus:ring-blue-500 rounded"
+                                />
+                                <span className="text-sm text-primary truncate">{agent.display_name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        {!docIsGlobal && docLinkedAgentIds.size === 0 && allAgents.length > 0 && (
+                          <p className="text-xs text-amber-600 mt-2">
+                            Select at least one agent, or choose &quot;Global&quot; to make available to all.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="mt-6 flex justify-end gap-2">
-              {(selectedDoc.source_platform === 'google_drive' || selectedDoc.source_platform === 'notion') ? (
-                <>
-                  <button
-                    onClick={() => setShowInfoModal(false)}
-                    className="btn-secondary"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={handleSaveDocumentInfo}
-                    className="btn-primary"
-                  >
-                    Save
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setShowInfoModal(false)}
-                  className="btn-secondary"
-                >
-                  Close
-                </button>
-              )}
+              <button
+                onClick={() => setShowInfoModal(false)}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveDocumentInfo}
+                disabled={savingAgentAssignments || (!docIsGlobal && docLinkedAgentIds.size === 0)}
+                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingAgentAssignments ? 'Saving...' : 'Save'}
+              </button>
             </div>
           </div>
         </div>

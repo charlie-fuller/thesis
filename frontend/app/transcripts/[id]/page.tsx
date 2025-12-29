@@ -330,7 +330,9 @@ export default function TranscriptDetailPage(props: { params: Promise<{ id: stri
                     <div className="font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
                       {attendee.name}
                       {attendee.stakeholder_id && (
-                        <Check className="w-3.5 h-3.5 text-teal-500" title="Linked to stakeholder database" />
+                        <span title="Linked to stakeholder database">
+                          <Check className="w-3.5 h-3.5 text-teal-500" />
+                        </span>
                       )}
                     </div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">

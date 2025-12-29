@@ -195,7 +195,7 @@ export default function MeetingRoomListPage() {
             {meetings.map((meeting) => (
               <div
                 key={meeting.id}
-                className="bg-panel border border-default rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                className="bg-card border border-default rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
                 onClick={() => router.push(`/meeting-room/${meeting.id}`)}
               >
                 <div className="flex items-start justify-between mb-3">

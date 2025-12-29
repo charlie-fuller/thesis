@@ -13,20 +13,26 @@ interface Agent {
 }
 
 const AGENT_SHORT_DESCRIPTIONS: Record<string, string> = {
-  facilitator: 'Meeting orchestration and synthesis',
+  // Meta-Agents
+  facilitator: 'Meeting orchestration',
+  reporter: 'Synthesis and documentation',
+  // Stakeholder Perspective Agents
   atlas: 'GenAI research and benchmarking',
   fortuna: 'ROI analysis and business cases',
   guardian: 'Security, compliance, IT governance',
   counselor: 'Legal, contracts, AI risks',
   oracle: 'Meeting transcript analysis',
   sage: 'Change management and adoption',
+  // Consulting/Implementation Agents
   strategist: 'Executive strategy and governance',
   architect: 'Technical architecture and integration',
   operator: 'Process optimization and automation',
   pioneer: 'Emerging tech and innovation',
+  // Internal Enablement Agents
   catalyst: 'Internal communications and messaging',
   scholar: 'Training and learning programs',
   echo: 'Brand voice and style analysis',
+  // Systems Agent
   nexus: 'Systems thinking and interconnections',
 }
 
@@ -107,20 +113,26 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
 
   const getAgentColor = (name: string): string => {
     const colors: Record<string, string> = {
+      // Meta-Agents
       facilitator: 'bg-yellow-500',
+      reporter: 'bg-lime-600',
+      // Stakeholder Perspective Agents
       atlas: 'bg-blue-500',
       fortuna: 'bg-green-500',
       guardian: 'bg-purple-500',
       counselor: 'bg-amber-500',
       oracle: 'bg-cyan-500',
       sage: 'bg-rose-500',
+      // Consulting/Implementation Agents
       strategist: 'bg-indigo-500',
       architect: 'bg-slate-500',
       operator: 'bg-orange-500',
       pioneer: 'bg-emerald-500',
+      // Internal Enablement Agents
       catalyst: 'bg-pink-500',
       scholar: 'bg-teal-500',
       echo: 'bg-violet-500',
+      // Systems Agent
       nexus: 'bg-sky-500'
     }
     return colors[name] || 'bg-gray-500'
@@ -128,7 +140,7 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-panel rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-card rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-default">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-primary">Create Meeting Room</h2>
@@ -154,7 +166,7 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g., Q1 Security Investment Discussion"
-              className="w-full px-4 py-2 border border-default rounded-lg bg-panel text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               required
             />
           </div>
@@ -169,7 +181,7 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What will this meeting discuss?"
               rows={2}
-              className="w-full px-4 py-2 border border-default rounded-lg bg-panel text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              className="w-full px-4 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-none"
             />
           </div>
 

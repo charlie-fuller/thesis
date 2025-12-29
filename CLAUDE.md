@@ -30,12 +30,13 @@ If the conversation included important decisions or unfinished work, save a summ
 
 Thesis is a multi-agent platform for enterprise GenAI strategy implementation. It helps AI Solutions Partners guide and manage successful AI initiatives by providing specialized agents for research, finance, IT/governance, legal, and meeting analysis.
 
-### Agent Roster (16 Agents)
+### Agent Roster (17 Agents)
 
-#### Meta-Agent (Always Present in Meetings)
+#### Meta-Agents (Always Present in Meetings)
 | Agent | Name | Purpose |
 |-------|------|---------|
-| Facilitator | Facilitator | Meeting orchestration - welcomes users, clarifies intent, routes to specialists, ensures balanced participation, invokes systems thinking before conclusions, synthesizes discussions. Not a domain expert - makes others brilliant. |
+| Facilitator | Facilitator | Meeting orchestration - welcomes users, clarifies intent, routes to specialists, ensures balanced participation, invokes systems thinking before conclusions. Not a domain expert - makes others brilliant. |
+| Reporter | Reporter | Meeting synthesis and documentation - creates unified summaries, action items, and executive briefs from multi-agent discussions. Single voice for all documentation requests. Provides proper attribution to source agents. |
 
 #### Stakeholder Perspective Agents
 | Agent | Name | Persona Alignment | Purpose |
@@ -78,6 +79,8 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
    - Upload documents (txt, md, docx, csv, json, xml)
    - Connect Google Drive and Notion for auto-sync
    - Assign documents to specific agents or make them global (available to all)
+   - Edit agent visibility for existing documents via document info modal
+   - Search and filter documents by name or source (Direct Upload, Google Drive, Notion)
    - View and manage conversation history
 3. **Meeting Intelligence**: Upload meeting transcripts (Granola/Otter/Teams/Zoom), extract stakeholder insights with evidence-based sentiment analysis, power dynamics, and strategic recommendations
 4. **Stakeholder Tracking**: Full CRM-style tracking with sentiment, engagement, alignment scores
@@ -122,7 +125,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 
 /backend
   /api/routes    - FastAPI endpoints
-  /agents        - Agent implementations (15 agents)
+  /agents        - Agent implementations (17 agents)
   /services      - Business logic including transcript_analyzer
   /system_instructions - Agent-specific prompts (XML files)
 
@@ -194,11 +197,20 @@ When user intent is unclear (greetings, broad topics, first messages), agents as
 - Include dig-deeper link to capabilities
 - Mantra: "When in doubt, ask. When too long, cut."
 
+### Meeting Room Brevity
+
+In multi-agent meetings, stricter limits apply:
+- **50-100 words MAX** per agent turn (not 150)
+- **75 words MAX** in autonomous discussions
+- ONE key insight per turn - defer if not your domain
+- No preamble, no "Great question!", no filler
+- See `/docs/AGENT_GUARDRAILS.md` for complete rules
+
 ## Thesis-Specific Tables
 
 ```sql
 -- Agent System
-agents                       -- Agent registry (16 agents) with capabilities column
+agents                       -- Agent registry (17 agents) with capabilities column
 agent_instruction_versions   -- Per-agent versioned instructions (single source of truth)
 agent_handoffs               -- Agent-to-agent handoff tracking
 agent_knowledge_base         -- Document-to-agent links for RAG
@@ -244,6 +256,7 @@ Run migrations in order from `/database/migrations/`:
 | 012 | autonomous_discussion | Autonomous discussion mode for meeting rooms |
 | 013 | document_title | Add title column to documents for clean display names |
 | 014 | add_facilitator_agent | Facilitator meta-agent + capabilities column for all agents |
+| 015 | add_reporter_agent | Reporter meta-agent for meeting synthesis and documentation |
 
 ## Environment Variables
 
@@ -289,7 +302,7 @@ python -m pytest tests/ -v --tb=short
 
 ### Backend
 - `/backend/main.py` - FastAPI app entry point
-- `/backend/agents/` - Agent implementations (16 agents)
+- `/backend/agents/` - Agent implementations (17 agents)
 - `/backend/agents/agent_factory.py` - Agent creation and registration
 - `/backend/agents/base_agent.py` - Base class with instruction loading
 - `/backend/agents/atlas.py` - Research agent with web search capability
@@ -305,7 +318,8 @@ python -m pytest tests/ -v --tb=short
 - `/backend/services/chat_agent_service.py` - Agent selection, @mention parsing, instruction loading for chat
 - `/backend/api/routes/chat.py` - Chat endpoints including Dig Deeper and agent routing
 - `/backend/api/routes/meeting_rooms.py` - Meeting room CRUD and streaming
-- `/backend/api/routes/agents.py` - Agent management endpoints
+- `/backend/api/routes/agents.py` - Agent management endpoints (note: static routes like `/documents/available` must be defined before parameterized routes like `/{agent_id}/documents`)
+- `/backend/api/routes/documents.py` - Document CRUD, upload, processing, and agent assignment endpoints
 - `/backend/api/routes/research.py` - Atlas research API endpoints
 - `/backend/api/routes/admin.py` - Admin dashboard with real API health checks
 
@@ -320,9 +334,10 @@ python -m pytest tests/ -v --tb=short
 
 ### Database
 - `/database/thesis_schema.sql` - Complete DB schema
-- `/database/migrations/` - All migration scripts (001-014)
+- `/database/migrations/` - All migration scripts (001-015)
 
 ### Documentation
+- `/docs/AGENT_GUARDRAILS.md` - Agent brevity rules, word limits, and behavioral constraints
 - `/docs/atlas/PROACTIVE_RESEARCH_PLAN.md` - Atlas research system architecture
 - `/docs/neo4j/SYNC_PLAN.md` - PostgreSQL to Neo4j sync architecture
 
@@ -360,3 +375,35 @@ Agent UI colors and short descriptions are defined in multiple places for meetin
 - `/frontend/components/meeting-room/CreateMeetingModal.tsx` - `AGENT_SHORT_DESCRIPTIONS` and `getAgentColor()`
 
 When adding new agents, update both files.
+
+### FastAPI Route Ordering
+In FastAPI, static routes must be defined **before** parameterized routes. Otherwise, the parameter captures the static path segment.
+
+```python
+# BAD - /documents/available gets matched as /{agent_id}/documents with agent_id="documents"
+@router.get("/{agent_id}/documents")
+async def get_agent_documents(...): ...
+
+@router.get("/documents/available")  # Never reached!
+async def get_available_documents(...): ...
+
+# GOOD - static route defined first
+@router.get("/documents/available")
+async def get_available_documents(...): ...
+
+@router.get("/{agent_id}/documents")
+async def get_agent_documents(...): ...
+```
+
+### Lucide React Icons
+Lucide icons don't support the `title` attribute directly. Wrap in a `<span>` for tooltips:
+
+```tsx
+// BAD - TypeScript error
+<Check className="w-4 h-4" title="Tooltip text" />
+
+// GOOD - wrap in span
+<span title="Tooltip text">
+  <Check className="w-4 h-4" />
+</span>
+```

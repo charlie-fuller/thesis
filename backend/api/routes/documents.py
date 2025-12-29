@@ -604,3 +604,174 @@ async def download_document(
     except Exception as e:
         logger.error(f"❌ Error generating download URL: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Document Agent Assignments
+# ============================================================================
+
+@router.get("/{document_id}/agents")
+async def get_document_agents(
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get the agents linked to a document.
+
+    Returns:
+        is_global: True if document has no agent links (available to all agents)
+        linked_agents: List of agent IDs linked to this document
+    """
+    try:
+        validate_uuid(document_id, "document_id")
+
+        # Verify document exists and user has access
+        doc_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, uploaded_by')
+                .eq('id', document_id)
+                .single()
+                .execute()
+        )
+
+        if not doc_result.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Authorization check
+        document = doc_result.data
+        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+            raise HTTPException(status_code=403, detail="Not authorized to view this document")
+
+        # Get agent links
+        links_result = await asyncio.to_thread(
+            lambda: supabase.table('agent_knowledge_base')
+                .select('agent_id, agents(id, name, display_name)')
+                .eq('document_id', document_id)
+                .execute()
+        )
+
+        linked_agents = []
+        for link in links_result.data or []:
+            if link.get('agents'):
+                linked_agents.append({
+                    'id': link['agents']['id'],
+                    'name': link['agents']['name'],
+                    'display_name': link['agents']['display_name']
+                })
+
+        return {
+            'success': True,
+            'document_id': document_id,
+            'is_global': len(linked_agents) == 0,
+            'linked_agents': linked_agents
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting document agents: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class UpdateDocumentAgentsRequest(BaseModel):
+    """Request body for updating document agent assignments."""
+    agent_ids: List[str]  # Empty list = global (remove all links)
+
+
+@router.put("/{document_id}/agents")
+async def update_document_agents(
+    document_id: str,
+    request: UpdateDocumentAgentsRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update the agents linked to a document.
+
+    Args:
+        agent_ids: List of agent IDs to link. Empty list makes document global.
+
+    Returns:
+        Updated agent links
+    """
+    try:
+        validate_uuid(document_id, "document_id")
+
+        # Verify document exists and user has access
+        doc_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, uploaded_by')
+                .eq('id', document_id)
+                .single()
+                .execute()
+        )
+
+        if not doc_result.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Authorization check
+        document = doc_result.data
+        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+            raise HTTPException(status_code=403, detail="Not authorized to modify this document")
+
+        user_id = current_user['id']
+
+        # Delete all existing links for this document
+        await asyncio.to_thread(
+            lambda: supabase.table('agent_knowledge_base')
+                .delete()
+                .eq('document_id', document_id)
+                .execute()
+        )
+
+        # Create new links
+        linked_agents = []
+        for agent_id in request.agent_ids:
+            try:
+                validate_uuid(agent_id, "agent_id")
+
+                # Verify agent exists
+                agent_result = await asyncio.to_thread(
+                    lambda aid=agent_id: supabase.table('agents')
+                        .select('id, name, display_name')
+                        .eq('id', aid)
+                        .single()
+                        .execute()
+                )
+
+                if not agent_result.data:
+                    logger.warning(f"Agent {agent_id} not found, skipping")
+                    continue
+
+                # Create link
+                await asyncio.to_thread(
+                    lambda aid=agent_id: supabase.table('agent_knowledge_base').insert({
+                        'agent_id': aid,
+                        'document_id': document_id,
+                        'added_by': user_id,
+                        'priority': 0
+                    }).execute()
+                )
+
+                linked_agents.append({
+                    'id': agent_result.data['id'],
+                    'name': agent_result.data['name'],
+                    'display_name': agent_result.data['display_name']
+                })
+                logger.info(f"Linked document {document_id} to agent {agent_id}")
+
+            except Exception as link_error:
+                logger.warning(f"Failed to link document to agent {agent_id}: {link_error}")
+
+        is_global = len(linked_agents) == 0
+
+        return {
+            'success': True,
+            'document_id': document_id,
+            'is_global': is_global,
+            'linked_agents': linked_agents,
+            'message': 'Global (all agents)' if is_global else f'Linked to {len(linked_agents)} agent(s)'
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating document agents: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
