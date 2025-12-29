@@ -31,6 +31,9 @@ from .scholar import ScholarAgent
 from .nexus import NexusAgent
 # Brand & Voice Agent
 from .echo import EchoAgent
+# Meta-Agents (always present in meetings)
+from .facilitator import FacilitatorAgent
+from .reporter import ReporterAgent
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +135,9 @@ async def create_specialist(
         "nexus": NexusAgent,
         # Brand & Voice Agent
         "echo": EchoAgent,
+        # Meta-Agents
+        "facilitator": FacilitatorAgent,
+        "reporter": ReporterAgent,
     }
 
     agent_class = agent_classes.get(name.lower())

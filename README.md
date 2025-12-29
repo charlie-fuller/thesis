@@ -24,6 +24,7 @@ Thesis is a multi-agent platform designed for enterprise GenAI strategy implemen
 - **Meeting Analysis** - Upload transcripts and extract stakeholder insights with evidence
 - **Agent Coordination** - Coordinator seamlessly routes queries to appropriate specialists
 - **Persistent Memory** - Mem0 integration for cross-conversation learning
+- **Relationship Intelligence** - Neo4j graph database for stakeholder networks and expertise routing
 - **Dig Deeper** - One-click elaboration on any response for more detail
 
 ## Agent Roster

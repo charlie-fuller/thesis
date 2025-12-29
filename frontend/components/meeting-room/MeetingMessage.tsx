@@ -1,6 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import { authenticatedFetch } from '@/lib/api'
+import toast from 'react-hot-toast'
 
 interface Participant {
   agent_name: string
@@ -23,6 +26,7 @@ interface MeetingMessageProps {
   message: Message
   participants: Participant[]
   isStreaming?: boolean
+  meetingTitle?: string
 }
 
 const AGENT_COLORS: Record<string, { bg: string; text: string }> = {
@@ -52,11 +56,46 @@ const AGENT_COLORS: Record<string, { bg: string; text: string }> = {
 export default function MeetingMessage({
   message,
   participants: _participants,
-  isStreaming = false
+  isStreaming = false,
+  meetingTitle = 'Meeting'
 }: MeetingMessageProps) {
+  const [saving, setSaving] = useState(false)
+  const [showActions, setShowActions] = useState(false)
+
   const isUser = message.role === 'user'
   const agentName = message.agent_name || ''
   const colors = AGENT_COLORS[agentName] || { bg: 'bg-gray-500', text: 'text-gray-700' }
+
+  const handleSaveToKB = async () => {
+    if (saving) return
+
+    setSaving(true)
+    try {
+      const title = `${message.agent_display_name || 'Agent'} - ${meetingTitle}`
+      const response = await authenticatedFetch('/api/documents/save-from-chat', {
+        method: 'POST',
+        body: JSON.stringify({
+          title,
+          content: message.content,
+          message_id: message.id,
+          agent_ids: [] // Global document
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Saved to Knowledge Base')
+      } else {
+        throw new Error(data.detail || 'Failed to save')
+      }
+    } catch (error) {
+      console.error('Error saving to KB:', error)
+      toast.error('Failed to save to Knowledge Base')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   if (isUser) {
     return (
@@ -82,7 +121,11 @@ export default function MeetingMessage({
 
   // Agent message
   return (
-    <div className="flex gap-3">
+    <div
+      className="flex gap-3 group"
+      onMouseEnter={() => setShowActions(true)}
+      onMouseLeave={() => setShowActions(false)}
+    >
       {/* Agent Avatar */}
       <div className="relative flex-shrink-0">
         <div
@@ -153,12 +196,36 @@ export default function MeetingMessage({
           )}
         </div>
 
-        {/* Timestamp */}
-        <div className="text-xs text-tertiary mt-1">
-          {new Date(message.created_at).toLocaleTimeString(undefined, {
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
+        {/* Timestamp and Actions */}
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-xs text-tertiary">
+            {new Date(message.created_at).toLocaleTimeString(undefined, {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </span>
+
+          {/* Save to KB button - shows on hover */}
+          {!isStreaming && showActions && (
+            <button
+              onClick={handleSaveToKB}
+              disabled={saving}
+              className="flex items-center gap-1 px-2 py-0.5 text-xs text-secondary hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+              title="Save to Knowledge Base"
+            >
+              {saving ? (
+                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              ) : (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+              )}
+              <span>Save to KB</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

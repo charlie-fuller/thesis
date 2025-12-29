@@ -107,7 +107,7 @@ NEVER let a single expert's view become group consensus unchallenged.
 
         response = self.anthropic.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=1024,  # Facilitator responses should be brief
+            max_tokens=250,  # Facilitator must be brief - routing/synthesis only
             system=self.system_instruction,
             messages=messages
         )
@@ -218,7 +218,7 @@ RULES:
         try:
             response = self.anthropic.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=500,
+                max_tokens=200,
                 messages=[{"role": "user", "content": routing_prompt}]
             )
 
@@ -322,7 +322,7 @@ Be concise. Use bullet points if helpful. End with a question to the user."""
         try:
             response = self.anthropic.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=500,
+                max_tokens=200,
                 messages=[{"role": "user", "content": synthesis_prompt}]
             )
             return response.content[0].text

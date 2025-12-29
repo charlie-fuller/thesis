@@ -15,6 +15,7 @@
     "@supabase/supabase-js": "^2.78.0",
     "@tailwindcss/typography": "^0.5.19",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "devlop": "^1.1.0",
     "lucide-react": "^0.561.0",
     "next": "^16.0.7",
     "react": "19.2.0",
@@ -42,6 +43,6 @@
     "jest-environment-jsdom": "^30.2.0",
     "prettier": "^3.6.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "5.9.3"
   }
 }

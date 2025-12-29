@@ -76,6 +76,9 @@ export default function MeetingRoomPage() {
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editedTitle, setEditedTitle] = useState('')
 
+  // Export state
+  const [exporting, setExporting] = useState(false)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
@@ -177,6 +180,66 @@ export default function MeetingRoomPage() {
       handleSaveTitle()
     } else if (e.key === 'Escape') {
       setIsEditingTitle(false)
+    }
+  }
+
+  const handleExportConversation = async () => {
+    if (exporting || messages.length === 0) return
+
+    setExporting(true)
+    try {
+      // Build markdown content from all messages
+      const participantNames = meeting?.participants.map(p => p.agent_display_name).join(', ') || 'Agents'
+      const dateStr = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+
+      let markdownContent = `## Meeting Details\n\n`
+      markdownContent += `- **Title:** ${meeting?.title}\n`
+      markdownContent += `- **Date:** ${dateStr}\n`
+      markdownContent += `- **Participants:** ${participantNames}\n`
+      if (meeting?.description) {
+        markdownContent += `- **Description:** ${meeting.description}\n`
+      }
+      markdownContent += `\n---\n\n## Conversation\n\n`
+
+      for (const msg of messages) {
+        const time = new Date(msg.created_at).toLocaleTimeString(undefined, {
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+
+        if (msg.role === 'user') {
+          markdownContent += `### User (${time})\n\n${msg.content}\n\n`
+        } else {
+          const agentName = msg.agent_display_name || msg.agent_name || 'Agent'
+          markdownContent += `### ${agentName} (${time})\n\n${msg.content}\n\n`
+        }
+      }
+
+      const response = await authenticatedFetch('/api/documents/save-from-chat', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: `Meeting Transcript - ${meeting?.title}`,
+          content: markdownContent,
+          agent_ids: [] // Global document
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Meeting exported to Knowledge Base')
+      } else {
+        throw new Error(data.detail || 'Failed to export')
+      }
+    } catch (error) {
+      console.error('Error exporting conversation:', error)
+      toast.error('Failed to export conversation')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -550,8 +613,28 @@ export default function MeetingRoomPage() {
               )}
             </div>
           </div>
-          <div className="text-sm text-tertiary">
-            {meeting.total_tokens_used.toLocaleString()} tokens used
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleExportConversation}
+              disabled={exporting || messages.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-secondary hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Export conversation to Knowledge Base"
+            >
+              {exporting ? (
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              )}
+              <span>Export to KB</span>
+            </button>
+            <span className="text-sm text-tertiary">
+              {meeting.total_tokens_used.toLocaleString()} tokens used
+            </span>
           </div>
         </div>
       </div>
@@ -588,6 +671,7 @@ export default function MeetingRoomPage() {
                 key={message.id}
                 message={message}
                 participants={meeting.participants}
+                meetingTitle={meeting.title}
               />
             ))}
 
@@ -610,6 +694,7 @@ export default function MeetingRoomPage() {
                     created_at: new Date().toISOString()
                   }}
                   participants={meeting.participants}
+                  meetingTitle={meeting.title}
                   isStreaming
                 />
               )
