@@ -15,9 +15,11 @@ import {
   Bot,
   Mic,
   Workflow,
+  MessageCircle,
 } from 'lucide-react';
 
 const AGENT_ICONS: Record<string, React.ElementType> = {
+  facilitator: MessageCircle, // Meeting Orchestration
   atlas: Globe,           // Research
   fortuna: Coins,         // Finance
   guardian: Shield,       // IT/Governance
@@ -52,6 +54,7 @@ export function AgentIcon({ name, className, size = 'md' }: AgentIconProps) {
 }
 
 export const AGENT_COLORS: Record<string, string> = {
+  facilitator: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   atlas: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   fortuna: 'bg-green-500/20 text-green-400 border-green-500/30',
   guardian: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
@@ -62,7 +65,7 @@ export const AGENT_COLORS: Record<string, string> = {
   architect: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
   operator: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   pioneer: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
-  catalyst: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  catalyst: 'bg-lime-500/20 text-lime-400 border-lime-500/30',
   scholar: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
   nexus: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
   echo: 'bg-fuchsia-500/20 text-fuchsia-400 border-fuchsia-500/30',

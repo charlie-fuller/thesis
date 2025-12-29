@@ -755,13 +755,13 @@ export default function IntelligencePage() {
                         </div>
                         <div className="text-center">
                           <div className="text-lg font-semibold text-primary">
-                            {agent.conversations_count}
+                            {agent.conversations_count ?? 0}
                           </div>
                           <div className="text-xs text-secondary">Chats</div>
                         </div>
                         <div className="text-center">
                           <div className="text-lg font-semibold text-primary">
-                            {agent.meeting_rooms_count}
+                            {agent.meeting_rooms_count ?? 0}
                           </div>
                           <div className="text-xs text-secondary">Meetings</div>
                         </div>

@@ -240,6 +240,35 @@ export default function MeetingRoomPage() {
               const data = JSON.parse(line.slice(6))
 
               switch (data.type) {
+                case 'facilitator_turn_start':
+                  currentAgentName = 'facilitator'
+                  setActiveAgent('Facilitator')
+                  agentResponses['facilitator'] = ''
+                  break
+
+                case 'facilitator_token':
+                  agentResponses['facilitator'] = (agentResponses['facilitator'] || '') + data.content
+                  setStreamingContent({ ...agentResponses })
+                  break
+
+                case 'facilitator_turn_end':
+                  // Facilitator finished - add their message to the list
+                  if (agentResponses['facilitator']) {
+                    const facilitatorMessage: Message = {
+                      id: `agent-facilitator-${Date.now()}`,
+                      role: 'agent',
+                      content: agentResponses['facilitator'],
+                      agent_name: 'facilitator',
+                      agent_display_name: 'Facilitator',
+                      created_at: new Date().toISOString()
+                    }
+                    setMessages(prev => [...prev, facilitatorMessage])
+                    delete agentResponses['facilitator']
+                    setStreamingContent({ ...agentResponses })
+                  }
+                  setActiveAgent(null)
+                  break
+
                 case 'agent_turn_start':
                   currentAgentName = data.agent_name
                   setActiveAgent(data.agent_display_name)
@@ -559,7 +588,10 @@ export default function MeetingRoomPage() {
             {/* Streaming messages */}
             {Object.entries(streamingContent).map(([agentName, content]) => {
               if (!content) return null
+              // Handle Facilitator specially since it's not in participants list
+              const isFacilitator = agentName === 'facilitator'
               const participant = meeting.participants.find(p => p.agent_name === agentName)
+              const displayName = isFacilitator ? 'Facilitator' : (participant?.agent_display_name || agentName)
               return (
                 <MeetingMessage
                   key={`streaming-${agentName}`}
@@ -568,7 +600,7 @@ export default function MeetingRoomPage() {
                     role: 'agent',
                     content,
                     agent_name: agentName,
-                    agent_display_name: participant?.agent_display_name || agentName,
+                    agent_display_name: displayName,
                     created_at: new Date().toISOString()
                   }}
                   participants={meeting.participants}

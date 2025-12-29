@@ -3,6 +3,9 @@ Thesis Multi-Agent System
 
 Core agents for enterprise GenAI strategy implementation:
 
+Meta-Agents:
+- Facilitator: Meeting orchestration - welcomes, routes, balances, synthesizes discussions
+
 Stakeholder Perspective Agents (Persona-Aligned):
 - Coordinator: Central orchestrator - routes queries to specialists, synthesizes responses
 - Atlas: Research agent - GenAI research, consulting approaches, case studies
@@ -30,6 +33,7 @@ Systems Thinking Agent:
 from .base_agent import BaseAgent, AgentContext, AgentResponse
 from .agent_router import AgentRouter, RoutingDecision
 from .coordinator import CoordinatorAgent
+from .facilitator import FacilitatorAgent
 from .atlas import AtlasAgent
 from .fortuna import FortunaAgent
 from .guardian import GuardianAgent
@@ -53,6 +57,8 @@ __all__ = [
     "AgentResponse",
     "AgentRouter",
     "RoutingDecision",
+    # Meta-Agents
+    "FacilitatorAgent",
     # Coordinator
     "CoordinatorAgent",
     # Stakeholder Perspective Agents
