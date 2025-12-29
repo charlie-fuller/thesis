@@ -13,6 +13,7 @@ interface Agent {
 }
 
 const AGENT_SHORT_DESCRIPTIONS: Record<string, string> = {
+  facilitator: 'Meeting orchestration and synthesis',
   atlas: 'GenAI research and benchmarking',
   fortuna: 'ROI analysis and business cases',
   guardian: 'Security, compliance, IT governance',
@@ -106,6 +107,7 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
 
   const getAgentColor = (name: string): string => {
     const colors: Record<string, string> = {
+      facilitator: 'bg-yellow-500',
       atlas: 'bg-blue-500',
       fortuna: 'bg-green-500',
       guardian: 'bg-purple-500',

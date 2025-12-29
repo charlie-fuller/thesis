@@ -30,7 +30,12 @@ If the conversation included important decisions or unfinished work, save a summ
 
 Thesis is a multi-agent platform for enterprise GenAI strategy implementation. It helps AI Solutions Partners guide and manage successful AI initiatives by providing specialized agents for research, finance, IT/governance, legal, and meeting analysis.
 
-### Agent Roster (15 Agents)
+### Agent Roster (16 Agents)
+
+#### Meta-Agent (Always Present in Meetings)
+| Agent | Name | Purpose |
+|-------|------|---------|
+| Facilitator | Facilitator | Meeting orchestration - welcomes users, clarifies intent, routes to specialists, ensures balanced participation, invokes systems thinking before conclusions, synthesizes discussions. Not a domain expert - makes others brilliant. |
 
 #### Stakeholder Perspective Agents
 | Agent | Name | Persona Alignment | Purpose |
@@ -61,7 +66,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 | Agent | Name | Purpose |
 |-------|------|---------|
 | Nexus | Systems Thinking | Interconnections, feedback loops, leverage points, unintended consequences |
-| Coordinator | Thesis | Central orchestrator, query routing, response synthesis |
+| Coordinator | Thesis | Central orchestrator for chat (not meetings), query routing, response synthesis |
 
 ### Key Capabilities
 
@@ -193,7 +198,7 @@ When user intent is unclear (greetings, broad topics, first messages), agents as
 
 ```sql
 -- Agent System
-agents                       -- Agent registry (15 agents)
+agents                       -- Agent registry (16 agents) with capabilities column
 agent_instruction_versions   -- Per-agent versioned instructions (single source of truth)
 agent_handoffs               -- Agent-to-agent handoff tracking
 agent_knowledge_base         -- Document-to-agent links for RAG
@@ -238,6 +243,7 @@ Run migrations in order from `/database/migrations/`:
 | 011 | research_system | Atlas research tables, sources, schedule, gaps |
 | 012 | autonomous_discussion | Autonomous discussion mode for meeting rooms |
 | 013 | document_title | Add title column to documents for clean display names |
+| 014 | add_facilitator_agent | Facilitator meta-agent + capabilities column for all agents |
 
 ## Environment Variables
 
@@ -283,7 +289,7 @@ python -m pytest tests/ -v --tb=short
 
 ### Backend
 - `/backend/main.py` - FastAPI app entry point
-- `/backend/agents/` - Agent implementations (15 agents)
+- `/backend/agents/` - Agent implementations (16 agents)
 - `/backend/agents/agent_factory.py` - Agent creation and registration
 - `/backend/agents/base_agent.py` - Base class with instruction loading
 - `/backend/agents/atlas.py` - Research agent with web search capability
@@ -314,7 +320,7 @@ python -m pytest tests/ -v --tb=short
 
 ### Database
 - `/database/thesis_schema.sql` - Complete DB schema
-- `/database/migrations/` - All migration scripts (001-013)
+- `/database/migrations/` - All migration scripts (001-014)
 
 ### Documentation
 - `/docs/atlas/PROACTIVE_RESEARCH_PLAN.md` - Atlas research system architecture

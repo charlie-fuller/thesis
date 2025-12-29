@@ -593,115 +593,204 @@ export default function AgentDetailPage() {
 
       {/* Tab Content */}
       {activeTab === 'overview' && (
-        <div className="space-y-6">
-          {/* Agent Purpose */}
-          <div className="card p-6">
-            <h2 className="text-lg font-semibold text-primary mb-4">What This Agent Does</h2>
+        <div className="card p-6">
+          {/* Description */}
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-primary mb-2">What This Agent Does</h2>
             <p className="text-secondary leading-relaxed">
               {agent.description || 'No description configured for this agent.'}
             </p>
           </div>
 
-          {/* Agent Role & Capabilities */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="card p-6">
-              <h3 className="text-md font-semibold text-primary mb-3">Why It Exists</h3>
+          {/* Why & How */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+              <h3 className="text-sm font-semibold text-primary mb-2">Why It Exists</h3>
               <p className="text-secondary text-sm leading-relaxed">
                 {(() => {
                   const purposes: Record<string, string> = {
-                    atlas: 'Provides research intelligence for GenAI implementation, leveraging Lean methodology and competitive benchmarking to support data-driven decisions.',
-                    fortuna: 'Delivers financial analysis including ROI calculations, business case development, and SOX compliance considerations for AI investments.',
-                    guardian: 'Ensures IT governance, security compliance, shadow IT detection, and vendor evaluation for enterprise AI deployments.',
-                    counselor: 'Addresses legal considerations including contracts, AI risk assessment, liability, and data privacy compliance.',
-                    oracle: 'Analyzes meeting transcripts to extract stakeholder insights, sentiment patterns, and strategic recommendations with evidence.',
-                    sage: 'Focuses on change management, human flourishing, and driving successful AI adoption across the organization.',
-                    strategist: 'Provides C-suite engagement strategies, navigates organizational politics, and designs governance frameworks.',
-                    architect: 'Designs technical architecture for enterprise AI including RAG systems, integrations, and build vs. buy decisions.',
-                    operator: 'Optimizes business processes, identifies automation opportunities, and tracks operational metrics.',
-                    pioneer: 'Scouts emerging technologies, filters hype from reality, and assesses innovation maturity for practical application.',
-                    catalyst: 'Crafts internal AI communications, addresses employee concerns, and builds engagement around AI initiatives.',
-                    scholar: 'Develops training programs, enables AI champions, and applies adult learning principles for skill development.',
-                    echo: 'Analyzes brand voice, creates style profiles, and provides guidelines for AI-assisted content that matches organizational tone.',
-                    nexus: 'Maps interconnections between initiatives, identifies feedback loops, and surfaces unintended consequences in complex systems.',
-                    coordinator: 'Orchestrates multi-agent collaboration, routes queries to specialists, and synthesizes responses across the platform.',
+                    atlas: 'Research intelligence for GenAI implementation using Lean methodology and competitive benchmarking.',
+                    fortuna: 'Financial analysis including ROI, business cases, and SOX compliance for AI investments.',
+                    guardian: 'IT governance, security compliance, shadow IT detection, and vendor evaluation.',
+                    counselor: 'Legal considerations: contracts, AI risk, liability, and data privacy.',
+                    oracle: 'Meeting transcript analysis for stakeholder insights and sentiment with evidence.',
+                    sage: 'Change management, human flourishing, and AI adoption strategies.',
+                    strategist: 'C-suite engagement, organizational politics, and governance design.',
+                    architect: 'Technical architecture for enterprise AI: RAG, integrations, build vs. buy.',
+                    operator: 'Business process optimization, automation, and operational metrics.',
+                    pioneer: 'Emerging technology scouting, hype filtering, and maturity assessment.',
+                    catalyst: 'Internal AI communications, employee engagement, and AI anxiety.',
+                    scholar: 'Training programs, champion enablement, and adult learning principles.',
+                    echo: 'Brand voice analysis, style profiling, and AI content guidelines.',
+                    nexus: 'Systems thinking: interconnections, feedback loops, and leverage points.',
+                    coordinator: 'Multi-agent orchestration, query routing, and response synthesis.',
                   };
-                  return purposes[agent.name.toLowerCase()] || 'This agent provides specialized capabilities within the Thesis platform.';
+                  return purposes[agent.name.toLowerCase()] || 'Specialized capabilities within the Thesis platform.';
                 })()}
               </p>
             </div>
 
-            <div className="card p-6">
-              <h3 className="text-md font-semibold text-primary mb-3">How To Use It</h3>
+            <div>
+              <h3 className="text-sm font-semibold text-primary mb-2">How To Use It</h3>
               <p className="text-secondary text-sm leading-relaxed">
                 {(() => {
                   const howTo: Record<string, string> = {
-                    atlas: 'Ask research questions about GenAI trends, request competitive analysis, or explore best practices. Atlas will search the web and knowledge base to provide sourced answers.',
-                    fortuna: 'Request ROI projections, business case frameworks, or financial impact assessments. Provide context about the AI initiative for tailored analysis.',
-                    guardian: 'Consult on security requirements, compliance frameworks, or vendor evaluations. Share technical details for more specific guidance.',
-                    counselor: 'Ask about contract terms, regulatory compliance, or risk mitigation strategies. Include relevant context about stakeholders and jurisdictions.',
-                    oracle: 'Upload meeting transcripts or recordings. Oracle will extract stakeholder positions, sentiment, and actionable insights with supporting quotes.',
-                    sage: 'Discuss change management strategies, adoption challenges, or team dynamics. Sage helps design people-first AI implementation plans.',
-                    strategist: 'Seek guidance on executive engagement, stakeholder navigation, or governance design. Share organizational context for strategic recommendations.',
-                    architect: 'Discuss technical requirements, architecture patterns, or integration approaches. Provide system details for concrete recommendations.',
-                    operator: 'Identify process optimization opportunities, automation candidates, or operational metrics. Share workflow details for analysis.',
-                    pioneer: 'Explore emerging technologies, assess innovation maturity, or evaluate new tools. Pioneer separates signal from noise in the AI landscape.',
-                    catalyst: 'Draft internal communications, address AI anxiety, or plan engagement campaigns. Share audience context for tailored messaging.',
-                    scholar: 'Design training programs, plan champion enablement, or create learning paths. Specify skill levels and objectives for customized plans.',
-                    echo: 'Analyze brand voice samples, create style guides, or review AI-generated content for brand alignment. Provide examples of existing content.',
-                    nexus: 'Map system dependencies, explore feedback loops, or identify leverage points. Describe the interconnected elements for systems analysis.',
-                    coordinator: 'Use Auto mode to have Coordinator route your query to the best specialist agent, or explicitly request multi-agent collaboration on complex topics.',
+                    atlas: 'Ask research questions about GenAI trends or best practices. Atlas searches web and KB for sourced answers.',
+                    fortuna: 'Request ROI projections or business case frameworks with context about your AI initiative.',
+                    guardian: 'Consult on security, compliance, or vendor evaluations. Share technical details.',
+                    counselor: 'Ask about contracts, compliance, or risk. Include stakeholder and jurisdiction context.',
+                    oracle: 'Upload meeting transcripts to extract stakeholder positions and sentiment with quotes.',
+                    sage: 'Discuss change strategies or adoption challenges. Sage designs people-first plans.',
+                    strategist: 'Seek executive engagement or governance guidance. Share organizational context.',
+                    architect: 'Discuss technical requirements or integration approaches with system details.',
+                    operator: 'Identify automation opportunities or metrics. Share workflow details.',
+                    pioneer: 'Explore emerging tech or assess innovation maturity. Separates signal from noise.',
+                    catalyst: 'Draft communications or plan engagement. Share audience context.',
+                    scholar: 'Design training or learning paths. Specify skill levels and objectives.',
+                    echo: 'Analyze voice samples or review content for brand alignment. Provide examples.',
+                    nexus: 'Map dependencies or explore feedback loops. Describe interconnected elements.',
+                    coordinator: 'Use Auto mode for routing or request multi-agent collaboration.',
                   };
-                  return howTo[agent.name.toLowerCase()] || 'Interact with this agent through chat or include it in meeting room discussions for specialized insights.';
+                  return howTo[agent.name.toLowerCase()] || 'Chat or include in meeting rooms for specialized insights.';
                 })()}
               </p>
             </div>
           </div>
 
-          {/* Quick Stats */}
-          <div className="card p-6">
-            <h3 className="text-md font-semibold text-primary mb-4">Agent Activity</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-page rounded-lg text-center">
-                <div className="text-2xl font-bold text-primary">{stats.instruction_versions_count}</div>
-                <div className="text-xs text-secondary mt-1">Instruction Versions</div>
-              </div>
-              <div className="p-4 bg-page rounded-lg text-center">
-                <div className="text-2xl font-bold text-primary">{stats.kb_documents_count || kb_documents.length}</div>
-                <div className="text-xs text-secondary mt-1">KB Documents</div>
-              </div>
-              <div className="p-4 bg-page rounded-lg text-center">
-                <div className="text-2xl font-bold text-primary">{stats.conversations_count}</div>
-                <div className="text-xs text-secondary mt-1">Conversations</div>
-              </div>
-              <div className="p-4 bg-page rounded-lg text-center">
-                <div className="text-2xl font-bold text-primary">
-                  {agent.is_active ? 'Yes' : 'No'}
-                </div>
-                <div className="text-xs text-secondary mt-1">Active Status</div>
-              </div>
+          {/* Stats Row */}
+          <div className="flex items-center gap-6 pt-4 border-t border-border">
+            <div className="text-center">
+              <div className="text-xl font-bold text-primary">{stats.instruction_versions_count}</div>
+              <div className="text-xs text-secondary">Versions</div>
             </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-primary">{stats.kb_documents_count || kb_documents.length}</div>
+              <div className="text-xs text-secondary">KB Docs</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-primary">{stats.conversations_count}</div>
+              <div className="text-xs text-secondary">Chats</div>
+            </div>
+            {(() => {
+              const personas: Record<string, string> = {
+                atlas: 'Chris Baumgartner',
+                fortuna: 'Raul Rivera III',
+                guardian: 'Danny Leal',
+                counselor: 'Ashley Adams',
+                sage: 'Chad Meek',
+                oracle: 'CIPHER v2.1',
+              };
+              const persona = personas[agent.name.toLowerCase()];
+              if (!persona) return null;
+              return (
+                <div className="ml-auto text-right">
+                  <div className="text-xs text-secondary">Persona</div>
+                  <div className="text-sm text-primary font-medium">{persona}</div>
+                </div>
+              );
+            })()}
           </div>
 
-          {/* Persona Alignment (if applicable) */}
+          {/* Dig Deeper - Expandable Details */}
           {(() => {
-            const personas: Record<string, { name: string; role: string }> = {
-              atlas: { name: 'Chris Baumgartner', role: 'Research & Analytics' },
-              fortuna: { name: 'Raul Rivera III', role: 'Finance & Compliance' },
-              guardian: { name: 'Danny Leal', role: 'IT & Governance' },
-              counselor: { name: 'Ashley Adams', role: 'Legal & Risk' },
-              sage: { name: 'Chad Meek', role: 'People & Change' },
-              oracle: { name: 'CIPHER v2.1', role: 'Meeting Intelligence' },
+            const details: Record<string, { capabilities: string[]; bestFor: string[] }> = {
+              atlas: {
+                capabilities: ['Web search with credibility filtering (Tier 1-4 sources)', 'Knowledge base RAG retrieval', 'Competitive benchmarking', 'Lean methodology application'],
+                bestFor: ['Industry trend analysis', 'Best practice research', 'Vendor comparisons', 'Academic/consulting firm insights']
+              },
+              fortuna: {
+                capabilities: ['ROI calculation frameworks', 'Business case templates', 'SOX compliance checklists', 'Cost-benefit analysis'],
+                bestFor: ['Investment justification', 'Budget planning', 'Financial risk assessment', 'Stakeholder financial reporting']
+              },
+              guardian: {
+                capabilities: ['Security assessment frameworks', 'Compliance mapping', 'Shadow IT detection', 'Vendor security evaluation'],
+                bestFor: ['AI governance policies', 'Risk assessments', 'Technology audits', 'Regulatory compliance']
+              },
+              counselor: {
+                capabilities: ['Contract review guidance', 'AI liability analysis', 'Privacy compliance', 'Regulatory navigation'],
+                bestFor: ['Vendor agreements', 'Data processing terms', 'IP considerations', 'Cross-border compliance']
+              },
+              oracle: {
+                capabilities: ['Transcript parsing', 'Sentiment extraction with quotes', 'Stakeholder position mapping', 'Power dynamics analysis'],
+                bestFor: ['Meeting debriefs', 'Stakeholder tracking', 'Decision archaeology', 'Communication patterns']
+              },
+              sage: {
+                capabilities: ['Change readiness assessment', 'Adoption strategy design', 'Resistance management', 'Culture alignment'],
+                bestFor: ['Rollout planning', 'Training needs analysis', 'Champion networks', 'Communication strategies']
+              },
+              strategist: {
+                capabilities: ['Stakeholder mapping', 'Political landscape analysis', 'Governance framework design', 'Executive communication'],
+                bestFor: ['Board presentations', 'Coalition building', 'Strategic alignment', 'Organizational change']
+              },
+              architect: {
+                capabilities: ['Architecture patterns', 'Integration design', 'Technology selection', 'Scalability planning'],
+                bestFor: ['System design', 'Build vs buy decisions', 'RAG implementation', 'API strategy']
+              },
+              operator: {
+                capabilities: ['Process mapping', 'Automation opportunity identification', 'KPI definition', 'Efficiency analysis'],
+                bestFor: ['Workflow optimization', 'Bottleneck identification', 'Metrics dashboards', 'SLA design']
+              },
+              pioneer: {
+                capabilities: ['Technology radar', 'Maturity assessment', 'Hype cycle positioning', 'Innovation portfolio'],
+                bestFor: ['Emerging tech evaluation', 'Proof of concept scoping', 'Future state planning', 'Competitive differentiation']
+              },
+              catalyst: {
+                capabilities: ['Internal messaging', 'FAQ development', 'Anxiety addressing', 'Engagement campaigns'],
+                bestFor: ['Launch communications', 'Town hall prep', 'Newsletter content', 'Feedback collection']
+              },
+              scholar: {
+                capabilities: ['Curriculum design', 'Learning path creation', 'Skill gap analysis', 'Training effectiveness'],
+                bestFor: ['Onboarding programs', 'Upskilling initiatives', 'Certification paths', 'Knowledge transfer']
+              },
+              echo: {
+                capabilities: ['Voice analysis', 'Style guide creation', 'Tone consistency', 'Brand alignment'],
+                bestFor: ['AI writing guidelines', 'Content review', 'Multi-channel consistency', 'Persona development']
+              },
+              nexus: {
+                capabilities: ['Dependency mapping', 'Feedback loop identification', 'Leverage point analysis', 'Consequence modeling'],
+                bestFor: ['Complex problem solving', 'Initiative interconnection', 'Risk cascades', 'System optimization']
+              },
+              coordinator: {
+                capabilities: ['Query routing', 'Multi-agent synthesis', 'Context management', 'Response orchestration'],
+                bestFor: ['Complex queries', 'Cross-domain questions', 'Collaborative analysis', 'Holistic recommendations']
+              },
             };
-            const persona = personas[agent.name.toLowerCase()];
-            if (!persona) return null;
+            const detail = details[agent.name.toLowerCase()];
+            if (!detail) return null;
+
             return (
-              <div className="card p-6 border-l-4 border-l-blue-500">
-                <h3 className="text-md font-semibold text-primary mb-2">Persona Alignment</h3>
-                <p className="text-secondary text-sm">
-                  This agent&apos;s behavior is modeled after <span className="text-primary font-medium">{persona.name}</span>,
-                  representing the <span className="text-primary font-medium">{persona.role}</span> stakeholder perspective.
-                </p>
-              </div>
+              <details className="mt-6 pt-4 border-t border-border group">
+                <summary className="cursor-pointer text-sm text-blue-400 hover:text-blue-300 list-none flex items-center gap-1">
+                  <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  Dig Deeper
+                </summary>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-xs font-semibold text-secondary uppercase mb-2">Capabilities</h4>
+                    <ul className="text-sm text-secondary space-y-1">
+                      {detail.capabilities.map((cap, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-primary mt-1">•</span>
+                          {cap}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-secondary uppercase mb-2">Best For</h4>
+                    <ul className="text-sm text-secondary space-y-1">
+                      {detail.bestFor.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-primary mt-1">•</span>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </details>
             );
           })()}
         </div>

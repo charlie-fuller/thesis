@@ -181,6 +181,10 @@ class MeetingOrchestrator:
         """Get list of participant agents who haven't spoken recently."""
         return [p for p in context.participants if p['agent_name'] not in spoken]
 
+    # Agents that should always be considered for inclusion in discussions
+    # These provide essential perspectives that should never be overlooked
+    ESSENTIAL_PERSPECTIVES = ['sage', 'nexus']  # People + Systems thinking
+
     def select_responding_agents(
         self,
         context: MeetingContext,
@@ -189,8 +193,8 @@ class MeetingOrchestrator:
         """
         Determine which agents from the meeting participants should respond.
 
-        Uses keyword matching to score relevance. Falls back to all participants
-        for very general questions.
+        Uses keyword matching to score relevance, but ensures essential perspectives
+        (Sage for people/change, Nexus for systems thinking) are always considered.
         """
         message_lower = context.user_message.lower()
         participant_names = {p['agent_name'] for p in context.participants}
@@ -215,11 +219,33 @@ class MeetingOrchestrator:
                 key=lambda p: scores.get(p['agent_name'], 0),
                 reverse=True
             )
-            return relevant_agents[:max_agents]
+            selected = relevant_agents[:max_agents]
+        else:
+            # If no clear matches, start with first participant
+            selected = context.participants[:1] if context.participants else []
 
-        # If no clear matches, have all participants respond (limited)
-        # For general questions, everyone gets a chance to weigh in
-        return context.participants[:max_agents]
+        # Ensure essential perspectives are included if they're participants
+        # and we have room (or make room for them)
+        selected_names = {p['agent_name'] for p in selected}
+
+        for essential_agent in self.ESSENTIAL_PERSPECTIVES:
+            if essential_agent not in selected_names:
+                # Find this agent in participants
+                for p in context.participants:
+                    if p['agent_name'] == essential_agent:
+                        # Add essential agent, respecting max_agents by replacing lowest scored
+                        if len(selected) < max_agents:
+                            selected.append(p)
+                        elif len(selected) >= max_agents and selected:
+                            # Replace the lowest scored non-essential agent
+                            for i in range(len(selected) - 1, -1, -1):
+                                if selected[i]['agent_name'] not in self.ESSENTIAL_PERSPECTIVES:
+                                    selected[i] = p
+                                    break
+                        selected_names.add(essential_agent)
+                        break
+
+        return selected[:max_agents]
 
     def _build_meeting_system_prompt(
         self,

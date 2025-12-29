@@ -20,6 +20,7 @@ interface ParticipantBarProps {
 }
 
 const AGENT_COLORS: Record<string, string> = {
+  facilitator: 'bg-yellow-500',
   atlas: 'bg-blue-500',
   fortuna: 'bg-green-500',
   guardian: 'bg-purple-500',
@@ -37,6 +38,7 @@ const AGENT_COLORS: Record<string, string> = {
 }
 
 const AGENT_DESCRIPTIONS: Record<string, string> = {
+  facilitator: 'Meeting Orchestration',
   atlas: 'Research & Best Practices',
   fortuna: 'Financial Analysis & ROI',
   guardian: 'Security & Governance',

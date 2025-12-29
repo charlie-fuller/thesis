@@ -740,7 +740,7 @@ export default function IntelligencePage() {
                       </p>
 
                       {/* Stats */}
-                      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
+                      <div className="grid grid-cols-4 gap-3 pt-4 border-t border-border">
                         <div className="text-center">
                           <div className="text-lg font-semibold text-primary">
                             {agent.instruction_versions_count}
@@ -752,6 +752,12 @@ export default function IntelligencePage() {
                             {agent.kb_documents_count}
                           </div>
                           <div className="text-xs text-secondary">KB Docs</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-semibold text-primary">
+                            {agent.conversations_count}
+                          </div>
+                          <div className="text-xs text-secondary">Chats</div>
                         </div>
                         <div className="text-center">
                           <div className="text-lg font-semibold text-primary">
