@@ -35,6 +35,7 @@ import { API_BASE_URL } from '@/lib/config'
 
 interface Document {
   id: string
+  title?: string
   filename: string
   uploaded_at: string
   processed: boolean
@@ -1174,7 +1175,7 @@ export default function KBDocumentsContent() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start gap-2 mb-1">
-                        <h3 className="font-medium text-primary break-words">{doc.filename}</h3>
+                        <h3 className="font-medium text-primary break-words">{doc.title || doc.filename}</h3>
                         {/* Status Badges */}
                         {!doc.processed && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 flex-shrink-0" title="Document is being processed">
