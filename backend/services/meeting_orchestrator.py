@@ -20,6 +20,7 @@ Updated: 2025-12-28 - Added Reporter for unified summaries
 import asyncio
 import json
 import logging
+import re
 from dataclasses import dataclass
 from typing import AsyncGenerator, Optional
 from uuid import UUID
@@ -57,6 +58,14 @@ SUMMARY_PATTERNS = [
     'what should i take', 'what do i need to know',
     'pull together', 'bring it together'
 ]
+
+# @mention pattern for direct agent addressing in meetings
+# Matches @agentname at word boundaries (case-insensitive)
+MENTION_PATTERN = re.compile(
+    r'@(atlas|fortuna|guardian|counselor|oracle|sage|strategist|architect|'
+    r'operator|pioneer|catalyst|scholar|echo|nexus|facilitator|reporter)',
+    re.IGNORECASE
+)
 
 # Lazy import for embeddings to avoid crash if VOYAGE_API_KEY is not set
 _embed_meeting_room_message = None
@@ -201,6 +210,39 @@ class MeetingOrchestrator:
             if pattern in message_lower:
                 return True
         return False
+
+    def _parse_direct_mention(self, message: str, participants: list[dict]) -> Optional[list[dict]]:
+        """
+        Parse @mentions from a message and return matching participants.
+
+        When a user directly addresses an agent with @mention, that agent should
+        respond directly WITHOUT Facilitator intervention.
+
+        Returns:
+            List of participant dicts for mentioned agents that are in the meeting,
+            or None if no valid @mentions found.
+        """
+        mentions = MENTION_PATTERN.findall(message.lower())
+        if not mentions:
+            return None
+
+        # Build a map of agent names to participants
+        participant_map = {p['agent_name'].lower(): p for p in participants}
+
+        # Find mentioned agents that are actually in this meeting
+        mentioned_participants = []
+        for mention in mentions:
+            mention_lower = mention.lower()
+            if mention_lower in participant_map:
+                mentioned_participants.append(participant_map[mention_lower])
+
+        if mentioned_participants:
+            logger.info(f"Direct @mention detected: {[p['agent_name'] for p in mentioned_participants]}")
+            return mentioned_participants
+
+        # User mentioned agents not in this meeting - return None to let normal routing happen
+        logger.info(f"@mention for agents not in meeting: {mentions}")
+        return None
 
     def _track_agents_spoken(self, context: MeetingContext) -> set[str]:
         """Track which agents have spoken in recent history."""
@@ -698,8 +740,21 @@ Respond with ONLY the handoff message, nothing else."""
                     yield event
                 return
 
-            # Select which agents should respond
-            responding_agents = self.select_responding_agents(context)
+            # Check for direct @mention - route directly to mentioned agent(s)
+            # WITHOUT Facilitator intervention
+            direct_mention_agents = self._parse_direct_mention(
+                context.user_message,
+                context.participants
+            )
+            is_direct_mention = direct_mention_agents is not None
+
+            if is_direct_mention:
+                # User directly addressed specific agent(s) - route to them
+                responding_agents = direct_mention_agents
+                logger.info(f"Direct @mention routing to: {[a['agent_name'] for a in responding_agents]}")
+            else:
+                # Normal routing - select agents based on message content
+                responding_agents = self.select_responding_agents(context)
 
             if not responding_agents:
                 yield {
@@ -709,10 +764,13 @@ Respond with ONLY the handoff message, nothing else."""
                 return
 
             # Facilitator introduces the agents (brief routing message)
-            routing_intro = await self._generate_facilitator_routing_intro(
-                responding_agents,
-                context.user_message
-            )
+            # SKIP for direct @mentions - user already knows who they're talking to
+            routing_intro = None
+            if not is_direct_mention:
+                routing_intro = await self._generate_facilitator_routing_intro(
+                    responding_agents,
+                    context.user_message
+                )
             if routing_intro:
                 async for event in self._stream_facilitator_message(routing_intro, context):
                     yield event
