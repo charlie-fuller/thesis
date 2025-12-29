@@ -262,9 +262,10 @@ export default function MeetingRoomPage() {
                       agent_display_name: 'Facilitator',
                       created_at: new Date().toISOString()
                     }
-                    setMessages(prev => [...prev, facilitatorMessage])
+                    // Clear streaming content BEFORE adding message to prevent duplicate display
                     delete agentResponses['facilitator']
                     setStreamingContent({ ...agentResponses })
+                    setMessages(prev => [...prev, facilitatorMessage])
                   }
                   setActiveAgent(null)
                   break
@@ -295,6 +296,9 @@ export default function MeetingRoomPage() {
                       )?.agent_display_name || data.agent_name,
                       created_at: new Date().toISOString()
                     }
+                    // Clear streaming content BEFORE adding message to prevent duplicate display
+                    delete agentResponses[data.agent_name]
+                    setStreamingContent({ ...agentResponses })
                     setMessages(prev => [...prev, agentMessage])
                   }
                   setActiveAgent(null)
