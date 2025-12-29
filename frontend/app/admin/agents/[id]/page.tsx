@@ -115,7 +115,7 @@ function isPlaceholderInstruction(instruction: string | null | undefined): boole
   return false;
 }
 
-type TabType = 'instructions' | 'compare' | 'knowledge' | 'config' | 'stats';
+type TabType = 'overview' | 'instructions' | 'compare' | 'knowledge' | 'config' | 'stats';
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -124,7 +124,7 @@ export default function AgentDetailPage() {
   const [data, setData] = useState<AgentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('instructions');
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   // Instruction editing state
   const [editingInstructions, setEditingInstructions] = useState(false);
@@ -576,7 +576,7 @@ export default function AgentDetailPage() {
 
       {/* Tabs */}
       <div className="flex border-b border-border mb-6">
-        {(['instructions', 'compare', 'knowledge', 'config', 'stats'] as TabType[]).map((tab) => (
+        {(['overview', 'instructions', 'compare', 'knowledge', 'config', 'stats'] as TabType[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -592,6 +592,121 @@ export default function AgentDetailPage() {
       </div>
 
       {/* Tab Content */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Agent Purpose */}
+          <div className="card p-6">
+            <h2 className="text-lg font-semibold text-primary mb-4">What This Agent Does</h2>
+            <p className="text-secondary leading-relaxed">
+              {agent.description || 'No description configured for this agent.'}
+            </p>
+          </div>
+
+          {/* Agent Role & Capabilities */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="card p-6">
+              <h3 className="text-md font-semibold text-primary mb-3">Why It Exists</h3>
+              <p className="text-secondary text-sm leading-relaxed">
+                {(() => {
+                  const purposes: Record<string, string> = {
+                    atlas: 'Provides research intelligence for GenAI implementation, leveraging Lean methodology and competitive benchmarking to support data-driven decisions.',
+                    fortuna: 'Delivers financial analysis including ROI calculations, business case development, and SOX compliance considerations for AI investments.',
+                    guardian: 'Ensures IT governance, security compliance, shadow IT detection, and vendor evaluation for enterprise AI deployments.',
+                    counselor: 'Addresses legal considerations including contracts, AI risk assessment, liability, and data privacy compliance.',
+                    oracle: 'Analyzes meeting transcripts to extract stakeholder insights, sentiment patterns, and strategic recommendations with evidence.',
+                    sage: 'Focuses on change management, human flourishing, and driving successful AI adoption across the organization.',
+                    strategist: 'Provides C-suite engagement strategies, navigates organizational politics, and designs governance frameworks.',
+                    architect: 'Designs technical architecture for enterprise AI including RAG systems, integrations, and build vs. buy decisions.',
+                    operator: 'Optimizes business processes, identifies automation opportunities, and tracks operational metrics.',
+                    pioneer: 'Scouts emerging technologies, filters hype from reality, and assesses innovation maturity for practical application.',
+                    catalyst: 'Crafts internal AI communications, addresses employee concerns, and builds engagement around AI initiatives.',
+                    scholar: 'Develops training programs, enables AI champions, and applies adult learning principles for skill development.',
+                    echo: 'Analyzes brand voice, creates style profiles, and provides guidelines for AI-assisted content that matches organizational tone.',
+                    nexus: 'Maps interconnections between initiatives, identifies feedback loops, and surfaces unintended consequences in complex systems.',
+                    coordinator: 'Orchestrates multi-agent collaboration, routes queries to specialists, and synthesizes responses across the platform.',
+                  };
+                  return purposes[agent.name.toLowerCase()] || 'This agent provides specialized capabilities within the Thesis platform.';
+                })()}
+              </p>
+            </div>
+
+            <div className="card p-6">
+              <h3 className="text-md font-semibold text-primary mb-3">How To Use It</h3>
+              <p className="text-secondary text-sm leading-relaxed">
+                {(() => {
+                  const howTo: Record<string, string> = {
+                    atlas: 'Ask research questions about GenAI trends, request competitive analysis, or explore best practices. Atlas will search the web and knowledge base to provide sourced answers.',
+                    fortuna: 'Request ROI projections, business case frameworks, or financial impact assessments. Provide context about the AI initiative for tailored analysis.',
+                    guardian: 'Consult on security requirements, compliance frameworks, or vendor evaluations. Share technical details for more specific guidance.',
+                    counselor: 'Ask about contract terms, regulatory compliance, or risk mitigation strategies. Include relevant context about stakeholders and jurisdictions.',
+                    oracle: 'Upload meeting transcripts or recordings. Oracle will extract stakeholder positions, sentiment, and actionable insights with supporting quotes.',
+                    sage: 'Discuss change management strategies, adoption challenges, or team dynamics. Sage helps design people-first AI implementation plans.',
+                    strategist: 'Seek guidance on executive engagement, stakeholder navigation, or governance design. Share organizational context for strategic recommendations.',
+                    architect: 'Discuss technical requirements, architecture patterns, or integration approaches. Provide system details for concrete recommendations.',
+                    operator: 'Identify process optimization opportunities, automation candidates, or operational metrics. Share workflow details for analysis.',
+                    pioneer: 'Explore emerging technologies, assess innovation maturity, or evaluate new tools. Pioneer separates signal from noise in the AI landscape.',
+                    catalyst: 'Draft internal communications, address AI anxiety, or plan engagement campaigns. Share audience context for tailored messaging.',
+                    scholar: 'Design training programs, plan champion enablement, or create learning paths. Specify skill levels and objectives for customized plans.',
+                    echo: 'Analyze brand voice samples, create style guides, or review AI-generated content for brand alignment. Provide examples of existing content.',
+                    nexus: 'Map system dependencies, explore feedback loops, or identify leverage points. Describe the interconnected elements for systems analysis.',
+                    coordinator: 'Use Auto mode to have Coordinator route your query to the best specialist agent, or explicitly request multi-agent collaboration on complex topics.',
+                  };
+                  return howTo[agent.name.toLowerCase()] || 'Interact with this agent through chat or include it in meeting room discussions for specialized insights.';
+                })()}
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="card p-6">
+            <h3 className="text-md font-semibold text-primary mb-4">Agent Activity</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 bg-page rounded-lg text-center">
+                <div className="text-2xl font-bold text-primary">{stats.instruction_versions_count}</div>
+                <div className="text-xs text-secondary mt-1">Instruction Versions</div>
+              </div>
+              <div className="p-4 bg-page rounded-lg text-center">
+                <div className="text-2xl font-bold text-primary">{stats.kb_documents_count || kb_documents.length}</div>
+                <div className="text-xs text-secondary mt-1">KB Documents</div>
+              </div>
+              <div className="p-4 bg-page rounded-lg text-center">
+                <div className="text-2xl font-bold text-primary">{stats.conversations_count}</div>
+                <div className="text-xs text-secondary mt-1">Conversations</div>
+              </div>
+              <div className="p-4 bg-page rounded-lg text-center">
+                <div className="text-2xl font-bold text-primary">
+                  {agent.is_active ? 'Yes' : 'No'}
+                </div>
+                <div className="text-xs text-secondary mt-1">Active Status</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Persona Alignment (if applicable) */}
+          {(() => {
+            const personas: Record<string, { name: string; role: string }> = {
+              atlas: { name: 'Chris Baumgartner', role: 'Research & Analytics' },
+              fortuna: { name: 'Raul Rivera III', role: 'Finance & Compliance' },
+              guardian: { name: 'Danny Leal', role: 'IT & Governance' },
+              counselor: { name: 'Ashley Adams', role: 'Legal & Risk' },
+              sage: { name: 'Chad Meek', role: 'People & Change' },
+              oracle: { name: 'CIPHER v2.1', role: 'Meeting Intelligence' },
+            };
+            const persona = personas[agent.name.toLowerCase()];
+            if (!persona) return null;
+            return (
+              <div className="card p-6 border-l-4 border-l-blue-500">
+                <h3 className="text-md font-semibold text-primary mb-2">Persona Alignment</h3>
+                <p className="text-secondary text-sm">
+                  This agent&apos;s behavior is modeled after <span className="text-primary font-medium">{persona.name}</span>,
+                  representing the <span className="text-primary font-medium">{persona.role}</span> stakeholder perspective.
+                </p>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
       {activeTab === 'instructions' && (
         <div className="space-y-6">
           {/* XML File Status Banner */}

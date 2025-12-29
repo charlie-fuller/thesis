@@ -94,7 +94,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 | Layer | Technology |
 |-------|------------|
 | Frontend | Next.js 16, React 19, TypeScript 5, Tailwind CSS 4 |
-| Backend | FastAPI (Python 3.11), Uvicorn, Pydantic |
+| Backend | FastAPI (Python 3.12), Uvicorn, Pydantic |
 | Database | Supabase (PostgreSQL) with Row-Level Security |
 | Graph DB | Neo4j Aura (stakeholder networks, agent expertise routing) |
 | AI/ML | Anthropic Claude, Voyage AI embeddings, Google Gemini 2.5 Flash (images) |
@@ -237,6 +237,7 @@ Run migrations in order from `/database/migrations/`:
 | 010 | rename_bard_to_echo | Rename bard to echo |
 | 011 | research_system | Atlas research tables, sources, schedule, gaps |
 | 012 | autonomous_discussion | Autonomous discussion mode for meeting rooms |
+| 013 | document_title | Add title column to documents for clean display names |
 
 ## Environment Variables
 
@@ -313,7 +314,7 @@ python -m pytest tests/ -v --tb=short
 
 ### Database
 - `/database/thesis_schema.sql` - Complete DB schema
-- `/database/migrations/` - All migration scripts (001-012)
+- `/database/migrations/` - All migration scripts (001-013)
 
 ### Documentation
 - `/docs/atlas/PROACTIVE_RESEARCH_PLAN.md` - Atlas research system architecture
@@ -332,3 +333,24 @@ The following features were removed to simplify the platform:
 Related database tables/columns that can be cleaned up:
 - `user_quick_prompts` (migration 025)
 - `documents.is_core_document` column
+
+## Known Issues & Fixes
+
+### Python 3.12 Compatibility
+Railway runs Python 3.12 which has stricter f-string rules. Backslashes (`\n`, `\t`, etc.) cannot appear inside f-string expressions `{}`. Pre-compute strings with backslashes before using them in f-strings.
+
+```python
+# BAD - causes SyntaxError in Python 3.12
+f"{('Header:\n' + content) if content else 'Empty'}"
+
+# GOOD - pre-compute the string
+header_text = f"Header:\n{content}" if content else "Empty"
+f"{header_text}"
+```
+
+### Agent Colors & Descriptions
+Agent UI colors and short descriptions are defined in multiple places for meeting rooms:
+- `/frontend/components/meeting-room/ParticipantBar.tsx` - `AGENT_COLORS` and `AGENT_DESCRIPTIONS`
+- `/frontend/components/meeting-room/CreateMeetingModal.tsx` - `AGENT_SHORT_DESCRIPTIONS` and `getAgentColor()`
+
+When adding new agents, update both files.

@@ -2,13 +2,16 @@
 Meeting Orchestrator Service
 
 Manages multi-agent conversations in meeting rooms:
-- Determines which agents should respond to each user message
+- Uses Facilitator agent to analyze intent and manage turn-taking
+- Facilitator is ALWAYS present and speaks first on greetings/unclear intent
+- Ensures balanced participation (no single agent dominates)
+- Invokes systems thinking (Nexus) before conclusions
 - Coordinates agent responses with proper attribution
 - Streams responses with agent identification
 - Tracks token usage and turn counts
 - Creates vector embeddings for semantic search
 
-Updated: 2025-12-28 - Fixed f-string syntax for Python 3.12+
+Updated: 2025-12-28 - Added Facilitator-based orchestration
 """
 
 import asyncio
@@ -24,6 +27,12 @@ from supabase import Client
 from agents.base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
+
+# Greeting patterns that trigger facilitator welcome
+GREETING_PATTERNS = [
+    'hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening',
+    'howdy', 'greetings', "what's up", 'yo', 'hi there', 'hello there'
+]
 
 # Lazy import for embeddings to avoid crash if VOYAGE_API_KEY is not set
 _embed_meeting_room_message = None
@@ -139,11 +148,38 @@ class MeetingOrchestrator:
         self,
         supabase: Client,
         anthropic_client: anthropic.Anthropic,
-        agents: dict[str, BaseAgent]
+        agents: dict[str, BaseAgent],
+        facilitator: Optional[BaseAgent] = None
     ):
         self.supabase = supabase
         self.anthropic = anthropic_client
         self.agents = agents
+        self.facilitator = facilitator  # The Facilitator meta-agent (always present)
+
+    def _is_greeting(self, message: str) -> bool:
+        """Check if a message is a greeting that should trigger facilitator welcome."""
+        message_lower = message.lower().strip()
+        # Check for exact matches or messages starting with greeting
+        for greeting in GREETING_PATTERNS:
+            if message_lower == greeting or message_lower.startswith(greeting + " ") or message_lower.startswith(greeting + "!"):
+                return True
+        # Also catch very short messages that are likely greetings
+        if len(message_lower) < 20 and any(g in message_lower for g in GREETING_PATTERNS[:6]):
+            return True
+        return False
+
+    def _track_agents_spoken(self, context: MeetingContext) -> set[str]:
+        """Track which agents have spoken in recent history."""
+        spoken = set()
+        # Look at last 10 messages to see who's spoken
+        for msg in context.message_history[-10:]:
+            if msg.get('role') == 'agent' and msg.get('agent_name'):
+                spoken.add(msg['agent_name'])
+        return spoken
+
+    def _get_unheard_agents(self, context: MeetingContext, spoken: set[str]) -> list[dict]:
+        """Get list of participant agents who haven't spoken recently."""
+        return [p for p in context.participants if p['agent_name'] not in spoken]
 
     def select_responding_agents(
         self,
@@ -221,6 +257,100 @@ The user's message will follow. Respond from your perspective as {agent_display_
 """
         return base_instruction + meeting_context
 
+    async def _stream_facilitator_message(
+        self,
+        message: str,
+        context: MeetingContext
+    ) -> AsyncGenerator[dict, None]:
+        """Stream a facilitator message with proper event types."""
+        yield {
+            "type": "facilitator_turn_start",
+            "agent_name": "facilitator",
+            "agent_display_name": "Facilitator"
+        }
+
+        # Stream the message character by character for consistency
+        # (or could stream word by word for faster perceived response)
+        words = message.split()
+        for i, word in enumerate(words):
+            token = word + (" " if i < len(words) - 1 else "")
+            yield {
+                "type": "facilitator_token",
+                "content": token
+            }
+            await asyncio.sleep(0.02)  # Small delay for natural streaming feel
+
+        # Store the facilitator message
+        await self._store_message(
+            meeting_room_id=context.meeting_room_id,
+            role="agent",
+            content=message,
+            agent_name="facilitator",
+            agent_display_name="Facilitator",
+            turn_number=context.turn_number,
+            metadata={"is_facilitator": True}
+        )
+
+        yield {
+            "type": "facilitator_turn_end",
+            "agent_name": "facilitator"
+        }
+
+    def _generate_facilitator_welcome(self, participants: list[dict]) -> str:
+        """Generate a brief welcome message from the Facilitator."""
+        # Get participant display names with brief domain labels
+        participant_labels = []
+        for p in participants:
+            name = p.get('agent_display_name', p.get('agent_name', 'Agent'))
+            domain = self._get_agent_domain_label(p.get('agent_name', ''))
+            participant_labels.append(f"{name} ({domain})")
+
+        if len(participant_labels) <= 4:
+            names_str = ", ".join(participant_labels)
+        else:
+            names_str = ", ".join(participant_labels[:4]) + f", and {len(participant_labels) - 4} others"
+
+        return f"Welcome! Today we have {names_str} with us. What would you like us to explore together?"
+
+    def _get_agent_domain_label(self, agent_name: str) -> str:
+        """Get a brief domain label for an agent."""
+        labels = {
+            'atlas': 'research',
+            'fortuna': 'finance',
+            'guardian': 'security',
+            'counselor': 'legal',
+            'oracle': 'meetings',
+            'sage': 'people',
+            'strategist': 'strategy',
+            'architect': 'technical',
+            'operator': 'operations',
+            'pioneer': 'innovation',
+            'catalyst': 'communications',
+            'scholar': 'learning',
+            'nexus': 'systems',
+            'echo': 'brand voice',
+        }
+        return labels.get(agent_name.lower(), 'specialist')
+
+    def _generate_facilitator_routing_intro(
+        self,
+        responding_agents: list[dict],
+        user_message: str
+    ) -> Optional[str]:
+        """Generate a brief intro from the Facilitator when routing to agents."""
+        if not responding_agents:
+            return None
+
+        agent_names = [p.get('agent_display_name', p.get('agent_name')) for p in responding_agents]
+
+        if len(agent_names) == 1:
+            return f"Let me bring in {agent_names[0]} on this."
+        elif len(agent_names) == 2:
+            return f"This touches on a couple areas. {agent_names[0]} and {agent_names[1]} - what do you see here?"
+        else:
+            names_str = ", ".join(agent_names[:-1]) + f", and {agent_names[-1]}"
+            return f"Good question. Let's hear from {names_str}."
+
     async def process_meeting_turn(
         self,
         context: MeetingContext
@@ -228,7 +358,15 @@ The user's message will follow. Respond from your perspective as {agent_display_
         """
         Process a user message and yield streaming responses from agents.
 
+        The Facilitator orchestrates the conversation:
+        - For greetings: Facilitator welcomes and asks what to explore (no agent responses)
+        - For questions: Facilitator briefly introduces, then relevant agents respond
+        - For follow-ups: Routes directly to addressed agent
+
         Yields SSE-formatted events:
+        - facilitator_turn_start: When facilitator begins
+        - facilitator_token: Facilitator response tokens
+        - facilitator_turn_end: When facilitator finishes
         - agent_turn_start: When an agent begins responding
         - agent_token: Individual tokens from agent response
         - agent_turn_end: When an agent finishes
@@ -236,6 +374,28 @@ The user's message will follow. Respond from your perspective as {agent_display_
         - error: If something goes wrong
         """
         try:
+            # Store user message first
+            await self._store_message(
+                meeting_room_id=context.meeting_room_id,
+                role="user",
+                content=context.user_message,
+                turn_number=context.turn_number
+            )
+
+            # Check if this is a greeting - Facilitator handles alone
+            if self._is_greeting(context.user_message):
+                welcome_message = self._generate_facilitator_welcome(context.participants)
+                async for event in self._stream_facilitator_message(welcome_message, context):
+                    yield event
+
+                yield {
+                    "type": "round_complete",
+                    "agents_responded": ["facilitator"],
+                    "facilitator_only": True,
+                    "total_tokens": {"input": 0, "output": len(welcome_message.split())}
+                }
+                return
+
             # Select which agents should respond
             responding_agents = self.select_responding_agents(context)
 
@@ -246,17 +406,18 @@ The user's message will follow. Respond from your perspective as {agent_display_
                 }
                 return
 
+            # Facilitator introduces the agents (brief routing message)
+            routing_intro = self._generate_facilitator_routing_intro(
+                responding_agents,
+                context.user_message
+            )
+            if routing_intro:
+                async for event in self._stream_facilitator_message(routing_intro, context):
+                    yield event
+
             agents_responded = []
             total_tokens_input = 0
             total_tokens_output = 0
-
-            # Store user message first
-            await self._store_message(
-                meeting_room_id=context.meeting_room_id,
-                role="user",
-                content=context.user_message,
-                turn_number=context.turn_number
-            )
 
             # Get list of other participant names for context
             all_participant_names = [p['agent_display_name'] for p in context.participants]
@@ -1134,6 +1295,7 @@ async def get_meeting_orchestrator(
 ) -> MeetingOrchestrator:
     """
     Factory function to create a MeetingOrchestrator with all agents loaded.
+    Includes the Facilitator meta-agent which is always present in meetings.
     """
     from agents.atlas import AtlasAgent
     from agents.fortuna import FortunaAgent
@@ -1141,6 +1303,16 @@ async def get_meeting_orchestrator(
     from agents.counselor import CounselorAgent
     from agents.oracle import OracleAgent
     from agents.sage import SageAgent
+
+    # Initialize the Facilitator meta-agent (always present)
+    facilitator = None
+    try:
+        from agents.facilitator import FacilitatorAgent
+        facilitator = FacilitatorAgent(supabase, anthropic_client)
+        await facilitator.initialize()
+        logger.info("Facilitator meta-agent initialized")
+    except Exception as e:
+        logger.warning(f"Could not load Facilitator agent: {e}")
 
     # Initialize all available agents
     agents: dict[str, BaseAgent] = {}
@@ -1213,5 +1385,7 @@ async def get_meeting_orchestrator(
             logger.warning(f"Failed to initialize agent {agent.name}: {e}")
 
     logger.info(f"MeetingOrchestrator initialized with {len(agents)} agents: {list(agents.keys())}")
+    if facilitator:
+        logger.info("Facilitator is active and will orchestrate meetings")
 
-    return MeetingOrchestrator(supabase, anthropic_client, agents)
+    return MeetingOrchestrator(supabase, anthropic_client, agents, facilitator)

@@ -97,6 +97,7 @@ class AgentResponse(BaseModel):
     instruction_versions_count: int = 0
     kb_documents_count: int = 0
     conversations_count: int = 0
+    meeting_rooms_count: int = 0
 
 
 class AgentInstructionVersion(BaseModel):
@@ -149,11 +150,18 @@ async def list_agents(
                 .eq("agent_id", agent["id"])\
                 .execute()
 
+            # Get meeting room participation count
+            meetings_result = supabase.table("meeting_room_participants")\
+                .select("id", count="exact")\
+                .eq("agent_id", agent["id"])\
+                .execute()
+
             agents.append({
                 **agent,
                 "instruction_versions_count": versions_result.count or 0,
                 "kb_documents_count": kb_result.count or 0,
                 "conversations_count": convs_result.count or 0,
+                "meeting_rooms_count": meetings_result.count or 0,
             })
 
         return {"success": True, "agents": agents}

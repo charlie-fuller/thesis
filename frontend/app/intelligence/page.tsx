@@ -11,7 +11,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import { AgentIcon, getAgentColor } from '@/components/AgentIcon'
 
 // Tab type
-type TabType = 'stakeholders' | 'agents'
+type TabType = 'agents' | 'stakeholders'
 
 // Stakeholder types
 interface Stakeholder {
@@ -69,6 +69,7 @@ interface Agent {
   instruction_versions_count: number
   kb_documents_count: number
   conversations_count: number
+  meeting_rooms_count: number
 }
 
 const ENGAGEMENT_LEVELS = ['champion', 'supporter', 'neutral', 'skeptic', 'blocker']
@@ -77,7 +78,7 @@ const DEPARTMENTS = ['finance', 'it', 'legal', 'governance', 'hr', 'marketing', 
 export default function IntelligencePage() {
   const router = useRouter()
   const { user, session, loading: authLoading } = useAuth()
-  const [activeTab, setActiveTab] = useState<TabType>('stakeholders')
+  const [activeTab, setActiveTab] = useState<TabType>('agents')
 
   // Stakeholder state
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([])
@@ -276,21 +277,6 @@ export default function IntelligencePage() {
         {/* Tabs */}
         <div className="flex gap-1 mb-6 border-b border-default">
           <button
-            onClick={() => setActiveTab('stakeholders')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'stakeholders'
-                ? 'border-brand text-brand'
-                : 'border-transparent text-secondary hover:text-primary'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              Stakeholders
-            </div>
-          </button>
-          <button
             onClick={() => setActiveTab('agents')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'agents'
@@ -303,6 +289,21 @@ export default function IntelligencePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
               Agents
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('stakeholders')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'stakeholders'
+                ? 'border-brand text-brand'
+                : 'border-transparent text-secondary hover:text-primary'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Stakeholders
             </div>
           </button>
         </div>
@@ -754,9 +755,9 @@ export default function IntelligencePage() {
                         </div>
                         <div className="text-center">
                           <div className="text-lg font-semibold text-primary">
-                            {agent.conversations_count}
+                            {agent.meeting_rooms_count}
                           </div>
-                          <div className="text-xs text-secondary">Chats</div>
+                          <div className="text-xs text-secondary">Meetings</div>
                         </div>
                       </div>
                     </Link>
