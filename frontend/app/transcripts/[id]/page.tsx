@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
+import { Calendar, Check, Circle } from 'lucide-react'
 import { apiGet } from '@/lib/api'
 
 interface Attendee {
@@ -161,8 +162,9 @@ export default function TranscriptDetailPage(props: { params: Promise<{ id: stri
               </h1>
               <div className="flex flex-wrap gap-3 text-sm">
                 {transcript.meeting_date && (
-                  <span className="text-gray-500 dark:text-gray-400">
-                    &#128197; {transcript.meeting_date}
+                  <span className="text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4" />
+                    {transcript.meeting_date}
                   </span>
                 )}
                 <span className="px-2 py-0.5 bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 rounded capitalize">
@@ -328,9 +330,7 @@ export default function TranscriptDetailPage(props: { params: Promise<{ id: stri
                     <div className="font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
                       {attendee.name}
                       {attendee.stakeholder_id && (
-                        <span className="text-teal-500 text-xs" title="Linked to stakeholder database">
-                          &#10003;
-                        </span>
+                        <Check className="w-3.5 h-3.5 text-teal-500" title="Linked to stakeholder database" />
                       )}
                     </div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -356,7 +356,7 @@ export default function TranscriptDetailPage(props: { params: Promise<{ id: stri
                       key={i}
                       className="text-sm text-gray-600 dark:text-gray-400 flex items-start gap-2"
                     >
-                      <span className="text-teal-500 mt-0.5">&#10003;</span>
+                      <Check className="w-4 h-4 text-teal-500 mt-0.5 flex-shrink-0" />
                       {decision}
                     </li>
                   ))}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { Check, Circle } from 'lucide-react'
 import { API_BASE_URL } from '@/lib/config'
 import { authenticatedFetch } from '@/lib/api'
 
@@ -331,9 +332,7 @@ Sarah (Engineering Lead): I have some concerns about the timeline..."
                   <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
                     {attendee.name}
                     {attendee.stakeholder_id && (
-                      <span className="ml-1 text-teal-500" title="Linked to stakeholder">
-                        &#10003;
-                      </span>
+                      <Check className="inline-block w-3.5 h-3.5 ml-1 text-teal-500" title="Linked to stakeholder" />
                     )}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -410,7 +409,7 @@ Sarah (Engineering Lead): I have some concerns about the timeline..."
                     key={i}
                     className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400"
                   >
-                    <span className="text-teal-500 mt-0.5">&#9679;</span>
+                    <Circle className="w-2.5 h-2.5 text-teal-500 mt-1.5 flex-shrink-0 fill-current" />
                     <div>
                       <span>{item.description}</span>
                       {item.owner && (

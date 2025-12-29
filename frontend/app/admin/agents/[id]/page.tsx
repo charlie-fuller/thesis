@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { Upload, FileText, X, ArrowLeft } from 'lucide-react';
+import { Upload, FileText, X, ArrowLeft, Check, Diamond, ChevronRight, Circle } from 'lucide-react';
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -760,12 +760,21 @@ export default function AgentDetailPage() {
                     ]
                   },
                   facilitator: {
-                    summary: 'Meeting orchestration meta-agent that makes other agents brilliant. Facilitator welcomes participants, clarifies user intent before opening discussion, routes topics to relevant specialists, enforces balanced participation, and synthesizes multi-agent discussions into actionable conclusions.',
+                    summary: 'Meeting orchestration meta-agent that makes other agents brilliant. Facilitator welcomes participants, clarifies user intent before opening discussion, routes topics to relevant specialists, enforces balanced participation, and ensures systems thinking is invoked before conclusions are reached.',
                     keyActions: [
                       'Welcomes users and clarifies intent before inviting specialists',
                       'Routes topics to relevant agents with brief context',
                       'Enforces balanced participation - no single agent dominates',
                       'Invokes systems thinking before conclusions are reached'
+                    ]
+                  },
+                  reporter: {
+                    summary: 'Meeting synthesis meta-agent that distills multi-agent discussions into unified documentation. Reporter creates summaries with proper attribution to source agents, extracts action items with ownership, produces executive briefs ready for stakeholder sharing, and preserves disagreements rather than forcing false consensus.',
+                    keyActions: [
+                      'Synthesizes multi-agent discussions into coherent summaries',
+                      'Attributes insights to source agents for transparency',
+                      'Extracts action items with owners and dependencies',
+                      'Produces executive briefs suitable for direct stakeholder sharing'
                     ]
                   }
                 };
@@ -788,18 +797,12 @@ export default function AgentDetailPage() {
                       <ul className="space-y-1.5">
                         {overview.keyActions.map((action, i) => (
                           <li key={i} className="flex items-start gap-2 text-sm text-secondary">
-                            <span className="text-primary mt-0.5">&#8226;</span>
+                            <Circle className="w-1.5 h-1.5 text-primary mt-2 flex-shrink-0 fill-current" />
                             {action}
                           </li>
                         ))}
                       </ul>
                     </div>
-                    {overview.persona && (
-                      <div className="pt-3 border-t border-border">
-                        <span className="text-xs text-secondary">Informed by: </span>
-                        <span className="text-sm text-primary font-medium">{overview.persona}</span>
-                      </div>
-                    )}
                   </div>
                 );
               })()}
@@ -987,6 +990,16 @@ export default function AgentDetailPage() {
                       'Premature conclusions - invokes systems thinking before finalizing'
                     ],
                     uniqueValue: 'Meta-agent that makes other agents brilliant - not a domain expert, but a skilled conductor of expertise.'
+                  },
+                  reporter: {
+                    purpose: 'Meeting synthesis and documentation - distills multi-agent discussions into unified summaries, action items, and executive briefs.',
+                    problemsSolved: [
+                      'Summary confusion - one voice instead of multiple agents each giving their own recap',
+                      'Lost attribution - tracks which agent said what for transparency and follow-up',
+                      'False consensus - preserves disagreements rather than smoothing over tensions',
+                      'Documentation burden - produces shareable executive briefs ready for stakeholders'
+                    ],
+                    uniqueValue: 'Single source of truth for meeting documentation that respects all voices while creating unified, actionable output.'
                   }
                 };
                 const detail = agentDetails[agent.name.toLowerCase()];
@@ -1003,7 +1016,7 @@ export default function AgentDetailPage() {
                       <ul className="space-y-2">
                         {detail.problemsSolved.map((problem, i) => (
                           <li key={i} className="flex items-start gap-3 text-sm text-secondary">
-                            <span className="text-green-400 mt-0.5">&#10003;</span>
+                            <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
                             {problem}
                           </li>
                         ))}
@@ -1016,7 +1029,7 @@ export default function AgentDetailPage() {
                         <ul className="space-y-2">
                           {detail.keyPrinciples.map((principle, i) => (
                             <li key={i} className="flex items-start gap-3 text-sm text-secondary">
-                              <span className="text-blue-400 mt-0.5">&#9670;</span>
+                              <Diamond className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
                               {principle}
                             </li>
                           ))}
@@ -1243,6 +1256,18 @@ export default function AgentDetailPage() {
                       'Facilitate a discussion between specialists'
                     ],
                     tips: ['Let Facilitator guide the flow - it will bring in specialists as needed']
+                  },
+                  reporter: {
+                    howToUse: 'Reporter is automatically present in meetings. Ask for a summary, action items, or executive brief when you need unified documentation.',
+                    capabilities: ['Meeting synthesis', 'Summary generation', 'Action item extraction', 'Executive briefs', 'Attribution tracking'],
+                    bestFor: ['Meeting documentation', 'Stakeholder updates', 'Decision summaries', 'Action item tracking'],
+                    examplePrompts: [
+                      'Summarize what we discussed',
+                      'What are our action items?',
+                      'Give me an executive brief I can share with my VP',
+                      'What were the key takeaways from this meeting?'
+                    ],
+                    tips: ['Ask for a brief when you need shareable output - Reporter will format it for stakeholders']
                   }
                 };
                 const detail = usageDetails[agent.name.toLowerCase()];
@@ -1260,7 +1285,7 @@ export default function AgentDetailPage() {
                         <ul className="space-y-1">
                           {detail.capabilities.map((cap, i) => (
                             <li key={i} className="flex items-start gap-2 text-sm text-secondary">
-                              <span className="text-primary mt-0.5">&#8226;</span>
+                              <Circle className="w-1.5 h-1.5 text-primary mt-2 flex-shrink-0 fill-current" />
                               {cap}
                             </li>
                           ))}
@@ -1271,7 +1296,7 @@ export default function AgentDetailPage() {
                         <ul className="space-y-1">
                           {detail.bestFor.map((item, i) => (
                             <li key={i} className="flex items-start gap-2 text-sm text-secondary">
-                              <span className="text-primary mt-0.5">&#8226;</span>
+                              <Circle className="w-1.5 h-1.5 text-primary mt-2 flex-shrink-0 fill-current" />
                               {item}
                             </li>
                           ))}
@@ -1296,7 +1321,7 @@ export default function AgentDetailPage() {
                         <ul className="space-y-1">
                           {detail.tips.map((tip, i) => (
                             <li key={i} className="flex items-start gap-2 text-sm text-secondary">
-                              <span className="text-yellow-400 mt-0.5">&#9733;</span>
+                              <ChevronRight className="w-3 h-3 text-primary mt-1 flex-shrink-0" />
                               {tip}
                             </li>
                           ))}

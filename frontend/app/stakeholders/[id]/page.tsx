@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
+import { Check, FileText, MessageCircle } from 'lucide-react'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
 
 interface Stakeholder {
@@ -383,7 +384,9 @@ export default function StakeholderDetailPage(props: { params: Promise<{ id: str
                             </span>
                           )}
                           {insight.is_resolved && (
-                            <span className="text-xs text-green-600 dark:text-green-400">&#10003; Resolved</span>
+                            <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                              <Check className="w-3 h-3" /> Resolved
+                            </span>
                           )}
                         </div>
                         {!insight.is_resolved && insight.insight_type === 'concern' && (
@@ -497,15 +500,15 @@ export default function StakeholderDetailPage(props: { params: Promise<{ id: str
               <div className="space-y-2">
                 <button
                   onClick={() => router.push('/transcripts')}
-                  className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                 >
-                  &#128221; Upload Transcript
+                  <FileText className="w-4 h-4" /> Upload Transcript
                 </button>
                 <button
                   onClick={() => router.push('/chat')}
-                  className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                 >
-                  &#128172; Chat with Agents
+                  <MessageCircle className="w-4 h-4" /> Chat with Agents
                 </button>
               </div>
             </div>
