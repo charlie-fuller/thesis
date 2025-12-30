@@ -132,6 +132,7 @@ class MeetingRoomListResponse(BaseModel):
     status: str
     total_tokens_used: int
     participant_count: int
+    autonomous_topic: Optional[str] = None  # Set if autonomous discussion was used
     created_at: datetime
     updated_at: datetime
 

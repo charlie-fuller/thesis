@@ -220,6 +220,7 @@ async def list_meeting_rooms(
                     status=m['status'],
                     total_tokens_used=m['total_tokens_used'],
                     participant_count=m.get('participant_count', 0),
+                    autonomous_topic=m.get('config', {}).get('autonomous', {}).get('topic'),
                     created_at=m['created_at'],
                     updated_at=m['updated_at'],
                 )

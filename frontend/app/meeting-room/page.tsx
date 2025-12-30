@@ -17,6 +17,7 @@ interface MeetingRoom {
   status: string
   total_tokens_used: number
   participant_count: number
+  autonomous_topic: string | null
   created_at: string
   updated_at: string
 }
@@ -202,9 +203,16 @@ export default function MeetingRoomListPage() {
                   <h3 className="font-medium text-primary truncate flex-1">
                     {meeting.title}
                   </h3>
-                  <span className={`text-xs px-2 py-1 rounded-full ml-2 ${getMeetingTypeColor(meeting.meeting_type)}`}>
-                    {getMeetingTypeLabel(meeting.meeting_type)}
-                  </span>
+                  <div className="flex items-center gap-2 ml-2">
+                    {meeting.autonomous_topic && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" title={`Topic: ${meeting.autonomous_topic}`}>
+                        Autonomous
+                      </span>
+                    )}
+                    <span className={`text-xs px-2 py-1 rounded-full ${getMeetingTypeColor(meeting.meeting_type)}`}>
+                      {getMeetingTypeLabel(meeting.meeting_type)}
+                    </span>
+                  </div>
                 </div>
 
                 {meeting.description && (

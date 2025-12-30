@@ -2,12 +2,17 @@
 <!--
   Smart Brevity Formatting Directive
   Based on Axios-style communication principles
-  Version: 2.0
+  Version: 2.1
   Created: 2025-12-28
-  Updated: 2025-12-28
+  Updated: 2025-12-29
 
   MANDATORY directive for all agent responses. Enforces concise, scannable output.
+  Now includes conversational_awareness.xml for multi-agent coherence.
 -->
+
+<!-- Include conversational awareness for multi-agent discussions -->
+<include file="shared/conversational_awareness.xml" />
+
 <smart_brevity>
 
 <!-- ============================================================
