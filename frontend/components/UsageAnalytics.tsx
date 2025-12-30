@@ -236,30 +236,6 @@ export default function UsageAnalytics() {
         )}
       </div>
 
-      {/* Agent Usage Summary */}
-      {agents.length > 0 && (
-        <div>
-          <h3 className="text-sm font-medium text-secondary mb-3">Agent Usage ({days} Days)</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            {agents.slice(0, 10).map((agentName, idx) => (
-              <div key={agentName} className="card p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: getAgentColor(agentName, idx) }}
-                  />
-                  <span className="text-sm font-medium text-primary truncate">{agentName}</span>
-                </div>
-                <div className="text-xl font-bold text-secondary">
-                  {agentTotals[agentName]?.toLocaleString() || 0}
-                </div>
-                <div className="text-xs text-muted">messages</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }

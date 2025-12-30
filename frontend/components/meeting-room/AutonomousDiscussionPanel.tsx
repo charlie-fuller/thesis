@@ -150,14 +150,14 @@ export default function AutonomousDiscussionPanel({
 
       <div className="space-y-3">
         <div>
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+          <label className="block text-xs font-medium text-secondary mb-1">
             Discussion Topic
           </label>
           <textarea
             value={topicInput}
             onChange={(e) => setTopicInput(e.target.value)}
             placeholder="What should the agents discuss? Be specific about what perspectives you want explored..."
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+            className="w-full px-3 py-2 text-sm border border-default rounded-lg bg-card text-primary placeholder-secondary focus:outline-none focus:ring-2 focus:ring-primary resize-none"
             rows={3}
             disabled={isStarting}
           />
@@ -165,13 +165,13 @@ export default function AutonomousDiscussionPanel({
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+            <label className="text-xs font-medium text-secondary">
               Rounds:
             </label>
             <select
               value={roundsInput}
               onChange={(e) => setRoundsInput(parseInt(e.target.value))}
-              className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              className="px-2 py-1 text-sm border border-default rounded bg-card text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               disabled={isStarting}
             >
               {[1, 2, 3, 4, 5].map((n) => (
@@ -180,7 +180,7 @@ export default function AutonomousDiscussionPanel({
                 </option>
               ))}
             </select>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-xs text-secondary">
               (each agent speaks once per round)
             </span>
           </div>
