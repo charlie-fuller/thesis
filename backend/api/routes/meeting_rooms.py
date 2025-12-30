@@ -820,6 +820,33 @@ async def stream_meeting_chat(
             # KB search is optional - don't fail the request if it errors
             logger.warning(f"[Meeting Chat] KB search failed (non-fatal): {kb_err}")
 
+        # Retrieve Neo4j graph context (stakeholders, relationships, concerns)
+        graph_context = {}
+        try:
+            if not is_simple_message:
+                logger.info(f"[Meeting Chat] Fetching graph context from Neo4j...")
+                from services.graph.connection import get_neo4j_connection
+                from services.graph.query_service import GraphQueryService
+
+                neo4j = await get_neo4j_connection()
+                graph_service = GraphQueryService(neo4j)
+                graph_context = await graph_service.get_meeting_context(
+                    query=chat_request.message,
+                    client_id=client_id,
+                    limit=5
+                )
+                # Count non-empty results
+                total_graph_items = (
+                    len(graph_context.get("stakeholders", [])) +
+                    len(graph_context.get("concerns", [])) +
+                    len(graph_context.get("roi_opportunities", [])) +
+                    len(graph_context.get("relationships", []))
+                )
+                logger.info(f"[Meeting Chat] Found {total_graph_items} graph context items")
+        except Exception as graph_err:
+            # Graph context is optional - don't fail the request if it errors
+            logger.warning(f"[Meeting Chat] Graph context failed (non-fatal): {graph_err}")
+
         # Build meeting context
         logger.info(f"[Meeting Chat] Importing MeetingContext...")
         try:
@@ -840,9 +867,11 @@ async def stream_meeting_chat(
             meeting_type=meeting['meeting_type'],
             config=meeting['config'] or {},
             turn_number=turn_number,
-            kb_context=kb_context,  # Include KB context for RAG
+            kb_context=kb_context,  # Vector search KB context (Voyage AI)
+            graph_context=graph_context,  # Graph relationship context (Neo4j)
         )
-        logger.info(f"[Meeting Chat] MeetingContext created for turn {turn_number} with {len(kb_context)} KB chunks")
+        graph_items = len(graph_context.get("stakeholders", [])) + len(graph_context.get("concerns", []))
+        logger.info(f"[Meeting Chat] MeetingContext created for turn {turn_number} with {len(kb_context)} KB chunks and {graph_items} graph items")
 
         # Get orchestrator and process the turn
         logger.info(f"[Meeting Chat] Getting orchestrator for meeting {meeting_id}")
@@ -1002,6 +1031,29 @@ async def start_autonomous_discussion(
         except Exception as kb_err:
             logger.warning(f"[Autonomous] KB search failed (non-fatal): {kb_err}")
 
+        # Retrieve Neo4j graph context for the discussion topic
+        graph_context = {}
+        try:
+            logger.info(f"[Autonomous] Fetching graph context from Neo4j...")
+            from services.graph.connection import get_neo4j_connection
+            from services.graph.query_service import GraphQueryService
+
+            neo4j = await get_neo4j_connection()
+            graph_service = GraphQueryService(neo4j)
+            graph_context = await graph_service.get_meeting_context(
+                query=discussion_request.topic,
+                client_id=client_id,
+                limit=5
+            )
+            total_graph_items = (
+                len(graph_context.get("stakeholders", [])) +
+                len(graph_context.get("concerns", [])) +
+                len(graph_context.get("roi_opportunities", []))
+            )
+            logger.info(f"[Autonomous] Found {total_graph_items} graph context items")
+        except Exception as graph_err:
+            logger.warning(f"[Autonomous] Graph context failed (non-fatal): {graph_err}")
+
         # Build meeting context
         from services.meeting_orchestrator import MeetingContext
 
@@ -1015,7 +1067,8 @@ async def start_autonomous_discussion(
             meeting_type=meeting['meeting_type'],
             config=meeting['config'] or {},
             turn_number=0,
-            kb_context=kb_context,  # Include KB context for RAG
+            kb_context=kb_context,  # Vector search KB context (Voyage AI)
+            graph_context=graph_context,  # Graph relationship context (Neo4j)
         )
 
         # Get orchestrator and process autonomous discussion

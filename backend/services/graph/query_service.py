@@ -864,3 +864,191 @@ class GraphQueryService:
                     break
 
         return list(set(found_keywords)) or ["genai"]  # Default to genai if nothing matches
+
+    # =========================================================================
+    # Meeting Room Context Queries
+    # =========================================================================
+
+    async def get_meeting_context(
+        self,
+        query: str,
+        client_id: str,
+        limit: int = 5
+    ) -> dict[str, Any]:
+        """
+        Get relevant graph context for a meeting room discussion.
+
+        Searches for:
+        - Related stakeholders and their concerns
+        - ROI opportunities connected to keywords
+        - Influence networks relevant to the topic
+        - Agent expertise matches
+
+        Args:
+            query: The user's message or topic
+            client_id: Client ID for filtering
+            limit: Max results per category
+
+        Returns:
+            Dict with stakeholders, concerns, roi_opportunities, and agent_suggestions
+        """
+        keywords = self._extract_keywords(query)
+
+        result = {
+            "keywords_detected": keywords,
+            "stakeholders": [],
+            "concerns": [],
+            "roi_opportunities": [],
+            "relationships": [],
+            "agent_suggestions": []
+        }
+
+        try:
+            # Get relevant stakeholders based on keywords
+            stakeholders_result = await self.neo4j.execute_query("""
+                MATCH (s:Stakeholder {client_id: $client_id})
+                WHERE any(keyword IN $keywords WHERE
+                    toLower(s.name) CONTAINS keyword OR
+                    toLower(coalesce(s.role, '')) CONTAINS keyword OR
+                    toLower(coalesce(s.organization, '')) CONTAINS keyword
+                )
+                RETURN {
+                    id: s.id,
+                    name: s.name,
+                    role: s.role,
+                    organization: s.organization,
+                    sentiment_score: s.sentiment_score
+                } as stakeholder
+                LIMIT $limit
+            """, {"client_id": client_id, "keywords": keywords, "limit": limit})
+
+            result["stakeholders"] = [r["stakeholder"] for r in stakeholders_result]
+
+            # Get shared concerns related to keywords
+            concerns_result = await self.neo4j.execute_query("""
+                MATCH (s:Stakeholder {client_id: $client_id})-[:RAISED_CONCERN]->(c:Concern)
+                WHERE any(keyword IN $keywords WHERE toLower(c.content) CONTAINS keyword)
+                WITH c, collect(DISTINCT {name: s.name, role: s.role}) as stakeholders
+                RETURN {
+                    content: c.content,
+                    severity: c.severity,
+                    raised_by: stakeholders
+                } as concern
+                ORDER BY c.severity DESC
+                LIMIT $limit
+            """, {"client_id": client_id, "keywords": keywords, "limit": limit})
+
+            result["concerns"] = [r["concern"] for r in concerns_result]
+
+            # Get ROI opportunities related to keywords
+            roi_result = await self.neo4j.execute_query("""
+                MATCH (o:ROIOpportunity)
+                WHERE any(keyword IN $keywords WHERE
+                    toLower(coalesce(o.name, '')) CONTAINS keyword OR
+                    toLower(coalesce(o.description, '')) CONTAINS keyword OR
+                    toLower(coalesce(o.category, '')) CONTAINS keyword
+                )
+                OPTIONAL MATCH (blocker:Stakeholder)-[:BLOCKS]->(o)
+                OPTIONAL MATCH (supporter:Stakeholder)-[:SUPPORTS]->(o)
+                WITH o,
+                     collect(DISTINCT blocker.name) as blockers,
+                     collect(DISTINCT supporter.name) as supporters
+                RETURN {
+                    name: o.name,
+                    description: o.description,
+                    estimated_value: o.estimated_value,
+                    status: o.status,
+                    blockers: blockers,
+                    supporters: supporters
+                } as opportunity
+                LIMIT $limit
+            """, {"keywords": keywords, "limit": limit})
+
+            result["roi_opportunities"] = [r["opportunity"] for r in roi_result]
+
+            # Get influence relationships between stakeholders
+            relationships_result = await self.neo4j.execute_query("""
+                MATCH (s1:Stakeholder {client_id: $client_id})-[r:INFLUENCES|REPORTS_TO]->(s2:Stakeholder)
+                WHERE any(keyword IN $keywords WHERE
+                    toLower(s1.name) CONTAINS keyword OR
+                    toLower(s2.name) CONTAINS keyword OR
+                    toLower(coalesce(s1.role, '')) CONTAINS keyword OR
+                    toLower(coalesce(s2.role, '')) CONTAINS keyword
+                )
+                RETURN {
+                    from_name: s1.name,
+                    from_role: s1.role,
+                    to_name: s2.name,
+                    to_role: s2.role,
+                    relationship: type(r),
+                    strength: coalesce(r.strength, 0.5)
+                } as relationship
+                LIMIT $limit
+            """, {"client_id": client_id, "keywords": keywords, "limit": limit})
+
+            result["relationships"] = [r["relationship"] for r in relationships_result]
+
+            # Get agent suggestions based on keywords
+            agents_result = await self.get_agent_for_concepts(keywords, limit=3)
+            result["agent_suggestions"] = agents_result
+
+        except Exception as e:
+            logger.warning(f"Error fetching graph context: {e}")
+            # Return partial results on error
+
+        return result
+
+    def format_context_for_prompt(
+        self,
+        context: dict[str, Any]
+    ) -> str:
+        """
+        Format graph context into a readable prompt section.
+
+        Args:
+            context: Result from get_meeting_context
+
+        Returns:
+            Formatted string for inclusion in agent prompts
+        """
+        sections = []
+
+        if context.get("stakeholders"):
+            stakeholder_lines = []
+            for s in context["stakeholders"]:
+                sentiment = s.get("sentiment_score") or 0.5
+                sentiment_label = "positive" if sentiment > 0.6 else "neutral" if sentiment > 0.4 else "cautious"
+                stakeholder_lines.append(
+                    f"- {s['name']} ({s.get('role', 'Unknown role')}) - {sentiment_label}"
+                )
+            sections.append("RELEVANT STAKEHOLDERS:\n" + "\n".join(stakeholder_lines))
+
+        if context.get("concerns"):
+            concern_lines = []
+            for c in context["concerns"]:
+                raisers = ", ".join([p["name"] for p in c.get("raised_by", [])])
+                severity = c.get("severity", "unknown")
+                content = c.get("content", "")[:100]
+                concern_lines.append(f"- [{severity}] {content}... (raised by: {raisers})")
+            sections.append("SHARED CONCERNS:\n" + "\n".join(concern_lines))
+
+        if context.get("roi_opportunities"):
+            roi_lines = []
+            for o in context["roi_opportunities"]:
+                value = o.get("estimated_value", "TBD")
+                status = o.get("status", "unknown")
+                blockers = ", ".join([b for b in (o.get("blockers") or []) if b][:3]) or "none"
+                roi_lines.append(f"- {o.get('name', 'Unnamed')}: ${value} ({status}) - blockers: {blockers}")
+            sections.append("ROI OPPORTUNITIES:\n" + "\n".join(roi_lines))
+
+        if context.get("relationships"):
+            rel_lines = []
+            for r in context["relationships"]:
+                rel_type = (r.get("relationship") or "relates_to").lower().replace("_", " ")
+                rel_lines.append(f"- {r['from_name']} {rel_type} {r['to_name']}")
+            sections.append("STAKEHOLDER RELATIONSHIPS:\n" + "\n".join(rel_lines))
+
+        if not sections:
+            return ""
+
+        return "\n\n".join(sections)

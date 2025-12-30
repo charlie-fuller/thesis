@@ -95,7 +95,8 @@ class MeetingContext:
     meeting_type: str  # 'collaboration' or 'meeting_prep'
     config: dict
     turn_number: int
-    kb_context: list[dict] = field(default_factory=list)  # Optional KB context from RAG search
+    kb_context: list[dict] = field(default_factory=list)  # Vector search KB context (Voyage AI)
+    graph_context: dict = field(default_factory=dict)  # Graph relationship context (Neo4j)
 
 
 @dataclass
@@ -402,6 +403,61 @@ If the context doesn't address the question, provide your best perspective witho
 
 """
 
+        # Format graph context if available (stakeholders, concerns, ROI opportunities)
+        graph_context_section = ""
+        if context.graph_context:
+            graph_parts = []
+            # Stakeholders
+            if context.graph_context.get("stakeholders"):
+                stakeholder_lines = []
+                for s in context.graph_context["stakeholders"][:3]:
+                    sentiment = s.get("sentiment_score") or 0.5
+                    sentiment_label = "positive" if sentiment > 0.6 else "neutral" if sentiment > 0.4 else "cautious"
+                    stakeholder_lines.append(f"  - {s['name']} ({s.get('role', 'Unknown')}) - {sentiment_label}")
+                if stakeholder_lines:
+                    graph_parts.append("Stakeholders:\n" + "\n".join(stakeholder_lines))
+
+            # Concerns
+            if context.graph_context.get("concerns"):
+                concern_lines = []
+                for c in context.graph_context["concerns"][:3]:
+                    content = (c.get("content") or "")[:80]
+                    severity = c.get("severity", "unknown")
+                    concern_lines.append(f"  - [{severity}] {content}...")
+                if concern_lines:
+                    graph_parts.append("Concerns raised:\n" + "\n".join(concern_lines))
+
+            # ROI Opportunities
+            if context.graph_context.get("roi_opportunities"):
+                roi_lines = []
+                for o in context.graph_context["roi_opportunities"][:2]:
+                    name = o.get("name", "Unnamed")
+                    status = o.get("status", "unknown")
+                    roi_lines.append(f"  - {name} ({status})")
+                if roi_lines:
+                    graph_parts.append("ROI Opportunities:\n" + "\n".join(roi_lines))
+
+            # Relationships
+            if context.graph_context.get("relationships"):
+                rel_lines = []
+                for r in context.graph_context["relationships"][:3]:
+                    rel_type = (r.get("relationship") or "relates_to").lower().replace("_", " ")
+                    rel_lines.append(f"  - {r.get('from_name', '?')} {rel_type} {r.get('to_name', '?')}")
+                if rel_lines:
+                    graph_parts.append("Relationships:\n" + "\n".join(rel_lines))
+
+            if graph_parts:
+                graph_text = "\n".join(graph_parts)
+                graph_context_section = f"""
+STAKEHOLDER & RELATIONSHIP CONTEXT (from Neo4j graph):
+<graph_context>
+{graph_text}
+</graph_context>
+
+Use this relationship context to understand stakeholder dynamics and organizational factors.
+
+"""
+
         # Build explicit participant list
         all_participants = [agent_display_name] + other_participants
         participant_list = ", ".join(all_participants)
@@ -418,7 +474,7 @@ CRITICAL: Only refer to or defer to agents who are actually IN THIS MEETING.
 Do NOT mention agents who are not participants. If you would normally defer to
 an agent not in this meeting, provide your best perspective instead.
 
-{kb_context_section}{recent_context}
+{kb_context_section}{graph_context_section}{recent_context}
 IDENTITY - CRITICAL:
 - You are {agent_display_name}. Respond AS YOURSELF, not as anyone else.
 - NEVER prefix your response with "[Facilitator]:", "[{agent_display_name}]:", or any name prefix.
@@ -1179,6 +1235,25 @@ KNOWLEDGE BASE CONTEXT:
 Reference this context when relevant to your domain.
 """
 
+        # Format graph context if available (compact for autonomous mode)
+        graph_context_section = ""
+        if context.graph_context:
+            graph_parts = []
+            if context.graph_context.get("stakeholders"):
+                names = [s['name'] for s in context.graph_context["stakeholders"][:3]]
+                if names:
+                    graph_parts.append(f"Stakeholders: {', '.join(names)}")
+            if context.graph_context.get("concerns"):
+                concerns = [c.get("content", "")[:50] + "..." for c in context.graph_context["concerns"][:2]]
+                if concerns:
+                    graph_parts.append(f"Concerns: {'; '.join(concerns)}")
+            if context.graph_context.get("roi_opportunities"):
+                opps = [o.get("name", "?") for o in context.graph_context["roi_opportunities"][:2]]
+                if opps:
+                    graph_parts.append(f"ROI Opps: {', '.join(opps)}")
+            if graph_parts:
+                graph_context_section = "GRAPH CONTEXT: " + " | ".join(graph_parts) + "\n"
+
         # Build participant list for this specific meeting
         all_participant_names = [agent_display_name] + other_participants
         participant_list = ", ".join(all_participant_names)
@@ -1194,7 +1269,7 @@ PARTICIPANTS IN THIS MEETING (ONLY these agents are present):
 CRITICAL: Only refer to or defer to agents who are IN THIS MEETING.
 Do NOT mention agents not listed above. If you would defer to an absent agent,
 provide your best perspective instead.
-{kb_context_section}
+{kb_context_section}{graph_context_section}
 {contributions_section}
 
 {round_guidance}
