@@ -805,11 +805,13 @@ async def stream_meeting_chat(
 
             if not is_simple_message:
                 logger.info(f"[Meeting Chat] Searching knowledge base for context...")
+                # Increased from 5 to 10 chunks for more comprehensive context
+                # Agents need thorough access to KB to find all relevant information
                 kb_results = await asyncio.to_thread(
                     lambda: search_similar_chunks(
                         query=chat_request.message,
                         client_id=client_id,
-                        limit=5,  # Top 5 relevant chunks
+                        limit=10,  # Increased from 5 to 10 for comprehensive KB coverage
                         min_similarity=0.0,  # Use adaptive threshold
                         include_conversations=True  # Include past conversation context
                     )
@@ -1080,11 +1082,12 @@ async def start_autonomous_discussion(
         kb_context = []
         try:
             logger.info(f"[Autonomous] Searching knowledge base for topic context...")
+            # Increased from 5 to 10 chunks for comprehensive KB coverage
             kb_results = await asyncio.to_thread(
                 lambda: search_similar_chunks(
                     query=discussion_request.topic,
                     client_id=client_id,
-                    limit=5,  # Top 5 relevant chunks
+                    limit=10,  # Increased from 5 to 10 for comprehensive KB coverage
                     min_similarity=0.0,  # Use adaptive threshold
                     include_conversations=True
                 )

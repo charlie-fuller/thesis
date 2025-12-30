@@ -386,10 +386,11 @@ RECENT CONTRIBUTIONS (respond to or build on these):
                     source_info += f" - {metadata['conversation_title']}"
                 source_info += "]"
                 # Truncate content if too long to preserve token budget
-                # Increased from 500 to 800 chars to provide more context from each chunk
+                # Increased to 1000 chars to provide comprehensive context from each chunk
+                # With 10 chunks, this gives agents up to 10,000 chars of KB context
                 content = chunk.get('content', '')
-                if len(content) > 800:
-                    content = content[:800] + "..."
+                if len(content) > 1000:
+                    content = content[:1000] + "..."
                 kb_parts.append(f"{source_info}:\n{content}")
 
             kb_text = "\n\n".join(kb_parts)
@@ -1218,7 +1219,7 @@ Focus on: Responding to what's been said, adding new dimensions, challenging ass
         kb_context_section = ""
         if context.kb_context:
             kb_parts = []
-            for i, chunk in enumerate(context.kb_context[:5]):  # Increased from 3 to 5 chunks for better context
+            for i, chunk in enumerate(context.kb_context[:8]):  # Increased to 8 chunks for comprehensive context
                 source_info = f"[Source {i+1}"
                 metadata = chunk.get('metadata', {})
                 if metadata.get('filename'):
@@ -1226,10 +1227,10 @@ Focus on: Responding to what's been said, adding new dimensions, challenging ass
                 elif metadata.get('conversation_title'):
                     source_info += f" - {metadata['conversation_title']}"
                 source_info += "]"
-                # Increased from 300 to 500 chars for autonomous mode
+                # Increased to 800 chars for autonomous mode - agents need full context
                 content = chunk.get('content', '')
-                if len(content) > 500:
-                    content = content[:500] + "..."
+                if len(content) > 800:
+                    content = content[:800] + "..."
                 kb_parts.append(f"{source_info}: {content}")
 
             kb_text = "\n".join(kb_parts)
