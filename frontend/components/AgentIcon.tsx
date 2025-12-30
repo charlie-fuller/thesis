@@ -90,3 +90,33 @@ export const AGENT_COLORS: Record<string, string> = {
 export function getAgentColor(name: string): string {
   return AGENT_COLORS[name.toLowerCase()] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
 }
+
+// Solid background colors for avatars (meeting messages)
+export const AGENT_AVATAR_COLORS: Record<string, { bg: string; text: string }> = {
+  // Meta-Agents
+  facilitator: { bg: 'bg-yellow-500', text: 'text-yellow-700' },
+  reporter: { bg: 'bg-lime-600', text: 'text-lime-700' },
+  // Stakeholder Perspective Agents
+  atlas: { bg: 'bg-blue-500', text: 'text-blue-700' },
+  fortuna: { bg: 'bg-green-500', text: 'text-green-700' },
+  guardian: { bg: 'bg-purple-500', text: 'text-purple-700' },
+  counselor: { bg: 'bg-amber-500', text: 'text-amber-700' },
+  oracle: { bg: 'bg-cyan-500', text: 'text-cyan-700' },
+  sage: { bg: 'bg-pink-500', text: 'text-pink-700' },
+  // Consulting/Implementation Agents
+  strategist: { bg: 'bg-indigo-500', text: 'text-indigo-700' },
+  architect: { bg: 'bg-slate-500', text: 'text-slate-700' },
+  operator: { bg: 'bg-orange-500', text: 'text-orange-700' },
+  pioneer: { bg: 'bg-rose-500', text: 'text-rose-700' },
+  // Internal Enablement Agents
+  catalyst: { bg: 'bg-lime-500', text: 'text-lime-700' },
+  scholar: { bg: 'bg-teal-500', text: 'text-teal-700' },
+  echo: { bg: 'bg-fuchsia-500', text: 'text-fuchsia-700' },
+  // Systems/Coordination Agents
+  nexus: { bg: 'bg-violet-500', text: 'text-violet-700' },
+  coordinator: { bg: 'bg-sky-500', text: 'text-sky-700' },
+};
+
+export function getAgentAvatarColor(name: string): { bg: string; text: string } {
+  return AGENT_AVATAR_COLORS[name.toLowerCase()] || { bg: 'bg-gray-500', text: 'text-gray-700' };
+}
