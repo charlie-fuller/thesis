@@ -189,6 +189,21 @@ All agent responses follow this mandatory structure:
 3. **Key Details** (3-5 bullets or table) - Scannable facts
 4. **Dig-Deeper Links** (2-4 links) - Expandable detail via `[text](dig-deeper:section_id)`
 
+### Knowledge Base Context Usage (CRITICAL)
+
+All agents have a 5th absolute rule: **ALWAYS USE KB CONTEXT**. When knowledge base context is provided in prompts:
+- **PRIORITIZE** KB content over general knowledge - it's REAL data from user documents
+- **CITE** sources explicitly: "According to [Source 1 - Interview Transcript]..."
+- **QUOTE** relevant passages when they directly answer the question
+- **NEVER** ignore KB content to give generic advice when specific data exists
+- Mantra: "When in doubt, ask. When too long, cut. When KB exists, USE IT."
+
+KB context retrieval in meeting rooms:
+- **Vector search**: 10 chunks via Voyage AI, 1000 chars each (regular mode) or 8 chunks at 800 chars (autonomous)
+- **Graph context**: Neo4j provides stakeholders, concerns, ROI opportunities, and relationships
+- **Deduplication**: Context sources are deduplicated by document_id (highest similarity kept)
+- **SSE event**: `context_sources` event sent before agent responses for frontend display
+
 ### Ask-First Behavior
 
 When user intent is unclear (greetings, broad topics, first messages), agents ask a clarifying question before providing detailed answers:
@@ -326,8 +341,10 @@ python -m pytest tests/ -v --tb=short
 - `/backend/services/research_context.py` - Topic prioritization from platform context
 - `/backend/services/agent_observer.py` - Cross-agent conversation monitoring
 - `/backend/services/web_researcher.py` - Anthropic web search with credibility filtering
+- `/backend/services/graph/query_service.py` - Neo4j graph queries including `get_meeting_context()` for stakeholder/concern retrieval
+- `/backend/services/graph/connection.py` - Neo4j connection management
 - `/backend/system_instructions/agents/*.xml` - Agent behavior configuration (Gigawatt v4.0)
-- `/backend/system_instructions/shared/smart_brevity.xml` - Mandatory response format directive
+- `/backend/system_instructions/shared/smart_brevity.xml` - Mandatory response format directive + KB usage rules
 - `/backend/services/chat_agent_service.py` - Agent selection, @mention parsing, instruction loading for chat
 - `/backend/api/routes/chat.py` - Chat endpoints including Dig Deeper and agent routing
 - `/backend/api/routes/meeting_rooms.py` - Meeting room CRUD and streaming
