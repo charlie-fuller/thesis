@@ -886,6 +886,69 @@ async def stream_meeting_chat(
         async def generate_stream():
             """Generate SSE stream from orchestrator."""
             try:
+                # Emit context_sources event first so frontend can display what informed the response
+                context_sources = {
+                    "type": "context_sources",
+                    "kb_sources": [],
+                    "graph_sources": {
+                        "stakeholders": [],
+                        "concerns": [],
+                        "roi_opportunities": [],
+                        "relationships": []
+                    }
+                }
+
+                # Format KB sources with document info
+                for chunk in kb_context:
+                    metadata = chunk.get('metadata', {})
+                    source_info = {
+                        "document_id": chunk.get('document_id'),
+                        "similarity": round(chunk.get('similarity', 0), 3),
+                        "source_type": chunk.get('source_type', 'document'),
+                    }
+                    # Add title/filename for display
+                    if metadata.get('filename'):
+                        source_info["title"] = metadata['filename']
+                    elif metadata.get('conversation_title'):
+                        source_info["title"] = metadata['conversation_title']
+                    else:
+                        source_info["title"] = "Unknown source"
+
+                    context_sources["kb_sources"].append(source_info)
+
+                # Format graph sources
+                if graph_context:
+                    for s in graph_context.get("stakeholders", [])[:5]:
+                        context_sources["graph_sources"]["stakeholders"].append({
+                            "name": s.get("name"),
+                            "role": s.get("role"),
+                            "sentiment": s.get("sentiment_score")
+                        })
+                    for c in graph_context.get("concerns", [])[:5]:
+                        context_sources["graph_sources"]["concerns"].append({
+                            "content": (c.get("content") or "")[:100],
+                            "severity": c.get("severity")
+                        })
+                    for r in graph_context.get("roi_opportunities", [])[:3]:
+                        context_sources["graph_sources"]["roi_opportunities"].append({
+                            "name": r.get("name"),
+                            "status": r.get("status")
+                        })
+                    for rel in graph_context.get("relationships", [])[:5]:
+                        context_sources["graph_sources"]["relationships"].append({
+                            "from": rel.get("from_name"),
+                            "to": rel.get("to_name"),
+                            "type": rel.get("relationship")
+                        })
+
+                # Only emit if there's actual context
+                has_kb = len(context_sources["kb_sources"]) > 0
+                has_graph = any(
+                    len(v) > 0 for v in context_sources["graph_sources"].values()
+                )
+                if has_kb or has_graph:
+                    yield f"data: {json.dumps(context_sources)}\n\n"
+
                 async for event in orchestrator.process_meeting_turn(meeting_context):
                     yield f"data: {json.dumps(event)}\n\n"
             except Exception as e:
@@ -1077,6 +1140,65 @@ async def start_autonomous_discussion(
         async def generate_stream():
             """Generate SSE stream from autonomous discussion."""
             try:
+                # Emit context_sources event first so frontend can display what informed the discussion
+                context_sources = {
+                    "type": "context_sources",
+                    "kb_sources": [],
+                    "graph_sources": {
+                        "stakeholders": [],
+                        "concerns": [],
+                        "roi_opportunities": [],
+                        "relationships": []
+                    }
+                }
+
+                # Format KB sources with document info
+                for chunk in kb_context:
+                    metadata = chunk.get('metadata', {})
+                    source_info = {
+                        "document_id": chunk.get('document_id'),
+                        "similarity": round(chunk.get('similarity', 0), 3),
+                        "source_type": chunk.get('source_type', 'document'),
+                    }
+                    if metadata.get('filename'):
+                        source_info["title"] = metadata['filename']
+                    elif metadata.get('conversation_title'):
+                        source_info["title"] = metadata['conversation_title']
+                    else:
+                        source_info["title"] = "Unknown source"
+                    context_sources["kb_sources"].append(source_info)
+
+                # Format graph sources
+                if graph_context:
+                    for s in graph_context.get("stakeholders", [])[:5]:
+                        context_sources["graph_sources"]["stakeholders"].append({
+                            "name": s.get("name"),
+                            "role": s.get("role"),
+                            "sentiment": s.get("sentiment_score")
+                        })
+                    for c in graph_context.get("concerns", [])[:5]:
+                        context_sources["graph_sources"]["concerns"].append({
+                            "content": (c.get("content") or "")[:100],
+                            "severity": c.get("severity")
+                        })
+                    for r in graph_context.get("roi_opportunities", [])[:3]:
+                        context_sources["graph_sources"]["roi_opportunities"].append({
+                            "name": r.get("name"),
+                            "status": r.get("status")
+                        })
+                    for rel in graph_context.get("relationships", [])[:5]:
+                        context_sources["graph_sources"]["relationships"].append({
+                            "from": rel.get("from_name"),
+                            "to": rel.get("to_name"),
+                            "type": rel.get("relationship")
+                        })
+
+                # Only emit if there's actual context
+                has_kb = len(context_sources["kb_sources"]) > 0
+                has_graph = any(len(v) > 0 for v in context_sources["graph_sources"].values())
+                if has_kb or has_graph:
+                    yield f"data: {json.dumps(context_sources)}\n\n"
+
                 async for event in orchestrator.process_autonomous_discussion(
                     context=meeting_context,
                     topic=discussion_request.topic,

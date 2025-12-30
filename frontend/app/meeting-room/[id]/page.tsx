@@ -51,6 +51,25 @@ interface Message {
   created_at: string
 }
 
+interface KBSource {
+  document_id: string | null
+  similarity: number
+  source_type: string
+  title: string
+}
+
+interface GraphSources {
+  stakeholders: { name: string; role: string; sentiment: number | null }[]
+  concerns: { content: string; severity: string }[]
+  roi_opportunities: { name: string; status: string }[]
+  relationships: { from: string; to: string; type: string }[]
+}
+
+interface ContextSources {
+  kb_sources: KBSource[]
+  graph_sources: GraphSources
+}
+
 export default function MeetingRoomPage() {
   const params = useParams()
   const meetingId = params.id as string
@@ -78,6 +97,10 @@ export default function MeetingRoomPage() {
 
   // Export state
   const [exporting, setExporting] = useState(false)
+
+  // Context sources state (KB and Graph context used for the current response)
+  const [contextSources, setContextSources] = useState<ContextSources | null>(null)
+  const [showContextPanel, setShowContextPanel] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -303,6 +326,19 @@ export default function MeetingRoomPage() {
               const data = JSON.parse(line.slice(6))
 
               switch (data.type) {
+                case 'context_sources':
+                  // Store KB and Graph context sources for display
+                  setContextSources({
+                    kb_sources: data.kb_sources || [],
+                    graph_sources: data.graph_sources || {
+                      stakeholders: [],
+                      concerns: [],
+                      roi_opportunities: [],
+                      relationships: []
+                    }
+                  })
+                  break
+
                 case 'facilitator_turn_start':
                   currentAgentName = 'facilitator'
                   setActiveAgent('Facilitator')
@@ -455,6 +491,19 @@ export default function MeetingRoomPage() {
               const data = JSON.parse(line.slice(6))
 
               switch (data.type) {
+                case 'context_sources':
+                  // Store KB and Graph context sources for display
+                  setContextSources({
+                    kb_sources: data.kb_sources || [],
+                    graph_sources: data.graph_sources || {
+                      stakeholders: [],
+                      concerns: [],
+                      roi_opportunities: [],
+                      relationships: []
+                    }
+                  })
+                  break
+
                 case 'discussion_round_start':
                   setAutonomousRound(data.round_number)
                   setAutonomousTotalRounds(data.total_rounds)
@@ -702,6 +751,118 @@ export default function MeetingRoomPage() {
 
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Context Sources Panel */}
+          {contextSources && (contextSources.kb_sources.length > 0 ||
+            contextSources.graph_sources.stakeholders.length > 0 ||
+            contextSources.graph_sources.concerns.length > 0 ||
+            contextSources.graph_sources.roi_opportunities.length > 0) && (
+            <div className="border-t border-default bg-gray-50 dark:bg-gray-800/50">
+              <button
+                onClick={() => setShowContextPanel(!showContextPanel)}
+                className="w-full px-4 py-2 flex items-center justify-between text-sm text-secondary hover:text-primary transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>
+                    Context Sources: {contextSources.kb_sources.length} documents
+                    {contextSources.graph_sources.stakeholders.length > 0 &&
+                      `, ${contextSources.graph_sources.stakeholders.length} stakeholders`}
+                    {contextSources.graph_sources.concerns.length > 0 &&
+                      `, ${contextSources.graph_sources.concerns.length} concerns`}
+                  </span>
+                </span>
+                <svg
+                  className={`w-4 h-4 transition-transform ${showContextPanel ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {showContextPanel && (
+                <div className="px-4 pb-3 space-y-3">
+                  {/* KB Sources */}
+                  {contextSources.kb_sources.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-medium text-tertiary uppercase tracking-wide mb-1">
+                        Knowledge Base
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {contextSources.kb_sources.map((source, idx) => (
+                          <div
+                            key={idx}
+                            className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs"
+                            title={`Similarity: ${(source.similarity * 100).toFixed(0)}%`}
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span className="truncate max-w-[150px]">{source.title}</span>
+                            <span className="text-blue-500 dark:text-blue-400">
+                              {(source.similarity * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Graph Sources */}
+                  {(contextSources.graph_sources.stakeholders.length > 0 ||
+                    contextSources.graph_sources.concerns.length > 0 ||
+                    contextSources.graph_sources.roi_opportunities.length > 0) && (
+                    <div>
+                      <h4 className="text-xs font-medium text-tertiary uppercase tracking-wide mb-1">
+                        Stakeholder Intelligence
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {contextSources.graph_sources.stakeholders.map((s, idx) => (
+                          <div
+                            key={`stakeholder-${idx}`}
+                            className="inline-flex items-center gap-1.5 px-2 py-1 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span>{s.name}</span>
+                            {s.role && <span className="text-purple-500">({s.role})</span>}
+                          </div>
+                        ))}
+                        {contextSources.graph_sources.concerns.map((c, idx) => (
+                          <div
+                            key={`concern-${idx}`}
+                            className="inline-flex items-center gap-1.5 px-2 py-1 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded text-xs"
+                            title={c.content}
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span className="truncate max-w-[120px]">{c.content}</span>
+                          </div>
+                        ))}
+                        {contextSources.graph_sources.roi_opportunities.map((r, idx) => (
+                          <div
+                            key={`roi-${idx}`}
+                            className="inline-flex items-center gap-1.5 px-2 py-1 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded text-xs"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>{r.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Input */}
           <div className="border-t border-default p-4">
