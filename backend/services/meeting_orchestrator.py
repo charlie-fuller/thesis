@@ -386,9 +386,10 @@ RECENT CONTRIBUTIONS (respond to or build on these):
                     source_info += f" - {metadata['conversation_title']}"
                 source_info += "]"
                 # Truncate content if too long to preserve token budget
+                # Increased from 500 to 800 chars to provide more context from each chunk
                 content = chunk.get('content', '')
-                if len(content) > 500:
-                    content = content[:500] + "..."
+                if len(content) > 800:
+                    content = content[:800] + "..."
                 kb_parts.append(f"{source_info}:\n{content}")
 
             kb_text = "\n\n".join(kb_parts)
@@ -1217,7 +1218,7 @@ Focus on: Responding to what's been said, adding new dimensions, challenging ass
         kb_context_section = ""
         if context.kb_context:
             kb_parts = []
-            for i, chunk in enumerate(context.kb_context[:3]):  # Limit to top 3 for brevity in autonomous
+            for i, chunk in enumerate(context.kb_context[:5]):  # Increased from 3 to 5 chunks for better context
                 source_info = f"[Source {i+1}"
                 metadata = chunk.get('metadata', {})
                 if metadata.get('filename'):
@@ -1225,10 +1226,10 @@ Focus on: Responding to what's been said, adding new dimensions, challenging ass
                 elif metadata.get('conversation_title'):
                     source_info += f" - {metadata['conversation_title']}"
                 source_info += "]"
-                # Shorter truncation for autonomous mode
+                # Increased from 300 to 500 chars for autonomous mode
                 content = chunk.get('content', '')
-                if len(content) > 300:
-                    content = content[:300] + "..."
+                if len(content) > 500:
+                    content = content[:500] + "..."
                 kb_parts.append(f"{source_info}: {content}")
 
             kb_text = "\n".join(kb_parts)
