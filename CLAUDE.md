@@ -36,7 +36,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 | Agent | Name | Purpose |
 |-------|------|---------|
 | Facilitator | Facilitator | Meeting orchestration - welcomes users, clarifies intent, routes to specialists, ensures balanced participation, invokes systems thinking before conclusions. Not a domain expert - makes others brilliant. |
-| Reporter | Reporter | Meeting synthesis and documentation - creates unified summaries, action items, and executive briefs from multi-agent discussions. Single voice for all documentation requests. Provides proper attribution to source agents. |
+| Reporter | Reporter | Meeting synthesis and documentation - creates unified summaries, action items, and executive briefs from multi-agent discussions. Single voice for all documentation requests. Uses domain labels (Research, Financial, Security) instead of agent names for shareable output. |
 
 #### Stakeholder Perspective Agents
 | Agent | Name | Persona Alignment | Purpose |
@@ -197,14 +197,27 @@ When user intent is unclear (greetings, broad topics, first messages), agents as
 - Include dig-deeper link to capabilities
 - Mantra: "When in doubt, ask. When too long, cut."
 
-### Meeting Room Brevity
+### Meeting Room Behavior
 
-In multi-agent meetings, stricter limits apply:
+In multi-agent meetings, stricter limits and specific behaviors apply:
+
+**Brevity Limits:**
 - **50-100 words MAX** per agent turn (not 150)
 - **75 words MAX** in autonomous discussions
 - ONE key insight per turn - defer if not your domain
 - No preamble, no "Great question!", no filler
-- See `/docs/AGENT_GUARDRAILS.md` for complete rules
+
+**Facilitator Single-Agent Turn-Taking:**
+- Facilitator invites ONE agent at a time (never "Fortuna and Sage, thoughts?")
+- After agent responds, Facilitator returns to bridge/synthesize or invite next agent
+- Creates natural back-and-forth conversation rhythm
+
+**Reporter Domain Labels (No Agent Names):**
+- Reports use domain labels: "Financial analysis shows..." NOT "Fortuna noted..."
+- Ensures all output is shareable externally without explanation
+- Domain labels: Research, Financial, Security/Compliance, People/Change, Technical, etc.
+
+See `/docs/AGENT_GUARDRAILS.md` for complete rules
 
 ## Thesis-Specific Tables
 
@@ -369,12 +382,20 @@ header_text = f"Header:\n{content}" if content else "Empty"
 f"{header_text}"
 ```
 
-### Agent Colors & Descriptions
-Agent UI colors and short descriptions are defined in multiple places for meeting rooms:
-- `/frontend/components/meeting-room/ParticipantBar.tsx` - `AGENT_COLORS` and `AGENT_DESCRIPTIONS`
-- `/frontend/components/meeting-room/CreateMeetingModal.tsx` - `AGENT_SHORT_DESCRIPTIONS` and `getAgentColor()`
+### Agent Icons & Colors (Single Source of Truth)
+Agent icons, colors, and styling are centralized in `/frontend/components/AgentIcon.tsx`:
+- `AGENT_ICONS` - Lucide icon mapping for each agent
+- `AGENT_COLORS` - Transparent background colors with border (for badges/pills)
+- `AGENT_AVATAR_COLORS` - Solid background colors (for message avatars)
+- `getAgentColor()` - Returns combined class string for transparent style
+- `getAgentAvatarColor()` - Returns `{bg, text}` for solid avatar style
 
-When adding new agents, update both files.
+Components that use these:
+- `/frontend/components/meeting-room/ParticipantBar.tsx` - Uses `getAgentColor()` for participant list
+- `/frontend/components/meeting-room/MeetingMessage.tsx` - Uses `getAgentColor()` for message avatars
+- `/frontend/components/meeting-room/CreateMeetingModal.tsx` - Has its own `AGENT_SHORT_DESCRIPTIONS`
+
+When adding new agents, update `AgentIcon.tsx` (icons and both color maps).
 
 ### FastAPI Route Ordering
 In FastAPI, static routes must be defined **before** parameterized routes. Otherwise, the parameter captures the static path segment.
