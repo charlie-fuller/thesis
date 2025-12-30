@@ -4,7 +4,7 @@ import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { authenticatedFetch } from '@/lib/api'
 import toast from 'react-hot-toast'
-import { AgentIcon, getAgentAvatarColor } from '@/components/AgentIcon'
+import { AgentIcon, getAgentColor } from '@/components/AgentIcon'
 
 interface Participant {
   agent_name: string
@@ -42,7 +42,7 @@ export default function MeetingMessage({
 
   const isUser = message.role === 'user'
   const agentName = message.agent_name || ''
-  const colors = getAgentAvatarColor(agentName)
+  const color = getAgentColor(agentName)
 
   const handleSaveToKB = async () => {
     if (saving) return
@@ -107,9 +107,9 @@ export default function MeetingMessage({
       {/* Agent Avatar */}
       <div className="relative flex-shrink-0">
         <div
-          className={`w-10 h-10 rounded-full ${colors.bg} flex items-center justify-center`}
+          className={`w-10 h-10 rounded-lg ${color} flex items-center justify-center border`}
         >
-          <AgentIcon name={agentName} size="md" className="text-white" />
+          <AgentIcon name={agentName} size="md" />
         </div>
         {/* Round indicator badge */}
         {isAutonomous && message.discussion_round && (
@@ -123,7 +123,7 @@ export default function MeetingMessage({
       <div className="flex-1 max-w-[80%]">
         {/* Agent Name + Autonomous Badge */}
         <div className="flex items-center gap-2 mb-1">
-          <span className={`text-sm font-medium ${colors.text}`}>
+          <span className="text-sm font-medium text-primary">
             {message.agent_display_name || agentName}
           </span>
           {isAutonomous && (
