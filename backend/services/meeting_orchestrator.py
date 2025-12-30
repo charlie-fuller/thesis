@@ -377,8 +377,25 @@ RECENT CONTRIBUTIONS (respond to or build on these):
         kb_context_section = ""
         if context.kb_context:
             kb_parts = []
-            for i, chunk in enumerate(context.kb_context):
-                source_info = f"[Source {i+1}"
+            seen_content = set()  # Track content hashes to avoid duplicates
+            source_counter = 0
+            for chunk in context.kb_context:
+                content = chunk.get('content', '')
+                if not content:
+                    continue
+
+                # Create a content hash to detect near-duplicates
+                # Normalize by lowercasing and removing extra whitespace
+                content_normalized = ' '.join(content.lower().split())
+                content_hash = hash(content_normalized[:200])  # Hash first 200 chars
+
+                # Skip if we've already seen very similar content
+                if content_hash in seen_content:
+                    continue
+                seen_content.add(content_hash)
+
+                source_counter += 1
+                source_info = f"[Source {source_counter}"
                 metadata = chunk.get('metadata', {})
                 if metadata.get('filename'):
                     source_info += f" - {metadata['filename']}"
@@ -387,8 +404,6 @@ RECENT CONTRIBUTIONS (respond to or build on these):
                 source_info += "]"
                 # Truncate content if too long to preserve token budget
                 # Increased to 1000 chars to provide comprehensive context from each chunk
-                # With 10 chunks, this gives agents up to 10,000 chars of KB context
-                content = chunk.get('content', '')
                 if len(content) > 1000:
                     content = content[:1000] + "..."
                 kb_parts.append(f"{source_info}:\n{content}")
@@ -1221,8 +1236,24 @@ Focus on: Responding to what's been said, adding new dimensions, challenging ass
         kb_context_section = ""
         if context.kb_context:
             kb_parts = []
-            for i, chunk in enumerate(context.kb_context[:8]):  # Increased to 8 chunks for comprehensive context
-                source_info = f"[Source {i+1}"
+            seen_content = set()  # Track content hashes to avoid duplicates
+            source_counter = 0
+            for chunk in context.kb_context[:8]:  # Limit to 8 chunks for autonomous context
+                content = chunk.get('content', '')
+                if not content:
+                    continue
+
+                # Create a content hash to detect near-duplicates
+                content_normalized = ' '.join(content.lower().split())
+                content_hash = hash(content_normalized[:200])  # Hash first 200 chars
+
+                # Skip if we've already seen very similar content
+                if content_hash in seen_content:
+                    continue
+                seen_content.add(content_hash)
+
+                source_counter += 1
+                source_info = f"[Source {source_counter}"
                 metadata = chunk.get('metadata', {})
                 if metadata.get('filename'):
                     source_info += f" - {metadata['filename']}"
@@ -1230,7 +1261,6 @@ Focus on: Responding to what's been said, adding new dimensions, challenging ass
                     source_info += f" - {metadata['conversation_title']}"
                 source_info += "]"
                 # Increased to 800 chars for autonomous mode - agents need full context
-                content = chunk.get('content', '')
                 if len(content) > 800:
                     content = content[:800] + "..."
                 kb_parts.append(f"{source_info}: {content}")
