@@ -173,6 +173,7 @@ Agent system instructions use the **Gigawatt v4.0 RCCI Framework** with:
 
 - **XML Structure**: `<version>`, `<role>`, `<context>`, `<capabilities>`, `<instructions>`, `<criteria>`, `<few_shot_examples>`, `<wisdom>`, `<anti_patterns>`
 - **Smart Brevity**: All agents include `shared/smart_brevity.xml` for concise, scannable responses (100-150 words max, ask-first behavior for unclear intent)
+- **Conversational Awareness**: All agents include `shared/conversational_awareness.xml` for multi-agent coherence - agents build on each other's points, never respond as if starting fresh
 - **Chain-of-Thought**: Step-by-step analysis processes
 - **Evidence-Based**: All insights backed by quotes/data
 - **Persona Alignment**: Agents embody specific stakeholder perspectives
@@ -231,6 +232,13 @@ In multi-agent meetings, stricter limits and specific behaviors apply:
 - Reports use domain labels: "Financial analysis shows..." NOT "Fortuna noted..."
 - Ensures all output is shareable externally without explanation
 - Domain labels: Research, Financial, Security/Compliance, People/Change, Technical, etc.
+
+**Conversational Coherence (CRITICAL):**
+- Agents are intelligent colleagues who specialize, NOT narrow experts who only understand their domain
+- **Cardinal rule**: Never respond as if starting a fresh conversation
+- Every response must acknowledge and build on what the previous speaker said
+- Show cross-domain intelligence: understand WHY you're deferring, not just THAT you're deferring
+- Facilitator weaves threads together with connected handoffs
 
 See `/docs/AGENT_GUARDRAILS.md` for complete rules
 
@@ -345,6 +353,7 @@ python -m pytest tests/ -v --tb=short
 - `/backend/services/graph/connection.py` - Neo4j connection management
 - `/backend/system_instructions/agents/*.xml` - Agent behavior configuration (Gigawatt v4.0)
 - `/backend/system_instructions/shared/smart_brevity.xml` - Mandatory response format directive + KB usage rules
+- `/backend/system_instructions/shared/conversational_awareness.xml` - Multi-agent coherence directive (included by smart_brevity.xml)
 - `/backend/services/chat_agent_service.py` - Agent selection, @mention parsing, instruction loading for chat
 - `/backend/api/routes/chat.py` - Chat endpoints including Dig Deeper and agent routing
 - `/backend/api/routes/meeting_rooms.py` - Meeting room CRUD and streaming
@@ -367,7 +376,7 @@ python -m pytest tests/ -v --tb=short
 - `/database/migrations/` - All migration scripts (001-015)
 
 ### Documentation
-- `/docs/AGENT_GUARDRAILS.md` - Agent brevity rules, word limits, and behavioral constraints
+- `/docs/AGENT_GUARDRAILS.md` - Agent brevity rules, word limits, conversational coherence, and behavioral constraints
 - `/docs/atlas/PROACTIVE_RESEARCH_PLAN.md` - Atlas research system architecture
 - `/docs/neo4j/SYNC_PLAN.md` - PostgreSQL to Neo4j sync architecture
 

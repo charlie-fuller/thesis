@@ -317,6 +317,7 @@ Every agent should ask themselves before responding:
 ## Related Files
 
 - `/backend/system_instructions/shared/smart_brevity.xml` - Smart Brevity directive
+- `/backend/system_instructions/shared/conversational_awareness.xml` - Conversational coherence directive
 - `/backend/services/meeting_orchestrator.py` - Meeting context with brevity rules
-- `/backend/system_instructions/agents/facilitator.xml` - Facilitator behavior
+- `/backend/system_instructions/agents/facilitator.xml` - Facilitator behavior with thread-weaving
 - `/backend/system_instructions/agents/reporter.xml` - Reporter behavior
