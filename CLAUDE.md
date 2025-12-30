@@ -93,7 +93,11 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 6. **Agent Coordination**: Hybrid model - some agents work independently, others collaborate
 7. **Persistent Memory**: Mem0 integration for cross-conversation learning
 8. **Meeting Room**: Multi-agent collaboration with selected agents for focused discussions
+   - Meeting list shows "Autonomous" badge (emerald) for rooms that used autonomous discussion
+   - Badge tooltip shows the discussion topic
 9. **Autonomous Discussion**: Agents discuss topics amongst themselves with discourse moves (Question, Connect, Challenge, Extend, Synthesize) - user can interject anytime
+   - Conversational coherence: Agents build on each other's points, not disconnected monologues
+   - Each response acknowledges and connects to the previous speaker's insight
 10. **Dig Deeper**: One-click elaboration on any assistant response for more detail
 11. **Auto-Generated Titles**: Conversation titles auto-generated from initial message using Claude
 
