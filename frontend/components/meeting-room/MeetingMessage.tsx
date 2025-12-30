@@ -33,6 +33,7 @@ interface MeetingMessageProps {
 const AGENT_COLORS: Record<string, { bg: string; text: string }> = {
   // Meta-Agents
   facilitator: { bg: 'bg-yellow-500', text: 'text-yellow-700' },
+  reporter: { bg: 'bg-lime-600', text: 'text-lime-700' },
   // Stakeholder Perspective Agents
   atlas: { bg: 'bg-blue-500', text: 'text-blue-700' },
   fortuna: { bg: 'bg-green-500', text: 'text-green-700' },
