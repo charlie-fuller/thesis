@@ -21,7 +21,7 @@ import asyncio
 import json
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import AsyncGenerator, Optional
 from uuid import UUID
 
@@ -95,6 +95,7 @@ class MeetingContext:
     meeting_type: str  # 'collaboration' or 'meeting_prep'
     config: dict
     turn_number: int
+    kb_context: list[dict] = field(default_factory=list)  # Optional KB context from RAG search
 
 
 @dataclass
@@ -349,6 +350,7 @@ class MeetingOrchestrator:
 
         Includes recent contributions from other agents so the current agent
         can build on or segue from what was just said.
+        Also includes knowledge base context when available.
         """
         # Format recent contributions from other agents in this turn
         recent_context = ""
@@ -370,6 +372,36 @@ RECENT CONTRIBUTIONS (respond to or build on these):
 
 """
 
+        # Format knowledge base context if available
+        kb_context_section = ""
+        if context.kb_context:
+            kb_parts = []
+            for i, chunk in enumerate(context.kb_context):
+                source_info = f"[Source {i+1}"
+                metadata = chunk.get('metadata', {})
+                if metadata.get('filename'):
+                    source_info += f" - {metadata['filename']}"
+                elif metadata.get('conversation_title'):
+                    source_info += f" - {metadata['conversation_title']}"
+                source_info += "]"
+                # Truncate content if too long to preserve token budget
+                content = chunk.get('content', '')
+                if len(content) > 500:
+                    content = content[:500] + "..."
+                kb_parts.append(f"{source_info}:\n{content}")
+
+            kb_text = "\n\n".join(kb_parts)
+            kb_context_section = f"""
+KNOWLEDGE BASE CONTEXT (from documents and previous conversations):
+<knowledge_base>
+{kb_text}
+</knowledge_base>
+
+Use this knowledge base context to inform your response. Reference specific information when relevant.
+If the context doesn't address the question, provide your best perspective without fabricating document content.
+
+"""
+
         # Build explicit participant list
         all_participants = [agent_display_name] + other_participants
         participant_list = ", ".join(all_participants)
@@ -386,7 +418,7 @@ CRITICAL: Only refer to or defer to agents who are actually IN THIS MEETING.
 Do NOT mention agents who are not participants. If you would normally defer to
 an agent not in this meeting, provide your best perspective instead.
 
-{recent_context}
+{kb_context_section}{recent_context}
 IDENTITY - CRITICAL:
 - You are {agent_display_name}. Respond AS YOURSELF, not as anyone else.
 - NEVER prefix your response with "[Facilitator]:", "[{agent_display_name}]:", or any name prefix.
@@ -1121,6 +1153,32 @@ Focus on: Responding to what's been said, adding new dimensions, challenging ass
         else:
             contributions_section = "You are the first to speak in this round."
 
+        # Format knowledge base context if available
+        kb_context_section = ""
+        if context.kb_context:
+            kb_parts = []
+            for i, chunk in enumerate(context.kb_context[:3]):  # Limit to top 3 for brevity in autonomous
+                source_info = f"[Source {i+1}"
+                metadata = chunk.get('metadata', {})
+                if metadata.get('filename'):
+                    source_info += f" - {metadata['filename']}"
+                elif metadata.get('conversation_title'):
+                    source_info += f" - {metadata['conversation_title']}"
+                source_info += "]"
+                # Shorter truncation for autonomous mode
+                content = chunk.get('content', '')
+                if len(content) > 300:
+                    content = content[:300] + "..."
+                kb_parts.append(f"{source_info}: {content}")
+
+            kb_text = "\n".join(kb_parts)
+            kb_context_section = f"""
+KNOWLEDGE BASE CONTEXT:
+{kb_text}
+
+Reference this context when relevant to your domain.
+"""
+
         # Build participant list for this specific meeting
         all_participant_names = [agent_display_name] + other_participants
         participant_list = ", ".join(all_participant_names)
@@ -1136,7 +1194,7 @@ PARTICIPANTS IN THIS MEETING (ONLY these agents are present):
 CRITICAL: Only refer to or defer to agents who are IN THIS MEETING.
 Do NOT mention agents not listed above. If you would defer to an absent agent,
 provide your best perspective instead.
-
+{kb_context_section}
 {contributions_section}
 
 {round_guidance}

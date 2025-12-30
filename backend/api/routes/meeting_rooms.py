@@ -17,6 +17,7 @@ from slowapi.util import get_remote_address
 from auth import get_current_user
 from config import get_default_client_id
 from database import get_supabase
+from document_processor import search_similar_chunks
 from logger_config import get_logger
 from validation import validate_uuid
 
@@ -790,6 +791,35 @@ async def stream_meeting_chat(
         # Calculate turn number
         turn_number = len([m for m in messages_result.data if m.get('role') == 'user']) + 1
 
+        # Retrieve Knowledge Base context for the user's message
+        # This gives agents access to documents and previous conversations
+        kb_context = []
+        try:
+            # Skip KB search for simple greetings
+            simple_messages = {
+                'hello', 'hi', 'hey', 'greetings', 'good morning', 'good afternoon',
+                'good evening', 'howdy', 'yo', 'sup', 'thanks', 'thank you', 'bye'
+            }
+            message_lower = chat_request.message.lower().strip()
+            is_simple_message = message_lower in simple_messages or len(chat_request.message.split()) <= 2
+
+            if not is_simple_message:
+                logger.info(f"[Meeting Chat] Searching knowledge base for context...")
+                kb_results = await asyncio.to_thread(
+                    lambda: search_similar_chunks(
+                        query=chat_request.message,
+                        client_id=client_id,
+                        limit=5,  # Top 5 relevant chunks
+                        min_similarity=0.0,  # Use adaptive threshold
+                        include_conversations=True  # Include past conversation context
+                    )
+                )
+                kb_context = kb_results
+                logger.info(f"[Meeting Chat] Found {len(kb_context)} relevant KB chunks")
+        except Exception as kb_err:
+            # KB search is optional - don't fail the request if it errors
+            logger.warning(f"[Meeting Chat] KB search failed (non-fatal): {kb_err}")
+
         # Build meeting context
         logger.info(f"[Meeting Chat] Importing MeetingContext...")
         try:
@@ -810,8 +840,9 @@ async def stream_meeting_chat(
             meeting_type=meeting['meeting_type'],
             config=meeting['config'] or {},
             turn_number=turn_number,
+            kb_context=kb_context,  # Include KB context for RAG
         )
-        logger.info(f"[Meeting Chat] MeetingContext created for turn {turn_number}")
+        logger.info(f"[Meeting Chat] MeetingContext created for turn {turn_number} with {len(kb_context)} KB chunks")
 
         # Get orchestrator and process the turn
         logger.info(f"[Meeting Chat] Getting orchestrator for meeting {meeting_id}")
@@ -953,6 +984,24 @@ async def start_autonomous_discussion(
             for m in messages_result.data
         ]
 
+        # Retrieve Knowledge Base context for the discussion topic
+        kb_context = []
+        try:
+            logger.info(f"[Autonomous] Searching knowledge base for topic context...")
+            kb_results = await asyncio.to_thread(
+                lambda: search_similar_chunks(
+                    query=discussion_request.topic,
+                    client_id=client_id,
+                    limit=5,  # Top 5 relevant chunks
+                    min_similarity=0.0,  # Use adaptive threshold
+                    include_conversations=True
+                )
+            )
+            kb_context = kb_results
+            logger.info(f"[Autonomous] Found {len(kb_context)} relevant KB chunks for topic")
+        except Exception as kb_err:
+            logger.warning(f"[Autonomous] KB search failed (non-fatal): {kb_err}")
+
         # Build meeting context
         from services.meeting_orchestrator import MeetingContext
 
@@ -966,6 +1015,7 @@ async def start_autonomous_discussion(
             meeting_type=meeting['meeting_type'],
             config=meeting['config'] or {},
             turn_number=0,
+            kb_context=kb_context,  # Include KB context for RAG
         )
 
         # Get orchestrator and process autonomous discussion
