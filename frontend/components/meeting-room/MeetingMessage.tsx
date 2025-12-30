@@ -4,6 +4,7 @@ import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { authenticatedFetch } from '@/lib/api'
 import toast from 'react-hot-toast'
+import { AgentIcon } from '@/components/AgentIcon'
 
 interface Participant {
   agent_name: string
@@ -129,9 +130,9 @@ export default function MeetingMessage({
       {/* Agent Avatar */}
       <div className="relative flex-shrink-0">
         <div
-          className={`w-10 h-10 rounded-full ${colors.bg} flex items-center justify-center text-white font-semibold text-sm`}
+          className={`w-10 h-10 rounded-full ${colors.bg} flex items-center justify-center`}
         >
-          {message.agent_display_name?.charAt(0) || 'A'}
+          <AgentIcon name={agentName} size="md" className="text-white" />
         </div>
         {/* Round indicator badge */}
         {isAutonomous && message.discussion_round && (
