@@ -104,7 +104,7 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
       return
     }
 
-    if (selectedAgents.length < 2) {
+    if (selectedAgents.length < 1) {
       return
     }
 
@@ -209,7 +209,7 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
           {/* Agent Selection */}
           <div>
             <label className="block text-sm font-medium text-primary mb-1">
-              Select Agents (minimum 2) *
+              Select Agents *
             </label>
             {loading ? (
               <div className="flex justify-center py-4">
@@ -292,9 +292,9 @@ export default function CreateMeetingModal({ onClose, onCreate }: CreateMeetingM
                 </div>
               </div>
             )}
-            {selectedAgents.length < 2 && (
+            {selectedAgents.length < 1 && (
               <p className="mt-1.5 text-xs text-amber-600">
-                Select at least 2 agents to participate
+                Select at least 1 agent to participate
               </p>
             )}
           </div>
