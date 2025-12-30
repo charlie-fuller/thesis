@@ -312,12 +312,13 @@ async def chat(
 
 User's question: {chat_request.message}
 
-Instructions:
-- Use the knowledge base context above to inform your response
-- Quote or reference specific information from the context when relevant
-- If the context contains the answer, use it confidently
-- If the context is not relevant or doesn't fully answer the question, acknowledge this and provide the best response you can
-- Be specific about which parts of your answer come from the knowledge base versus general knowledge"""
+CRITICAL INSTRUCTIONS - PRIORITIZE KB CONTEXT:
+- The knowledge base above contains REAL information from the user's documents
+- If the KB context addresses the question, you MUST reference it specifically
+- Quote relevant passages and cite sources (e.g., "According to the interview transcript...")
+- DO NOT ignore KB content in favor of general knowledge when specific data exists
+- If KB context is incomplete or doesn't address the question, say so explicitly
+- Be specific about which parts come from KB versus general knowledge"""
         elif rag_attempted_no_results:
             # RAG was attempted but no relevant documents were found
             # Add a note so the assistant can be honest about this
@@ -1194,12 +1195,13 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
 
 User's question: {chat_request.message}
 
-Instructions:
-- Use the knowledge base context above to inform your response
-- Quote or reference specific information from the context when relevant
-- If the context contains the answer, use it confidently
-- If the context is not relevant or doesn't fully answer the question, acknowledge this and provide the best response you can
-- Be specific about which parts of your answer come from the knowledge base versus general knowledge"""
+CRITICAL INSTRUCTIONS - PRIORITIZE KB CONTEXT:
+- The knowledge base above contains REAL information from the user's documents
+- If the KB context addresses the question, you MUST reference it specifically
+- Quote relevant passages and cite sources (e.g., "According to the interview transcript...")
+- DO NOT ignore KB content in favor of general knowledge when specific data exists
+- If KB context is incomplete or doesn't address the question, say so explicitly
+- Be specific about which parts come from KB versus general knowledge"""
             elif rag_attempted_no_results:
                 # RAG was attempted but no relevant documents were found
                 if web_research_context:

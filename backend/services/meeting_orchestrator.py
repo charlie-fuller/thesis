@@ -398,8 +398,12 @@ KNOWLEDGE BASE CONTEXT (from documents and previous conversations):
 {kb_text}
 </knowledge_base>
 
-Use this knowledge base context to inform your response. Reference specific information when relevant.
-If the context doesn't address the question, provide your best perspective without fabricating document content.
+CRITICAL - PRIORITIZE KB CONTEXT:
+- The knowledge base above contains REAL information from the user's documents and conversations.
+- If the KB context addresses the question, you MUST reference it specifically in your response.
+- Quote or paraphrase relevant passages. Cite the source (e.g., "According to [Source 1]...").
+- Do NOT ignore KB content in favor of general knowledge when specific data exists above.
+- If KB context is incomplete or doesn't address the question, say so and provide your perspective.
 
 """
 
@@ -1232,7 +1236,7 @@ Focus on: Responding to what's been said, adding new dimensions, challenging ass
 KNOWLEDGE BASE CONTEXT:
 {kb_text}
 
-Reference this context when relevant to your domain.
+IMPORTANT: This is REAL data from the user's documents. Reference it specifically when addressing the topic.
 """
 
         # Format graph context if available (compact for autonomous mode)
