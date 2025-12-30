@@ -900,12 +900,21 @@ async def stream_meeting_chat(
                     }
                 }
 
-                # Format KB sources with document info
+                # Format KB sources with document info (deduplicated by document_id)
+                # Multiple chunks from the same document should only appear once
+                seen_docs = {}  # document_id -> source_info with highest similarity
                 for chunk in kb_context:
+                    doc_id = chunk.get('document_id')
+                    similarity = chunk.get('similarity', 0)
+
+                    # Skip if we've seen this doc with higher similarity
+                    if doc_id in seen_docs and seen_docs[doc_id]["similarity"] >= similarity:
+                        continue
+
                     metadata = chunk.get('metadata', {})
                     source_info = {
-                        "document_id": chunk.get('document_id'),
-                        "similarity": round(chunk.get('similarity', 0), 3),
+                        "document_id": doc_id,
+                        "similarity": round(similarity, 3),
                         "source_type": chunk.get('source_type', 'document'),
                     }
                     # Add title/filename for display
@@ -916,7 +925,14 @@ async def stream_meeting_chat(
                     else:
                         source_info["title"] = "Unknown source"
 
-                    context_sources["kb_sources"].append(source_info)
+                    seen_docs[doc_id] = source_info
+
+                # Convert to list sorted by similarity (highest first)
+                context_sources["kb_sources"] = sorted(
+                    seen_docs.values(),
+                    key=lambda x: x["similarity"],
+                    reverse=True
+                )
 
                 # Format graph sources
                 if graph_context:
@@ -1155,12 +1171,21 @@ async def start_autonomous_discussion(
                     }
                 }
 
-                # Format KB sources with document info
+                # Format KB sources with document info (deduplicated by document_id)
+                # Multiple chunks from the same document should only appear once
+                seen_docs = {}  # document_id -> source_info with highest similarity
                 for chunk in kb_context:
+                    doc_id = chunk.get('document_id')
+                    similarity = chunk.get('similarity', 0)
+
+                    # Skip if we've seen this doc with higher similarity
+                    if doc_id in seen_docs and seen_docs[doc_id]["similarity"] >= similarity:
+                        continue
+
                     metadata = chunk.get('metadata', {})
                     source_info = {
-                        "document_id": chunk.get('document_id'),
-                        "similarity": round(chunk.get('similarity', 0), 3),
+                        "document_id": doc_id,
+                        "similarity": round(similarity, 3),
                         "source_type": chunk.get('source_type', 'document'),
                     }
                     if metadata.get('filename'):
@@ -1169,7 +1194,14 @@ async def start_autonomous_discussion(
                         source_info["title"] = metadata['conversation_title']
                     else:
                         source_info["title"] = "Unknown source"
-                    context_sources["kb_sources"].append(source_info)
+                    seen_docs[doc_id] = source_info
+
+                # Convert to list sorted by similarity (highest first)
+                context_sources["kb_sources"] = sorted(
+                    seen_docs.values(),
+                    key=lambda x: x["similarity"],
+                    reverse=True
+                )
 
                 # Format graph sources
                 if graph_context:
