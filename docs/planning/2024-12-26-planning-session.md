@@ -26,7 +26,7 @@ Charlie is starting as an **AI Solutions Partner at Contentful** on January 5, 2
 | Agent | Name | Purpose |
 |-------|------|---------|
 | Research | Atlas | Track consulting approaches, case studies, thought leadership with proactive alerts |
-| Finance | Fortuna | ROI analysis, budget justification, Finance stakeholder support |
+| Finance | Capital | ROI analysis, budget justification, Finance stakeholder support |
 | IT/Governance | Guardian | Navigate governance, security, infrastructure |
 | Legal | Counselor | Legal considerations, contracts, compliance |
 | Transcript Analyzer | Oracle | Extract stakeholder sentiment from meeting transcripts |

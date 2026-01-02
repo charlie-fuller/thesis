@@ -97,7 +97,7 @@ def load_instruction_from_file(agent_name: str, resolve_include_tags: bool = Tru
     Load an agent's system instruction from its XML file.
 
     Args:
-        agent_name: The agent's name (e.g., "atlas", "fortuna")
+        agent_name: The agent's name (e.g., "atlas", "capital")
         resolve_include_tags: Whether to resolve <include> directives (default: True)
 
     Returns:

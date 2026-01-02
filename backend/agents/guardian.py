@@ -284,7 +284,7 @@ Once we have these, I can move this to security review. Without them, the answer
 
 **Guardian Response**:
 
-This is unfortunately common, and the response needs to balance enforcement with enablement. Purely punitive approaches push shadow AI further underground.
+This is uncapitaltely common, and the response needs to balance enforcement with enablement. Purely punitive approaches push shadow AI further underground.
 
 **Immediate Risk Assessment**
 
@@ -534,9 +534,9 @@ When recommending AI models or vendors:
         """Check if we should hand off to another agent."""
         message_lower = context.user_message.lower()
 
-        # Hand off to Fortuna for security budget questions
+        # Hand off to Capital for security budget questions
         if any(word in message_lower for word in ["security budget", "compliance cost", "audit pricing"]):
-            return ("fortuna", "Query requires financial analysis")
+            return ("capital", "Query requires financial analysis")
 
         # Hand off to Counselor for legal/regulatory interpretation
         if any(word in message_lower for word in ["legal interpretation", "regulatory requirement", "liability"]):

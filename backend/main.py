@@ -2,7 +2,7 @@
 Thesis - Main Application Entry Point
 
 Multi-agent platform for enterprise GenAI strategy implementation.
-Provides specialized agents for research (Atlas), finance (Fortuna),
+Provides specialized agents for research (Atlas), finance (Capital),
 IT/governance (Guardian), legal (Counselor), and transcript analysis (Oracle).
 """
 import os

@@ -42,7 +42,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 | Agent | Name | Persona Alignment | Purpose |
 |-------|------|-------------------|---------|
 | Atlas | Research | Chris Baumgartner | GenAI research, Lean methodology, benchmarking |
-| Fortuna | Finance | Raul Rivera III | ROI analysis, SOX compliance, business cases |
+| Capital | Finance | Raul Rivera III | ROI analysis, SOX compliance, business cases |
 | Guardian | IT/Governance | Danny Leal | Security, compliance, shadow IT, vendor evaluation |
 | Counselor | Legal | Ashley Adams | Contracts, AI risks, liability, data privacy |
 | Sage | People | Chad Meek | Change management, human flourishing, adoption |
@@ -73,7 +73,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 
 1. **Agent Selection in Chat**: Select specific agents or use Auto mode (Coordinator routes to best agent)
    - UI selector above chat input to pick agents (max 3)
-   - `@mention` syntax in messages (e.g., `@atlas`, `@fortuna`) to invoke agents inline
+   - `@mention` syntax in messages (e.g., `@atlas`, `@capital`) to invoke agents inline
    - Agent badge displayed on each response showing which agent answered
 2. **Knowledge Base**: Unified document and conversation management (`/kb` page)
    - Upload documents (txt, md, docx, csv, json, xml)
@@ -228,12 +228,12 @@ In multi-agent meetings, stricter limits and specific behaviors apply:
 - No preamble, no "Great question!", no filler
 
 **Facilitator Single-Agent Turn-Taking:**
-- Facilitator invites ONE agent at a time (never "Fortuna and Sage, thoughts?")
+- Facilitator invites ONE agent at a time (never "Capital and Sage, thoughts?")
 - After agent responds, Facilitator returns to bridge/synthesize or invite next agent
 - Creates natural back-and-forth conversation rhythm
 
 **Reporter Domain Labels (No Agent Names):**
-- Reports use domain labels: "Financial analysis shows..." NOT "Fortuna noted..."
+- Reports use domain labels: "Financial analysis shows..." NOT "Capital noted..."
 - Ensures all output is shareable externally without explanation
 - Domain labels: Research, Financial, Security/Compliance, People/Change, Technical, etc.
 

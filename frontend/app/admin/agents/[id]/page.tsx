@@ -628,8 +628,8 @@ export default function AgentDetailPage() {
                     ],
                     persona: 'Chris Baumgartner'
                   },
-                  fortuna: {
-                    summary: 'Financial analysis agent for AI investment justification. Fortuna builds defensible business cases, calculates ROI projections, identifies hidden costs, and ensures SOX compliance. Bridges the gap between AI potential and financial reality with CFO-ready analysis.',
+                  capital: {
+                    summary: 'Financial analysis agent for AI investment justification. Capital builds defensible business cases, calculates ROI projections, identifies hidden costs, and ensures SOX compliance. Bridges the gap between AI potential and financial reality with CFO-ready analysis.',
                     keyActions: [
                       'Builds business cases with ROI frameworks and TCO calculations',
                       'Identifies hidden costs beyond licensing fees',
@@ -835,7 +835,7 @@ export default function AgentDetailPage() {
                     ],
                     uniqueValue: 'Combines web search with knowledge base RAG, applying Lean methodology to prioritize actionable over theoretical insights.'
                   },
-                  fortuna: {
+                  capital: {
                     purpose: 'Financial analysis including ROI, business cases, and SOX compliance for AI investments.',
                     problemsSolved: [
                       'Justification hurdles - builds compelling business cases for AI investment',
@@ -1076,7 +1076,7 @@ export default function AgentDetailPage() {
                     ],
                     tips: ['Specify the industry context for more relevant results', 'Ask for sources to verify credibility']
                   },
-                  fortuna: {
+                  capital: {
                     howToUse: 'Request ROI projections or business case frameworks with context about your AI initiative.',
                     capabilities: ['ROI calculation frameworks', 'Business case templates', 'SOX compliance checklists', 'Cost-benefit analysis'],
                     bestFor: ['Investment justification', 'Budget planning', 'Financial risk assessment', 'Stakeholder financial reporting'],

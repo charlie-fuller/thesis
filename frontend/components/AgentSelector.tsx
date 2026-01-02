@@ -27,8 +27,8 @@ const AGENT_INFO: Record<string, { displayName: string; description: string; cat
     description: 'GenAI research, case studies, thought leadership',
     category: 'Stakeholder',
   },
-  fortuna: {
-    displayName: 'Fortuna',
+  capital: {
+    displayName: 'Capital',
     description: 'ROI analysis, budget justification, business cases',
     category: 'Stakeholder',
   },
@@ -106,7 +106,7 @@ const AGENT_INFO: Record<string, { displayName: string; description: string; cat
 const AGENT_ORDER = [
   'coordinator',
   'atlas',
-  'fortuna',
+  'capital',
   'guardian',
   'counselor',
   'oracle',

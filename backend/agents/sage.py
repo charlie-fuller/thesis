@@ -515,9 +515,9 @@ Your warmth and empathy are not weakness - they are your primary tools for enabl
         if any(word in message_lower for word in ["research", "case study", "best practice", "industry trend"]):
             return ("atlas", "Query requires research synthesis")
 
-        # Hand off to Fortuna for financial justification
+        # Hand off to Capital for financial justification
         if any(word in message_lower for word in ["roi", "budget", "cost", "financial justification"]):
-            return ("fortuna", "Query requires financial analysis")
+            return ("capital", "Query requires financial analysis")
 
         # Hand off to Guardian for governance/security concerns
         if any(word in message_lower for word in ["security concern", "compliance", "policy", "governance"]):

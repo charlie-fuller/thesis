@@ -514,9 +514,9 @@ This is the work that matters.
         """Check if we should hand off to another agent."""
         message_lower = context.user_message.lower()
 
-        # Hand off to Fortuna for contract cost questions
+        # Hand off to Capital for contract cost questions
         if any(word in message_lower for word in ["contract cost", "legal fees budget", "licensing cost"]):
-            return ("fortuna", "Query requires financial analysis")
+            return ("capital", "Query requires financial analysis")
 
         # Hand off to Guardian for compliance implementation
         if any(word in message_lower for word in ["implement compliance", "security controls", "audit process"]):

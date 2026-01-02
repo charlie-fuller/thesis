@@ -9,7 +9,7 @@ system_instructions/
 ├── README.md              # This file
 ├── agents/                # Agent-specific XML instructions (SOURCE OF TRUTH)
 │   ├── atlas.xml          # Research agent
-│   ├── fortuna.xml        # Finance agent
+│   ├── capital.xml        # Finance agent
 │   ├── guardian.xml       # IT/Governance agent
 │   ├── counselor.xml      # Legal agent
 │   ├── oracle.xml         # Transcript analysis agent
@@ -136,7 +136,7 @@ What NOT to do...
 | Agent | XML File | Purpose |
 |-------|----------|---------|
 | Atlas | `atlas.xml` | GenAI research, Lean methodology, benchmarking |
-| Fortuna | `fortuna.xml` | ROI analysis, SOX compliance, business cases |
+| Capital | `capital.xml` | ROI analysis, SOX compliance, business cases |
 | Guardian | `guardian.xml` | Security, compliance, shadow IT, vendor evaluation |
 | Counselor | `counselor.xml` | Contracts, AI risks, liability, data privacy |
 | Sage | `sage.xml` | Change management, human flourishing, adoption |

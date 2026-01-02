@@ -753,7 +753,7 @@ class GraphQueryService:
         # Map keywords in questions to expertise names in the graph
         # Each expertise name maps to trigger words that might appear in questions
         keyword_triggers = {
-            # Fortuna (Finance)
+            # Capital (Finance)
             "roi": ["roi", "return on investment", "payback"],
             "finance": ["finance", "financial", "money", "revenue"],
             "budget": ["budget", "cost", "expense", "spending"],

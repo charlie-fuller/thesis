@@ -1123,7 +1123,7 @@ class GraphSyncService:
             agent_expertise = {
                 # Stakeholder Perspective Agents
                 "atlas": ["research", "consulting", "case studies", "thought leadership", "genai", "lean methodology", "benchmarking"],
-                "fortuna": ["roi", "finance", "budget", "cost savings", "investment", "sox compliance", "business case"],
+                "capital": ["roi", "finance", "budget", "cost savings", "investment", "sox compliance", "business case"],
                 "guardian": ["governance", "security", "infrastructure", "it", "compliance", "vendor evaluation", "shadow it"],
                 "counselor": ["legal", "contracts", "compliance", "risk", "policy", "data privacy", "liability"],
                 "sage": ["change management", "human flourishing", "adoption", "people", "culture", "training"],

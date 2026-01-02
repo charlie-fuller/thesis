@@ -17,7 +17,7 @@ This report documents the comprehensive analysis of five Thesis agents and their
 |-------|-------------|-------------------|-------------------|
 | `counselor` | Counselor | **Ashley Adams** | Director, Legal Operations |
 | `sage` | Sage | **Chad Meek** | VP People Team (Talent, Community, Data) |
-| `fortuna` | Fortuna | **Raul Rivera III** | Sr. Director, Global Controller |
+| `capital` | Capital | **Raul Rivera III** | Sr. Director, Global Controller |
 | `guardian` | Guardian | **Danny Leal** | Director of IT |
 | `atlas` | Atlas | **Chris Baumgartner** | Program Manager of AI |
 
@@ -394,6 +394,6 @@ Never provide:
 
 - `backend/agents/counselor.py` - Add Ashley Adams persona alignment
 - `backend/agents/sage.py` - Enhance Chad Meek philosophy details
-- `backend/agents/fortuna.py` - Add Raul Rivera financial rigor
+- `backend/agents/capital.py` - Add Raul Rivera financial rigor
 - `backend/agents/guardian.py` - Add Danny Leal pragmatic enabler focus
 - `backend/agents/atlas.py` - Add Chris Baumgartner Lean orientation

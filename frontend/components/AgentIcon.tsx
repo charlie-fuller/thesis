@@ -25,7 +25,7 @@ const AGENT_ICONS: Record<string, React.ElementType> = {
   reporter: FileText,         // Synthesis & Documentation
   // Stakeholder Perspective Agents
   atlas: Globe,           // Research
-  fortuna: Coins,         // Finance
+  capital: Coins,         // Finance
   guardian: Shield,       // IT/Governance
   counselor: Scale,       // Legal
   oracle: Sparkles,       // Transcripts
@@ -67,7 +67,7 @@ export const AGENT_COLORS: Record<string, string> = {
   reporter: 'bg-lime-600/20 text-lime-400 border-lime-600/30',
   // Stakeholder Perspective Agents
   atlas: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  fortuna: 'bg-green-500/20 text-green-400 border-green-500/30',
+  capital: 'bg-green-500/20 text-green-400 border-green-500/30',
   guardian: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   counselor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   oracle: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
@@ -98,7 +98,7 @@ export const AGENT_AVATAR_COLORS: Record<string, { bg: string; text: string }> =
   reporter: { bg: 'bg-lime-600', text: 'text-lime-700' },
   // Stakeholder Perspective Agents
   atlas: { bg: 'bg-blue-500', text: 'text-blue-700' },
-  fortuna: { bg: 'bg-green-500', text: 'text-green-700' },
+  capital: { bg: 'bg-green-500', text: 'text-green-700' },
   guardian: { bg: 'bg-purple-500', text: 'text-purple-700' },
   counselor: { bg: 'bg-amber-500', text: 'text-amber-700' },
   oracle: { bg: 'bg-cyan-500', text: 'text-cyan-700' },

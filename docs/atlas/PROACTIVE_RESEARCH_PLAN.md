@@ -78,7 +78,7 @@ Transform Atlas from a **reactive** agent (answers questions when asked) to a **
 - Responds to user queries with research synthesis
 - Embodies Chris Baumgartner persona (Lean/operational excellence)
 - Has access to Mem0, Supabase, Anthropic Claude
-- Can hand off to other agents (Fortuna, Guardian, Counselor, Oracle)
+- Can hand off to other agents (Capital, Guardian, Counselor, Oracle)
 
 **Existing Infrastructure:**
 - `sync_scheduler.py` - APScheduler pattern for background jobs (used for Google Drive sync)
@@ -297,7 +297,7 @@ Research relevant to other agents gets linked to their knowledge bases:
 
 | Research Topic | Primary Agent | Also Relevant To |
 |----------------|---------------|------------------|
-| Finance AI ROI | Atlas | Fortuna, Strategist |
+| Finance AI ROI | Atlas | Capital, Strategist |
 | Compliance frameworks | Atlas | Guardian, Counselor |
 | Change management | Atlas | Sage, Catalyst |
 | Technical architecture | Atlas | Architect, Guardian |
@@ -323,7 +323,7 @@ class AgentActivityMonitor:
 
         return [
             TopicSummary(
-                agent='fortuna',
+                agent='capital',
                 topics=['ROI modeling', 'SOX compliance'],
                 open_questions=['What's industry-standard payback period?']
             ),
@@ -441,7 +441,7 @@ GET  /api/agents/atlas/impact         - How often is Atlas research referenced?
 │  Driven By:                                                   │
 │  • 3 unresolved stakeholder concerns                          │
 │  • 2 pending ROI opportunities                                │
-│  • Fortuna asked about payback benchmarks                     │
+│  • Capital asked about payback benchmarks                     │
 │                                                               │
 │  [View All Research] [Trigger Now] [Edit Schedule]            │
 └──────────────────────────────────────────────────────────────┘
@@ -623,7 +623,7 @@ When Atlas produces research, automatically link to relevant agents:
 
 ```python
 AGENT_TOPIC_MAPPING = {
-    'roi': ['fortuna', 'strategist'],
+    'roi': ['capital', 'strategist'],
     'compliance': ['guardian', 'counselor'],
     'change_management': ['sage', 'catalyst'],
     'architecture': ['architect', 'guardian'],

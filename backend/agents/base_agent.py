@@ -65,7 +65,7 @@ class BaseAgent(ABC):
     Base class for all Thesis agents.
 
     Each agent has:
-    - A unique name (atlas, fortuna, guardian, counselor, oracle)
+    - A unique name (atlas, capital, guardian, counselor, oracle)
     - A display name for the UI
     - System instructions loaded from database or file
     - Access to Claude API for responses

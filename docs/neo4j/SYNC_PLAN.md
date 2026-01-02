@@ -304,7 +304,7 @@ CREATE (from)-[:HANDED_OFF_TO {
 #### 4.3 Agent Expertise Graph
 ```cypher
 // Link agents to concepts they're experts in
-MATCH (a:Agent {name: 'fortuna'})
+MATCH (a:Agent {name: 'capital'})
 MERGE (c:Concept {name: 'ROI'})
 MERGE (a)-[:EXPERT_IN {confidence: 0.95}]->(c)
 

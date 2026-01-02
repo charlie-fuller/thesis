@@ -25,7 +25,7 @@ const AGENT_COLORS: Record<string, string> = {
   'Atlas': '#8b5cf6',      // purple
   'Coordinator': '#3b82f6', // blue
   'Guardian': '#10b981',   // green
-  'Fortuna': '#f59e0b',    // amber
+  'Capital': '#f59e0b',    // amber
   'Oracle': '#ef4444',     // red
   'Sage': '#ec4899',       // pink
   'Architect': '#06b6d4',  // cyan

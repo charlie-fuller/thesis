@@ -175,7 +175,7 @@ The sync service automatically creates EXPERT_IN relationships:
 | Agent | Expertise Concepts |
 |-------|-------------------|
 | Atlas | research, consulting, case studies, thought leadership, genai |
-| Fortuna | roi, finance, budget, cost savings, investment |
+| Capital | roi, finance, budget, cost savings, investment |
 | Guardian | governance, security, infrastructure, it, compliance |
 | Counselor | legal, contracts, compliance, risk, policy |
 | Oracle | transcripts, meetings, stakeholders, sentiment, insights |

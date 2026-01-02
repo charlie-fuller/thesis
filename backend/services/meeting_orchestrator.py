@@ -62,7 +62,7 @@ SUMMARY_PATTERNS = [
 # @mention pattern for direct agent addressing in meetings
 # Matches @agentname at word boundaries (case-insensitive)
 MENTION_PATTERN = re.compile(
-    r'@(atlas|fortuna|guardian|counselor|oracle|sage|strategist|architect|'
+    r'@(atlas|capital|guardian|counselor|oracle|sage|strategist|architect|'
     r'operator|pioneer|catalyst|scholar|echo|nexus|facilitator|reporter)',
     re.IGNORECASE
 )
@@ -137,7 +137,7 @@ class MeetingOrchestrator:
         "atlas": ["research", "study", "trend", "case study", "best practice", "mckinsey",
                   "bcg", "gartner", "forrester", "academic", "literature", "benchmark",
                   "lean", "toyota", "operational excellence", "value stream"],
-        "fortuna": ["roi", "budget", "cost", "financial", "investment", "savings",
+        "capital": ["roi", "budget", "cost", "financial", "investment", "savings",
                    "cfo", "finance", "business case", "payback", "revenue", "expense",
                    "sox", "audit trail", "close cycle", "controller"],
         "guardian": ["security", "governance", "compliance", "infrastructure", "it",
@@ -708,7 +708,7 @@ The user's current request is below. Create a unified summary based on what the 
         """Get a brief domain label for an agent."""
         labels = {
             'atlas': 'research',
-            'fortuna': 'finance',
+            'capital': 'finance',
             'guardian': 'security',
             'counselor': 'legal',
             'oracle': 'meetings',
@@ -771,7 +771,7 @@ Generate a brief, conversational handoff (2-3 sentences max) that:
 3. Sounds natural - like a skilled meeting facilitator
 
 EXAMPLES of good handoffs:
-- "That's a layered question. Fortuna, I'd love to understand the financial dynamics here. And Sage, how might this land with the team from a people perspective?"
+- "That's a layered question. Capital, I'd love to understand the financial dynamics here. And Sage, how might this land with the team from a people perspective?"
 - "Interesting challenge. Guardian, what security considerations should we have on our radar? And Architect, how would this fit into the technical landscape?"
 
 DO NOT:
@@ -1172,7 +1172,7 @@ Respond with ONLY the handoff message, nothing else."""
     # Agent expertise descriptions for inter-agent awareness
     AGENT_EXPERTISE_DESCRIPTIONS = {
         "atlas": "Research & Best Practices - GenAI implementation research, case studies, Lean methodology, industry benchmarks",
-        "fortuna": "Financial Analysis & ROI - Business cases, cost savings, SOX compliance, investment analysis",
+        "capital": "Financial Analysis & ROI - Business cases, cost savings, SOX compliance, investment analysis",
         "guardian": "Security & Governance - IT security, compliance, vendor evaluation, shadow IT, infrastructure",
         "counselor": "Legal & Compliance - Contracts, liability, data privacy, AI risk, regulatory",
         "oracle": "Meeting Intelligence - Transcript analysis, stakeholder dynamics, sentiment extraction",
@@ -1322,7 +1322,7 @@ IDENTITY - CRITICAL:
 
 CRITICAL - 75 WORDS MAX:
 - ONE point per turn. Make it count.
-- Address ONLY agents in this meeting by name: "@Fortuna, but what about..."
+- Address ONLY agents in this meeting by name: "@Capital, but what about..."
 - Question > Agree. Challenge assumptions.
 - Not your domain AND relevant agent IS present? Defer to them.
 - Not your domain AND no relevant agent present? Give your best take.
@@ -1832,7 +1832,7 @@ async def get_meeting_orchestrator(
     - Reporter: Synthesizes discussions into unified summaries
     """
     from agents.atlas import AtlasAgent
-    from agents.fortuna import FortunaAgent
+    from agents.capital import CapitalAgent
     from agents.guardian import GuardianAgent
     from agents.counselor import CounselorAgent
     from agents.oracle import OracleAgent
@@ -1864,7 +1864,7 @@ async def get_meeting_orchestrator(
     # Core agents (these should exist)
     try:
         agents["atlas"] = AtlasAgent(supabase, anthropic_client)
-        agents["fortuna"] = FortunaAgent(supabase, anthropic_client)
+        agents["capital"] = CapitalAgent(supabase, anthropic_client)
         agents["guardian"] = GuardianAgent(supabase, anthropic_client)
         agents["counselor"] = CounselorAgent(supabase, anthropic_client)
         agents["oracle"] = OracleAgent(supabase, anthropic_client)

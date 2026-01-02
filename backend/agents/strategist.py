@@ -113,9 +113,9 @@ Provide strategic, executive-level guidance for AI transformation initiatives.""
         if any(word in message_lower for word in ["architecture", "technical design", "integration", "api"]):
             return ("architect", "Query requires technical architecture expertise")
 
-        # Hand off to Fortuna for detailed financial modeling
+        # Hand off to Capital for detailed financial modeling
         if any(word in message_lower for word in ["roi calculation", "financial model", "budget breakdown"]):
-            return ("fortuna", "Query requires detailed financial analysis")
+            return ("capital", "Query requires detailed financial analysis")
 
         # Hand off to Operator for ground-level operations
         if any(word in message_lower for word in ["process optimization", "workflow", "frontline"]):

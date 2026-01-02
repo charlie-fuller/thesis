@@ -692,9 +692,9 @@ Your role is to help people see the system they're in so they can work with it r
         if any(word in message_lower for word in ["research", "case study", "best practice"]):
             return ("atlas", "Query requires research synthesis")
 
-        # Hand off to Fortuna for financial analysis
+        # Hand off to Capital for financial analysis
         if any(word in message_lower for word in ["roi", "cost", "budget", "financial"]):
-            return ("fortuna", "Query requires financial analysis")
+            return ("capital", "Query requires financial analysis")
 
         # Hand off to Guardian for governance/security
         if any(word in message_lower for word in ["security", "compliance", "governance", "policy"]):

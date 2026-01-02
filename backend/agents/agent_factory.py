@@ -14,7 +14,7 @@ from supabase import Client
 from .coordinator import CoordinatorAgent
 # Stakeholder Perspective Agents
 from .atlas import AtlasAgent
-from .fortuna import FortunaAgent
+from .capital import CapitalAgent
 from .guardian import GuardianAgent
 from .counselor import CounselorAgent
 from .oracle import OracleAgent
@@ -68,7 +68,7 @@ async def create_coordinator(
         specialists = {
             # Stakeholder Perspective Agents
             "atlas": AtlasAgent(supabase, anthropic_client),
-            "fortuna": FortunaAgent(supabase, anthropic_client),
+            "capital": CapitalAgent(supabase, anthropic_client),
             "guardian": GuardianAgent(supabase, anthropic_client),
             "counselor": CounselorAgent(supabase, anthropic_client),
             "oracle": OracleAgent(supabase, anthropic_client),
@@ -118,7 +118,7 @@ async def create_specialist(
     agent_classes = {
         # Stakeholder Perspective Agents
         "atlas": AtlasAgent,
-        "fortuna": FortunaAgent,
+        "capital": CapitalAgent,
         "guardian": GuardianAgent,
         "counselor": CounselorAgent,
         "oracle": OracleAgent,

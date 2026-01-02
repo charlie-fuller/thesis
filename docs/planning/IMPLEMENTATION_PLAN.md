@@ -115,7 +115,7 @@ Add these tables to Thesis's schema:
 -- Agent Registry
 CREATE TABLE agents (
     id UUID PRIMARY KEY,
-    name VARCHAR(50) UNIQUE,  -- "atlas", "fortuna", etc.
+    name VARCHAR(50) UNIQUE,  -- "atlas", "capital", etc.
     display_name VARCHAR(100),
     system_instruction TEXT,
     is_active BOOLEAN DEFAULT TRUE,
@@ -287,11 +287,11 @@ Auto-populate stakeholders table from transcript analysis:
 
 ## Phase 3: Finance Agent + Handoffs (Week 3)
 
-### 3.1 Fortuna Agent (Finance)
+### 3.1 Capital Agent (Finance)
 
-**Create Fortuna agent:**
-- `/thesis/backend/agents/fortuna.py`
-- `/thesis/backend/system_instructions/fortuna.xml`
+**Create Capital agent:**
+- `/thesis/backend/agents/capital.py`
+- `/thesis/backend/system_instructions/capital.xml`
 
 **Capabilities:**
 - ROI calculation assistance
@@ -312,8 +312,8 @@ Auto-populate stakeholders table from transcript analysis:
 ### 3.3 Agent Handoff Mechanism
 
 **Implement handoffs:**
-- Atlas detects finance-related queries → handoff to Fortuna
-- Fortuna detects research needs → handoff to Atlas
+- Atlas detects finance-related queries → handoff to Capital
+- Capital detects research needs → handoff to Atlas
 - Log handoffs for analytics
 
 **Update chat route:**
@@ -477,7 +477,7 @@ thesis/
 │   ├── agents/
 │   │   ├── base_agent.py
 │   │   ├── atlas.py
-│   │   ├── fortuna.py
+│   │   ├── capital.py
 │   │   ├── guardian.py
 │   │   ├── counselor.py
 │   │   └── oracle.py
@@ -493,7 +493,7 @@ thesis/
 │   │   └── roi.py
 │   └── system_instructions/
 │       ├── atlas.xml
-│       ├── fortuna.xml
+│       ├── capital.xml
 │       ├── guardian.xml
 │       ├── counselor.xml
 │       └── oracle.xml
@@ -538,7 +538,7 @@ thesis/
 1. Can upload a meeting transcript and get stakeholder insights
 2. Can ask research questions and get evidence-based answers
 3. Can see which agent is responding
-4. Basic handoff works between Atlas and Fortuna
+4. Basic handoff works between Atlas and Capital
 5. Stakeholder database populated from transcripts
 6. Deployed and accessible
 

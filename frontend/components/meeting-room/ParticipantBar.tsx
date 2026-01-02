@@ -27,7 +27,7 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
   reporter: 'Synthesis & Documentation',
   // Stakeholder Perspective Agents
   atlas: 'Research & Best Practices',
-  fortuna: 'Financial Analysis & ROI',
+  capital: 'Financial Analysis & ROI',
   guardian: 'Security & Governance',
   counselor: 'Legal & Compliance',
   oracle: 'Stakeholder Intelligence',

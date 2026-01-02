@@ -9,7 +9,7 @@ Meta-Agents:
 Stakeholder Perspective Agents (Persona-Aligned):
 - Coordinator: Central orchestrator - routes queries to specialists, synthesizes responses
 - Atlas: Research agent - GenAI research, consulting approaches, case studies
-- Fortuna: Finance agent - ROI analysis, budget justification
+- Capital: Finance agent - ROI analysis, budget justification
 - Guardian: IT/Governance agent - security, infrastructure, governance
 - Counselor: Legal agent - contracts, compliance, legal considerations
 - Oracle: Transcript analyzer - stakeholder sentiment extraction
@@ -35,7 +35,7 @@ from .agent_router import AgentRouter, RoutingDecision
 from .coordinator import CoordinatorAgent
 from .facilitator import FacilitatorAgent
 from .atlas import AtlasAgent
-from .fortuna import FortunaAgent
+from .capital import CapitalAgent
 from .guardian import GuardianAgent
 from .counselor import CounselorAgent
 from .oracle import OracleAgent
@@ -63,7 +63,7 @@ __all__ = [
     "CoordinatorAgent",
     # Stakeholder Perspective Agents
     "AtlasAgent",
-    "FortunaAgent",
+    "CapitalAgent",
     "GuardianAgent",
     "CounselorAgent",
     "OracleAgent",

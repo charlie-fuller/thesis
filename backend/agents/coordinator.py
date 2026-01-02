@@ -61,7 +61,7 @@ class CoordinatorAgent(BaseAgent):
         "atlas": ["research", "study", "trend", "case study", "best practice", "mckinsey",
                   "bcg", "gartner", "forrester", "academic", "literature", "benchmark",
                   "lean", "toyota", "operational excellence", "value stream"],
-        "fortuna": ["roi", "budget", "cost", "financial", "investment", "savings",
+        "capital": ["roi", "budget", "cost", "financial", "investment", "savings",
                    "cfo", "finance", "business case", "payback", "revenue", "expense",
                    "sox", "audit trail", "close cycle", "controller"],
         "guardian": ["security", "governance", "compliance", "infrastructure", "it",
@@ -180,7 +180,7 @@ Core Mission: Synthesize insights across research, finance, governance, legal, a
    - Case studies and best practices
    - Lean/Toyota Production System thinking
 
-2. Financial Analysis (Fortuna domain)
+2. Financial Analysis (Capital domain)
    - ROI calculations and projections
    - Budget justification and business cases
    - SOX compliance and audit trails
@@ -365,7 +365,7 @@ Core Mission: Synthesize insights across research, finance, governance, legal, a
 
 Available specialists (Stakeholder Perspectives):
 - atlas: Research, trends, case studies, best practices, Lean/Toyota methodology
-- fortuna: Financial analysis, ROI, budgets, SOX compliance, audit trails
+- capital: Financial analysis, ROI, budgets, SOX compliance, audit trails
 - guardian: Security, governance, compliance, IT infrastructure, shadow IT
 - counselor: Legal, contracts, AI risks (hallucination, bias), liability
 - oracle: Meeting transcripts, stakeholder sentiment analysis

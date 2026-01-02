@@ -565,9 +565,9 @@ Respond with ONLY the JSON object, no additional text."""
         """Check if we should hand off to another agent."""
         message_lower = context.user_message.lower()
 
-        # Hand off to Fortuna for ROI/cost questions
+        # Hand off to Capital for ROI/cost questions
         if any(word in message_lower for word in ["roi", "cost", "budget", "savings", "investment"]):
-            return ("fortuna", "Query involves financial analysis")
+            return ("capital", "Query involves financial analysis")
 
         # Hand off to Guardian for security/compliance
         if any(word in message_lower for word in ["security", "compliance", "governance", "risk"]):

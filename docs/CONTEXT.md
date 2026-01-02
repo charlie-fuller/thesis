@@ -24,7 +24,7 @@ A suite of specialized agents that work together (hybrid coordination model) to:
 | Agent | Name | Purpose |
 |-------|------|---------|
 | Research | Atlas | Track GenAI implementation research, consulting approaches, corporate case studies, thought leadership - with proactive alerts |
-| Finance | Fortuna | ROI analysis, budget justification, Finance stakeholder support |
+| Finance | Capital | ROI analysis, budget justification, Finance stakeholder support |
 | IT/Governance | Guardian | Navigate governance, security, infrastructure considerations |
 | Legal | Counselor | Legal considerations, contracts, compliance |
 | Transcript Analyzer | Oracle | Extract stakeholder sentiment from meeting transcripts |
@@ -126,7 +126,7 @@ Thesis will fork/adapt from the **Thesis** platform, which provides:
 2. Agent registry and basic router
 3. Atlas (Research) agent with web search
 4. Oracle (Transcript Analyzer) with stakeholder extraction
-5. Fortuna (Finance) agent with ROI detection
+5. Capital (Finance) agent with ROI detection
 6. Basic handoff mechanism between agents
 7. Stakeholder database populated from transcripts
 

@@ -778,9 +778,9 @@ Focus on evidence-based insights and actionable recommendations.
         """Check if we should hand off to another agent."""
         message_lower = context.user_message.lower()
 
-        # Hand off to Fortuna for ROI/cost questions
+        # Hand off to Capital for ROI/cost questions
         if any(word in message_lower for word in ["roi calculation", "budget", "cost-benefit", "financial model"]):
-            return ("fortuna", "Query requires detailed financial analysis")
+            return ("capital", "Query requires detailed financial analysis")
 
         # Hand off to Guardian for security/compliance specifics
         if any(word in message_lower for word in ["security policy", "compliance framework", "audit requirement"]):

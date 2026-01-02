@@ -53,7 +53,7 @@ class AgentRouter:
             r"\bbest practice\b", r"\bindustry\b", r"\bcompetitor\b",
             r"\bai implementation\b", r"\bgenai\b", r"\bgen ai\b",
         ],
-        "fortuna": [
+        "capital": [
             r"\broi\b", r"\breturn on investment\b", r"\bcost\b", r"\bbudget\b",
             r"\bfinance\b", r"\bfinancial\b", r"\bcfo\b", r"\bcontroller\b",
             r"\bsaving\b", r"\bexpense\b", r"\binvestment\b", r"\bspend\b",
@@ -149,7 +149,7 @@ class AgentRouter:
     AGENT_MENTIONS = {
         # Stakeholder Perspective Agents
         "@atlas": "atlas",
-        "@fortuna": "fortuna",
+        "@capital": "capital",
         "@guardian": "guardian",
         "@counselor": "counselor",
         "@oracle": "oracle",
@@ -168,7 +168,7 @@ class AgentRouter:
         "@coordinator": "coordinator",
         # Alternate names
         "@research": "atlas",
-        "@finance": "fortuna",
+        "@finance": "capital",
         "@it": "guardian",
         "@governance": "guardian",
         "@legal": "counselor",
@@ -284,7 +284,7 @@ Classify the following message to determine which agent should handle it.
 
 Available agents:
 - atlas: Research agent for GenAI research, consulting approaches, case studies, thought leadership
-- fortuna: Finance agent for ROI analysis, budget justification, cost-benefit analysis
+- capital: Finance agent for ROI analysis, budget justification, cost-benefit analysis
 - guardian: IT/Governance agent for security, compliance, infrastructure, policy
 - counselor: Legal agent for contracts, IP, licensing, legal considerations
 - oracle: Transcript analyzer for meeting transcripts, stakeholder sentiment
@@ -346,7 +346,7 @@ Format: AGENT_NAME: reason"""
         handoff_mappings = {
             # Stakeholder Perspective Agents
             "atlas": ["research", "study", "analysis", "trend", "benchmark", "case study"],
-            "fortuna": ["cost", "budget", "roi", "financial", "money", "investment"],
+            "capital": ["cost", "budget", "roi", "financial", "money", "investment"],
             "guardian": ["security", "compliance", "governance", "it", "infrastructure"],
             "counselor": ["legal", "contract", "license", "ip", "liability"],
             "oracle": ["transcript", "meeting", "stakeholder", "sentiment"],

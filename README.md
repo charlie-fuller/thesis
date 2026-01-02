@@ -33,7 +33,7 @@ Thesis includes 15 specialized agents organized into five categories:
 
 | Category | Agents | Purpose |
 |----------|--------|---------|
-| [Stakeholder Perspectives](#stakeholder-perspective-agents) | Atlas, Fortuna, Guardian, Counselor, Sage, Oracle | Embody real enterprise stakeholder viewpoints |
+| [Stakeholder Perspectives](#stakeholder-perspective-agents) | Atlas, Capital, Guardian, Counselor, Sage, Oracle | Embody real enterprise stakeholder viewpoints |
 | [Consulting/Implementation](#consultingimplementation-agents) | Strategist, Architect, Operator, Pioneer | Professional consulting and technical guidance |
 | [Internal Enablement](#internal-enablement-agents) | Catalyst, Scholar, Echo | Support internal AI adoption and communication |
 | [Systems/Coordination](#systemscoordination-agents) | Nexus, Coordinator | Systems thinking and agent orchestration |
@@ -63,7 +63,7 @@ Atlas serves as the research intelligence engine, monitoring the GenAI implement
 
 ---
 
-#### Fortuna - Financial Analysis
+#### Capital - Financial Analysis
 
 | | |
 |---|---|
@@ -71,7 +71,7 @@ Atlas serves as the research intelligence engine, monitoring the GenAI implement
 | **Persona Alignment** | Raul Rivera III (Sr. Director, Global Controller) |
 | **Domain Focus** | ROI analysis, SOX compliance, business cases |
 
-Fortuna provides the CFO/Controller perspective on AI investments, ensuring financial rigor and regulatory compliance. With deep understanding of SOX requirements, audit trails, and business case development, Fortuna helps justify AI investments with quantifiable returns.
+Capital provides the CFO/Controller perspective on AI investments, ensuring financial rigor and regulatory compliance. With deep understanding of SOX requirements, audit trails, and business case development, Capital helps justify AI investments with quantifiable returns.
 
 **Key Capabilities:**
 - Build comprehensive AI ROI models and business cases
@@ -359,7 +359,7 @@ User Query
 [Coordinator] --> Analyzes query, identifies relevant domains
     |
     v
-[Specialist Agent(s)] --> Atlas, Fortuna, Guardian, etc.
+[Specialist Agent(s)] --> Atlas, Capital, Guardian, etc.
     |
     v
 [Synthesized Response] --> Unified answer from relevant perspectives
@@ -372,14 +372,14 @@ For complex queries spanning multiple domains, the Coordinator consults multiple
 For focused cross-functional discussions, users can create Meeting Rooms with 2+ selected agents:
 
 ```
-User creates Meeting Room with: Guardian + Fortuna + Architect
+User creates Meeting Room with: Guardian + Capital + Architect
     |
     v
 User Query: "Evaluate this AI vendor proposal"
     |
     v
 [Guardian] --> Security assessment (parallel)
-[Fortuna]  --> Financial analysis    (parallel)
+[Capital]  --> Financial analysis    (parallel)
 [Architect]--> Technical evaluation  (parallel)
     |
     v
@@ -387,10 +387,10 @@ Three distinct responses, each from agent's perspective
 ```
 
 Meeting Rooms are ideal for:
-- Security investment discussions (Guardian + Fortuna)
+- Security investment discussions (Guardian + Capital)
 - Technical architecture reviews (Architect + Pioneer + Operator)
 - Change management planning (Sage + Catalyst + Scholar)
-- Comprehensive vendor evaluations (Guardian + Fortuna + Counselor + Architect)
+- Comprehensive vendor evaluations (Guardian + Capital + Counselor + Architect)
 
 ### Autonomous Discussion Mode
 
@@ -410,7 +410,7 @@ Within any Meeting Room, agents can discuss a topic amongst themselves for a con
 4. **EXTEND** - Build on another agent's point with additional depth
 5. **SYNTHESIZE** - Combine multiple viewpoints into integrated insight
 
-**Expert Deference:** Agents are aware of each other's specialties and defer to the relevant expert rather than overstepping their domain. For example, Guardian defers to Fortuna on ROI calculations, while Fortuna defers to Guardian on security architecture.
+**Expert Deference:** Agents are aware of each other's specialties and defer to the relevant expert rather than overstepping their domain. For example, Guardian defers to Capital on ROI calculations, while Capital defers to Guardian on security architecture.
 
 ```
 User: "Discuss the implications of shadow AI in our organization"
@@ -512,7 +512,7 @@ Multi-agent collaboration space for focused discussions with selected agents:
 - **Token Tracking** - Monitor meeting token usage
 
 Use cases:
-- Security investment discussions with Guardian + Fortuna
+- Security investment discussions with Guardian + Capital
 - Change management planning with Sage + Catalyst
 - Technical architecture reviews with Architect + Pioneer
 - Cross-functional debates on AI governance (Guardian + Counselor + Strategist)

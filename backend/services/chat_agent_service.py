@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AgentSelection:
     """Result of agent selection for a chat message."""
-    primary_agent: str  # Agent name (e.g., "atlas", "fortuna")
-    display_name: str   # Display name for UI (e.g., "Atlas", "Fortuna")
+    primary_agent: str  # Agent name (e.g., "atlas", "capital")
+    display_name: str   # Display name for UI (e.g., "Atlas", "Capital")
     system_instruction: str  # The system instruction to use
     confidence: float   # Routing confidence (1.0 for explicit selection)
     reason: str         # Why this agent was selected
@@ -41,7 +41,7 @@ class AgentSelection:
 # Agent display names mapping
 AGENT_DISPLAY_NAMES = {
     "atlas": "Atlas (Research)",
-    "fortuna": "Fortuna (Finance)",
+    "capital": "Capital (Finance)",
     "guardian": "Guardian (IT/Governance)",
     "counselor": "Counselor (Legal)",
     "oracle": "Oracle (Meeting Intelligence)",
@@ -59,7 +59,7 @@ AGENT_DISPLAY_NAMES = {
 
 # @mention patterns - matches @agentname at word boundaries
 MENTION_PATTERN = re.compile(
-    r'@(atlas|fortuna|guardian|counselor|oracle|sage|strategist|architect|'
+    r'@(atlas|capital|guardian|counselor|oracle|sage|strategist|architect|'
     r'operator|pioneer|catalyst|scholar|echo|nexus|coordinator|'
     r'research|finance|it|governance|legal|transcript|people|change|'
     r'executive|technical|operations|innovation|comms|training|voice|systems)',
@@ -69,7 +69,7 @@ MENTION_PATTERN = re.compile(
 # Map alternate names to canonical names
 MENTION_ALIASES = {
     "research": "atlas",
-    "finance": "fortuna",
+    "finance": "capital",
     "it": "guardian",
     "governance": "guardian",
     "legal": "counselor",

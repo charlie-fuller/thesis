@@ -117,8 +117,8 @@ Provide practical, operations-focused guidance for AI implementation."""
         if any(word in message_lower for word in ["resistance", "adoption", "fear", "burnout"]):
             return ("sage", "Query requires people/change management expertise")
 
-        # Hand off to Fortuna for detailed ROI analysis
+        # Hand off to Capital for detailed ROI analysis
         if any(word in message_lower for word in ["roi calculation", "cost-benefit", "financial model"]):
-            return ("fortuna", "Query requires detailed financial analysis")
+            return ("capital", "Query requires detailed financial analysis")
 
         return None

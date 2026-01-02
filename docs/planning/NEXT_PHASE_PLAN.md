@@ -15,7 +15,7 @@ This document outlines the next phase of work to move Thesis from "agents define
 ## Current State (Completed)
 
 ### Agent System Instructions (12 total)
-- **Persona-Aligned (6):** Atlas, Fortuna, Guardian, Counselor, Sage, Oracle
+- **Persona-Aligned (6):** Atlas, Capital, Guardian, Counselor, Sage, Oracle
 - **Consulting/Implementation (4):** Strategist, Architect, Operator, Pioneer
 - **Internal Enablement (2):** Catalyst, Scholar
 
@@ -44,7 +44,7 @@ backend/agents/catalyst.py
 backend/agents/scholar.py
 ```
 
-**Pattern to Follow:** Use existing agents (atlas.py, fortuna.py, etc.) as templates.
+**Pattern to Follow:** Use existing agents (atlas.py, capital.py, etc.) as templates.
 
 **Estimated Effort:** 2-3 hours
 
@@ -121,7 +121,7 @@ async def test_strategist_executive_query():
 **Test Cases:**
 | Query | Expected Agent(s) |
 |-------|------------------|
-| "What's the ROI of this project?" | fortuna |
+| "What's the ROI of this project?" | capital |
 | "How do we communicate this to employees?" | catalyst |
 | "Design a training program for AI" | scholar |
 | "What emerging technologies should we watch?" | pioneer |

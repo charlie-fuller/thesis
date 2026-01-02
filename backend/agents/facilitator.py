@@ -263,7 +263,7 @@ RULES:
         """Get brief expertise description for an agent."""
         expertise_map = {
             'atlas': 'Research & Best Practices',
-            'fortuna': 'Financial Analysis & ROI',
+            'capital': 'Financial Analysis & ROI',
             'guardian': 'Security & Governance',
             'counselor': 'Legal & Compliance',
             'oracle': 'Meeting Intelligence',

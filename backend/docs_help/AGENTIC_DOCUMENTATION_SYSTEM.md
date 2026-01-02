@@ -22,7 +22,7 @@ Before diving into the technical details, it's worth discussing what to call thi
 | **Code-Grounded Help System** | CGHS | Emphasizes source-of-truth aspect | Clunky acronym |
 | **Question-Driven Documentation** | QDD | Emphasizes user questions as driver | Misses the code-awareness aspect |
 | **Continuous Documentation System** | CDS | Parallels CI/CD terminology | Doesn't capture the intelligence |
-| **Agentic Support System** | ASS | Captures autonomous agent behavior | Unfortunate acronym |
+| **Agentic Support System** | ASS | Captures autonomous agent behavior | Uncapitalte acronym |
 | **Help System Thinking** | HST | Parallels "Systems Thinking" / "Design Thinking" | Could be misread as "Help [with] System Thinking" |
 | **Metacognitive Evolving Document System** | MEDS | Captures self-awareness and continuous improvement | Strong technical accuracy |
 

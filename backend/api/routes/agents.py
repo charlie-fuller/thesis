@@ -1183,7 +1183,7 @@ async def get_agent_default_instructions(
 
         # Import and instantiate the agent to get default instructions
         from agents import (
-            AtlasAgent, FortunaAgent, GuardianAgent, CounselorAgent, OracleAgent,
+            AtlasAgent, CapitalAgent, GuardianAgent, CounselorAgent, OracleAgent,
             SageAgent, StrategistAgent, ArchitectAgent, OperatorAgent, PioneerAgent,
             CatalystAgent, ScholarAgent, NexusAgent, CoordinatorAgent
         )
@@ -1195,7 +1195,7 @@ async def get_agent_default_instructions(
 
         agent_classes = {
             "atlas": AtlasAgent,
-            "fortuna": FortunaAgent,
+            "capital": CapitalAgent,
             "guardian": GuardianAgent,
             "counselor": CounselorAgent,
             "oracle": OracleAgent,

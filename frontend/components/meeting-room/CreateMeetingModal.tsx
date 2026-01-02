@@ -22,7 +22,7 @@ const AGENT_SHORT_DESCRIPTIONS: Record<string, string> = {
   reporter: 'Synthesis and documentation',
   // Stakeholder Perspective Agents
   atlas: 'GenAI research and benchmarking',
-  fortuna: 'ROI analysis and business cases',
+  capital: 'ROI analysis and business cases',
   guardian: 'Security, compliance, IT governance',
   counselor: 'Legal, contracts, AI risks',
   oracle: 'Meeting transcript analysis',

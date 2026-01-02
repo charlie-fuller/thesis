@@ -61,4 +61,4 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=10000)
     document_ids: Optional[list[str]] = None
     use_rag: Optional[bool] = True
-    agent_ids: Optional[list[str]] = None  # Explicit agent selection (e.g., ["atlas", "fortuna"])
+    agent_ids: Optional[list[str]] = None  # Explicit agent selection (e.g., ["atlas", "capital"])

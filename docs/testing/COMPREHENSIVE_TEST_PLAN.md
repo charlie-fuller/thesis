@@ -133,7 +133,7 @@ class TestCoordinatorAgent:
     async def test_single_domain_routing(self):
         """Single-domain queries should route to one specialist."""
         queries = [
-            ("What's the ROI of this project?", ["fortuna"]),
+            ("What's the ROI of this project?", ["capital"]),
             ("Is this compliant with GDPR?", ["guardian"]),
             ("Review this contract clause", ["counselor"]),
         ]
@@ -141,7 +141,7 @@ class TestCoordinatorAgent:
     async def test_multi_domain_routing(self):
         """Complex queries should route to multiple specialists."""
         queries = [
-            ("What's the ROI and legal risk?", ["fortuna", "counselor"]),
+            ("What's the ROI and legal risk?", ["capital", "counselor"]),
             ("Security and compliance concerns", ["guardian", "counselor"]),
         ]
 
@@ -169,12 +169,12 @@ class TestSpecialistAgents:
     async def test_atlas_lean_orientation(self):
         """Atlas should apply Toyota/Lean thinking."""
 
-    # Fortuna (Finance)
-    async def test_fortuna_roi_calculation(self):
-        """Fortuna should provide ROI metrics and business cases."""
+    # Capital (Finance)
+    async def test_capital_roi_calculation(self):
+        """Capital should provide ROI metrics and business cases."""
 
-    async def test_fortuna_sox_awareness(self):
-        """Fortuna should address SOX compliance concerns."""
+    async def test_capital_sox_awareness(self):
+        """Capital should address SOX compliance concerns."""
 
     # Guardian (Governance)
     async def test_guardian_security_assessment(self):
