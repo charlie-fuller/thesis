@@ -3,10 +3,15 @@ Neo4j Connection Management
 
 Provides async-compatible connection handling for Neo4j Aura.
 Uses the official neo4j Python driver with connection pooling.
+
+Note: Uses contextvars to safely manage connections across different
+event loops (important for FastAPI with background tasks).
 """
 
+import asyncio
 import logging
 import os
+from contextvars import ContextVar
 from typing import Any, Optional
 from contextlib import asynccontextmanager
 
@@ -15,8 +20,15 @@ from neo4j.exceptions import ServiceUnavailable, AuthError
 
 logger = logging.getLogger(__name__)
 
-# Global connection instance
-_neo4j_connection: Optional["Neo4jConnection"] = None
+# Context-aware connection storage (safe across event loops)
+_neo4j_connection_var: ContextVar[Optional["Neo4jConnection"]] = ContextVar(
+    "_neo4j_connection", default=None
+)
+
+# Track which event loop owns the current connection
+_connection_loop_var: ContextVar[Optional[asyncio.AbstractEventLoop]] = ContextVar(
+    "_connection_loop", default=None
+)
 
 
 class Neo4jConnection:
@@ -202,7 +214,7 @@ class Neo4jConnection:
 
 async def get_neo4j_connection() -> Neo4jConnection:
     """
-    Get or create the global Neo4j connection.
+    Get or create a Neo4j connection for the current event loop.
 
     Uses environment variables:
         NEO4J_URI: Connection URI
@@ -212,33 +224,64 @@ async def get_neo4j_connection() -> Neo4jConnection:
 
     Returns:
         Neo4jConnection instance
+
+    Note: Creates a new connection if the event loop has changed,
+    preventing "Future attached to a different loop" errors.
     """
-    global _neo4j_connection
+    current_loop = asyncio.get_running_loop()
+    existing_connection = _neo4j_connection_var.get()
+    connection_loop = _connection_loop_var.get()
 
-    if _neo4j_connection is None:
-        uri = os.getenv("NEO4J_URI")
-        password = os.getenv("NEO4J_PASSWORD")
-        username = os.getenv("NEO4J_USERNAME", "neo4j")
-        database = os.getenv("NEO4J_DATABASE", "neo4j")
+    # Check if we have a valid connection for the current loop
+    if existing_connection is not None and connection_loop is current_loop:
+        return existing_connection
 
-        if not uri or not password:
-            raise ValueError("NEO4J_URI and NEO4J_PASSWORD environment variables are required")
-
-        _neo4j_connection = Neo4jConnection(
-            uri=uri,
-            password=password,
-            username=username,
-            database=database
+    # If connection exists but for a different loop, close it first
+    if existing_connection is not None and connection_loop is not current_loop:
+        logger.warning(
+            "Neo4j connection was created in a different event loop. "
+            "Creating new connection for current loop."
         )
-        await _neo4j_connection.connect()
+        try:
+            # Can't close from different loop, just abandon it
+            # The old loop should clean up when it ends
+            pass
+        except Exception as e:
+            logger.debug(f"Could not close old connection: {e}")
 
-    return _neo4j_connection
+    # Create new connection
+    uri = os.getenv("NEO4J_URI")
+    password = os.getenv("NEO4J_PASSWORD")
+    username = os.getenv("NEO4J_USERNAME", "neo4j")
+    database = os.getenv("NEO4J_DATABASE", "neo4j")
+
+    if not uri or not password:
+        raise ValueError("NEO4J_URI and NEO4J_PASSWORD environment variables are required")
+
+    new_connection = Neo4jConnection(
+        uri=uri,
+        password=password,
+        username=username,
+        database=database
+    )
+    await new_connection.connect()
+
+    # Store connection and its loop
+    _neo4j_connection_var.set(new_connection)
+    _connection_loop_var.set(current_loop)
+
+    return new_connection
 
 
 async def close_neo4j_connection() -> None:
-    """Close the global Neo4j connection."""
-    global _neo4j_connection
+    """Close the Neo4j connection for the current context."""
+    connection = _neo4j_connection_var.get()
 
-    if _neo4j_connection is not None:
-        await _neo4j_connection.close()
-        _neo4j_connection = None
+    if connection is not None:
+        try:
+            await connection.close()
+        except Exception as e:
+            logger.warning(f"Error closing Neo4j connection: {e}")
+        finally:
+            _neo4j_connection_var.set(None)
+            _connection_loop_var.set(None)

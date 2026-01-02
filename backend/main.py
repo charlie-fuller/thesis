@@ -14,7 +14,6 @@ from fastapi.responses import Response
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from starlette.middleware.base import BaseHTTPMiddleware
 
 # Load environment variables BEFORE any other imports
 load_dotenv()
@@ -163,16 +162,28 @@ logger.info(f"CORS allowed origins: {allowed_origins}")
 # Custom CORS Middleware (handles CORS before anything else)
 # ============================================================================
 
-class CustomCORSMiddleware(BaseHTTPMiddleware):
+class CustomCORSMiddleware:
     """
-    Custom CORS middleware that handles preflight requests directly.
+    Pure ASGI CORS middleware that handles preflight requests directly.
     This ensures CORS headers are always added, even when exceptions occur.
+
+    Note: Using pure ASGI instead of BaseHTTPMiddleware to avoid
+    event loop issues with async resources (Neo4j, etc.).
     """
 
-    async def dispatch(self, request: Request, call_next):
-        origin = request.headers.get("origin", "")
-        path = request.url.path
-        method = request.method
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # Extract request info from scope
+        headers = dict(scope.get("headers", []))
+        origin = headers.get(b"origin", b"").decode("utf-8")
+        path = scope.get("path", "")
+        method = scope.get("method", "")
 
         # Log all incoming requests for debugging
         logger.info(f"CORS middleware: {method} {path} from origin: '{origin}'")
@@ -185,7 +196,7 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
         if method == "OPTIONS":
             if is_allowed:
                 logger.info(f"CORS preflight ALLOWED for {path} from {origin}")
-                return Response(
+                response = Response(
                     status_code=200,
                     headers={
                         "Access-Control-Allow-Origin": origin,
@@ -197,24 +208,38 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
                 )
             else:
                 logger.warning(f"CORS preflight REJECTED for {path} - origin '{origin}' not in allowed list")
-                return Response(status_code=403, content="CORS not allowed")
+                response = Response(status_code=403, content="CORS not allowed")
 
-        # For non-OPTIONS requests, proceed and add CORS headers to response
+            await response(scope, receive, send)
+            return
+
+        # For non-OPTIONS requests, wrap send to add CORS headers
+        async def send_with_cors(message):
+            if message["type"] == "http.response.start" and is_allowed and origin:
+                # Add CORS headers to the response
+                headers = list(message.get("headers", []))
+                headers.append((b"access-control-allow-origin", origin.encode()))
+                headers.append((b"access-control-allow-credentials", b"true"))
+                message = {**message, "headers": headers}
+            await send(message)
+
         try:
-            response = await call_next(request)
+            await self.app(scope, receive, send_with_cors)
         except Exception as e:
             logger.error(f"CORS middleware caught exception: {e}")
             # Return error with CORS headers
+            error_headers = []
+            if is_allowed and origin:
+                error_headers = [
+                    (b"access-control-allow-origin", origin.encode()),
+                    (b"access-control-allow-credentials", b"true"),
+                ]
             response = Response(
                 status_code=500,
                 content=str(e),
+                headers={h[0].decode(): h[1].decode() for h in error_headers}
             )
-
-        if is_allowed and origin:
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-
-        return response
+            await response(scope, receive, send)
 
 
 # Add custom CORS middleware (added last = runs first due to LIFO)
