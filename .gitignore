@@ -77,3 +77,7 @@ DEPLOYMENT_STATUS.md
 
 # VSCode workspace files
 *.code-workspace
+
+# Allow encrypted .env.vault to be committed
+!.env.vault
+!backend/.env.vault
