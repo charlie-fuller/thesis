@@ -76,7 +76,7 @@ export default function DocumentUpload({
     })
   }
 
-  const ACCEPTED_EXTENSIONS = ['.txt', '.md', '.docx', '.doc', '.csv', '.json', '.xml']
+  const ACCEPTED_EXTENSIONS = ['.txt', '.md', '.docx', '.doc', '.csv', '.json', '.xml', '.pdf']
   const ACCEPTED_MIME_TYPES = [
     'text/plain',
     'text/markdown',
@@ -85,7 +85,8 @@ export default function DocumentUpload({
     'text/csv',
     'application/json',
     'text/xml',
-    'application/xml'
+    'application/xml',
+    'application/pdf'
   ]
 
   function isValidFile(file: File): boolean {
@@ -363,7 +364,7 @@ export default function DocumentUpload({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".txt,.md,.docx,.doc,.csv,.json,.xml"
+          accept=".txt,.md,.docx,.doc,.csv,.json,.xml,.pdf"
           onChange={handleFileSelect}
           multiple
           disabled={isUploading}
@@ -582,10 +583,10 @@ export default function DocumentUpload({
       <div className="mt-4 text-xs text-muted">
         <p className="font-semibold mb-1">Supported formats:</p>
         <ul className="list-disc list-inside space-y-1">
+          <li>PDF documents (.pdf)</li>
           <li>Plain text (.txt, .md)</li>
           <li>Word documents (.docx, .doc)</li>
           <li>Structured data (.csv, .json, .xml)</li>
-          <li>Any UTF-8 text file</li>
         </ul>
       </div>
     </div>
