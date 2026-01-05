@@ -9,6 +9,13 @@ import { logger } from '@/lib/logger'
 import PageHeader from '@/components/PageHeader'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { AgentIcon, getAgentColor } from '@/components/AgentIcon'
+import dynamic from 'next/dynamic'
+
+// Lazy load the chart component to avoid SSR issues with recharts
+const EngagementTrendsChart = dynamic(
+  () => import('@/components/EngagementTrendsChart'),
+  { ssr: false, loading: () => <LoadingSpinner /> }
+)
 
 // Tab type
 type TabType = 'agents' | 'stakeholders'
@@ -391,6 +398,11 @@ export default function IntelligencePage() {
                 </div>
               </div>
             )}
+
+            {/* Engagement Trends Analytics */}
+            <div className="mb-8">
+              <EngagementTrendsChart />
+            </div>
 
             {/* Create Form */}
             {showCreateForm && (

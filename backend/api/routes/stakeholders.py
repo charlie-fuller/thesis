@@ -105,6 +105,179 @@ async def list_stakeholders(
     return [_format_stakeholder(s) for s in result.data]
 
 
+# ============================================================================
+# ENGAGEMENT ANALYTICS ENDPOINTS
+# ============================================================================
+# NOTE: Static routes must be defined before parameterized routes (/{stakeholder_id})
+
+@router.get("/engagement/trends")
+async def get_engagement_trends(
+    days: int = 90,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Get engagement level distribution over time for trend analytics.
+
+    Returns data suitable for a stacked area chart showing how engagement
+    levels have changed over time.
+
+    Args:
+        days: Number of days to look back (default 90)
+
+    Returns:
+        List of weekly snapshots with counts per engagement level
+    """
+    from datetime import timedelta
+
+    client_id = current_user["client_id"]
+
+    # Calculate start date
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # Get engagement history for the period
+    result = supabase.table("engagement_level_history") \
+        .select("engagement_level, calculated_at") \
+        .eq("client_id", client_id) \
+        .gte("calculated_at", start_date.isoformat()) \
+        .order("calculated_at") \
+        .execute()
+
+    if not result.data:
+        # Return empty trends if no history
+        return []
+
+    # Group by week and count engagement levels
+    from collections import defaultdict
+
+    weekly_data = defaultdict(lambda: {
+        "champion": 0,
+        "supporter": 0,
+        "neutral": 0,
+        "skeptic": 0,
+        "blocker": 0
+    })
+
+    for record in result.data:
+        # Get week start (Monday)
+        calc_date = datetime.fromisoformat(record["calculated_at"].replace("Z", "+00:00"))
+        week_start = calc_date - timedelta(days=calc_date.weekday())
+        week_key = week_start.strftime("%Y-%m-%d")
+
+        level = record["engagement_level"].lower()
+        if level in weekly_data[week_key]:
+            weekly_data[week_key][level] += 1
+
+    # Convert to sorted list
+    trends = [
+        {"date": date, **counts}
+        for date, counts in sorted(weekly_data.items())
+    ]
+
+    return trends
+
+
+@router.get("/engagement/changes")
+async def get_engagement_changes(
+    days: int = 30,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Get recent engagement level changes (who moved up/down).
+
+    Returns stakeholders whose engagement level changed recently,
+    with direction indicators.
+
+    Args:
+        days: Number of days to look back (default 30)
+
+    Returns:
+        List of engagement changes with stakeholder info
+    """
+    from datetime import timedelta
+
+    client_id = current_user["client_id"]
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # Get history records where level changed (previous_level is not null)
+    result = supabase.table("engagement_level_history") \
+        .select("stakeholder_id, engagement_level, previous_level, calculation_reason, calculated_at") \
+        .eq("client_id", client_id) \
+        .gte("calculated_at", start_date.isoformat()) \
+        .not_.is_("previous_level", "null") \
+        .order("calculated_at", desc=True) \
+        .limit(50) \
+        .execute()
+
+    if not result.data:
+        return []
+
+    # Get stakeholder names
+    stakeholder_ids = list(set(r["stakeholder_id"] for r in result.data))
+    stakeholders = supabase.table("stakeholders") \
+        .select("id, name") \
+        .in_("id", stakeholder_ids) \
+        .execute()
+
+    name_map = {s["id"]: s["name"] for s in stakeholders.data}
+
+    # Calculate direction
+    level_order = ["blocker", "skeptic", "neutral", "supporter", "champion"]
+
+    def get_direction(prev: str, new: str) -> str:
+        prev_idx = level_order.index(prev.lower()) if prev.lower() in level_order else 2
+        new_idx = level_order.index(new.lower()) if new.lower() in level_order else 2
+        if new_idx > prev_idx:
+            return "up"
+        elif new_idx < prev_idx:
+            return "down"
+        return "same"
+
+    changes = []
+    for record in result.data:
+        changes.append({
+            "stakeholder_id": record["stakeholder_id"],
+            "name": name_map.get(record["stakeholder_id"], "Unknown"),
+            "previous_level": record["previous_level"],
+            "new_level": record["engagement_level"],
+            "direction": get_direction(record["previous_level"], record["engagement_level"]),
+            "change_date": record["calculated_at"],
+            "reason": record["calculation_reason"]
+        })
+
+    return changes
+
+
+@router.post("/engagement/recalculate")
+async def trigger_engagement_recalculation(
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Manually trigger engagement recalculation for the current client.
+
+    This is an admin function for testing or forcing an immediate update.
+    """
+    from services.engagement_scheduler import trigger_manual_calculation
+
+    client_id = current_user["client_id"]
+
+    try:
+        result = await trigger_manual_calculation(client_id=client_id)
+        return {
+            "message": "Engagement recalculation completed",
+            "total": result.get("total", 0),
+            "changed": result.get("changed", 0),
+            "promotions": result.get("promotions", 0),
+            "demotions": result.get("demotions", 0),
+            "errors": result.get("errors", 0)
+        }
+    except Exception as e:
+        logger.error(f"Engagement recalculation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/dashboard")
 async def get_stakeholder_dashboard(
     current_user: dict = Depends(get_current_user),
@@ -270,6 +443,62 @@ async def delete_stakeholder(
         raise HTTPException(status_code=404, detail="Stakeholder not found")
 
     return {"message": "Stakeholder deleted successfully"}
+
+
+@router.get("/{stakeholder_id}/engagement/history")
+async def get_stakeholder_engagement_history(
+    stakeholder_id: str,
+    limit: int = 20,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Get engagement level history for a specific stakeholder.
+
+    Returns the history of engagement level calculations, including
+    the signals that drove each calculation.
+
+    Args:
+        stakeholder_id: UUID of the stakeholder
+        limit: Maximum records to return (default 20)
+
+    Returns:
+        List of engagement history records
+    """
+    # Verify stakeholder belongs to client
+    stakeholder = supabase.table("stakeholders") \
+        .select("id, name") \
+        .eq("id", stakeholder_id) \
+        .eq("client_id", current_user["client_id"]) \
+        .single() \
+        .execute()
+
+    if not stakeholder.data:
+        raise HTTPException(status_code=404, detail="Stakeholder not found")
+
+    # Get engagement history
+    result = supabase.table("engagement_level_history") \
+        .select("engagement_level, previous_level, calculation_reason, signals, calculated_at, calculation_type") \
+        .eq("stakeholder_id", stakeholder_id) \
+        .order("calculated_at", desc=True) \
+        .limit(limit) \
+        .execute()
+
+    return {
+        "stakeholder_id": stakeholder_id,
+        "stakeholder_name": stakeholder.data["name"],
+        "history": [
+            {
+                "engagement_level": h["engagement_level"],
+                "previous_level": h.get("previous_level"),
+                "reason": h.get("calculation_reason"),
+                "signals": h.get("signals", {}),
+                "calculated_at": h["calculated_at"],
+                "calculation_type": h.get("calculation_type", "scheduled")
+            }
+            for h in result.data
+        ]
+    }
 
 
 @router.get("/{stakeholder_id}/insights", response_model=list[StakeholderInsightResponse])

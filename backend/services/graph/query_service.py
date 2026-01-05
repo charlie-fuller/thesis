@@ -900,6 +900,7 @@ class GraphQueryService:
             "concerns": [],
             "roi_opportunities": [],
             "relationships": [],
+            "stakeholder_documents": [],
             "agent_suggestions": []
         }
 
@@ -988,6 +989,31 @@ class GraphQueryService:
 
             result["relationships"] = [r["relationship"] for r in relationships_result]
 
+            # Get documents related to stakeholders in this context
+            # First get stakeholder IDs from the stakeholders we found
+            if result["stakeholders"]:
+                stakeholder_ids = [s["id"] for s in result["stakeholders"] if s.get("id")]
+                if stakeholder_ids:
+                    docs_result = await self.neo4j.execute_query("""
+                        UNWIND $stakeholder_ids as sid
+                        MATCH (s:Stakeholder {id: sid})-[r:MENTIONED_IN|PROVIDED|ABOUT]->(d:Document)
+                        WITH d, s, type(r) as rel_type, r.mention_count as mentions
+                        RETURN DISTINCT {
+                            document: {
+                                id: d.id,
+                                title: d.title,
+                                filename: d.filename,
+                                source: d.source
+                            },
+                            stakeholder_name: s.name,
+                            relationship_type: rel_type,
+                            mention_count: mentions
+                        } as result
+                        ORDER BY result.mention_count DESC
+                        LIMIT $limit
+                    """, {"stakeholder_ids": stakeholder_ids, "limit": limit})
+                    result["stakeholder_documents"] = [r["result"] for r in docs_result]
+
             # Get agent suggestions based on keywords
             agents_result = await self.get_agent_for_concepts(keywords, limit=3)
             result["agent_suggestions"] = agents_result
@@ -997,6 +1023,242 @@ class GraphQueryService:
             # Return partial results on error
 
         return result
+
+    # =========================================================================
+    # Stakeholder-Document Queries
+    # =========================================================================
+
+    async def get_stakeholder_documents(
+        self,
+        stakeholder_id: str,
+        relationship_type: Optional[str] = None,
+        limit: int = 10
+    ) -> list[dict[str, Any]]:
+        """
+        Get all documents related to a stakeholder.
+
+        Args:
+            stakeholder_id: Stakeholder ID
+            relationship_type: Filter by relationship type (MENTIONED_IN, PROVIDED, ABOUT)
+            limit: Maximum results
+
+        Returns:
+            List of documents with relationship details
+        """
+        rel_filter = f"[r:{relationship_type}]" if relationship_type else "[r]"
+
+        result = await self.neo4j.execute_query(f"""
+            MATCH (s:Stakeholder {{id: $stakeholder_id}})-{rel_filter}->(d:Document)
+            RETURN {{
+                document: {{
+                    id: d.id,
+                    title: d.title,
+                    filename: d.filename,
+                    source: d.source,
+                    created_at: d.created_at
+                }},
+                relationship: {{
+                    type: type(r),
+                    context: r.context,
+                    mention_count: r.mention_count,
+                    date: r.date
+                }}
+            }} as result
+            ORDER BY r.updated_at DESC
+            LIMIT $limit
+        """, {"stakeholder_id": stakeholder_id, "limit": limit})
+
+        return [r["result"] for r in result]
+
+    async def get_documents_mentioning_stakeholder(
+        self,
+        stakeholder_name: str,
+        client_id: str,
+        limit: int = 10
+    ) -> list[dict[str, Any]]:
+        """
+        Find documents that mention a stakeholder by name.
+
+        Searches both existing MENTIONED_IN relationships and
+        document titles/content for name matches.
+
+        Args:
+            stakeholder_name: Stakeholder name to search for
+            client_id: Client ID for filtering
+            limit: Maximum results
+
+        Returns:
+            List of documents with mention context
+        """
+        result = await self.neo4j.execute_query("""
+            // First, try to find by existing relationships
+            MATCH (s:Stakeholder {client_id: $client_id})
+            WHERE toLower(s.name) CONTAINS toLower($stakeholder_name)
+            OPTIONAL MATCH (s)-[r:MENTIONED_IN]->(d:Document)
+            WITH s, d, r
+            WHERE d IS NOT NULL
+            RETURN {
+                stakeholder: {
+                    id: s.id,
+                    name: s.name,
+                    role: s.role
+                },
+                document: {
+                    id: d.id,
+                    title: d.title,
+                    filename: d.filename,
+                    source: d.source
+                },
+                context: r.context,
+                mention_count: r.mention_count
+            } as result
+            ORDER BY r.mention_count DESC
+            LIMIT $limit
+        """, {"stakeholder_name": stakeholder_name, "client_id": client_id, "limit": limit})
+
+        return [r["result"] for r in result]
+
+    async def get_stakeholder_document_network(
+        self,
+        client_id: str,
+        limit: int = 50
+    ) -> dict[str, Any]:
+        """
+        Get the full stakeholder-document network for visualization.
+
+        Returns all stakeholders and their document relationships.
+
+        Args:
+            client_id: Client ID
+            limit: Maximum relationships to return
+
+        Returns:
+            Dict with nodes (stakeholders, documents) and edges
+        """
+        result = await self.neo4j.execute_query("""
+            MATCH (s:Stakeholder {client_id: $client_id})-[r:MENTIONED_IN|PROVIDED|ABOUT]->(d:Document)
+            WITH s, d, type(r) as rel_type, r.mention_count as mentions
+            RETURN {
+                stakeholder: {
+                    id: s.id,
+                    name: s.name,
+                    role: s.role,
+                    department: s.department
+                },
+                document: {
+                    id: d.id,
+                    title: d.title,
+                    source: d.source
+                },
+                relationship_type: rel_type,
+                mention_count: mentions
+            } as edge
+            LIMIT $limit
+        """, {"client_id": client_id, "limit": limit})
+
+        # Transform into nodes and edges for visualization
+        stakeholders = {}
+        documents = {}
+        edges = []
+
+        for r in result:
+            edge = r["edge"]
+            s = edge["stakeholder"]
+            d = edge["document"]
+
+            stakeholders[s["id"]] = s
+            documents[d["id"]] = d
+            edges.append({
+                "source": s["id"],
+                "target": d["id"],
+                "type": edge["relationship_type"],
+                "weight": edge.get("mention_count", 1)
+            })
+
+        return {
+            "stakeholders": list(stakeholders.values()),
+            "documents": list(documents.values()),
+            "edges": edges,
+            "total_relationships": len(edges)
+        }
+
+    async def find_stakeholders_in_document(
+        self,
+        document_id: str
+    ) -> list[dict[str, Any]]:
+        """
+        Find all stakeholders mentioned in or related to a document.
+
+        Args:
+            document_id: Document ID
+
+        Returns:
+            List of stakeholders with their relationship to the document
+        """
+        result = await self.neo4j.execute_query("""
+            MATCH (s:Stakeholder)-[r]->(d:Document {id: $document_id})
+            WHERE type(r) IN ['MENTIONED_IN', 'PROVIDED', 'ABOUT']
+            RETURN {
+                stakeholder: {
+                    id: s.id,
+                    name: s.name,
+                    role: s.role,
+                    organization: s.organization,
+                    department: s.department,
+                    sentiment_score: s.sentiment_score
+                },
+                relationship: {
+                    type: type(r),
+                    context: r.context,
+                    mention_count: r.mention_count
+                }
+            } as result
+            ORDER BY r.mention_count DESC
+        """, {"document_id": document_id})
+
+        return [r["result"] for r in result]
+
+    async def get_related_documents_for_stakeholders(
+        self,
+        stakeholder_ids: list[str],
+        limit_per_stakeholder: int = 3
+    ) -> list[dict[str, Any]]:
+        """
+        Get relevant documents for a list of stakeholders.
+
+        Useful for meeting context - get docs for all meeting participants.
+
+        Args:
+            stakeholder_ids: List of stakeholder IDs
+            limit_per_stakeholder: Max docs per stakeholder
+
+        Returns:
+            Deduplicated list of documents with stakeholder associations
+        """
+        result = await self.neo4j.execute_query("""
+            UNWIND $stakeholder_ids as sid
+            MATCH (s:Stakeholder {id: sid})-[r:MENTIONED_IN|PROVIDED|ABOUT]->(d:Document)
+            WITH d, collect(DISTINCT {
+                stakeholder_id: s.id,
+                stakeholder_name: s.name,
+                relationship_type: type(r),
+                mention_count: r.mention_count
+            }) as stakeholder_links
+            RETURN {
+                document: {
+                    id: d.id,
+                    title: d.title,
+                    filename: d.filename,
+                    source: d.source
+                },
+                related_stakeholders: stakeholder_links,
+                total_stakeholders: size(stakeholder_links)
+            } as result
+            ORDER BY result.total_stakeholders DESC
+            LIMIT $limit
+        """, {"stakeholder_ids": stakeholder_ids, "limit": limit_per_stakeholder * len(stakeholder_ids)})
+
+        return [r["result"] for r in result]
 
     def format_context_for_prompt(
         self,
@@ -1047,6 +1309,17 @@ class GraphQueryService:
                 rel_type = (r.get("relationship") or "relates_to").lower().replace("_", " ")
                 rel_lines.append(f"- {r['from_name']} {rel_type} {r['to_name']}")
             sections.append("STAKEHOLDER RELATIONSHIPS:\n" + "\n".join(rel_lines))
+
+        if context.get("stakeholder_documents"):
+            doc_lines = []
+            for d in context["stakeholder_documents"]:
+                doc = d.get("document", {})
+                stakeholder = d.get("stakeholder_name", "Unknown")
+                rel_type = (d.get("relationship_type") or "related to").replace("_", " ").lower()
+                title = doc.get("title") or doc.get("filename", "Untitled")
+                source = doc.get("source", "upload")
+                doc_lines.append(f"- {title} ({source}) - {rel_type} {stakeholder}")
+            sections.append("STAKEHOLDER-RELATED DOCUMENTS:\n" + "\n".join(doc_lines))
 
         if not sections:
             return ""

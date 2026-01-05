@@ -82,6 +82,8 @@ class GraphSyncService:
             # Knowledge
             "agent_knowledge_base": {"synced": 0, "errors": 0},
             "agent_handoffs": {"synced": 0, "errors": 0},
+            # Stakeholder-Document relationships
+            "stakeholder_documents": {"name_matches": 0, "department_matches": 0, "mentions_found": 0, "errors": 0},
             # Relationships
             "relationships": {"created": 0, "errors": 0},
         }
@@ -122,6 +124,17 @@ class GraphSyncService:
             logger.info("Phase 7: Syncing knowledge links...")
             results["agent_knowledge_base"] = await self.sync_agent_knowledge_base()
             results["agent_handoffs"] = await self.sync_agent_handoffs(client_id)
+
+            # Phase 8: Stakeholder-document relationships
+            logger.info("Phase 8: Syncing stakeholder-document relationships...")
+            doc_rel_result = await self.sync_stakeholder_document_relationships(client_id)
+            chunk_mention_result = await self.sync_stakeholder_mentions_in_chunks(client_id)
+            results["stakeholder_documents"] = {
+                "name_matches": doc_rel_result.get("name_matches", 0),
+                "department_matches": doc_rel_result.get("department_matches", 0),
+                "mentions_found": chunk_mention_result.get("mentions_found", 0),
+                "errors": doc_rel_result.get("errors", 0) + chunk_mention_result.get("errors", 0),
+            }
 
             # Log sync completion
             await self._log_sync(client_id, "full", results)
@@ -1237,6 +1250,294 @@ class GraphSyncService:
             result["errors"] += 1
 
         return result
+
+    # ==========================================================================
+    # Stakeholder-Document Relationship Sync Methods
+    # ==========================================================================
+
+    async def sync_stakeholder_document_relationships(self, client_id: str) -> dict:
+        """
+        Sync relationships between stakeholders and documents.
+
+        Creates relationships based on:
+        1. Name mentions in document content/chunks
+        2. Department matching (finance docs -> finance stakeholders)
+        3. Documents explicitly about stakeholders
+
+        Args:
+            client_id: The client ID
+
+        Returns:
+            Dict with sync counts
+        """
+        result = {
+            "name_matches": 0,
+            "department_matches": 0,
+            "errors": 0
+        }
+
+        try:
+            # Get all stakeholders for this client
+            stakeholder_response = self.supabase.table("stakeholders") \
+                .select("id, name, role, department, organization") \
+                .eq("client_id", client_id) \
+                .execute()
+
+            stakeholders = stakeholder_response.data or []
+            logger.info(f"Checking {len(stakeholders)} stakeholders for document relationships")
+
+            # Get all documents for this client
+            doc_response = self.supabase.table("documents") \
+                .select("id, filename, file_type") \
+                .eq("client_id", client_id) \
+                .eq("processing_status", "completed") \
+                .execute()
+
+            documents = doc_response.data or []
+
+            # Method 1: Match stakeholder names in document filenames
+            for stakeholder in stakeholders:
+                stakeholder_name = stakeholder.get("name", "")
+                if not stakeholder_name or len(stakeholder_name) < 3:
+                    continue
+
+                # Split name into parts for matching
+                name_parts = stakeholder_name.lower().split()
+
+                for doc in documents:
+                    filename = (doc.get("filename") or "").lower()
+
+                    # Check if any significant name part appears in filename
+                    for part in name_parts:
+                        if len(part) > 2 and part in filename:
+                            try:
+                                await self.neo4j.execute_write(
+                                    CYPHER_TEMPLATES["link_stakeholder_mentioned_in_document"],
+                                    {
+                                        "stakeholder_id": stakeholder["id"],
+                                        "document_id": doc["id"],
+                                        "context": f"Name '{part}' found in filename",
+                                    }
+                                )
+                                result["name_matches"] += 1
+                                break  # Only create one relationship per stakeholder-doc pair
+                            except Exception as e:
+                                logger.error(f"Failed to link stakeholder to document: {e}")
+                                result["errors"] += 1
+
+            # Method 2: Match by department keywords in filename
+            department_keywords = {
+                "finance": ["finance", "financial", "budget", "accounting", "invoice", "expense"],
+                "hr": ["hr", "human resources", "employee", "onboarding", "hiring", "talent"],
+                "legal": ["legal", "contract", "compliance", "policy", "agreement", "terms"],
+                "it": ["it", "technical", "security", "infrastructure", "system", "network"],
+                "product": ["product", "roadmap", "feature", "release", "sprint"],
+                "executive": ["executive", "board", "strategy", "ceo", "leadership"],
+            }
+
+            for stakeholder in stakeholders:
+                department = (stakeholder.get("department") or "").lower()
+                role = (stakeholder.get("role") or "").lower()
+
+                # Determine which department keywords to use
+                keywords = []
+                for dept, kw_list in department_keywords.items():
+                    if dept in department or dept in role:
+                        keywords.extend(kw_list)
+                        break
+
+                if not keywords:
+                    continue
+
+                for doc in documents:
+                    filename = (doc.get("filename") or "").lower()
+
+                    for keyword in keywords:
+                        if keyword in filename:
+                            try:
+                                await self.neo4j.execute_write("""
+                                    MATCH (d:Document {id: $document_id})
+                                    MATCH (s:Stakeholder {id: $stakeholder_id})
+                                    MERGE (d)-[r:RELEVANT_TO]->(s)
+                                    SET r.inferred_by = 'department_match',
+                                        r.keyword = $keyword,
+                                        r.updated_at = datetime()
+                                    RETURN r
+                                """, {
+                                    "document_id": doc["id"],
+                                    "stakeholder_id": stakeholder["id"],
+                                    "keyword": keyword,
+                                })
+                                result["department_matches"] += 1
+                                break  # Only one relationship per doc-stakeholder pair
+                            except Exception as e:
+                                logger.error(f"Failed to create department link: {e}")
+                                result["errors"] += 1
+
+            logger.info(
+                f"Stakeholder-document sync complete: "
+                f"{result['name_matches']} name matches, "
+                f"{result['department_matches']} department matches"
+            )
+
+        except Exception as e:
+            logger.error(f"Stakeholder-document relationship sync failed: {e}")
+            result["errors"] += 1
+
+        return result
+
+    async def sync_stakeholder_mentions_in_chunks(self, client_id: str) -> dict:
+        """
+        Scan document chunks for stakeholder name mentions.
+
+        More thorough than filename matching but more expensive.
+
+        Args:
+            client_id: The client ID
+
+        Returns:
+            Dict with sync counts
+        """
+        result = {"mentions_found": 0, "errors": 0}
+
+        try:
+            # Get stakeholders
+            stakeholder_response = self.supabase.table("stakeholders") \
+                .select("id, name") \
+                .eq("client_id", client_id) \
+                .execute()
+
+            stakeholders = stakeholder_response.data or []
+
+            # Get documents
+            doc_response = self.supabase.table("documents") \
+                .select("id") \
+                .eq("client_id", client_id) \
+                .eq("processing_status", "completed") \
+                .execute()
+
+            doc_ids = [d["id"] for d in (doc_response.data or [])]
+
+            for doc_id in doc_ids:
+                # Get chunks for this document
+                chunk_response = self.supabase.table("document_chunks") \
+                    .select("id, content") \
+                    .eq("document_id", doc_id) \
+                    .limit(50) \
+                    .execute()
+
+                chunks = chunk_response.data or []
+
+                # Combine chunk content for searching
+                combined_content = " ".join(
+                    (c.get("content") or "").lower() for c in chunks
+                )
+
+                # Check each stakeholder
+                for stakeholder in stakeholders:
+                    name = stakeholder.get("name", "")
+                    if not name or len(name) < 3:
+                        continue
+
+                    # Check for full name or last name
+                    name_lower = name.lower()
+                    name_parts = name_lower.split()
+                    last_name = name_parts[-1] if name_parts else ""
+
+                    if name_lower in combined_content or (len(last_name) > 3 and last_name in combined_content):
+                        try:
+                            # Find context snippet
+                            context = ""
+                            for chunk in chunks:
+                                content = (chunk.get("content") or "").lower()
+                                if name_lower in content or last_name in content:
+                                    # Extract surrounding context
+                                    idx = content.find(name_lower)
+                                    if idx == -1:
+                                        idx = content.find(last_name)
+                                    start = max(0, idx - 50)
+                                    end = min(len(content), idx + len(name) + 50)
+                                    context = content[start:end]
+                                    break
+
+                            await self.neo4j.execute_write(
+                                CYPHER_TEMPLATES["link_stakeholder_mentioned_in_document"],
+                                {
+                                    "stakeholder_id": stakeholder["id"],
+                                    "document_id": doc_id,
+                                    "context": context[:200] if context else f"Name found in document content",
+                                }
+                            )
+                            result["mentions_found"] += 1
+
+                        except Exception as e:
+                            logger.error(f"Failed to create mention link: {e}")
+                            result["errors"] += 1
+
+        except Exception as e:
+            logger.error(f"Chunk mention scan failed: {e}")
+            result["errors"] += 1
+
+        return result
+
+    async def link_stakeholder_to_document(
+        self,
+        stakeholder_id: str,
+        document_id: str,
+        relationship_type: str = "MENTIONED_IN",
+        context: Optional[str] = None,
+        date: Optional[str] = None
+    ) -> bool:
+        """
+        Create a specific stakeholder-document relationship.
+
+        Args:
+            stakeholder_id: The stakeholder UUID
+            document_id: The document UUID
+            relationship_type: One of MENTIONED_IN, PROVIDED, ABOUT
+            context: Optional context for the relationship
+            date: Optional date (for PROVIDED relationship)
+
+        Returns:
+            True if successful
+        """
+        try:
+            if relationship_type == "MENTIONED_IN":
+                await self.neo4j.execute_write(
+                    CYPHER_TEMPLATES["link_stakeholder_mentioned_in_document"],
+                    {
+                        "stakeholder_id": stakeholder_id,
+                        "document_id": document_id,
+                        "context": context or "",
+                    }
+                )
+            elif relationship_type == "PROVIDED":
+                await self.neo4j.execute_write(
+                    CYPHER_TEMPLATES["link_stakeholder_provided_document"],
+                    {
+                        "stakeholder_id": stakeholder_id,
+                        "document_id": document_id,
+                        "date": date or datetime.now(timezone.utc).isoformat(),
+                    }
+                )
+            elif relationship_type == "ABOUT":
+                await self.neo4j.execute_write(
+                    CYPHER_TEMPLATES["link_document_stakeholder"],
+                    {
+                        "document_id": document_id,
+                        "stakeholder_id": stakeholder_id,
+                    }
+                )
+            else:
+                logger.warning(f"Unknown relationship type: {relationship_type}")
+                return False
+
+            logger.info(f"Created {relationship_type} link between stakeholder {stakeholder_id} and document {document_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to create stakeholder-document link: {e}")
+            return False
 
     async def _log_sync(
         self,

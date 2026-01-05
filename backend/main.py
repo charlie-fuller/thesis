@@ -63,6 +63,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Warning: Could not start graph sync scheduler: {e}")
 
+    # Start Stakeholder Engagement scheduler (weekly)
+    try:
+        from services.engagement_scheduler import start_engagement_scheduler
+        start_engagement_scheduler(day_of_week="sun", hour_utc=4, minute=0)
+        logger.info("Stakeholder engagement scheduler started")
+    except Exception as e:
+        logger.error(f"Warning: Could not start engagement scheduler: {e}")
+
     logger.info("Application startup complete")
 
     yield  # Application is running
@@ -85,6 +93,12 @@ async def lifespan(app: FastAPI):
         stop_graph_sync_scheduler()
     except Exception as e:
         logger.error(f"Warning during graph sync scheduler shutdown: {e}")
+
+    try:
+        from services.engagement_scheduler import stop_engagement_scheduler
+        stop_engagement_scheduler()
+    except Exception as e:
+        logger.error(f"Warning during engagement scheduler shutdown: {e}")
 
     try:
         from services.graph import close_neo4j_connection

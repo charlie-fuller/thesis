@@ -623,4 +623,94 @@ CYPHER_TEMPLATES = {
         MERGE (d)-[r:ABOUT]->(s)
         RETURN r
     """,
+
+    # ==========================================================================
+    # Stakeholder-Document Relationship Operations
+    # ==========================================================================
+
+    "link_stakeholder_mentioned_in_document": """
+        MATCH (s:Stakeholder {id: $stakeholder_id})
+        MATCH (d:Document {id: $document_id})
+        MERGE (s)-[r:MENTIONED_IN]->(d)
+        SET r.context = $context,
+            r.mention_count = coalesce(r.mention_count, 0) + 1,
+            r.updated_at = datetime()
+        RETURN r
+    """,
+
+    "link_stakeholder_provided_document": """
+        MATCH (s:Stakeholder {id: $stakeholder_id})
+        MATCH (d:Document {id: $document_id})
+        MERGE (s)-[r:PROVIDED]->(d)
+        SET r.date = $date,
+            r.updated_at = datetime()
+        RETURN r
+    """,
+
+    "link_stakeholder_concern_to_document": """
+        MATCH (s:Stakeholder {id: $stakeholder_id})-[:RAISED_CONCERN]->(c:Concern)
+        MATCH (d:Document {id: $document_id})
+        WHERE toLower(d.filename) CONTAINS toLower(c.content)
+           OR EXISTS {
+               MATCH (d)-[:DISCUSSES]->(concept:Concept)
+               WHERE toLower(concept.name) CONTAINS toLower(c.content)
+           }
+        MERGE (d)-[r:ADDRESSES]->(c)
+        SET r.updated_at = datetime()
+        RETURN r
+    """,
+
+    "get_stakeholder_documents": """
+        MATCH (s:Stakeholder {id: $stakeholder_id})
+        OPTIONAL MATCH (s)-[mentioned:MENTIONED_IN]->(d1:Document)
+        OPTIONAL MATCH (s)-[provided:PROVIDED]->(d2:Document)
+        OPTIONAL MATCH (d3:Document)-[about:ABOUT]->(s)
+        WITH s,
+             collect(DISTINCT {doc: d1, rel_type: 'MENTIONED_IN', context: mentioned.context}) as mentioned_docs,
+             collect(DISTINCT {doc: d2, rel_type: 'PROVIDED', date: provided.date}) as provided_docs,
+             collect(DISTINCT {doc: d3, rel_type: 'ABOUT'}) as about_docs
+        RETURN s.name as stakeholder_name,
+               mentioned_docs,
+               provided_docs,
+               about_docs
+    """,
+
+    "get_documents_mentioning_stakeholder": """
+        MATCH (s:Stakeholder {id: $stakeholder_id})<-[:ABOUT|MENTIONED_IN]-(d:Document)
+        RETURN d.id as id,
+               d.filename as filename,
+               d.file_type as file_type,
+               d.source_platform as source_platform,
+               d.client_id as client_id
+        LIMIT $limit
+    """,
+
+    "infer_stakeholder_document_links_by_name": """
+        MATCH (s:Stakeholder {client_id: $client_id})
+        MATCH (d:Document {client_id: $client_id})
+        WHERE d.filename CONTAINS s.name
+           OR EXISTS {
+               MATCH (ch:Chunk)-[:PART_OF]->(d)
+               WHERE ch.content_preview CONTAINS s.name
+           }
+        MERGE (s)-[r:MENTIONED_IN]->(d)
+        SET r.inferred = true,
+            r.updated_at = datetime()
+        RETURN s.name as stakeholder, d.filename as document
+    """,
+
+    "link_stakeholder_to_department_documents": """
+        MATCH (s:Stakeholder {client_id: $client_id})
+        WHERE s.role IS NOT NULL
+        MATCH (d:Document {client_id: $client_id})
+        WHERE (toLower(s.role) CONTAINS 'finance' AND toLower(d.filename) CONTAINS 'finance')
+           OR (toLower(s.role) CONTAINS 'legal' AND toLower(d.filename) CONTAINS 'legal')
+           OR (toLower(s.role) CONTAINS 'hr' AND toLower(d.filename) CONTAINS 'hr')
+           OR (toLower(s.role) CONTAINS 'it' AND toLower(d.filename) CONTAINS 'it')
+           OR (toLower(s.role) CONTAINS 'product' AND toLower(d.filename) CONTAINS 'product')
+        MERGE (d)-[r:RELEVANT_TO]->(s)
+        SET r.inferred_by = 'department_match',
+            r.updated_at = datetime()
+        RETURN s.name as stakeholder, d.filename as document
+    """,
 }
