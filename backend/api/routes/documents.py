@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from auth import get_current_user, require_admin
 from config import get_default_client_id
 from database import get_supabase
-from document_processor import process_document
+from document_processor import process_document, process_document_with_classification
 from logger_config import get_logger
 from validation import validate_file_size, validate_file_upload, validate_uuid
 
@@ -33,6 +33,7 @@ async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     agent_ids: Optional[str] = Form(None),  # JSON array of agent IDs, or empty for global
+    auto_classify: Optional[str] = Form("true"),  # Enable auto-classification when no agents specified
     current_user: dict = Depends(get_current_user)
 ):
     """Upload a document to Supabase Storage and create database record.
@@ -41,6 +42,8 @@ async def upload_document(
         file: The file to upload
         agent_ids: JSON array of agent IDs to link the document to (e.g., '["uuid1", "uuid2"]').
                    If empty/null, document is global (available to all agents via RAG).
+        auto_classify: If "true" and no agent_ids provided, auto-classify document for agent relevance.
+                       Auto-tags confident matches, flags ambiguous for user review.
     """
     try:
         # Validate file
@@ -126,9 +129,34 @@ async def upload_document(
                 except Exception as link_error:
                     logger.warning(f"Failed to link document to agent {agent_id}: {link_error}")
 
+        # Determine if auto-classification should run
+        # Only auto-classify if no agents specified AND auto_classify is enabled
+        should_auto_classify = (
+            len(parsed_agent_ids) == 0 and
+            auto_classify and
+            auto_classify.lower() == "true"
+        )
+
         # Automatically trigger processing in background
-        background_tasks.add_task(process_document, document_id)
-        logger.info(f"Processing queued for document: {document_id}")
+        if should_auto_classify:
+            # Use sync wrapper for async processing with classification
+            def process_with_classify_sync():
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(
+                        process_document_with_classification(document_id, auto_classify=True)
+                    )
+                finally:
+                    loop.close()
+
+            background_tasks.add_task(process_with_classify_sync)
+            logger.info(f"Processing with auto-classification queued for document: {document_id}")
+        else:
+            # Standard processing without classification
+            background_tasks.add_task(process_document, document_id)
+            logger.info(f"Processing queued for document: {document_id}")
 
         # Determine if global (no specific agents) or agent-specific
         is_global = len(parsed_agent_ids) == 0
@@ -139,7 +167,9 @@ async def upload_document(
             'filename': file.filename,
             'is_global': is_global,
             'linked_agents': linked_agents,
-            'message': 'Document uploaded successfully. Processing started in background.'
+            'auto_classify': should_auto_classify,
+            'message': 'Document uploaded successfully. Processing started in background.' +
+                       (' Auto-classification enabled.' if should_auto_classify else '')
         }
 
     except HTTPException:
@@ -774,4 +804,268 @@ async def update_document_agents(
         raise
     except Exception as e:
         logger.error(f"Error updating document agents: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Document Classification Endpoints
+# ============================================================================
+
+@router.get("/{document_id}/classification")
+async def get_document_classification(
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get classification results for a document.
+
+    Returns classification status, suggested agents, and whether user review is needed.
+    """
+    try:
+        validate_uuid(document_id, "document_id")
+
+        # Verify document exists
+        doc_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, filename')
+                .eq('id', document_id)
+                .single()
+                .execute()
+        )
+
+        if not doc_result.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Get latest classification
+        classification_result = await asyncio.to_thread(
+            lambda: supabase.table('document_classifications')
+                .select('*')
+                .eq('document_id', document_id)
+                .order('created_at', desc=True)
+                .limit(1)
+                .execute()
+        )
+
+        if not classification_result.data:
+            return {
+                'success': True,
+                'document_id': document_id,
+                'classification': None,
+                'message': 'No classification found for this document'
+            }
+
+        classification = classification_result.data[0]
+
+        # Get current agent links with relevance scores
+        links_result = await asyncio.to_thread(
+            lambda: supabase.table('agent_knowledge_base')
+                .select('agent_id, relevance_score, classification_source, classification_confidence, user_confirmed, agents(id, name, display_name)')
+                .eq('document_id', document_id)
+                .execute()
+        )
+
+        linked_agents = []
+        for link in links_result.data or []:
+            if link.get('agents'):
+                linked_agents.append({
+                    'id': link['agents']['id'],
+                    'name': link['agents']['name'],
+                    'display_name': link['agents']['display_name'],
+                    'relevance_score': link.get('relevance_score', 0),
+                    'classification_source': link.get('classification_source', 'manual'),
+                    'confidence': link.get('classification_confidence'),
+                    'user_confirmed': link.get('user_confirmed', False)
+                })
+
+        return {
+            'success': True,
+            'document_id': document_id,
+            'classification': {
+                'id': classification['id'],
+                'detected_type': classification.get('detected_type'),
+                'method': classification.get('classification_method'),
+                'status': classification.get('status'),
+                'requires_user_review': classification.get('requires_user_review', False),
+                'review_reason': classification.get('review_reason'),
+                'raw_scores': classification.get('raw_scores', {}),
+                'created_at': classification.get('created_at')
+            },
+            'linked_agents': linked_agents
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting document classification: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class ConfirmClassificationRequest(BaseModel):
+    """Request body for confirming/modifying document classification."""
+    agent_ids: List[str]  # Agent IDs to link (user's confirmed selection)
+    relevance_scores: Optional[dict] = None  # Optional {agent_id: score} overrides
+
+
+@router.post("/{document_id}/classification/confirm")
+async def confirm_classification(
+    document_id: str,
+    request: ConfirmClassificationRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Confirm or modify auto-classification for a document.
+
+    Called when user reviews and approves/modifies suggested agent tags.
+    """
+    try:
+        validate_uuid(document_id, "document_id")
+
+        # Verify document exists
+        doc_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, uploaded_by')
+                .eq('id', document_id)
+                .single()
+                .execute()
+        )
+
+        if not doc_result.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Authorization check
+        document = doc_result.data
+        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+            raise HTTPException(status_code=403, detail="Not authorized to modify this document")
+
+        user_id = current_user['id']
+
+        # Delete all existing auto-classified links (keep manual ones)
+        await asyncio.to_thread(
+            lambda: supabase.table('agent_knowledge_base')
+                .delete()
+                .eq('document_id', document_id)
+                .execute()
+        )
+
+        # Create confirmed links
+        linked_agents = []
+        for agent_id in request.agent_ids:
+            try:
+                validate_uuid(agent_id, "agent_id")
+
+                # Get relevance score (from request override or default)
+                relevance_score = 0.8  # Default for user-confirmed
+                if request.relevance_scores and agent_id in request.relevance_scores:
+                    relevance_score = request.relevance_scores[agent_id]
+
+                # Verify agent exists
+                agent_result = await asyncio.to_thread(
+                    lambda aid=agent_id: supabase.table('agents')
+                        .select('id, name, display_name')
+                        .eq('id', aid)
+                        .single()
+                        .execute()
+                )
+
+                if not agent_result.data:
+                    logger.warning(f"Agent {agent_id} not found, skipping")
+                    continue
+
+                # Create link with user confirmation
+                await asyncio.to_thread(
+                    lambda aid=agent_id, rs=relevance_score: supabase.table('agent_knowledge_base').insert({
+                        'agent_id': aid,
+                        'document_id': document_id,
+                        'added_by': user_id,
+                        'priority': 0,
+                        'relevance_score': rs,
+                        'classification_source': 'user_confirmed',
+                        'classification_confidence': rs,
+                        'user_confirmed': True
+                    }).execute()
+                )
+
+                linked_agents.append({
+                    'id': agent_result.data['id'],
+                    'name': agent_result.data['name'],
+                    'display_name': agent_result.data['display_name'],
+                    'relevance_score': relevance_score
+                })
+                logger.info(f"User confirmed document {document_id} link to agent {agent_id}")
+
+            except Exception as link_error:
+                logger.warning(f"Failed to link document to agent {agent_id}: {link_error}")
+
+        # Update classification status to reviewed
+        await asyncio.to_thread(
+            lambda: supabase.table('document_classifications')
+                .update({
+                    'status': 'reviewed',
+                    'requires_user_review': False,
+                    'reviewed_at': 'now()',
+                    'reviewed_by': user_id
+                })
+                .eq('document_id', document_id)
+                .execute()
+        )
+
+        return {
+            'success': True,
+            'document_id': document_id,
+            'is_global': len(linked_agents) == 0,
+            'linked_agents': linked_agents,
+            'message': f'Classification confirmed with {len(linked_agents)} agent(s)'
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error confirming document classification: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/pending-reviews")
+async def get_pending_classification_reviews(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all documents with pending classification reviews for the current user.
+
+    Returns documents that were auto-classified but need user confirmation.
+    """
+    try:
+        client_id = current_user.get('client_id')
+
+        # Get documents with pending reviews
+        result = await asyncio.to_thread(
+            lambda: supabase.table('document_classifications')
+                .select('document_id, detected_type, review_reason, raw_scores, created_at, documents(id, filename, uploaded_by)')
+                .eq('requires_user_review', True)
+                .eq('status', 'needs_review')
+                .order('created_at', desc=True)
+                .execute()
+        )
+
+        pending_reviews = []
+        for item in result.data or []:
+            doc = item.get('documents')
+            if not doc:
+                continue
+
+            # Filter by client (if user has client_id)
+            # For now, show all pending reviews the user has access to
+            pending_reviews.append({
+                'document_id': item['document_id'],
+                'filename': doc.get('filename'),
+                'detected_type': item.get('detected_type'),
+                'review_reason': item.get('review_reason'),
+                'suggested_agents': item.get('raw_scores', {}),
+                'created_at': item.get('created_at')
+            })
+
+        return {
+            'success': True,
+            'pending_reviews': pending_reviews,
+            'count': len(pending_reviews)
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting pending reviews: {e}")
         raise HTTPException(status_code=500, detail=str(e))

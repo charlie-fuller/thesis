@@ -30,7 +30,7 @@ If the conversation included important decisions or unfinished work, save a summ
 
 Thesis is a multi-agent platform for enterprise GenAI strategy implementation. It helps AI Solutions Partners guide and manage successful AI initiatives by providing specialized agents for research, finance, IT/governance, legal, and meeting analysis.
 
-### Agent Roster (17 Agents)
+### Agent Roster (18 Agents)
 
 #### Meta-Agents (Always Present in Meetings)
 | Agent | Name | Purpose |
@@ -62,6 +62,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 | Catalyst | Internal Communications | AI messaging, employee engagement, AI anxiety |
 | Scholar | Learning & Development | Training programs, champion enablement, adult learning |
 | Echo | Brand Voice | Voice analysis, style profiling, AI emulation guidelines |
+| Glean Evaluator | Can We Glean This? | Glean platform fit assessment, connector analysis, build vs. buy for search |
 
 #### Systems/Coordination Agents
 | Agent | Name | Purpose |
@@ -76,7 +77,14 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
    - `@mention` syntax in messages (e.g., `@atlas`, `@capital`) to invoke agents inline
    - Agent badge displayed on each response showing which agent answered
 2. **Knowledge Base**: Unified document and conversation management (`/kb` page)
-   - Upload documents (txt, md, docx, csv, json, xml)
+   - Upload documents (txt, md, docx, csv, json, xml, pdf)
+   - **Auto-classification**: Documents auto-analyzed for agent relevance on upload
+     - Keyword scoring + LLM classification (Claude Haiku) for ambiguous cases
+     - High-confidence matches (>80%) auto-tagged, ambiguous flagged for review
+     - Review banner in KB page for user confirmation
+   - **Agent-filtered RAG**: Retrieval prioritizes documents tagged for querying agent
+     - Hybrid strategy: agent-filtered first, falls back to all docs if insufficient results
+     - Relevance scores stored in `agent_knowledge_base.relevance_score`
    - Connect Google Drive and Notion for auto-sync
    - Assign documents to specific agents or make them global (available to all)
    - Edit agent visibility for existing documents via document info modal
@@ -250,7 +258,7 @@ See `/docs/AGENT_GUARDRAILS.md` for complete rules
 
 ```sql
 -- Agent System
-agents                       -- Agent registry (17 agents) with capabilities column
+agents                       -- Agent registry (18 agents) with capabilities column
 agent_instruction_versions   -- Per-agent versioned instructions (single source of truth)
 agent_handoffs               -- Agent-to-agent handoff tracking
 agent_knowledge_base         -- Document-to-agent links for RAG
@@ -274,6 +282,11 @@ research_schedule            -- Daily/weekly research schedule by focus area
 research_sources             -- Credible sources with tier ratings (1-4)
 knowledge_gaps               -- Detected knowledge gaps from agent conversations
 agent_topic_mapping          -- Maps topics to relevant agents for distribution
+
+-- Glean Platform Evaluation (Glean Evaluator)
+glean_connectors             -- Registry of OOB, custom, and requested Glean connectors
+glean_connector_requests     -- Gap tracking for connector prioritization
+glean_connector_gaps (view)  -- Prioritized view of requested connectors
 ```
 
 ## Database Migrations
@@ -297,6 +310,10 @@ Run migrations in order from `/database/migrations/`:
 | 013 | document_title | Add title column to documents for clean display names |
 | 014 | add_facilitator_agent | Facilitator meta-agent + capabilities column for all agents |
 | 015 | add_reporter_agent | Reporter meta-agent for meeting synthesis and documentation |
+| 016 | add_glean_evaluator_agent | Glean Evaluator agent + connector registry tables |
+| 017 | engagement_history | Engagement history tracking |
+| 018 | project_triage | Project triage tables |
+| 019 | document_auto_classification | Auto-classification columns + RPC with agent filtering |
 
 ## Environment Variables
 
@@ -342,7 +359,7 @@ python -m pytest tests/ -v --tb=short
 
 ### Backend
 - `/backend/main.py` - FastAPI app entry point
-- `/backend/agents/` - Agent implementations (17 agents)
+- `/backend/agents/` - Agent implementations (18 agents)
 - `/backend/agents/agent_factory.py` - Agent creation and registration
 - `/backend/agents/base_agent.py` - Base class with instruction loading
 - `/backend/agents/atlas.py` - Research agent with web search capability
@@ -364,6 +381,7 @@ python -m pytest tests/ -v --tb=short
 - `/backend/api/routes/agents.py` - Agent management endpoints (note: static routes like `/documents/available` must be defined before parameterized routes like `/{agent_id}/documents`)
 - `/backend/api/routes/documents.py` - Document CRUD, upload, processing, and agent assignment endpoints
 - `/backend/api/routes/research.py` - Atlas research API endpoints
+- `/backend/api/routes/glean_connectors.py` - Glean connector registry and gap tracking endpoints
 - `/backend/api/routes/admin.py` - Admin dashboard with real API health checks
 
 ### Frontend
@@ -377,7 +395,7 @@ python -m pytest tests/ -v --tb=short
 
 ### Database
 - `/database/thesis_schema.sql` - Complete DB schema
-- `/database/migrations/` - All migration scripts (001-015)
+- `/database/migrations/` - All migration scripts (001-016)
 
 ### Documentation
 - `/docs/AGENT_GUARDRAILS.md` - Agent brevity rules, word limits, conversational coherence, and behavioral constraints

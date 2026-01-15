@@ -448,6 +448,97 @@ def process_document(document_id: str) -> Dict:
         }
 
 
+async def process_document_with_classification(
+    document_id: str,
+    auto_classify: bool = True,
+    anthropic_client=None
+) -> Dict:
+    """
+    Process a document with optional auto-classification for agent relevance.
+
+    This is an async wrapper around process_document that adds automatic
+    agent classification after the document is processed and chunked.
+
+    Args:
+        document_id: UUID of the document to process
+        auto_classify: Whether to run auto-classification (default: True)
+        anthropic_client: Optional Anthropic client for LLM classification
+
+    Returns:
+        Processing result summary including classification info
+    """
+    import asyncio
+
+    # First, run the standard document processing
+    result = await asyncio.to_thread(process_document, document_id)
+
+    if result.get('status') != 'completed':
+        return result
+
+    # If classification is disabled or processing failed, skip
+    if not auto_classify:
+        return result
+
+    try:
+        # Get the first 3 chunks for classification
+        chunks_result = supabase.table('document_chunks')\
+            .select('content')\
+            .eq('document_id', document_id)\
+            .order('chunk_index')\
+            .limit(3)\
+            .execute()
+
+        if not chunks_result.data:
+            logger.warning(f"No chunks found for document {document_id}, skipping classification")
+            result['classification'] = {'status': 'skipped', 'reason': 'no_chunks'}
+            return result
+
+        sample_chunks = [chunk['content'] for chunk in chunks_result.data]
+
+        # Import classifier here to avoid circular imports
+        from services.document_classifier import classify_document_for_agents
+
+        # Run classification
+        classification_result = await classify_document_for_agents(
+            document_id=document_id,
+            chunks=sample_chunks,
+            anthropic_client=anthropic_client,
+            auto_store=True
+        )
+
+        # Add classification info to result
+        result['classification'] = {
+            'status': 'completed',
+            'method': classification_result.classification_method,
+            'requires_review': classification_result.requires_user_review,
+            'review_reason': classification_result.review_reason,
+            'detected_type': classification_result.detected_type,
+            'agents': [
+                {
+                    'name': c.agent_name,
+                    'confidence': c.confidence
+                }
+                for c in classification_result.classifications
+            ],
+            'processing_time_ms': classification_result.processing_time_ms
+        }
+
+        logger.info(
+            f"Document {document_id} classified: "
+            f"{len(classification_result.classifications)} agents, "
+            f"review_needed={classification_result.requires_user_review}"
+        )
+
+    except Exception as e:
+        logger.error(f"Classification failed for document {document_id}: {e}")
+        result['classification'] = {
+            'status': 'failed',
+            'error': str(e)
+        }
+
+    return result
+
+
 def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
     """
     Process a conversation into chunks and add to knowledge base
@@ -749,7 +840,18 @@ def detect_query_type(query: str) -> str:
     return 'exploratory'
 
 
-def search_similar_chunks(query: str, client_id: str, limit: int = 5, include_conversations: bool = True, min_similarity: float = 0.0, user_id: str = None, document_ids: List[str] = None, conversation_id: str = None) -> List[Dict]:
+def search_similar_chunks(
+    query: str,
+    client_id: str,
+    limit: int = 5,
+    include_conversations: bool = True,
+    min_similarity: float = 0.0,
+    user_id: str = None,
+    document_ids: List[str] = None,
+    conversation_id: str = None,
+    agent_ids: List[str] = None,
+    fallback_threshold: int = 3
+) -> List[Dict]:
     """
     Search for document chunks similar to a query
 
@@ -765,6 +867,8 @@ def search_similar_chunks(query: str, client_id: str, limit: int = 5, include_co
         user_id: Optional user ID to filter results
         document_ids: Optional list of document IDs to search within (if None, searches all documents)
         conversation_id: Optional conversation ID to prioritize files referenced in conversation
+        agent_ids: Optional list of agent IDs to prioritize documents tagged for these agents
+        fallback_threshold: Minimum chunks needed before falling back to all docs (default: 3)
 
     Returns:
         List of similar chunks with similarity scores
@@ -776,10 +880,13 @@ def search_similar_chunks(query: str, client_id: str, limit: int = 5, include_co
     logger.info(f"   Conversation context: {conversation_id}")
     if document_ids:
         logger.info(f"   Filtering by document IDs: {document_ids}")
+    if agent_ids:
+        logger.info(f"   Filtering by agent IDs: {agent_ids} (fallback threshold: {fallback_threshold})")
 
     # Try to get from cache first (1-hour TTL)
     # Cache key includes all parameters to ensure exact match
-    cache_key_suffix = f"{query}:{limit}:{include_conversations}:{min_similarity}:{conversation_id}"
+    agent_ids_key = ":".join(sorted(agent_ids)) if agent_ids else "none"
+    cache_key_suffix = f"{query}:{limit}:{include_conversations}:{min_similarity}:{conversation_id}:{agent_ids_key}"
     cached_results = get_cached_search_results(cache_key_suffix, client_id)
     if cached_results is not None:
         logger.info(f"   ✅ Search results loaded from cache ({len(cached_results)} results)")
@@ -837,28 +944,63 @@ def search_similar_chunks(query: str, client_id: str, limit: int = 5, include_co
     query_embedding = generate_embeddings([preprocessed_query], input_type=EMBEDDING.INPUT_TYPE_QUERY)[0]
 
     # Call vector search function - get more results to prioritize conversation docs
-    logger.info(f"   Calling match_document_chunks with threshold={min_similarity}, client_id={client_id}, user_id={user_id}")
-    logger.info(f"   Query embedding length: {len(query_embedding)}")
+    # Use agent-filtered RPC if agent_ids provided, otherwise use standard RPC
+    used_fallback = False
 
-    try:
-        result = supabase.rpc(
-            'match_document_chunks',
-            {
-                'query_embedding': query_embedding,
-                'match_count': limit * 3,  # Get more results to prioritize conversation docs
-                'match_threshold': min_similarity,
-                'p_client_id': client_id,
-                'p_user_id': user_id
-            }
-        ).execute()
+    if agent_ids:
+        logger.info(f"   Calling match_document_chunks_with_agent_filter with threshold={min_similarity}, agents={agent_ids}")
+        logger.info(f"   Query embedding length: {len(query_embedding)}")
 
-        chunks = result.data
-        logger.info(f"   Found {len(chunks)} results")
-        if chunks:
-            logger.info(f"   Top result similarity: {chunks[0].get('similarity', 'N/A')}")
-    except Exception as rpc_error:
-        logger.error(f"   RPC call failed: {rpc_error}")
-        chunks = []
+        try:
+            result = supabase.rpc(
+                'match_document_chunks_with_agent_filter',
+                {
+                    'query_embedding': query_embedding,
+                    'match_count': limit * 3,
+                    'match_threshold': min_similarity,
+                    'p_client_id': client_id,
+                    'p_user_id': user_id,
+                    'p_agent_ids': agent_ids,
+                    'p_fallback_threshold': fallback_threshold
+                }
+            ).execute()
+
+            chunks = result.data
+            # Check if fallback was used (last row indicator)
+            if chunks:
+                used_fallback = chunks[0].get('used_fallback', False)
+                if used_fallback:
+                    logger.info(f"   Agent filter had insufficient results, used fallback to all documents")
+
+            logger.info(f"   Found {len(chunks)} results (fallback={used_fallback})")
+            if chunks:
+                logger.info(f"   Top result similarity: {chunks[0].get('similarity', 'N/A')}")
+        except Exception as rpc_error:
+            logger.error(f"   Agent-filtered RPC call failed: {rpc_error}")
+            chunks = []
+    else:
+        logger.info(f"   Calling match_document_chunks with threshold={min_similarity}, client_id={client_id}, user_id={user_id}")
+        logger.info(f"   Query embedding length: {len(query_embedding)}")
+
+        try:
+            result = supabase.rpc(
+                'match_document_chunks',
+                {
+                    'query_embedding': query_embedding,
+                    'match_count': limit * 3,  # Get more results to prioritize conversation docs
+                    'match_threshold': min_similarity,
+                    'p_client_id': client_id,
+                    'p_user_id': user_id
+                }
+            ).execute()
+
+            chunks = result.data
+            logger.info(f"   Found {len(chunks)} results")
+            if chunks:
+                logger.info(f"   Top result similarity: {chunks[0].get('similarity', 'N/A')}")
+        except Exception as rpc_error:
+            logger.error(f"   RPC call failed: {rpc_error}")
+            chunks = []
 
     # Filter out conversation chunks if requested
     if not include_conversations:

@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import DocumentUpload from '@/components/DocumentUpload'
+import ClassificationReviewBanner from '@/components/kb/ClassificationReviewBanner'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import ConfirmModal from '@/components/ConfirmModal'
 import StorageIndicator from '@/components/StorageIndicator'
@@ -908,6 +909,12 @@ export default function KBDocumentsContent() {
           }}
         />
       </div>
+
+      {/* Classification Review Banner */}
+      <ClassificationReviewBanner
+        onReviewComplete={handleDocumentsChange}
+        refreshTrigger={storageRefreshTrigger}
+      />
 
       {/* Google Drive Integration Section */}
       <div className={`card mb-3 ${driveExpanded && driveStatus?.connected ? 'p-6' : 'p-2'}`}>
