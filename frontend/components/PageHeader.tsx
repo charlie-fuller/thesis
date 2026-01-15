@@ -30,6 +30,7 @@ export default function PageHeader({
     { href: '/', label: 'Dashboard' },
     { href: '/chat', label: 'Chat' },
     { href: '/meeting-room', label: 'Meeting Room' },
+    { href: '/tasks', label: 'Tasks' },
     { href: '/intelligence', label: 'Intelligence' },
     { href: '/kb', label: 'KB' },
   ]

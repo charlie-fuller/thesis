@@ -17,6 +17,8 @@ import {
   Workflow,
   MessageCircle,
   FileText,
+  SearchCheck,
+  Compass,
 } from 'lucide-react';
 
 const AGENT_ICONS: Record<string, React.ElementType> = {
@@ -39,8 +41,11 @@ const AGENT_ICONS: Record<string, React.ElementType> = {
   catalyst: Megaphone,    // Internal Communications
   scholar: GraduationCap, // L&D
   echo: Mic,              // Brand Voice
+  glean_evaluator: SearchCheck, // Glean Platform Fit
   // Systems Agent
   nexus: Network,         // Systems Thinking
+  // Personal Development Agent
+  compass: Compass,       // Career Coach
   // Coordinator
   coordinator: Workflow,  // Central Orchestrator
 };
@@ -81,8 +86,11 @@ export const AGENT_COLORS: Record<string, string> = {
   catalyst: 'bg-lime-500/20 text-lime-400 border-lime-500/30',
   scholar: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
   echo: 'bg-fuchsia-500/20 text-fuchsia-400 border-fuchsia-500/30',
+  glean_evaluator: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   // Systems Agent
   nexus: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
+  // Personal Development Agent
+  compass: 'bg-amber-600/20 text-amber-400 border-amber-600/30',
   // Coordinator
   coordinator: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
 };
@@ -112,9 +120,12 @@ export const AGENT_AVATAR_COLORS: Record<string, { bg: string; text: string }> =
   catalyst: { bg: 'bg-lime-500', text: 'text-lime-700' },
   scholar: { bg: 'bg-teal-500', text: 'text-teal-700' },
   echo: { bg: 'bg-fuchsia-500', text: 'text-fuchsia-700' },
+  glean_evaluator: { bg: 'bg-emerald-500', text: 'text-emerald-700' },
   // Systems/Coordination Agents
   nexus: { bg: 'bg-violet-500', text: 'text-violet-700' },
   coordinator: { bg: 'bg-sky-500', text: 'text-sky-700' },
+  // Personal Development Agent
+  compass: { bg: 'bg-amber-600', text: 'text-amber-700' },
 };
 
 export function getAgentAvatarColor(name: string): { bg: string; text: string } {

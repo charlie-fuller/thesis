@@ -27,10 +27,13 @@ from .pioneer import PioneerAgent
 # Internal Enablement Agents
 from .catalyst import CatalystAgent
 from .scholar import ScholarAgent
+from .glean_evaluator import GleanEvaluatorAgent
 # Systems Thinking Agent
 from .nexus import NexusAgent
 # Brand & Voice Agent
 from .echo import EchoAgent
+# Personal Development Agent
+from .compass import CompassAgent
 # Meta-Agents (always present in meetings)
 from .facilitator import FacilitatorAgent
 from .reporter import ReporterAgent
@@ -81,10 +84,13 @@ async def create_coordinator(
             # Internal Enablement Agents
             "catalyst": CatalystAgent(supabase, anthropic_client),
             "scholar": ScholarAgent(supabase, anthropic_client),
+            "glean_evaluator": GleanEvaluatorAgent(supabase, anthropic_client),
             # Systems Thinking Agent
             "nexus": NexusAgent(supabase, anthropic_client),
             # Brand & Voice Agent
             "echo": EchoAgent(supabase, anthropic_client),
+            # Personal Development Agent
+            "compass": CompassAgent(supabase, anthropic_client),
         }
 
         # Initialize all specialists
@@ -131,10 +137,13 @@ async def create_specialist(
         # Internal Enablement Agents
         "catalyst": CatalystAgent,
         "scholar": ScholarAgent,
+        "glean_evaluator": GleanEvaluatorAgent,
         # Systems Thinking Agent
         "nexus": NexusAgent,
         # Brand & Voice Agent
         "echo": EchoAgent,
+        # Personal Development Agent
+        "compass": CompassAgent,
         # Meta-Agents
         "facilitator": FacilitatorAgent,
         "reporter": ReporterAgent,

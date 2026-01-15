@@ -275,16 +275,21 @@ from api.routes import (
     conversations,
     document_mappings,
     documents,
+    glean_connectors,
     google_drive,
     graph,
     help_chat,
     images,
+    meeting_prep,
     meeting_rooms,
     notion,
+    opportunities,
     projects,
     research,
+    stakeholder_metrics,
     stakeholders,
     system_instructions,
+    tasks,
     theme,
     transcripts,
     users,
@@ -311,8 +316,13 @@ app.include_router(graph.router)
 app.include_router(meeting_rooms.router)
 app.include_router(research.router)
 app.include_router(projects.router)
+app.include_router(glean_connectors.router)
+app.include_router(opportunities.router)
+app.include_router(stakeholder_metrics.router)
+app.include_router(meeting_prep.router)
+app.include_router(tasks.router)
 
-logger.info("✅ All route modules registered (including Thesis multi-agent, graph, meeting room, and research routes)")
+logger.info("✅ All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, and task management routes)")
 
 # ============================================================================
 # Backward Compatibility Routes

@@ -28,6 +28,9 @@ Internal Enablement Agents:
 
 Systems Thinking Agent:
 - Nexus: Systems thinking, interconnections, feedback loops, leverage points
+
+Personal Development Agent:
+- Compass: Career coach - win capture, check-in prep, strategic alignment, performance tracking
 """
 
 from .base_agent import BaseAgent, AgentContext, AgentResponse
@@ -48,6 +51,7 @@ from .catalyst import CatalystAgent
 from .scholar import ScholarAgent
 from .echo import EchoAgent
 from .nexus import NexusAgent
+from .compass import CompassAgent
 from .agent_factory import create_coordinator, create_specialist
 
 __all__ = [
@@ -79,6 +83,8 @@ __all__ = [
     "EchoAgent",
     # Systems Thinking Agent
     "NexusAgent",
+    # Personal Development Agent
+    "CompassAgent",
     # Factory functions
     "create_coordinator",
     "create_specialist",

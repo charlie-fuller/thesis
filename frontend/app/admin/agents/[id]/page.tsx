@@ -776,6 +776,15 @@ export default function AgentDetailPage() {
                       'Extracts action items with owners and dependencies',
                       'Produces executive briefs suitable for direct stakeholder sharing'
                     ]
+                  },
+                  compass: {
+                    summary: 'Personal career development coach that helps professionals track performance through conversation, not forms. Compass captures wins with impact metrics, prepares you for manager check-ins with concrete evidence, tracks goals against company strategic priorities, and builds a running narrative of your professional growth.',
+                    keyActions: [
+                      'Captures wins conversationally and asks smart follow-ups for impact metrics',
+                      'Prepares check-in talking points by synthesizing recent wins and goal progress',
+                      'Validates work against company strategic priorities and FY goals',
+                      'Generates reflection prompts and surfaces patterns in your growth'
+                    ]
                   }
                 };
                 const overview = agentOverviews[agent.name.toLowerCase()];
@@ -1000,6 +1009,23 @@ export default function AgentDetailPage() {
                       'Documentation burden - produces shareable executive briefs ready for stakeholders'
                     ],
                     uniqueValue: 'Single source of truth for meeting documentation that respects all voices while creating unified, actionable output.'
+                  },
+                  compass: {
+                    purpose: 'Personal career development through conversational win capture, check-in preparation, and strategic alignment tracking.',
+                    problemsSolved: [
+                      'Forgotten wins - captures accomplishments before they fade from memory',
+                      'Empty check-ins - prepares concrete talking points with evidence',
+                      'Strategic disconnect - connects daily work to company priorities',
+                      'Review scramble - maintains running record for performance conversations',
+                      'Admin burden - extracts structure from conversation, not forms'
+                    ],
+                    uniqueValue: 'Makes career tracking effortless by treating conversation as data entry - you talk about what you did, Compass captures the impact.',
+                    keyPrinciples: [
+                      'Growth happens in moments that are easily forgotten - capture them',
+                      'Strategic alignment beats task completion',
+                      'Your manager is not a mind reader - document with specifics',
+                      'Competency without evidence is invisible'
+                    ]
                   }
                 };
                 const detail = agentDetails[agent.name.toLowerCase()];
@@ -1268,6 +1294,23 @@ export default function AgentDetailPage() {
                       'What were the key takeaways from this meeting?'
                     ],
                     tips: ['Ask for a brief when you need shareable output - Reporter will format it for stakeholders']
+                  },
+                  compass: {
+                    howToUse: 'Tell Compass about your work conversationally. It extracts wins, asks clarifying questions, and updates your Performance Tracker. Use it before check-ins to prep talking points.',
+                    capabilities: ['Win capture with impact metrics', 'Check-in preparation', 'Goal progress tracking', 'Strategic alignment validation', 'Reflection prompting', 'Performance Tracker updates'],
+                    bestFor: ['Logging accomplishments', 'Manager 1:1 prep', 'Performance review prep', 'Goal tracking', 'Career reflection'],
+                    examplePrompts: [
+                      'I just shipped the invoice categorization pilot with Finance',
+                      'Help me prep for my check-in with Chris tomorrow',
+                      'Does this project align with our FY27 priorities?',
+                      'What have I accomplished in the last two weeks?',
+                      'I need to update my 30-60-90 day progress'
+                    ],
+                    tips: [
+                      'Mention stakeholders by name - Compass tracks relationships',
+                      'Include rough impact numbers (hours saved, etc.) for better documentation',
+                      'Ask "how does this align?" before starting new initiatives'
+                    ]
                   }
                 };
                 const detail = usageDetails[agent.name.toLowerCase()];

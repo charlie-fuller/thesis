@@ -95,6 +95,12 @@ const AGENT_INFO: Record<string, { displayName: string; description: string; cat
     description: 'Systems thinking, feedback loops, interconnections',
     category: 'Systems',
   },
+  // Personal Development Agent
+  compass: {
+    displayName: 'Compass',
+    description: 'Career coach: win capture, check-in prep, goal tracking',
+    category: 'Personal',
+  },
   // Coordinator
   coordinator: {
     displayName: 'Coordinator',
@@ -119,6 +125,7 @@ const AGENT_ORDER = [
   'scholar',
   'echo',
   'nexus',
+  'compass',
 ]
 
 export default function AgentSelector({

@@ -105,7 +105,12 @@ class CoordinatorAgent(BaseAgent):
         # Brand voice agent
         "echo": ["brand voice", "style", "tone", "voice analysis", "ai emulation", "writing style",
                 "voice profile", "brand guidelines", "tone of voice", "style guide",
-                "communication style", "brand consistency", "voice cloning", "voice match"]
+                "communication style", "brand consistency", "voice cloning", "voice match"],
+        # Personal development agent
+        "compass": ["career", "performance", "win", "accomplishment", "check-in", "1:1", "one on one",
+                   "review", "promotion", "goal tracking", "reflection", "growth", "achievement",
+                   "manager conversation", "feedback", "competency", "strategic alignment",
+                   "professional development", "win log", "impact", "tracker"]
     }
 
     def __init__(
@@ -383,6 +388,9 @@ Available specialists (Internal Enablement):
 
 Available specialists (Systems Thinking):
 - nexus: Systems thinking, feedback loops, leverage points, unintended consequences, system archetypes
+
+Available specialists (Personal Development):
+- compass: Career coaching, win capture, check-in preparation, performance tracking, goal progress, strategic alignment
 
 Query: {context.user_message}
 
