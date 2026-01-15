@@ -7,6 +7,7 @@ The Operator agent specializes in:
 - Operational metrics and KPIs
 - Ground-level change management
 - Exception handling and SOP design
+- AI opportunity triage and pipeline management (Project-Triage integration)
 """
 
 import logging
@@ -17,6 +18,7 @@ import anthropic
 from supabase import Client
 
 from .base_agent import BaseAgent, AgentContext, AgentResponse
+from services.operator_tools import OperatorTools
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +69,22 @@ Provide practical, operations-focused guidance for AI implementation."""
                 memory_context += f"- {memory.get('content', '')}\n"
             messages[0]["content"] = memory_context + "\n\n" + messages[0]["content"]
 
+        # Inject project-triage context if query relates to opportunities, stakeholders, or metrics
+        triage_keywords = [
+            "opportunity", "opportunities", "pipeline", "triage",
+            "stakeholder", "metrics", "tier", "blocked", "priority",
+            "meeting prep", "focus", "kpi", "validation"
+        ]
+        query_lower = context.user_message.lower()
+        if any(kw in query_lower for kw in triage_keywords):
+            try:
+                tools = OperatorTools(self.supabase, context.client_id)
+                triage_context = tools.format_context_injection()
+                messages[0]["content"] = triage_context + "\n\n" + messages[0]["content"]
+                logger.info("Injected project-triage context for Operator query")
+            except Exception as e:
+                logger.warning(f"Failed to inject triage context: {e}")
+
         response = self.anthropic.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
@@ -91,7 +109,8 @@ Provide practical, operations-focused guidance for AI implementation."""
         """Determine if this interaction should be saved to memory."""
         important_indicators = [
             "process", "workflow", "automation", "metrics",
-            "kpi", "baseline", "efficiency", "bottleneck"
+            "kpi", "baseline", "efficiency", "bottleneck",
+            "opportunity", "triage", "tier", "stakeholder", "blocked"
         ]
         query_lower = query.lower()
         response_lower = response.lower()

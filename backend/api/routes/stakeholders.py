@@ -28,6 +28,16 @@ class StakeholderCreate(BaseModel):
     department: Optional[str] = None
     organization: str = "Contentful"
     notes: Optional[str] = None
+    # Project-triage fields
+    priority_level: Optional[str] = "tier_3"
+    ai_priorities: Optional[list] = None
+    pain_points: Optional[list] = None
+    win_conditions: Optional[list] = None
+    communication_style: Optional[str] = None
+    relationship_status: Optional[str] = "new"
+    open_questions: Optional[list] = None
+    reports_to_name: Optional[str] = None
+    team_size: Optional[int] = None
 
 
 class StakeholderUpdate(BaseModel):
@@ -40,6 +50,17 @@ class StakeholderUpdate(BaseModel):
     organization: Optional[str] = None
     engagement_level: Optional[str] = None
     notes: Optional[str] = None
+    # Project-triage fields
+    priority_level: Optional[str] = None
+    ai_priorities: Optional[list] = None
+    pain_points: Optional[list] = None
+    win_conditions: Optional[list] = None
+    communication_style: Optional[str] = None
+    relationship_status: Optional[str] = None
+    open_questions: Optional[list] = None
+    last_contact: Optional[str] = None
+    reports_to_name: Optional[str] = None
+    team_size: Optional[int] = None
 
 
 class StakeholderResponse(BaseModel):
@@ -61,6 +82,17 @@ class StakeholderResponse(BaseModel):
     interests: list
     notes: Optional[str]
     created_at: str
+    # Project-triage fields
+    priority_level: Optional[str] = "tier_3"
+    ai_priorities: Optional[list] = None
+    pain_points: Optional[list] = None
+    win_conditions: Optional[list] = None
+    communication_style: Optional[str] = None
+    relationship_status: Optional[str] = "new"
+    open_questions: Optional[list] = None
+    last_contact: Optional[str] = None
+    reports_to_name: Optional[str] = None
+    team_size: Optional[int] = None
 
 
 class StakeholderInsightResponse(BaseModel):
@@ -606,5 +638,16 @@ def _format_stakeholder(s: dict) -> StakeholderResponse:
         key_concerns=s.get("key_concerns", []),
         interests=s.get("interests", []),
         notes=s.get("notes"),
-        created_at=s["created_at"]
+        created_at=s["created_at"],
+        # Project-triage fields
+        priority_level=s.get("priority_level", "tier_3"),
+        ai_priorities=s.get("ai_priorities"),
+        pain_points=s.get("pain_points"),
+        win_conditions=s.get("win_conditions"),
+        communication_style=s.get("communication_style"),
+        relationship_status=s.get("relationship_status", "new"),
+        open_questions=s.get("open_questions"),
+        last_contact=s.get("last_contact"),
+        reports_to_name=s.get("reports_to_name"),
+        team_size=s.get("team_size"),
     )
