@@ -75,17 +75,17 @@ function ScoreSlider({
   onChange: (val: number) => void
 }) {
   const getScoreColor = (v: number) => {
-    if (v >= 4) return 'text-green-600'
-    if (v >= 3) return 'text-amber-600'
-    return 'text-slate-500'
+    if (v >= 4) return 'text-green-600 dark:text-green-400'
+    if (v >= 3) return 'text-amber-600 dark:text-amber-400'
+    return 'text-muted'
   }
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div>
-          <label className="font-medium text-slate-700">{label}</label>
-          <p className="text-sm text-slate-500">{description}</p>
+          <label className="font-medium text-secondary">{label}</label>
+          <p className="text-sm text-muted">{description}</p>
         </div>
         <span className={`text-2xl font-bold ${getScoreColor(value)}`}>{value}</span>
       </div>
@@ -95,9 +95,9 @@ function ScoreSlider({
         max="5"
         value={value}
         onChange={(e) => onChange(parseInt(e.target.value))}
-        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+        className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
       />
-      <div className="flex justify-between text-xs text-slate-400">
+      <div className="flex justify-between text-xs text-muted">
         <span>Low (1)</span>
         <span>High (5)</span>
       </div>
@@ -131,7 +131,7 @@ function ArrayInput({
 
   return (
     <div className="space-y-2">
-      <label className="block font-medium text-slate-700">{label}</label>
+      <label className="block font-medium text-secondary">{label}</label>
       <div className="flex gap-2">
         <input
           type="text"
@@ -139,12 +139,12 @@ function ArrayInput({
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAdd())}
           placeholder={placeholder}
-          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="flex-1 px-3 py-2 border border-default bg-card text-primary rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <button
           type="button"
           onClick={handleAdd}
-          className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200"
+          className="px-4 py-2 bg-hover text-secondary rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
         >
           Add
         </button>
@@ -154,13 +154,13 @@ function ArrayInput({
           {values.map((val, i) => (
             <span
               key={i}
-              className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm"
+              className="inline-flex items-center gap-1 px-3 py-1 bg-hover text-secondary rounded-full text-sm"
             >
               {val}
               <button
                 type="button"
                 onClick={() => handleRemove(i)}
-                className="ml-1 text-slate-400 hover:text-slate-600"
+                className="ml-1 text-muted hover:text-primary"
               >
                 &times;
               </button>
@@ -223,10 +223,10 @@ export default function NewOpportunityPage() {
 
   // Calculate tier
   const getTier = (score: number) => {
-    if (score >= 17) return { tier: 1, label: 'Tier 1: Strategic Priority', color: 'text-rose-600 bg-rose-50' }
-    if (score >= 14) return { tier: 2, label: 'Tier 2: High Impact', color: 'text-amber-600 bg-amber-50' }
-    if (score >= 11) return { tier: 3, label: 'Tier 3: Medium Priority', color: 'text-blue-600 bg-blue-50' }
-    return { tier: 4, label: 'Tier 4: Backlog', color: 'text-slate-600 bg-slate-50' }
+    if (score >= 17) return { tier: 1, label: 'Tier 1: Strategic Priority', color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20' }
+    if (score >= 14) return { tier: 2, label: 'Tier 2: High Impact', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20' }
+    if (score >= 11) return { tier: 3, label: 'Tier 3: Medium Priority', color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' }
+    return { tier: 4, label: 'Tier 4: Backlog', color: 'text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800' }
   }
 
   const tierInfo = getTier(totalScore)
@@ -279,29 +279,29 @@ export default function NewOpportunityPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-primary">New AI Opportunity</h1>
-              <p className="text-slate-500">Track and score a new AI implementation opportunity</p>
+              <p className="text-muted">Track and score a new AI implementation opportunity</p>
             </div>
           </div>
         </div>
 
         {/* Error Banner */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
             <div>
-              <h3 className="font-medium text-red-800">Error</h3>
-              <p className="text-red-700 text-sm">{error}</p>
+              <h3 className="font-medium text-red-800 dark:text-red-200">Error</h3>
+              <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
             </div>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Basic Info */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">Basic Information</h2>
+          <div className="bg-card rounded-xl border border-default p-6">
+            <h2 className="text-lg font-semibold text-primary mb-4">Basic Information</h2>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">
+                <label className="block font-medium text-secondary mb-1">
                   Opportunity Code <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -309,16 +309,16 @@ export default function NewOpportunityPage() {
                   value={form.opportunity_code}
                   onChange={(e) => setForm({ ...form, opportunity_code: e.target.value.toUpperCase() })}
                   placeholder="e.g., F01, L03, HR02"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                  className="w-full px-3 py-2 border border-default bg-card text-primary rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
                 />
-                <p className="text-xs text-slate-500 mt-1">Department prefix + number (e.g., F01 = Finance #1)</p>
+                <p className="text-xs text-muted mt-1">Department prefix + number (e.g., F01 = Finance #1)</p>
               </div>
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Department</label>
+                <label className="block font-medium text-secondary mb-1">Department</label>
                 <select
                   value={form.department}
                   onChange={(e) => setForm({ ...form, department: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default bg-card text-primary rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Select department...</option>
                   {DEPARTMENTS.map((d) => (
@@ -329,7 +329,7 @@ export default function NewOpportunityPage() {
                 </select>
               </div>
               <div className="md:col-span-2">
-                <label className="block font-medium text-slate-700 mb-1">
+                <label className="block font-medium text-secondary mb-1">
                   Title <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -337,25 +337,25 @@ export default function NewOpportunityPage() {
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   placeholder="e.g., AP Invoice Automation"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default bg-card text-primary rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block font-medium text-slate-700 mb-1">Description</label>
+                <label className="block font-medium text-secondary mb-1">Description</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={3}
                   placeholder="Brief description of the opportunity..."
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default bg-card text-primary rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Owner</label>
+                <label className="block font-medium text-secondary mb-1">Owner</label>
                 <select
                   value={form.owner_stakeholder_id}
                   onChange={(e) => setForm({ ...form, owner_stakeholder_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default bg-card text-primary rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Select owner...</option>
                   {stakeholders.map((s) => (
@@ -366,11 +366,11 @@ export default function NewOpportunityPage() {
                 </select>
               </div>
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Status</label>
+                <label className="block font-medium text-secondary mb-1">Status</label>
                 <select
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default bg-card text-primary rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {STATUS_OPTIONS.map((s) => (
                     <option key={s.value} value={s.value}>
@@ -383,41 +383,41 @@ export default function NewOpportunityPage() {
           </div>
 
           {/* Current/Desired State */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">Problem Statement</h2>
+          <div className="bg-card rounded-xl border border-default p-6">
+            <h2 className="text-lg font-semibold text-primary mb-4">Problem Statement</h2>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Current State</label>
+                <label className="block font-medium text-secondary mb-1">Current State</label>
                 <textarea
                   value={form.current_state}
                   onChange={(e) => setForm({ ...form, current_state: e.target.value })}
                   rows={3}
                   placeholder="What is the current process? What are the pain points?"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default bg-card text-primary rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Desired State</label>
+                <label className="block font-medium text-secondary mb-1">Desired State</label>
                 <textarea
                   value={form.desired_state}
                   onChange={(e) => setForm({ ...form, desired_state: e.target.value })}
                   rows={3}
                   placeholder="What does success look like? What's the target outcome?"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default bg-card text-primary rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
           </div>
 
           {/* Scoring */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <div className="bg-card rounded-xl border border-default p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Opportunity Scoring</h2>
-                <p className="text-sm text-slate-500">Rate each dimension from 1-5</p>
+                <h2 className="text-lg font-semibold text-primary">Opportunity Scoring</h2>
+                <p className="text-sm text-muted">Rate each dimension from 1-5</p>
               </div>
               <div className="text-right">
-                <div className="text-3xl font-bold text-slate-900">{totalScore}/20</div>
+                <div className="text-3xl font-bold text-primary">{totalScore}/20</div>
                 <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${tierInfo.color}`}>
                   {tierInfo.label}
                 </span>
@@ -453,17 +453,17 @@ export default function NewOpportunityPage() {
           </div>
 
           {/* Next Steps & Tracking */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">Tracking</h2>
+          <div className="bg-card rounded-xl border border-default p-6">
+            <h2 className="text-lg font-semibold text-primary mb-4">Tracking</h2>
             <div className="space-y-4">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Next Step</label>
+                <label className="block font-medium text-secondary mb-1">Next Step</label>
                 <input
                   type="text"
                   value={form.next_step}
                   onChange={(e) => setForm({ ...form, next_step: e.target.value })}
                   placeholder="What's the next action to advance this opportunity?"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default bg-card text-primary rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <ArrayInput
@@ -486,7 +486,7 @@ export default function NewOpportunityPage() {
             <button
               type="button"
               onClick={() => router.push('/opportunities')}
-              className="px-6 py-2 text-slate-600 hover:text-slate-800"
+              className="px-6 py-2 text-muted hover:text-primary"
             >
               Cancel
             </button>

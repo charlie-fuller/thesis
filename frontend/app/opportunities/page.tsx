@@ -72,10 +72,10 @@ interface Stakeholder {
 // ============================================================================
 
 const TIER_CONFIG = {
-  1: { label: 'Tier 1: Strategic Priorities', color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200', description: 'Score 17-20 - Pursue immediately' },
-  2: { label: 'Tier 2: High Impact', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', description: 'Score 14-16 - Near-term priority' },
-  3: { label: 'Tier 3: Medium Priority', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', description: 'Score 11-13 - Queue for later' },
-  4: { label: 'Tier 4: Backlog', color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200', description: 'Score <11 - Track but deprioritize' },
+  1: { label: 'Tier 1: Strategic Priorities', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-900/20', border: 'border-rose-200 dark:border-rose-800', description: 'Score 17-20 - Pursue immediately' },
+  2: { label: 'Tier 2: High Impact', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-800', description: 'Score 14-16 - Near-term priority' },
+  3: { label: 'Tier 3: Medium Priority', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', description: 'Score 11-13 - Queue for later' },
+  4: { label: 'Tier 4: Backlog', color: 'text-slate-600 dark:text-slate-400', bg: 'bg-slate-50 dark:bg-slate-800', border: 'border-slate-200 dark:border-slate-700', description: 'Score <11 - Track but deprioritize' },
 }
 
 const STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle; color: string }> = {
@@ -99,16 +99,16 @@ function ScoreDisplay({ label, value, max = 5 }: { label: string; value: number 
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-slate-500 w-8">{label}</span>
-      <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+      <span className="text-xs text-muted w-8">{label}</span>
+      <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full ${
-            percentage >= 80 ? 'bg-green-500' : percentage >= 60 ? 'bg-amber-500' : 'bg-slate-400'
+            percentage >= 80 ? 'bg-green-500' : percentage >= 60 ? 'bg-amber-500' : 'bg-gray-400 dark:bg-gray-500'
           }`}
           style={{ width: `${percentage}%` }}
         />
       </div>
-      <span className="text-xs font-medium w-4 text-right">{score}</span>
+      <span className="text-xs font-medium w-4 text-right text-primary">{score}</span>
     </div>
   )
 }
@@ -140,12 +140,12 @@ function OpportunityCard({
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+    <div className="bg-card border border-default rounded-lg p-4 hover:shadow-md transition-shadow">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-mono font-bold text-slate-700">
+            <span className="text-sm font-mono font-bold text-secondary">
               {opportunity.opportunity_code}
             </span>
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${statusConfig.color}`}>
@@ -153,17 +153,17 @@ function OpportunityCard({
               {statusConfig.label}
             </span>
           </div>
-          <h3 className="font-medium text-slate-900 truncate">{opportunity.title}</h3>
+          <h3 className="font-medium text-primary truncate">{opportunity.title}</h3>
           {opportunity.owner_name && (
-            <p className="text-sm text-slate-500 flex items-center gap-1 mt-1">
+            <p className="text-sm text-muted flex items-center gap-1 mt-1">
               <User className="w-3 h-3" />
               {opportunity.owner_name}
             </p>
           )}
         </div>
         <div className="text-right">
-          <div className="text-2xl font-bold text-slate-900">{opportunity.total_score}</div>
-          <div className="text-xs text-slate-500">/ 20</div>
+          <div className="text-2xl font-bold text-primary">{opportunity.total_score}</div>
+          <div className="text-xs text-muted">/ 20</div>
         </div>
       </div>
 
@@ -178,7 +178,7 @@ function OpportunityCard({
       {/* Expand/Collapse */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="mt-3 w-full flex items-center justify-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+        className="mt-3 w-full flex items-center justify-center gap-1 text-sm text-muted hover:text-primary"
       >
         {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         {isExpanded ? 'Less' : 'More'}
@@ -186,12 +186,12 @@ function OpportunityCard({
 
       {/* Expanded Content */}
       {isExpanded && (
-        <div className="mt-4 pt-4 border-t border-slate-200 space-y-4">
+        <div className="mt-4 pt-4 border-t border-default space-y-4">
           {/* Description */}
           {opportunity.description && (
             <div>
-              <h4 className="text-xs font-medium text-slate-500 uppercase mb-1">Description</h4>
-              <p className="text-sm text-slate-700">{opportunity.description}</p>
+              <h4 className="text-xs font-medium text-muted uppercase mb-1">Description</h4>
+              <p className="text-sm text-secondary">{opportunity.description}</p>
             </div>
           )}
 
@@ -200,14 +200,14 @@ function OpportunityCard({
             <div className="grid grid-cols-2 gap-4">
               {opportunity.current_state && (
                 <div>
-                  <h4 className="text-xs font-medium text-slate-500 uppercase mb-1">Current State</h4>
-                  <p className="text-sm text-slate-700">{opportunity.current_state}</p>
+                  <h4 className="text-xs font-medium text-muted uppercase mb-1">Current State</h4>
+                  <p className="text-sm text-secondary">{opportunity.current_state}</p>
                 </div>
               )}
               {opportunity.desired_state && (
                 <div>
-                  <h4 className="text-xs font-medium text-slate-500 uppercase mb-1">Desired State</h4>
-                  <p className="text-sm text-slate-700">{opportunity.desired_state}</p>
+                  <h4 className="text-xs font-medium text-muted uppercase mb-1">Desired State</h4>
+                  <p className="text-sm text-secondary">{opportunity.desired_state}</p>
                 </div>
               )}
             </div>
@@ -216,16 +216,16 @@ function OpportunityCard({
           {/* Next Step */}
           {opportunity.next_step && (
             <div>
-              <h4 className="text-xs font-medium text-slate-500 uppercase mb-1">Next Step</h4>
-              <p className="text-sm text-slate-700">{opportunity.next_step}</p>
+              <h4 className="text-xs font-medium text-muted uppercase mb-1">Next Step</h4>
+              <p className="text-sm text-secondary">{opportunity.next_step}</p>
             </div>
           )}
 
           {/* Blockers */}
           {opportunity.blockers.length > 0 && (
             <div>
-              <h4 className="text-xs font-medium text-red-500 uppercase mb-1">Blockers</h4>
-              <ul className="text-sm text-slate-700 list-disc list-inside">
+              <h4 className="text-xs font-medium text-red-500 dark:text-red-400 uppercase mb-1">Blockers</h4>
+              <ul className="text-sm text-secondary list-disc list-inside">
                 {opportunity.blockers.map((blocker, i) => (
                   <li key={i}>{blocker}</li>
                 ))}
@@ -235,11 +235,11 @@ function OpportunityCard({
 
           {/* Score Editor */}
           {isEditingScores ? (
-            <div className="bg-slate-50 rounded-lg p-3 space-y-3">
-              <h4 className="text-xs font-medium text-slate-500 uppercase">Edit Scores (1-5)</h4>
+            <div className="bg-hover rounded-lg p-3 space-y-3">
+              <h4 className="text-xs font-medium text-muted uppercase">Edit Scores (1-5)</h4>
               {(['roi_potential', 'implementation_effort', 'strategic_alignment', 'stakeholder_readiness'] as const).map((key) => (
                 <div key={key} className="flex items-center gap-2">
-                  <label className="text-sm text-slate-600 w-32 capitalize">{key.replace(/_/g, ' ')}</label>
+                  <label className="text-sm text-secondary w-32 capitalize">{key.replace(/_/g, ' ')}</label>
                   <input
                     type="range"
                     min="1"
@@ -248,7 +248,7 @@ function OpportunityCard({
                     onChange={(e) => setEditScores({ ...editScores, [key]: parseInt(e.target.value) })}
                     className="flex-1"
                   />
-                  <span className="w-6 text-center font-medium">{editScores[key]}</span>
+                  <span className="w-6 text-center font-medium text-primary">{editScores[key]}</span>
                 </div>
               ))}
               <div className="flex gap-2 mt-2">
@@ -260,7 +260,7 @@ function OpportunityCard({
                 </button>
                 <button
                   onClick={() => setIsEditingScores(false)}
-                  className="px-3 py-1 bg-slate-200 text-slate-700 text-sm rounded hover:bg-slate-300"
+                  className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-secondary text-sm rounded hover:bg-gray-300 dark:hover:bg-gray-600"
                 >
                   Cancel
                 </button>
@@ -269,7 +269,7 @@ function OpportunityCard({
           ) : (
             <button
               onClick={() => setIsEditingScores(true)}
-              className="text-sm text-blue-600 hover:text-blue-700"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
             >
               Edit Scores
             </button>
@@ -277,7 +277,7 @@ function OpportunityCard({
 
           {/* Status Change */}
           <div>
-            <h4 className="text-xs font-medium text-slate-500 uppercase mb-2">Change Status</h4>
+            <h4 className="text-xs font-medium text-muted uppercase mb-2">Change Status</h4>
             <div className="flex flex-wrap gap-2">
               {Object.entries(STATUS_CONFIG).map(([status, config]) => (
                 <button
@@ -286,8 +286,8 @@ function OpportunityCard({
                   disabled={opportunity.status === status}
                   className={`px-2 py-1 text-xs rounded border ${
                     opportunity.status === status
-                      ? 'bg-slate-100 border-slate-300 text-slate-400 cursor-not-allowed'
-                      : 'border-slate-200 hover:border-slate-400 text-slate-600'
+                      ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-muted cursor-not-allowed'
+                      : 'border-default hover:border-gray-400 dark:hover:border-gray-500 text-secondary'
                   }`}
                 >
                   {config.label}
@@ -325,13 +325,13 @@ function TierSection({
       >
         <div>
           <h2 className={`font-semibold ${config.color}`}>{config.label}</h2>
-          <p className="text-sm text-slate-500">{config.description}</p>
+          <p className="text-sm text-muted">{config.description}</p>
         </div>
         <div className="flex items-center gap-3">
           <span className={`px-2 py-1 rounded-full text-sm font-medium ${config.bg} ${config.color}`}>
             {opportunities.length}
           </span>
-          {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          {isCollapsed ? <ChevronRight className="w-5 h-5 text-secondary" /> : <ChevronDown className="w-5 h-5 text-secondary" />}
         </div>
       </button>
 
@@ -467,7 +467,7 @@ export default function OpportunitiesPage() {
             return (
               <div key={tier} className={`${config.bg} ${config.border} border rounded-lg p-4`}>
                 <div className={`text-3xl font-bold ${config.color}`}>{count}</div>
-                <div className="text-sm text-slate-600">Tier {tier}</div>
+                <div className="text-sm text-muted">Tier {tier}</div>
               </div>
             )
           })}
@@ -476,13 +476,13 @@ export default function OpportunitiesPage() {
         {/* Filters */}
         <div className="flex items-center gap-4 mb-6">
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-slate-400" />
-            <span className="text-sm text-slate-500">Filter:</span>
+            <Filter className="w-4 h-4 text-muted" />
+            <span className="text-sm text-muted">Filter:</span>
           </div>
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="px-3 py-1.5 border border-slate-300 rounded text-sm"
+            className="px-3 py-1.5 border border-default rounded text-sm bg-card text-primary"
           >
             <option value="">All Departments</option>
             {DEPARTMENTS.map((dept) => (
@@ -494,7 +494,7 @@ export default function OpportunitiesPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 border border-slate-300 rounded text-sm"
+            className="px-3 py-1.5 border border-default rounded text-sm bg-card text-primary"
           >
             <option value="">All Statuses</option>
             {Object.entries(STATUS_CONFIG).map(([status, config]) => (
@@ -509,7 +509,7 @@ export default function OpportunitiesPage() {
                 setDepartmentFilter('')
                 setStatusFilter('')
               }}
-              className="text-sm text-blue-600 hover:text-blue-700"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
             >
               Clear filters
             </button>
