@@ -86,7 +86,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
    - **Agent-filtered RAG**: Retrieval prioritizes documents tagged for querying agent
      - Hybrid strategy: agent-filtered first, falls back to all docs if insufficient results
      - Relevance scores stored in `agent_knowledge_base.relevance_score`
-   - Connect Google Drive and Notion for auto-sync
+   - Connect Google Drive, Notion, and **Obsidian vaults** for auto-sync
    - Assign documents to specific agents or make them global (available to all)
    - Edit agent visibility for existing documents via document info modal
    - Search and filter documents by name or source (Direct Upload, Google Drive, Notion)
@@ -131,6 +131,12 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - Sticky levels (only demote on explicit negative signals)
     - Engagement trends visualization with Recharts
     - History tracking for trend analysis
+17. **Obsidian Vault Sync**: Sync markdown files from local Obsidian vaults to KB
+    - File watcher monitors vault for changes (create/modify/delete)
+    - Parses YAML frontmatter (including `thesis-agents` for auto-tagging)
+    - Converts `[[wikilinks]]` to standard markdown links
+    - Incremental sync via content hash change detection
+    - CLI watcher: `python -m scripts.obsidian_watcher --user-id <uuid>`
 
 ## Tech Stack
 
@@ -322,6 +328,11 @@ agent_topic_mapping          -- Maps topics to relevant agents for distribution
 glean_connectors             -- Registry of OOB, custom, and requested Glean connectors
 glean_connector_requests     -- Gap tracking for connector prioritization
 glean_connector_gaps (view)  -- Prioritized view of requested connectors
+
+-- Obsidian Vault Sync
+obsidian_vault_configs       -- User vault configuration with sync options
+obsidian_sync_state          -- Per-file sync state for incremental sync (file_path, hash, mtime)
+obsidian_sync_log            -- Sync operation history and error tracking
 ```
 
 ## Database Migrations
@@ -352,6 +363,7 @@ Run migrations in order from `/database/migrations/`:
 | 019 | document_auto_classification | Auto-classification columns + RPC with agent filtering |
 | 019 | task_management | Kanban tasks, comments, status history |
 | 040 | add_compass_agent | Compass (Career Coach) agent for win tracking |
+| 021 | obsidian_sync | Obsidian vault configs, sync state, and sync logs |
 
 ## Environment Variables
 
@@ -414,6 +426,7 @@ python -m pytest tests/ -v --tb=short
 - `/backend/services/engagement_calculator.py` - Automatic stakeholder engagement level calculation
 - `/backend/services/engagement_scheduler.py` - Weekly engagement recalculation scheduler
 - `/backend/services/document_classifier.py` - Hybrid keyword + LLM document classification
+- `/backend/services/obsidian_sync.py` - Obsidian vault sync: file watching, frontmatter parsing, wikilink conversion
 - `/backend/services/graph/query_service.py` - Neo4j graph queries including `get_meeting_context()` for stakeholder/concern retrieval
 - `/backend/services/graph/connection.py` - Neo4j connection management
 - `/backend/system_instructions/agents/*.xml` - Agent behavior configuration (Gigawatt v4.0)
@@ -431,6 +444,8 @@ python -m pytest tests/ -v --tb=short
 - `/backend/api/routes/meeting_prep.py` - Stakeholder briefing endpoints
 - `/backend/api/routes/stakeholder_metrics.py` - KPI tracking with validation status
 - `/backend/api/routes/admin.py` - Admin dashboard with real API health checks
+- `/backend/api/routes/obsidian_sync.py` - Obsidian vault configuration and sync API endpoints
+- `/backend/scripts/obsidian_watcher.py` - CLI script for background vault file watching
 
 ### Frontend
 - `/frontend/app/layout.tsx` - Root layout with providers
@@ -450,7 +465,7 @@ python -m pytest tests/ -v --tb=short
 
 ### Database
 - `/database/thesis_schema.sql` - Complete DB schema
-- `/database/migrations/` - All migration scripts (001-019, 040)
+- `/database/migrations/` - All migration scripts (001-021, 040)
 
 ### Documentation
 - `/docs/AGENT_GUARDRAILS.md` - Agent brevity rules, word limits, conversational coherence, and behavioral constraints

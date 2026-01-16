@@ -283,6 +283,7 @@ from api.routes import (
     meeting_prep,
     meeting_rooms,
     notion,
+    obsidian_sync,
     opportunities,
     projects,
     research,
@@ -321,8 +322,9 @@ app.include_router(opportunities.router)
 app.include_router(stakeholder_metrics.router)
 app.include_router(meeting_prep.router)
 app.include_router(tasks.router)
+app.include_router(obsidian_sync.router)
 
-logger.info("✅ All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, and task management routes)")
+logger.info("✅ All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, task management, and Obsidian sync routes)")
 
 # ============================================================================
 # Backward Compatibility Routes
