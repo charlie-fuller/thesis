@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from supabase import Client
 
-from ..dependencies import get_supabase
+from database import get_supabase
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/glean-connectors", tags=["Glean Connectors"])
