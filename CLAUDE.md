@@ -30,7 +30,7 @@ If the conversation included important decisions or unfinished work, save a summ
 
 Thesis is a multi-agent platform for enterprise GenAI strategy implementation. It helps AI Solutions Partners guide and manage successful AI initiatives by providing specialized agents for research, finance, IT/governance, legal, and meeting analysis.
 
-### Agent Roster (18 Agents)
+### Agent Roster (20 Agents)
 
 #### Meta-Agents (Always Present in Meetings)
 | Agent | Name | Purpose |
@@ -53,7 +53,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 |-------|------|---------|
 | Strategist | Executive Strategy | C-suite engagement, organizational politics, governance |
 | Architect | Technical Architecture | Enterprise AI patterns, RAG, integration, build vs. buy |
-| Operator | Business Operations | Process optimization, automation, operational metrics |
+| Operator | Business Operations | Process optimization, automation, operational metrics, **Project Triage** pipeline management |
 | Pioneer | Innovation/R&D | Emerging technology, hype filtering, maturity assessment |
 
 #### Internal Enablement Agents
@@ -63,6 +63,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 | Scholar | Learning & Development | Training programs, champion enablement, adult learning |
 | Echo | Brand Voice | Voice analysis, style profiling, AI emulation guidelines |
 | Glean Evaluator | Can We Glean This? | Glean platform fit assessment, connector analysis, build vs. buy for search |
+| Compass | Career Coach | Win capture, performance tracking, check-in prep, strategic alignment |
 
 #### Systems/Coordination Agents
 | Agent | Name | Purpose |
@@ -108,6 +109,28 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
    - Each response acknowledges and connects to the previous speaker's insight
 10. **Dig Deeper**: One-click elaboration on any assistant response for more detail
 11. **Auto-Generated Titles**: Conversation titles auto-generated from initial message using Claude
+12. **Task Management**: Kanban-style task board (`/tasks` page) with drag-and-drop status updates
+    - Task extraction from meeting transcripts
+    - Priority levels, assignees, due dates
+    - Status history tracking
+13. **Project Triage (Operator)**: AI opportunity pipeline management
+    - Tier-based opportunity scoring (Tier 1-4)
+    - Stakeholder-linked opportunities with owner tracking
+    - Department filtering and status progression
+    - Operator agent auto-injects triage context for relevant queries
+14. **Opportunities Pipeline**: Dedicated opportunities management (`/opportunities` page)
+    - Visual tier-based grouping with expandable sections
+    - Status tracking (identified, validating, approved, implementing, completed)
+    - Create new opportunities with scoring criteria
+15. **Meeting Prep**: Stakeholder briefing pages (`/meeting-prep/[stakeholder_id]`)
+    - Pre-meeting context on stakeholder priorities and pain points
+    - Recent interaction history and open questions
+    - AI-recommended talking points
+16. **Stakeholder Engagement Analytics**: Automatic engagement level calculation
+    - Weekly scheduler (Sunday 4 AM UTC) recalculates levels
+    - Sticky levels (only demote on explicit negative signals)
+    - Engagement trends visualization with Recharts
+    - History tracking for trend analysis
 
 ## Tech Stack
 
@@ -130,15 +153,20 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     /kb          - Knowledge Base page (documents + conversations management)
     /chat        - Main chat interface
     /meeting-room - Multi-agent meeting rooms
+    /tasks       - Kanban task management
+    /opportunities - AI opportunity pipeline
+    /meeting-prep - Stakeholder briefing pages
+    /intelligence - Analytics and engagement trends
     /admin       - Admin dashboard
   /components    - React components
     /kb          - Knowledge Base components (KBDocumentsContent)
+    /tasks       - Kanban board components (TaskKanbanBoard, TaskCard, etc.)
   /contexts      - AuthContext, HelpChatContext, ThemeContext
 
 /backend
   /api/routes    - FastAPI endpoints
-  /agents        - Agent implementations (17 agents)
-  /services      - Business logic including transcript_analyzer
+  /agents        - Agent implementations (20 agents)
+  /services      - Business logic including transcript_analyzer, operator_tools
   /system_instructions - Agent-specific prompts (XML files)
 
 /database
@@ -258,14 +286,15 @@ See `/docs/AGENT_GUARDRAILS.md` for complete rules
 
 ```sql
 -- Agent System
-agents                       -- Agent registry (18 agents) with capabilities column
+agents                       -- Agent registry (20 agents) with capabilities column
 agent_instruction_versions   -- Per-agent versioned instructions (single source of truth)
 agent_handoffs               -- Agent-to-agent handoff tracking
-agent_knowledge_base         -- Document-to-agent links for RAG
+agent_knowledge_base         -- Document-to-agent links for RAG (with relevance_score)
 
 -- Stakeholder Management
-stakeholders                 -- CRM-style stakeholder tracking
+stakeholders                 -- CRM-style tracking with priority_level, pain_points, win_conditions
 stakeholder_insights         -- Extracted insights from transcripts
+engagement_level_history     -- Historical engagement level tracking for trends
 
 -- Meeting Intelligence
 meeting_transcripts          -- Processed transcript metadata
@@ -273,7 +302,13 @@ meeting_rooms                -- Multi-agent meeting sessions
 meeting_room_participants    -- Agents in each meeting
 meeting_room_messages        -- Messages with agent attribution
 
--- Business Intelligence
+-- Task Management
+project_tasks                -- Kanban tasks with status, priority, assignee
+task_comments                -- Comments on tasks
+task_history                 -- Status/priority/assignee change history
+
+-- Business Intelligence (Project Triage)
+ai_opportunities             -- Tier-scored AI opportunities with department/owner
 roi_opportunities            -- Identified ROI opportunities
 
 -- Research Intelligence (Atlas)
@@ -311,9 +346,12 @@ Run migrations in order from `/database/migrations/`:
 | 014 | add_facilitator_agent | Facilitator meta-agent + capabilities column for all agents |
 | 015 | add_reporter_agent | Reporter meta-agent for meeting synthesis and documentation |
 | 016 | add_glean_evaluator_agent | Glean Evaluator agent + connector registry tables |
-| 017 | engagement_history | Engagement history tracking |
-| 018 | project_triage | Project triage tables |
+| 016 | rename_fortuna_to_capital | Rename finance agent from Fortuna to Capital |
+| 017 | engagement_history | Engagement level history tracking for trends |
+| 018 | project_triage | AI opportunities, stakeholder triage fields, Operator context |
 | 019 | document_auto_classification | Auto-classification columns + RPC with agent filtering |
+| 019 | task_management | Kanban tasks, comments, status history |
+| 040 | add_compass_agent | Compass (Career Coach) agent for win tracking |
 
 ## Environment Variables
 
@@ -359,10 +397,12 @@ python -m pytest tests/ -v --tb=short
 
 ### Backend
 - `/backend/main.py` - FastAPI app entry point
-- `/backend/agents/` - Agent implementations (18 agents)
+- `/backend/agents/` - Agent implementations (20 agents)
 - `/backend/agents/agent_factory.py` - Agent creation and registration
 - `/backend/agents/base_agent.py` - Base class with instruction loading
 - `/backend/agents/atlas.py` - Research agent with web search capability
+- `/backend/agents/glean_evaluator.py` - Glean platform fit assessment agent
+- `/backend/agents/compass.py` - Career coaching agent for win tracking
 - `/backend/services/transcript_analyzer.py` - Meeting transcript analysis
 - `/backend/services/meeting_orchestrator.py` - Multi-agent meeting coordination
 - `/backend/services/instruction_loader.py` - XML instruction file loading
@@ -370,6 +410,10 @@ python -m pytest tests/ -v --tb=short
 - `/backend/services/research_context.py` - Topic prioritization from platform context
 - `/backend/services/agent_observer.py` - Cross-agent conversation monitoring
 - `/backend/services/web_researcher.py` - Anthropic web search with credibility filtering
+- `/backend/services/operator_tools.py` - Project triage context injection for Operator
+- `/backend/services/engagement_calculator.py` - Automatic stakeholder engagement level calculation
+- `/backend/services/engagement_scheduler.py` - Weekly engagement recalculation scheduler
+- `/backend/services/document_classifier.py` - Hybrid keyword + LLM document classification
 - `/backend/services/graph/query_service.py` - Neo4j graph queries including `get_meeting_context()` for stakeholder/concern retrieval
 - `/backend/services/graph/connection.py` - Neo4j connection management
 - `/backend/system_instructions/agents/*.xml` - Agent behavior configuration (Gigawatt v4.0)
@@ -379,9 +423,13 @@ python -m pytest tests/ -v --tb=short
 - `/backend/api/routes/chat.py` - Chat endpoints including Dig Deeper and agent routing
 - `/backend/api/routes/meeting_rooms.py` - Meeting room CRUD and streaming
 - `/backend/api/routes/agents.py` - Agent management endpoints (note: static routes like `/documents/available` must be defined before parameterized routes like `/{agent_id}/documents`)
-- `/backend/api/routes/documents.py` - Document CRUD, upload, processing, and agent assignment endpoints
+- `/backend/api/routes/documents.py` - Document CRUD, upload, processing, classification, and agent assignment endpoints
 - `/backend/api/routes/research.py` - Atlas research API endpoints
 - `/backend/api/routes/glean_connectors.py` - Glean connector registry and gap tracking endpoints
+- `/backend/api/routes/tasks.py` - Kanban task management CRUD and transcript extraction
+- `/backend/api/routes/opportunities.py` - AI opportunity pipeline management
+- `/backend/api/routes/meeting_prep.py` - Stakeholder briefing endpoints
+- `/backend/api/routes/stakeholder_metrics.py` - KPI tracking with validation status
 - `/backend/api/routes/admin.py` - Admin dashboard with real API health checks
 
 ### Frontend
@@ -391,11 +439,18 @@ python -m pytest tests/ -v --tb=short
 - `/frontend/components/AgentIcon.tsx` - Agent icons and color mapping
 - `/frontend/components/ChatMessage.tsx` - Message display with agent badges
 - `/frontend/app/meeting-room/` - Meeting room pages
+- `/frontend/app/tasks/` - Kanban task management
+- `/frontend/app/opportunities/` - AI opportunity pipeline
+- `/frontend/app/meeting-prep/` - Stakeholder briefing pages
+- `/frontend/app/intelligence/` - Analytics and engagement trends
 - `/frontend/app/admin/agents/` - Agent admin interface
+- `/frontend/components/tasks/` - Kanban board components (TaskKanbanBoard, TaskCard, etc.)
+- `/frontend/components/kb/ClassificationReviewBanner.tsx` - Document classification review UI
+- `/frontend/components/EngagementTrendsChart.tsx` - Stakeholder engagement visualization
 
 ### Database
 - `/database/thesis_schema.sql` - Complete DB schema
-- `/database/migrations/` - All migration scripts (001-016)
+- `/database/migrations/` - All migration scripts (001-019, 040)
 
 ### Documentation
 - `/docs/AGENT_GUARDRAILS.md` - Agent brevity rules, word limits, conversational coherence, and behavioral constraints

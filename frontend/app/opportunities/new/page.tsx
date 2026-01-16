@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Target, AlertCircle } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
+import PageHeader from '@/components/PageHeader'
 
 // ============================================================================
 // TYPES
@@ -260,13 +261,14 @@ export default function NewOpportunityPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-page flex flex-col">
+      <PageHeader />
+      <div className="flex-1 max-w-4xl mx-auto px-4 py-8 w-full">
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => router.push('/opportunities')}
-            className="flex items-center gap-2 text-slate-500 hover:text-slate-700 mb-4"
+            className="flex items-center gap-2 text-muted hover:text-primary mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Opportunities
@@ -276,7 +278,7 @@ export default function NewOpportunityPage() {
               <Target className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">New AI Opportunity</h1>
+              <h1 className="text-2xl font-bold text-primary">New AI Opportunity</h1>
               <p className="text-slate-500">Track and score a new AI implementation opportunity</p>
             </div>
           </div>

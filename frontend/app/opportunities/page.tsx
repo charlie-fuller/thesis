@@ -16,6 +16,7 @@ import {
   Building2
 } from 'lucide-react'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
+import PageHeader from '@/components/PageHeader'
 
 // ============================================================================
 // TYPES
@@ -408,37 +409,44 @@ export default function OpportunitiesPage() {
 
   if (loading && !data) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-500">Loading opportunities...</div>
+      <div className="min-h-screen bg-page flex flex-col">
+        <PageHeader />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-muted">Loading opportunities...</div>
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600">{error}</p>
-          <button
-            onClick={loadData}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Retry
-          </button>
+      <div className="min-h-screen bg-page flex flex-col">
+        <PageHeader />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600">{error}</p>
+            <button
+              onClick={loadData}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-page flex flex-col">
+      <PageHeader />
+      <div className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">AI Opportunities</h1>
-            <p className="text-slate-500">
+            <h1 className="text-2xl font-bold text-primary">AI Opportunities</h1>
+            <p className="text-muted">
               {data?.summary.total || 0} opportunities tracked
             </p>
           </div>
@@ -543,9 +551,9 @@ export default function OpportunitiesPage() {
         {/* Empty State */}
         {data && data.summary.total === 0 && (
           <div className="text-center py-12">
-            <Target className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-slate-700 mb-2">No opportunities yet</h3>
-            <p className="text-slate-500 mb-4">Start tracking AI implementation opportunities</p>
+            <Target className="w-12 h-12 text-muted mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-primary mb-2">No opportunities yet</h3>
+            <p className="text-muted mb-4">Start tracking AI implementation opportunities</p>
             <button
               onClick={() => router.push('/opportunities/new')}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

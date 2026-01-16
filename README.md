@@ -1,10 +1,10 @@
 # Thesis - Multi-Agent GenAI Strategy Platform
 
-AI-powered multi-agent platform that helps enterprises implement successful GenAI strategies. Thesis provides 15 specialized agents representing real stakeholder perspectives, consulting expertise, and internal enablement capabilities to support AI Solutions Partners and strategy teams.
+AI-powered multi-agent platform that helps enterprises implement successful GenAI strategies. Thesis provides 20 specialized agents representing real stakeholder perspectives, consulting expertise, and internal enablement capabilities to support AI Solutions Partners and strategy teams.
 
 ## Quick Links
 
-- [Agent Roster](#agent-roster) - All 15 specialized agents
+- [Agent Roster](#agent-roster) - All 20 specialized agents
 - [Agent Persona Alignment Report](docs/AGENT_PERSONA_ALIGNMENT_REPORT.md) - How agents map to interview subjects
 - [Planning Documentation](docs/planning/) - Implementation plan and session transcripts
 - [Context Document](docs/CONTEXT.md) - Project discovery and requirements
@@ -16,7 +16,7 @@ Thesis is a multi-agent platform designed for enterprise GenAI strategy implemen
 
 ### Key Capabilities
 
-- **15 Specialized Agents** - Stakeholder perspectives, consulting expertise, internal enablement, and systems coordination
+- **20 Specialized Agents** - Stakeholder perspectives, consulting expertise, internal enablement, and systems coordination
 - **Persona-Aligned Responses** - Agents embody real interview subjects with authentic concerns
 - **Meeting Room** - Multi-agent collaboration space for focused cross-functional discussions
 - **Autonomous Discussion** - Agents debate topics amongst themselves for configurable rounds; user can interject anytime
@@ -26,16 +26,21 @@ Thesis is a multi-agent platform designed for enterprise GenAI strategy implemen
 - **Persistent Memory** - Mem0 integration for cross-conversation learning
 - **Relationship Intelligence** - Neo4j graph database for stakeholder networks and expertise routing
 - **Dig Deeper** - One-click elaboration on any response for more detail
+- **Task Management** - Kanban-style board with drag-and-drop status updates
+- **Project Triage** - AI opportunity pipeline with tier-based scoring (Operator integration)
+- **Document Auto-Classification** - Automatic agent relevance tagging on upload
+- **Stakeholder Engagement Analytics** - Automatic engagement level calculation with trends
 
 ## Agent Roster
 
-Thesis includes 15 specialized agents organized into five categories:
+Thesis includes 20 specialized agents organized into six categories:
 
 | Category | Agents | Purpose |
 |----------|--------|---------|
+| [Meta-Agents](#meta-agents) | Facilitator, Reporter | Meeting orchestration and documentation |
 | [Stakeholder Perspectives](#stakeholder-perspective-agents) | Atlas, Capital, Guardian, Counselor, Sage, Oracle | Embody real enterprise stakeholder viewpoints |
 | [Consulting/Implementation](#consultingimplementation-agents) | Strategist, Architect, Operator, Pioneer | Professional consulting and technical guidance |
-| [Internal Enablement](#internal-enablement-agents) | Catalyst, Scholar, Echo | Support internal AI adoption and communication |
+| [Internal Enablement](#internal-enablement-agents) | Catalyst, Scholar, Echo, Glean Evaluator, Compass | Support internal AI adoption and communication |
 | [Systems/Coordination](#systemscoordination-agents) | Nexus, Coordinator | Systems thinking and agent orchestration |
 
 ---

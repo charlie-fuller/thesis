@@ -18,6 +18,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
+import PageHeader from '@/components/PageHeader'
 
 // ============================================================================
 // TYPES
@@ -241,27 +242,33 @@ export default function MeetingPrepPage(props: { params: Promise<{ stakeholder_i
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+      <div className="min-h-screen bg-page flex flex-col">
+        <PageHeader />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+        </div>
       </div>
     )
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
-              Error Loading Meeting Prep
-            </h2>
-            <p className="text-red-700 dark:text-red-300">{error || 'Data not found'}</p>
-            <button
-              onClick={() => router.push('/stakeholders')}
-              className="mt-4 text-sm text-red-600 dark:text-red-400 hover:underline"
-            >
-              &larr; Back to stakeholders
-            </button>
+      <div className="min-h-screen bg-page flex flex-col">
+        <PageHeader />
+        <div className="flex-1 p-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+              <h2 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
+                Error Loading Meeting Prep
+              </h2>
+              <p className="text-red-700 dark:text-red-300">{error || 'Data not found'}</p>
+              <button
+                onClick={() => router.push('/stakeholders')}
+                className="mt-4 text-sm text-red-600 dark:text-red-400 hover:underline"
+              >
+                &larr; Back to stakeholders
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -271,8 +278,9 @@ export default function MeetingPrepPage(props: { params: Promise<{ stakeholder_i
   const { stakeholder, status_summary, metrics, opportunities, questions_to_ask, recommended_approach, days_since_contact } = data
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-page flex flex-col">
+      <PageHeader />
+      <div className="flex-1 max-w-6xl mx-auto px-4 py-8 w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
