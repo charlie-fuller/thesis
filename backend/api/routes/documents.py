@@ -1069,3 +1069,213 @@ async def get_pending_classification_reviews(
     except Exception as e:
         logger.error(f"Error getting pending reviews: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Document Tags
+# ============================================================================
+
+@router.get("/{document_id}/tags")
+async def get_document_tags(
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all tags for a document.
+
+    Returns:
+        tags: List of tag objects with tag name and source (frontmatter/manual)
+    """
+    try:
+        validate_uuid(document_id, "document_id")
+
+        # Verify document exists and user has access
+        doc_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, uploaded_by')
+                .eq('id', document_id)
+                .single()
+                .execute()
+        )
+
+        if not doc_result.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Authorization check
+        document = doc_result.data
+        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+            raise HTTPException(status_code=403, detail="Not authorized to view this document")
+
+        # Get tags
+        tags_result = await asyncio.to_thread(
+            lambda: supabase.table('document_tags')
+                .select('id, tag, source, created_at')
+                .eq('document_id', document_id)
+                .order('created_at')
+                .execute()
+        )
+
+        return {
+            'success': True,
+            'document_id': document_id,
+            'tags': tags_result.data or []
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting document tags: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class AddTagRequest(BaseModel):
+    """Request body for adding a tag to a document."""
+    tag: str
+
+
+@router.post("/{document_id}/tags")
+async def add_document_tag(
+    document_id: str,
+    request: AddTagRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Add a manual tag to a document.
+
+    Args:
+        tag: The tag text to add
+
+    Returns:
+        The created tag record
+    """
+    try:
+        validate_uuid(document_id, "document_id")
+
+        if not request.tag or not request.tag.strip():
+            raise HTTPException(status_code=400, detail="Tag cannot be empty")
+
+        tag = request.tag.strip()
+        if len(tag) > 100:
+            raise HTTPException(status_code=400, detail="Tag must be 100 characters or less")
+
+        # Verify document exists and user has access
+        doc_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, uploaded_by')
+                .eq('id', document_id)
+                .single()
+                .execute()
+        )
+
+        if not doc_result.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Authorization check
+        document = doc_result.data
+        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+            raise HTTPException(status_code=403, detail="Not authorized to modify this document")
+
+        # Insert tag (upsert to handle duplicates)
+        tag_result = await asyncio.to_thread(
+            lambda: supabase.table('document_tags')
+                .upsert({
+                    'document_id': document_id,
+                    'tag': tag,
+                    'source': 'manual'
+                }, on_conflict='document_id,tag')
+                .execute()
+        )
+
+        logger.info(f"Added tag '{tag}' to document {document_id}")
+
+        return {
+            'success': True,
+            'document_id': document_id,
+            'tag': tag_result.data[0] if tag_result.data else {'tag': tag, 'source': 'manual'}
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adding document tag: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{document_id}/tags/{tag}")
+async def remove_document_tag(
+    document_id: str,
+    tag: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Remove a tag from a document.
+
+    Note: Only manual tags can be removed. Frontmatter tags are controlled by
+    the source Obsidian file.
+
+    Args:
+        tag: The tag text to remove
+    """
+    try:
+        validate_uuid(document_id, "document_id")
+
+        if not tag or not tag.strip():
+            raise HTTPException(status_code=400, detail="Tag cannot be empty")
+
+        tag = tag.strip()
+
+        # Verify document exists and user has access
+        doc_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, uploaded_by')
+                .eq('id', document_id)
+                .single()
+                .execute()
+        )
+
+        if not doc_result.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Authorization check
+        document = doc_result.data
+        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+            raise HTTPException(status_code=403, detail="Not authorized to modify this document")
+
+        # Check if tag exists and is manual
+        existing_tag = await asyncio.to_thread(
+            lambda: supabase.table('document_tags')
+                .select('id, source')
+                .eq('document_id', document_id)
+                .eq('tag', tag)
+                .single()
+                .execute()
+        )
+
+        if not existing_tag.data:
+            raise HTTPException(status_code=404, detail="Tag not found")
+
+        if existing_tag.data['source'] == 'frontmatter':
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot remove frontmatter tags. Edit the source Obsidian file instead."
+            )
+
+        # Delete the tag
+        await asyncio.to_thread(
+            lambda: supabase.table('document_tags')
+                .delete()
+                .eq('document_id', document_id)
+                .eq('tag', tag)
+                .execute()
+        )
+
+        logger.info(f"Removed tag '{tag}' from document {document_id}")
+
+        return {
+            'success': True,
+            'document_id': document_id,
+            'removed_tag': tag
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing document tag: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

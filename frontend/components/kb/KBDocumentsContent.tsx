@@ -34,6 +34,11 @@ import {
 import { apiGet, apiPatch, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { API_BASE_URL } from '@/lib/config'
 
+interface DocumentTag {
+  tag: string
+  source: 'path' | 'frontmatter' | 'manual'
+}
+
 interface Document {
   id: string
   title?: string
@@ -49,6 +54,9 @@ interface Document {
   notion_page_id?: string
   sync_cadence?: string
   file_size?: number
+  obsidian_vault_path?: string
+  obsidian_file_path?: string
+  tags?: DocumentTag[]
 }
 
 export default function KBDocumentsContent() {
@@ -114,6 +122,11 @@ export default function KBDocumentsContent() {
   const [docLinkedAgentIds, setDocLinkedAgentIds] = useState<Set<string>>(new Set())
   const [loadingAgentAssignments, setLoadingAgentAssignments] = useState(false)
   const [savingAgentAssignments, setSavingAgentAssignments] = useState(false)
+
+  // Tag management state for document info modal
+  const [newTagInput, setNewTagInput] = useState<string>('')
+  const [addingTag, setAddingTag] = useState(false)
+  const [removingTag, setRemovingTag] = useState<string | null>(null)
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState<string>('')
@@ -847,6 +860,75 @@ export default function KBDocumentsContent() {
     }
   }
 
+  // Tag management functions
+  async function handleAddTag() {
+    if (!selectedDoc || !newTagInput.trim()) return
+
+    const tag = newTagInput.trim()
+    if (tag.length > 100) {
+      setGeneralError('Tag must be 100 characters or less')
+      setTimeout(() => setGeneralError(null), 3000)
+      return
+    }
+
+    setAddingTag(true)
+    try {
+      await apiPost(`/api/documents/${selectedDoc.id}/tags`, { tag })
+
+      // Update local state
+      const newTag: DocumentTag = { tag, source: 'manual' }
+      setSelectedDoc(prev => prev ? {
+        ...prev,
+        tags: [...(prev.tags || []), newTag]
+      } : prev)
+
+      // Update in documents list
+      setDocuments(prevDocs =>
+        prevDocs.map(doc =>
+          doc.id === selectedDoc.id
+            ? { ...doc, tags: [...(doc.tags || []), newTag] }
+            : doc
+        )
+      )
+
+      setNewTagInput('')
+    } catch (err) {
+      setGeneralError(err instanceof Error ? err.message : 'Failed to add tag')
+      setTimeout(() => setGeneralError(null), 3000)
+    } finally {
+      setAddingTag(false)
+    }
+  }
+
+  async function handleRemoveTag(tag: string) {
+    if (!selectedDoc) return
+
+    setRemovingTag(tag)
+    try {
+      await apiDelete(`/api/documents/${selectedDoc.id}/tags/${encodeURIComponent(tag)}`)
+
+      // Update local state
+      setSelectedDoc(prev => prev ? {
+        ...prev,
+        tags: (prev.tags || []).filter(t => t.tag !== tag)
+      } : prev)
+
+      // Update in documents list
+      setDocuments(prevDocs =>
+        prevDocs.map(doc =>
+          doc.id === selectedDoc.id
+            ? { ...doc, tags: (doc.tags || []).filter(t => t.tag !== tag) }
+            : doc
+        )
+      )
+    } catch (err) {
+      setGeneralError(err instanceof Error ? err.message : 'Failed to remove tag')
+      setTimeout(() => setGeneralError(null), 3000)
+    } finally {
+      setRemovingTag(null)
+    }
+  }
+
   function handleDeleteClick(doc: Document) {
     setDocToDelete(doc)
     setShowDeleteModal(true)
@@ -1369,7 +1451,43 @@ export default function KBDocumentsContent() {
                             <Image src="/logos/notion.svg" alt="Notion" width={20} height={20} className="w-5 h-5" />
                           </span>
                         )}
+                        {doc.source_platform === 'obsidian' && (
+                          <span className="inline-flex items-center gap-1 flex-shrink-0" title="Obsidian">
+                            <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </span>
+                        )}
                       </div>
+                      {/* Obsidian file path */}
+                      {doc.obsidian_file_path && (
+                        <div className="text-xs text-secondary truncate max-w-[300px] mt-0.5" title={doc.obsidian_file_path}>
+                          <span className="opacity-60">{doc.obsidian_file_path}</span>
+                        </div>
+                      )}
+                      {/* Tags display */}
+                      {doc.tags && doc.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {doc.tags.slice(0, 4).map((t) => (
+                            <span
+                              key={t.tag}
+                              className={`px-1.5 py-0.5 text-xs rounded ${
+                                t.source === 'path'
+                                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                                  : t.source === 'frontmatter'
+                                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                              }`}
+                              title={t.source === 'path' ? 'From folder path' : t.source === 'frontmatter' ? 'From Obsidian frontmatter' : 'Manually added'}
+                            >
+                              {t.tag}
+                            </span>
+                          ))}
+                          {doc.tags.length > 4 && (
+                            <span className="text-xs text-secondary">+{doc.tags.length - 4}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {/* Action Buttons */}
@@ -1517,6 +1635,94 @@ export default function KBDocumentsContent() {
                   </a>
                 </div>
               )}
+
+              {/* Obsidian file path */}
+              {selectedDoc.obsidian_file_path && (
+                <div>
+                  <label className="text-sm font-medium text-secondary">Vault Path</label>
+                  <p className="text-sm text-primary mt-1 font-mono">{selectedDoc.obsidian_file_path}</p>
+                </div>
+              )}
+
+              {/* Tags Section */}
+              <div className="border-t border-default pt-3 mt-3">
+                <label className="text-sm font-medium text-secondary block mb-2">Tags</label>
+
+                {/* Existing tags */}
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {(selectedDoc.tags || []).length === 0 ? (
+                    <span className="text-sm text-muted">No tags</span>
+                  ) : (
+                    selectedDoc.tags?.map((t) => (
+                      <span
+                        key={t.tag}
+                        className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded ${
+                          t.source === 'path'
+                            ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                            : t.source === 'frontmatter'
+                              ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                              : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                        }`}
+                      >
+                        {t.tag}
+                        {t.source === 'path' || t.source === 'frontmatter' ? (
+                          <span title={t.source === 'path' ? 'From folder path (read-only)' : 'From Obsidian frontmatter (read-only)'}>
+                            <svg className="w-3 h-3 opacity-50" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                            </svg>
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleRemoveTag(t.tag)}
+                            disabled={removingTag === t.tag}
+                            className="hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50"
+                            title="Remove tag"
+                          >
+                            {removingTag === t.tag ? (
+                              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                            ) : (
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            )}
+                          </button>
+                        )}
+                      </span>
+                    ))
+                  )}
+                </div>
+
+                {/* Add new tag */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newTagInput}
+                    onChange={(e) => setNewTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleAddTag()
+                      }
+                    }}
+                    placeholder="Add a tag..."
+                    className="flex-1 px-3 py-1.5 text-sm border border-default rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-card text-primary"
+                    maxLength={100}
+                  />
+                  <button
+                    onClick={handleAddTag}
+                    disabled={addingTag || !newTagInput.trim()}
+                    className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {addingTag ? 'Adding...' : 'Add'}
+                  </button>
+                </div>
+                <p className="text-xs text-muted mt-1">
+                  Amber tags are from folder path. Purple tags are from frontmatter. Blue tags are manually added.
+                </p>
+              </div>
 
               {/* Sync Cadence Setting - for Google Drive and Notion documents */}
               {(selectedDoc.source_platform === 'google_drive' || selectedDoc.source_platform === 'notion') && (

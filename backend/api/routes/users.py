@@ -326,8 +326,12 @@ async def resend_invitation(
 async def list_user_documents(
     current_user: dict = Depends(get_current_user)
 ):
-    """List all documents uploaded by current user"""
+    """List all documents uploaded by current user.
+
+    Returns documents with their tags and obsidian file path (if applicable).
+    """
     try:
+        # Get all documents for the user
         result = await asyncio.to_thread(
             lambda: supabase.table('documents')\
                 .select('*')\
@@ -336,9 +340,37 @@ async def list_user_documents(
                 .execute()
         )
 
+        documents = result.data or []
+        doc_ids = [doc['id'] for doc in documents]
+
+        # Get tags for all documents in a single query
+        tags_by_doc = {}
+        if doc_ids:
+            tags_result = await asyncio.to_thread(
+                lambda: supabase.table('document_tags')\
+                    .select('document_id, tag, source')\
+                    .in_('document_id', doc_ids)\
+                    .order('created_at')\
+                    .execute()
+            )
+
+            # Group tags by document_id
+            for tag_record in tags_result.data or []:
+                doc_id = tag_record['document_id']
+                if doc_id not in tags_by_doc:
+                    tags_by_doc[doc_id] = []
+                tags_by_doc[doc_id].append({
+                    'tag': tag_record['tag'],
+                    'source': tag_record['source']
+                })
+
+        # Attach tags to each document
+        for doc in documents:
+            doc['tags'] = tags_by_doc.get(doc['id'], [])
+
         return {
             'success': True,
-            'documents': result.data
+            'documents': documents
         }
 
     except Exception as e:

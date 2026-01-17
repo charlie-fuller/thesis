@@ -20,7 +20,7 @@ import hashlib
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
@@ -541,7 +541,18 @@ def update_sync_state(
     if file_size is not None:
         state_data['file_size'] = file_size
     if frontmatter is not None:
-        state_data['frontmatter'] = frontmatter
+        # Serialize any datetime objects in frontmatter for JSON storage
+        def serialize_value(v):
+            if isinstance(v, datetime):
+                return v.isoformat()
+            if isinstance(v, date):
+                return v.isoformat()
+            if isinstance(v, list):
+                return [serialize_value(item) for item in v]
+            if isinstance(v, dict):
+                return {k: serialize_value(val) for k, val in v.items()}
+            return v
+        state_data['frontmatter'] = {k: serialize_value(v) for k, v in frontmatter.items()}
     if sync_status == 'synced':
         state_data['last_synced_at'] = now
         state_data['sync_error'] = None
@@ -735,7 +746,8 @@ def sync_file(
                 document_id=document_id,
                 file_content=file_content,
                 title=title,
-                relative_path=relative_path
+                relative_path=relative_path,
+                frontmatter=frontmatter
             )
             action = 'updated'
         else:
@@ -803,9 +815,13 @@ def _create_obsidian_document(
     client_id = config['client_id']
     vault_path = config['vault_path']
 
-    # Generate unique storage path
+    # Generate unique storage path (sanitize filename for storage)
     unique_id = str(uuid.uuid4())
-    storage_path = f"obsidian/{client_id}/{unique_id}_{filename}"
+    # Remove emojis and special chars from filename for storage key
+    safe_filename = re.sub(r'[^\w\s\-\.]', '', filename).strip()
+    if not safe_filename:
+        safe_filename = 'document.md'
+    storage_path = f"obsidian/{client_id}/{unique_id}_{safe_filename}"
 
     # Upload to Supabase storage
     supabase.storage.from_('documents').upload(
@@ -831,10 +847,8 @@ def _create_obsidian_document(
         'obsidian_file_path': relative_path,
         'last_synced_at': now,
         'processed': False,
-        'uploaded_at': now,
-        'metadata': {
-            'frontmatter': frontmatter
-        }
+        'uploaded_at': now
+        # Note: frontmatter is stored in obsidian_sync_state, not documents
     }
 
     result = supabase.table('documents').insert(document_data).execute()
@@ -845,6 +859,16 @@ def _create_obsidian_document(
     if thesis_agents and isinstance(thesis_agents, list):
         _link_document_to_agents(document['id'], user_id, thesis_agents)
 
+    # Sync tags from file path (folder structure becomes tags)
+    path_tags = _extract_path_tags(relative_path)
+    if path_tags:
+        _sync_document_tags(document['id'], path_tags, source='path')
+
+    # Also sync any explicit tags from frontmatter
+    frontmatter_tags = frontmatter.get('tags', [])
+    if frontmatter_tags and isinstance(frontmatter_tags, list):
+        _sync_document_tags(document['id'], frontmatter_tags, source='frontmatter')
+
     return document['id']
 
 
@@ -852,10 +876,18 @@ def _update_obsidian_document(
     document_id: str,
     file_content: bytes,
     title: str,
-    relative_path: str
+    relative_path: str,
+    frontmatter: Optional[Dict] = None
 ) -> Dict:
     """
     Update an existing Obsidian document.
+
+    Args:
+        document_id: UUID of the document
+        file_content: Processed markdown content
+        title: Document title from frontmatter or filename
+        relative_path: Relative path within the vault
+        frontmatter: Parsed frontmatter dict for tag syncing
 
     Returns:
         Updated document record
@@ -899,7 +931,77 @@ def _update_obsidian_document(
         .eq('id', document_id) \
         .execute()
 
+    # Sync tags from file path (folder structure becomes tags)
+    path_tags = _extract_path_tags(relative_path)
+    if path_tags:
+        _sync_document_tags(document_id, path_tags, source='path')
+
+    # Also sync any explicit tags from frontmatter
+    if frontmatter:
+        frontmatter_tags = frontmatter.get('tags', [])
+        if isinstance(frontmatter_tags, list):
+            _sync_document_tags(document_id, frontmatter_tags, source='frontmatter')
+
     return result.data[0] if result.data else {}
+
+
+def _extract_path_tags(relative_path: str) -> List[str]:
+    """
+    Extract tags from the file path based on folder structure.
+
+    For example: "Projects/AI Strategy/meeting-notes.md" -> ["Projects", "AI Strategy"]
+
+    Args:
+        relative_path: Relative path from vault root (e.g., "folder/subfolder/file.md")
+
+    Returns:
+        List of folder names as tags (excludes the filename itself)
+    """
+    from pathlib import PurePath
+    path = PurePath(relative_path)
+
+    # Get all parent folders (exclude the filename)
+    parts = list(path.parts[:-1])  # Exclude last part (filename)
+
+    # Filter out empty parts and return
+    return [part for part in parts if part and part.strip()]
+
+
+def _sync_document_tags(document_id: str, tags: List[str], source: str = 'frontmatter') -> None:
+    """
+    Sync tags to document_tags table.
+
+    For path and frontmatter sources, replaces existing tags of that source on each sync
+    while preserving manual tags.
+
+    Args:
+        document_id: UUID of the document
+        tags: List of tag strings
+        source: Tag source - 'path' (from folder structure), 'frontmatter', or 'manual'
+    """
+    # Delete existing tags of this source type (preserve other sources)
+    if source in ('frontmatter', 'path'):
+        try:
+            supabase.table('document_tags') \
+                .delete() \
+                .eq('document_id', document_id) \
+                .eq('source', source) \
+                .execute()
+        except Exception as e:
+            logger.warning(f"Failed to delete existing {source} tags: {e}")
+
+    # Insert new tags
+    for tag in tags:
+        if isinstance(tag, str) and tag.strip():
+            try:
+                supabase.table('document_tags').upsert({
+                    'document_id': document_id,
+                    'tag': tag.strip(),
+                    'source': source
+                }, on_conflict='document_id,tag').execute()
+                logger.debug(f"      Synced tag: {tag}")
+            except Exception as e:
+                logger.warning(f"      Failed to sync tag '{tag}': {e}")
 
 
 def _link_document_to_agents(document_id: str, user_id: str, agent_names: List[str]) -> None:
