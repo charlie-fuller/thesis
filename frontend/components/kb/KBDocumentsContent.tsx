@@ -197,8 +197,18 @@ export default function KBDocumentsContent() {
     return { obsidianFolders: sortedFolders, nonObsidianDocs: nonObsidian }
   }, [filteredDocuments])
 
-  // Track which folders are collapsed (default all open)
+  // Track which folders are collapsed (default all collapsed)
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set())
+  const [foldersInitialized, setFoldersInitialized] = useState(false)
+
+  // Initialize all folders as collapsed when they first load
+  useEffect(() => {
+    const folderKeys = Object.keys(obsidianFolders)
+    if (folderKeys.length > 0 && !foldersInitialized) {
+      setCollapsedFolders(new Set(folderKeys))
+      setFoldersInitialized(true)
+    }
+  }, [obsidianFolders, foldersInitialized])
 
   const toggleFolderCollapse = (folder: string) => {
     setCollapsedFolders(prev => {
