@@ -286,12 +286,19 @@ export default function KBDocumentsContent() {
   // Obsidian status check function
   async function checkObsidianStatusFn() {
     try {
-      const response = await apiGet<{ success: boolean; connected: boolean; vault_name?: string; vault_path?: string; document_count?: number; last_sync?: string }>('/api/obsidian/status')
+      const response = await apiGet<{
+        success: boolean
+        connected: boolean
+        vault_name?: string
+        vault_path?: string
+        files_synced?: number
+        last_sync?: string
+      }>('/api/obsidian/status')
       setObsidianStatus({
         connected: response.connected,
         vault_name: response.vault_name,
         vault_path: response.vault_path,
-        document_count: response.document_count,
+        document_count: response.files_synced,
         last_sync: response.last_sync
       })
     } catch (err) {
