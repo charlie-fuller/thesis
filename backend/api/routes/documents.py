@@ -322,6 +322,55 @@ async def save_from_chat(
 
 
 # ============================================================================
+# Static Routes (must be before parameterized routes)
+# ============================================================================
+
+@router.get("/pending-reviews")
+async def get_pending_classification_reviews(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all documents with pending classification reviews for the current user.
+
+    Returns documents that were auto-classified but need user confirmation.
+    """
+    try:
+        # Get documents with pending reviews
+        result = await asyncio.to_thread(
+            lambda: supabase.table('document_classifications')
+                .select('document_id, detected_type, review_reason, raw_scores, created_at, documents(id, filename, uploaded_by)')
+                .eq('requires_user_review', True)
+                .eq('status', 'needs_review')
+                .order('created_at', desc=True)
+                .execute()
+        )
+
+        pending_reviews = []
+        for item in result.data or []:
+            doc = item.get('documents')
+            if not doc:
+                continue
+
+            pending_reviews.append({
+                'document_id': item['document_id'],
+                'filename': doc.get('filename'),
+                'detected_type': item.get('detected_type'),
+                'review_reason': item.get('review_reason'),
+                'suggested_agents': item.get('raw_scores', {}),
+                'created_at': item.get('created_at')
+            })
+
+        return {
+            'success': True,
+            'pending_reviews': pending_reviews,
+            'count': len(pending_reviews)
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting pending reviews: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
 # Document Processing
 # ============================================================================
 
@@ -1019,55 +1068,6 @@ async def confirm_classification(
         raise
     except Exception as e:
         logger.error(f"Error confirming document classification: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/pending-reviews")
-async def get_pending_classification_reviews(
-    current_user: dict = Depends(get_current_user)
-):
-    """Get all documents with pending classification reviews for the current user.
-
-    Returns documents that were auto-classified but need user confirmation.
-    """
-    try:
-        client_id = current_user.get('client_id')
-
-        # Get documents with pending reviews
-        result = await asyncio.to_thread(
-            lambda: supabase.table('document_classifications')
-                .select('document_id, detected_type, review_reason, raw_scores, created_at, documents(id, filename, uploaded_by)')
-                .eq('requires_user_review', True)
-                .eq('status', 'needs_review')
-                .order('created_at', desc=True)
-                .execute()
-        )
-
-        pending_reviews = []
-        for item in result.data or []:
-            doc = item.get('documents')
-            if not doc:
-                continue
-
-            # Filter by client (if user has client_id)
-            # For now, show all pending reviews the user has access to
-            pending_reviews.append({
-                'document_id': item['document_id'],
-                'filename': doc.get('filename'),
-                'detected_type': item.get('detected_type'),
-                'review_reason': item.get('review_reason'),
-                'suggested_agents': item.get('raw_scores', {}),
-                'created_at': item.get('created_at')
-            })
-
-        return {
-            'success': True,
-            'pending_reviews': pending_reviews,
-            'count': len(pending_reviews)
-        }
-
-    except Exception as e:
-        logger.error(f"Error getting pending reviews: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

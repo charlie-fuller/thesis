@@ -344,25 +344,30 @@ async def list_user_documents(
         doc_ids = [doc['id'] for doc in documents]
 
         # Get tags for all documents in a single query
+        # Gracefully handle case where document_tags table doesn't exist yet
         tags_by_doc = {}
         if doc_ids:
-            tags_result = await asyncio.to_thread(
-                lambda: supabase.table('document_tags')\
-                    .select('document_id, tag, source')\
-                    .in_('document_id', doc_ids)\
-                    .order('created_at')\
-                    .execute()
-            )
+            try:
+                tags_result = await asyncio.to_thread(
+                    lambda: supabase.table('document_tags')\
+                        .select('document_id, tag, source')\
+                        .in_('document_id', doc_ids)\
+                        .order('created_at')\
+                        .execute()
+                )
 
-            # Group tags by document_id
-            for tag_record in tags_result.data or []:
-                doc_id = tag_record['document_id']
-                if doc_id not in tags_by_doc:
-                    tags_by_doc[doc_id] = []
-                tags_by_doc[doc_id].append({
-                    'tag': tag_record['tag'],
-                    'source': tag_record['source']
-                })
+                # Group tags by document_id
+                for tag_record in tags_result.data or []:
+                    doc_id = tag_record['document_id']
+                    if doc_id not in tags_by_doc:
+                        tags_by_doc[doc_id] = []
+                    tags_by_doc[doc_id].append({
+                        'tag': tag_record['tag'],
+                        'source': tag_record['source']
+                    })
+            except Exception as tag_error:
+                # Table might not exist yet - just log and continue without tags
+                logger.debug(f"Could not fetch document tags: {tag_error}")
 
         # Attach tags to each document
         for doc in documents:
