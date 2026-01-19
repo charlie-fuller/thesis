@@ -124,6 +124,12 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - Status tracking (identified, scoping, pilot, scaling, completed, blocked)
     - Click any opportunity card to open detail modal with:
       - **Score Justification**: Visual breakdown of 4 dimensions (ROI, Effort, Strategic, Readiness) with explanations of what each score level means
+      - **AI-Generated Justifications**: Claude generates 3-4 sentence descriptions for:
+        - Opportunity summary (what it is and potential business impact)
+        - Each scoring dimension (why it received that score)
+        - Auto-generated on opportunity create (if scores provided) and score updates
+        - Triggered by KB document uploads via relevance detection
+        - Manual "Generate/Regenerate Analysis" button in modal
       - **Related Documents**: Vector search finds KB documents relevant to the opportunity's context
         - **Inline Document Viewer**: Click Eye icon to view document content in modal without leaving the page
         - External link icon opens document in Knowledge Base (new tab)
@@ -321,7 +327,7 @@ task_comments                -- Comments on tasks
 task_history                 -- Status/priority/assignee change history
 
 -- Business Intelligence (Project Triage)
-ai_opportunities             -- Tier-scored AI opportunities with department/owner
+ai_opportunities             -- Tier-scored AI opportunities with department/owner and AI-generated justifications
 opportunity_conversations    -- Q&A history for opportunity detail modal
 roi_opportunities            -- Identified ROI opportunities
 
@@ -374,6 +380,7 @@ Run migrations in order from `/database/migrations/`:
 | 021 | obsidian_sync | Obsidian vault configs, sync state, and sync logs |
 | 022 | opportunity_conversations | Opportunity conversations table |
 | 023 | add_manual_agent | Manual (Documentation Assistant) agent |
+| 025 | opportunity_justifications | AI-generated justification columns for opportunities |
 
 ## Environment Variables
 
@@ -479,9 +486,12 @@ uv run pytest tests/ -v --tb=short
 - `/backend/api/routes/research.py` - Atlas research API endpoints
 - `/backend/api/routes/glean_connectors.py` - Glean connector registry and gap tracking endpoints
 - `/backend/api/routes/tasks.py` - Kanban task management CRUD and transcript extraction
-- `/backend/api/routes/opportunities.py` - AI opportunity pipeline management with detail modal endpoints
+- `/backend/api/routes/opportunities.py` - AI opportunity pipeline management with detail modal and justification endpoints
 - `/backend/services/opportunity_context.py` - Vector search for opportunity-related KB documents
 - `/backend/services/opportunity_chat.py` - Q&A chat service for opportunity detail modal
+- `/backend/services/opportunity_justification.py` - AI-generated justifications using Claude Haiku
+- `/backend/services/opportunity_kb_sync.py` - KB change detection and opportunity re-evaluation
+- `/backend/scripts/generate_all_justifications.py` - Batch generation script for existing opportunities
 - `/backend/api/routes/meeting_prep.py` - Stakeholder briefing endpoints
 - `/backend/api/routes/stakeholder_metrics.py` - KPI tracking with validation status
 - `/backend/api/routes/admin.py` - Admin dashboard with real API health checks
