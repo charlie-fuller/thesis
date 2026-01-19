@@ -440,6 +440,72 @@ async def get_document_metadata(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/{document_id}/content")
+async def get_document_content(
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get document content by reconstructing from chunks.
+
+    Returns the full document content by concatenating all chunks in order.
+    This endpoint is available to document owners and admins.
+    """
+    try:
+        validate_uuid(document_id, "document_id")
+
+        # Get document metadata
+        doc_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')\
+                .select('id, filename, title, mime_type, uploaded_by, storage_path')\
+                .eq('id', document_id)\
+                .single()\
+                .execute()
+        )
+
+        if not doc_result.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        document = doc_result.data
+
+        # Authorization check: user can only access their own documents (unless admin)
+        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+            raise HTTPException(status_code=403, detail="Not authorized to access this document")
+
+        # Get all chunks ordered by chunk_index
+        chunks_result = await asyncio.to_thread(
+            lambda: supabase.table('document_chunks')\
+                .select('content, chunk_index')\
+                .eq('document_id', document_id)\
+                .order('chunk_index')\
+                .execute()
+        )
+
+        # Reconstruct content from chunks
+        if chunks_result.data:
+            # Join chunks with double newlines to preserve readability
+            content = "\n\n".join(chunk['content'] for chunk in chunks_result.data)
+        else:
+            content = ""
+
+        return {
+            'success': True,
+            'document': {
+                'id': document['id'],
+                'filename': document.get('filename'),
+                'title': document.get('title'),
+                'mime_type': document.get('mime_type'),
+            },
+            'content': content,
+            'chunk_count': len(chunks_result.data) if chunks_result.data else 0
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error fetching document content: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============================================================================
 # Admin Document Management
 # ============================================================================

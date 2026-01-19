@@ -24,9 +24,11 @@ import {
   Building2,
   Target,
   AlertCircle,
+  Eye,
 } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 import ScoreJustification from './ScoreJustification'
+import DocumentViewerModal from './DocumentViewerModal'
 
 // ============================================================================
 // TYPES
@@ -55,6 +57,12 @@ interface Opportunity {
   roi_indicators: Record<string, unknown>
   created_at: string
   updated_at: string
+  // Extended justification fields
+  opportunity_summary?: string | null
+  roi_justification?: string | null
+  effort_justification?: string | null
+  alignment_justification?: string | null
+  readiness_justification?: string | null
 }
 
 interface RelatedDocument {
@@ -115,16 +123,22 @@ const TIER_CONFIG = {
 // ============================================================================
 
 export default function OpportunityDetailModal({
-  opportunity,
+  opportunity: initialOpportunity,
   open,
   onClose,
 }: OpportunityDetailModalProps) {
+  // Local opportunity state to allow refreshing after generation
+  const [opportunity, setOpportunity] = useState<Opportunity>(initialOpportunity)
+
   // State
   const [relatedDocs, setRelatedDocs] = useState<RelatedDocument[]>([])
   const [docsLoading, setDocsLoading] = useState(false)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [conversationsLoading, setConversationsLoading] = useState(false)
   const [showConversations, setShowConversations] = useState(false)
+
+  // Justification generation state
+  const [generating, setGenerating] = useState(false)
 
   // Q&A state
   const [question, setQuestion] = useState('')
@@ -134,7 +148,18 @@ export default function OpportunityDetailModal({
     sources: RelatedDocument[]
   } | null>(null)
 
+  // Document viewer modal state
+  const [viewingDocument, setViewingDocument] = useState<{
+    document_id: string
+    document_name: string
+  } | null>(null)
+
   const questionInputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Update local opportunity when prop changes
+  useEffect(() => {
+    setOpportunity(initialOpportunity)
+  }, [initialOpportunity])
 
   // Fetch related documents on open
   useEffect(() => {
@@ -226,6 +251,33 @@ export default function OpportunityDetailModal({
     return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
   }
 
+  const handleGenerateJustifications = async () => {
+    if (generating) return
+
+    setGenerating(true)
+    try {
+      await apiPost(`/api/opportunities/${opportunity.id}/generate-justifications`, {})
+
+      // Refetch opportunity to get updated justifications
+      const updated = await apiGet<Opportunity>(`/api/opportunities/${opportunity.id}`)
+      setOpportunity(updated)
+    } catch (error) {
+      console.error('Failed to generate justifications:', error)
+      alert('Failed to generate justifications. Please try again.')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  // Check if justifications exist
+  const hasJustifications = !!(
+    opportunity.opportunity_summary ||
+    opportunity.roi_justification ||
+    opportunity.effort_justification ||
+    opportunity.alignment_justification ||
+    opportunity.readiness_justification
+  )
+
   if (!open) return null
 
   const statusConfig = STATUS_CONFIG[opportunity.status] || STATUS_CONFIG.identified
@@ -284,10 +336,28 @@ export default function OpportunityDetailModal({
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
           {/* Score Justification */}
           <section>
-            <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4 flex items-center gap-2">
-              <Target className="w-4 h-4" />
-              Score Justification
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
+                <Target className="w-4 h-4" />
+                Score Justification
+              </h3>
+              <button
+                onClick={handleGenerateJustifications}
+                disabled={generating}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    {hasJustifications ? 'Regenerate' : 'Generate'} Analysis
+                  </>
+                )}
+              </button>
+            </div>
             <ScoreJustification
               roiPotential={opportunity.roi_potential}
               implementationEffort={opportunity.implementation_effort}
@@ -295,6 +365,13 @@ export default function OpportunityDetailModal({
               stakeholderReadiness={opportunity.stakeholder_readiness}
               totalScore={opportunity.total_score}
               tier={opportunity.tier}
+              opportunityDescription={opportunity.opportunity_summary || undefined}
+              dimensionJustifications={{
+                roi_potential: opportunity.roi_justification || undefined,
+                implementation_effort: opportunity.effort_justification || undefined,
+                strategic_alignment: opportunity.alignment_justification || undefined,
+                stakeholder_readiness: opportunity.readiness_justification || undefined,
+              }}
             />
           </section>
 
@@ -403,15 +480,28 @@ export default function OpportunityDetailModal({
                           <FileText className="w-4 h-4 text-muted flex-shrink-0" />
                           <span
                             className="text-sm font-medium text-primary truncate cursor-pointer hover:underline"
-                            onClick={() => openDocumentInNewTab(doc)}
-                            title={doc.document_name}
+                            onClick={() => setViewingDocument({
+                              document_id: doc.document_id,
+                              document_name: doc.document_name
+                            })}
+                            title={`View ${doc.document_name}`}
                           >
                             {doc.document_name}
                           </span>
                           <button
+                            onClick={() => setViewingDocument({
+                              document_id: doc.document_id,
+                              document_name: doc.document_name
+                            })}
+                            className="p-1 text-muted hover:text-blue-500"
+                            title="View document"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </button>
+                          <button
                             onClick={() => openDocumentInNewTab(doc)}
                             className="p-1 text-muted hover:text-primary"
-                            title="Open in new tab"
+                            title="Open in Knowledge Base"
                           >
                             <ExternalLink className="w-3 h-3" />
                           </button>
@@ -552,6 +642,13 @@ export default function OpportunityDetailModal({
           </button>
         </div>
       </div>
+
+      {/* Document Viewer Modal */}
+      <DocumentViewerModal
+        document={viewingDocument}
+        open={!!viewingDocument}
+        onClose={() => setViewingDocument(null)}
+      />
     </div>
   )
 }
