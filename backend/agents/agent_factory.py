@@ -28,6 +28,7 @@ from .pioneer import PioneerAgent
 from .catalyst import CatalystAgent
 from .scholar import ScholarAgent
 from .glean_evaluator import GleanEvaluatorAgent
+from .manual import ManualAgent
 # Systems Thinking Agent
 from .nexus import NexusAgent
 # Brand & Voice Agent
@@ -85,6 +86,7 @@ async def create_coordinator(
             "catalyst": CatalystAgent(supabase, anthropic_client),
             "scholar": ScholarAgent(supabase, anthropic_client),
             "glean_evaluator": GleanEvaluatorAgent(supabase, anthropic_client),
+            "manual": ManualAgent(supabase, anthropic_client),
             # Systems Thinking Agent
             "nexus": NexusAgent(supabase, anthropic_client),
             # Brand & Voice Agent
@@ -138,6 +140,7 @@ async def create_specialist(
         "catalyst": CatalystAgent,
         "scholar": ScholarAgent,
         "glean_evaluator": GleanEvaluatorAgent,
+        "manual": ManualAgent,
         # Systems Thinking Agent
         "nexus": NexusAgent,
         # Brand & Voice Agent

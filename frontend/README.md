@@ -1,6 +1,6 @@
 # Thesis - Frontend
 
-Executive AI Assistant platform built with Next.js 16, featuring RAG-powered chat, document management, and multi-tenant architecture.
+Multi-agent GenAI strategy platform built with Next.js 16, featuring 20 specialized agents, meeting rooms, task management, and stakeholder tracking.
 
 ## Tech Stack
 
@@ -31,7 +31,7 @@ npm install
 Create a `.env.local` file:
 
 ```env
-NEXT_PUBLIC_API_URL=https://superassistant-mvp-production.up.railway.app
+NEXT_PUBLIC_API_URL=https://thesis-production.up.railway.app
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
@@ -55,25 +55,33 @@ npm start
 
 ```
 /app
-  /admin              # Admin dashboard and client management
-    /clients          # Client CRUD operations
-    /conversations    # Conversation viewer
-  /auth               # Authentication pages (login, signup, etc.)
-  /chat               # Main chat interface with RAG
-  /documents          # Document upload and management
-  /profile            # User profile page
-  globals.css         # Global styles and WCAG-compliant utility classes
-  layout.tsx          # Root layout with theme provider
+  /admin              # Admin dashboard and agent management
+    /agents           # Agent instruction management
+  /auth               # Authentication pages
+  /chat               # Main chat interface with agent selection
+  /meeting-room       # Multi-agent meeting rooms
+  /tasks              # Kanban task management
+  /opportunities      # AI opportunity pipeline
+  /meeting-prep       # Stakeholder briefing pages
+  /intelligence       # Analytics and engagement trends
+  /kb                 # Knowledge Base (documents + conversations)
+  /profile            # User profile
+  globals.css         # Global styles with theme support
+  layout.tsx          # Root layout with providers
 
 /components
-  /Providers.tsx      # React Context providers
-  /UserMenu.tsx       # User navigation menu with dark mode toggle
-  /ChatMessage.tsx    # Chat message display component
-  /DocumentUpload.tsx # Document upload component
+  /meeting-room       # Meeting room components
+  /tasks              # Kanban board components
+  /kb                 # Knowledge Base components
+  /opportunities      # Opportunities components
+  ChatInterface.tsx   # Main chat with agent selection
+  AgentSelector.tsx   # Agent dropdown selector
+  AgentIcon.tsx       # Agent icons and colors (single source of truth)
 
 /contexts
-  /AuthContext.tsx    # Authentication state management
-  /ThemeContext.tsx   # Dark mode theme management
+  /AuthContext.tsx    # Authentication state
+  /ThemeContext.tsx   # Dark mode theme
+  /HelpChatContext.tsx # Help system state
 
 /lib
   /api.ts             # API client with JWT handling
@@ -81,41 +89,49 @@ npm start
 
 ## Features
 
-###  Authentication & Authorization
+### Multi-Agent System
+- 20 specialized agents for enterprise GenAI strategy
+- Agent selector UI for choosing up to 3 agents
+- @mention syntax for inline agent invocation
+- Agent badges on responses showing attribution
+- Coordinator auto-routes to appropriate specialists
+
+### Meeting Rooms
+- Multi-agent collaboration spaces
+- Autonomous discussion mode (agents debate topics)
+- Facilitator orchestration and Reporter synthesis
+- Real-time streaming responses
+- Speaking order display during autonomous mode
+
+### Task Management
+- Kanban board with drag-and-drop
+- Priority levels (P1-P4) with color coding
+- Assignee tracking with stakeholder integration
+- Task extraction from meeting transcripts
+
+### Opportunities Pipeline
+- Tier-based AI opportunity scoring (1-4)
+- 4-dimension scoring criteria
+- Department and stakeholder ownership
+- Status tracking through lifecycle
+
+### Knowledge Base
+- Document upload with auto-classification
+- Agent-filtered RAG retrieval
+- Google Drive and Notion integration
+- Obsidian vault sync
+
+### Stakeholder Intelligence
+- CRM-style tracking with engagement analytics
+- Meeting prep pages with briefings
+- Engagement trends visualization
+- Sentiment and alignment tracking
+
+### Authentication & Theme
 - JWT-based authentication via Supabase
-- Role-based access control (Admin, Client Admin, Client User)
-- Protected routes with automatic redirects
-- Password reset and invitation flows
-
-###  Dark Mode
 - Class-based dark mode with Tailwind CSS
-- Theme persistence via localStorage
-- Smooth toggle in user menu
 - WCAG AA accessible color contrasts
-
-###  Multi-Tenant Architecture
-- Client-based data isolation
-- Admin dashboard for managing clients
-- Per-client document and user management
-- Conversation history per client
-
-###  RAG-Powered Chat
-- Real-time chat interface with Claude AI
-- Context-aware responses using uploaded documents
-- Conversation history and management
-- Streaming responses (backend feature)
-
-###  Document Management
-- PDF, Word, CSV upload support
-- Automatic document chunking
-- Vector embeddings via Voyage AI
-- Document processing status tracking
-
-###  Admin Features
-- Client management (create, view, edit)
-- User invitation and resend functionality
-- Conversation viewer and deletion
-- System statistics dashboard
+- Theme persistence via localStorage
 
 ## Styling System
 
@@ -238,7 +254,7 @@ Automatic deployment from `main` branch:
 2. Vercel auto-deploys from main branch
 3. Environment variables configured in Vercel dashboard
 
-**Production URL**: https://superassistant-mvp.vercel.app
+**Production URL**: https://thesis-woad.vercel.app
 
 ### Environment Setup
 
@@ -319,13 +335,14 @@ Required environment variables in Vercel:
 ## Support
 
 For issues or questions:
-1. Check [WORK_SESSION_2025-11-03.md](../WORK_SESSION_2025-11-03.md) for recent updates
-2. Review [STYLING-GUIDE.md](STYLING-GUIDE.md) for styling patterns
+1. Review [CLAUDE.md](../CLAUDE.md) for development conventions
+2. Check [STYLING-GUIDE.md](STYLING-GUIDE.md) for styling patterns
 3. Check Supabase dashboard for auth/database issues
 4. Review Railway logs for backend API issues
+5. See [docs/AGENT_GUARDRAILS.md](../docs/AGENT_GUARDRAILS.md) for agent behavior rules
 
 ---
 
-**Last Updated**: November 3, 2025
-**Version**: MVP v1.0
-**Status**: Production Ready 
+**Last Updated**: January 2026
+**Version**: 2.0 (Multi-Agent Platform)
+**Status**: Production

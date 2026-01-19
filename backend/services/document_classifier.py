@@ -208,6 +208,15 @@ class DocumentClassifier:
             # Document types
             r"\bcausal loop\b", r"\bsystem map\b",
         ],
+        "manual": [
+            # Platform documentation patterns
+            r"\bthesis\b", r"\bplatform\b", r"\bfeature\b", r"\bhelp\b",
+            r"\btutorial\b", r"\bhow.?to\b", r"\bguide\b", r"\bdocumentation\b",
+            r"\bonboarding\b", r"\bquick.?start\b", r"\bfaq\b", r"\btroubleshooting\b",
+            r"\bnavigation\b", r"\bui\b", r"\binterface\b", r"\bworkflow\b",
+            r"\buser.?guide\b", r"\badmin.?guide\b", r"\bknowledge.?base\b",
+            r"\bmeeting.?room\b", r"\bagent.?roster\b", r"\bdig.?deeper\b",
+        ],
     }
 
     # Agent display names for prompts
@@ -226,6 +235,7 @@ class DocumentClassifier:
         "scholar": "L&D for training materials, courses, learning content",
         "echo": "Brand voice for style guides, tone guidelines, voice profiles",
         "nexus": "Systems thinking for causal diagrams, complexity analysis",
+        "manual": "Documentation assistant for platform help, tutorials, feature explanations",
     }
 
     def __init__(self, anthropic_client: Optional[anthropic.Anthropic] = None):

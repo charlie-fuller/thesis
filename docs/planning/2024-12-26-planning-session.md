@@ -1,4 +1,13 @@
-# Thesis Planning Session - December 26, 2024
+> **HISTORICAL DOCUMENT**
+>
+> This is a transcript from the original planning session on December 26, 2024.
+> The platform has been built and expanded significantly since this session.
+>
+> For current documentation, see [CLAUDE.md](/CLAUDE.md).
+
+---
+
+# Thesis Planning Session - December 26, 2024 (HISTORICAL)
 
 > Full transcript of the planning session between Charlie and Claude for the Thesis platform.
 

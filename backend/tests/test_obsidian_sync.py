@@ -634,3 +634,445 @@ class TestObsidianVaultWatcher:
             watcher = ObsidianVaultWatcher(config)
 
             assert watcher._should_process(config_file) is False
+
+
+# ============================================================================
+# Sync Logging Tests
+# ============================================================================
+
+class TestSyncLogging:
+    """Tests for sync log creation and completion."""
+
+    def test_create_sync_log_returns_uuid(self):
+        """Test that create_sync_log returns a valid UUID."""
+        from services.obsidian_sync import create_sync_log
+
+        mock_supabase = MagicMock()
+        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
+            data=[{"id": "log-uuid-123"}]
+        )
+
+        with patch("services.obsidian_sync.supabase", mock_supabase):
+            log_id = create_sync_log(
+                config_id="config-123",
+                user_id="user-123",
+                sync_type="full",
+                trigger_source="manual"
+            )
+
+            assert log_id == "log-uuid-123"
+
+    def test_create_sync_log_sets_running_status(self):
+        """Test that create_sync_log sets status to 'running'."""
+        from services.obsidian_sync import create_sync_log
+
+        mock_supabase = MagicMock()
+        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
+            data=[{"id": "log-uuid-123"}]
+        )
+
+        with patch("services.obsidian_sync.supabase", mock_supabase):
+            create_sync_log(
+                config_id="config-123",
+                user_id="user-123",
+                sync_type="incremental",
+                trigger_source="watch"
+            )
+
+            # Check the insert was called with correct status
+            insert_call = mock_supabase.table.return_value.insert.call_args
+            log_data = insert_call[0][0]
+            assert log_data["status"] == "running"
+            assert log_data["sync_type"] == "incremental"
+            assert log_data["trigger_source"] == "watch"
+
+    def test_complete_sync_log_updates_stats(self):
+        """Test that complete_sync_log updates with stats."""
+        from services.obsidian_sync import complete_sync_log
+
+        mock_supabase = MagicMock()
+
+        with patch("services.obsidian_sync.supabase", mock_supabase):
+            complete_sync_log(
+                log_id="log-123",
+                status="completed",
+                stats={
+                    "files_scanned": 100,
+                    "files_added": 10,
+                    "files_updated": 5,
+                    "files_deleted": 2,
+                    "files_skipped": 80,
+                    "files_failed": 3
+                }
+            )
+
+            # Check update was called
+            update_call = mock_supabase.table.return_value.update.call_args
+            update_data = update_call[0][0]
+            assert update_data["status"] == "completed"
+            assert update_data["files_scanned"] == 100
+            assert update_data["files_added"] == 10
+            assert update_data["files_failed"] == 3
+
+    def test_complete_sync_log_with_error(self):
+        """Test that complete_sync_log records error details."""
+        from services.obsidian_sync import complete_sync_log
+
+        mock_supabase = MagicMock()
+
+        with patch("services.obsidian_sync.supabase", mock_supabase):
+            complete_sync_log(
+                log_id="log-123",
+                status="failed",
+                error_message="Connection timeout",
+                error_details=[
+                    {"file": "note1.md", "error": "Upload failed"},
+                    {"file": "note2.md", "error": "Invalid content"}
+                ]
+            )
+
+            update_call = mock_supabase.table.return_value.update.call_args
+            update_data = update_call[0][0]
+            assert update_data["status"] == "failed"
+            assert update_data["error_message"] == "Connection timeout"
+            assert len(update_data["error_details"]) == 2
+
+
+# ============================================================================
+# Delete Handling Tests
+# ============================================================================
+
+class TestDeleteHandling:
+    """Tests for file deletion sync handling."""
+
+    def test_mark_sync_state_deleted(self):
+        """Test that mark_sync_state_deleted updates status."""
+        from services.obsidian_sync import mark_sync_state_deleted
+
+        mock_supabase = MagicMock()
+        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+            data=[{"id": "state-123", "file_path": "note.md"}]
+        )
+        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(
+            data=[{"sync_status": "deleted"}]
+        )
+
+        with patch("services.obsidian_sync.supabase", mock_supabase):
+            with patch("services.obsidian_sync.get_sync_state", return_value={"id": "state-123"}):
+                mark_sync_state_deleted("config-123", "note.md")
+
+                # Verify update was called
+                assert mock_supabase.table.return_value.update.called
+
+
+# ============================================================================
+# Edge Cases and Error Handling Tests
+# ============================================================================
+
+class TestEdgeCases:
+    """Tests for edge cases and error handling."""
+
+    def test_parse_frontmatter_with_nested_yaml(self):
+        """Test parsing complex nested YAML frontmatter."""
+        from services.obsidian_sync import parse_frontmatter
+
+        content = """---
+title: Complex Note
+metadata:
+  author: John Doe
+  created: 2026-01-15
+  tags:
+    - research
+    - thesis
+  nested:
+    level1:
+      level2: value
+---
+# Content"""
+
+        frontmatter, body = parse_frontmatter(content)
+
+        assert frontmatter["title"] == "Complex Note"
+        assert frontmatter["metadata"]["author"] == "John Doe"
+        assert frontmatter["metadata"]["nested"]["level1"]["level2"] == "value"
+
+    def test_convert_wikilinks_with_special_characters(self):
+        """Test wikilinks with special characters in name."""
+        from services.obsidian_sync import convert_wikilinks
+
+        content = "See [[Meeting 2026-01-15 (Team)]] for notes."
+        result = convert_wikilinks(content)
+
+        assert "[Meeting 2026-01-15 (Team)](Meeting 2026-01-15 (Team).md)" in result
+
+    def test_convert_wikilinks_with_heading_anchor(self):
+        """Test wikilinks with heading anchors."""
+        from services.obsidian_sync import convert_wikilinks
+
+        # Note: Basic wikilink conversion doesn't handle anchors specially
+        content = "See [[Note#Section]] for details."
+        result = convert_wikilinks(content)
+
+        # Should convert the whole thing as a link target
+        assert "[Note#Section]" in result
+
+    def test_should_include_file_outside_vault(self):
+        """Test that files outside vault are excluded."""
+        from services.obsidian_sync import should_include_file
+
+        vault_path = Path("/vault")
+        file_path = Path("/other/location/note.md")
+
+        result = should_include_file(
+            file_path,
+            vault_path,
+            include_patterns=["**/*.md"],
+            exclude_patterns=[]
+        )
+
+        assert result is False
+
+    def test_compute_hash_empty_file(self):
+        """Test hash computation for empty file."""
+        from services.obsidian_sync import compute_file_hash
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write("")
+            temp_path = Path(f.name)
+
+        try:
+            hash_result = compute_file_hash(temp_path)
+            assert len(hash_result) == 32  # MD5 hex digest
+            # Empty file has a known MD5 hash
+            assert hash_result == "d41d8cd98f00b204e9800998ecf8427e"
+        finally:
+            temp_path.unlink()
+
+    def test_compute_hash_unicode_content(self):
+        """Test hash computation with unicode content."""
+        from services.obsidian_sync import compute_file_hash
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as f:
+            f.write("# Unicode Test\n\n日本語テスト\n\n🚀 Emoji content")
+            temp_path = Path(f.name)
+
+        try:
+            hash_result = compute_file_hash(temp_path)
+            assert len(hash_result) == 32
+            assert hash_result.isalnum()
+        finally:
+            temp_path.unlink()
+
+
+# ============================================================================
+# Vault Configuration Edge Cases
+# ============================================================================
+
+class TestVaultConfigEdgeCases:
+    """Tests for vault configuration edge cases."""
+
+    def test_get_vault_config_returns_none_when_not_found(self):
+        """Test get_vault_config returns None for non-existent user."""
+        from services.obsidian_sync import get_vault_config
+
+        mock_supabase = MagicMock()
+        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+            data=[]
+        )
+
+        with patch("services.obsidian_sync.supabase", mock_supabase):
+            result = get_vault_config("nonexistent-user")
+            assert result is None
+
+    def test_create_vault_config_deactivates_existing(self):
+        """Test that creating a new config deactivates the old one."""
+        from services.obsidian_sync import create_vault_config
+
+        mock_supabase = MagicMock()
+
+        # Mock existing active config
+        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+            data=[{"id": "old-config-123"}]
+        )
+
+        # Mock update (deactivate)
+        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+
+        # Mock insert (new config)
+        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
+            data=[{
+                "id": "new-config-456",
+                "vault_path": "/test/vault",
+                "is_active": True
+            }]
+        )
+
+        with tempfile.TemporaryDirectory() as vault_dir:
+            with patch("services.obsidian_sync.supabase", mock_supabase):
+                result = create_vault_config(
+                    user_id="user-123",
+                    client_id="client-123",
+                    vault_path=vault_dir
+                )
+
+                # Verify update was called to deactivate old config
+                update_calls = [call for call in mock_supabase.table.return_value.update.call_args_list]
+                assert len(update_calls) >= 1
+
+    def test_update_vault_config_raises_on_failure(self):
+        """Test that update_vault_config raises on database error."""
+        from services.obsidian_sync import update_vault_config, ObsidianSyncError
+
+        mock_supabase = MagicMock()
+        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.side_effect = Exception("DB Error")
+
+        with patch("services.obsidian_sync.supabase", mock_supabase):
+            with pytest.raises(ObsidianSyncError) as exc_info:
+                update_vault_config("config-123", {"sync_options": {}})
+
+            assert "Failed to update vault config" in str(exc_info.value)
+
+
+# ============================================================================
+# Sync State Edge Cases
+# ============================================================================
+
+class TestSyncStateEdgeCases:
+    """Tests for sync state management edge cases."""
+
+    def test_update_sync_state_creates_new_when_not_exists(self):
+        """Test that update_sync_state creates new entry when none exists."""
+        from services.obsidian_sync import update_sync_state
+
+        mock_supabase = MagicMock()
+        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
+            data=[{
+                "id": "new-state",
+                "config_id": "config-123",
+                "file_path": "new-note.md",
+                "sync_status": "synced"
+            }]
+        )
+
+        with patch("services.obsidian_sync.supabase", mock_supabase):
+            with patch("services.obsidian_sync.get_sync_state", return_value=None):
+                result = update_sync_state(
+                    config_id="config-123",
+                    file_path="new-note.md",
+                    file_hash="abc123",
+                    sync_status="synced"
+                )
+
+                assert result.get("sync_status") == "synced"
+                # Verify insert was called (not update)
+                assert mock_supabase.table.return_value.insert.called
+
+    def test_update_sync_state_with_error_clears_last_synced(self):
+        """Test that failed sync sets sync_error."""
+        from services.obsidian_sync import update_sync_state
+
+        mock_supabase = MagicMock()
+        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(
+            data=[{
+                "sync_status": "failed",
+                "sync_error": "Connection timeout"
+            }]
+        )
+
+        with patch("services.obsidian_sync.supabase", mock_supabase):
+            with patch("services.obsidian_sync.get_sync_state", return_value={"id": "state-123"}):
+                result = update_sync_state(
+                    config_id="config-123",
+                    file_path="note.md",
+                    sync_status="failed",
+                    sync_error="Connection timeout"
+                )
+
+                update_call = mock_supabase.table.return_value.update.call_args
+                update_data = update_call[0][0]
+                assert update_data["sync_status"] == "failed"
+                assert update_data["sync_error"] == "Connection timeout"
+
+    def test_get_all_sync_states_empty_result(self):
+        """Test get_all_sync_states returns empty dict for no results."""
+        from services.obsidian_sync import get_all_sync_states
+
+        mock_supabase = MagicMock()
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
+            data=[]
+        )
+
+        with patch("services.obsidian_sync.supabase", mock_supabase):
+            result = get_all_sync_states("config-123")
+            assert result == {}
+
+    def test_get_all_sync_states_maps_by_path(self):
+        """Test get_all_sync_states correctly maps file paths."""
+        from services.obsidian_sync import get_all_sync_states
+
+        mock_supabase = MagicMock()
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
+            data=[
+                {"file_path": "note1.md", "sync_status": "synced", "file_hash": "abc"},
+                {"file_path": "folder/note2.md", "sync_status": "pending", "file_hash": "def"},
+                {"file_path": "deep/nested/note3.md", "sync_status": "synced", "file_hash": "ghi"}
+            ]
+        )
+
+        with patch("services.obsidian_sync.supabase", mock_supabase):
+            result = get_all_sync_states("config-123")
+
+            assert len(result) == 3
+            assert "note1.md" in result
+            assert "folder/note2.md" in result
+            assert "deep/nested/note3.md" in result
+            assert result["note1.md"]["sync_status"] == "synced"
+
+
+# ============================================================================
+# Watcher Config Tests
+# ============================================================================
+
+class TestWatcherConfig:
+    """Tests for file watcher configuration."""
+
+    def test_watcher_stores_sync_options(self):
+        """Test that watcher stores sync options from config."""
+        from services.obsidian_sync import ObsidianVaultWatcher
+
+        with tempfile.TemporaryDirectory() as vault_dir:
+            config = {
+                "id": "config-123",
+                "user_id": "user-123",
+                "client_id": "client-123",
+                "vault_path": vault_dir,
+                "sync_options": {
+                    "include_patterns": ["**/*.md"],
+                    "exclude_patterns": [".obsidian/**"],
+                    "debounce_ms": 1000
+                }
+            }
+
+            watcher = ObsidianVaultWatcher(config)
+
+            # Verify sync options are stored
+            assert watcher.sync_options["debounce_ms"] == 1000
+            assert watcher.sync_options["include_patterns"] == ["**/*.md"]
+
+    def test_watcher_uses_default_sync_options(self):
+        """Test that watcher uses defaults when sync_options not provided."""
+        from services.obsidian_sync import ObsidianVaultWatcher, DEFAULT_SYNC_OPTIONS
+
+        with tempfile.TemporaryDirectory() as vault_dir:
+            config = {
+                "id": "config-123",
+                "user_id": "user-123",
+                "client_id": "client-123",
+                "vault_path": vault_dir
+                # No sync_options specified
+            }
+
+            watcher = ObsidianVaultWatcher(config)
+
+            # Should use defaults
+            assert watcher.sync_options == DEFAULT_SYNC_OPTIONS

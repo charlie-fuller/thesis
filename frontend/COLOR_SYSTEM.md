@@ -12,7 +12,7 @@ This document defines the standardized color system for the Thesis frontend appl
 2. **Accessibility**: All color combinations meet WCAG AA standards (minimum 4.5:1 contrast)
 3. **Maintainability**: Colors defined once in `globals.css`, referenced everywhere
 4. **Semantic Naming**: Class names describe purpose, not appearance
-5. **No Dark Mode**: Simplified to single light theme for consistency
+5. **Dark Mode Support**: Full dark mode via Tailwind's class-based system (`dark:` prefix)
 
 ---
 

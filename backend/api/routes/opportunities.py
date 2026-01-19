@@ -3,6 +3,8 @@ Opportunities API Routes
 
 Endpoints for managing AI implementation opportunities with 4-dimension scoring.
 Supports filtering by tier, department, status, and stakeholder.
+
+Added in v2: Related documents, conversations, and Q&A endpoints for detail modal.
 """
 
 import logging
@@ -14,6 +16,8 @@ from pydantic import BaseModel, Field
 
 from auth import get_current_user
 from database import get_supabase
+from services.opportunity_context import get_scoring_related_documents
+from services.opportunity_chat import ask_about_opportunity, get_opportunity_conversations
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +125,48 @@ class StakeholderLinkResponse(BaseModel):
     stakeholder_department: Optional[str]
     role: str
     notes: Optional[str]
+    created_at: str
+
+
+# ============================================================================
+# DOCUMENT & CHAT MODELS (for detail modal)
+# ============================================================================
+
+class RelatedDocumentMetadata(BaseModel):
+    """Metadata for a related document."""
+    filename: Optional[str] = None
+    page_number: Optional[int] = None
+    source_type: Optional[str] = None
+    storage_path: Optional[str] = None
+
+
+class RelatedDocumentResponse(BaseModel):
+    """A document related to an opportunity (for scoring justification)."""
+    chunk_id: str
+    document_id: str
+    document_name: str
+    relevance_score: float
+    snippet: str
+    metadata: RelatedDocumentMetadata
+
+
+class AskQuestionRequest(BaseModel):
+    """Request to ask a question about an opportunity."""
+    question: str = Field(..., min_length=1, max_length=1000)
+
+
+class AskQuestionResponse(BaseModel):
+    """Response to a question about an opportunity."""
+    response: str
+    sources: List[RelatedDocumentResponse]
+
+
+class ConversationResponse(BaseModel):
+    """A Q&A conversation entry for an opportunity."""
+    id: str
+    question: str
+    response: str
+    source_documents: List[dict]
     created_at: str
 
 
@@ -409,6 +455,148 @@ async def get_opportunities_summary(
         "by_department": dept_counts
     }
 
+
+# ============================================================================
+# DOCUMENT & CHAT ENDPOINTS (for detail modal)
+# ============================================================================
+# NOTE: These must be defined BEFORE /{opportunity_id} to avoid routing conflicts
+
+@router.get("/{opportunity_id}/related-documents", response_model=List[RelatedDocumentResponse])
+async def get_opportunity_related_documents(
+    opportunity_id: str,
+    limit: int = Query(8, ge=1, le=20),
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Get documents related to an opportunity's scoring.
+
+    Performs vector search using the opportunity's context (title, description,
+    current/desired state, ROI indicators) to find knowledge base documents
+    that support or explain the scoring rationale.
+
+    Documents are sorted by relevance score (highest first).
+    """
+    # Fetch the full opportunity
+    result = supabase.table("ai_opportunities") \
+        .select("*") \
+        .eq("id", opportunity_id) \
+        .eq("client_id", current_user["client_id"]) \
+        .single() \
+        .execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    # Get scoring-relevant documents
+    related_docs = get_scoring_related_documents(
+        opportunity=result.data,
+        client_id=current_user["client_id"],
+        limit=limit,
+        min_similarity=0.25
+    )
+
+    return related_docs
+
+
+@router.get("/{opportunity_id}/conversations", response_model=List[ConversationResponse])
+async def get_opportunity_conversation_history(
+    opportunity_id: str,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Get Q&A conversation history for an opportunity.
+
+    Returns conversations newest first.
+    """
+    # Verify opportunity exists and belongs to client
+    opp = supabase.table("ai_opportunities") \
+        .select("id") \
+        .eq("id", opportunity_id) \
+        .eq("client_id", current_user["client_id"]) \
+        .single() \
+        .execute()
+
+    if not opp.data:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    # Get conversations
+    conversations = await get_opportunity_conversations(
+        opportunity_id=opportunity_id,
+        client_id=current_user["client_id"],
+        limit=limit,
+        offset=offset
+    )
+
+    return conversations
+
+
+@router.post("/{opportunity_id}/ask", response_model=AskQuestionResponse)
+async def ask_question_about_opportunity(
+    opportunity_id: str,
+    request: AskQuestionRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Ask a question about an opportunity.
+
+    Uses AI to answer based on:
+    - The opportunity's details (title, description, scores, status, etc.)
+    - Related documents from the knowledge base
+
+    The conversation is stored and can be retrieved later via
+    GET /{opportunity_id}/conversations.
+    """
+    # Verify opportunity exists and belongs to client
+    opp = supabase.table("ai_opportunities") \
+        .select("id") \
+        .eq("id", opportunity_id) \
+        .eq("client_id", current_user["client_id"]) \
+        .single() \
+        .execute()
+
+    if not opp.data:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    try:
+        result = await ask_about_opportunity(
+            opportunity_id=opportunity_id,
+            question=request.question,
+            client_id=current_user["client_id"],
+            user_id=current_user["id"]
+        )
+
+        # Format sources for response model
+        formatted_sources = []
+        for source in result.get("sources", []):
+            formatted_sources.append({
+                "chunk_id": source.get("chunk_id", ""),
+                "document_id": source.get("document_id", ""),
+                "document_name": source.get("document_name", "Unknown"),
+                "relevance_score": source.get("relevance_score", 0.0),
+                "snippet": source.get("snippet", ""),
+                "metadata": source.get("metadata", {})
+            })
+
+        return {
+            "response": result["response"],
+            "sources": formatted_sources
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error answering question about opportunity: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process question")
+
+
+# ============================================================================
+# SINGLE OPPORTUNITY ENDPOINTS
+# ============================================================================
 
 @router.get("/{opportunity_id}", response_model=OpportunityResponse)
 async def get_opportunity(

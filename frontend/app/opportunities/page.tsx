@@ -13,10 +13,12 @@ import {
   Plus,
   Filter,
   User,
-  Building2
+  Building2,
+  ExternalLink
 } from 'lucide-react'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
 import PageHeader from '@/components/PageHeader'
+import OpportunityDetailModal from '@/components/opportunities/OpportunityDetailModal'
 
 // ============================================================================
 // TYPES
@@ -115,32 +117,19 @@ function ScoreDisplay({ label, value, max = 5 }: { label: string; value: number 
 
 function OpportunityCard({
   opportunity,
-  onStatusChange,
-  onScoreUpdate,
+  onClick,
 }: {
   opportunity: Opportunity
-  onStatusChange: (id: string, status: string) => void
-  onScoreUpdate: (id: string, scores: Record<string, number>) => void
+  onClick: (opportunity: Opportunity) => void
 }) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [isEditingScores, setIsEditingScores] = useState(false)
-  const [editScores, setEditScores] = useState({
-    roi_potential: opportunity.roi_potential ?? 3,
-    implementation_effort: opportunity.implementation_effort ?? 3,
-    strategic_alignment: opportunity.strategic_alignment ?? 3,
-    stakeholder_readiness: opportunity.stakeholder_readiness ?? 3,
-  })
-
   const statusConfig = STATUS_CONFIG[opportunity.status] || STATUS_CONFIG.identified
   const StatusIcon = statusConfig.icon
 
-  const handleScoreSave = () => {
-    onScoreUpdate(opportunity.id, editScores)
-    setIsEditingScores(false)
-  }
-
   return (
-    <div className="bg-card border border-default rounded-lg p-4 hover:shadow-md transition-shadow">
+    <div
+      onClick={() => onClick(opportunity)}
+      className="bg-card border border-default rounded-lg p-4 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer group"
+    >
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -153,7 +142,9 @@ function OpportunityCard({
               {statusConfig.label}
             </span>
           </div>
-          <h3 className="font-medium text-primary truncate">{opportunity.title}</h3>
+          <h3 className="font-medium text-primary truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+            {opportunity.title}
+          </h3>
           {opportunity.owner_name && (
             <p className="text-sm text-muted flex items-center gap-1 mt-1">
               <User className="w-3 h-3" />
@@ -175,128 +166,11 @@ function OpportunityCard({
         <ScoreDisplay label="Rdy" value={opportunity.stakeholder_readiness} />
       </div>
 
-      {/* Expand/Collapse */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="mt-3 w-full flex items-center justify-center gap-1 text-sm text-muted hover:text-primary"
-      >
-        {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        {isExpanded ? 'Less' : 'More'}
-      </button>
-
-      {/* Expanded Content */}
-      {isExpanded && (
-        <div className="mt-4 pt-4 border-t border-default space-y-4">
-          {/* Description */}
-          {opportunity.description && (
-            <div>
-              <h4 className="text-xs font-medium text-muted uppercase mb-1">Description</h4>
-              <p className="text-sm text-secondary">{opportunity.description}</p>
-            </div>
-          )}
-
-          {/* Current/Desired State */}
-          {(opportunity.current_state || opportunity.desired_state) && (
-            <div className="grid grid-cols-2 gap-4">
-              {opportunity.current_state && (
-                <div>
-                  <h4 className="text-xs font-medium text-muted uppercase mb-1">Current State</h4>
-                  <p className="text-sm text-secondary">{opportunity.current_state}</p>
-                </div>
-              )}
-              {opportunity.desired_state && (
-                <div>
-                  <h4 className="text-xs font-medium text-muted uppercase mb-1">Desired State</h4>
-                  <p className="text-sm text-secondary">{opportunity.desired_state}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Next Step */}
-          {opportunity.next_step && (
-            <div>
-              <h4 className="text-xs font-medium text-muted uppercase mb-1">Next Step</h4>
-              <p className="text-sm text-secondary">{opportunity.next_step}</p>
-            </div>
-          )}
-
-          {/* Blockers */}
-          {opportunity.blockers.length > 0 && (
-            <div>
-              <h4 className="text-xs font-medium text-red-500 dark:text-red-400 uppercase mb-1">Blockers</h4>
-              <ul className="text-sm text-secondary list-disc list-inside">
-                {opportunity.blockers.map((blocker, i) => (
-                  <li key={i}>{blocker}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Score Editor */}
-          {isEditingScores ? (
-            <div className="bg-hover rounded-lg p-3 space-y-3">
-              <h4 className="text-xs font-medium text-muted uppercase">Edit Scores (1-5)</h4>
-              {(['roi_potential', 'implementation_effort', 'strategic_alignment', 'stakeholder_readiness'] as const).map((key) => (
-                <div key={key} className="flex items-center gap-2">
-                  <label className="text-sm text-secondary w-32 capitalize">{key.replace(/_/g, ' ')}</label>
-                  <input
-                    type="range"
-                    min="1"
-                    max="5"
-                    value={editScores[key]}
-                    onChange={(e) => setEditScores({ ...editScores, [key]: parseInt(e.target.value) })}
-                    className="flex-1"
-                  />
-                  <span className="w-6 text-center font-medium text-primary">{editScores[key]}</span>
-                </div>
-              ))}
-              <div className="flex gap-2 mt-2">
-                <button
-                  onClick={handleScoreSave}
-                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setIsEditingScores(false)}
-                  className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-secondary text-sm rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => setIsEditingScores(true)}
-              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-            >
-              Edit Scores
-            </button>
-          )}
-
-          {/* Status Change */}
-          <div>
-            <h4 className="text-xs font-medium text-muted uppercase mb-2">Change Status</h4>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(STATUS_CONFIG).map(([status, config]) => (
-                <button
-                  key={status}
-                  onClick={() => onStatusChange(opportunity.id, status)}
-                  disabled={opportunity.status === status}
-                  className={`px-2 py-1 text-xs rounded border ${
-                    opportunity.status === status
-                      ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-muted cursor-not-allowed'
-                      : 'border-default hover:border-gray-400 dark:hover:border-gray-500 text-secondary'
-                  }`}
-                >
-                  {config.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Click hint */}
+      <div className="mt-3 flex items-center justify-center gap-1 text-xs text-muted group-hover:text-blue-500 transition-colors">
+        <ExternalLink className="w-3 h-3" />
+        Click for details
+      </div>
     </div>
   )
 }
@@ -304,13 +178,11 @@ function OpportunityCard({
 function TierSection({
   tier,
   opportunities,
-  onStatusChange,
-  onScoreUpdate,
+  onOpportunityClick,
 }: {
   tier: 1 | 2 | 3 | 4
   opportunities: Opportunity[]
-  onStatusChange: (id: string, status: string) => void
-  onScoreUpdate: (id: string, scores: Record<string, number>) => void
+  onOpportunityClick: (opportunity: Opportunity) => void
 }) {
   const [isCollapsed, setIsCollapsed] = useState(tier === 4)
   const config = TIER_CONFIG[tier]
@@ -341,8 +213,7 @@ function TierSection({
             <OpportunityCard
               key={opp.id}
               opportunity={opp}
-              onStatusChange={onStatusChange}
-              onScoreUpdate={onScoreUpdate}
+              onClick={onOpportunityClick}
             />
           ))}
         </div>
@@ -364,6 +235,21 @@ export default function OpportunitiesPage() {
   // Filters
   const [departmentFilter, setDepartmentFilter] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
+
+  // Modal state
+  const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
+
+  const handleOpportunityClick = (opportunity: Opportunity) => {
+    setSelectedOpportunity(opportunity)
+    setModalOpen(true)
+  }
+
+  const handleModalClose = () => {
+    setModalOpen(false)
+    // Refresh data in case anything was changed via the modal
+    loadData()
+  }
 
   async function loadData() {
     try {
@@ -388,24 +274,6 @@ export default function OpportunitiesPage() {
   useEffect(() => {
     loadData()
   }, [departmentFilter, statusFilter])
-
-  async function handleStatusChange(id: string, status: string) {
-    try {
-      await apiPatch(`/api/opportunities/${id}/status?status=${status}`)
-      loadData()
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update status')
-    }
-  }
-
-  async function handleScoreUpdate(id: string, scores: Record<string, number>) {
-    try {
-      await apiPatch(`/api/opportunities/${id}/scores`, scores)
-      loadData()
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update scores')
-    }
-  }
 
   if (loading && !data) {
     return (
@@ -523,26 +391,22 @@ export default function OpportunitiesPage() {
               <TierSection
                 tier={1}
                 opportunities={data.tier_1}
-                onStatusChange={handleStatusChange}
-                onScoreUpdate={handleScoreUpdate}
+                onOpportunityClick={handleOpportunityClick}
               />
               <TierSection
                 tier={2}
                 opportunities={data.tier_2}
-                onStatusChange={handleStatusChange}
-                onScoreUpdate={handleScoreUpdate}
+                onOpportunityClick={handleOpportunityClick}
               />
               <TierSection
                 tier={3}
                 opportunities={data.tier_3}
-                onStatusChange={handleStatusChange}
-                onScoreUpdate={handleScoreUpdate}
+                onOpportunityClick={handleOpportunityClick}
               />
               <TierSection
                 tier={4}
                 opportunities={data.tier_4}
-                onStatusChange={handleStatusChange}
-                onScoreUpdate={handleScoreUpdate}
+                onOpportunityClick={handleOpportunityClick}
               />
             </>
           )}
@@ -563,6 +427,15 @@ export default function OpportunitiesPage() {
           </div>
         )}
       </div>
+
+      {/* Detail Modal */}
+      {selectedOpportunity && (
+        <OpportunityDetailModal
+          opportunity={selectedOpportunity}
+          open={modalOpen}
+          onClose={handleModalClose}
+        />
+      )}
     </div>
   )
 }

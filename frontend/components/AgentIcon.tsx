@@ -19,6 +19,7 @@ import {
   FileText,
   SearchCheck,
   Compass,
+  BookOpen,
 } from 'lucide-react';
 
 const AGENT_ICONS: Record<string, React.ElementType> = {
@@ -42,6 +43,7 @@ const AGENT_ICONS: Record<string, React.ElementType> = {
   scholar: GraduationCap, // L&D
   echo: Mic,              // Brand Voice
   glean_evaluator: SearchCheck, // Glean Platform Fit
+  manual: BookOpen,       // Documentation Assistant
   // Systems Agent
   nexus: Network,         // Systems Thinking
   // Personal Development Agent
@@ -87,6 +89,7 @@ export const AGENT_COLORS: Record<string, string> = {
   scholar: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
   echo: 'bg-fuchsia-500/20 text-fuchsia-400 border-fuchsia-500/30',
   glean_evaluator: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  manual: 'bg-sky-600/20 text-sky-400 border-sky-600/30',
   // Systems Agent
   nexus: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
   // Personal Development Agent
@@ -121,6 +124,7 @@ export const AGENT_AVATAR_COLORS: Record<string, { bg: string; text: string }> =
   scholar: { bg: 'bg-teal-500', text: 'text-teal-700' },
   echo: { bg: 'bg-fuchsia-500', text: 'text-fuchsia-700' },
   glean_evaluator: { bg: 'bg-emerald-500', text: 'text-emerald-700' },
+  manual: { bg: 'bg-sky-600', text: 'text-sky-700' },
   // Systems/Coordination Agents
   nexus: { bg: 'bg-violet-500', text: 'text-violet-700' },
   coordinator: { bg: 'bg-sky-500', text: 'text-sky-700' },

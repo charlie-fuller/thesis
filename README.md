@@ -1,10 +1,10 @@
 # Thesis - Multi-Agent GenAI Strategy Platform
 
-AI-powered multi-agent platform that helps enterprises implement successful GenAI strategies. Thesis provides 20 specialized agents representing real stakeholder perspectives, consulting expertise, and internal enablement capabilities to support AI Solutions Partners and strategy teams.
+AI-powered multi-agent platform that helps enterprises implement successful GenAI strategies. Thesis provides 21 specialized agents representing real stakeholder perspectives, consulting expertise, and internal enablement capabilities to support AI Solutions Partners and strategy teams.
 
 ## Quick Links
 
-- [Agent Roster](#agent-roster) - All 20 specialized agents
+- [Agent Roster](#agent-roster) - All 21 specialized agents
 - [Agent Persona Alignment Report](docs/AGENT_PERSONA_ALIGNMENT_REPORT.md) - How agents map to interview subjects
 - [Planning Documentation](docs/planning/) - Implementation plan and session transcripts
 - [Context Document](docs/CONTEXT.md) - Project discovery and requirements
@@ -16,7 +16,7 @@ Thesis is a multi-agent platform designed for enterprise GenAI strategy implemen
 
 ### Key Capabilities
 
-- **20 Specialized Agents** - Stakeholder perspectives, consulting expertise, internal enablement, and systems coordination
+- **21 Specialized Agents** - Stakeholder perspectives, consulting expertise, internal enablement, and systems coordination
 - **Persona-Aligned Responses** - Agents embody real interview subjects with authentic concerns
 - **Meeting Room** - Multi-agent collaboration space for focused cross-functional discussions
 - **Autonomous Discussion** - Agents debate topics amongst themselves for configurable rounds; user can interject anytime
@@ -33,14 +33,14 @@ Thesis is a multi-agent platform designed for enterprise GenAI strategy implemen
 
 ## Agent Roster
 
-Thesis includes 20 specialized agents organized into six categories:
+Thesis includes 21 specialized agents organized into six categories:
 
 | Category | Agents | Purpose |
 |----------|--------|---------|
 | [Meta-Agents](#meta-agents) | Facilitator, Reporter | Meeting orchestration and documentation |
 | [Stakeholder Perspectives](#stakeholder-perspective-agents) | Atlas, Capital, Guardian, Counselor, Sage, Oracle | Embody real enterprise stakeholder viewpoints |
 | [Consulting/Implementation](#consultingimplementation-agents) | Strategist, Architect, Operator, Pioneer | Professional consulting and technical guidance |
-| [Internal Enablement](#internal-enablement-agents) | Catalyst, Scholar, Echo, Glean Evaluator, Compass | Support internal AI adoption and communication |
+| [Internal Enablement](#internal-enablement-agents) | Catalyst, Scholar, Echo, Glean Evaluator, Compass, Manual | Support internal AI adoption and communication |
 | [Systems/Coordination](#systemscoordination-agents) | Nexus, Coordinator | Systems thinking and agent orchestration |
 
 ---
@@ -306,6 +306,25 @@ Echo analyzes and codifies brand voice characteristics, helping organizations ma
 - Evaluate AI-generated content for brand alignment
 - Build voice quality metrics and assessment criteria
 - Train teams on maintaining voice in AI workflows
+
+---
+
+#### Manual - Documentation Assistant
+
+| | |
+|---|---|
+| **Display Name** | Documentation Assistant |
+| **Domain Focus** | Platform help, feature explanation, troubleshooting, navigation |
+
+Manual serves as the in-app documentation guide, helping users understand Thesis features, navigate the platform, and troubleshoot common issues. With access to all platform documentation in its knowledge base, Manual provides contextual help while you work.
+
+**Key Capabilities:**
+- Explain Thesis features and capabilities
+- Guide users through platform navigation
+- Troubleshoot common issues and errors
+- Recommend the right agent for specific tasks
+- Provide step-by-step workflow guidance
+- Answer "how do I..." questions about the platform
 
 ---
 
@@ -736,7 +755,7 @@ The testing prompt enables autonomous code quality improvement with safety-first
 ### Completed
 
 - Multi-agent coordinator with intelligent query routing
-- 15 specialized agents with XML system instructions (Gigawatt v4.0 framework)
+- 21 specialized agents with XML system instructions (Gigawatt v4.0 framework)
 - Agent instruction versioning system with diff comparison
 - Persona alignment for stakeholder perspective agents
 - Neo4j graph integration for stakeholder networks (schema + sync working)

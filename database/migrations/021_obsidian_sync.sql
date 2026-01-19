@@ -16,7 +16,7 @@
 CREATE TABLE IF NOT EXISTS obsidian_vault_configs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    client_id UUID DEFAULT '00000000-0000-0000-0000-000000000001' REFERENCES clients(id) ON DELETE CASCADE,
 
     -- Vault Configuration
     vault_path TEXT NOT NULL,

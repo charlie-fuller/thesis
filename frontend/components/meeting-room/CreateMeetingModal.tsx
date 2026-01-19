@@ -36,6 +36,10 @@ const AGENT_SHORT_DESCRIPTIONS: Record<string, string> = {
   catalyst: 'Internal communications and messaging',
   scholar: 'Training and learning programs',
   echo: 'Brand voice and style analysis',
+  glean_evaluator: 'Glean platform fit assessment',
+  manual: 'Platform help and documentation',
+  // Personal Development Agent
+  compass: 'Career coaching and win tracking',
   // Systems Agent
   nexus: 'Systems thinking and interconnections',
 }

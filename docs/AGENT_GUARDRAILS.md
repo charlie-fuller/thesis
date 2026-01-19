@@ -91,6 +91,7 @@ When a topic falls outside your expertise, defer immediately:
 | Systems Effects | Nexus |
 | Research/Benchmarks | Atlas |
 | Operations/Process | Operator |
+| Platform Help/Features | Manual |
 
 ---
 

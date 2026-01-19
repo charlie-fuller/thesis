@@ -1,154 +1,194 @@
-# Thesis - Documentation
+# Thesis Documentation
 
-Complete project documentation, planning materials, and development history for Thesis.
-
----
-
-## Documentation Structure
-
-### [Project Management](./project-management/)
-Sprint planning, task tracking, and Paige-specific documentation.
-
-**Subfolders:**
-- `sprints/` - Week-by-week sprint documentation (week-1, week-2, week-3)
-- `paige/` - Paige-specific docs (dashboard, commands, onboarding)
-- `tracking/` - Task tracker, sprint tracker, decisions log
-- `reference/` - Reference materials
-- `archive/` - Archived documentation
-
-### [Architecture](./architecture/)
-System architecture, database schemas, and technical design documents.
-
-**Contents:**
-- Database schema documentation
-- Data schema ERD diagrams
-- Variable flow quick reference
-- System architecture decisions
-
-### [Code Reviews](./code-reviews/)
-Code quality audits, reviews, and improvement tracking.
-
-**Contents:**
-- Comprehensive code audits and reviews
-- Code quality summaries
-- TypeScript reviews
-- Performance and maintainability reviews
-- Error boundary reviews
-
-### [Testing](./testing/)
-Test plans, reports, and quality assurance documentation.
-
-**Contents:**
-- Comprehensive test reports
-- Testing protocols and plans
-- Demo testing checklists
-- Regression test reports
-- Runtime testing reports
-
-### [Deployments](./deployments/)
-Deployment guides, migration instructions, and infrastructure setup.
-
-**Contents:**
-- Deployment checklists
-- Migration instructions
-- Railway setup guides
-- Sentry configuration
-- Pre-commit hooks setup
-
-### [Feature Guides](./IMAGE_GENERATION_SETUP.md)
-Setup guides for Thesis features and integrations.
-
-**Contents:**
-- **Image Generation** - Nano Banana (Google Gemini) setup and configuration
-- API integration guides
-- Feature configuration documentation
-
-### [Operations](./operations/)
-Operational documentation, fixes, troubleshooting, and maintenance guides.
-
-**Contents:**
-- Bug fixes and patches documentation
-- Integration fixes
-- Environment variable audits
-- Troubleshooting guides
-- Diagnostic reports
-
-### [System Instructions](./system-instructions/)
-Solomon Engine system instructions, templates, and customization guides.
-
-**Contents:**
-- System instructions templates
-- Variable alignment documentation
-- Application connections
-- Data schema for system instructions
-
-### [Voice Interview](./voice-interview/)
-Solomon Engine voice interview system documentation.
-
-**Contents:**
-- Interview scripts
-- Synthetic interview guides
-- Interview process documentation
-
-### [Supporting Docs](./supporting-docs/)
-Background materials, summaries, and PR documentation.
-
-**Contents:**
-- Thesis story and background
-- Executive summaries
-- Process alignment documentation
-- PR descriptions and summaries
-
-### [Daily Summaries](./daily-summaries/)
-Day-by-day build summaries and session kickoffs.
-
-### [Meetings](./meetings/)
-Meeting notes from project discussions with Paige.
-
-### [Diagrams](./diagrams/)
-Mermaid diagrams and architecture visualizations.
-
-### [Design](./design/)
-UI/UX design documentation and mockups.
-
-### [Onboarding](./onboarding/)
-User onboarding documentation.
-
-### [Research](./research/)
-Research documents and exploration notes.
-
-### [Technical Plans](./technical-plans/)
-Technical planning documents and implementation details.
-
-### [Chat History](./chat-history/)
-Archived Claude Code conversation transcripts.
-
-### [LlamaIndex](./llama-index/)
-LlamaIndex integration documentation.
-
----
-
-## Key Documents
-
-- **[Image Generation Setup Guide](./IMAGE_GENERATION_SETUP.md)** - Complete guide for setting up Nano Banana (Google Gemini) image generation
-- **[Bradbury Impact Loop Enhancement Summary](./BRADBURY_IMPACT_LOOP_ENHANCEMENT_SUMMARY.md)** - Latest Impact Loop improvements and metrics
-- **[Project Management README](./project-management/README.md)** - Sprint navigation and task tracking
+Complete documentation for the Thesis multi-agent GenAI strategy platform.
 
 ---
 
 ## Quick Links
 
-**Main Repository:**
-- [README.md](../README.md) - Project overview
-- [Backend](../backend/) - FastAPI application
-- [Frontend](../frontend/) - Next.js application
-
-**Live Deployments:**
-- Frontend: https://thesis-woad.vercel.app
-- Backend: https://thesis-production.up.railway.app
-- Admin: https://thesis-woad.vercel.app/admin
+| Document | Purpose |
+|----------|---------|
+| [CLAUDE.md](/CLAUDE.md) | **Primary Reference** - Development guidance, tech stack, conventions |
+| [README.md](/README.md) | Project overview with full agent roster |
+| [AGENT_GUARDRAILS.md](./AGENT_GUARDRAILS.md) | Agent behavior rules, brevity limits, conversational coherence |
+| [JANUARY_2026_RELEASE_NOTES.md](./JANUARY_2026_RELEASE_NOTES.md) | Latest features and changes |
 
 ---
 
-**Last Updated:** December 2024
-**Project Status:** Active Development
+## Strategic Vision
+
+Thesis is a multi-agent platform for enterprise GenAI strategy implementation. It helps AI Solutions Partners guide successful AI initiatives by providing specialized agents that embody real stakeholder perspectives.
+
+### Core Philosophy
+
+1. **People-First**: Every recommendation considers change management and human impact
+2. **Evidence-Based**: All insights backed by data, quotes, and citations
+3. **Multi-Perspective**: Surface diverse viewpoints rather than forcing consensus
+4. **Brevity-First**: Concise responses with dig-deeper expansion on demand
+
+### How Agents Work Together
+
+```
+User Query
+    |
+    v
+[Coordinator] --> Analyzes query, identifies domains
+    |
+    v
+[Specialist Agents] --> Atlas, Capital, Guardian, etc.
+    |
+    v
+[Synthesized Response] --> Unified answer from relevant perspectives
+```
+
+In **Meeting Rooms**, multiple agents collaborate directly:
+- Facilitator orchestrates, invites speakers, weaves threads
+- Specialist agents contribute domain expertise
+- Reporter synthesizes discussions into shareable summaries
+- Autonomous discussion mode enables agent-to-agent debate
+
+---
+
+## Documentation Structure
+
+### Current Documentation
+
+| Directory | Contents |
+|-----------|----------|
+| `/` (root) | [CLAUDE.md](/CLAUDE.md) - Primary reference for development |
+| `/` (root) | [README.md](/README.md) - Project overview with agent roster |
+
+### Feature Documentation
+
+| Directory | Contents |
+|-----------|----------|
+| [atlas/](./atlas/) | Atlas research system architecture |
+| [neo4j/](./neo4j/) | Graph database implementation and sync |
+| [sage/](./sage/) | Sage agent updates |
+| [stakeholders/](./stakeholders/) | Stakeholder profiling methodology |
+| [features/](./features/) | Help system integration |
+| [glean/](./glean/) | Glean connector registry data |
+
+### Operational Documentation
+
+| Directory | Contents |
+|-----------|----------|
+| [deployment/](./deployment/) | Deployment guides, Railway/Vercel setup |
+| [deployment/archive/](./deployment/archive/) | Historical deployment notes |
+| [testing/](./testing/) | Test plans, code review history |
+
+### Help System Content
+
+| Directory | Contents |
+|-----------|----------|
+| [help/user/](./help/user/) | End-user help documentation |
+| [help/admin/](./help/admin/) | Administrator help documentation |
+
+### Historical Planning Documents
+
+| Directory | Contents |
+|-----------|----------|
+| [planning/](./planning/) | Original implementation plans (historical) |
+| [archive/](./archive/) | Archived pre-Thesis documents |
+
+### Reference Files
+
+| File | Purpose |
+|------|---------|
+| [AGENT_GUARDRAILS.md](./AGENT_GUARDRAILS.md) | Agent behavior constraints |
+| [AGENT_PERSONA_ALIGNMENT_REPORT.md](./AGENT_PERSONA_ALIGNMENT_REPORT.md) | Agent-to-interview-subject mapping |
+| [CONTEXT.md](./CONTEXT.md) | Historical project discovery context |
+| [EMAIL_INTEGRATION_PLAN.md](./EMAIL_INTEGRATION_PLAN.md) | Email integration planning |
+| [GOOGLE_OAUTH_SETUP.md](./GOOGLE_OAUTH_SETUP.md) | OAuth configuration guide |
+| [obsidian-sync-readme.md](./obsidian-sync-readme.md) | Obsidian vault sync documentation |
+
+---
+
+## Platform Capabilities
+
+### Agent System (20 Agents)
+
+**Meta-Agents**:
+- **Facilitator** - Meeting orchestration, routing, synthesis
+- **Reporter** - Meeting documentation with domain labels
+
+**Stakeholder Perspectives**:
+- **Atlas** (Research) - GenAI research, benchmarking
+- **Capital** (Finance) - ROI analysis, SOX compliance
+- **Guardian** (IT/Governance) - Security, compliance, vendors
+- **Counselor** (Legal) - Contracts, AI risks, privacy
+- **Sage** (People) - Change management, adoption
+- **Oracle** (Meeting Intelligence) - Transcript analysis
+
+**Consulting/Implementation**:
+- **Strategist** - C-suite engagement, politics
+- **Architect** - Technical patterns, RAG, integration
+- **Operator** - Process optimization, Project Triage
+- **Pioneer** - Emerging tech, hype filtering
+
+**Internal Enablement**:
+- **Catalyst** - Internal communications, AI messaging
+- **Scholar** - Training, champion enablement
+- **Echo** - Brand voice analysis
+- **Glean Evaluator** - Platform fit assessment
+- **Compass** - Career coaching, win tracking
+
+**Systems/Coordination**:
+- **Nexus** - Systems thinking, feedback loops
+- **Coordinator** - Query routing, response synthesis
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Meeting Room** | Multi-agent collaboration with autonomous discussion |
+| **Task Management** | Kanban board with drag-and-drop |
+| **Opportunities Pipeline** | Tier-based AI opportunity scoring |
+| **Knowledge Base** | Document upload with auto-classification |
+| **Stakeholder Tracking** | CRM-style with engagement analytics |
+| **Meeting Prep** | Stakeholder briefing pages |
+| **Obsidian Sync** | Local vault integration |
+
+---
+
+## Development References
+
+### Backend
+- `/backend/agents/` - Agent implementations
+- `/backend/system_instructions/agents/` - XML behavior configs
+- `/backend/services/` - Business logic services
+- `/backend/api/routes/` - FastAPI endpoints
+
+### Frontend
+- `/frontend/app/` - Next.js pages
+- `/frontend/components/` - React components
+- `/frontend/contexts/` - Auth, Theme, HelpChat contexts
+
+### Database
+- `/database/migrations/` - SQL migration scripts
+- `/database/thesis_schema.sql` - Complete schema
+
+---
+
+## Deployment
+
+| Service | Platform | URL Pattern |
+|---------|----------|-------------|
+| Frontend | Vercel | thesis-*.vercel.app |
+| Backend | Railway | thesis-production.up.railway.app |
+| Database | Supabase | Managed PostgreSQL |
+| Graph DB | Neo4j Aura | Cloud hosted |
+
+---
+
+## Contributing
+
+1. Follow conventions in [CLAUDE.md](/CLAUDE.md)
+2. Use conventional commits (feat:, fix:, docs:)
+3. Maintain agent brevity guidelines
+4. No emojis in documentation or code
+
+---
+
+**Last Updated**: January 2026
+**Primary Reference**: [CLAUDE.md](/CLAUDE.md)

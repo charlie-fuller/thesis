@@ -1,4 +1,16 @@
-# Thesis Platform - Context Document
+> **HISTORICAL DOCUMENT**
+>
+> This document was created on December 26, 2024 and captures the original discovery
+> and planning context. The platform has evolved significantly since then.
+>
+> For current documentation, see [CLAUDE.md](/CLAUDE.md) - the authoritative reference.
+> For current agent roster (20 agents), see [README.md](/README.md).
+>
+> Preserved for historical context and decision-making reference.
+
+---
+
+# Thesis Platform - Context Document (HISTORICAL)
 
 > This document captures the discovery and planning context for future development sessions.
 

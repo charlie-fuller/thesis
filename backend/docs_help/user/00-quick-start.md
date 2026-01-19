@@ -1,67 +1,143 @@
 # Quick Start Guide
 
-Get up and running with Thesis in 2 minutes.
+So you've got Thesis open in front of you. What now?
 
-## Your First 3 Steps
+Here's the thing: Thesis isn't just another AI chatbot. It's more like... having access to a room full of specialists who actually understand different parts of the enterprise AI puzzle. Twenty of them, actually. Each with their own perspective, their own expertise, their own way of seeing problems.
 
-### 1. Start a Conversation
+Let me walk you through getting started. It'll take maybe five minutes.
 
-Click **Chat** in the navigation bar and type your first message. Try something like:
+---
 
-- "Help me design a training program for new managers"
-- "What's the DDLD framework and how do I use it?"
-- "I need to create an assessment for customer service skills"
+## Your First Conversation
 
-Thesis understands natural language - just describe what you need.
+Click **Chat** in the navigation. You'll see something interesting above the message input: an agent selector.
 
-### 2. Upload Your Documents
+This is where it gets fun.
 
-Make your conversations more relevant by uploading your organization's L&D materials:
+**Try asking something like:**
+- "What should I consider when evaluating an AI vendor?"
+- "Help me build a business case for an AI project"
+- "What are the change management considerations for AI adoption?"
 
-1. Click the **paperclip icon** in the chat or go to **Documents** in the sidebar
-2. Upload PDFs, Word docs, or presentations
-3. Thesis will reference these when answering your questions
+Notice how different agents respond to different questions? Capital thinks about ROI. Guardian worries about security. Sage considers the humans in the room. They're not just personas - they're different lenses for looking at the same problem.
 
-Your documents give Thesis context about your company's training approach, terminology, and existing programs.
+---
 
-### 3. Generate a Training Visual
+## Picking Your Specialists
 
-Need an image for your training materials? Just ask:
+You can select up to three agents at once. Or use **Auto** mode and let the Coordinator figure out who should answer.
 
-- "Generate an image of a diverse team collaborating in an office"
-- "Create a visual of a manager giving feedback to an employee"
+Here's a trick: type `@atlas` or `@capital` directly in your message to summon specific agents mid-conversation. Like, "I love this idea, but @guardian what are the security implications?"
 
-Thesis creates images in 3-5 seconds.
+It's a small thing, but it changes how you think about the question.
 
-## Navigation Overview
+---
 
-| Location | What's There |
-|----------|-------------|
-| **Chat** | Main conversation interface |
-| **Projects** | Organize conversations by project or client |
-| **My Impact** | Track your productivity and learning progress |
-| **Documents** | Manage uploaded files and integrations |
-| **Profile** | Account settings, avatar, password |
+## Uploading Documents (The Good Stuff)
 
-## Quick Tips
+Go to **KB** (Knowledge Base) and upload your documents. PDFs, Word docs, CSV, JSON, whatever you've got.
 
-- **Be specific** - "Create a 2-hour workshop on feedback skills for new managers" works better than "I need training"
-- **Use context** - Mention your industry, audience, and constraints
-- **Ask follow-ups** - Thesis remembers the conversation, so build on previous responses
-- **Try different modes** - Coach for brainstorming, Developer for deliverables, Analyst for evaluation
+Here's what's interesting: the system auto-classifies documents by agent relevance. Upload a security policy doc, and Guardian knows to reference it. Upload a financial analysis, and Capital pulls from it.
 
-## Getting Help
+You can also connect Google Drive or Notion if you want things to sync automatically.
 
-- Click the **?** icon in the bottom-right corner for contextual help
-- Ask Thesis directly: "How do I upload documents?" or "What can you help me create?"
-- Review the [Getting Started Guide](getting-started.md) for detailed information
-- Explore the [DDLD Framework Guide](ddld-framework.md) to understand Thesis's core methodology
+**Why this matters:** The agents become smarter when they have your context. General AI advice is... fine. AI advice grounded in your actual documents, your org's language, your specific situation? That's where it gets useful.
+
+---
+
+## Meeting Rooms (Where It Gets Really Interesting)
+
+For complex topics - the ones where there's no single right answer - try a **Meeting Room**.
+
+Click **Meeting Room** → **New Meeting** → pick 2-5 agents relevant to your topic.
+
+Then ask your question and watch what happens.
+
+**Autonomous Mode** is the thing I keep coming back to. Enable it, pose a topic, and the agents actually discuss amongst themselves. They debate. They push back on each other. They surface tensions you didn't see.
+
+You can interject anytime. Or just... watch them think through it.
+
+There's something weirdly compelling about watching AI agents argue about change management strategy.
+
+---
+
+## Tracking the Humans
+
+The **Intelligence** section is where stakeholder tracking lives.
+
+Here's what I've found useful:
+- Add stakeholders you're working with
+- Track their sentiment over time
+- Use the **Meeting Prep** pages before important conversations
+
+The system builds a picture of who's supportive, who's skeptical, what concerns keep coming up. It's like having notes that actually tell you something.
+
+---
+
+## The Navigation at a Glance
+
+| Where | What |
+|-------|------|
+| **Chat** | One-on-one with agents |
+| **Meeting Room** | Group discussions with multiple agents |
+| **Tasks** | Kanban board for tracking work |
+| **Opportunities** | AI opportunity pipeline |
+| **Intelligence** | Stakeholder tracking and analytics |
+| **KB** | Knowledge Base - your documents and conversations |
+
+---
+
+## The Agent Roster (All Twenty)
+
+I won't overwhelm you with all of them right now, but here's how they're organized:
+
+**The Meta-Agents** (always in meetings):
+- **Facilitator** - Runs the room, routes to specialists
+- **Reporter** - Creates summaries you can actually share
+
+**The Stakeholder Perspectives** (think: who's in the room):
+- **Atlas** - Research and benchmarking
+- **Capital** - ROI and finance
+- **Guardian** - Security and compliance
+- **Counselor** - Legal and contracts
+- **Sage** - People and change management
+- **Oracle** - Meeting transcript analysis
+
+**The Consultants**:
+- **Strategist** - Executive engagement
+- **Architect** - Technical patterns
+- **Operator** - Process optimization
+- **Pioneer** - Emerging tech (with healthy skepticism)
+
+**Internal Enablement**:
+- **Catalyst** - Internal communications
+- **Scholar** - Training and enablement
+- **Echo** - Brand voice analysis
+- **Glean Evaluator** - Platform fit assessment
+- **Compass** - Career coaching
+
+**Systems Thinking**:
+- **Nexus** - Unintended consequences and feedback loops
+- **Coordinator** - Routes queries in Auto mode
+
+---
+
+## A Few Things I've Learned
+
+1. **Be specific.** "What security considerations exist for RAG implementations?" works way better than "Tell me about AI."
+
+2. **Pick the right agent.** Capital for money questions. Guardian for security. Sage for people stuff. They really do think differently.
+
+3. **Upload your context.** The agents are smarter when they know your situation.
+
+4. **Use meeting rooms for messy problems.** The ones where you're not even sure what the question is yet.
+
+5. **Try autonomous mode.** Seriously. Let the agents argue. You'll see things you didn't expect.
+
+---
 
 ## What's Next?
 
-Ready to dive deeper? Here are recommended next steps:
-
-1. **Set up your profile** - Add your avatar and preferences
-2. **Connect integrations** - Link Google Drive or Notion for automatic document syncing
-3. **Create a project** - Organize your work by client or initiative
-4. **Explore the DDLD framework** - Master Thesis's ROI-driven approach to L&D design
+- [Understanding the Agent System](./01-agents.md) - Go deeper on how each agent thinks
+- [Mastering Meeting Rooms](./03-meeting-rooms.md) - Where the real magic happens
+- [Setting Up Your Knowledge Base](./04-knowledge-base.md) - Make the agents smarter

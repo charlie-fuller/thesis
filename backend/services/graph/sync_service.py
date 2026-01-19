@@ -1116,7 +1116,7 @@ class GraphSyncService:
         Sync agents to Neo4j with full metadata and expertise mappings.
 
         Agents are global (not client-specific) so we sync all active agents.
-        Includes all 15 agents with their expertise areas.
+        Includes all 21 agents with their expertise areas.
 
         Returns:
             Dict with sync counts
@@ -1132,7 +1132,7 @@ class GraphSyncService:
             agents = response.data or []
             logger.info(f"Syncing {len(agents)} agents to Neo4j")
 
-            # Comprehensive agent expertise mapping for all 15 agents
+            # Comprehensive agent expertise mapping for all 21 agents
             agent_expertise = {
                 # Stakeholder Perspective Agents
                 "atlas": ["research", "consulting", "case studies", "thought leadership", "genai", "lean methodology", "benchmarking"],
@@ -1150,9 +1150,16 @@ class GraphSyncService:
                 "catalyst": ["communications", "messaging", "employee engagement", "ai anxiety", "internal"],
                 "scholar": ["training", "learning", "development", "champion enablement", "adult learning"],
                 "echo": ["brand voice", "style", "tone", "voice analysis", "ai emulation"],
+                "glean_evaluator": ["glean", "enterprise search", "connectors", "platform fit", "build vs buy"],
+                "manual": ["documentation", "help", "tutorials", "features", "platform", "onboarding", "troubleshooting"],
                 # Systems/Coordination Agents
                 "nexus": ["systems thinking", "interconnections", "feedback loops", "leverage points", "unintended consequences"],
                 "coordinator": ["orchestration", "routing", "synthesis", "coordination"],
+                # Personal Development Agent
+                "compass": ["career", "wins", "performance", "check-ins", "development", "strategic alignment"],
+                # Meta-Agents
+                "facilitator": ["meeting orchestration", "discussion flow", "agent coordination", "clarification"],
+                "reporter": ["synthesis", "documentation", "summaries", "action items", "executive briefs"],
             }
 
             for agent in agents:

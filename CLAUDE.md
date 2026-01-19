@@ -30,7 +30,7 @@ If the conversation included important decisions or unfinished work, save a summ
 
 Thesis is a multi-agent platform for enterprise GenAI strategy implementation. It helps AI Solutions Partners guide and manage successful AI initiatives by providing specialized agents for research, finance, IT/governance, legal, and meeting analysis.
 
-### Agent Roster (20 Agents)
+### Agent Roster (21 Agents)
 
 #### Meta-Agents (Always Present in Meetings)
 | Agent | Name | Purpose |
@@ -64,6 +64,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 | Echo | Brand Voice | Voice analysis, style profiling, AI emulation guidelines |
 | Glean Evaluator | Can We Glean This? | Glean platform fit assessment, connector analysis, build vs. buy for search |
 | Compass | Career Coach | Win capture, performance tracking, check-in prep, strategic alignment |
+| Manual | Documentation Assistant | In-app help, feature explanation, navigation guidance, troubleshooting |
 
 #### Systems/Coordination Agents
 | Agent | Name | Purpose |
@@ -292,7 +293,7 @@ See `/docs/AGENT_GUARDRAILS.md` for complete rules
 
 ```sql
 -- Agent System
-agents                       -- Agent registry (20 agents) with capabilities column
+agents                       -- Agent registry (21 agents) with capabilities column
 agent_instruction_versions   -- Per-agent versioned instructions (single source of truth)
 agent_handoffs               -- Agent-to-agent handoff tracking
 agent_knowledge_base         -- Document-to-agent links for RAG (with relevance_score)
@@ -364,6 +365,8 @@ Run migrations in order from `/database/migrations/`:
 | 019 | task_management | Kanban tasks, comments, status history |
 | 040 | add_compass_agent | Compass (Career Coach) agent for win tracking |
 | 021 | obsidian_sync | Obsidian vault configs, sync state, and sync logs |
+| 022 | opportunity_conversations | Opportunity conversations table |
+| 023 | add_manual_agent | Manual (Documentation Assistant) agent |
 
 ## Environment Variables
 
@@ -384,37 +387,64 @@ Key variables:
 
 ## Testing & Code Quality
 
+### Testing Plan (Primary Reference)
+**`/docs/testing/TESTING_PLAN.md`** - Comprehensive testing guide that should be consulted and updated with each test run. Contains:
+- Quick start commands
+- Test file overview (272+ tests)
+- Isolation patterns for import chain issues
+- Code quality checks
+- Templates for new tests
+- Troubleshooting guide
+
 ### Testing Infrastructure
-- `/docs/testing/TESTING_PROMPT.md` - Reusable prompt for comprehensive code review and auto-fix
-- `/docs/testing/COMPREHENSIVE_TEST_PLAN.md` - Full testing framework and strategy
-- `/docs/testing/CODE_REVIEW_FINDINGS.md` - Latest code review findings
+- `/docs/testing/TESTING_PLAN.md` - **Primary testing reference** (update after each test session)
+- `/docs/testing/CODE_REVIEW_2026-01-16.md` - Latest comprehensive code review
+- `/docs/testing/TESTING_PROMPT.md` - Reusable prompt for code review and auto-fix
 
 ### Running Tests
 ```bash
-cd /backend
-source venv/bin/activate
-python -m pytest tests/ -v --tb=short
+cd /Users/charlie.fuller/vaults/Contentful/thesis/backend
+
+# Run all isolated tests (recommended - fast, no import issues)
+uv run pytest tests/test_document_classifier.py tests/test_tasks.py \
+  tests/test_opportunities.py tests/test_engagement.py tests/test_agents_new.py -v
+
+# Run specific test file
+uv run pytest tests/test_opportunities.py -v
+
+# Run with verbose output
+uv run pytest tests/ -v --tb=short
 ```
 
+### Test Coverage (January 2026)
+| Test File | Tests | Status |
+|-----------|-------|--------|
+| test_document_classifier.py | 38 | PASS |
+| test_tasks.py | 34 | PASS |
+| test_opportunities.py | 64 | PASS |
+| test_engagement.py | 36 | PASS |
+| test_agents_new.py | 55 | PASS |
+| test_obsidian_sync.py | 45+ | PASS |
+
 ### Code Quality Targets
-| Metric | Target |
-|--------|--------|
-| Code Quality Score | 9.0/10 |
-| Test Pass Rate | 100% |
-| Bare except blocks | 0 |
-| Deprecated patterns | 0 |
-| Print statements (prod) | 0 |
+| Metric | Target | Current |
+|--------|--------|---------|
+| Code Quality Score | 9.0/10 | 9.3/10 |
+| Test Pass Rate | 100% | 100% |
+| Bare except blocks | 0 | 0 |
+| Print statements (prod) | 0 | 2 (docs only) |
 
 ## Important Files
 
 ### Backend
 - `/backend/main.py` - FastAPI app entry point
-- `/backend/agents/` - Agent implementations (20 agents)
+- `/backend/agents/` - Agent implementations (21 agents)
 - `/backend/agents/agent_factory.py` - Agent creation and registration
 - `/backend/agents/base_agent.py` - Base class with instruction loading
 - `/backend/agents/atlas.py` - Research agent with web search capability
 - `/backend/agents/glean_evaluator.py` - Glean platform fit assessment agent
 - `/backend/agents/compass.py` - Career coaching agent for win tracking
+- `/backend/agents/manual.py` - Documentation assistant agent for in-app help
 - `/backend/services/transcript_analyzer.py` - Meeting transcript analysis
 - `/backend/services/meeting_orchestrator.py` - Multi-agent meeting coordination
 - `/backend/services/instruction_loader.py` - XML instruction file loading
@@ -446,6 +476,7 @@ python -m pytest tests/ -v --tb=short
 - `/backend/api/routes/admin.py` - Admin dashboard with real API health checks
 - `/backend/api/routes/obsidian_sync.py` - Obsidian vault configuration and sync API endpoints
 - `/backend/scripts/obsidian_watcher.py` - CLI script for background vault file watching
+- `/backend/scripts/seed_manual_docs.py` - CLI script to seed Manual agent with platform documentation
 
 ### Frontend
 - `/frontend/app/layout.tsx` - Root layout with providers
@@ -465,7 +496,7 @@ python -m pytest tests/ -v --tb=short
 
 ### Database
 - `/database/thesis_schema.sql` - Complete DB schema
-- `/database/migrations/` - All migration scripts (001-021, 040)
+- `/database/migrations/` - All migration scripts (001-023, 040)
 
 ### Documentation
 - `/docs/AGENT_GUARDRAILS.md` - Agent brevity rules, word limits, conversational coherence, and behavioral constraints

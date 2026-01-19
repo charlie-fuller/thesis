@@ -293,6 +293,30 @@ docs/stakeholders/STAKEHOLDER_PROFILE_METHOD.md
 
 ## Coming Soon
 
-- **Obsidian Vault Sync**: Local vault integration with KB (in planning)
 - Research dashboard UI for Atlas insights
 - Stakeholder network visualization
+
+---
+
+## Post-Release Update: Obsidian Vault Sync (Completed January 2026)
+
+The Obsidian Vault Sync feature was completed after the initial release notes were written.
+
+**Features**:
+- Sync markdown files from local Obsidian vaults to Knowledge Base
+- File watcher monitors vault for changes (create/modify/delete)
+- Parses YAML frontmatter (including `thesis-agents` for auto-tagging)
+- Converts `[[wikilinks]]` to standard markdown links
+- Incremental sync via content hash change detection
+
+**Files**:
+- Backend: `/backend/services/obsidian_sync.py`
+- API: `/backend/api/routes/obsidian_sync.py`
+- CLI: `/backend/scripts/obsidian_watcher.py`
+- Migration: `021_obsidian_sync.sql`
+- Documentation: `/docs/obsidian-sync-readme.md`
+
+**Usage**:
+```bash
+python -m scripts.obsidian_watcher --user-id <uuid>
+```
