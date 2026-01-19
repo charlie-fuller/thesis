@@ -1852,24 +1852,6 @@ export default function KBDocumentsContent() {
                             Failed
                           </span>
                         )}
-                        {/* Source icons */}
-                        {doc.source_platform === 'google_drive' && (
-                          <span className="inline-flex items-center gap-1 flex-shrink-0" title="Google Drive">
-                            <Image src="/logos/google-drive.svg" alt="Google Drive" width={20} height={20} className="w-5 h-5" />
-                          </span>
-                        )}
-                        {doc.source_platform === 'notion' && (
-                          <span className="inline-flex items-center gap-1 flex-shrink-0" title="Notion">
-                            <Image src="/logos/notion.svg" alt="Notion" width={20} height={20} className="w-5 h-5" />
-                          </span>
-                        )}
-                        {doc.source_platform === 'obsidian' && (
-                          <span className="inline-flex items-center gap-1 flex-shrink-0" title="Obsidian">
-                            <svg className="w-5 h-5 text-purple-600" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                          </span>
-                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
