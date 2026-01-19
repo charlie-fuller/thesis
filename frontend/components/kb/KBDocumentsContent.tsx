@@ -145,8 +145,41 @@ export default function KBDocumentsContent() {
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [sourceFilter, setSourceFilter] = useState<string>('all') // 'all', 'upload', 'google_drive', 'notion'
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
 
-  // Filtered documents based on search query and source filter
+  // Compute all unique tags from documents (sorted by frequency, then alphabetically)
+  const allTags = useMemo(() => {
+    const tagCounts: Record<string, number> = {}
+    documents.forEach(doc => {
+      (doc.tags || []).forEach(t => {
+        tagCounts[t.tag] = (tagCounts[t.tag] || 0) + 1
+      })
+    })
+    // Sort by frequency (descending), then alphabetically
+    return Object.entries(tagCounts)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([tag]) => tag)
+  }, [documents])
+
+  // Toggle a tag in the filter
+  const toggleTagFilter = (tag: string) => {
+    setSelectedTags(prev => {
+      const next = new Set(prev)
+      if (next.has(tag)) {
+        next.delete(tag)
+      } else {
+        next.add(tag)
+      }
+      return next
+    })
+  }
+
+  // Clear all tag filters
+  const clearTagFilters = () => {
+    setSelectedTags(new Set())
+  }
+
+  // Filtered documents based on search query, source filter, and tag filter
   const filteredDocuments = useMemo(() => {
     return documents.filter(doc => {
       // Search filter - match filename or title
@@ -162,9 +195,16 @@ export default function KBDocumentsContent() {
         matchesSource = doc.source_platform === sourceFilter
       }
 
-      return matchesSearch && matchesSource
+      // Tag filter - document must have ALL selected tags (AND logic)
+      let matchesTags = true
+      if (selectedTags.size > 0) {
+        const docTags = new Set((doc.tags || []).map(t => t.tag))
+        matchesTags = Array.from(selectedTags).every(tag => docTags.has(tag))
+      }
+
+      return matchesSearch && matchesSource && matchesTags
     })
-  }, [documents, searchQuery, sourceFilter])
+  }, [documents, searchQuery, sourceFilter, selectedTags])
 
   // Helper to extract top-level folder from Obsidian file path
   const getTopLevelFolder = (filePath: string | undefined): string => {
@@ -1473,7 +1513,7 @@ export default function KBDocumentsContent() {
             </button>
             <h2 className="heading-3">Your Documents</h2>
             <span className="text-sm text-muted">
-              {searchQuery || sourceFilter !== 'all'
+              {searchQuery || sourceFilter !== 'all' || selectedTags.size > 0
                 ? `(${filteredDocuments.length} of ${documents.length})`
                 : `(${documents.length})`}
             </span>
@@ -1547,6 +1587,39 @@ export default function KBDocumentsContent() {
             </div>
           )}
 
+          {/* Tag Filter Bar */}
+          {allTags.length > 0 && (
+            <div className="mb-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-muted font-medium">Tags:</span>
+                {allTags.slice(0, 30).map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => toggleTagFilter(tag)}
+                    className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+                      selectedTags.has(tag)
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+                {allTags.length > 30 && (
+                  <span className="text-xs text-muted">+{allTags.length - 30} more</span>
+                )}
+                {selectedTags.size > 0 && (
+                  <button
+                    onClick={clearTagFilters}
+                    className="px-2 py-0.5 text-xs text-red-600 dark:text-red-400 hover:underline"
+                  >
+                    Clear tags
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="text-center py-8 text-muted">
               <LoadingSpinner size="md" />
@@ -1565,7 +1638,7 @@ export default function KBDocumentsContent() {
             <div className="text-center py-8 text-muted">
               <p>No documents match your search</p>
               <button
-                onClick={() => { setSearchQuery(''); setSourceFilter('all'); }}
+                onClick={() => { setSearchQuery(''); setSourceFilter('all'); setSelectedTags(new Set()); }}
                 className="text-sm text-blue-600 hover:underline mt-2"
               >
                 Clear filters
