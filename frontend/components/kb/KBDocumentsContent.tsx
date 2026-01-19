@@ -1796,7 +1796,7 @@ export default function KBDocumentsContent() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start gap-2 mb-1">
-                        <h3 className="font-medium text-primary break-words">{doc.title || doc.filename}</h3>
+                        <h3 className="font-medium text-primary break-words">{doc.filename}</h3>
                         {/* Status Badges */}
                         {!doc.processed && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 flex-shrink-0" title="Document is being processed">
@@ -1831,29 +1831,6 @@ export default function KBDocumentsContent() {
                           </span>
                         )}
                       </div>
-                      {/* Tags display */}
-                      {doc.tags && doc.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {doc.tags.slice(0, 4).map((t) => (
-                            <span
-                              key={t.tag}
-                              className={`px-1.5 py-0.5 text-xs rounded ${
-                                t.source === 'path'
-                                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
-                                  : t.source === 'frontmatter'
-                                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-                                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                              }`}
-                              title={t.source === 'path' ? 'From folder path' : t.source === 'frontmatter' ? 'From Obsidian frontmatter' : 'Manually added'}
-                            >
-                              {t.tag}
-                            </span>
-                          ))}
-                          {doc.tags.length > 4 && (
-                            <span className="text-xs text-secondary">+{doc.tags.length - 4}</span>
-                          )}
-                        </div>
-                      )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {/* Action Buttons */}
