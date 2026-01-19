@@ -284,7 +284,7 @@ export default function AgentSelector({
             <div className="border-t border-neutral-700 my-1" />
 
             {/* Agent list grouped by category */}
-            {['Stakeholder', 'Consulting', 'Enablement', 'Systems'].map(category => {
+            {['Stakeholder', 'Consulting', 'Enablement', 'Systems', 'Personal'].map(category => {
               const categoryAgents = AGENT_ORDER.filter(
                 agent => agent !== 'coordinator' && AGENT_INFO[agent]?.category === category
               )
