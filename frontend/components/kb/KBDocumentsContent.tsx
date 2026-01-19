@@ -1652,7 +1652,7 @@ export default function KBDocumentsContent() {
             <div className="mb-4">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-muted font-medium">Tags:</span>
-                {allTags.slice(0, 30).map(tag => (
+                {allTags.slice(0, 20).map(tag => (
                   <button
                     key={tag}
                     onClick={() => toggleTagFilter(tag)}
@@ -1665,8 +1665,8 @@ export default function KBDocumentsContent() {
                     {tag}
                   </button>
                 ))}
-                {allTags.length > 30 && (
-                  <span className="text-xs text-muted">+{allTags.length - 30} more</span>
+                {allTags.length > 20 && (
+                  <span className="text-xs text-muted">+{allTags.length - 20} more</span>
                 )}
                 {selectedTags.size > 0 && (
                   <button
