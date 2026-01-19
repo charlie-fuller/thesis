@@ -792,15 +792,47 @@ async def get_interface_health(
         now = datetime.now(timezone.utc)
         seven_days_ago = (now - timedelta(days=7)).isoformat()
         five_minutes_ago = (now - timedelta(minutes=5)).isoformat()
+        one_hour_ago = (now - timedelta(hours=1)).isoformat()
 
-        # Get recent assistant messages for response length analysis
-        messages_result = await asyncio.to_thread(
+        # Run all independent queries in parallel for better performance
+        messages_task = asyncio.to_thread(
             lambda: supabase.table('messages')
-                .select('content, metadata')
+                .select('content')
                 .eq('role', 'assistant')
                 .gte('created_at', seven_days_ago)
                 .execute()
         )
+
+        convos_task = asyncio.to_thread(
+            lambda: supabase.table('conversations')
+                .select('id', count='exact')
+                .gte('created_at', seven_days_ago)
+                .execute()
+        )
+
+        active_users_task = asyncio.to_thread(
+            lambda: supabase.table('conversations')
+                .select('user_id')
+                .gte('updated_at', seven_days_ago)
+                .execute()
+        )
+
+        # Check for stuck conversations - simplified query
+        recent_messages_task = asyncio.to_thread(
+            lambda: supabase.table('messages')
+                .select('conversation_id, metadata, created_at')
+                .gte('created_at', one_hour_ago)
+                .lt('created_at', five_minutes_ago)
+                .order('created_at', desc=True)
+                .limit(50)
+                .execute()
+        )
+
+        # Execute all queries in parallel
+        messages_result, convos_result, active_users_result, recent_messages_result = await asyncio.gather(
+            messages_task, convos_task, active_users_task, recent_messages_task
+        )
+
         messages = messages_result.data or []
 
         # Calculate average response length (word count)
@@ -816,29 +848,24 @@ async def get_interface_health(
 
         avg_response_length = round(total_words / response_count) if response_count > 0 else 0
 
-        # Get conversation count for the period
-        convos_result = await asyncio.to_thread(
-            lambda: supabase.table('conversations')
-                .select('id', count='exact')
-                .gte('created_at', seven_days_ago)
-                .execute()
-        )
         total_conversations_7d = convos_result.count or 0
 
-        # Get active users count (users who had conversations in the last 7 days)
-        active_users_result = await asyncio.to_thread(
-            lambda: supabase.table('conversations')
-                .select('user_id')
-                .gte('updated_at', seven_days_ago)
-                .execute()
-        )
+        # Get active users count
         active_user_ids = set()
         for convo in (active_users_result.data or []):
             if convo.get('user_id'):
                 active_user_ids.add(convo['user_id'])
         active_users_count = len(active_user_ids)
 
+        # Check for stuck conversations (awaiting_image_confirmation)
+        stuck_conversations = set()
+        for msg in (recent_messages_result.data or []):
+            metadata = msg.get('metadata') or {}
+            if metadata.get('awaiting_image_confirmation'):
+                stuck_conversations.add(msg['conversation_id'])
+
         # Get conversations with useable output tracking (if column exists)
+        # This is a separate query since it may fail if column doesn't exist
         avg_turns = 0
         useable_convos = []
         try:
@@ -847,6 +874,7 @@ async def get_interface_health(
                     .select('turns_to_useable_output')
                     .not_.is_('turns_to_useable_output', 'null')
                     .gte('updated_at', seven_days_ago)
+                    .limit(100)
                     .execute()
             )
             useable_convos = useable_result.data or []
@@ -855,35 +883,6 @@ async def get_interface_health(
         except Exception as e:
             # Column may not exist yet - gracefully handle
             logger.warning(f"turns_to_useable_output query failed (column may not exist): {str(e)}")
-
-        # Check for stuck conversations (awaiting_image_confirmation)
-        # This requires checking recent messages with that metadata flag
-        stuck_result = await asyncio.to_thread(
-            lambda: supabase.table('messages')
-                .select('conversation_id, created_at')
-                .lt('created_at', five_minutes_ago)
-                .execute()
-        )
-
-        # Filter for messages with awaiting_image_confirmation in metadata
-        # Since we can't filter by JSONB easily, we check recent messages
-        recent_check = await asyncio.to_thread(
-            lambda: supabase.table('messages')
-                .select('conversation_id, metadata, created_at')
-                .gte('created_at', (now - timedelta(hours=1)).isoformat())
-                .order('created_at', desc=True)
-                .limit(100)
-                .execute()
-        )
-
-        stuck_conversations = set()
-        for msg in (recent_check.data or []):
-            metadata = msg.get('metadata') or {}
-            if metadata.get('awaiting_image_confirmation'):
-                # Check if this is old enough to be "stuck"
-                msg_time = msg.get('created_at', '')
-                if msg_time and msg_time < five_minutes_ago:
-                    stuck_conversations.add(msg['conversation_id'])
 
         # Determine health status
         response_status = 'healthy' if avg_response_length <= 500 else ('warning' if avg_response_length <= 800 else 'critical')
