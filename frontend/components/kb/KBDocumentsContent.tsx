@@ -108,12 +108,15 @@ export default function KBDocumentsContent() {
     vault_path?: string
     document_count?: number
     last_sync?: string
+    pending_changes?: number
+    total_files?: number
   }
   const [obsidianStatus, setObsidianStatus] = useState<ObsidianStatus | null>(null)
   const [obsidianExpanded, setObsidianExpanded] = useState<boolean>(false)
   const [obsidianSyncing, setObsidianSyncing] = useState(false)
   const [obsidianSyncError, setObsidianSyncError] = useState<string | null>(null)
   const [obsidianSyncSuccess, setObsidianSyncSuccess] = useState<string | null>(null)
+  const [obsidianSyncProgress, setObsidianSyncProgress] = useState<{ synced: number; total: number } | null>(null)
 
   // Document actions state
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
@@ -342,6 +345,7 @@ export default function KBDocumentsContent() {
         vault_name?: string
         vault_path?: string
         files_synced?: number
+        pending_changes?: number
         last_sync?: string
       }>('/api/obsidian/status')
       setObsidianStatus({
@@ -349,32 +353,71 @@ export default function KBDocumentsContent() {
         vault_name: response.vault_name,
         vault_path: response.vault_path,
         document_count: response.files_synced,
+        pending_changes: response.pending_changes,
         last_sync: response.last_sync
       })
+      return response
     } catch (err) {
       logger.error('Error checking Obsidian status:', err)
       setObsidianStatus({ connected: false })
+      return null
     }
   }
 
-  // Obsidian full sync handler
+  // Obsidian full sync handler with progress polling
   async function handleObsidianFullSync() {
     try {
       setObsidianSyncing(true)
       setObsidianSyncError(null)
       setObsidianSyncSuccess(null)
+      setObsidianSyncProgress(null)
+
+      // Get initial count before sync
+      const initialStatus = await checkObsidianStatusFn()
+      const initialSynced = initialStatus?.files_synced ?? 0
 
       await apiPost<{ success: boolean; message: string }>('/api/obsidian/sync/full')
 
-      setObsidianSyncSuccess('Full resync started! Documents will be updated in the background.')
-      setTimeout(() => setObsidianSyncSuccess(null), 10000)
+      // Poll for progress every 2 seconds
+      const pollInterval = setInterval(async () => {
+        const status = await checkObsidianStatusFn()
+        if (status) {
+          const currentSynced = status.files_synced ?? 0
+          const pending = status.pending_changes ?? 0
+          const total = currentSynced + pending
 
-      // Refresh documents list after a brief delay
-      setTimeout(() => loadDocuments(false), 2000)
+          if (total > 0) {
+            setObsidianSyncProgress({ synced: currentSynced, total })
+          }
+
+          // Stop polling when no more pending changes
+          if (pending === 0 && currentSynced > initialSynced) {
+            clearInterval(pollInterval)
+            setObsidianSyncing(false)
+            setObsidianSyncProgress(null)
+            setObsidianSyncSuccess(`Sync complete! ${currentSynced} documents synced.`)
+            setTimeout(() => setObsidianSyncSuccess(null), 10000)
+            loadDocuments(false)
+          }
+        }
+      }, 2000)
+
+      // Safety timeout after 5 minutes
+      setTimeout(() => {
+        clearInterval(pollInterval)
+        if (obsidianSyncing) {
+          setObsidianSyncing(false)
+          setObsidianSyncProgress(null)
+          setObsidianSyncSuccess('Sync started in background. Refresh to see updates.')
+          setTimeout(() => setObsidianSyncSuccess(null), 10000)
+          loadDocuments(false)
+        }
+      }, 300000)
+
     } catch (err) {
       setObsidianSyncError(err instanceof Error ? err.message : 'Sync failed')
-    } finally {
       setObsidianSyncing(false)
+      setObsidianSyncProgress(null)
     }
   }
 
@@ -1403,6 +1446,11 @@ export default function KBDocumentsContent() {
                   </div>
                   <div className="text-xs text-muted mt-1">
                     {obsidianStatus.document_count ?? 0} documents synced
+                    {(obsidianStatus.pending_changes ?? 0) > 0 && (
+                      <span className="text-amber-600 dark:text-amber-400 ml-1">
+                        ({obsidianStatus.pending_changes} pending)
+                      </span>
+                    )}
                     {obsidianStatus.last_sync && (
                       <> - Last sync: {formatLastSync(obsidianStatus.last_sync)}</>
                     )}
@@ -1445,10 +1493,22 @@ export default function KBDocumentsContent() {
             {/* Syncing Progress */}
             {obsidianSyncing && (
               <div className="mt-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mb-2">
                   <LoadingSpinner size="sm" />
-                  <span className="text-sm text-purple-800 dark:text-purple-200">Syncing documents from Obsidian vault...</span>
+                  <span className="text-sm text-purple-800 dark:text-purple-200">
+                    {obsidianSyncProgress
+                      ? `Syncing... ${obsidianSyncProgress.synced} of ${obsidianSyncProgress.total} files`
+                      : 'Starting sync...'}
+                  </span>
                 </div>
+                {obsidianSyncProgress && obsidianSyncProgress.total > 0 && (
+                  <div className="w-full bg-purple-200 dark:bg-purple-900 rounded-full h-2">
+                    <div
+                      className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.round((obsidianSyncProgress.synced / obsidianSyncProgress.total) * 100)}%` }}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </>
