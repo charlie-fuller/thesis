@@ -90,6 +90,7 @@ export default function TaskKanbanBoard() {
   const [refreshing, setRefreshing] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editTask, setEditTask] = useState<Task | null>(null)
+  const [defaultStatus, setDefaultStatus] = useState<Task['status']>('pending')
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState<TaskFiltersState>({
     assignee_stakeholder_id: null,
@@ -194,6 +195,14 @@ export default function TaskKanbanBoard() {
   // Handle task click (open edit modal)
   const handleTaskClick = useCallback((task: Task) => {
     setEditTask(task)
+    setDefaultStatus(task.status)
+    setShowCreateModal(true)
+  }, [])
+
+  // Handle add task from column
+  const handleAddTaskFromColumn = useCallback((status: Task['status']) => {
+    setEditTask(null)
+    setDefaultStatus(status)
     setShowCreateModal(true)
   }, [])
 
@@ -270,7 +279,11 @@ export default function TaskKanbanBoard() {
             )}
           </button>
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              setEditTask(null)
+              setDefaultStatus('pending')
+              setShowCreateModal(true)
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand/90 transition-colors"
           >
             <Plus className="w-5 h-5" />
@@ -301,6 +314,7 @@ export default function TaskKanbanBoard() {
             headerColor={column.headerColor}
             onDrop={handleDrop}
             onTaskClick={handleTaskClick}
+            onAddTask={handleAddTaskFromColumn}
           />
         ))}
       </div>
@@ -312,6 +326,7 @@ export default function TaskKanbanBoard() {
           onClose={handleModalClose}
           onSaved={handleTaskSaved}
           editTask={editTask}
+          defaultStatus={defaultStatus}
         />
       )}
     </div>

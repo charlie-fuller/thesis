@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, DragEvent } from 'react'
+import { Plus } from 'lucide-react'
 import { Task } from './TaskKanbanBoard'
 import TaskCard from './TaskCard'
 
@@ -13,6 +14,7 @@ interface TaskColumnProps {
   headerColor: string
   onDrop: (taskId: string, newStatus: Task['status'], position?: number) => void
   onTaskClick: (task: Task) => void
+  onAddTask: (status: Task['status']) => void
 }
 
 export default function TaskColumn({
@@ -24,6 +26,7 @@ export default function TaskColumn({
   headerColor,
   onDrop,
   onTaskClick,
+  onAddTask,
 }: TaskColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false)
 
@@ -63,7 +66,16 @@ export default function TaskColumn({
     >
       {/* Column Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-        <h3 className={`font-semibold ${headerColor}`}>{title}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className={`font-semibold ${headerColor}`}>{title}</h3>
+          <button
+            onClick={() => onAddTask(id as Task['status'])}
+            className={`p-1 rounded hover:bg-white/50 dark:hover:bg-black/20 transition-colors ${headerColor}`}
+            title={`Add task to ${title}`}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
         <span className={`px-2 py-0.5 text-sm font-medium rounded-full ${headerColor} bg-white/50 dark:bg-black/20`}>
           {count}
         </span>

@@ -12,6 +12,7 @@ interface TaskCreateModalProps {
   onClose: () => void
   onSaved: () => void
   editTask: Task | null
+  defaultStatus?: Task['status']
 }
 
 interface Stakeholder {
@@ -41,6 +42,7 @@ export default function TaskCreateModal({
   onClose,
   onSaved,
   editTask,
+  defaultStatus = 'pending',
 }: TaskCreateModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -90,7 +92,7 @@ export default function TaskCreateModal({
       // Reset form for new task
       setTitle('')
       setDescription('')
-      setStatus('pending')
+      setStatus(defaultStatus)
       setPriority(3)
       setAssigneeStakeholderId('')
       setAssigneeName('')
@@ -99,7 +101,7 @@ export default function TaskCreateModal({
       setTags('')
       setBlockerReason('')
     }
-  }, [editTask])
+  }, [editTask, defaultStatus])
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
@@ -168,7 +170,7 @@ export default function TaskCreateModal({
         onClick={onClose}
       >
         <div
-          className="bg-card rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+          className="bg-card rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -210,7 +212,7 @@ export default function TaskCreateModal({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Add more details..."
-                rows={3}
+                rows={15}
                 className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand resize-none"
               />
             </div>
