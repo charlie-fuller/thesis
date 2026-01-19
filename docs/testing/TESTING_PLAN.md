@@ -1,7 +1,7 @@
 # Thesis Testing Plan
 
 > **Last Updated**: January 18, 2026
-> **Test Coverage**: 345+ tests across 7 test files
+> **Test Coverage**: 410+ tests across 8 test files
 > **Quality Score**: 9.3/10
 
 ## Quick Start
@@ -12,7 +12,7 @@ cd /Users/charlie.fuller/vaults/Contentful/thesis/backend
 # Run all isolated tests (fast, no import chain issues)
 uv run pytest tests/test_document_classifier.py tests/test_tasks.py \
   tests/test_opportunities.py tests/test_engagement.py tests/test_agents_new.py \
-  tests/test_vibe_coding_bugs.py -v
+  tests/test_vibe_coding_bugs.py tests/test_rigorous.py -v
 
 # Run Obsidian sync tests (requires backend context)
 uv run pytest tests/test_obsidian_sync.py -v
@@ -35,6 +35,7 @@ uv run pytest tests/ --cov=. --cov-report=html
 | test_agents_new.py | 55 | Glean Evaluator + Compass + Manual agents | PASS |
 | test_obsidian_sync.py | 45+ | Obsidian vault sync | PASS (3 known issues) |
 | test_vibe_coding_bugs.py | 34 | Common vibe-coding bug patterns | PASS |
+| test_rigorous.py | 65 | Contract, boundary, recovery, load tests | PASS |
 
 ## Test Architecture
 
@@ -181,6 +182,62 @@ These tests target common failure modes in AI-assisted codebases:
 **Full Flow Integration** (2 tests)
 - Opportunity create-to-display flow
 - Filter-then-detail data consistency
+
+### Rigorous Testing Suite (65 tests)
+Production reliability tests for edge cases:
+
+**Contract Tests - Frontend/Backend** (7 tests)
+- OpportunityResponse has all frontend fields
+- Nullable fields correctly nullable
+- RelatedDocument, Conversation, TierResponse shapes
+
+**Boundary Tests** (16 tests)
+- Tier calculation at exact boundaries (10→11, 13→14, 16→17)
+- Score dimension min/max (1-5)
+- Null score handling
+- Pagination boundaries (page 0, negative)
+
+**Error Recovery** (8 tests)
+- Missing optional field defaults
+- Invalid status/tier fallbacks
+- Empty array on query failure
+- JSON parse failure handling
+- Partial update preservation
+
+**Time-Based Tests** (7 tests)
+- UTC timestamp verification
+- ISO format parsing variants (Z, offset, milliseconds)
+- Conversation ordering by created_at
+- Stable ordering for same timestamps
+
+**Load Pattern Tests** (6 tests)
+- Large list pagination (1000 items)
+- Large text fields (10KB)
+- Deep nested objects
+- Concurrent read/write
+
+**Database Constraint Tests** (5 tests)
+- Opportunity code format validation
+- Status enum enforcement
+- Tier range (1-4)
+- Score range (1-5 or null)
+- UUID format validation
+
+**Snapshot/Golden Tests** (4 tests)
+- Response key stability
+- Error response structure
+- Success message structure
+
+**Pydantic Validation** (5 tests)
+- Required field enforcement
+- Optional field handling
+- Custom validator rejection
+- Type coercion behavior
+
+**Combined Scenarios** (3 tests)
+- Full create flow with calculations
+- Filter then paginate
+- Score update tier recalculation
 
 ## Known Issues
 
@@ -409,6 +466,14 @@ If a test fails intermittently:
 
 | Date | Changes |
 |------|---------|
+| 2026-01-18 | Added rigorous testing suite (65 new tests) |
+| | - Contract tests for frontend/backend alignment |
+| | - Boundary tests for tier calculations |
+| | - Error recovery and graceful degradation |
+| | - Time-based edge cases |
+| | - Load pattern tests |
+| | - Database constraint validation |
+| | - Pydantic validation behavior |
 | 2026-01-18 | Added vibe-coding bug tests (34 new tests) |
 | | - Array/list edge cases (6 tests) |
 | | - Type coercion bugs (7 tests) |

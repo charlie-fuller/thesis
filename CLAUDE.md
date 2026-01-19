@@ -431,6 +431,7 @@ uv run pytest tests/ -v --tb=short
 | test_agents_new.py | 55 | PASS |
 | test_obsidian_sync.py | 45+ | PASS |
 | test_vibe_coding_bugs.py | 34 | PASS |
+| test_rigorous.py | 65 | PASS |
 
 ### Code Quality Targets
 | Metric | Target | Current |
