@@ -147,7 +147,7 @@ export default function KBDocumentsContent() {
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState<string>('')
-  const [sourceFilter, setSourceFilter] = useState<string>('all') // 'all', 'upload', 'google_drive', 'notion'
+  const [sourceFilter, setSourceFilter] = useState<string>('all') // 'all', 'upload', 'google_drive', 'obsidian'
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
 
   // Compute all unique tags from documents (sorted by frequency, then alphabetically)
@@ -1640,9 +1640,9 @@ export default function KBDocumentsContent() {
                 className="px-3 py-2 border border-default rounded-lg text-sm bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">All Sources</option>
-                <option value="upload">Direct Upload</option>
                 <option value="google_drive">Google Drive</option>
-                <option value="notion">Notion</option>
+                <option value="obsidian">Obsidian</option>
+                <option value="upload">Uploads</option>
               </select>
             </div>
           )}
