@@ -1182,3 +1182,214 @@ class TestAgentProcessIntegration:
 
         # Verify API was called
         compass_agent.anthropic.messages.create.assert_called_once()
+
+
+# ============================================================================
+# MANUAL AGENT TESTS - Documentation Assistant
+# ============================================================================
+
+class ManualAgentTestable(BaseAgentTestable):
+    """Manual agent for testing - documentation assistant."""
+
+    def __init__(self, supabase, anthropic_client):
+        super().__init__("manual", "Manual", supabase, anthropic_client)
+        self.help_topics = [
+            "agents", "chat", "meeting-rooms", "knowledge-base",
+            "tasks", "opportunities", "stakeholders", "faq"
+        ]
+
+    def detect_help_topic(self, message: str) -> Optional[str]:
+        """Detect which help topic the user is asking about."""
+        message_lower = message.lower()
+
+        topic_keywords = {
+            "agents": ["agent", "atlas", "capital", "guardian", "sage", "coordinator"],
+            "chat": ["chat", "conversation", "message", "ask"],
+            "meeting-rooms": ["meeting", "room", "discussion", "autonomous"],
+            "knowledge-base": ["kb", "knowledge base", "document", "upload", "file"],
+            "tasks": ["task", "kanban", "todo", "project"],
+            "opportunities": ["opportunity", "pipeline", "tier", "score"],
+            "stakeholders": ["stakeholder", "contact", "engagement"],
+            "faq": ["faq", "help", "how do i", "how to", "what is"]
+        }
+
+        for topic, keywords in topic_keywords.items():
+            if any(kw in message_lower for kw in keywords):
+                return topic
+
+        return None
+
+    def get_help_content(self, topic: str) -> Optional[str]:
+        """Get help content for a specific topic."""
+        content_map = {
+            "agents": "Thesis has 21 specialized AI agents...",
+            "chat": "The chat interface allows you to interact with agents...",
+            "meeting-rooms": "Meeting rooms enable multi-agent discussions...",
+            "knowledge-base": "The Knowledge Base stores your documents...",
+            "tasks": "Task management uses a Kanban board...",
+            "opportunities": "Track AI implementation opportunities...",
+            "stakeholders": "Manage stakeholder relationships...",
+            "faq": "Frequently asked questions about Thesis..."
+        }
+        return content_map.get(topic)
+
+    def should_handoff(self, context: AgentContext, response: str) -> Optional[tuple]:
+        """Manual agent should handoff for domain-specific questions."""
+        message_lower = context.user_message.lower()
+
+        # Handoff to domain experts for specific questions
+        if any(kw in message_lower for kw in ["roi", "budget", "cost", "financial"]):
+            return ("capital", "Handing off to Capital for financial questions")
+
+        if any(kw in message_lower for kw in ["security", "compliance", "governance"]):
+            return ("guardian", "Handing off to Guardian for security/compliance questions")
+
+        if any(kw in message_lower for kw in ["research", "case study", "benchmark"]):
+            return ("atlas", "Handing off to Atlas for research questions")
+
+        return None
+
+
+@pytest.fixture
+def manual_agent():
+    """Create a Manual agent instance for testing."""
+    mock_supabase = Mock()
+    mock_anthropic = Mock()
+    mock_anthropic.messages.create = AsyncMock(return_value=Mock(
+        content=[Mock(text="Here's how to use that feature...")]
+    ))
+    return ManualAgentTestable(mock_supabase, mock_anthropic)
+
+
+class TestManualHelpTopicDetection:
+    """Tests for Manual agent help topic detection."""
+
+    def test_detect_agents_topic(self, manual_agent):
+        """Should detect agents topic."""
+        result = manual_agent.detect_help_topic("How do I use the Atlas agent?")
+        assert result == "agents"
+
+    def test_detect_chat_topic(self, manual_agent):
+        """Should detect chat topic."""
+        result = manual_agent.detect_help_topic("How do I start a conversation?")
+        assert result == "chat"
+
+    def test_detect_meeting_rooms_topic(self, manual_agent):
+        """Should detect meeting rooms topic."""
+        result = manual_agent.detect_help_topic("How do I create a meeting room?")
+        assert result == "meeting-rooms"
+
+    def test_detect_knowledge_base_topic(self, manual_agent):
+        """Should detect knowledge base topic."""
+        result = manual_agent.detect_help_topic("How do I upload a document to the KB?")
+        assert result == "knowledge-base"
+
+    def test_detect_tasks_topic(self, manual_agent):
+        """Should detect tasks topic."""
+        result = manual_agent.detect_help_topic("Where is the kanban board for project todos?")
+        assert result == "tasks"
+
+    def test_detect_opportunities_topic(self, manual_agent):
+        """Should detect opportunities topic."""
+        result = manual_agent.detect_help_topic("How do I add an opportunity to the pipeline?")
+        assert result == "opportunities"
+
+    def test_detect_stakeholders_topic(self, manual_agent):
+        """Should detect stakeholders topic."""
+        result = manual_agent.detect_help_topic("How do I track stakeholder engagement?")
+        assert result == "stakeholders"
+
+    def test_detect_faq_topic(self, manual_agent):
+        """Should detect FAQ topic for general questions."""
+        result = manual_agent.detect_help_topic("How do I get started?")
+        assert result == "faq"
+
+    def test_no_topic_for_unrelated_message(self, manual_agent):
+        """Should return None for unrelated messages."""
+        result = manual_agent.detect_help_topic("What's the weather like?")
+        assert result is None
+
+
+class TestManualHelpContent:
+    """Tests for Manual agent help content retrieval."""
+
+    def test_get_agents_content(self, manual_agent):
+        """Should return content for agents topic."""
+        content = manual_agent.get_help_content("agents")
+        assert content is not None
+        assert len(content) > 0
+
+    def test_get_all_topics_have_content(self, manual_agent):
+        """All help topics should have content."""
+        for topic in manual_agent.help_topics:
+            content = manual_agent.get_help_content(topic)
+            assert content is not None, f"Missing content for topic: {topic}"
+
+    def test_unknown_topic_returns_none(self, manual_agent):
+        """Unknown topic should return None."""
+        content = manual_agent.get_help_content("unknown_topic")
+        assert content is None
+
+
+class TestManualHandoffRouting:
+    """Tests for Manual agent handoff to domain experts."""
+
+    def test_handoff_to_capital_for_financial(self, manual_agent, sample_context):
+        """Should handoff to Capital for financial questions."""
+        sample_context.user_message = "What's the ROI calculation method?"
+
+        result = manual_agent.should_handoff(sample_context, "response")
+
+        assert result is not None
+        assert result[0] == "capital"
+
+    def test_handoff_to_guardian_for_security(self, manual_agent, sample_context):
+        """Should handoff to Guardian for security questions."""
+        sample_context.user_message = "What compliance standards does this support?"
+
+        result = manual_agent.should_handoff(sample_context, "response")
+
+        assert result is not None
+        assert result[0] == "guardian"
+
+    def test_handoff_to_atlas_for_research(self, manual_agent, sample_context):
+        """Should handoff to Atlas for research questions."""
+        sample_context.user_message = "Can you find research case study benchmarks about this?"
+
+        result = manual_agent.should_handoff(sample_context, "response")
+
+        assert result is not None
+        assert result[0] == "atlas"
+
+    def test_no_handoff_for_help_questions(self, manual_agent, sample_context):
+        """Should not handoff for standard help questions."""
+        sample_context.user_message = "How do I use the chat feature?"
+
+        result = manual_agent.should_handoff(sample_context, "response")
+
+        assert result is None
+
+
+class TestManualAgentMetadata:
+    """Tests for Manual agent metadata and configuration."""
+
+    def test_agent_name(self, manual_agent):
+        """Agent should have correct name."""
+        assert manual_agent.name == "manual"
+
+    def test_agent_display_name(self, manual_agent):
+        """Agent should have correct display name."""
+        assert manual_agent.display_name == "Manual"
+
+    def test_help_topics_count(self, manual_agent):
+        """Agent should have expected number of help topics."""
+        assert len(manual_agent.help_topics) == 8
+
+    def test_all_expected_topics_present(self, manual_agent):
+        """Agent should have all expected help topics."""
+        expected_topics = [
+            "agents", "chat", "meeting-rooms", "knowledge-base",
+            "tasks", "opportunities", "stakeholders", "faq"
+        ]
+        for topic in expected_topics:
+            assert topic in manual_agent.help_topics

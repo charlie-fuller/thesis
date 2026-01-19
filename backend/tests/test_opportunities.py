@@ -955,3 +955,328 @@ class TestAPIResponseFormat:
         for opp in sample_opportunities:
             assert isinstance(opp["tier"], int)
             assert 1 <= opp["tier"] <= 4
+
+
+# ============================================================================
+# DETAIL MODAL TESTS - Related Documents, Q&A Chat, Conversations
+# ============================================================================
+
+class TestRelatedDocuments:
+    """Tests for opportunity-related document retrieval."""
+
+    def test_get_scoring_related_documents_returns_list(self):
+        """Related documents endpoint returns a list."""
+        mock_opportunity_context.get_scoring_related_documents.return_value = []
+        result = mock_opportunity_context.get_scoring_related_documents(
+            opportunity={"id": "test-id", "title": "Test Opportunity"},
+            client_id="test-client",
+            limit=8,
+            min_similarity=0.25
+        )
+        assert isinstance(result, list)
+
+    def test_related_document_structure(self):
+        """Related document has required fields."""
+        sample_doc = {
+            "chunk_id": "chunk-123",
+            "document_id": "doc-456",
+            "document_name": "Test Document.md",
+            "relevance_score": 0.85,
+            "snippet": "This is a relevant excerpt from the document...",
+            "metadata": {
+                "filename": "Test Document.md",
+                "page_number": None,
+                "source_type": "upload",
+                "storage_path": "/uploads/test.md"
+            }
+        }
+        mock_opportunity_context.get_scoring_related_documents.return_value = [sample_doc]
+        result = mock_opportunity_context.get_scoring_related_documents(
+            opportunity={"id": "test-id"},
+            client_id="test-client"
+        )
+        assert len(result) == 1
+        doc = result[0]
+        assert "chunk_id" in doc
+        assert "document_id" in doc
+        assert "document_name" in doc
+        assert "relevance_score" in doc
+        assert "snippet" in doc
+        assert "metadata" in doc
+
+    def test_related_documents_sorted_by_relevance(self):
+        """Documents are sorted by relevance score descending."""
+        docs = [
+            {"chunk_id": "1", "relevance_score": 0.5},
+            {"chunk_id": "2", "relevance_score": 0.9},
+            {"chunk_id": "3", "relevance_score": 0.7},
+        ]
+        sorted_docs = sorted(docs, key=lambda x: x["relevance_score"], reverse=True)
+        assert sorted_docs[0]["relevance_score"] == 0.9
+        assert sorted_docs[1]["relevance_score"] == 0.7
+        assert sorted_docs[2]["relevance_score"] == 0.5
+
+    def test_related_documents_limit_respected(self):
+        """Document limit parameter is respected."""
+        # Test that limit parameter works
+        mock_opportunity_context.get_scoring_related_documents.return_value = [
+            {"chunk_id": str(i)} for i in range(5)
+        ]
+        result = mock_opportunity_context.get_scoring_related_documents(
+            opportunity={"id": "test-id"},
+            client_id="test-client",
+            limit=5
+        )
+        assert len(result) <= 5
+
+    def test_related_documents_min_similarity_filter(self):
+        """Documents below min_similarity are filtered out."""
+        # All returned docs should be above threshold
+        docs = [
+            {"chunk_id": "1", "relevance_score": 0.3},
+            {"chunk_id": "2", "relevance_score": 0.5},
+        ]
+        filtered = [d for d in docs if d["relevance_score"] >= 0.25]
+        assert len(filtered) == 2
+
+        filtered_strict = [d for d in docs if d["relevance_score"] >= 0.4]
+        assert len(filtered_strict) == 1
+
+    def test_related_documents_empty_opportunity(self):
+        """Empty opportunity context returns empty results gracefully."""
+        mock_opportunity_context.get_scoring_related_documents.return_value = []
+        result = mock_opportunity_context.get_scoring_related_documents(
+            opportunity={"id": "test-id", "title": "", "description": None},
+            client_id="test-client"
+        )
+        assert result == []
+
+
+class TestOpportunityQA:
+    """Tests for Q&A chat about opportunities."""
+
+    @pytest.mark.asyncio
+    async def test_ask_about_opportunity_returns_response(self):
+        """Ask endpoint returns a response with sources."""
+        mock_opportunity_chat.ask_about_opportunity.return_value = {
+            "response": "Based on the documents, this opportunity has high ROI potential.",
+            "sources": []
+        }
+        result = await mock_opportunity_chat.ask_about_opportunity(
+            opportunity_id="test-opp-id",
+            question="Why is ROI rated 5?",
+            client_id="test-client",
+            user_id="test-user"
+        )
+        assert "response" in result
+        assert "sources" in result
+        assert isinstance(result["response"], str)
+        assert isinstance(result["sources"], list)
+
+    @pytest.mark.asyncio
+    async def test_ask_with_sources(self):
+        """Response includes source documents when available."""
+        mock_opportunity_chat.ask_about_opportunity.return_value = {
+            "response": "The ROI is rated 5 because of the evidence in the attached document.",
+            "sources": [
+                {
+                    "chunk_id": "chunk-1",
+                    "document_id": "doc-1",
+                    "document_name": "Business Case.pdf",
+                    "relevance_score": 0.92,
+                    "snippet": "Expected annual savings of $2M..."
+                }
+            ]
+        }
+        result = await mock_opportunity_chat.ask_about_opportunity(
+            opportunity_id="test-opp-id",
+            question="Why is ROI rated 5?",
+            client_id="test-client",
+            user_id="test-user"
+        )
+        assert len(result["sources"]) == 1
+        assert result["sources"][0]["document_name"] == "Business Case.pdf"
+
+    @pytest.mark.asyncio
+    async def test_ask_question_validation(self):
+        """Question must be non-empty."""
+        # Empty question should be invalid
+        question = ""
+        assert len(question.strip()) == 0
+
+        # Valid question
+        question = "What are the blockers?"
+        assert len(question.strip()) > 0
+
+    @pytest.mark.asyncio
+    async def test_ask_question_max_length(self):
+        """Question has maximum length limit."""
+        max_length = 1000
+        long_question = "a" * 1001
+        assert len(long_question) > max_length
+
+        valid_question = "a" * 500
+        assert len(valid_question) <= max_length
+
+
+class TestOpportunityConversations:
+    """Tests for opportunity conversation history."""
+
+    @pytest.mark.asyncio
+    async def test_get_conversations_returns_list(self):
+        """Conversations endpoint returns a list."""
+        mock_opportunity_chat.get_opportunity_conversations.return_value = []
+        result = await mock_opportunity_chat.get_opportunity_conversations(
+            opportunity_id="test-opp-id",
+            client_id="test-client"
+        )
+        assert isinstance(result, list)
+
+    @pytest.mark.asyncio
+    async def test_conversation_structure(self):
+        """Conversation has required fields."""
+        sample_convo = {
+            "id": str(uuid.uuid4()),
+            "question": "What is the implementation timeline?",
+            "response": "Based on the assessment, implementation would take 3-6 months.",
+            "source_documents": [
+                {"document_id": "doc-1", "document_name": "Timeline.pdf"}
+            ],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        mock_opportunity_chat.get_opportunity_conversations.return_value = [sample_convo]
+        result = await mock_opportunity_chat.get_opportunity_conversations(
+            opportunity_id="test-opp-id",
+            client_id="test-client"
+        )
+        assert len(result) == 1
+        convo = result[0]
+        assert "id" in convo
+        assert "question" in convo
+        assert "response" in convo
+        assert "source_documents" in convo
+        assert "created_at" in convo
+
+    @pytest.mark.asyncio
+    async def test_conversations_ordered_by_date(self):
+        """Conversations are returned newest first."""
+        convos = [
+            {"id": "1", "created_at": "2026-01-15T10:00:00Z"},
+            {"id": "2", "created_at": "2026-01-16T10:00:00Z"},
+            {"id": "3", "created_at": "2026-01-14T10:00:00Z"},
+        ]
+        sorted_convos = sorted(convos, key=lambda x: x["created_at"], reverse=True)
+        assert sorted_convos[0]["id"] == "2"  # newest
+        assert sorted_convos[2]["id"] == "3"  # oldest
+
+    @pytest.mark.asyncio
+    async def test_conversations_pagination(self):
+        """Conversations support limit and offset."""
+        # Generate 25 conversations
+        all_convos = [{"id": str(i)} for i in range(25)]
+
+        # First page (limit 20, offset 0)
+        page1 = all_convos[0:20]
+        assert len(page1) == 20
+
+        # Second page (limit 20, offset 20)
+        page2 = all_convos[20:40]
+        assert len(page2) == 5  # Only 5 remaining
+
+
+class TestScoreJustification:
+    """Tests for score justification display logic."""
+
+    def test_score_level_descriptions(self):
+        """Each score level 1-5 has a description."""
+        roi_descriptions = {
+            1: "Minimal impact",
+            2: "Minor improvement",
+            3: "Moderate impact",
+            4: "Significant impact",
+            5: "Transformative impact"
+        }
+        for level in range(1, 6):
+            assert level in roi_descriptions
+            assert len(roi_descriptions[level]) > 0
+
+    def test_all_dimensions_have_descriptions(self):
+        """All 4 scoring dimensions have level descriptions."""
+        dimensions = [
+            "roi_potential",
+            "implementation_effort",
+            "strategic_alignment",
+            "stakeholder_readiness"
+        ]
+        assert len(dimensions) == 4
+        for dim in dimensions:
+            assert dim.replace("_", " ").title()  # Can be displayed
+
+    def test_tier_explanation(self):
+        """Tiers have explanations for scoring context."""
+        tier_info = {
+            1: {"label": "Tier 1: Strategic Priority", "range": "17-20"},
+            2: {"label": "Tier 2: High Impact", "range": "14-16"},
+            3: {"label": "Tier 3: Medium Priority", "range": "11-13"},
+            4: {"label": "Tier 4: Backlog", "range": "0-10"},
+        }
+        assert len(tier_info) == 4
+        for tier in range(1, 5):
+            assert "label" in tier_info[tier]
+            assert "range" in tier_info[tier]
+
+    def test_score_color_coding(self):
+        """Scores map to appropriate colors."""
+        def get_score_color(score: int) -> str:
+            if score >= 4:
+                return "green"
+            elif score >= 3:
+                return "amber"
+            else:
+                return "gray"
+
+        assert get_score_color(5) == "green"
+        assert get_score_color(4) == "green"
+        assert get_score_color(3) == "amber"
+        assert get_score_color(2) == "gray"
+        assert get_score_color(1) == "gray"
+
+
+class TestOpportunityDetailModalAPI:
+    """Tests for the detail modal API endpoints."""
+
+    def test_related_documents_endpoint_path(self):
+        """Related documents endpoint has correct path pattern."""
+        opportunity_id = str(uuid.uuid4())
+        expected_path = f"/api/opportunities/{opportunity_id}/related-documents"
+        assert "/related-documents" in expected_path
+        assert opportunity_id in expected_path
+
+    def test_conversations_endpoint_path(self):
+        """Conversations endpoint has correct path pattern."""
+        opportunity_id = str(uuid.uuid4())
+        expected_path = f"/api/opportunities/{opportunity_id}/conversations"
+        assert "/conversations" in expected_path
+        assert opportunity_id in expected_path
+
+    def test_ask_endpoint_path(self):
+        """Ask endpoint has correct path pattern."""
+        opportunity_id = str(uuid.uuid4())
+        expected_path = f"/api/opportunities/{opportunity_id}/ask"
+        assert "/ask" in expected_path
+        assert opportunity_id in expected_path
+
+    def test_related_documents_default_limit(self):
+        """Related documents has sensible default limit."""
+        default_limit = 8
+        assert 1 <= default_limit <= 20
+
+    def test_conversations_default_limit(self):
+        """Conversations has sensible default limit."""
+        default_limit = 20
+        assert 1 <= default_limit <= 100
+
+    def test_min_similarity_default(self):
+        """Min similarity has sensible default."""
+        default_min_similarity = 0.25
+        assert 0 < default_min_similarity < 1

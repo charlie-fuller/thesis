@@ -1,7 +1,7 @@
 # Thesis Testing Plan
 
 > **Last Updated**: January 18, 2026
-> **Test Coverage**: 410+ tests across 8 test files
+> **Test Coverage**: 445+ tests across 9 test files
 > **Quality Score**: 9.3/10
 
 ## Quick Start
@@ -9,10 +9,13 @@
 ```bash
 cd /Users/charlie.fuller/vaults/Contentful/thesis/backend
 
-# Run all isolated tests (fast, no import chain issues)
+# Run all unit tests (fast, ~1 second, mocked dependencies)
 uv run pytest tests/test_document_classifier.py tests/test_tasks.py \
   tests/test_opportunities.py tests/test_engagement.py tests/test_agents_new.py \
   tests/test_vibe_coding_bugs.py tests/test_rigorous.py -v
+
+# Run integration tests (hits real database, ~70 seconds)
+uv run pytest tests/test_integration.py -v
 
 # Run Obsidian sync tests (requires backend context)
 uv run pytest tests/test_obsidian_sync.py -v
@@ -26,16 +29,34 @@ uv run pytest tests/ --cov=. --cov-report=html
 
 ## Test Files Overview
 
-| File | Tests | Coverage Area | Status |
-|------|-------|---------------|--------|
-| test_document_classifier.py | 38 | Document auto-classification | PASS |
-| test_tasks.py | 34 | Kanban task management | PASS |
-| test_opportunities.py | 102 | AI opportunity pipeline + detail modal | PASS |
-| test_engagement.py | 36 | Stakeholder engagement analytics | PASS |
-| test_agents_new.py | 55 | Glean Evaluator + Compass + Manual agents | PASS |
-| test_obsidian_sync.py | 45+ | Obsidian vault sync | PASS (3 known issues) |
-| test_vibe_coding_bugs.py | 34 | Common vibe-coding bug patterns | PASS |
-| test_rigorous.py | 65 | Contract, boundary, recovery, load tests | PASS |
+| File | Tests | Coverage Area | Runtime | Status |
+|------|-------|---------------|---------|--------|
+| test_document_classifier.py | 38 | Document auto-classification | <1s | PASS |
+| test_tasks.py | 34 | Kanban task management | <1s | PASS |
+| test_opportunities.py | 102 | AI opportunity pipeline + detail modal | <1s | PASS |
+| test_engagement.py | 36 | Stakeholder engagement analytics | <1s | PASS |
+| test_agents_new.py | 55 | Glean Evaluator + Compass + Manual agents | <1s | PASS |
+| test_obsidian_sync.py | 45+ | Obsidian vault sync | <1s | PASS (3 known issues) |
+| test_vibe_coding_bugs.py | 34 | Common vibe-coding bug patterns | <1s | PASS |
+| test_rigorous.py | 65 | Contract, boundary, recovery, load tests | <1s | PASS |
+| **test_integration.py** | **35** | **Real database + API tests** | **~70s** | **PASS** |
+
+## Test Types
+
+### Unit Tests (409+ tests, <1 second)
+All tests except `test_integration.py` are **unit tests** with mocked dependencies:
+- Use `MagicMock` for Supabase, Anthropic, Voyage AI
+- Test business logic in isolation
+- Fast feedback during development
+- No real API calls or database connections
+
+### Integration Tests (35 tests, ~70 seconds)
+`test_integration.py` hits the **real backend**:
+- Uses FastAPI TestClient with actual routes
+- Connects to real Supabase database
+- Creates/updates/deletes real data (with cleanup)
+- Tests authentication, API contracts, concurrent access
+- Requires `.env` file with real credentials
 
 ## Test Architecture
 
@@ -401,17 +422,86 @@ with patch("module.anthropic_client", mock_client):
     result = function_under_test()
 ```
 
+## Integration Tests (test_integration.py)
+
+These tests hit the real backend with actual database connections. They require:
+- Real Supabase credentials in `.env`
+- At least one user in the `users` table
+
+### Coverage Areas (35 tests)
+
+**Health & Connectivity (3 tests)**
+- Root endpoint status
+- Health endpoint with DB connection verification
+- CORS preflight handling
+
+**Agent API (3 tests)**
+- List agents (authenticated and unauthenticated)
+- Get agent by ID
+
+**Task API (10 tests)**
+- List tasks (authenticated and unauthenticated)
+- Create task with validation
+- Get task by ID and not-found handling
+- Update task and status
+- Delete task
+- Kanban board view
+
+**Opportunity API (5 tests)**
+- List opportunities
+- Create with required fields (opportunity_code, title)
+- Get/update by ID
+- Tier calculation verification
+
+**Other Endpoints (4 tests)**
+- Stakeholders list
+- Documents list
+- User documents
+- Conversations list
+
+**Database Integrity (4 tests)**
+- Task status enum constraint
+- Task priority range (1-5)
+- Opportunity score range (1-5)
+- UUID validation
+
+**Concurrent Access (1 test)**
+- Concurrent task creation without collision
+
+**Performance (2 tests)**
+- List tasks < 5 seconds
+- List opportunities < 5 seconds
+
+**Error Handling (3 tests)**
+- 404/500 response format
+- 401 without authentication
+- 422 validation error format
+
+### Running Integration Tests
+
+```bash
+# Run integration tests only
+uv run pytest tests/test_integration.py -v
+
+# Skip slow tests
+uv run pytest tests/test_integration.py -v -m "not slow"
+
+# Run specific test class
+uv run pytest tests/test_integration.py::TestTaskEndpoints -v
+```
+
 ## Continuous Improvement
 
 ### Areas to Expand
 
-1. **API Route Tests** - Add FastAPI TestClient tests for all endpoints
-2. **Meeting Room Tests** - Multi-agent orchestration
-3. **Graph Service Tests** - Neo4j query validation
-4. **Streaming Tests** - SSE event testing
+1. **Meeting Room Tests** - Multi-agent orchestration
+2. **Graph Service Tests** - Neo4j query validation
+3. **Streaming Tests** - SSE event testing
+4. **Chat API Tests** - Agent routing, Dig Deeper
 
 ### Recent Additions (January 2026)
 
+- **Integration tests (35)** - Real database + API tests with ~70s runtime
 - Document classifier tests (38)
 - Task management tests (34)
 - Opportunities pipeline tests (64 -> 102)
@@ -424,6 +514,8 @@ with patch("module.anthropic_client", mock_client):
 - Glean Evaluator agent tests (27)
 - Compass agent tests (28)
 - Obsidian sync expansion (18)
+- Vibe-coding bug tests (34)
+- Rigorous testing suite (65)
 
 ### Next Priority
 
@@ -466,6 +558,13 @@ If a test fails intermittently:
 
 | Date | Changes |
 |------|---------|
+| 2026-01-18 | **Added integration tests (35 tests, ~70s runtime)** |
+| | - Real database tests with FastAPI TestClient |
+| | - Health, Agent, Task, Opportunity, Stakeholder, Document APIs |
+| | - Database integrity and constraint validation |
+| | - Concurrent access testing |
+| | - Performance benchmarks (<5s for list operations) |
+| | - Error handling format verification |
 | 2026-01-18 | Added rigorous testing suite (65 new tests) |
 | | - Contract tests for frontend/backend alignment |
 | | - Boundary tests for tier calculations |
