@@ -1728,25 +1728,23 @@ export default function KBDocumentsContent() {
               </select>
 
               {/* Tag Filter Dropdown */}
-              {allTags.length > 0 && (
-                <select
-                  value={selectedTags.size === 1 ? Array.from(selectedTags)[0] : ''}
-                  onChange={(e) => {
-                    const tag = e.target.value
-                    if (tag === '') {
-                      setSelectedTags(new Set())
-                    } else {
-                      setSelectedTags(new Set([tag]))
-                    }
-                  }}
-                  className="px-3 py-2 border border-default rounded-lg text-sm bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">All Tags</option>
-                  {allTags.slice(0, 50).map(tag => (
-                    <option key={tag} value={tag}>{tag}</option>
-                  ))}
-                </select>
-              )}
+              <select
+                value={selectedTags.size === 1 ? Array.from(selectedTags)[0] : ''}
+                onChange={(e) => {
+                  const tag = e.target.value
+                  if (tag === '') {
+                    setSelectedTags(new Set())
+                  } else {
+                    setSelectedTags(new Set([tag]))
+                  }
+                }}
+                className="px-3 py-2 border border-default rounded-lg text-sm bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Tags{allTags.length > 0 ? ` (${allTags.length})` : ''}</option>
+                {allTags.slice(0, 50).map(tag => (
+                  <option key={tag} value={tag}>{tag}</option>
+                ))}
+              </select>
             </div>
           )}
 
