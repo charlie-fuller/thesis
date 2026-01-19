@@ -329,35 +329,57 @@ async def list_user_documents(
     """List all documents uploaded by current user.
 
     Returns documents with their tags and obsidian file path (if applicable).
+    Handles pagination to fetch all documents (Supabase default limit is 1000).
     """
     try:
-        # Get all documents for the user
-        result = await asyncio.to_thread(
-            lambda: supabase.table('documents')\
-                .select('*')\
-                .eq('uploaded_by', current_user['id'])\
-                .order('uploaded_at', desc=True)\
-                .execute()
-        )
+        # Fetch all documents with pagination (Supabase limits to 1000 per request)
+        all_documents = []
+        page_size = 1000
+        offset = 0
 
-        documents = result.data or []
+        while True:
+            result = await asyncio.to_thread(
+                lambda o=offset: supabase.table('documents')
+                    .select('*')
+                    .eq('uploaded_by', current_user['id'])
+                    .order('uploaded_at', desc=True)
+                    .range(o, o + page_size - 1)
+                    .execute()
+            )
+
+            batch = result.data or []
+            all_documents.extend(batch)
+
+            # If we got fewer than page_size, we've fetched all documents
+            if len(batch) < page_size:
+                break
+
+            offset += page_size
+
+        documents = all_documents
         doc_ids = [doc['id'] for doc in documents]
 
-        # Get tags for all documents in a single query
+        # Get tags for all documents (also paginated)
         # Gracefully handle case where document_tags table doesn't exist yet
         tags_by_doc = {}
         if doc_ids:
             try:
-                tags_result = await asyncio.to_thread(
-                    lambda: supabase.table('document_tags')\
-                        .select('document_id, tag, source')\
-                        .in_('document_id', doc_ids)\
-                        .order('created_at')\
-                        .execute()
-                )
+                # Fetch tags in batches of 500 doc_ids to avoid query limits
+                batch_size = 500
+                all_tags = []
+
+                for i in range(0, len(doc_ids), batch_size):
+                    batch_ids = doc_ids[i:i + batch_size]
+                    tags_result = await asyncio.to_thread(
+                        lambda ids=batch_ids: supabase.table('document_tags')
+                            .select('document_id, tag, source')
+                            .in_('document_id', ids)
+                            .execute()
+                    )
+                    all_tags.extend(tags_result.data or [])
 
                 # Group tags by document_id
-                for tag_record in tags_result.data or []:
+                for tag_record in all_tags:
                     doc_id = tag_record['document_id']
                     if doc_id not in tags_by_doc:
                         tags_by_doc[doc_id] = []
@@ -375,7 +397,8 @@ async def list_user_documents(
 
         return {
             'success': True,
-            'documents': documents
+            'documents': documents,
+            'count': len(documents)
         }
 
     except Exception as e:
