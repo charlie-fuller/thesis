@@ -121,7 +121,11 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - Operator agent auto-injects triage context for relevant queries
 14. **Opportunities Pipeline**: Dedicated opportunities management (`/opportunities` page)
     - Visual tier-based grouping with expandable sections
-    - Status tracking (identified, validating, approved, implementing, completed)
+    - Status tracking (identified, scoping, pilot, scaling, completed, blocked)
+    - Click any opportunity card to open detail modal with:
+      - **Score Justification**: Visual breakdown of 4 dimensions (ROI, Effort, Strategic, Readiness) with explanations of what each score level means
+      - **Related Documents**: Vector search finds KB documents relevant to the opportunity's context
+      - **Q&A Chat**: Ask questions about the opportunity and get AI answers with source citations
     - Create new opportunities with scoring criteria
 15. **Meeting Prep**: Stakeholder briefing pages (`/meeting-prep/[stakeholder_id]`)
     - Pre-meeting context on stakeholder priorities and pain points
@@ -316,6 +320,7 @@ task_history                 -- Status/priority/assignee change history
 
 -- Business Intelligence (Project Triage)
 ai_opportunities             -- Tier-scored AI opportunities with department/owner
+opportunity_conversations    -- Q&A history for opportunity detail modal
 roi_opportunities            -- Identified ROI opportunities
 
 -- Research Intelligence (Atlas)
@@ -470,7 +475,9 @@ uv run pytest tests/ -v --tb=short
 - `/backend/api/routes/research.py` - Atlas research API endpoints
 - `/backend/api/routes/glean_connectors.py` - Glean connector registry and gap tracking endpoints
 - `/backend/api/routes/tasks.py` - Kanban task management CRUD and transcript extraction
-- `/backend/api/routes/opportunities.py` - AI opportunity pipeline management
+- `/backend/api/routes/opportunities.py` - AI opportunity pipeline management with detail modal endpoints
+- `/backend/services/opportunity_context.py` - Vector search for opportunity-related KB documents
+- `/backend/services/opportunity_chat.py` - Q&A chat service for opportunity detail modal
 - `/backend/api/routes/meeting_prep.py` - Stakeholder briefing endpoints
 - `/backend/api/routes/stakeholder_metrics.py` - KPI tracking with validation status
 - `/backend/api/routes/admin.py` - Admin dashboard with real API health checks
@@ -487,6 +494,8 @@ uv run pytest tests/ -v --tb=short
 - `/frontend/app/meeting-room/` - Meeting room pages
 - `/frontend/app/tasks/` - Kanban task management
 - `/frontend/app/opportunities/` - AI opportunity pipeline
+- `/frontend/components/opportunities/OpportunityDetailModal.tsx` - Full detail modal with score justification, related docs, Q&A
+- `/frontend/components/opportunities/ScoreJustification.tsx` - Visual score breakdown component
 - `/frontend/app/meeting-prep/` - Stakeholder briefing pages
 - `/frontend/app/intelligence/` - Analytics and engagement trends
 - `/frontend/app/admin/agents/` - Agent admin interface
