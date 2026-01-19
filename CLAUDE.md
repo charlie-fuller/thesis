@@ -125,6 +125,8 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - Click any opportunity card to open detail modal with:
       - **Score Justification**: Visual breakdown of 4 dimensions (ROI, Effort, Strategic, Readiness) with explanations of what each score level means
       - **Related Documents**: Vector search finds KB documents relevant to the opportunity's context
+        - **Inline Document Viewer**: Click Eye icon to view document content in modal without leaving the page
+        - External link icon opens document in Knowledge Base (new tab)
       - **Q&A Chat**: Ask questions about the opportunity and get AI answers with source citations
     - Create new opportunities with scoring criteria
 15. **Meeting Prep**: Stakeholder briefing pages (`/meeting-prep/[stakeholder_id]`)
@@ -497,6 +499,7 @@ uv run pytest tests/ -v --tb=short
 - `/frontend/app/tasks/` - Kanban task management
 - `/frontend/app/opportunities/` - AI opportunity pipeline
 - `/frontend/components/opportunities/OpportunityDetailModal.tsx` - Full detail modal with score justification, related docs, Q&A
+- `/frontend/components/opportunities/DocumentViewerModal.tsx` - Inline document viewer modal with markdown rendering
 - `/frontend/components/opportunities/ScoreJustification.tsx` - Visual score breakdown component
 - `/frontend/app/meeting-prep/` - Stakeholder briefing pages
 - `/frontend/app/intelligence/` - Analytics and engagement trends
