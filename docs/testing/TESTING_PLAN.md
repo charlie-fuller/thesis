@@ -1,7 +1,7 @@
 # Thesis Testing Plan
 
-> **Last Updated**: January 16, 2026
-> **Test Coverage**: 272+ tests across 6 test files
+> **Last Updated**: January 18, 2026
+> **Test Coverage**: 345+ tests across 7 test files
 > **Quality Score**: 9.3/10
 
 ## Quick Start
@@ -11,7 +11,8 @@ cd /Users/charlie.fuller/vaults/Contentful/thesis/backend
 
 # Run all isolated tests (fast, no import chain issues)
 uv run pytest tests/test_document_classifier.py tests/test_tasks.py \
-  tests/test_opportunities.py tests/test_engagement.py tests/test_agents_new.py -v
+  tests/test_opportunities.py tests/test_engagement.py tests/test_agents_new.py \
+  tests/test_vibe_coding_bugs.py -v
 
 # Run Obsidian sync tests (requires backend context)
 uv run pytest tests/test_obsidian_sync.py -v
@@ -29,10 +30,11 @@ uv run pytest tests/ --cov=. --cov-report=html
 |------|-------|---------------|--------|
 | test_document_classifier.py | 38 | Document auto-classification | PASS |
 | test_tasks.py | 34 | Kanban task management | PASS |
-| test_opportunities.py | 64 | AI opportunity pipeline | PASS |
+| test_opportunities.py | 102 | AI opportunity pipeline + detail modal | PASS |
 | test_engagement.py | 36 | Stakeholder engagement analytics | PASS |
-| test_agents_new.py | 55 | Glean Evaluator + Compass agents | PASS |
+| test_agents_new.py | 55 | Glean Evaluator + Compass + Manual agents | PASS |
 | test_obsidian_sync.py | 45+ | Obsidian vault sync | PASS (3 known issues) |
+| test_vibe_coding_bugs.py | 34 | Common vibe-coding bug patterns | PASS |
 
 ## Test Architecture
 
@@ -78,12 +80,32 @@ Each test file follows this structure:
 - Transcript extraction
 - Filtering and search
 
-### Opportunities Pipeline (64 tests)
+### Opportunities Pipeline (102 tests)
 - Tier-based scoring (4 dimensions)
 - Status progression workflow
 - Stakeholder linkage
 - Operator context injection
 - API response formats
+- **Detail Modal - Related Documents** (7 tests)
+  - Document structure validation
+  - Relevance score sorting
+  - Limit and min_similarity filtering
+  - Empty opportunity handling
+- **Detail Modal - Q&A Chat** (4 tests)
+  - Response with sources
+  - Question validation (length, empty)
+  - Source document linking
+- **Detail Modal - Conversations** (4 tests)
+  - Conversation structure
+  - Date ordering (newest first)
+  - Pagination (limit/offset)
+- **Score Justification** (4 tests)
+  - Level descriptions for all dimensions
+  - Tier explanations
+  - Color coding logic
+- **API Endpoints** (6 tests)
+  - Path patterns for /related-documents, /conversations, /ask
+  - Default parameter validation
 
 ### Engagement Analytics (36 tests)
 - Signal aggregation
@@ -106,6 +128,59 @@ Each test file follows this structure:
 - Vault scanning
 - Sync state management
 - Watcher configuration
+
+### Vibe-Coding Bug Patterns (34 tests)
+These tests target common failure modes in AI-assisted codebases:
+
+**Array/List Edge Cases** (6 tests)
+- Empty tier handling (returns `[]` not `null`)
+- Single-item pagination
+- Empty array serialization
+- Pagination beyond data bounds
+- Negative offset handling
+- Nullable array fields (`tags: null` vs `tags: []`)
+
+**Type Coercion Bugs** (7 tests)
+- UUID string vs object equality
+- String-to-int score conversion
+- Boolean query param variations (`true`, `1`, `True`)
+- Tier number vs string handling
+- Null vs empty string in optional fields
+- ISO date string parsing variants
+- Float score rounding
+
+**Async Race Conditions** (3 tests)
+- Double-submit protection
+- Concurrent status updates (last-writer-wins)
+- Read-during-write consistency
+
+**Error Message Propagation** (4 tests)
+- Validation errors include field name
+- Not-found errors specify resource type
+- Duplicate errors are user-friendly
+- Permission errors don't leak existence
+
+**Default Value Consistency** (5 tests)
+- Opportunity default status (`identified`)
+- Tier calculation from null scores (tier 4)
+- Task default status (`backlog`)
+- Document default visibility (`private`)
+- Stakeholder default engagement (`unknown`)
+
+**Permission/Isolation** (3 tests)
+- User can only see own opportunities
+- Document visibility in search results
+- Agent assignment ownership check
+
+**UI State Sync Expectations** (4 tests)
+- Create returns complete object with generated fields
+- Update returns updated object (not just success)
+- Delete returns deleted ID for state removal
+- List endpoints return consistent shape when empty
+
+**Full Flow Integration** (2 tests)
+- Opportunity create-to-display flow
+- Filter-then-detail data consistency
 
 ## Known Issues
 
@@ -282,7 +357,12 @@ with patch("module.anthropic_client", mock_client):
 
 - Document classifier tests (38)
 - Task management tests (34)
-- Opportunities pipeline tests (64)
+- Opportunities pipeline tests (64 -> 102)
+  - Added detail modal tests (38 new tests)
+  - Related documents retrieval
+  - Q&A chat functionality
+  - Conversation history
+  - Score justification display
 - Engagement calculator tests (36)
 - Glean Evaluator agent tests (27)
 - Compass agent tests (28)
@@ -329,6 +409,21 @@ If a test fails intermittently:
 
 | Date | Changes |
 |------|---------|
+| 2026-01-18 | Added vibe-coding bug tests (34 new tests) |
+| | - Array/list edge cases (6 tests) |
+| | - Type coercion bugs (7 tests) |
+| | - Async race conditions (3 tests) |
+| | - Error message propagation (4 tests) |
+| | - Default value consistency (5 tests) |
+| | - Permission/isolation bugs (3 tests) |
+| | - UI state sync expectations (4 tests) |
+| | - Full flow integration (2 tests) |
+| 2026-01-18 | Added opportunity detail modal tests (38 new tests) |
+| | - Related documents retrieval and validation |
+| | - Q&A chat functionality |
+| | - Conversation history with pagination |
+| | - Score justification display logic |
+| | - API endpoint path validation |
 | 2026-01-16 | Initial plan created with 272+ tests |
 | | Added isolation pattern documentation |
 | | Documented import chain fix |

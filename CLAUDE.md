@@ -426,10 +426,11 @@ uv run pytest tests/ -v --tb=short
 |-----------|-------|--------|
 | test_document_classifier.py | 38 | PASS |
 | test_tasks.py | 34 | PASS |
-| test_opportunities.py | 64 | PASS |
+| test_opportunities.py | 102 | PASS |
 | test_engagement.py | 36 | PASS |
 | test_agents_new.py | 55 | PASS |
 | test_obsidian_sync.py | 45+ | PASS |
+| test_vibe_coding_bugs.py | 34 | PASS |
 
 ### Code Quality Targets
 | Metric | Target | Current |
