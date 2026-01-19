@@ -187,7 +187,381 @@ async def get_next_position(client_id: str, status: str) -> int:
 
 
 # ============================================================================
-# Task CRUD Operations
+# Static Routes (MUST be defined before parameterized routes like /{task_id})
+# ============================================================================
+
+@router.get("/kanban")
+async def get_kanban_board(
+    current_user: dict = Depends(get_current_user),
+    assignee_stakeholder_id: Optional[str] = Query(None),
+    assignee_user_id: Optional[str] = Query(None),
+    due_date_from: Optional[date] = Query(None),
+    due_date_to: Optional[date] = Query(None),
+    priority: Optional[List[int]] = Query(None),
+    source_type: Optional[List[str]] = Query(None),
+    category: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    include_completed: bool = Query(True),
+):
+    """Get tasks grouped by status for Kanban board display."""
+    try:
+        client_id = current_user.get('client_id') or get_default_client_id()
+
+        # Build query using view for joined data
+        query = supabase.table('v_tasks_with_assignee').select('*').eq('client_id', client_id)
+
+        # Apply filters
+        if assignee_stakeholder_id:
+            validate_uuid(assignee_stakeholder_id, "assignee_stakeholder_id")
+            query = query.eq('assignee_stakeholder_id', assignee_stakeholder_id)
+
+        if assignee_user_id:
+            validate_uuid(assignee_user_id, "assignee_user_id")
+            query = query.eq('assignee_user_id', assignee_user_id)
+
+        if due_date_from:
+            query = query.gte('due_date', due_date_from.isoformat())
+
+        if due_date_to:
+            query = query.lte('due_date', due_date_to.isoformat())
+
+        if priority:
+            query = query.in_('priority', priority)
+
+        if source_type:
+            query = query.in_('source_type', source_type)
+
+        if category:
+            query = query.eq('category', category)
+
+        if not include_completed:
+            query = query.neq('status', 'completed')
+
+        # Order by position within status
+        query = query.order('status').order('position')
+
+        result = await asyncio.to_thread(lambda: query.execute())
+
+        tasks = result.data or []
+
+        # Filter by search term (client-side for flexibility)
+        if search:
+            search_lower = search.lower()
+            tasks = [t for t in tasks if search_lower in (t.get('title') or '').lower() or search_lower in (t.get('description') or '').lower()]
+
+        # Group tasks by status
+        columns = {
+            'pending': [],
+            'in_progress': [],
+            'blocked': [],
+            'completed': []
+        }
+
+        for task in tasks:
+            status = task.get('status', 'pending')
+            if status in columns:
+                columns[status].append(serialize_task(task))
+
+        # Count tasks
+        counts = {status: len(tasks_list) for status, tasks_list in columns.items()}
+        counts['total'] = sum(counts.values())
+        counts['overdue'] = len([t for t in tasks if t.get('due_date') and t['due_date'] < datetime.now(timezone.utc).date().isoformat() and t['status'] != 'completed'])
+
+        return {
+            'success': True,
+            'columns': columns,
+            'counts': counts,
+            'filters_applied': {
+                'assignee_stakeholder_id': assignee_stakeholder_id,
+                'assignee_user_id': assignee_user_id,
+                'due_date_from': due_date_from.isoformat() if due_date_from else None,
+                'due_date_to': due_date_to.isoformat() if due_date_to else None,
+                'priority': priority,
+                'source_type': source_type,
+                'category': category,
+                'search': search,
+                'include_completed': include_completed,
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching kanban board: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/reorder")
+async def reorder_tasks(
+    request: TaskBulkReorderRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Bulk reorder tasks (for Kanban drag-drop reordering within columns)."""
+    try:
+        client_id = current_user.get('client_id') or get_default_client_id()
+        user_id = current_user['id']
+
+        updated_count = 0
+        errors = []
+
+        for item in request.tasks:
+            try:
+                validate_uuid(item.task_id, "task_id")
+
+                result = await asyncio.to_thread(
+                    lambda tid=item.task_id, s=item.status.value, p=item.position: supabase.table('project_tasks')
+                        .update({
+                            'status': s,
+                            'position': p,
+                            'updated_by': user_id
+                        })
+                        .eq('id', tid)
+                        .eq('client_id', client_id)
+                        .execute()
+                )
+
+                if result.data:
+                    updated_count += 1
+                else:
+                    errors.append({'task_id': item.task_id, 'error': 'Task not found'})
+
+            except Exception as e:
+                errors.append({'task_id': item.task_id, 'error': str(e)})
+
+        return {
+            'success': True,
+            'updated_count': updated_count,
+            'errors': errors,
+            'message': f'Reordered {updated_count} tasks'
+        }
+
+    except Exception as e:
+        logger.error(f"Error reordering tasks: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/extract/transcript/{transcript_id}")
+async def extract_tasks_from_transcript(
+    transcript_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Extract tasks from a meeting transcript's action_items."""
+    try:
+        validate_uuid(transcript_id, "transcript_id")
+        client_id = current_user.get('client_id') or get_default_client_id()
+        user_id = current_user['id']
+
+        # Get transcript with action_items
+        transcript_result = await asyncio.to_thread(
+            lambda: supabase.table('meeting_transcripts')
+                .select('id, title, action_items, client_id')
+                .eq('id', transcript_id)
+                .single()
+                .execute()
+        )
+
+        if not transcript_result.data:
+            raise HTTPException(status_code=404, detail="Transcript not found")
+
+        transcript = transcript_result.data
+
+        # Verify client access
+        if transcript['client_id'] != client_id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this transcript")
+
+        action_items = transcript.get('action_items') or []
+
+        if not action_items:
+            return {
+                'success': True,
+                'tasks_created': 0,
+                'tasks_skipped': 0,
+                'message': 'No action items found in transcript'
+            }
+
+        tasks_created = 0
+        tasks_skipped = 0
+        created_tasks = []
+
+        for item in action_items:
+            description = item.get('description', '').strip()
+            if not description:
+                tasks_skipped += 1
+                continue
+
+            # Check for duplicate by source_text
+            existing = await asyncio.to_thread(
+                lambda desc=description: supabase.table('project_tasks')
+                    .select('id')
+                    .eq('client_id', client_id)
+                    .eq('source_transcript_id', transcript_id)
+                    .eq('source_text', desc)
+                    .limit(1)
+                    .execute()
+            )
+
+            if existing.data:
+                tasks_skipped += 1
+                continue
+
+            # Parse due date if present
+            due_date = None
+            due_date_str = item.get('due_date')
+            if due_date_str:
+                try:
+                    due_date = datetime.fromisoformat(due_date_str.replace('Z', '+00:00')).date().isoformat()
+                except (ValueError, AttributeError):
+                    pass
+
+            # Get next position
+            position = await get_next_position(client_id, 'pending')
+
+            task_record = {
+                'client_id': client_id,
+                'title': description[:500],  # Truncate to max length
+                'description': f"Extracted from: {transcript.get('title', 'Meeting')}",
+                'status': 'pending',
+                'priority': 3,
+                'assignee_name': item.get('owner'),
+                'due_date': due_date,
+                'source_type': 'transcript',
+                'source_transcript_id': transcript_id,
+                'source_text': description,
+                'source_extracted_at': datetime.now(timezone.utc).isoformat(),
+                'category': 'meeting_action',
+                'created_by': user_id,
+                'updated_by': user_id,
+                'position': position,
+            }
+
+            result = await asyncio.to_thread(
+                lambda rec=task_record: supabase.table('project_tasks').insert(rec).execute()
+            )
+
+            if result.data:
+                tasks_created += 1
+                created_tasks.append(serialize_task(result.data[0]))
+
+        logger.info(f"Extracted {tasks_created} tasks from transcript {transcript_id}")
+
+        return {
+            'success': True,
+            'tasks_created': tasks_created,
+            'tasks_skipped': tasks_skipped,
+            'tasks': created_tasks,
+            'message': f'Created {tasks_created} tasks, skipped {tasks_skipped} (duplicates or empty)'
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error extracting tasks from transcript: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Task List with Filters
+# ============================================================================
+
+@router.get("")
+async def list_tasks(
+    current_user: dict = Depends(get_current_user),
+    status: Optional[List[str]] = Query(None),
+    assignee_stakeholder_id: Optional[str] = Query(None),
+    assignee_user_id: Optional[str] = Query(None),
+    due_date_from: Optional[date] = Query(None),
+    due_date_to: Optional[date] = Query(None),
+    priority: Optional[List[int]] = Query(None),
+    source_type: Optional[List[str]] = Query(None),
+    category: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    order_by: str = Query('created_at'),
+    order_dir: str = Query('desc'),
+):
+    """List tasks with filtering, pagination, and sorting."""
+    try:
+        client_id = current_user.get('client_id') or get_default_client_id()
+
+        # Build query
+        query = supabase.table('v_tasks_with_assignee').select('*', count='exact').eq('client_id', client_id)
+
+        # Apply filters
+        if status:
+            query = query.in_('status', status)
+
+        if assignee_stakeholder_id:
+            validate_uuid(assignee_stakeholder_id, "assignee_stakeholder_id")
+            query = query.eq('assignee_stakeholder_id', assignee_stakeholder_id)
+
+        if assignee_user_id:
+            validate_uuid(assignee_user_id, "assignee_user_id")
+            query = query.eq('assignee_user_id', assignee_user_id)
+
+        if due_date_from:
+            query = query.gte('due_date', due_date_from.isoformat())
+
+        if due_date_to:
+            query = query.lte('due_date', due_date_to.isoformat())
+
+        if priority:
+            query = query.in_('priority', priority)
+
+        if source_type:
+            query = query.in_('source_type', source_type)
+
+        if category:
+            query = query.eq('category', category)
+
+        # Apply ordering
+        valid_order_fields = ['created_at', 'updated_at', 'due_date', 'priority', 'position', 'title']
+        if order_by not in valid_order_fields:
+            order_by = 'created_at'
+        desc = order_dir.lower() == 'desc'
+        query = query.order(order_by, desc=desc)
+
+        # Apply pagination
+        query = query.limit(limit).offset(offset)
+
+        result = await asyncio.to_thread(lambda: query.execute())
+
+        tasks = result.data or []
+        total = result.count or len(tasks)
+
+        # Filter by search term (client-side)
+        if search:
+            search_lower = search.lower()
+            tasks = [t for t in tasks if search_lower in (t.get('title') or '').lower() or search_lower in (t.get('description') or '').lower()]
+
+        return {
+            'success': True,
+            'tasks': [serialize_task(t) for t in tasks],
+            'total': total,
+            'limit': limit,
+            'offset': offset,
+            'filters_applied': {
+                'status': status,
+                'assignee_stakeholder_id': assignee_stakeholder_id,
+                'assignee_user_id': assignee_user_id,
+                'due_date_from': due_date_from.isoformat() if due_date_from else None,
+                'due_date_to': due_date_to.isoformat() if due_date_to else None,
+                'priority': priority,
+                'source_type': source_type,
+                'category': category,
+                'search': search,
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing tasks: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Task CRUD Operations (parameterized routes MUST come after static routes)
 # ============================================================================
 
 @router.post("")
@@ -426,111 +800,6 @@ async def delete_task(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ============================================================================
-# Kanban Board Operations
-# ============================================================================
-
-@router.get("/kanban")
-async def get_kanban_board(
-    current_user: dict = Depends(get_current_user),
-    assignee_stakeholder_id: Optional[str] = Query(None),
-    assignee_user_id: Optional[str] = Query(None),
-    due_date_from: Optional[date] = Query(None),
-    due_date_to: Optional[date] = Query(None),
-    priority: Optional[List[int]] = Query(None),
-    source_type: Optional[List[str]] = Query(None),
-    category: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
-    include_completed: bool = Query(True),
-):
-    """Get tasks grouped by status for Kanban board display."""
-    try:
-        client_id = current_user.get('client_id') or get_default_client_id()
-
-        # Build query using view for joined data
-        query = supabase.table('v_tasks_with_assignee').select('*').eq('client_id', client_id)
-
-        # Apply filters
-        if assignee_stakeholder_id:
-            validate_uuid(assignee_stakeholder_id, "assignee_stakeholder_id")
-            query = query.eq('assignee_stakeholder_id', assignee_stakeholder_id)
-
-        if assignee_user_id:
-            validate_uuid(assignee_user_id, "assignee_user_id")
-            query = query.eq('assignee_user_id', assignee_user_id)
-
-        if due_date_from:
-            query = query.gte('due_date', due_date_from.isoformat())
-
-        if due_date_to:
-            query = query.lte('due_date', due_date_to.isoformat())
-
-        if priority:
-            query = query.in_('priority', priority)
-
-        if source_type:
-            query = query.in_('source_type', source_type)
-
-        if category:
-            query = query.eq('category', category)
-
-        if not include_completed:
-            query = query.neq('status', 'completed')
-
-        # Order by position within status
-        query = query.order('status').order('position')
-
-        result = await asyncio.to_thread(lambda: query.execute())
-
-        tasks = result.data or []
-
-        # Filter by search term (client-side for flexibility)
-        if search:
-            search_lower = search.lower()
-            tasks = [t for t in tasks if search_lower in (t.get('title') or '').lower() or search_lower in (t.get('description') or '').lower()]
-
-        # Group tasks by status
-        columns = {
-            'pending': [],
-            'in_progress': [],
-            'blocked': [],
-            'completed': []
-        }
-
-        for task in tasks:
-            status = task.get('status', 'pending')
-            if status in columns:
-                columns[status].append(serialize_task(task))
-
-        # Count tasks
-        counts = {status: len(tasks_list) for status, tasks_list in columns.items()}
-        counts['total'] = sum(counts.values())
-        counts['overdue'] = len([t for t in tasks if t.get('due_date') and t['due_date'] < datetime.now(timezone.utc).date().isoformat() and t['status'] != 'completed'])
-
-        return {
-            'success': True,
-            'columns': columns,
-            'counts': counts,
-            'filters_applied': {
-                'assignee_stakeholder_id': assignee_stakeholder_id,
-                'assignee_user_id': assignee_user_id,
-                'due_date_from': due_date_from.isoformat() if due_date_from else None,
-                'due_date_to': due_date_to.isoformat() if due_date_to else None,
-                'priority': priority,
-                'source_type': source_type,
-                'category': category,
-                'search': search,
-                'include_completed': include_completed,
-            }
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching kanban board: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.patch("/{task_id}/status")
 async def update_task_status(
     task_id: str,
@@ -596,156 +865,6 @@ async def update_task_status(
         raise
     except Exception as e:
         logger.error(f"Error updating task status: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/reorder")
-async def reorder_tasks(
-    request: TaskBulkReorderRequest,
-    current_user: dict = Depends(get_current_user)
-):
-    """Bulk reorder tasks (for Kanban drag-drop reordering within columns)."""
-    try:
-        client_id = current_user.get('client_id') or get_default_client_id()
-        user_id = current_user['id']
-
-        updated_count = 0
-        errors = []
-
-        for item in request.tasks:
-            try:
-                validate_uuid(item.task_id, "task_id")
-
-                result = await asyncio.to_thread(
-                    lambda tid=item.task_id, s=item.status.value, p=item.position: supabase.table('project_tasks')
-                        .update({
-                            'status': s,
-                            'position': p,
-                            'updated_by': user_id
-                        })
-                        .eq('id', tid)
-                        .eq('client_id', client_id)
-                        .execute()
-                )
-
-                if result.data:
-                    updated_count += 1
-                else:
-                    errors.append({'task_id': item.task_id, 'error': 'Task not found'})
-
-            except Exception as e:
-                errors.append({'task_id': item.task_id, 'error': str(e)})
-
-        return {
-            'success': True,
-            'updated_count': updated_count,
-            'errors': errors,
-            'message': f'Reordered {updated_count} tasks'
-        }
-
-    except Exception as e:
-        logger.error(f"Error reordering tasks: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ============================================================================
-# Task List with Filters
-# ============================================================================
-
-@router.get("")
-async def list_tasks(
-    current_user: dict = Depends(get_current_user),
-    status: Optional[List[str]] = Query(None),
-    assignee_stakeholder_id: Optional[str] = Query(None),
-    assignee_user_id: Optional[str] = Query(None),
-    due_date_from: Optional[date] = Query(None),
-    due_date_to: Optional[date] = Query(None),
-    priority: Optional[List[int]] = Query(None),
-    source_type: Optional[List[str]] = Query(None),
-    category: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
-    limit: int = Query(100, ge=1, le=500),
-    offset: int = Query(0, ge=0),
-    order_by: str = Query('created_at'),
-    order_dir: str = Query('desc'),
-):
-    """List tasks with filtering, pagination, and sorting."""
-    try:
-        client_id = current_user.get('client_id') or get_default_client_id()
-
-        # Build query
-        query = supabase.table('v_tasks_with_assignee').select('*', count='exact').eq('client_id', client_id)
-
-        # Apply filters
-        if status:
-            query = query.in_('status', status)
-
-        if assignee_stakeholder_id:
-            validate_uuid(assignee_stakeholder_id, "assignee_stakeholder_id")
-            query = query.eq('assignee_stakeholder_id', assignee_stakeholder_id)
-
-        if assignee_user_id:
-            validate_uuid(assignee_user_id, "assignee_user_id")
-            query = query.eq('assignee_user_id', assignee_user_id)
-
-        if due_date_from:
-            query = query.gte('due_date', due_date_from.isoformat())
-
-        if due_date_to:
-            query = query.lte('due_date', due_date_to.isoformat())
-
-        if priority:
-            query = query.in_('priority', priority)
-
-        if source_type:
-            query = query.in_('source_type', source_type)
-
-        if category:
-            query = query.eq('category', category)
-
-        # Apply ordering
-        valid_order_fields = ['created_at', 'updated_at', 'due_date', 'priority', 'position', 'title']
-        if order_by not in valid_order_fields:
-            order_by = 'created_at'
-        desc = order_dir.lower() == 'desc'
-        query = query.order(order_by, desc=desc)
-
-        # Apply pagination
-        query = query.limit(limit).offset(offset)
-
-        result = await asyncio.to_thread(lambda: query.execute())
-
-        tasks = result.data or []
-        total = result.count or len(tasks)
-
-        # Filter by search term (client-side)
-        if search:
-            search_lower = search.lower()
-            tasks = [t for t in tasks if search_lower in (t.get('title') or '').lower() or search_lower in (t.get('description') or '').lower()]
-
-        return {
-            'success': True,
-            'tasks': [serialize_task(t) for t in tasks],
-            'total': total,
-            'limit': limit,
-            'offset': offset,
-            'filters_applied': {
-                'status': status,
-                'assignee_stakeholder_id': assignee_stakeholder_id,
-                'assignee_user_id': assignee_user_id,
-                'due_date_from': due_date_from.isoformat() if due_date_from else None,
-                'due_date_to': due_date_to.isoformat() if due_date_to else None,
-                'priority': priority,
-                'source_type': source_type,
-                'category': category,
-                'search': search,
-            }
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error listing tasks: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -929,127 +1048,4 @@ async def get_task_history(
         raise
     except Exception as e:
         logger.error(f"Error fetching task history: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ============================================================================
-# Task Extraction from Transcripts
-# ============================================================================
-
-@router.post("/extract/transcript/{transcript_id}")
-async def extract_tasks_from_transcript(
-    transcript_id: str,
-    current_user: dict = Depends(get_current_user)
-):
-    """Extract tasks from a meeting transcript's action_items."""
-    try:
-        validate_uuid(transcript_id, "transcript_id")
-        client_id = current_user.get('client_id') or get_default_client_id()
-        user_id = current_user['id']
-
-        # Get transcript with action_items
-        transcript_result = await asyncio.to_thread(
-            lambda: supabase.table('meeting_transcripts')
-                .select('id, title, action_items, client_id')
-                .eq('id', transcript_id)
-                .single()
-                .execute()
-        )
-
-        if not transcript_result.data:
-            raise HTTPException(status_code=404, detail="Transcript not found")
-
-        transcript = transcript_result.data
-
-        # Verify client access
-        if transcript['client_id'] != client_id:
-            raise HTTPException(status_code=403, detail="Not authorized to access this transcript")
-
-        action_items = transcript.get('action_items') or []
-
-        if not action_items:
-            return {
-                'success': True,
-                'tasks_created': 0,
-                'tasks_skipped': 0,
-                'message': 'No action items found in transcript'
-            }
-
-        tasks_created = 0
-        tasks_skipped = 0
-        created_tasks = []
-
-        for item in action_items:
-            description = item.get('description', '').strip()
-            if not description:
-                tasks_skipped += 1
-                continue
-
-            # Check for duplicate by source_text
-            existing = await asyncio.to_thread(
-                lambda desc=description: supabase.table('project_tasks')
-                    .select('id')
-                    .eq('client_id', client_id)
-                    .eq('source_transcript_id', transcript_id)
-                    .eq('source_text', desc)
-                    .limit(1)
-                    .execute()
-            )
-
-            if existing.data:
-                tasks_skipped += 1
-                continue
-
-            # Parse due date if present
-            due_date = None
-            due_date_str = item.get('due_date')
-            if due_date_str:
-                try:
-                    due_date = datetime.fromisoformat(due_date_str.replace('Z', '+00:00')).date().isoformat()
-                except (ValueError, AttributeError):
-                    pass
-
-            # Get next position
-            position = await get_next_position(client_id, 'pending')
-
-            task_record = {
-                'client_id': client_id,
-                'title': description[:500],  # Truncate to max length
-                'description': f"Extracted from: {transcript.get('title', 'Meeting')}",
-                'status': 'pending',
-                'priority': 3,
-                'assignee_name': item.get('owner'),
-                'due_date': due_date,
-                'source_type': 'transcript',
-                'source_transcript_id': transcript_id,
-                'source_text': description,
-                'source_extracted_at': datetime.now(timezone.utc).isoformat(),
-                'category': 'meeting_action',
-                'created_by': user_id,
-                'updated_by': user_id,
-                'position': position,
-            }
-
-            result = await asyncio.to_thread(
-                lambda rec=task_record: supabase.table('project_tasks').insert(rec).execute()
-            )
-
-            if result.data:
-                tasks_created += 1
-                created_tasks.append(serialize_task(result.data[0]))
-
-        logger.info(f"Extracted {tasks_created} tasks from transcript {transcript_id}")
-
-        return {
-            'success': True,
-            'tasks_created': tasks_created,
-            'tasks_skipped': tasks_skipped,
-            'tasks': created_tasks,
-            'message': f'Created {tasks_created} tasks, skipped {tasks_skipped} (duplicates or empty)'
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error extracting tasks from transcript: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
