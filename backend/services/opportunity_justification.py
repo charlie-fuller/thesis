@@ -1,0 +1,258 @@
+"""
+Opportunity Justification Generation Service
+
+Generates AI-powered justifications for opportunity scores using Claude.
+Produces:
+- A 3-4 sentence summary of the opportunity
+- A 3-4 sentence justification for each of the 4 scoring dimensions
+"""
+
+import logging
+import os
+from typing import Optional
+import anthropic
+
+from database import get_supabase
+
+logger = logging.getLogger(__name__)
+
+# Use Haiku for fast, cost-effective generation
+MODEL = "claude-3-5-haiku-20241022"
+
+
+def _build_generation_prompt(opportunity: dict) -> str:
+    """Build the prompt for generating justifications."""
+
+    # Extract opportunity details
+    title = opportunity.get("title", "Untitled")
+    description = opportunity.get("description") or "No description provided"
+    current_state = opportunity.get("current_state") or "Not specified"
+    desired_state = opportunity.get("desired_state") or "Not specified"
+    department = opportunity.get("department") or "General"
+
+    # Scores
+    roi = opportunity.get("roi_potential")
+    effort = opportunity.get("implementation_effort")
+    alignment = opportunity.get("strategic_alignment")
+    readiness = opportunity.get("stakeholder_readiness")
+
+    # ROI indicators if available
+    roi_indicators = opportunity.get("roi_indicators") or {}
+    roi_details = ""
+    if roi_indicators:
+        roi_details = "\nROI Indicators: " + ", ".join(
+            f"{k}: {v}" for k, v in roi_indicators.items()
+        )
+
+    return f"""You are analyzing an AI implementation opportunity for an enterprise client. Generate concise justifications for the opportunity and its scores.
+
+OPPORTUNITY DETAILS:
+- Title: {title}
+- Department: {department}
+- Description: {description}
+- Current State: {current_state}
+- Desired State: {desired_state}{roi_details}
+
+SCORES (1-5 scale):
+- ROI Potential: {roi if roi else 'Not scored'}/5
+- Implementation Ease: {effort if effort else 'Not scored'}/5 (5 = easiest)
+- Strategic Alignment: {alignment if alignment else 'Not scored'}/5
+- Stakeholder Readiness: {readiness if readiness else 'Not scored'}/5
+
+SCORING DEFINITIONS:
+- ROI Potential: Revenue, cost savings, or time impact. 5=transformative, 4=high, 3=moderate, 2=low, 1=minimal
+- Implementation Ease: How easy to implement. 5=plug-and-play, 4=low effort, 3=moderate, 2=high effort, 1=very complex
+- Strategic Alignment: Alignment with business goals. 5=core priority, 4=strong, 3=moderate, 2=weak, 1=misaligned
+- Stakeholder Readiness: Champion identified, data ready, team eager. 5=fully ready, 4=mostly ready, 3=partial, 2=low, 1=not ready
+
+Generate the following in a professional, concise tone. Each should be exactly 3-4 sentences:
+
+1. OPPORTUNITY_SUMMARY: Describe what this opportunity is and its potential business impact.
+
+2. ROI_JUSTIFICATION: Explain why this opportunity received its ROI score, referencing specific potential benefits.
+
+3. EFFORT_JUSTIFICATION: Explain why this opportunity received its implementation ease score, considering technical complexity and integration needs.
+
+4. ALIGNMENT_JUSTIFICATION: Explain why this opportunity received its strategic alignment score, connecting to likely business priorities.
+
+5. READINESS_JUSTIFICATION: Explain why this opportunity received its stakeholder readiness score, considering organizational factors.
+
+Format your response exactly as:
+OPPORTUNITY_SUMMARY: [your text]
+ROI_JUSTIFICATION: [your text]
+EFFORT_JUSTIFICATION: [your text]
+ALIGNMENT_JUSTIFICATION: [your text]
+READINESS_JUSTIFICATION: [your text]"""
+
+
+def _parse_generation_response(response_text: str) -> dict:
+    """Parse the Claude response into structured fields."""
+    result = {
+        "opportunity_summary": None,
+        "roi_justification": None,
+        "effort_justification": None,
+        "alignment_justification": None,
+        "readiness_justification": None,
+    }
+
+    # Parse each section
+    sections = {
+        "OPPORTUNITY_SUMMARY:": "opportunity_summary",
+        "ROI_JUSTIFICATION:": "roi_justification",
+        "EFFORT_JUSTIFICATION:": "effort_justification",
+        "ALIGNMENT_JUSTIFICATION:": "alignment_justification",
+        "READINESS_JUSTIFICATION:": "readiness_justification",
+    }
+
+    for marker, field in sections.items():
+        if marker in response_text:
+            start = response_text.find(marker) + len(marker)
+            # Find the next section or end of text
+            end = len(response_text)
+            for other_marker in sections:
+                if other_marker != marker and other_marker in response_text[start:]:
+                    potential_end = response_text.find(other_marker, start)
+                    if potential_end < end:
+                        end = potential_end
+
+            value = response_text[start:end].strip()
+            if value:
+                result[field] = value
+
+    return result
+
+
+async def generate_opportunity_justifications(
+    opportunity_id: str,
+    client_id: Optional[str] = None,
+) -> dict:
+    """
+    Generate justifications for an opportunity's scores.
+
+    Args:
+        opportunity_id: The opportunity UUID
+        client_id: Optional client_id for verification
+
+    Returns:
+        Dict with the 5 justification fields
+
+    Raises:
+        ValueError: If opportunity not found
+    """
+    supabase = get_supabase()
+
+    # Fetch opportunity
+    query = supabase.table("ai_opportunities").select("*").eq("id", opportunity_id)
+    if client_id:
+        query = query.eq("client_id", client_id)
+
+    result = query.single().execute()
+
+    if not result.data:
+        raise ValueError(f"Opportunity {opportunity_id} not found")
+
+    opportunity = result.data
+
+    # Build prompt and call Claude
+    prompt = _build_generation_prompt(opportunity)
+
+    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+    try:
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        response_text = response.content[0].text
+        justifications = _parse_generation_response(response_text)
+
+        # Update the opportunity in database
+        supabase.table("ai_opportunities").update(justifications).eq("id", opportunity_id).execute()
+
+        logger.info(f"Generated justifications for opportunity {opportunity_id}")
+        return justifications
+
+    except Exception as e:
+        logger.error(f"Failed to generate justifications for {opportunity_id}: {e}")
+        raise
+
+
+async def generate_all_justifications(client_id: str) -> dict:
+    """
+    Generate justifications for all opportunities belonging to a client.
+
+    Returns:
+        Dict with counts of success/failure
+    """
+    supabase = get_supabase()
+
+    # Get all opportunities for client
+    result = supabase.table("ai_opportunities") \
+        .select("id, title") \
+        .eq("client_id", client_id) \
+        .execute()
+
+    opportunities = result.data
+    success_count = 0
+    failure_count = 0
+    errors = []
+
+    for opp in opportunities:
+        try:
+            await generate_opportunity_justifications(opp["id"], client_id)
+            success_count += 1
+            logger.info(f"Generated justifications for: {opp['title']}")
+        except Exception as e:
+            failure_count += 1
+            errors.append({"id": opp["id"], "title": opp["title"], "error": str(e)})
+            logger.error(f"Failed for {opp['title']}: {e}")
+
+    return {
+        "total": len(opportunities),
+        "success": success_count,
+        "failed": failure_count,
+        "errors": errors if errors else None,
+    }
+
+
+async def regenerate_if_scores_changed(
+    opportunity_id: str,
+    old_scores: dict,
+    new_scores: dict,
+    client_id: Optional[str] = None,
+) -> bool:
+    """
+    Check if scores changed and regenerate justifications if so.
+
+    Args:
+        opportunity_id: The opportunity UUID
+        old_scores: Dict with roi_potential, implementation_effort, etc.
+        new_scores: Dict with the new score values
+        client_id: Optional client_id for verification
+
+    Returns:
+        True if justifications were regenerated, False otherwise
+    """
+    score_fields = [
+        "roi_potential",
+        "implementation_effort",
+        "strategic_alignment",
+        "stakeholder_readiness",
+    ]
+
+    # Check if any score changed
+    changed = False
+    for field in score_fields:
+        old_val = old_scores.get(field)
+        new_val = new_scores.get(field)
+        if old_val != new_val:
+            changed = True
+            break
+
+    if changed:
+        await generate_opportunity_justifications(opportunity_id, client_id)
+        return True
+
+    return False

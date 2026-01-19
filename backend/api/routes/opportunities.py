@@ -18,6 +18,11 @@ from auth import get_current_user
 from database import get_supabase
 from services.opportunity_context import get_scoring_related_documents
 from services.opportunity_chat import ask_about_opportunity, get_opportunity_conversations
+from services.opportunity_justification import (
+    generate_opportunity_justifications,
+    generate_all_justifications,
+    regenerate_if_scores_changed,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +111,12 @@ class OpportunityResponse(BaseModel):
     source_notes: Optional[str]
     created_at: str
     updated_at: str
+    # Justification fields
+    opportunity_summary: Optional[str] = None
+    roi_justification: Optional[str] = None
+    effort_justification: Optional[str] = None
+    alignment_justification: Optional[str] = None
+    readiness_justification: Optional[str] = None
 
 
 class StakeholderLinkCreate(BaseModel):
@@ -201,6 +212,12 @@ def _format_opportunity(opp: dict, owner_name: Optional[str] = None) -> dict:
         "source_notes": opp.get("source_notes"),
         "created_at": opp["created_at"],
         "updated_at": opp.get("updated_at", opp["created_at"]),
+        # Justification fields
+        "opportunity_summary": opp.get("opportunity_summary"),
+        "roi_justification": opp.get("roi_justification"),
+        "effort_justification": opp.get("effort_justification"),
+        "alignment_justification": opp.get("alignment_justification"),
+        "readiness_justification": opp.get("readiness_justification"),
     }
 
 
@@ -595,6 +612,71 @@ async def ask_question_about_opportunity(
 
 
 # ============================================================================
+# JUSTIFICATION GENERATION ENDPOINTS
+# ============================================================================
+
+@router.post("/{opportunity_id}/generate-justifications")
+async def generate_justifications_for_opportunity(
+    opportunity_id: str,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Generate AI-powered justifications for an opportunity's scores.
+
+    Creates:
+    - A 3-4 sentence opportunity summary
+    - A 3-4 sentence justification for each scoring dimension
+
+    This is automatically called when scores are updated, but can also
+    be triggered manually to regenerate justifications.
+    """
+    # Verify opportunity exists and belongs to client
+    opp = supabase.table("ai_opportunities") \
+        .select("id") \
+        .eq("id", opportunity_id) \
+        .eq("client_id", current_user["client_id"]) \
+        .single() \
+        .execute()
+
+    if not opp.data:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    try:
+        justifications = await generate_opportunity_justifications(
+            opportunity_id=opportunity_id,
+            client_id=current_user["client_id"]
+        )
+        return {
+            "message": "Justifications generated successfully",
+            "justifications": justifications
+        }
+    except Exception as e:
+        logger.error(f"Failed to generate justifications: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate justifications")
+
+
+@router.post("/generate-all-justifications")
+async def generate_all_opportunity_justifications(
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Generate justifications for all opportunities belonging to the current client.
+
+    This is useful for backfilling justifications for existing opportunities
+    or regenerating all justifications after significant changes.
+
+    Returns counts of successful and failed generations.
+    """
+    try:
+        result = await generate_all_justifications(client_id=current_user["client_id"])
+        return result
+    except Exception as e:
+        logger.error(f"Failed to generate all justifications: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate justifications")
+
+
+# ============================================================================
 # SINGLE OPPORTUNITY ENDPOINTS
 # ============================================================================
 
@@ -668,7 +750,32 @@ async def create_opportunity(
             )
         raise HTTPException(status_code=500, detail=str(e))
 
-    return _format_opportunity(result.data[0])
+    created_opp = result.data[0]
+
+    # Generate justifications if scores are provided
+    has_scores = any([
+        opportunity.roi_potential,
+        opportunity.implementation_effort,
+        opportunity.strategic_alignment,
+        opportunity.stakeholder_readiness,
+    ])
+    if has_scores:
+        try:
+            await generate_opportunity_justifications(
+                opportunity_id=created_opp["id"],
+                client_id=current_user["client_id"]
+            )
+            # Refetch to get updated justifications
+            updated = supabase.table("ai_opportunities") \
+                .select("*") \
+                .eq("id", created_opp["id"]) \
+                .single() \
+                .execute()
+            created_opp = updated.data
+        except Exception as e:
+            logger.warning(f"Failed to generate justifications on create: {e}")
+
+    return _format_opportunity(created_opp)
 
 
 @router.patch("/{opportunity_id}", response_model=OpportunityResponse)
@@ -718,10 +825,11 @@ async def update_opportunity_scores(
     Update just the scores for an opportunity.
 
     Convenience endpoint for quick score updates without touching other fields.
+    Automatically regenerates justifications when scores change.
     """
-    # Verify ownership
+    # Get existing opportunity with current scores
     existing = supabase.table("ai_opportunities") \
-        .select("id") \
+        .select("id, roi_potential, implementation_effort, strategic_alignment, stakeholder_readiness") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
         .single() \
@@ -730,6 +838,7 @@ async def update_opportunity_scores(
     if not existing.data:
         raise HTTPException(status_code=404, detail="Opportunity not found")
 
+    old_scores = existing.data
     update_data = {k: v for k, v in scores.model_dump().items() if v is not None}
 
     if not update_data:
@@ -740,7 +849,28 @@ async def update_opportunity_scores(
         .eq("id", opportunity_id) \
         .execute()
 
-    return _format_opportunity(result.data[0])
+    updated_opp = result.data[0]
+
+    # Regenerate justifications if scores changed
+    try:
+        regenerated = await regenerate_if_scores_changed(
+            opportunity_id=opportunity_id,
+            old_scores=old_scores,
+            new_scores=update_data,
+            client_id=current_user["client_id"]
+        )
+        if regenerated:
+            # Refetch to get updated justifications
+            refreshed = supabase.table("ai_opportunities") \
+                .select("*") \
+                .eq("id", opportunity_id) \
+                .single() \
+                .execute()
+            updated_opp = refreshed.data
+    except Exception as e:
+        logger.warning(f"Failed to regenerate justifications on score update: {e}")
+
+    return _format_opportunity(updated_opp)
 
 
 @router.patch("/{opportunity_id}/status")

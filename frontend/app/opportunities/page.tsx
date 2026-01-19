@@ -313,7 +313,7 @@ export default function OpportunitiesPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-primary">AI Opportunities</h1>
+            <h1 className="text-2xl font-bold text-primary">Opportunities</h1>
             <p className="text-muted">
               {data?.summary.total || 0} opportunities tracked
             </p>

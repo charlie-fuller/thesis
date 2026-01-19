@@ -536,6 +536,22 @@ async def process_document_with_classification(
             'error': str(e)
         }
 
+    # Check if this document affects any opportunities and update justifications
+    try:
+        from services.opportunity_kb_sync import check_and_sync_opportunities_for_document
+        sync_result = await check_and_sync_opportunities_for_document(document_id)
+        result['opportunity_sync'] = {
+            'status': 'completed',
+            'opportunities_updated': sync_result.get('opportunities_updated', 0) if sync_result else 0,
+        }
+        logger.info(f"Opportunity sync completed for document {document_id}")
+    except Exception as e:
+        logger.warning(f"Opportunity sync failed for document {document_id}: {e}")
+        result['opportunity_sync'] = {
+            'status': 'failed',
+            'error': str(e)
+        }
+
     return result
 
 

@@ -7,6 +7,13 @@
  * visual bars and explanations of what each score level means.
  */
 
+interface DimensionJustification {
+  roi_potential?: string
+  implementation_effort?: string
+  strategic_alignment?: string
+  stakeholder_readiness?: string
+}
+
 interface ScoreJustificationProps {
   roiPotential: number | null
   implementationEffort: number | null
@@ -14,6 +21,8 @@ interface ScoreJustificationProps {
   stakeholderReadiness: number | null
   totalScore: number
   tier: number
+  opportunityDescription?: string
+  dimensionJustifications?: DimensionJustification
 }
 
 // Scoring dimension definitions with explanations
@@ -98,9 +107,11 @@ const TIER_INFO = {
 function ScoreBar({
   score,
   dimension,
+  justification,
 }: {
   score: number | null
   dimension: keyof typeof DIMENSIONS
+  justification?: string
 }) {
   const dimInfo = DIMENSIONS[dimension]
   const value = score ?? 0
@@ -116,20 +127,27 @@ function ScoreBar({
   const levelExplanation = score ? dimInfo.levels[score as keyof typeof dimInfo.levels] : 'Not scored'
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-primary">{dimInfo.label}</span>
-        <span className="text-sm font-bold text-primary">{score ?? '-'}/5</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all ${getBarColor(value)}`}
-            style={{ width: `${percentage}%` }}
-          />
+    <div className="space-y-2">
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-primary">{dimInfo.label}</span>
+          <span className="text-sm font-bold text-primary">{score ?? '-'}/5</span>
         </div>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${getBarColor(value)}`}
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+        </div>
+        <p className="text-xs text-muted">{levelExplanation}</p>
       </div>
-      <p className="text-xs text-muted">{levelExplanation}</p>
+      {justification && (
+        <p className="text-sm text-secondary pl-1 border-l-2 border-gray-200 dark:border-gray-700">
+          {justification}
+        </p>
+      )}
     </div>
   )
 }
@@ -141,11 +159,21 @@ export default function ScoreJustification({
   stakeholderReadiness,
   totalScore,
   tier,
+  opportunityDescription,
+  dimensionJustifications,
 }: ScoreJustificationProps) {
   const tierInfo = TIER_INFO[tier as keyof typeof TIER_INFO] || TIER_INFO[4]
 
   return (
     <div className="space-y-6">
+      {/* Opportunity Description */}
+      {opportunityDescription && (
+        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+          <h4 className="text-sm font-medium text-primary mb-2">About This Opportunity</h4>
+          <p className="text-sm text-secondary leading-relaxed">{opportunityDescription}</p>
+        </div>
+      )}
+
       {/* Tier Summary */}
       <div className={`p-4 rounded-lg ${tierInfo.bg}`}>
         <div className="flex items-center justify-between mb-2">
@@ -157,15 +185,31 @@ export default function ScoreJustification({
       </div>
 
       {/* Individual Scores */}
-      <div className="space-y-4">
+      <div className="space-y-5">
         <h4 className="text-sm font-medium text-muted uppercase tracking-wide">
           Score Breakdown
         </h4>
 
-        <ScoreBar score={roiPotential} dimension="roi_potential" />
-        <ScoreBar score={implementationEffort} dimension="implementation_effort" />
-        <ScoreBar score={strategicAlignment} dimension="strategic_alignment" />
-        <ScoreBar score={stakeholderReadiness} dimension="stakeholder_readiness" />
+        <ScoreBar
+          score={roiPotential}
+          dimension="roi_potential"
+          justification={dimensionJustifications?.roi_potential}
+        />
+        <ScoreBar
+          score={implementationEffort}
+          dimension="implementation_effort"
+          justification={dimensionJustifications?.implementation_effort}
+        />
+        <ScoreBar
+          score={strategicAlignment}
+          dimension="strategic_alignment"
+          justification={dimensionJustifications?.strategic_alignment}
+        />
+        <ScoreBar
+          score={stakeholderReadiness}
+          dimension="stakeholder_readiness"
+          justification={dimensionJustifications?.stakeholder_readiness}
+        />
       </div>
 
       {/* Dimension Descriptions */}
