@@ -112,7 +112,10 @@ async def generate_report(
     user_id = current_user.get("id")
     client_id = current_user.get("client_id")
 
+    logger.info(f"Generate report: user_id={user_id}, client_id={client_id}")
+
     if not user_id or not client_id:
+        logger.error(f"Auth failed: user_id={user_id}, client_id={client_id}")
         raise HTTPException(status_code=401, detail="User not authenticated")
 
     try:
