@@ -7,6 +7,8 @@
 -- ============================================================================
 
 -- New function that supports document_type filtering
+-- Note: document_chunks table has: id, document_id, chunk_index, content, embedding, metadata, created_at
+-- We join with documents table to get client_id, uploaded_by, and document_type
 CREATE OR REPLACE FUNCTION match_document_chunks_by_type(
     query_embedding vector(1024),
     match_count int DEFAULT 5,
@@ -18,13 +20,10 @@ CREATE OR REPLACE FUNCTION match_document_chunks_by_type(
 RETURNS TABLE (
     id uuid,
     document_id uuid,
-    conversation_id uuid,
-    client_id uuid,
     content text,
     embedding vector(1024),
     similarity float,
     metadata jsonb,
-    source_type text,
     chunk_index int,
     created_at timestamptz,
     document_type text,
@@ -37,22 +36,19 @@ BEGIN
     SELECT
         dc.id,
         dc.document_id,
-        dc.conversation_id,
-        dc.client_id,
         dc.content,
         dc.embedding,
         (1 - (dc.embedding <=> query_embedding))::float AS similarity,
         dc.metadata,
-        dc.source_type,
         dc.chunk_index,
         dc.created_at,
         d.document_type::text,
         d.primary_use_case::text
     FROM public.document_chunks dc
-    LEFT JOIN public.documents d ON dc.document_id = d.id
+    INNER JOIN public.documents d ON dc.document_id = d.id
     WHERE
-        -- Filter by client_id if provided
-        (p_client_id IS NULL OR dc.client_id = p_client_id)
+        -- Filter by client_id from documents table
+        (p_client_id IS NULL OR d.client_id = p_client_id)
         -- Filter by user_id if provided
         AND (p_user_id IS NULL OR d.uploaded_by = p_user_id)
         -- Filter by document_type if provided
