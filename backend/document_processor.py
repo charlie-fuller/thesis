@@ -827,6 +827,14 @@ def detect_query_type(query: str) -> str:
         'my document', 'my file', 'my upload',
         'tell me about this', 'analyze this', 'summarize this',
         'what does this say', 'what is in this',
+        # Meeting/transcript references - user is asking about their meeting content
+        'my meeting', 'my meetings', 'the meeting', 'recent meeting', 'recent meetings',
+        'my transcript', 'my transcripts', 'the transcript', 'transcript',
+        'action item', 'action items', 'action points',
+        'meeting notes', 'meeting note', 'from the meeting', 'from my meeting',
+        'what was discussed', 'what did we discuss', 'what we discussed',
+        'follow up', 'follow-up', 'followup', 'next steps',
+        'decisions made', 'key decisions', 'takeaways', 'key takeaways',
     ]
 
     for pattern in document_reference_patterns:

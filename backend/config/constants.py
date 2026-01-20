@@ -94,8 +94,9 @@ class SearchConfig:
         if self.SIMILARITY_THRESHOLDS is None:
             object.__setattr__(self, 'SIMILARITY_THRESHOLDS', {
                 # Document reference queries - very permissive since user explicitly mentioned their upload
-                # e.g., "tell me about this document", "the file I uploaded"
-                'document_reference': 0.15,
+                # e.g., "tell me about this document", "the file I uploaded", "my meeting transcripts"
+                # Lowered to 0.10 to catch meeting/transcript queries where semantic match may be loose
+                'document_reference': 0.10,
                 # Factual queries - lowered from 0.5 to allow semantic matches
                 'factual': 0.30,
                 # Exploratory queries can be more lenient (related concepts)

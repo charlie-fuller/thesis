@@ -56,7 +56,7 @@ ON CONFLICT (name) DO UPDATE SET
 
 -- First, deactivate any existing versions for compass
 UPDATE agent_instruction_versions
-SET is_active = false, updated_at = NOW()
+SET is_active = false
 WHERE agent_id = (SELECT id FROM agents WHERE name = 'compass');
 
 -- Now insert the new version with full XML
@@ -67,8 +67,7 @@ INSERT INTO agent_instruction_versions (
     description,
     is_active,
     activated_at,
-    created_at,
-    updated_at
+    created_at
 )
 SELECT
     id,
@@ -511,7 +510,6 @@ Your role is to make the invisible visible - to help people see the value they c
 </system>$XML$,
     'Full XML instructions loaded',
     true,
-    NOW(),
     NOW(),
     NOW()
 FROM agents

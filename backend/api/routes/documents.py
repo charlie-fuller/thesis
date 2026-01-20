@@ -34,6 +34,7 @@ async def upload_document(
     file: UploadFile = File(...),
     agent_ids: Optional[str] = Form(None),  # JSON array of agent IDs, or empty for global
     auto_classify: Optional[str] = Form("true"),  # Enable auto-classification when no agents specified
+    original_date: Optional[str] = Form(None),  # Original document date (e.g., meeting date) in YYYY-MM-DD format
     current_user: dict = Depends(get_current_user)
 ):
     """Upload a document to Supabase Storage and create database record.
@@ -44,6 +45,8 @@ async def upload_document(
                    If empty/null, document is global (available to all agents via RAG).
         auto_classify: If "true" and no agent_ids provided, auto-classify document for agent relevance.
                        Auto-tags confident matches, flags ambiguous for user review.
+        original_date: The actual date of the document content (e.g., meeting date for transcripts).
+                       Format: YYYY-MM-DD. If not provided, can be set later via document update.
     """
     try:
         # Validate file
@@ -87,6 +90,16 @@ async def upload_document(
         # Get storage URL for the document
         storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
 
+        # Parse original_date if provided
+        parsed_original_date = None
+        if original_date and original_date.strip():
+            try:
+                # Validate date format (YYYY-MM-DD)
+                from datetime import datetime
+                parsed_original_date = datetime.strptime(original_date.strip(), '%Y-%m-%d').date().isoformat()
+            except ValueError:
+                logger.warning(f"Invalid original_date format: {original_date}, expected YYYY-MM-DD")
+
         # Create database record
         # Note: If document is linked to specific agents, it's agent-specific.
         # If not linked to any agent (parsed_agent_ids empty), it's global (available to all).
@@ -100,6 +113,10 @@ async def upload_document(
             'file_size': len(file_content),
             'processed': False  # Will be set to True after processing completes
         }
+
+        # Add original_date if provided
+        if parsed_original_date:
+            doc_record['original_date'] = parsed_original_date
 
         result = await asyncio.to_thread(
             lambda: supabase.table('documents').insert(doc_record).execute()

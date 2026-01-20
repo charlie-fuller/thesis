@@ -62,8 +62,7 @@ INSERT INTO agent_instruction_versions (
     description,
     is_active,
     activated_at,
-    created_at,
-    updated_at
+    created_at
 )
 SELECT
     id,
@@ -71,7 +70,6 @@ SELECT
     '-- Placeholder: Run sync_all_xml_to_db.py to load full XML instructions --',
     'Initial placeholder - sync XML to populate',
     true,
-    NOW(),
     NOW(),
     NOW()
 FROM agents
