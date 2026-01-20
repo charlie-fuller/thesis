@@ -30,7 +30,7 @@ If the conversation included important decisions or unfinished work, save a summ
 
 Thesis is a multi-agent platform for enterprise GenAI strategy implementation. It helps AI Solutions Partners guide and manage successful AI initiatives by providing specialized agents for research, finance, IT/governance, legal, and meeting analysis.
 
-### Agent Roster (21 Agents)
+### Agent Roster (22 Agents)
 
 #### Meta-Agents (Always Present in Meetings)
 | Agent | Name | Purpose |
@@ -64,6 +64,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 | Echo | Brand Voice | Voice analysis, style profiling, AI emulation guidelines |
 | Glean Evaluator | Can We Glean This? | Glean platform fit assessment, connector analysis, build vs. buy for search |
 | Compass | Career Coach | Win capture, performance tracking, check-in prep, strategic alignment |
+| Taskmaster | Personal Accountability | Task discovery from KB/meetings, progress tracking, slippage alerts, focus guidance, daily Slack digests |
 | Manual | Documentation Assistant | In-app help, feature explanation, navigation guidance, troubleshooting |
 
 #### Systems/Coordination Agents

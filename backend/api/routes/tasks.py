@@ -1049,3 +1049,310 @@ async def get_task_history(
     except Exception as e:
         logger.error(f"Error fetching task history: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Task Candidates (Auto-extracted from documents)
+# ============================================================================
+
+class CandidateAction(BaseModel):
+    """Request body for accepting/rejecting a candidate."""
+    overrides: Optional[dict] = None  # For accept: {title, priority, due_date}
+    reason: Optional[str] = None  # For reject
+
+
+class BulkCandidateAction(BaseModel):
+    """Request body for bulk accept/reject."""
+    candidate_ids: List[str]
+    action: str = Field(..., pattern="^(accept|reject)$")
+
+
+@router.get("/candidates")
+async def get_task_candidates(
+    current_user=Depends(get_current_user),
+    limit: int = Query(default=20, le=50),
+    status: str = Query(default="pending", pattern="^(pending|accepted|rejected|all)$")
+):
+    """
+    Get task candidates extracted from documents.
+
+    These are potential tasks that Taskmaster found in uploaded documents.
+    Users can accept or reject them.
+    """
+    try:
+        client_id = current_user.get('client_id') or get_default_client_id()
+
+        query = supabase.table('task_candidates').select(
+            '*, documents(filename, title)'
+        ).eq('client_id', client_id)
+
+        if status != 'all':
+            query = query.eq('status', status)
+
+        result = await asyncio.to_thread(
+            lambda: query.order('created_at', desc=True).limit(limit).execute()
+        )
+
+        candidates = []
+        for c in result.data or []:
+            doc = c.get('documents', {}) or {}
+            candidates.append({
+                'id': c['id'],
+                'title': c['title'],
+                'suggested_priority': c['suggested_priority'],
+                'suggested_due_date': c['suggested_due_date'],
+                'due_date_text': c['due_date_text'],
+                'assignee_name': c['assignee_name'],
+                'source_document_id': c['source_document_id'],
+                'source_document_name': doc.get('title') or doc.get('filename') or c.get('source_document_name'),
+                'source_text': c['source_text'],
+                'confidence': c['confidence'],
+                'status': c['status'],
+                'created_at': c['created_at']
+            })
+
+        return {
+            'success': True,
+            'candidates': candidates,
+            'count': len(candidates)
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching task candidates: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/candidates/count")
+async def get_candidate_count(current_user=Depends(get_current_user)):
+    """Get count of pending task candidates (for badge display)."""
+    try:
+        client_id = current_user.get('client_id') or get_default_client_id()
+
+        result = await asyncio.to_thread(
+            lambda: supabase.table('task_candidates')
+                .select('id', count='exact')
+                .eq('client_id', client_id)
+                .eq('status', 'pending')
+                .execute()
+        )
+
+        return {
+            'success': True,
+            'pending_count': result.count or 0
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching candidate count: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/candidates/{candidate_id}/accept")
+async def accept_task_candidate(
+    candidate_id: str,
+    body: Optional[CandidateAction] = None,
+    current_user=Depends(get_current_user)
+):
+    """
+    Accept a task candidate and create an actual task.
+
+    Optionally provide overrides for title, priority, or due_date.
+    """
+    try:
+        validate_uuid(candidate_id, "candidate_id")
+
+        from services.task_auto_extractor import accept_task_candidate as do_accept
+
+        result = await do_accept(
+            candidate_id=candidate_id,
+            user_id=current_user['id'],
+            supabase=supabase,
+            overrides=body.overrides if body else None
+        )
+
+        if result['status'] == 'error':
+            raise HTTPException(status_code=400, detail=result.get('message'))
+
+        return {
+            'success': True,
+            'task_id': result.get('task_id'),
+            'title': result.get('title')
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error accepting task candidate: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/candidates/{candidate_id}/reject")
+async def reject_task_candidate(
+    candidate_id: str,
+    body: Optional[CandidateAction] = None,
+    current_user=Depends(get_current_user)
+):
+    """Reject a task candidate."""
+    try:
+        validate_uuid(candidate_id, "candidate_id")
+
+        from services.task_auto_extractor import reject_task_candidate as do_reject
+
+        result = await do_reject(
+            candidate_id=candidate_id,
+            user_id=current_user['id'],
+            supabase=supabase,
+            reason=body.reason if body else None
+        )
+
+        if result['status'] == 'error':
+            raise HTTPException(status_code=400, detail=result.get('message'))
+
+        return {'success': True}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error rejecting task candidate: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/candidates/bulk")
+async def bulk_action_candidates(
+    body: BulkCandidateAction,
+    current_user=Depends(get_current_user)
+):
+    """Accept or reject multiple task candidates at once."""
+    try:
+        for cid in body.candidate_ids:
+            validate_uuid(cid, "candidate_id")
+
+        from services.task_auto_extractor import bulk_action_candidates as do_bulk
+
+        result = await do_bulk(
+            candidate_ids=body.candidate_ids,
+            action=body.action,
+            user_id=current_user['id'],
+            supabase=supabase
+        )
+
+        return {
+            'success': True,
+            'action': body.action,
+            'processed': result.get('success', 0),
+            'failed': result.get('failed', 0)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in bulk candidate action: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Document Scanning for Tasks
+# ============================================================================
+
+@router.post("/scan-documents")
+async def scan_documents_for_tasks(
+    limit: int = Query(10, ge=1, le=50, description="Number of recent documents to scan"),
+    since_days: Optional[int] = Query(None, ge=1, le=365, description="Only scan documents with original_date in the last N days"),
+    current_user=Depends(get_current_user)
+):
+    """
+    Scan recent documents for potential tasks.
+
+    This triggers the Taskmaster auto-extractor on documents that haven't been
+    scanned yet (or can be re-scanned). Found tasks are stored as candidates
+    for user review.
+
+    Args:
+        limit: Max number of documents to scan (1-50)
+        since_days: Only scan documents with original_date in the last N days
+    """
+    try:
+        client_id = current_user.get('client_id') or get_default_client_id()
+        user_id = current_user['id']
+
+        # Get user's name for task filtering
+        user_result = supabase.table('users').select(
+            '*'
+        ).eq('id', user_id).single().execute()
+
+        user_name = None
+        if user_result.data:
+            user_name = user_result.data.get('full_name') or user_result.data.get('name') or user_result.data.get('email', '').split('@')[0]
+
+        # Build query for recent documents, ordered by original_date (document's actual date)
+        query = supabase.table('documents').select(
+            'id, filename, title, original_date, uploaded_at'
+        ).eq('client_id', client_id)
+
+        # Filter by original_date if since_days specified
+        if since_days:
+            from datetime import datetime, timedelta
+            cutoff = (datetime.utcnow() - timedelta(days=since_days)).date().isoformat()
+            query = query.gte('original_date', cutoff)
+
+        # Order by original_date (falls back to uploaded_at for docs without original_date)
+        docs_result = query.order('original_date', desc=True, nullsfirst=False).limit(limit).execute()
+
+        if not docs_result.data:
+            return {
+                'success': True,
+                'documents_scanned': 0,
+                'total_tasks_found': 0,
+                'message': 'No documents found to scan'
+            }
+
+        from services.task_auto_extractor import extract_tasks_from_document
+
+        results = []
+        total_found = 0
+        total_stored = 0
+
+        for doc in docs_result.data:
+            doc_name = doc.get('title') or doc.get('filename', 'Unknown')
+            try:
+                result = await extract_tasks_from_document(
+                    document_id=doc['id'],
+                    supabase=supabase,
+                    user_name=user_name,
+                    auto_store=True
+                )
+
+                found = result.get('tasks_found', 0)
+                stored = result.get('tasks_stored', 0)
+                total_found += found
+                total_stored += stored
+
+                if found > 0:
+                    results.append({
+                        'document_id': doc['id'],
+                        'document_name': doc_name,
+                        'tasks_found': found,
+                        'tasks_stored': stored
+                    })
+
+            except Exception as e:
+                logger.warning(f"Failed to scan document {doc['id']}: {e}")
+                results.append({
+                    'document_id': doc['id'],
+                    'document_name': doc_name,
+                    'error': str(e)
+                })
+
+        return {
+            'success': True,
+            'documents_scanned': len(docs_result.data),
+            'total_tasks_found': total_found,
+            'total_tasks_stored': total_stored,
+            'results': results,
+            'message': f'Scanned {len(docs_result.data)} documents, found {total_found} potential tasks'
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error scanning documents for tasks: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

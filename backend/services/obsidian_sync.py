@@ -56,10 +56,159 @@ FRONTMATTER_PATTERN = re.compile(r'^---\s*\n(.*?)\n---\s*\n', re.DOTALL)
 # Wikilink pattern: [[target|alias]] or [[target]]
 WIKILINK_PATTERN = re.compile(r'\[\[([^\]|]+)(?:\|([^\]]+))?\]\]')
 
+# Date patterns for extraction from filenames and content
+# Order matters - more specific patterns should come first
+DATE_PATTERNS = [
+    # ISO format: 2024-01-15, 2024-1-5
+    (re.compile(r'(\d{4})-(\d{1,2})-(\d{1,2})'), 'ymd'),
+    # Compact MMDDYYYY at end: interview-11122025 = Nov 12, 2025
+    (re.compile(r'(\d{2})(\d{2})(20\d{2})$'), 'mdy_compact_end'),
+    # Compact YYYYMMDD: 20240115, 2024_01_15
+    (re.compile(r'(20\d{2})[\-_]?(\d{2})[\-_]?(\d{2})'), 'ymd_compact'),
+    # US format with slashes: 01/15/2024, 1/15/24
+    (re.compile(r'(\d{1,2})/(\d{1,2})/(\d{2,4})'), 'mdy'),
+    # US format with dashes: 01-15-2024, 1-15-24
+    (re.compile(r'(\d{1,2})-(\d{1,2})-(\d{2,4})'), 'mdy'),
+    # Month.Day: 1.15, 01.15 (assumes current year)
+    (re.compile(r'\b(\d{1,2})\.(\d{1,2})\b'), 'md'),
+    # Written: January 15, 2024 or Jan 15, 2024
+    (re.compile(r'(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})(?:,?\s+(\d{4}))?', re.IGNORECASE), 'written'),
+]
+
+MONTH_MAP = {
+    'january': 1, 'jan': 1, 'february': 2, 'feb': 2, 'march': 3, 'mar': 3,
+    'april': 4, 'apr': 4, 'may': 5, 'june': 6, 'jun': 6, 'july': 7, 'jul': 7,
+    'august': 8, 'aug': 8, 'september': 9, 'sep': 9, 'october': 10, 'oct': 10,
+    'november': 11, 'nov': 11, 'december': 12, 'dec': 12
+}
+
 
 class ObsidianSyncError(Exception):
     """Raised when Obsidian sync operations fail"""
     pass
+
+
+# ============================================================================
+# Date Extraction
+# ============================================================================
+
+def extract_original_date(
+    filename: str,
+    frontmatter: Optional[Dict] = None,
+    content: Optional[str] = None,
+    file_mtime: Optional[datetime] = None
+) -> Optional[date]:
+    """
+    Extract the original date from a document.
+
+    Priority order:
+    1. Frontmatter 'date' or 'original_date' field
+    2. Date in filename
+    3. Date in first 500 chars of content (for meeting headers)
+    4. File modification time (fallback)
+
+    Args:
+        filename: The document filename
+        frontmatter: Parsed frontmatter dict
+        content: Document content (first 500 chars checked)
+        file_mtime: File modification time from filesystem
+
+    Returns:
+        Extracted date or None if not found
+    """
+    # 1. Check frontmatter first
+    if frontmatter:
+        for key in ['date', 'original_date', 'created', 'meeting_date']:
+            if key in frontmatter:
+                parsed = _parse_date_value(frontmatter[key])
+                if parsed:
+                    return parsed
+
+    # 2. Check filename
+    parsed = _extract_date_from_text(filename)
+    if parsed:
+        return parsed
+
+    # 3. Check content (first 500 chars - typically contains meeting headers)
+    if content:
+        parsed = _extract_date_from_text(content[:500])
+        if parsed:
+            return parsed
+
+    # 4. Fall back to file modification time
+    if file_mtime:
+        if isinstance(file_mtime, datetime):
+            return file_mtime.date()
+
+    return None
+
+
+def _parse_date_value(value: Any) -> Optional[date]:
+    """Parse a date value from frontmatter (could be string, date, or datetime)."""
+    if value is None:
+        return None
+
+    # Already a date object
+    if isinstance(value, date):
+        return value
+
+    # Datetime object
+    if isinstance(value, datetime):
+        return value.date()
+
+    # String - try parsing
+    if isinstance(value, str):
+        # Try ISO format first
+        try:
+            return datetime.fromisoformat(value.replace('Z', '+00:00')).date()
+        except ValueError:
+            pass
+
+        # Try extracting from string
+        return _extract_date_from_text(value)
+
+    return None
+
+
+def _extract_date_from_text(text: str) -> Optional[date]:
+    """Extract a date from text using various patterns."""
+    current_year = datetime.now().year
+
+    for pattern, format_type in DATE_PATTERNS:
+        match = pattern.search(text)
+        if not match:
+            continue
+
+        try:
+            if format_type == 'ymd':
+                year, month, day = int(match.group(1)), int(match.group(2)), int(match.group(3))
+            elif format_type == 'ymd_compact':
+                year, month, day = int(match.group(1)), int(match.group(2)), int(match.group(3))
+            elif format_type == 'mdy_compact_end':
+                # MMDDYYYY at end of string: 11122025 = Nov 12, 2025
+                month, day, year = int(match.group(1)), int(match.group(2)), int(match.group(3))
+            elif format_type == 'mdy':
+                month, day, year = int(match.group(1)), int(match.group(2)), int(match.group(3))
+                if year < 100:
+                    year += 2000
+            elif format_type == 'md':
+                month, day = int(match.group(1)), int(match.group(2))
+                year = current_year
+            elif format_type == 'written':
+                month = MONTH_MAP.get(match.group(1).lower())
+                day = int(match.group(2))
+                year = int(match.group(3)) if match.group(3) else current_year
+            else:
+                continue
+
+            # Validate the date
+            if 1 <= month <= 12 and 1 <= day <= 31 and 2000 <= year <= 2100:
+                return date(year, month, day)
+
+        except (ValueError, TypeError):
+            continue
+
+    return None
 
 
 # ============================================================================
@@ -733,6 +882,16 @@ def sync_file(
         # Determine document title from frontmatter or filename
         title = frontmatter.get('title') or file_path.stem
 
+        # Extract original date from frontmatter, filename, content, or file mtime
+        original_date_value = extract_original_date(
+            filename=file_path.name,
+            frontmatter=frontmatter,
+            content=content,
+            file_mtime=file_mtime
+        )
+        if original_date_value:
+            logger.debug(f"      Extracted original_date: {original_date_value}")
+
         # Encode content for storage
         file_content = processed_content.encode('utf-8')
 
@@ -747,7 +906,8 @@ def sync_file(
                 file_content=file_content,
                 title=title,
                 relative_path=relative_path,
-                frontmatter=frontmatter
+                frontmatter=frontmatter,
+                original_date=original_date_value
             )
             action = 'updated'
         else:
@@ -759,7 +919,8 @@ def sync_file(
                 filename=file_path.name,
                 title=title,
                 relative_path=relative_path,
-                frontmatter=frontmatter
+                frontmatter=frontmatter,
+                original_date=original_date_value
             )
             action = 'added'
 
@@ -803,7 +964,8 @@ def _create_obsidian_document(
     filename: str,
     title: str,
     relative_path: str,
-    frontmatter: Dict
+    frontmatter: Dict,
+    original_date: Optional[date] = None
 ) -> str:
     """
     Create a new document record for an Obsidian file.
@@ -847,7 +1009,8 @@ def _create_obsidian_document(
         'obsidian_file_path': relative_path,
         'last_synced_at': now,
         'processed': False,
-        'uploaded_at': now
+        'uploaded_at': now,
+        'original_date': original_date.isoformat() if original_date else None
         # Note: frontmatter is stored in obsidian_sync_state, not documents
     }
 
@@ -877,7 +1040,8 @@ def _update_obsidian_document(
     file_content: bytes,
     title: str,
     relative_path: str,
-    frontmatter: Optional[Dict] = None
+    frontmatter: Optional[Dict] = None,
+    original_date: Optional[date] = None
 ) -> Dict:
     """
     Update an existing Obsidian document.
@@ -925,6 +1089,13 @@ def _update_obsidian_document(
         'last_synced_at': now,
         'processed': False
     }
+
+    # Only update original_date if provided and not already set
+    if original_date:
+        # Check if original_date is already set
+        existing_doc = supabase.table('documents').select('original_date').eq('id', document_id).execute()
+        if existing_doc.data and not existing_doc.data[0].get('original_date'):
+            update_data['original_date'] = original_date.isoformat()
 
     result = supabase.table('documents') \
         .update(update_data) \
