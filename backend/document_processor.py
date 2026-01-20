@@ -974,7 +974,19 @@ def search_similar_chunks(
         'next steps', 'takeaways', 'decisions', 'discussed', 'talked about',
         'what did we', 'what was discussed', 'from the meeting', 'from my meeting'
     ]
+    # Also detect "what should I work on" style queries - these want recent action items
+    work_task_keywords = [
+        'what should i work on', 'what do i need to do', 'my tasks', 'my to do',
+        'my priorities', 'what\'s on my plate', 'what am i working on',
+        'today\'s tasks', 'this week', 'my deliverables', 'my assignments'
+    ]
     is_meeting_query = any(kw in query_lower for kw in meeting_action_keywords)
+    is_work_query = any(kw in query_lower for kw in work_task_keywords)
+
+    # Work queries should also search transcripts/notes for action items
+    if is_work_query and not is_meeting_query:
+        is_meeting_query = True
+        logger.info(f"   Detected work/task query - will search transcripts for action items")
 
     # Call vector search function - get more results to prioritize conversation docs
     # Use agent-filtered RPC if agent_ids provided, otherwise use standard RPC
@@ -1002,6 +1014,30 @@ def search_similar_chunks(
             if len(chunks) >= 2:  # Found enough results with type filter
                 used_document_type_filter = True
                 logger.info(f"   Found {len(chunks)} chunks from transcripts/notes")
+
+                # For work/task queries, boost recent documents (last 14 days)
+                if is_work_query:
+                    from datetime import datetime, timedelta, timezone
+                    cutoff = datetime.now(timezone.utc) - timedelta(days=14)
+                    for chunk in chunks:
+                        chunk_date = chunk.get('created_at')
+                        if chunk_date:
+                            try:
+                                # Parse ISO format date
+                                if isinstance(chunk_date, str):
+                                    chunk_dt = datetime.fromisoformat(chunk_date.replace('Z', '+00:00'))
+                                else:
+                                    chunk_dt = chunk_date
+                                # Boost recent documents by 20%
+                                if chunk_dt > cutoff:
+                                    original_sim = chunk.get('similarity', 0)
+                                    chunk['similarity'] = min(1.0, original_sim * 1.2)
+                                    chunk['recency_boosted'] = True
+                            except (ValueError, TypeError):
+                                pass
+                    # Re-sort by boosted similarity
+                    chunks.sort(key=lambda x: x.get('similarity', 0), reverse=True)
+                    logger.info(f"   Applied recency boost for work query")
             else:
                 logger.info(f"   Only found {len(chunks)} chunks from transcripts/notes, will try broader search")
                 chunks = []  # Reset to trigger regular search
