@@ -967,64 +967,104 @@ def search_similar_chunks(
     # Generate embedding for query using "query" input type for better search relevance
     query_embedding = generate_embeddings([preprocessed_query], input_type=EMBEDDING.INPUT_TYPE_QUERY)[0]
 
+    # Detect if query is about meetings/transcripts/action items - use document_type filtering
+    query_lower = query.lower()
+    meeting_action_keywords = [
+        'meeting', 'transcript', 'action item', 'action items', 'follow up', 'follow-up',
+        'next steps', 'takeaways', 'decisions', 'discussed', 'talked about',
+        'what did we', 'what was discussed', 'from the meeting', 'from my meeting'
+    ]
+    is_meeting_query = any(kw in query_lower for kw in meeting_action_keywords)
+
     # Call vector search function - get more results to prioritize conversation docs
     # Use agent-filtered RPC if agent_ids provided, otherwise use standard RPC
     used_fallback = False
+    used_document_type_filter = False
 
-    if agent_ids:
-        logger.info(f"   Calling match_document_chunks_with_agent_filter with threshold={min_similarity}, agents={agent_ids}")
-        logger.info(f"   Query embedding length: {len(query_embedding)}")
-
+    # First, try document_type filtered search for meeting queries
+    if is_meeting_query and not agent_ids:
+        logger.info(f"   Detected meeting/action item query - trying document_type filtered search")
         try:
+            # Search specifically in transcripts and notes first
             result = supabase.rpc(
-                'match_document_chunks_with_agent_filter',
+                'match_document_chunks_by_type',
                 {
                     'query_embedding': query_embedding,
                     'match_count': limit * 3,
                     'match_threshold': min_similarity,
                     'p_client_id': client_id,
                     'p_user_id': user_id,
-                    'p_agent_ids': agent_ids,
-                    'p_fallback_threshold': fallback_threshold
+                    'p_document_types': ['transcript', 'notes']
                 }
             ).execute()
 
-            chunks = result.data
-            # Check if fallback was used (last row indicator)
-            if chunks:
-                used_fallback = chunks[0].get('used_fallback', False)
-                if used_fallback:
-                    logger.info(f"   Agent filter had insufficient results, used fallback to all documents")
-
-            logger.info(f"   Found {len(chunks)} results (fallback={used_fallback})")
-            if chunks:
-                logger.info(f"   Top result similarity: {chunks[0].get('similarity', 'N/A')}")
+            chunks = result.data or []
+            if len(chunks) >= 2:  # Found enough results with type filter
+                used_document_type_filter = True
+                logger.info(f"   Found {len(chunks)} chunks from transcripts/notes")
+            else:
+                logger.info(f"   Only found {len(chunks)} chunks from transcripts/notes, will try broader search")
+                chunks = []  # Reset to trigger regular search
         except Exception as rpc_error:
-            logger.error(f"   Agent-filtered RPC call failed: {rpc_error}")
+            logger.warning(f"   Document type filtered search failed: {rpc_error}, falling back to standard search")
             chunks = []
-    else:
-        logger.info(f"   Calling match_document_chunks with threshold={min_similarity}, client_id={client_id}, user_id={user_id}")
-        logger.info(f"   Query embedding length: {len(query_embedding)}")
 
-        try:
-            result = supabase.rpc(
-                'match_document_chunks',
-                {
-                    'query_embedding': query_embedding,
-                    'match_count': limit * 3,  # Get more results to prioritize conversation docs
-                    'match_threshold': min_similarity,
-                    'p_client_id': client_id,
-                    'p_user_id': user_id
-                }
-            ).execute()
+    # Only run standard search if we didn't already get results from document_type filter
+    if not used_document_type_filter:
+        if agent_ids:
+            logger.info(f"   Calling match_document_chunks_with_agent_filter with threshold={min_similarity}, agents={agent_ids}")
+            logger.info(f"   Query embedding length: {len(query_embedding)}")
 
-            chunks = result.data
-            logger.info(f"   Found {len(chunks)} results")
-            if chunks:
-                logger.info(f"   Top result similarity: {chunks[0].get('similarity', 'N/A')}")
-        except Exception as rpc_error:
-            logger.error(f"   RPC call failed: {rpc_error}")
-            chunks = []
+            try:
+                result = supabase.rpc(
+                    'match_document_chunks_with_agent_filter',
+                    {
+                        'query_embedding': query_embedding,
+                        'match_count': limit * 3,
+                        'match_threshold': min_similarity,
+                        'p_client_id': client_id,
+                        'p_user_id': user_id,
+                        'p_agent_ids': agent_ids,
+                        'p_fallback_threshold': fallback_threshold
+                    }
+                ).execute()
+
+                chunks = result.data
+                # Check if fallback was used (last row indicator)
+                if chunks:
+                    used_fallback = chunks[0].get('used_fallback', False)
+                    if used_fallback:
+                        logger.info(f"   Agent filter had insufficient results, used fallback to all documents")
+
+                logger.info(f"   Found {len(chunks)} results (fallback={used_fallback})")
+                if chunks:
+                    logger.info(f"   Top result similarity: {chunks[0].get('similarity', 'N/A')}")
+            except Exception as rpc_error:
+                logger.error(f"   Agent-filtered RPC call failed: {rpc_error}")
+                chunks = []
+        else:
+            logger.info(f"   Calling match_document_chunks with threshold={min_similarity}, client_id={client_id}, user_id={user_id}")
+            logger.info(f"   Query embedding length: {len(query_embedding)}")
+
+            try:
+                result = supabase.rpc(
+                    'match_document_chunks',
+                    {
+                        'query_embedding': query_embedding,
+                        'match_count': limit * 3,  # Get more results to prioritize conversation docs
+                        'match_threshold': min_similarity,
+                        'p_client_id': client_id,
+                        'p_user_id': user_id
+                    }
+                ).execute()
+
+                chunks = result.data
+                logger.info(f"   Found {len(chunks)} results")
+                if chunks:
+                    logger.info(f"   Top result similarity: {chunks[0].get('similarity', 'N/A')}")
+            except Exception as rpc_error:
+                logger.error(f"   RPC call failed: {rpc_error}")
+                chunks = []
 
     # Filter out conversation chunks if requested
     if not include_conversations:
