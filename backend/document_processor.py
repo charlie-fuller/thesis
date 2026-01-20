@@ -1041,6 +1041,27 @@ def search_similar_chunks(
         chunks = [c for c in chunks if c.get('similarity', 0.0) >= min_similarity]
         logger.info(f"   After similarity filtering (>={min_similarity}): {len(chunks)} results")
 
+    # Boost documents matching query keywords (meeting/transcript queries should prioritize those doc types)
+    query_lower = query.lower()
+    meeting_keywords = ['meeting', 'transcript', 'discussion', 'conversation', 'call', 'session']
+    if any(kw in query_lower for kw in meeting_keywords):
+        for chunk in chunks:
+            metadata = chunk.get('metadata', {})
+            filename = metadata.get('filename', '').lower()
+            title = metadata.get('title', '').lower() if metadata.get('title') else ''
+
+            # Boost chunks from documents with meeting/transcript in filename or title
+            if any(kw in filename or kw in title for kw in ['transcript', 'meeting', 'session', 'call']):
+                chunk['similarity'] = min(1.0, chunk.get('similarity', 0.0) * 1.5)  # 50% boost
+                chunk['title_boosted'] = True
+                logger.debug(f"   Boosted transcript/meeting doc: {filename}")
+
+        # Re-sort after boosting
+        chunks.sort(key=lambda x: x.get('similarity', 0.0), reverse=True)
+        boosted_count = sum(1 for c in chunks if c.get('title_boosted'))
+        if boosted_count > 0:
+            logger.info(f"   Boosted {boosted_count} chunks from meeting/transcript documents")
+
     # Prioritize chunks from conversation-referenced documents
     if conversation_doc_ids:
         # Split into conversation docs and other docs
