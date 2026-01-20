@@ -6,7 +6,7 @@
 -- Date: 2026-01-20
 -- ============================================================================
 
--- New function that supports document_type filtering
+-- New function that supports document_type filtering and date range
 -- Note: document_chunks table has: id, document_id, chunk_index, content, embedding, metadata, created_at
 -- We join with documents table to get client_id, uploaded_by, and document_type
 CREATE OR REPLACE FUNCTION match_document_chunks_by_type(
@@ -15,7 +15,8 @@ CREATE OR REPLACE FUNCTION match_document_chunks_by_type(
     match_threshold float DEFAULT 0.0,
     p_client_id uuid DEFAULT NULL,
     p_user_id uuid DEFAULT NULL,
-    p_document_types text[] DEFAULT NULL  -- Filter to specific document types
+    p_document_types text[] DEFAULT NULL,  -- Filter to specific document types
+    p_min_date timestamptz DEFAULT NULL    -- Only include documents uploaded after this date
 )
 RETURNS TABLE (
     id uuid,
@@ -53,6 +54,8 @@ BEGIN
         AND (p_user_id IS NULL OR d.uploaded_by = p_user_id)
         -- Filter by document_type if provided
         AND (p_document_types IS NULL OR d.document_type::text = ANY(p_document_types))
+        -- Filter by minimum date (for "recent meetings" queries)
+        AND (p_min_date IS NULL OR d.uploaded_at >= p_min_date)
         -- Only return chunks that have embeddings
         AND dc.embedding IS NOT NULL
         -- Apply similarity threshold

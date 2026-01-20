@@ -552,6 +552,28 @@ async def process_document_with_classification(
             'error': str(e)
         }
 
+    # Auto-extract potential tasks for Taskmaster
+    try:
+        from services.task_auto_extractor import extract_tasks_from_document
+        task_result = await extract_tasks_from_document(
+            document_id=document_id,
+            supabase=supabase,
+            auto_store=True
+        )
+        result['task_extraction'] = {
+            'status': task_result.get('status', 'unknown'),
+            'tasks_found': task_result.get('tasks_found', 0),
+            'tasks_stored': task_result.get('tasks_stored', 0)
+        }
+        if task_result.get('tasks_found', 0) > 0:
+            logger.info(f"Extracted {task_result['tasks_found']} potential tasks from document {document_id}")
+    except Exception as e:
+        logger.warning(f"Task extraction failed for document {document_id}: {e}")
+        result['task_extraction'] = {
+            'status': 'failed',
+            'error': str(e)
+        }
+
     return result
 
 
@@ -980,13 +1002,26 @@ def search_similar_chunks(
         'my priorities', 'what\'s on my plate', 'what am i working on',
         'today\'s tasks', 'this week', 'my deliverables', 'my assignments'
     ]
+    # Detect recency keywords - user wants RECENT content only
+    recency_keywords = [
+        'recent', 'last few', 'latest', 'this week', 'past week', 'last week',
+        'today', 'yesterday', 'past few days', 'last couple', 'most recent'
+    ]
     is_meeting_query = any(kw in query_lower for kw in meeting_action_keywords)
     is_work_query = any(kw in query_lower for kw in work_task_keywords)
+    is_recency_query = any(kw in query_lower for kw in recency_keywords)
 
     # Work queries should also search transcripts/notes for action items
     if is_work_query and not is_meeting_query:
         is_meeting_query = True
         logger.info(f"   Detected work/task query - will search transcripts for action items")
+
+    # Calculate date filter for recency queries (default: last 7 days)
+    from datetime import datetime, timedelta, timezone
+    recency_date = None
+    if is_recency_query or is_work_query:
+        recency_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        logger.info(f"   Detected recency query - filtering to docs after {recency_date[:10]}")
 
     # Call vector search function - get more results to prioritize conversation docs
     # Use agent-filtered RPC if agent_ids provided, otherwise use standard RPC
@@ -997,27 +1032,42 @@ def search_similar_chunks(
     if is_meeting_query and not agent_ids:
         logger.info(f"   Detected meeting/action item query - trying document_type filtered search")
         try:
+            # Build RPC params - include date filter if recency query
+            rpc_params = {
+                'query_embedding': query_embedding,
+                'match_count': limit * 3,
+                'match_threshold': min_similarity,
+                'p_client_id': client_id,
+                'p_user_id': user_id,
+                'p_document_types': ['transcript', 'notes']
+            }
+            if recency_date:
+                rpc_params['p_min_date'] = recency_date
+
             # Search specifically in transcripts and notes first
             result = supabase.rpc(
                 'match_document_chunks_by_type',
-                {
-                    'query_embedding': query_embedding,
-                    'match_count': limit * 3,
-                    'match_threshold': min_similarity,
-                    'p_client_id': client_id,
-                    'p_user_id': user_id,
-                    'p_document_types': ['transcript', 'notes']
-                }
+                rpc_params
             ).execute()
 
             chunks = result.data or []
+
+            # If recency filter returned too few results, try without date filter
+            if recency_date and len(chunks) < 2:
+                logger.info(f"   Only {len(chunks)} recent chunks, trying without date filter")
+                rpc_params.pop('p_min_date', None)
+                result = supabase.rpc(
+                    'match_document_chunks_by_type',
+                    rpc_params
+                ).execute()
+                chunks = result.data or []
+
             if len(chunks) >= 2:  # Found enough results with type filter
                 used_document_type_filter = True
                 logger.info(f"   Found {len(chunks)} chunks from transcripts/notes")
 
                 # For work/task queries, boost recent documents (last 14 days)
                 if is_work_query:
-                    from datetime import datetime, timedelta, timezone
                     cutoff = datetime.now(timezone.utc) - timedelta(days=14)
                     for chunk in chunks:
                         chunk_date = chunk.get('created_at')
