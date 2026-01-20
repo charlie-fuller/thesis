@@ -1362,3 +1362,144 @@ async def remove_document_tag(
     except Exception as e:
         logger.error(f"Error removing document tag: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Document Metadata Updates
+# ============================================================================
+
+class OriginalDateUpdate(BaseModel):
+    original_date: Optional[str] = None  # YYYY-MM-DD format or null to clear
+
+
+class SyncCadenceUpdate(BaseModel):
+    sync_cadence: str  # manual, daily, weekly, monthly
+
+
+@router.patch("/{document_id}/original-date")
+async def update_document_original_date(
+    document_id: str,
+    request: OriginalDateUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update the original date for a document (e.g., meeting date for transcripts).
+
+    Args:
+        original_date: The actual date of the document content in YYYY-MM-DD format,
+                       or null to clear the date.
+    """
+    try:
+        validate_uuid(document_id, "document_id")
+
+        # Verify document exists and user has access
+        doc_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, uploaded_by')
+                .eq('id', document_id)
+                .single()
+                .execute()
+        )
+
+        if not doc_result.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Authorization check
+        document = doc_result.data
+        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+            raise HTTPException(status_code=403, detail="Not authorized to modify this document")
+
+        # Validate and parse date if provided
+        parsed_date = None
+        if request.original_date and request.original_date.strip():
+            try:
+                from datetime import datetime
+                parsed_date = datetime.strptime(request.original_date.strip(), '%Y-%m-%d').date().isoformat()
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid date format. Please use YYYY-MM-DD format."
+                )
+
+        # Update the document
+        await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .update({'original_date': parsed_date})
+                .eq('id', document_id)
+                .execute()
+        )
+
+        logger.info(f"Updated original_date for document {document_id}: {parsed_date}")
+
+        return {
+            'success': True,
+            'document_id': document_id,
+            'original_date': parsed_date
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating document original_date: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/{document_id}/sync-cadence")
+async def update_document_sync_cadence(
+    document_id: str,
+    request: SyncCadenceUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update the sync cadence for a document (for Google Drive/Notion documents).
+
+    Args:
+        sync_cadence: How often to sync - manual, daily, weekly, or monthly.
+    """
+    try:
+        validate_uuid(document_id, "document_id")
+
+        # Validate sync_cadence value
+        valid_cadences = ['manual', 'daily', 'weekly', 'monthly']
+        if request.sync_cadence not in valid_cadences:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid sync_cadence. Must be one of: {', '.join(valid_cadences)}"
+            )
+
+        # Verify document exists and user has access
+        doc_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, uploaded_by, source_platform')
+                .eq('id', document_id)
+                .single()
+                .execute()
+        )
+
+        if not doc_result.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Authorization check
+        document = doc_result.data
+        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+            raise HTTPException(status_code=403, detail="Not authorized to modify this document")
+
+        # Update the document
+        await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .update({'sync_cadence': request.sync_cadence})
+                .eq('id', document_id)
+                .execute()
+        )
+
+        logger.info(f"Updated sync_cadence for document {document_id}: {request.sync_cadence}")
+
+        return {
+            'success': True,
+            'document_id': document_id,
+            'sync_cadence': request.sync_cadence
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating document sync_cadence: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

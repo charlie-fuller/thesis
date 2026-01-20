@@ -45,6 +45,9 @@ export default function DocumentUpload({
   const [isGlobal, setIsGlobal] = useState(true)
   const [loadingAgents, setLoadingAgents] = useState(false)
 
+  // Original date for documents (e.g., meeting date for transcripts)
+  const [originalDate, setOriginalDate] = useState<string>('')
+
   // Load agents when agent selector is enabled
   useEffect(() => {
     if (showAgentSelector) {
@@ -267,6 +270,11 @@ export default function DocumentUpload({
       // Add agent IDs if not global and agents are selected
       if (showAgentSelector && !isGlobal && selectedAgentIds.size > 0) {
         formData.append('agent_ids', JSON.stringify(Array.from(selectedAgentIds)))
+      }
+
+      // Add original date if specified
+      if (originalDate) {
+        formData.append('original_date', originalDate)
       }
 
       const uploadResponse = await authenticatedFetch(`${apiBaseUrl}/api/documents/upload`, {
@@ -561,6 +569,34 @@ export default function DocumentUpload({
                 <p className="text-xs text-amber-600 mt-2">Select at least one agent, or choose &quot;Global&quot; to make available to all.</p>
               )}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Original Date Picker (for transcripts/meeting notes) */}
+      {fileQueue.length > 0 && pendingCount > 0 && (
+        <div className="mb-4 p-4 bg-tertiary rounded-lg border border-default">
+          <label className="block text-sm font-medium text-primary mb-2">
+            Original Document Date (optional)
+          </label>
+          <p className="text-xs text-muted mb-3">
+            For meeting transcripts or notes, enter the actual meeting date (not the upload date)
+          </p>
+          <input
+            type="date"
+            value={originalDate}
+            onChange={(e) => setOriginalDate(e.target.value)}
+            disabled={isUploading}
+            className="w-full px-3 py-2 text-sm border border-default rounded-lg bg-primary text-primary focus:ring-2 focus:ring-brand focus:border-transparent"
+          />
+          {originalDate && (
+            <button
+              type="button"
+              onClick={() => setOriginalDate('')}
+              className="mt-2 text-xs text-muted hover:text-primary"
+            >
+              Clear date
+            </button>
           )}
         </div>
       )}

@@ -44,6 +44,7 @@ interface Document {
   title?: string
   filename: string
   uploaded_at: string
+  original_date?: string  // Actual document date (e.g., meeting date for transcripts)
   processed: boolean
   processing_status?: string
   processing_error?: string
@@ -127,6 +128,10 @@ export default function KBDocumentsContent() {
   const [docToDelete, setDocToDelete] = useState<Document | null>(null)
   const [docSyncCadence, setDocSyncCadence] = useState<string>('manual')
   const [tempSyncCadence, setTempSyncCadence] = useState<string>('manual')
+
+  // Original date state for document info modal
+  const [tempOriginalDate, setTempOriginalDate] = useState<string>('')
+  const [savingOriginalDate, setSavingOriginalDate] = useState(false)
 
   // Agent assignment state for document info modal
   interface Agent {
@@ -991,6 +996,8 @@ export default function KBDocumentsContent() {
     const currentCadence = doc.sync_cadence || 'manual'
     setDocSyncCadence(currentCadence)
     setTempSyncCadence(currentCadence)
+    // Load original date (for meeting transcripts etc.)
+    setTempOriginalDate(doc.original_date || '')
     setShowInfoModal(true)
 
     // Load agents list if not already loaded
@@ -1031,6 +1038,23 @@ export default function KBDocumentsContent() {
           prevDocs.map(doc =>
             doc.id === selectedDoc.id
               ? { ...doc, sync_cadence: tempSyncCadence }
+              : doc
+          )
+        )
+        hasChanges = true
+      }
+
+      // Save original date if changed
+      const currentOriginalDate = selectedDoc.original_date || ''
+      if (tempOriginalDate !== currentOriginalDate) {
+        await apiPatch(`/api/documents/${selectedDoc.id}/original-date`, {
+          original_date: tempOriginalDate || null
+        })
+
+        setDocuments(prevDocs =>
+          prevDocs.map(doc =>
+            doc.id === selectedDoc.id
+              ? { ...doc, original_date: tempOriginalDate || undefined }
               : doc
           )
         )
@@ -1978,6 +2002,26 @@ export default function KBDocumentsContent() {
               <div>
                 <label className="text-sm font-medium text-secondary">Uploaded</label>
                 <p className="text-sm text-primary mt-1">{formatDate(selectedDoc.uploaded_at)}</p>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-secondary">Original Document Date</label>
+                <p className="text-xs text-muted mb-1">For meeting transcripts, enter the actual meeting date</p>
+                <input
+                  type="date"
+                  value={tempOriginalDate}
+                  onChange={(e) => setTempOriginalDate(e.target.value)}
+                  className="w-full px-3 py-1.5 text-sm border border-default rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-card text-primary"
+                />
+                {tempOriginalDate && (
+                  <button
+                    type="button"
+                    onClick={() => setTempOriginalDate('')}
+                    className="mt-1 text-xs text-muted hover:text-primary"
+                  >
+                    Clear date
+                  </button>
+                )}
               </div>
 
               <div>
