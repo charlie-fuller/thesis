@@ -116,6 +116,8 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
     try:
         # Get all recent documents for this client, prioritizing transcripts
         # Order by uploaded_at to get most recent first
+        logger.info(f"Fetching career context for user_id={user_id}, client_id={client_id}")
+
         docs_result = (
             supabase.table("documents")
             .select("id, title, content, document_type, uploaded_at")
@@ -124,6 +126,8 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
             .limit(50)  # Get more docs, we'll filter and prioritize
             .execute()
         )
+
+        logger.info(f"Documents query returned {len(docs_result.data) if docs_result.data else 0} documents")
 
         if docs_result.data:
             # Categorize documents by type/relevance
@@ -176,6 +180,8 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
 
             # Build final document list: prioritize transcripts, then career-relevant
             # Take up to 5 transcripts, 3 career-relevant, 2 other recent docs
+            logger.info(f"Categorized docs: {len(transcripts)} transcripts, {len(career_relevant)} career-relevant, {len(other_docs)} other")
+
             final_docs = []
             final_docs.extend(transcripts[:5])
             final_docs.extend(career_relevant[:3])
@@ -191,9 +197,10 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
                         remaining_slots -= 1
 
             context["kb_documents"] = final_docs[:10]
+            logger.info(f"Final context has {len(context['kb_documents'])} documents")
 
     except Exception as e:
-        logger.warning(f"Error fetching career context: {e}")
+        logger.error(f"Error fetching career context: {e}", exc_info=True)
         # Continue with empty context rather than failing completely
 
     # TODO: Add Mem0 memory retrieval when fully implemented
