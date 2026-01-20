@@ -119,40 +119,12 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
         # Note: Document content is stored in document_chunks, not documents table
         logger.info(f"Fetching career context for user_id={user_id}, client_id={client_id}")
 
-        # Get Compass agent ID first
-        compass_agent = (
-            supabase.table("agents")
-            .select("id")
-            .eq("name", "compass")
-            .single()
-            .execute()
-        )
-        compass_agent_id = compass_agent.data.get("id") if compass_agent.data else None
-        logger.info(f"Compass agent ID: {compass_agent_id}")
-
-        # Get document IDs tagged to Compass agent
-        compass_doc_ids = []
-        if compass_agent_id:
-            agent_docs = (
-                supabase.table("agent_knowledge_base")
-                .select("document_id")
-                .eq("agent_id", compass_agent_id)
-                .execute()
-            )
-            compass_doc_ids = [d["document_id"] for d in (agent_docs.data or [])]
-            logger.info(f"Found {len(compass_doc_ids)} documents tagged to Compass")
-
-        if not compass_doc_ids:
-            logger.warning("No documents tagged to Compass agent")
-            return context
-
-        # Get document metadata for Compass-tagged docs
+        # Get ALL document metadata for this client
         # Only include documents with original_date from January 5, 2026 onwards
         docs_result = (
             supabase.table("documents")
             .select("id, title, filename, document_type, uploaded_at, original_date")
             .eq("client_id", client_id)
-            .in_("id", compass_doc_ids)
             .gte("original_date", "2026-01-05")
             .order("original_date", desc=True)
             .limit(50)  # Get more docs, we'll filter and prioritize
