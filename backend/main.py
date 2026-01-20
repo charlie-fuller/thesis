@@ -272,6 +272,7 @@ from api.routes import (
     agents,
     chat,
     clients,
+    compass,
     conversations,
     document_mappings,
     documents,
@@ -323,8 +324,9 @@ app.include_router(stakeholder_metrics.router)
 app.include_router(meeting_prep.router)
 app.include_router(tasks.router)
 app.include_router(obsidian_sync.router)
+app.include_router(compass.router)
 
-logger.info("✅ All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, task management, and Obsidian sync routes)")
+logger.info("All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, task management, Obsidian sync, and Compass routes)")
 
 # ============================================================================
 # Backward Compatibility Routes
