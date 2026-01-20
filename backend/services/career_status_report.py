@@ -120,13 +120,13 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
         logger.info(f"Fetching career context for user_id={user_id}, client_id={client_id}")
 
         # First get document metadata
-        # Only include documents from January 5, 2026 onwards
+        # Only include documents with original_date from January 5, 2026 onwards
         docs_result = (
             supabase.table("documents")
-            .select("id, title, filename, document_type, uploaded_at")
+            .select("id, title, filename, document_type, uploaded_at, original_date")
             .eq("client_id", client_id)
-            .gte("uploaded_at", "2026-01-05T00:00:00Z")
-            .order("uploaded_at", desc=True)
+            .gte("original_date", "2026-01-05")
+            .order("original_date", desc=True)
             .limit(50)  # Get more docs, we'll filter and prioritize
             .execute()
         )
