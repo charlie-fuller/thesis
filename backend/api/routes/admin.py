@@ -654,6 +654,31 @@ async def clear_system_instructions_cache(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/clear-search-cache")
+async def clear_search_cache(
+    current_user: dict = Depends(require_admin)
+):
+    """
+    Clear all RAG search cache (Redis).
+    Use this when documents have been uploaded/updated and cached search results are stale.
+    Requires admin role.
+    """
+    try:
+        from cache import invalidate_search_cache
+
+        # Clear all search cache
+        invalidate_search_cache("")
+        logger.info(f"Admin {current_user.get('email')} cleared search cache")
+
+        return {
+            'success': True,
+            'message': 'Cleared all RAG search cache entries'
+        }
+    except Exception as e:
+        logger.error(f"Search cache clear error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/analytics/upload-health")
 async def get_upload_health(
     current_user: dict = Depends(require_admin)
