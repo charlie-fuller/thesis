@@ -9,8 +9,6 @@ import { logger } from '@/lib/logger'
 import PageHeader from '@/components/PageHeader'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { AgentIcon, getAgentColor } from '@/components/AgentIcon'
-import CareerStatusReportModal from '@/components/compass/CareerStatusReportModal'
-import { FileBarChart, Loader2 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 
 // Lazy load the chart component to avoid SSR issues with recharts
@@ -112,12 +110,6 @@ export default function IntelligencePage() {
   const [agentLoading, setAgentLoading] = useState(true)
   const [agentError, setAgentError] = useState<string | null>(null)
 
-  // Compass career status report state
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [careerReport, setCareerReport] = useState<any>(null)
-  const [careerReportLoading, setCareerReportLoading] = useState(false)
-  const [showCareerReportModal, setShowCareerReportModal] = useState(false)
-
   // Load stakeholder data
   async function loadStakeholderData() {
     try {
@@ -154,21 +146,6 @@ export default function IntelligencePage() {
       setAgentError('Failed to load agents')
     } finally {
       setAgentLoading(false)
-    }
-  }
-
-  // Generate career status report for Compass agent
-  async function handleGenerateCareerReport() {
-    try {
-      setCareerReportLoading(true)
-      const report = await apiPost('/api/compass/status-report/generate', {})
-      setCareerReport(report)
-      setShowCareerReportModal(true)
-    } catch (err) {
-      logger.error('Failed to generate career report:', err)
-      alert('Failed to generate career status report. Please try again.')
-    } finally {
-      setCareerReportLoading(false)
     }
   }
 
@@ -741,162 +718,68 @@ export default function IntelligencePage() {
               <>
                 {/* Agent Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {agents.map((agent) => {
-                    const isCompass = agent.name.toLowerCase() === 'compass'
-
-                    // Compass agent gets a special card with action button
-                    if (isCompass) {
-                      return (
-                        <div
-                          key={agent.id}
-                          className="card p-6 hover:border-primary/50 transition-all group"
-                        >
-                          {/* Agent Header */}
-                          <div className="flex items-start gap-4 mb-4">
-                            <div className={`w-12 h-12 rounded-lg flex items-center justify-center border ${getAgentColor(agent.name)}`}>
-                              <AgentIcon name={agent.name} size="lg" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <Link
-                                href={`/admin/agents/${agent.id}`}
-                                className="text-lg font-semibold text-primary hover:text-blue-400 transition-colors"
-                              >
-                                {agent.display_name}
-                              </Link>
-                              <p className="text-sm text-secondary">
-                                {agent.name}
-                              </p>
-                            </div>
-                            <div className={`px-2 py-1 rounded text-xs font-medium ${
-                              agent.is_active
-                                ? 'bg-green-500/20 text-green-400'
-                                : 'bg-gray-500/20 text-gray-400'
-                            }`}>
-                              {agent.is_active ? 'Active' : 'Inactive'}
-                            </div>
-                          </div>
-
-                          {/* Description */}
-                          <p className="text-sm text-secondary mb-4 line-clamp-2">
-                            {agent.description || 'No description configured'}
+                  {agents.map((agent) => (
+                    <Link
+                      key={agent.id}
+                      href={`/admin/agents/${agent.id}`}
+                      className="card p-6 hover:border-primary/50 transition-all group"
+                    >
+                      {/* Agent Header */}
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center border ${getAgentColor(agent.name)}`}>
+                          <AgentIcon name={agent.name} size="lg" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-semibold text-primary group-hover:text-blue-400 transition-colors">
+                            {agent.display_name}
+                          </h3>
+                          <p className="text-sm text-secondary">
+                            {agent.name}
                           </p>
-
-                          {/* Stats */}
-                          <div className="grid grid-cols-4 gap-3 pt-4 border-t border-border">
-                            <div className="text-center">
-                              <div className="text-lg font-semibold text-primary">
-                                {agent.instruction_versions_count}
-                              </div>
-                              <div className="text-xs text-secondary">Versions</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-semibold text-primary">
-                                {agent.kb_documents_count}
-                              </div>
-                              <div className="text-xs text-secondary">KB Docs</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-semibold text-primary">
-                                {agent.conversations_count ?? 0}
-                              </div>
-                              <div className="text-xs text-secondary">Chats</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-semibold text-primary">
-                                {agent.meeting_rooms_count ?? 0}
-                              </div>
-                              <div className="text-xs text-secondary">Meetings</div>
-                            </div>
-                          </div>
-
-                          {/* Career Status Report Button */}
-                          <div className="mt-4 pt-4 border-t border-border">
-                            <button
-                              onClick={handleGenerateCareerReport}
-                              disabled={careerReportLoading}
-                              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50"
-                            >
-                              {careerReportLoading ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  Generating Report...
-                                </>
-                              ) : (
-                                <>
-                                  <FileBarChart className="w-4 h-4" />
-                                  Generate Career Status Report
-                                </>
-                              )}
-                            </button>
-                          </div>
                         </div>
-                      )
-                    }
-
-                    // Standard agent card for all other agents
-                    return (
-                      <Link
-                        key={agent.id}
-                        href={`/admin/agents/${agent.id}`}
-                        className="card p-6 hover:border-primary/50 transition-all group"
-                      >
-                        {/* Agent Header */}
-                        <div className="flex items-start gap-4 mb-4">
-                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center border ${getAgentColor(agent.name)}`}>
-                            <AgentIcon name={agent.name} size="lg" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-lg font-semibold text-primary group-hover:text-blue-400 transition-colors">
-                              {agent.display_name}
-                            </h3>
-                            <p className="text-sm text-secondary">
-                              {agent.name}
-                            </p>
-                          </div>
-                          <div className={`px-2 py-1 rounded text-xs font-medium ${
-                            agent.is_active
-                              ? 'bg-green-500/20 text-green-400'
-                              : 'bg-gray-500/20 text-gray-400'
-                          }`}>
-                            {agent.is_active ? 'Active' : 'Inactive'}
-                          </div>
+                        <div className={`px-2 py-1 rounded text-xs font-medium ${
+                          agent.is_active
+                            ? 'bg-green-500/20 text-green-400'
+                            : 'bg-gray-500/20 text-gray-400'
+                        }`}>
+                          {agent.is_active ? 'Active' : 'Inactive'}
                         </div>
+                      </div>
 
-                        {/* Description */}
-                        <p className="text-sm text-secondary mb-4 line-clamp-2">
-                          {agent.description || 'No description configured'}
-                        </p>
+                      {/* Description */}
+                      <p className="text-sm text-secondary mb-4 line-clamp-2">
+                        {agent.description || 'No description configured'}
+                      </p>
 
-                        {/* Stats */}
-                        <div className="grid grid-cols-4 gap-3 pt-4 border-t border-border">
-                          <div className="text-center">
-                            <div className="text-lg font-semibold text-primary">
-                              {agent.instruction_versions_count}
-                            </div>
-                            <div className="text-xs text-secondary">Versions</div>
+                      {/* Stats */}
+                      <div className="grid grid-cols-4 gap-3 pt-4 border-t border-border">
+                        <div className="text-center">
+                          <div className="text-lg font-semibold text-primary">
+                            {agent.instruction_versions_count}
                           </div>
-                          <div className="text-center">
-                            <div className="text-lg font-semibold text-primary">
-                              {agent.kb_documents_count}
-                            </div>
-                            <div className="text-xs text-secondary">KB Docs</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-lg font-semibold text-primary">
-                              {agent.conversations_count ?? 0}
-                            </div>
-                            <div className="text-xs text-secondary">Chats</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-lg font-semibold text-primary">
-                              {agent.meeting_rooms_count ?? 0}
-                            </div>
-                            <div className="text-xs text-secondary">Meetings</div>
-                          </div>
+                          <div className="text-xs text-secondary">Versions</div>
                         </div>
-                      </Link>
-                    )
-                  })}
+                        <div className="text-center">
+                          <div className="text-lg font-semibold text-primary">
+                            {agent.kb_documents_count}
+                          </div>
+                          <div className="text-xs text-secondary">KB Docs</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-semibold text-primary">
+                            {agent.conversations_count ?? 0}
+                          </div>
+                          <div className="text-xs text-secondary">Chats</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-semibold text-primary">
+                            {agent.meeting_rooms_count ?? 0}
+                          </div>
+                          <div className="text-xs text-secondary">Meetings</div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
 
                 {agents.length === 0 && (
@@ -909,17 +792,6 @@ export default function IntelligencePage() {
           </div>
         )}
       </div>
-
-      {/* Career Status Report Modal */}
-      {careerReport && (
-        <CareerStatusReportModal
-          report={careerReport}
-          open={showCareerReportModal}
-          onClose={() => setShowCareerReportModal(false)}
-          onRegenerate={handleGenerateCareerReport}
-          regenerating={careerReportLoading}
-        />
-      )}
     </div>
   )
 }

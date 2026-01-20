@@ -4,11 +4,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { Upload, FileText, X, ArrowLeft, Check, Diamond, ChevronRight, Circle } from 'lucide-react';
+import { Upload, FileText, X, ArrowLeft, Check, Diamond, ChevronRight, Circle, FileBarChart, Loader2 } from 'lucide-react';
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { AgentIcon, getAgentColor } from '@/components/AgentIcon';
+import CareerStatusReportModal from '@/components/compass/CareerStatusReportModal';
 
 interface InstructionVersion {
   id: string;
@@ -159,6 +160,12 @@ export default function AgentDetailPage() {
   const [hasXmlFile, setHasXmlFile] = useState(false);
   const [loadingXml, setLoadingXml] = useState(false);
   const [syncing, setSyncing] = useState(false);
+
+  // Compass career status report state
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [careerReport, setCareerReport] = useState<any>(null);
+  const [careerReportLoading, setCareerReportLoading] = useState(false);
+  const [showCareerReportModal, setShowCareerReportModal] = useState(false);
 
   useEffect(() => {
     fetchAgent();
@@ -526,6 +533,21 @@ export default function AgentDetailPage() {
     });
   };
 
+  // Generate career status report for Compass agent
+  const handleGenerateCareerReport = async () => {
+    try {
+      setCareerReportLoading(true);
+      const report = await apiPost('/api/compass/status-report/generate', {});
+      setCareerReport(report);
+      setShowCareerReportModal(true);
+    } catch (err) {
+      logger.error('Failed to generate career report:', err);
+      toast.error('Failed to generate career status report');
+    } finally {
+      setCareerReportLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -817,6 +839,48 @@ export default function AgentDetailPage() {
               })()}
             </div>
           </details>
+
+          {/* Compass-specific: Career Status Report Panel */}
+          {agent.name.toLowerCase() === 'compass' && (
+            <details open className="card group">
+              <summary className="cursor-pointer p-4 flex items-center justify-between hover:bg-page/50 transition-colors rounded-t-lg">
+                <h2 className="text-lg font-semibold text-primary flex items-center gap-2">
+                  <FileBarChart className="w-5 h-5 text-amber-500" />
+                  Career Status Report
+                </h2>
+                <svg className="w-5 h-5 text-secondary transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <div className="px-6 pb-6 pt-2 border-t border-border">
+                <p className="text-secondary text-sm mb-4">
+                  Generate a comprehensive career status report based on your Knowledge Base documents.
+                  The report assesses your performance across 5 dimensions: Strategic Impact, Execution Quality,
+                  Relationship Building, Growth Mindset, and Leadership Presence.
+                </p>
+                <button
+                  onClick={handleGenerateCareerReport}
+                  disabled={careerReportLoading}
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50 font-medium"
+                >
+                  {careerReportLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Generating Report...
+                    </>
+                  ) : (
+                    <>
+                      <FileBarChart className="w-5 h-5" />
+                      Generate Career Status Report
+                    </>
+                  )}
+                </button>
+                <p className="text-muted text-xs mt-3">
+                  For best results, upload career-related documents (performance reviews, goals, win logs) to the Knowledge Base and tag them for Compass.
+                </p>
+              </div>
+            </details>
+          )}
 
           {/* Panel 2: Why It Exists - Collapsed by default */}
           <details className="card group">
@@ -2081,6 +2145,17 @@ export default function AgentDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Career Status Report Modal (Compass only) */}
+      {careerReport && (
+        <CareerStatusReportModal
+          report={careerReport}
+          open={showCareerReportModal}
+          onClose={() => setShowCareerReportModal(false)}
+          onRegenerate={handleGenerateCareerReport}
+          regenerating={careerReportLoading}
+        />
       )}
     </div>
   );
