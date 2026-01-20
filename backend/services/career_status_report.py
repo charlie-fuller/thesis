@@ -108,38 +108,66 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
         "stakeholder_context": None,
     }
 
-    # Get Compass agent ID
-    agent_result = (
-        supabase.table("agents")
-        .select("id")
-        .ilike("name", "%compass%")
-        .single()
-        .execute()
-    )
-    compass_agent_id = agent_result.data.get("id") if agent_result.data else None
-
-    # Get KB documents tagged for Compass
-    if compass_agent_id:
-        docs_result = (
-            supabase.table("agent_knowledge_base")
-            .select("document_id, relevance_score, documents(id, title, content)")
-            .eq("agent_id", compass_agent_id)
-            .eq("documents.client_id", client_id)
-            .order("relevance_score", desc=True)
-            .limit(10)
+    try:
+        # Get Compass agent ID
+        agent_result = (
+            supabase.table("agents")
+            .select("id")
+            .ilike("name", "%compass%")
+            .single()
             .execute()
         )
+        compass_agent_id = agent_result.data.get("id") if agent_result.data else None
 
-        for item in docs_result.data or []:
-            doc = item.get("documents")
-            if doc and doc.get("content"):
-                context["kb_documents"].append(
-                    {
-                        "title": doc.get("title", "Untitled"),
-                        "content": doc.get("content", "")[:2000],  # Truncate for context
-                        "relevance": item.get("relevance_score", 0),
-                    }
+        # Get KB documents tagged for Compass
+        # Note: Fetch agent_knowledge_base links first, then fetch documents separately
+        # to avoid nested filter issues with Supabase PostgREST
+        if compass_agent_id:
+            # Step 1: Get document IDs linked to Compass agent
+            kb_links_result = (
+                supabase.table("agent_knowledge_base")
+                .select("document_id, relevance_score")
+                .eq("agent_id", compass_agent_id)
+                .order("relevance_score", desc=True)
+                .limit(20)  # Fetch more, filter by client later
+                .execute()
+            )
+
+            if kb_links_result.data:
+                doc_ids = [link["document_id"] for link in kb_links_result.data]
+                relevance_map = {
+                    link["document_id"]: link["relevance_score"]
+                    for link in kb_links_result.data
+                }
+
+                # Step 2: Fetch documents by ID with client filter
+                docs_result = (
+                    supabase.table("documents")
+                    .select("id, title, content")
+                    .in_("id", doc_ids)
+                    .eq("client_id", client_id)
+                    .execute()
                 )
+
+                # Sort by relevance and limit to 10
+                docs_with_relevance = []
+                for doc in docs_result.data or []:
+                    if doc.get("content"):
+                        docs_with_relevance.append(
+                            {
+                                "title": doc.get("title", "Untitled"),
+                                "content": doc.get("content", "")[:2000],
+                                "relevance": relevance_map.get(doc["id"], 0),
+                            }
+                        )
+
+                # Sort by relevance and take top 10
+                docs_with_relevance.sort(key=lambda x: x["relevance"], reverse=True)
+                context["kb_documents"] = docs_with_relevance[:10]
+
+    except Exception as e:
+        logger.warning(f"Error fetching career context: {e}")
+        # Continue with empty context rather than failing completely
 
     # TODO: Add Mem0 memory retrieval when fully implemented
     # For now, memories will be empty
