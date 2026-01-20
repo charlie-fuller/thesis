@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from logger_config import get_logger
-from api.utils.auth import get_current_user
+from auth import get_current_user
 from database import get_supabase
 
 logger = get_logger(__name__)
