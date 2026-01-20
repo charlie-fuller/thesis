@@ -116,11 +116,13 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
     try:
         # Get all recent documents for this client, prioritizing transcripts
         # Order by uploaded_at to get most recent first
+        # Note: Document content is stored in document_chunks, not documents table
         logger.info(f"Fetching career context for user_id={user_id}, client_id={client_id}")
 
+        # First get document metadata
         docs_result = (
             supabase.table("documents")
-            .select("id, title, content, document_type, uploaded_at")
+            .select("id, title, filename, document_type, uploaded_at")
             .eq("client_id", client_id)
             .order("uploaded_at", desc=True)
             .limit(50)  # Get more docs, we'll filter and prioritize
@@ -130,6 +132,30 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
         logger.info(f"Documents query returned {len(docs_result.data) if docs_result.data else 0} documents")
 
         if docs_result.data:
+            # Get document IDs to fetch chunks
+            doc_ids = [doc["id"] for doc in docs_result.data]
+
+            # Fetch chunks for these documents (get first few chunks per doc for context)
+            chunks_result = (
+                supabase.table("document_chunks")
+                .select("document_id, content, chunk_index")
+                .in_("document_id", doc_ids)
+                .order("chunk_index")
+                .execute()
+            )
+
+            # Build content map from chunks (concatenate first chunks per document)
+            content_map = {}
+            for chunk in chunks_result.data or []:
+                doc_id = chunk["document_id"]
+                if doc_id not in content_map:
+                    content_map[doc_id] = ""
+                # Only take first ~2000 chars per document
+                if len(content_map[doc_id]) < 2000:
+                    content_map[doc_id] += chunk.get("content", "") + "\n"
+
+            logger.info(f"Fetched content for {len(content_map)} documents from chunks")
+
             # Categorize documents by type/relevance
             transcripts = []
             career_relevant = []
@@ -144,11 +170,15 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
             ]
 
             for doc in docs_result.data:
-                if not doc.get("content"):
+                doc_id = doc["id"]
+                content = content_map.get(doc_id, "")
+                if not content:
                     continue
 
-                title_lower = (doc.get("title") or "").lower()
-                content_lower = doc.get("content", "").lower()[:500]  # Check first 500 chars
+                # Use title or filename for categorization
+                title = doc.get("title") or doc.get("filename") or "Untitled"
+                title_lower = title.lower()
+                content_lower = content.lower()[:500]  # Check first 500 chars
                 doc_type = (doc.get("document_type") or "").lower()
 
                 # Check if it's a transcript
@@ -165,8 +195,8 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
                 )
 
                 doc_entry = {
-                    "title": doc.get("title", "Untitled"),
-                    "content": doc.get("content", "")[:2000],  # Truncate for context
+                    "title": title,
+                    "content": content[:2000],  # Truncate for context
                     "doc_type": doc_type,
                     "uploaded_at": doc.get("uploaded_at"),
                 }
