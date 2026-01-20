@@ -90,6 +90,47 @@ PRIORITY_SIGNALS = {
     ],
 }
 
+# False positive filters - phrases that look like tasks but aren't
+# These are conversational speech patterns common in meeting transcripts
+FALSE_POSITIVE_PATTERNS = [
+    # Conversational intros
+    r"^(?:just\s+)?(?:go\s+ahead|introduce|say|mention|start|begin)\b",
+    r"^(?:just\s+)?(?:do\s+a\s+)?quick\s+intro",
+    r"^(?:let\s+me\s+)?(?:just\s+)?(?:say|mention|note|add)\b",
+    # Status/availability statements (not actionable)
+    r"^be\s+(?:off|out|away|traveling|in|at|back)\b",
+    r"^be\s+(?:there|here|around|available)\b",
+    # Pleasantries
+    r"^(?:let\s+you\s+)?(?:go|talk\s+to\s+you|catch\s+up)\b",
+    r"^see\s+you\b",
+    # Thinking out loud
+    r"^(?:think|say|guess|assume|suppose)\b",
+    r"^probably\b",
+    r"^maybe\b",
+    # Requests to others (not YOUR task)
+    r"^(?:have|get|ask)\s+(?:you|them|someone|everybody)\b",
+    # Self-referential speech patterns
+    r"^(?:just\s+)?(?:keep|continue|move\s+on|wrap\s+up)\b",
+    r"^(?:start|end|finish)\s+(?:with|by|off)\b",
+    # Interview/meeting speech patterns
+    r"^(?:kind\s+of\s+)?(?:dive|jump|get)\s+(?:into|in)\b",
+    r"^turn\s+(?:it\s+)?over\s+to\b",
+    r"^(?:go\s+)?(?:around|through)\s+(?:the|and)\b",
+    r"^(?:hand|pass)\s+(?:it\s+)?(?:over|off)\s+to\b",
+    r"^(?:open|close)\s+(?:it\s+)?up\s+(?:to|for)\b",
+]
+
+# Verbs that typically indicate real tasks
+TASK_VERBS = [
+    'send', 'create', 'write', 'prepare', 'review', 'complete', 'finish',
+    'submit', 'deliver', 'schedule', 'set up', 'follow up', 'follow-up',
+    'update', 'check', 'confirm', 'arrange', 'book', 'draft', 'finalize',
+    'investigate', 'research', 'analyze', 'compile', 'document', 'share',
+    'circulate', 'distribute', 'forward', 'reach out', 'contact', 'call',
+    'email', 'message', 'post', 'publish', 'upload', 'download', 'fix',
+    'resolve', 'address', 'handle', 'process', 'implement', 'deploy',
+]
+
 
 class TaskExtractor:
     """Extracts potential tasks from document content."""
@@ -231,6 +272,11 @@ Output as a structured list. If no tasks found, say "No tasks found."
         if len(action) < 5:  # Too short to be meaningful
             return None
 
+        # Check for false positives (conversational speech, not real tasks)
+        if self._is_false_positive(action):
+            logger.debug(f"Filtered false positive: {action[:50]}...")
+            return None
+
         # Extract due date from surrounding context
         due_date, due_date_text = self._extract_due_date(source_text)
 
@@ -339,6 +385,33 @@ Output as a structured list. If no tasks found, say "No tasks found."
             text = text[0].upper() + text[1:]
 
         return text
+
+    def _is_false_positive(self, action_text: str) -> bool:
+        """Check if the extracted action is a false positive (conversational speech, not a task)."""
+        action_lower = action_text.lower().strip()
+
+        # Check against false positive patterns
+        for pattern in FALSE_POSITIVE_PATTERNS:
+            if re.match(pattern, action_lower, re.IGNORECASE):
+                return True
+
+        # Check if "be off/away/traveling" appears anywhere (status statements)
+        if re.search(r'\bbe\s+(?:off|out|away|traveling|back|there|here)\b', action_lower):
+            return True
+
+        # Check if it contains a real task verb
+        has_task_verb = any(verb in action_lower for verb in TASK_VERBS)
+
+        # If no task verb, more likely to be a false positive
+        # Require longer text to compensate for missing task verb
+        if not has_task_verb and len(action_lower.split()) < 8:
+            return True
+
+        # If starts with a fragment or incomplete word (like "Be." from bad extraction)
+        if re.match(r'^[a-z]{1,3}\.\s', action_lower):
+            return True
+
+        return False
 
     def _deduplicate_tasks(self, tasks: list[ExtractedTask]) -> list[ExtractedTask]:
         """Remove duplicate or very similar tasks."""

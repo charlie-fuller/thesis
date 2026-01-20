@@ -23,12 +23,14 @@ interface ScoreDimensionCardProps {
   dimension: Dimension
   score: number | null
   justification: string | null
+  improvementActions?: string[]
 }
 
 export default function ScoreDimensionCard({
   dimension,
   score,
   justification,
+  improvementActions,
 }: ScoreDimensionCardProps) {
   const value = score ?? 0
   const percentage = (value / 5) * 100
@@ -69,6 +71,21 @@ export default function ScoreDimensionCard({
         <p className="text-sm text-secondary pl-3 border-l-2 border-amber-300 dark:border-amber-600">
           {justification}
         </p>
+      )}
+      {improvementActions && improvementActions.length > 0 && (
+        <div className="mt-2 pl-3 border-l-2 border-blue-300 dark:border-blue-600">
+          <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">
+            How to improve:
+          </p>
+          <ul className="space-y-0.5">
+            {improvementActions.map((action, i) => (
+              <li key={i} className="text-xs text-secondary flex items-start gap-1.5">
+                <span className="text-blue-500 mt-0.5">→</span>
+                {action}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   )

@@ -87,6 +87,7 @@ class ReportResponse(BaseModel):
     areas_of_strength: list[str]
     growth_opportunities: list[str]
     recommended_actions: list[str]
+    improvement_actions: Optional[dict] = None
 
     # Metadata
     data_sources: dict

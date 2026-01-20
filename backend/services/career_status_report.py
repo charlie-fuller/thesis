@@ -119,12 +119,40 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
         # Note: Document content is stored in document_chunks, not documents table
         logger.info(f"Fetching career context for user_id={user_id}, client_id={client_id}")
 
-        # First get document metadata
+        # Get Compass agent ID first
+        compass_agent = (
+            supabase.table("agents")
+            .select("id")
+            .eq("name", "compass")
+            .single()
+            .execute()
+        )
+        compass_agent_id = compass_agent.data.get("id") if compass_agent.data else None
+        logger.info(f"Compass agent ID: {compass_agent_id}")
+
+        # Get document IDs tagged to Compass agent
+        compass_doc_ids = []
+        if compass_agent_id:
+            agent_docs = (
+                supabase.table("agent_knowledge_base")
+                .select("document_id")
+                .eq("agent_id", compass_agent_id)
+                .execute()
+            )
+            compass_doc_ids = [d["document_id"] for d in (agent_docs.data or [])]
+            logger.info(f"Found {len(compass_doc_ids)} documents tagged to Compass")
+
+        if not compass_doc_ids:
+            logger.warning("No documents tagged to Compass agent")
+            return context
+
+        # Get document metadata for Compass-tagged docs
         # Only include documents with original_date from January 5, 2026 onwards
         docs_result = (
             supabase.table("documents")
             .select("id, title, filename, document_type, uploaded_at, original_date")
             .eq("client_id", client_id)
+            .in_("id", compass_doc_ids)
             .gte("original_date", "2026-01-05")
             .order("original_date", desc=True)
             .limit(50)  # Get more docs, we'll filter and prioritize
@@ -284,28 +312,34 @@ Generate the following:
 2. For each dimension, provide:
    - SCORE (1-5 based on rubric levels)
    - JUSTIFICATION (2-3 sentences explaining the score with specific evidence if available)
+   - IMPROVEMENT_ACTIONS: 2-3 concrete, actionable steps to improve this dimension (specific things to do this week/month)
 
 3. AREAS_OF_STRENGTH: List 2-3 specific strengths demonstrated
 4. GROWTH_OPPORTUNITIES: List 2-3 areas for development
-5. RECOMMENDED_ACTIONS: List 2-3 concrete next steps
+5. RECOMMENDED_ACTIONS: List 2-3 concrete next steps (highest priority actions across all dimensions)
 
 Format your response EXACTLY as:
 EXECUTIVE_SUMMARY: [your text]
 
 STRATEGIC_IMPACT_SCORE: [1-5]
 STRATEGIC_IMPACT_JUSTIFICATION: [your text]
+STRATEGIC_IMPACT_IMPROVEMENTS: [action1] | [action2] | [action3]
 
 EXECUTION_QUALITY_SCORE: [1-5]
 EXECUTION_QUALITY_JUSTIFICATION: [your text]
+EXECUTION_QUALITY_IMPROVEMENTS: [action1] | [action2] | [action3]
 
 RELATIONSHIP_BUILDING_SCORE: [1-5]
 RELATIONSHIP_BUILDING_JUSTIFICATION: [your text]
+RELATIONSHIP_BUILDING_IMPROVEMENTS: [action1] | [action2] | [action3]
 
 GROWTH_MINDSET_SCORE: [1-5]
 GROWTH_MINDSET_JUSTIFICATION: [your text]
+GROWTH_MINDSET_IMPROVEMENTS: [action1] | [action2] | [action3]
 
 LEADERSHIP_PRESENCE_SCORE: [1-5]
 LEADERSHIP_PRESENCE_JUSTIFICATION: [your text]
+LEADERSHIP_PRESENCE_IMPROVEMENTS: [action1] | [action2] | [action3]
 
 AREAS_OF_STRENGTH: [item1] | [item2] | [item3]
 GROWTH_OPPORTUNITIES: [item1] | [item2] | [item3]
@@ -329,6 +363,7 @@ def _parse_assessment_response(response_text: str) -> dict:
         "areas_of_strength": [],
         "growth_opportunities": [],
         "recommended_actions": [],
+        "improvement_actions": {},
     }
 
     # Parse text fields
@@ -357,6 +392,15 @@ def _parse_assessment_response(response_text: str) -> dict:
         "RECOMMENDED_ACTIONS:": "recommended_actions",
     }
 
+    # Parse improvement actions per dimension
+    improvement_sections = {
+        "STRATEGIC_IMPACT_IMPROVEMENTS:": "strategic_impact",
+        "EXECUTION_QUALITY_IMPROVEMENTS:": "execution_quality",
+        "RELATIONSHIP_BUILDING_IMPROVEMENTS:": "relationship_building",
+        "GROWTH_MINDSET_IMPROVEMENTS:": "growth_mindset",
+        "LEADERSHIP_PRESENCE_IMPROVEMENTS:": "leadership_presence",
+    }
+
     lines = response_text.split("\n")
     for line in lines:
         line = line.strip()
@@ -383,6 +427,13 @@ def _parse_assessment_response(response_text: str) -> dict:
                 items_str = line[len(marker) :].strip()
                 items = [item.strip() for item in items_str.split("|") if item.strip()]
                 result[field] = items
+
+        # Check improvement sections
+        for marker, dimension in improvement_sections.items():
+            if line.startswith(marker):
+                items_str = line[len(marker) :].strip()
+                items = [item.strip() for item in items_str.split("|") if item.strip()]
+                result["improvement_actions"][dimension] = items
 
     # Calculate overall score
     scores = [
@@ -474,6 +525,7 @@ async def generate_career_status_report(
             "areas_of_strength": assessment.get("areas_of_strength", []),
             "growth_opportunities": assessment.get("growth_opportunities", []),
             "recommended_actions": assessment.get("recommended_actions", []),
+            "improvement_actions": assessment.get("improvement_actions", {}),
             "data_sources": {
                 "kb_documents": len(context.get("kb_documents", [])),
                 "memories": len(context.get("memories", [])),

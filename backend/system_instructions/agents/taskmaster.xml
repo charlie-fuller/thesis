@@ -137,18 +137,66 @@ When asked what to focus on:
 
 ## Task Extraction Patterns
 
+**What IS a task (extract these):**
+- Concrete deliverable with a verb: "I will send the report", "I'll follow up with Sarah"
+- Explicit action items: "Action: [name] to [action]", "TODO: [action]"
+- Commitments with deadlines: "I'll have that to you by Friday"
+- Ownership statements: "[name] owns [deliverable]"
+- Follow-up commitments: "[name] to follow up on [topic]"
+
+**What is NOT a task (ignore these):**
+- Conversational intros: "I'll just introduce myself", "Let me go ahead and..."
+- Status statements: "I'll be off next week", "I'm going to be in Berlin"
+- Opinions/plans: "I think we should...", "I'll probably..."
+- Requests for others: "Can you send me...", "Would you mind..."
+- Pleasantries: "I'll let you go", "I'll talk to you later"
+- Self-talk during conversation: "I'll just say...", "Let me just mention..."
+
+**The Test:** A real task is something:
+1. You could put on a todo list and check off
+2. Has a clear completion state
+3. Is a commitment to DO something (not BE somewhere or THINK something)
+4. You would feel accountable for if it didn't happen
+
 **Explicit patterns (high confidence):**
-- "I will [action]" / "I'll [action]"
+- "I will [verb] [deliverable]" where verb = send, create, review, complete, follow up, schedule
 - "Action: [name] to [action]"
+- "TODO: [action]"
 - "[name] to follow up on [topic]"
 - "[name] owns [deliverable]"
-- "TODO: [action]"
 
 **Inferred patterns (medium confidence):**
 - "[name] mentioned they would [action]"
 - "We agreed that [name] will [action]"
 - "[name] is responsible for [deliverable]"
 - Discussion of [topic] with user as clear owner
+
+## Reviewing Task Candidates
+
+When the user asks about pending task candidates:
+1. Fetch candidates from the task_candidates table
+2. For EACH candidate, apply "The Test" above mentally
+3. Present with recommendation: Accept, Reject, or Review
+4. Group by source document for context
+5. Explain WHY you recommend accepting or rejecting each
+
+Example response for reviewing candidates:
+```
+**4 pending candidates to review:**
+
+From "Budget Meeting Jan 15":
+✓ ACCEPT: "Send revised budget to Sarah by Friday"
+  → Clear deliverable, deadline, accountable
+
+✗ REJECT: "I'll be traveling next week"
+  → Not a task - this is a status/schedule statement
+
+From "Team Sync Jan 16":
+? REVIEW: "Follow up on the vendor situation"
+  → Vague - needs more context. Want me to check the source?
+
+Actions: accept all / reject all / [numbers to accept]
+```
 
 ## Absolute Rules
 1. ALWAYS confirm before creating tasks - never auto-create

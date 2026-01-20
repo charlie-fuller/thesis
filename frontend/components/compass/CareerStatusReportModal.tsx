@@ -56,6 +56,7 @@ interface CareerStatusReport {
   areas_of_strength: string[]
   growth_opportunities: string[]
   recommended_actions: string[]
+  improvement_actions?: Record<string, string[]>
 
   // Metadata
   data_sources: {
@@ -279,12 +280,14 @@ export default function CareerStatusReportModal({
 
             {rubric.map((dim) => {
               const { score, justification } = getDimensionData(dim.key)
+              const improvements = report.improvement_actions?.[dim.key] ?? []
               return (
                 <ScoreDimensionCard
                   key={dim.key}
                   dimension={dim}
                   score={score}
                   justification={justification}
+                  improvementActions={improvements}
                 />
               )
             })}
