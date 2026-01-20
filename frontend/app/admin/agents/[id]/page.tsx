@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { Upload, FileText, X, ArrowLeft, Check, Diamond, ChevronRight, Circle, FileBarChart, Loader2 } from 'lucide-react';
+import { Upload, FileText, X, ArrowLeft, Check, Diamond, ChevronRight, Circle, FileBarChart, Loader2, ListChecks } from 'lucide-react';
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -166,6 +166,30 @@ export default function AgentDetailPage() {
   const [careerReport, setCareerReport] = useState<any>(null);
   const [careerReportLoading, setCareerReportLoading] = useState(false);
   const [showCareerReportModal, setShowCareerReportModal] = useState(false);
+
+  // Taskmaster task scanning state
+  interface TaskCandidate {
+    id: string;
+    title: string;
+    source_document_name: string;
+    suggested_priority: number;
+    due_date_text?: string;
+    confidence: string;
+  }
+  interface ScanApiResponse {
+    success: boolean;
+    documents_scanned: number;
+    total_tasks_found: number;
+    total_tasks_stored: number;
+    message: string;
+  }
+  interface ScanResult {
+    documents_scanned: number;
+    total_candidates_found: number;
+    candidates: TaskCandidate[];
+  }
+  const [taskScanResult, setTaskScanResult] = useState<ScanResult | null>(null);
+  const [taskScanLoading, setTaskScanLoading] = useState(false);
 
   useEffect(() => {
     fetchAgent();
@@ -548,6 +572,39 @@ export default function AgentDetailPage() {
     }
   };
 
+  // Scan documents for tasks (Taskmaster agent)
+  const handleScanDocumentsForTasks = async () => {
+    try {
+      setTaskScanLoading(true);
+      setTaskScanResult(null);
+
+      // First, trigger the scan
+      const scanResponse = await apiPost<ScanApiResponse>('/api/tasks/scan-documents?limit=10&since_days=30', {});
+
+      // Then fetch the pending candidates to display
+      const candidatesResponse = await apiGet<{ candidates: TaskCandidate[] }>('/api/tasks/candidates?status=pending&limit=10');
+
+      const result: ScanResult = {
+        documents_scanned: scanResponse.documents_scanned,
+        total_candidates_found: scanResponse.total_tasks_stored,
+        candidates: candidatesResponse.candidates || []
+      };
+
+      setTaskScanResult(result);
+
+      if (scanResponse.total_tasks_stored > 0) {
+        toast.success(`Found ${scanResponse.total_tasks_stored} potential task(s) from ${scanResponse.documents_scanned} document(s)`);
+      } else {
+        toast.success(`Scanned ${scanResponse.documents_scanned} documents - no new tasks found`);
+      }
+    } catch (err) {
+      logger.error('Failed to scan documents for tasks:', err);
+      toast.error('Failed to scan documents for tasks');
+    } finally {
+      setTaskScanLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -807,6 +864,15 @@ export default function AgentDetailPage() {
                       'Validates work against company strategic priorities and FY goals',
                       'Generates reflection prompts and surfaces patterns in your growth'
                     ]
+                  },
+                  taskmaster: {
+                    summary: 'Personal accountability partner that surfaces tasks from meetings and documents, tracks progress, and keeps you focused on the right work. Taskmaster captures commitments conversationally, detects slippage before it becomes a crisis, and provides prioritized focus guidance.',
+                    keyActions: [
+                      'Scans KB documents and transcripts for your task commitments',
+                      'Extracts explicit and inferred tasks with source attribution',
+                      'Groups tasks by urgency: overdue, today, this week, blocked',
+                      'Provides focus guidance based on priority and deadlines'
+                    ]
                   }
                 };
                 const overview = agentOverviews[agent.name.toLowerCase()];
@@ -877,6 +943,118 @@ export default function AgentDetailPage() {
                 </button>
                 <p className="text-muted text-xs mt-3">
                   For best results, upload career-related documents (performance reviews, goals, win logs) to the Knowledge Base and tag them for Compass.
+                </p>
+              </div>
+            </details>
+          )}
+
+          {/* Taskmaster-specific: Scan Documents Panel */}
+          {agent.name.toLowerCase() === 'taskmaster' && (
+            <details open className="card group">
+              <summary className="cursor-pointer p-4 flex items-center justify-between hover:bg-page/50 transition-colors rounded-t-lg">
+                <h2 className="text-lg font-semibold text-primary flex items-center gap-2">
+                  <ListChecks className="w-5 h-5 text-amber-500" />
+                  Task Discovery
+                </h2>
+                <svg className="w-5 h-5 text-secondary transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <div className="px-6 pb-6 pt-2 border-t border-border">
+                <p className="text-secondary text-sm mb-4">
+                  Scan your recent Knowledge Base documents (meetings, transcripts, notes) for potential tasks.
+                  Found tasks are saved as candidates for you to review, accept, or reject.
+                </p>
+                <button
+                  onClick={handleScanDocumentsForTasks}
+                  disabled={taskScanLoading}
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50 font-medium"
+                >
+                  {taskScanLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Scanning Documents...
+                    </>
+                  ) : (
+                    <>
+                      <ListChecks className="w-5 h-5" />
+                      Scan Recent Documents
+                    </>
+                  )}
+                </button>
+
+                {/* Show scan results */}
+                {taskScanResult && (
+                  <div className="mt-4 p-4 bg-page rounded-lg border border-border">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-primary">
+                        Scan Results
+                      </span>
+                      <span className="text-xs text-secondary">
+                        {taskScanResult.documents_scanned} docs scanned
+                      </span>
+                    </div>
+
+                    {taskScanResult.candidates.length > 0 ? (
+                      <div className="space-y-2">
+                        {taskScanResult.candidates.slice(0, 5).map((candidate) => (
+                          <div
+                            key={candidate.id}
+                            className="p-3 bg-card rounded border border-border"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-primary truncate">
+                                  {candidate.title}
+                                </p>
+                                <p className="text-xs text-secondary mt-0.5">
+                                  From: {candidate.source_document_name}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                  candidate.confidence === 'high'
+                                    ? 'bg-green-500/20 text-green-400'
+                                    : 'bg-yellow-500/20 text-yellow-400'
+                                }`}>
+                                  {candidate.confidence}
+                                </span>
+                                <span className="text-xs text-secondary">
+                                  P{candidate.suggested_priority}
+                                </span>
+                              </div>
+                            </div>
+                            {candidate.due_date_text && (
+                              <p className="text-xs text-amber-400 mt-1">
+                                Due: {candidate.due_date_text}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                        {taskScanResult.candidates.length > 5 && (
+                          <p className="text-xs text-secondary text-center pt-2">
+                            +{taskScanResult.candidates.length - 5} more candidates
+                          </p>
+                        )}
+                        <div className="pt-3 border-t border-border mt-3">
+                          <Link
+                            href="/tasks"
+                            className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                          >
+                            Go to Tasks to review candidates →
+                          </Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-secondary">
+                        No new task candidates found in recent documents.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <p className="text-muted text-xs mt-3">
+                  Scans documents from the last 30 days. Tasks are extracted from commitments like &quot;I will...&quot;, &quot;I&apos;ll follow up...&quot;, or explicit action items.
                 </p>
               </div>
             </details>
@@ -1089,6 +1267,23 @@ export default function AgentDetailPage() {
                       'Strategic alignment beats task completion',
                       'Your manager is not a mind reader - document with specifics',
                       'Competency without evidence is invisible'
+                    ]
+                  },
+                  taskmaster: {
+                    purpose: 'Personal accountability for task commitments made across meetings and documents.',
+                    problemsSolved: [
+                      'Lost commitments - captures tasks from meetings before they are forgotten',
+                      'Slippage blindness - alerts on overdue and at-risk tasks before crisis',
+                      'Focus paralysis - prioritizes what to work on based on urgency',
+                      'Tracking burden - extracts tasks automatically from documents',
+                      'Scattered tasks - consolidates commitments from multiple sources'
+                    ],
+                    uniqueValue: 'Proactive accountability partner that surfaces your commitments and keeps you focused without tedious manual tracking.',
+                    keyPrinciples: [
+                      'Commitments made in meetings are easily forgotten without capture',
+                      'Proactive reminders prevent slippage better than reactive fire-fighting',
+                      'Focus on YOUR tasks, not team project management',
+                      'Small daily progress beats heroic catch-up efforts'
                     ]
                   }
                 };
@@ -1374,6 +1569,23 @@ export default function AgentDetailPage() {
                       'Mention stakeholders by name - Compass tracks relationships',
                       'Include rough impact numbers (hours saved, etc.) for better documentation',
                       'Ask "how does this align?" before starting new initiatives'
+                    ]
+                  },
+                  taskmaster: {
+                    howToUse: 'Ask Taskmaster about your tasks from meetings, check your task status, or get focus guidance. Use the "Scan Recent Documents" button to discover tasks from your KB documents.',
+                    capabilities: ['Task discovery from documents', 'Progress tracking by urgency', 'Focus guidance', 'Slippage detection', 'Task candidate review'],
+                    bestFor: ['Finding tasks from meetings', 'Checking overdue items', 'Daily focus prioritization', 'Catching slipping commitments'],
+                    examplePrompts: [
+                      'What tasks did I pick up from last week\'s meetings?',
+                      'What\'s my task status?',
+                      'What should I focus on today?',
+                      'Show me my overdue tasks',
+                      'Review my pending task candidates'
+                    ],
+                    tips: [
+                      'Scan documents regularly to catch commitments before they slip',
+                      'Review task candidates to filter false positives',
+                      'Ask for focus guidance when overwhelmed with tasks'
                     ]
                   }
                 };

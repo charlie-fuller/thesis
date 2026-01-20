@@ -185,18 +185,49 @@ When creating tasks from extracted items:
             today = date.today()
             week_end = today + timedelta(days=7)
 
-            # Query user's tasks
+            # First, get user's details for assignee matching and client filtering
+            user_result = self.supabase.table('users').select(
+                'id, full_name, name, email, client_id'
+            ).eq('id', context.user_id).single().execute()
+
+            user_name = None
+            client_id = None
+            if user_result.data:
+                user_name = user_result.data.get('full_name') or user_result.data.get('name')
+                client_id = user_result.data.get('client_id')
+
+            if not client_id:
+                logger.warning(f"No client_id found for user {context.user_id}")
+                return "\n[Task Context: Unable to load tasks - user not associated with a client]\n"
+
+            # Query tasks for this client
+            # Get all tasks for the client, then filter in code for user-specific ones
             result = self.supabase.table('project_tasks').select(
-                'id, title, status, priority, due_date, blocked_at, blocker_reason'
-            ).or_(
-                f"assignee_user_id.eq.{context.user_id},"
-                f"assignee_name.ilike.%{context.user_id}%"
-            ).neq('status', 'completed').execute()
+                'id, title, status, priority, due_date, blocked_at, blocker_reason, assignee_user_id, assignee_name'
+            ).eq('client_id', client_id).neq('status', 'completed').execute()
 
             if not result.data:
-                return "\n[Task Context: No active tasks found for this user]\n"
+                return "\n[Task Context: No active tasks found]\n"
 
-            tasks = result.data
+            # Filter to user's tasks (assigned to them, or unassigned in single-user client)
+            tasks = []
+            for task in result.data:
+                task_user_id = task.get('assignee_user_id')
+                task_assignee = task.get('assignee_name', '') or ''
+
+                # Include task if:
+                # 1. Assigned to this user by ID
+                # 2. Assigned by name match
+                # 3. No assignee (unassigned tasks visible to all)
+                if task_user_id == context.user_id:
+                    tasks.append(task)
+                elif user_name and user_name.lower() in task_assignee.lower():
+                    tasks.append(task)
+                elif not task_user_id and not task_assignee:
+                    tasks.append(task)
+
+            if not tasks:
+                return "\n[Task Context: No tasks assigned to you]\n"
 
             # Categorize tasks
             overdue = []
