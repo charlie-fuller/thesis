@@ -98,6 +98,11 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
     """
     Gather career-related context from KB and memories.
 
+    Pulls from ALL KB documents for the client, prioritizing:
+    1. Recent meeting transcripts
+    2. Documents with career-relevant content (1:1s, feedback, wins, goals)
+    3. Most recently uploaded/modified documents
+
     Returns:
         Dict with kb_documents, memories, and stakeholder_context
     """
@@ -109,61 +114,83 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
     }
 
     try:
-        # Get Compass agent ID
-        agent_result = (
-            supabase.table("agents")
-            .select("id")
-            .ilike("name", "%compass%")
-            .single()
+        # Get all recent documents for this client, prioritizing transcripts
+        # Order by uploaded_at to get most recent first
+        docs_result = (
+            supabase.table("documents")
+            .select("id, title, content, document_type, uploaded_at")
+            .eq("client_id", client_id)
+            .order("uploaded_at", desc=True)
+            .limit(50)  # Get more docs, we'll filter and prioritize
             .execute()
         )
-        compass_agent_id = agent_result.data.get("id") if agent_result.data else None
 
-        # Get KB documents tagged for Compass
-        # Note: Fetch agent_knowledge_base links first, then fetch documents separately
-        # to avoid nested filter issues with Supabase PostgREST
-        if compass_agent_id:
-            # Step 1: Get document IDs linked to Compass agent
-            kb_links_result = (
-                supabase.table("agent_knowledge_base")
-                .select("document_id, relevance_score")
-                .eq("agent_id", compass_agent_id)
-                .order("relevance_score", desc=True)
-                .limit(20)  # Fetch more, filter by client later
-                .execute()
-            )
+        if docs_result.data:
+            # Categorize documents by type/relevance
+            transcripts = []
+            career_relevant = []
+            other_docs = []
 
-            if kb_links_result.data:
-                doc_ids = [link["document_id"] for link in kb_links_result.data]
-                relevance_map = {
-                    link["document_id"]: link["relevance_score"]
-                    for link in kb_links_result.data
-                }
+            # Keywords that suggest career-relevant content
+            career_keywords = [
+                "1:1", "one-on-one", "feedback", "performance", "goal",
+                "win", "accomplishment", "review", "check-in", "checkin",
+                "career", "growth", "development", "promotion", "raise",
+                "project", "deliverable", "milestone", "deadline"
+            ]
 
-                # Step 2: Fetch documents by ID with client filter
-                docs_result = (
-                    supabase.table("documents")
-                    .select("id, title, content")
-                    .in_("id", doc_ids)
-                    .eq("client_id", client_id)
-                    .execute()
+            for doc in docs_result.data:
+                if not doc.get("content"):
+                    continue
+
+                title_lower = (doc.get("title") or "").lower()
+                content_lower = doc.get("content", "").lower()[:500]  # Check first 500 chars
+                doc_type = (doc.get("document_type") or "").lower()
+
+                # Check if it's a transcript
+                is_transcript = (
+                    doc_type in ["transcript", "meeting_transcript"] or
+                    "transcript" in title_lower or
+                    "meeting" in title_lower
                 )
 
-                # Sort by relevance and limit to 10
-                docs_with_relevance = []
-                for doc in docs_result.data or []:
-                    if doc.get("content"):
-                        docs_with_relevance.append(
-                            {
-                                "title": doc.get("title", "Untitled"),
-                                "content": doc.get("content", "")[:2000],
-                                "relevance": relevance_map.get(doc["id"], 0),
-                            }
-                        )
+                # Check for career-relevant keywords
+                is_career_relevant = any(
+                    kw in title_lower or kw in content_lower
+                    for kw in career_keywords
+                )
 
-                # Sort by relevance and take top 10
-                docs_with_relevance.sort(key=lambda x: x["relevance"], reverse=True)
-                context["kb_documents"] = docs_with_relevance[:10]
+                doc_entry = {
+                    "title": doc.get("title", "Untitled"),
+                    "content": doc.get("content", "")[:2000],  # Truncate for context
+                    "doc_type": doc_type,
+                    "uploaded_at": doc.get("uploaded_at"),
+                }
+
+                if is_transcript:
+                    transcripts.append(doc_entry)
+                elif is_career_relevant:
+                    career_relevant.append(doc_entry)
+                else:
+                    other_docs.append(doc_entry)
+
+            # Build final document list: prioritize transcripts, then career-relevant
+            # Take up to 5 transcripts, 3 career-relevant, 2 other recent docs
+            final_docs = []
+            final_docs.extend(transcripts[:5])
+            final_docs.extend(career_relevant[:3])
+            final_docs.extend(other_docs[:2])
+
+            # Ensure we have at least some docs, even if not perfectly categorized
+            if len(final_docs) < 10:
+                remaining_slots = 10 - len(final_docs)
+                all_docs = transcripts + career_relevant + other_docs
+                for doc in all_docs:
+                    if doc not in final_docs and remaining_slots > 0:
+                        final_docs.append(doc)
+                        remaining_slots -= 1
+
+            context["kb_documents"] = final_docs[:10]
 
     except Exception as e:
         logger.warning(f"Error fetching career context: {e}")
