@@ -35,6 +35,8 @@ from .nexus import NexusAgent
 from .echo import EchoAgent
 # Personal Development Agent
 from .compass import CompassAgent
+# Personal Productivity Agent
+from .taskmaster import TaskmasterAgent
 # Meta-Agents (always present in meetings)
 from .facilitator import FacilitatorAgent
 from .reporter import ReporterAgent
@@ -93,6 +95,8 @@ async def create_coordinator(
             "echo": EchoAgent(supabase, anthropic_client),
             # Personal Development Agent
             "compass": CompassAgent(supabase, anthropic_client),
+            # Personal Productivity Agent
+            "taskmaster": TaskmasterAgent(supabase, anthropic_client),
         }
 
         # Initialize all specialists
@@ -147,6 +151,8 @@ async def create_specialist(
         "echo": EchoAgent,
         # Personal Development Agent
         "compass": CompassAgent,
+        # Personal Productivity Agent
+        "taskmaster": TaskmasterAgent,
         # Meta-Agents
         "facilitator": FacilitatorAgent,
         "reporter": ReporterAgent,

@@ -1,0 +1,387 @@
+"""
+Task Extractor Service
+
+Extracts potential tasks from KB documents and meeting transcripts.
+Supports both explicit patterns ("I will...") and inferred patterns
+(context suggests user responsibility).
+"""
+
+import logging
+import re
+from dataclasses import dataclass
+from datetime import date, timedelta
+from typing import Optional
+
+import anthropic
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ExtractedTask:
+    """A potential task extracted from content."""
+    title: str
+    priority: int  # 1-5
+    priority_label: str
+    due_date: Optional[date]
+    due_date_text: Optional[str]  # Original text like "by Friday"
+    assignee_name: Optional[str]
+    source_document: str
+    source_text: str  # The original text that led to this extraction
+    confidence: str  # 'high' for explicit, 'medium' for inferred
+    extraction_pattern: str  # Which pattern matched
+
+
+# Explicit patterns (high confidence)
+EXPLICIT_PATTERNS = [
+    # "I will [action]" patterns
+    (r"I(?:'ll| will)\s+(.{10,100}?)(?:\.|$|,\s*(?:and|but))", "i_will"),
+    # "Action: [name] to [action]" patterns
+    (r"Action:\s*(\w+(?:\s+\w+)?)\s+to\s+(.{10,100}?)(?:\.|$)", "action_to"),
+    # "[name] to follow up" patterns
+    (r"(\w+(?:\s+\w+)?)\s+to\s+follow\s*up\s+(?:on\s+)?(.{5,100}?)(?:\.|$)", "follow_up"),
+    # "[name] owns [deliverable]" patterns
+    (r"(\w+(?:\s+\w+)?)\s+owns\s+(.{10,100}?)(?:\.|$)", "owns"),
+    # "TODO: [action]" patterns
+    (r"TODO:\s*(.{10,200}?)(?:\.|$|\n)", "todo"),
+    # "Next step: [action]" patterns
+    (r"Next\s+step[s]?:\s*(.{10,200}?)(?:\.|$|\n)", "next_step"),
+]
+
+# Inferred patterns (medium confidence)
+INFERRED_PATTERNS = [
+    # "[name] mentioned they would [action]"
+    (r"(\w+(?:\s+\w+)?)\s+(?:mentioned|said)\s+(?:they|he|she)\s+would\s+(.{10,100}?)(?:\.|$)", "mentioned_would"),
+    # "We agreed that [name] will [action]"
+    (r"[Ww]e\s+agreed\s+that\s+(\w+(?:\s+\w+)?)\s+will\s+(.{10,100}?)(?:\.|$)", "agreed_will"),
+    # "[name] is responsible for [deliverable]"
+    (r"(\w+(?:\s+\w+)?)\s+is\s+responsible\s+for\s+(.{10,100}?)(?:\.|$)", "responsible_for"),
+    # "[name] needs to [action]"
+    (r"(\w+(?:\s+\w+)?)\s+needs\s+to\s+(.{10,100}?)(?:\.|$)", "needs_to"),
+    # "[name] should [action]"
+    (r"(\w+(?:\s+\w+)?)\s+should\s+(.{10,100}?)(?:\.|$)", "should"),
+]
+
+# Due date patterns
+DUE_DATE_PATTERNS = [
+    (r"by\s+(today)", 0),
+    (r"by\s+(tomorrow)", 1),
+    (r"by\s+(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)", "weekday"),
+    (r"by\s+(end\s+of\s+(?:this\s+)?week)", "eow"),
+    (r"by\s+(end\s+of\s+(?:this\s+)?month)", "eom"),
+    (r"due\s+(today)", 0),
+    (r"due\s+(tomorrow)", 1),
+    (r"due\s+(\d{1,2}/\d{1,2}(?:/\d{2,4})?)", "date"),
+    (r"(\d{1,2}/\d{1,2}(?:/\d{2,4})?)", "date"),
+    (r"(next\s+week)", 7),
+    (r"(this\s+week)", "eow"),
+    (r"(ASAP|urgent|immediately)", 0),
+]
+
+# Priority signal patterns
+PRIORITY_SIGNALS = {
+    'high': [
+        r'\b(urgent|ASAP|critical|immediately|high\s*priority|P1|blocking)\b',
+        r'\b(must|need\s+to|have\s+to)\b',
+    ],
+    'low': [
+        r'\b(when\s+you\s+(?:get\s+a\s+)?chance|low\s*priority|P4|P5|nice\s+to\s+have)\b',
+        r'\b(if\s+(?:you\s+)?possible|eventually|someday)\b',
+    ],
+}
+
+
+class TaskExtractor:
+    """Extracts potential tasks from document content."""
+
+    def __init__(self, anthropic_client: Optional[anthropic.Anthropic] = None):
+        self.anthropic = anthropic_client
+
+    def extract_from_text(
+        self,
+        text: str,
+        source_document: str,
+        user_name: Optional[str] = None,
+        include_inferred: bool = True
+    ) -> list[ExtractedTask]:
+        """
+        Extract potential tasks from text content.
+
+        Args:
+            text: The text content to scan
+            source_document: Name/identifier of the source document
+            user_name: Optional user name to filter tasks for
+            include_inferred: Whether to include medium-confidence inferred tasks
+
+        Returns:
+            List of ExtractedTask objects
+        """
+        tasks = []
+
+        # Extract using explicit patterns (high confidence)
+        for pattern, pattern_name in EXPLICIT_PATTERNS:
+            matches = re.finditer(pattern, text, re.IGNORECASE | re.MULTILINE)
+            for match in matches:
+                task = self._process_match(
+                    match, pattern_name, source_document, 'high', user_name
+                )
+                if task:
+                    tasks.append(task)
+
+        # Extract using inferred patterns (medium confidence)
+        if include_inferred:
+            for pattern, pattern_name in INFERRED_PATTERNS:
+                matches = re.finditer(pattern, text, re.IGNORECASE | re.MULTILINE)
+                for match in matches:
+                    task = self._process_match(
+                        match, pattern_name, source_document, 'medium', user_name
+                    )
+                    if task:
+                        tasks.append(task)
+
+        # Deduplicate similar tasks
+        tasks = self._deduplicate_tasks(tasks)
+
+        return tasks
+
+    async def extract_with_llm(
+        self,
+        text: str,
+        source_document: str,
+        user_name: Optional[str] = None
+    ) -> list[ExtractedTask]:
+        """
+        Use LLM to extract tasks for complex or ambiguous content.
+
+        Falls back to regex extraction if LLM is not available.
+        """
+        if not self.anthropic:
+            return self.extract_from_text(text, source_document, user_name)
+
+        try:
+            prompt = f"""Analyze this text and extract any tasks or action items.
+
+For each task found, provide:
+1. Task title (clear, actionable description)
+2. Assignee name (if mentioned)
+3. Due date (if mentioned, in any format)
+4. Priority signal (any urgency indicators)
+5. The exact quote that led to this extraction
+
+User name for filtering: {user_name or 'Not specified'}
+
+Text to analyze:
+---
+{text[:3000]}
+---
+
+Output as a structured list. If no tasks found, say "No tasks found."
+"""
+            response = self.anthropic.messages.create(
+                model="claude-haiku-4-20250514",
+                max_tokens=1024,
+                messages=[{"role": "user", "content": prompt}]
+            )
+
+            # Parse LLM response and convert to ExtractedTask objects
+            # For now, fall back to regex extraction
+            # TODO: Implement LLM response parsing
+            return self.extract_from_text(text, source_document, user_name)
+
+        except Exception as e:
+            logger.warning(f"LLM extraction failed, falling back to regex: {e}")
+            return self.extract_from_text(text, source_document, user_name)
+
+    def _process_match(
+        self,
+        match: re.Match,
+        pattern_name: str,
+        source_document: str,
+        confidence: str,
+        user_name: Optional[str]
+    ) -> Optional[ExtractedTask]:
+        """Process a regex match into an ExtractedTask."""
+        groups = match.groups()
+        source_text = match.group(0)
+
+        # Extract assignee and action based on pattern type
+        if pattern_name in ['i_will', 'todo', 'next_step']:
+            assignee = user_name  # "I will" means it's the user's task
+            action = groups[0].strip()
+        elif pattern_name in ['action_to', 'follow_up', 'owns', 'mentioned_would',
+                              'agreed_will', 'responsible_for', 'needs_to', 'should']:
+            assignee = groups[0].strip() if len(groups) > 1 else None
+            action = groups[1].strip() if len(groups) > 1 else groups[0].strip()
+        else:
+            assignee = None
+            action = groups[0].strip() if groups else source_text
+
+        # Skip if we have a user_name filter and this doesn't match
+        if user_name and assignee:
+            # Check if assignee matches user name (case-insensitive, partial match)
+            assignee_lower = assignee.lower()
+            user_lower = user_name.lower()
+            if not (user_lower in assignee_lower or assignee_lower in user_lower):
+                # Also check for "I" which implies the user
+                if assignee_lower not in ['i', 'me', 'my']:
+                    return None
+
+        # Clean up the action text
+        action = self._clean_action_text(action)
+        if len(action) < 5:  # Too short to be meaningful
+            return None
+
+        # Extract due date from surrounding context
+        due_date, due_date_text = self._extract_due_date(source_text)
+
+        # Determine priority from context
+        priority = self._infer_priority(source_text)
+
+        return ExtractedTask(
+            title=action[:200],  # Limit title length
+            priority=priority,
+            priority_label=self._priority_label(priority),
+            due_date=due_date,
+            due_date_text=due_date_text,
+            assignee_name=assignee,
+            source_document=source_document,
+            source_text=source_text[:300],
+            confidence=confidence,
+            extraction_pattern=pattern_name
+        )
+
+    def _extract_due_date(self, text: str) -> tuple[Optional[date], Optional[str]]:
+        """Extract due date from text using patterns."""
+        today = date.today()
+
+        for pattern, offset in DUE_DATE_PATTERNS:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                date_text = match.group(1)
+
+                if isinstance(offset, int):
+                    return today + timedelta(days=offset), date_text
+
+                if offset == 'weekday':
+                    # Calculate days until the mentioned weekday
+                    weekdays = {
+                        'monday': 0, 'tuesday': 1, 'wednesday': 2,
+                        'thursday': 3, 'friday': 4, 'saturday': 5, 'sunday': 6
+                    }
+                    target_day = weekdays.get(date_text.lower())
+                    if target_day is not None:
+                        days_ahead = target_day - today.weekday()
+                        if days_ahead <= 0:
+                            days_ahead += 7
+                        return today + timedelta(days=days_ahead), date_text
+
+                if offset == 'eow':
+                    # End of week (Friday)
+                    days_until_friday = (4 - today.weekday()) % 7
+                    if days_until_friday == 0:
+                        days_until_friday = 7
+                    return today + timedelta(days=days_until_friday), date_text
+
+                if offset == 'eom':
+                    # End of month
+                    if today.month == 12:
+                        eom = date(today.year + 1, 1, 1) - timedelta(days=1)
+                    else:
+                        eom = date(today.year, today.month + 1, 1) - timedelta(days=1)
+                    return eom, date_text
+
+                if offset == 'date':
+                    # Try to parse the date
+                    try:
+                        # Handle various date formats
+                        for fmt in ['%m/%d/%Y', '%m/%d/%y', '%m/%d']:
+                            try:
+                                parsed = date.today().replace(
+                                    month=int(date_text.split('/')[0]),
+                                    day=int(date_text.split('/')[1])
+                                )
+                                return parsed, date_text
+                            except (ValueError, IndexError):
+                                continue
+                    except Exception:
+                        pass
+
+        return None, None
+
+    def _infer_priority(self, text: str) -> int:
+        """Infer priority from text signals."""
+        text_lower = text.lower()
+
+        # Check for high priority signals
+        for pattern in PRIORITY_SIGNALS['high']:
+            if re.search(pattern, text_lower):
+                return 2  # High
+
+        # Check for low priority signals
+        for pattern in PRIORITY_SIGNALS['low']:
+            if re.search(pattern, text_lower):
+                return 4  # Low
+
+        return 3  # Default to medium
+
+    def _priority_label(self, priority: int) -> str:
+        """Convert priority number to label."""
+        labels = {1: "Critical", 2: "High", 3: "Medium", 4: "Low", 5: "Lowest"}
+        return labels.get(priority, "Medium")
+
+    def _clean_action_text(self, text: str) -> str:
+        """Clean up extracted action text."""
+        # Remove leading/trailing whitespace and punctuation
+        text = text.strip().strip('.,;:')
+
+        # Capitalize first letter
+        if text:
+            text = text[0].upper() + text[1:]
+
+        return text
+
+    def _deduplicate_tasks(self, tasks: list[ExtractedTask]) -> list[ExtractedTask]:
+        """Remove duplicate or very similar tasks."""
+        seen_titles = set()
+        unique_tasks = []
+
+        for task in tasks:
+            # Normalize title for comparison
+            normalized = task.title.lower().strip()
+
+            # Check for exact or near duplicates
+            is_duplicate = False
+            for seen in seen_titles:
+                # Simple similarity check
+                if normalized == seen or normalized in seen or seen in normalized:
+                    is_duplicate = True
+                    break
+
+            if not is_duplicate:
+                seen_titles.add(normalized)
+                unique_tasks.append(task)
+
+        return unique_tasks
+
+
+def format_extracted_tasks_for_display(tasks: list[ExtractedTask]) -> str:
+    """Format extracted tasks for display to user."""
+    if not tasks:
+        return "No potential tasks found in this content."
+
+    parts = [f"**{len(tasks)} potential task(s) found:**\n"]
+
+    for i, task in enumerate(tasks, 1):
+        confidence_marker = "" if task.confidence == 'high' else " (inferred)"
+        due_str = f"\n   Due: {task.due_date_text}" if task.due_date_text else ""
+        assignee_str = f"\n   Assignee: {task.assignee_name}" if task.assignee_name else ""
+
+        parts.append(
+            f"{i}. **[{task.priority_label}]** {task.title}{confidence_marker}"
+            f"\n   Source: {task.source_document}"
+            f"{due_str}{assignee_str}\n"
+        )
+
+    parts.append("\nCreate any of these? (e.g., \"create 1 and 3\" or \"create all\")")
+
+    return "\n".join(parts)

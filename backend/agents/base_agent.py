@@ -42,6 +42,8 @@ class AgentContext:
     memories: Optional[list[dict]] = None
     # Relevant stakeholders
     stakeholders: Optional[list[dict]] = None
+    # Knowledge base search results (for task extraction, etc.)
+    kb_context: Optional[list[dict]] = None
 
 
 @dataclass

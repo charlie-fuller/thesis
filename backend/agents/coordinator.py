@@ -110,7 +110,13 @@ class CoordinatorAgent(BaseAgent):
         "compass": ["career", "performance", "win", "accomplishment", "check-in", "1:1", "one on one",
                    "review", "promotion", "goal tracking", "reflection", "growth", "achievement",
                    "manager conversation", "feedback", "competency", "strategic alignment",
-                   "professional development", "win log", "impact", "tracker"]
+                   "professional development", "win log", "impact", "tracker"],
+        # Task management agent
+        "taskmaster": ["task", "tasks", "to do", "to-do", "action item", "action items",
+                      "what should i work on", "my tasks", "my priorities", "deliverable",
+                      "deliverables", "assignment", "overdue", "due today", "due date",
+                      "slippage", "blocked", "follow up", "follow-up", "commitment",
+                      "what do i need to do", "what's on my plate", "focus", "today's work"]
     }
 
     def __init__(
@@ -460,7 +466,8 @@ If no specialists are needed (simple question), return:
                 user_message=context.user_message,
                 handoff_context={"from_coordinator": True},
                 memories=context.memories,
-                stakeholders=context.stakeholders
+                stakeholders=context.stakeholders,
+                kb_context=context.kb_context
             )
 
             response = await specialist.process(enriched_context)

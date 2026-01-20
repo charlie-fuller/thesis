@@ -20,6 +20,7 @@ import {
   SearchCheck,
   Compass,
   BookOpen,
+  ListChecks,
 } from 'lucide-react';
 
 const AGENT_ICONS: Record<string, React.ElementType> = {
@@ -48,6 +49,8 @@ const AGENT_ICONS: Record<string, React.ElementType> = {
   nexus: Network,         // Systems Thinking
   // Personal Development Agent
   compass: Compass,       // Career Coach
+  // Personal Productivity Agent
+  taskmaster: ListChecks, // Task Accountability
   // Coordinator
   coordinator: Workflow,  // Central Orchestrator
 };
@@ -94,6 +97,8 @@ export const AGENT_COLORS: Record<string, string> = {
   nexus: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
   // Personal Development Agent
   compass: 'bg-amber-600/20 text-amber-400 border-amber-600/30',
+  // Personal Productivity Agent
+  taskmaster: 'bg-orange-600/20 text-orange-400 border-orange-600/30',
   // Coordinator
   coordinator: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
 };
@@ -130,6 +135,8 @@ export const AGENT_AVATAR_COLORS: Record<string, { bg: string; text: string }> =
   coordinator: { bg: 'bg-sky-500', text: 'text-sky-700' },
   // Personal Development Agent
   compass: { bg: 'bg-amber-600', text: 'text-amber-700' },
+  // Personal Productivity Agent
+  taskmaster: { bg: 'bg-orange-600', text: 'text-orange-700' },
 };
 
 export function getAgentAvatarColor(name: string): { bg: string; text: string } {
