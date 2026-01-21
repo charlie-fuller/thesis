@@ -734,6 +734,37 @@ async def get_candidate_count(current_user=Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.delete("/candidates/clear")
+async def clear_task_candidates(
+    status: Optional[str] = Query(None, description="Filter by status: pending, accepted, rejected, or all"),
+    current_user=Depends(get_current_user)
+):
+    """
+    Clear task candidates. By default clears pending candidates only.
+    Use status=all to clear all candidates.
+    """
+    try:
+        client_id = current_user.get('client_id') or get_default_client_id()
+
+        query = supabase.table('task_candidates').delete().eq('client_id', client_id)
+
+        if status and status != 'all':
+            query = query.eq('status', status)
+
+        result = query.execute()
+        deleted_count = len(result.data) if result.data else 0
+
+        return {
+            'success': True,
+            'deleted_count': deleted_count,
+            'status_filter': status or 'pending'
+        }
+
+    except Exception as e:
+        logger.error(f"Error clearing task candidates: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/candidates/{candidate_id}/accept")
 async def accept_task_candidate(
     candidate_id: str,
