@@ -30,7 +30,7 @@ const DepartmentGroupedView = dynamic(
 )
 
 // Tab type
-type TabType = 'agents' | 'stakeholders'
+type TabType = 'agents' | 'stakeholders' | 'engagement'
 
 // Stakeholder view mode
 type StakeholderViewMode = 'grid' | 'department'
@@ -329,6 +329,21 @@ export default function IntelligencePage() {
               Stakeholders
             </div>
           </button>
+          <button
+            onClick={() => setActiveTab('engagement')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'engagement'
+                ? 'border-brand text-brand'
+                : 'border-transparent text-secondary hover:text-primary'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Engagement
+            </div>
+          </button>
         </div>
 
         {/* Stakeholders Tab */}
@@ -364,68 +379,6 @@ export default function IntelligencePage() {
                   </>
                 )}
               </button>
-            </div>
-
-            {/* Dashboard Metrics */}
-            {metrics && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <div className="card p-6">
-                  <div className="text-3xl font-bold text-primary">
-                    {metrics.total_stakeholders}
-                  </div>
-                  <div className="text-sm text-muted">Total Stakeholders</div>
-                </div>
-                <div className="card p-6">
-                  <div className={`text-3xl font-bold ${getSentimentColor(metrics.average_sentiment)}`}>
-                    {metrics.average_sentiment > 0 ? '+' : ''}{metrics.average_sentiment.toFixed(2)}
-                  </div>
-                  <div className="text-sm text-muted">Avg Sentiment</div>
-                </div>
-                <div className="card p-6">
-                  <div className="text-3xl font-bold text-teal-600 dark:text-teal-400">
-                    {Math.round(metrics.average_alignment * 100)}%
-                  </div>
-                  <div className="text-sm text-muted">Avg Alignment</div>
-                </div>
-                <div className="card p-6">
-                  <div className="text-3xl font-bold text-orange-600 dark:text-orange-400">
-                    {metrics.stakeholders_needing_attention.length}
-                  </div>
-                  <div className="text-sm text-muted">Need Attention</div>
-                </div>
-              </div>
-            )}
-
-            {/* Engagement Distribution */}
-            {metrics && Object.keys(metrics.engagement_distribution).length > 0 && (
-              <div className="card p-6 mb-8">
-                <h3 className="text-lg font-semibold text-primary mb-4">
-                  Engagement Distribution
-                </h3>
-                <div className="flex gap-4 flex-wrap">
-                  {ENGAGEMENT_LEVELS.map(level => {
-                    const count = metrics.engagement_distribution[level] || 0
-                    const percentage = metrics.total_stakeholders > 0
-                      ? Math.round((count / metrics.total_stakeholders) * 100)
-                      : 0
-                    return (
-                      <div key={level} className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-sm capitalize ${getEngagementBadge(level)}`}>
-                          {level}
-                        </span>
-                        <span className="text-secondary">
-                          {count} ({percentage}%)
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Engagement Trends Analytics */}
-            <div className="mb-8">
-              <EngagementTrendsChart />
             </div>
 
             {/* Create Form */}
@@ -524,32 +477,6 @@ export default function IntelligencePage() {
                     </button>
                   </div>
                 </form>
-              </div>
-            )}
-
-            {/* Recent Concerns */}
-            {metrics && metrics.recent_concerns.length > 0 && (
-              <div className="card border-orange-200 dark:border-orange-800 p-6 mb-8">
-                <h3 className="text-lg font-semibold text-orange-700 dark:text-orange-300 mb-4">
-                  Recent Unresolved Concerns
-                </h3>
-                <div className="space-y-3">
-                  {metrics.recent_concerns.slice(0, 5).map(concern => (
-                    <div key={concern.id} className="flex items-start gap-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                      <svg className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      <div>
-                        <span className="font-medium text-primary">
-                          {concern.stakeholder_name}:
-                        </span>
-                        <span className="text-secondary ml-2">
-                          {concern.content}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
 
@@ -846,6 +773,116 @@ export default function IntelligencePage() {
                   </div>
                 )}
               </>
+            )}
+          </div>
+        )}
+
+        {/* Engagement Tab */}
+        {activeTab === 'engagement' && (
+          <div>
+            {/* Dashboard Metrics */}
+            {metrics && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div className="card p-6">
+                  <div className="text-3xl font-bold text-primary">
+                    {metrics.total_stakeholders}
+                  </div>
+                  <div className="text-sm text-muted">Total Stakeholders</div>
+                </div>
+                <div className="card p-6">
+                  <div className={`text-3xl font-bold ${getSentimentColor(metrics.average_sentiment)}`}>
+                    {metrics.average_sentiment > 0 ? '+' : ''}{metrics.average_sentiment.toFixed(2)}
+                  </div>
+                  <div className="text-sm text-muted">Avg Sentiment</div>
+                </div>
+                <div className="card p-6">
+                  <div className="text-3xl font-bold text-teal-600 dark:text-teal-400">
+                    {Math.round(metrics.average_alignment * 100)}%
+                  </div>
+                  <div className="text-sm text-muted">Avg Alignment</div>
+                </div>
+                <div className="card p-6">
+                  <div className="text-3xl font-bold text-orange-600 dark:text-orange-400">
+                    {metrics.stakeholders_needing_attention.length}
+                  </div>
+                  <div className="text-sm text-muted">Need Attention</div>
+                </div>
+              </div>
+            )}
+
+            {/* Engagement Distribution */}
+            {metrics && Object.keys(metrics.engagement_distribution).length > 0 && (
+              <div className="card p-6 mb-8">
+                <h3 className="text-lg font-semibold text-primary mb-4">
+                  Engagement Distribution
+                </h3>
+                <div className="flex gap-4 flex-wrap">
+                  {ENGAGEMENT_LEVELS.map(level => {
+                    const count = metrics.engagement_distribution[level] || 0
+                    const percentage = metrics.total_stakeholders > 0
+                      ? Math.round((count / metrics.total_stakeholders) * 100)
+                      : 0
+                    return (
+                      <div key={level} className="flex items-center gap-2">
+                        <span className={`px-3 py-1 rounded-full text-sm capitalize ${getEngagementBadge(level)}`}>
+                          {level}
+                        </span>
+                        <span className="text-secondary">
+                          {count} ({percentage}%)
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Engagement Trends Analytics */}
+            <div className="mb-8">
+              <EngagementTrendsChart />
+            </div>
+
+            {/* Recent Concerns */}
+            {metrics && metrics.recent_concerns.length > 0 && (
+              <div className="card border-orange-200 dark:border-orange-800 p-6">
+                <h3 className="text-lg font-semibold text-orange-700 dark:text-orange-300 mb-4">
+                  Recent Unresolved Concerns
+                </h3>
+                <div className="space-y-3">
+                  {metrics.recent_concerns.slice(0, 5).map(concern => (
+                    <div key={concern.id} className="flex items-start gap-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                      <svg className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <div>
+                        <span className="font-medium text-primary">
+                          {concern.stakeholder_name}:
+                        </span>
+                        <span className="text-secondary ml-2">
+                          {concern.content}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty state when no metrics */}
+            {!metrics && !stakeholderLoading && (
+              <div className="card p-12 text-center">
+                <div className="flex justify-center mb-4">
+                  <svg className="w-12 h-12 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-primary mb-2">
+                  No engagement data yet
+                </h3>
+                <p className="text-secondary">
+                  Add stakeholders to start tracking engagement metrics.
+                </p>
+              </div>
             )}
           </div>
         )}

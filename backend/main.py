@@ -287,6 +287,7 @@ from api.routes import (
     notion,
     obsidian_sync,
     opportunities,
+    pipeline,
     projects,
     research,
     stakeholder_metrics,
@@ -327,8 +328,9 @@ app.include_router(tasks.router)
 app.include_router(obsidian_sync.router)
 app.include_router(compass.router)
 app.include_router(digest.router)
+app.include_router(pipeline.router)
 
-logger.info("All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, task management, Obsidian sync, Compass, and Digest routes)")
+logger.info("All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, task management, Obsidian sync, Compass, Digest, and Pipeline routes)")
 
 # ============================================================================
 # Backward Compatibility Routes

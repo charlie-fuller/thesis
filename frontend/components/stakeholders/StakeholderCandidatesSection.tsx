@@ -241,18 +241,11 @@ export default function StakeholderCandidatesSection({
         </div>
       )}
 
-      {/* Empty State */}
+      {/* Empty State - compact version */}
       {!loading && !error && candidates.length === 0 && (
-        <div className="card p-12 text-center">
-          <div className="flex justify-center mb-4">
-            <Users className="w-12 h-12 text-muted" />
-          </div>
-          <h3 className="text-lg font-semibold text-primary mb-2">
-            No pending candidates
-          </h3>
-          <p className="text-secondary mb-4">
-            Scan your meeting documents to discover stakeholders automatically.
-          </p>
+        <div className="card px-4 py-3 flex items-center gap-3 text-sm">
+          <Users className="w-5 h-5 text-muted flex-shrink-0" />
+          <span className="text-secondary">No pending candidates. Scan documents above to discover stakeholders.</span>
         </div>
       )}
 
