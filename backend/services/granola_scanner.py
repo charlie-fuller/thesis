@@ -1,23 +1,23 @@
 """
 Granola Meeting Scanner Service
 
-Scans the Granola vault for meeting summaries and extracts:
+Scans synced Granola meeting documents from the KB and extracts:
 - AI opportunities
 - Action items/tasks
 - Stakeholder mentions
 
+Works with documents already synced via Obsidian vault sync.
 Uses existing tables (ai_opportunities, project_tasks, stakeholders) - no new schema needed.
 """
 
-import hashlib
 import os
 import re
 from datetime import datetime, timezone, date
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 import anthropic
+import httpx
 
 from database import get_supabase
 from document_processor import process_document
@@ -29,11 +29,11 @@ logger = get_logger(__name__)
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 supabase = get_supabase()
 
-# Default Granola vault path
-DEFAULT_GRANOLA_PATH = "/Users/charlie.fuller/vaults/Contentful/Granola"
-
 # Frontmatter pattern
 FRONTMATTER_PATTERN = re.compile(r'^---\s*\n(.*?)\n---\s*\n', re.DOTALL)
+
+# Pattern to identify Granola meeting documents in storage paths
+GRANOLA_PATH_PATTERN = re.compile(r'Granola[/\\]Meeting-summaries[/\\]', re.IGNORECASE)
 
 
 class GranolaScannerError(Exception):
@@ -57,15 +57,6 @@ def parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
         return {}, content
 
 
-def compute_file_hash(file_path: Path) -> str:
-    """Compute MD5 hash of file content for change detection."""
-    hasher = hashlib.md5()
-    with open(file_path, 'rb') as f:
-        for chunk in iter(lambda: f.read(8192), b''):
-            hasher.update(chunk)
-    return hasher.hexdigest()
-
-
 def parse_date_from_iso(date_str: str) -> Optional[date]:
     """Parse ISO date string to date object."""
     if not date_str:
@@ -75,6 +66,21 @@ def parse_date_from_iso(date_str: str) -> Optional[date]:
         dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
         return dt.date()
     except (ValueError, TypeError):
+        return None
+
+
+async def fetch_document_content(storage_url: str) -> Optional[str]:
+    """Fetch document content from Supabase storage."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(storage_url, timeout=30.0)
+            if response.status_code == 200:
+                return response.text
+            else:
+                logger.warning(f"Failed to fetch document: {response.status_code}")
+                return None
+    except Exception as e:
+        logger.error(f"Error fetching document content: {e}")
         return None
 
 
@@ -158,111 +164,54 @@ Be conservative - only extract items that are clearly present in the content."""
         return {"opportunities": [], "tasks": [], "stakeholders": []}
 
 
-def get_scan_state(user_id: str, granola_id: str) -> Optional[Dict]:
-    """Check if a meeting has already been scanned."""
-    try:
-        result = supabase.table('documents') \
-            .select('id, granola_id, granola_scanned_at') \
-            .eq('user_id', user_id) \
-            .eq('granola_id', granola_id) \
-            .execute()
-
-        return result.data[0] if result.data else None
-    except Exception as e:
-        logger.error(f"Failed to get scan state: {e}")
-        return None
-
-
-async def scan_meeting_file(
-    file_path: Path,
+async def scan_document(
+    document: Dict[str, Any],
     user_id: str,
     client_id: str,
     force_rescan: bool = False
 ) -> Dict[str, Any]:
     """
-    Scan a single Granola meeting summary file.
+    Scan a single document from the KB for opportunities, tasks, and stakeholders.
 
     Returns scan result with status and extracted data.
     """
-    logger.info(f"Scanning: {file_path.name}")
+    document_id = document['id']
+    filename = document.get('filename', 'Unknown')
+    storage_url = document.get('storage_url')
+
+    logger.info(f"Scanning document: {filename}")
+
+    # Check if already scanned
+    if document.get('granola_scanned_at') and not force_rescan:
+        logger.debug(f"Already scanned: {filename}")
+        return {'status': 'skipped', 'reason': 'already_scanned', 'document_id': document_id}
+
+    if not storage_url:
+        logger.warning(f"No storage URL for document: {filename}")
+        return {'status': 'skipped', 'reason': 'no_storage_url', 'document_id': document_id}
 
     try:
-        # Read file content
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+        # Fetch document content
+        content = await fetch_document_content(storage_url)
+        if not content:
+            return {'status': 'failed', 'error': 'Could not fetch document content'}
 
         # Parse frontmatter
         frontmatter, body_content = parse_frontmatter(content)
 
-        granola_id = frontmatter.get('granola_id')
-        if not granola_id:
-            logger.warning(f"No granola_id in {file_path.name}, skipping")
-            return {'status': 'skipped', 'reason': 'no_granola_id'}
-
-        # Check if already scanned
-        existing = get_scan_state(user_id, granola_id)
-        if existing and existing.get('granola_scanned_at') and not force_rescan:
-            logger.debug(f"Already scanned: {file_path.name}")
-            return {'status': 'skipped', 'reason': 'already_scanned', 'document_id': existing['id']}
-
-        title = frontmatter.get('title', file_path.stem)
+        title = document.get('title') or frontmatter.get('title') or filename
         created_str = frontmatter.get('created', '')
         meeting_date = parse_date_from_iso(created_str)
-        attendees = frontmatter.get('attendees', [])
 
         # Extract structured data
         extracted = await extract_structured_data(body_content, title, meeting_date)
 
-        # Create or update document in KB
-        file_hash = compute_file_hash(file_path)
+        # Update document scan timestamp
         now = datetime.now(timezone.utc).isoformat()
-
-        if existing:
-            # Update existing document
-            document_id = existing['id']
-            supabase.table('documents').update({
-                'title': title,
-                'granola_scanned_at': now,
-                'updated_at': now
-            }).eq('id', document_id).execute()
-        else:
-            # Create new document
-            # First upload content to storage
-            import uuid
-            unique_id = str(uuid.uuid4())
-            safe_filename = re.sub(r'[^\w\s\-\.]', '', file_path.name).strip() or 'meeting.md'
-            storage_path = f"granola/{client_id}/{unique_id}_{safe_filename}"
-
-            file_content = content.encode('utf-8')
-            supabase.storage.from_('documents').upload(
-                path=storage_path,
-                file=file_content,
-                file_options={"content-type": "text/markdown"}
-            )
-
-            storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
-
-            doc_result = supabase.table('documents').insert({
-                'user_id': user_id,
-                'client_id': client_id,
-                'uploaded_by': user_id,
-                'filename': file_path.name,
-                'title': title,
-                'storage_url': storage_url,
-                'storage_path': storage_path,
-                'source_platform': 'granola',
-                'granola_id': granola_id,
-                'granola_scanned_at': now,
-                'original_date': meeting_date.isoformat() if meeting_date else None,
-                'document_type': 'transcript',  # Use existing enum value
-                'processed': False,
-                'uploaded_at': now
-            }).execute()
-
-            document_id = doc_result.data[0]['id']
-
-        # Process document for embeddings
-        process_document(document_id)
+        supabase.table('documents').update({
+            'granola_scanned_at': now,
+            'updated_at': now
+        }).eq('id', document_id).execute()
 
         # Store extracted opportunities
         opportunities_created = 0
@@ -387,35 +336,63 @@ async def scan_meeting_file(
         }
 
     except Exception as e:
-        logger.error(f"Failed to scan {file_path.name}: {e}")
+        logger.error(f"Failed to scan document {filename}: {e}")
         return {'status': 'failed', 'error': str(e)}
 
 
-async def scan_granola_vault(
+async def scan_granola_documents(
     user_id: str,
     client_id: str,
-    vault_path: str = DEFAULT_GRANOLA_PATH,
     force_rescan: bool = False
 ) -> Dict[str, Any]:
     """
-    Scan the Granola vault for new meeting summaries.
+    Scan Granola meeting documents from the KB.
+
+    Finds documents with storage paths containing 'Granola/Meeting-summaries'
+    and extracts opportunities, tasks, and stakeholders.
 
     Args:
         user_id: User ID
         client_id: Client ID
-        vault_path: Path to Granola vault
         force_rescan: Re-process already scanned files
 
     Returns:
         Scan results with stats
     """
-    logger.info(f"\nScanning Granola vault: {vault_path}")
+    logger.info("Scanning Granola documents from KB")
 
-    vault = Path(vault_path)
-    summaries_dir = vault / "Meeting-summaries"
+    # Find Granola meeting documents in KB
+    # Look for documents with storage_path containing Granola/Meeting-summaries
+    try:
+        query = supabase.table('documents') \
+            .select('id, filename, title, storage_url, storage_path, granola_scanned_at') \
+            .eq('user_id', user_id) \
+            .ilike('storage_path', '%Granola%Meeting-summaries%')
 
-    if not summaries_dir.exists():
-        raise GranolaScannerError(f"Meeting-summaries folder not found: {summaries_dir}")
+        if not force_rescan:
+            query = query.is_('granola_scanned_at', 'null')
+
+        result = query.execute()
+        documents = result.data or []
+    except Exception as e:
+        logger.error(f"Failed to query Granola documents: {e}")
+        raise GranolaScannerError(f"Failed to query documents: {e}")
+
+    if not documents:
+        logger.info("No unscanned Granola documents found")
+        return {
+            'status': 'success',
+            'stats': {
+                'files_scanned': 0,
+                'files_processed': 0,
+                'files_skipped': 0,
+                'files_failed': 0,
+                'opportunities_created': 0,
+                'tasks_created': 0,
+                'stakeholders_created': 0
+            },
+            'results': []
+        }
 
     stats = {
         'files_scanned': 0,
@@ -429,15 +406,11 @@ async def scan_granola_vault(
 
     results = []
 
-    # Scan all .md files in Meeting-summaries
-    for file_path in sorted(summaries_dir.glob('*.md')):
-        if file_path.name.startswith('.'):
-            continue
-
+    for doc in documents:
         stats['files_scanned'] += 1
 
-        result = await scan_meeting_file(file_path, user_id, client_id, force_rescan)
-        results.append({'file': file_path.name, **result})
+        result = await scan_document(doc, user_id, client_id, force_rescan)
+        results.append({'file': doc.get('filename', 'Unknown'), **result})
 
         if result['status'] == 'processed':
             stats['files_processed'] += 1
@@ -465,39 +438,60 @@ async def scan_granola_vault(
     }
 
 
-def get_scan_status(user_id: str, vault_path: str = DEFAULT_GRANOLA_PATH) -> Dict[str, Any]:
+def get_scan_status(user_id: str) -> Dict[str, Any]:
     """
-    Get current scan status for the Granola vault.
+    Get current scan status for Granola documents in the KB.
 
-    Returns counts of scanned vs unscanned files.
+    Returns counts of scanned vs unscanned Granola meeting documents.
     """
-    vault = Path(vault_path)
-    summaries_dir = vault / "Meeting-summaries"
+    try:
+        # Count total Granola meeting documents
+        total_result = supabase.table('documents') \
+            .select('id', count='exact') \
+            .eq('user_id', user_id) \
+            .ilike('storage_path', '%Granola%Meeting-summaries%') \
+            .execute()
 
-    if not summaries_dir.exists():
+        total_files = total_result.count or 0
+
+        # Count scanned documents
+        scanned_result = supabase.table('documents') \
+            .select('id', count='exact') \
+            .eq('user_id', user_id) \
+            .ilike('storage_path', '%Granola%Meeting-summaries%') \
+            .not_.is_('granola_scanned_at', 'null') \
+            .execute()
+
+        scanned_count = scanned_result.count or 0
+
+        return {
+            'connected': total_files > 0,
+            'vault_path': 'KB (Obsidian sync)',
+            'total_files': total_files,
+            'scanned_files': scanned_count,
+            'pending_files': total_files - scanned_count
+        }
+    except Exception as e:
+        logger.error(f"Failed to get scan status: {e}")
         return {
             'connected': False,
-            'vault_path': vault_path,
-            'error': 'Meeting-summaries folder not found'
+            'vault_path': 'KB (Obsidian sync)',
+            'total_files': 0,
+            'scanned_files': 0,
+            'pending_files': 0,
+            'error': str(e)
         }
 
-    # Count total files
-    total_files = len(list(summaries_dir.glob('*.md')))
 
-    # Count scanned documents
-    scanned_result = supabase.table('documents') \
-        .select('id', count='exact') \
-        .eq('user_id', user_id) \
-        .eq('source_platform', 'granola') \
-        .not_.is_('granola_scanned_at', 'null') \
-        .execute()
-
-    scanned_count = scanned_result.count or 0
-
-    return {
-        'connected': True,
-        'vault_path': vault_path,
-        'total_files': total_files,
-        'scanned_files': scanned_count,
-        'pending_files': total_files - scanned_count
-    }
+# Keep old function name for backwards compatibility
+async def scan_granola_vault(
+    user_id: str,
+    client_id: str,
+    vault_path: str = "",  # Ignored - uses KB
+    force_rescan: bool = False
+) -> Dict[str, Any]:
+    """
+    Backwards-compatible wrapper for scan_granola_documents.
+    The vault_path parameter is ignored - scanning now uses documents from the KB.
+    """
+    return await scan_granola_documents(user_id, client_id, force_rescan)
