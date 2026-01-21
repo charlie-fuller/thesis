@@ -929,7 +929,7 @@ async def get_scan_stats(
 
 @router.post("/scan-documents")
 async def scan_documents_for_tasks(
-    limit: int = Query(50, ge=1, le=200, description="Number of recent documents to scan"),
+    limit: int = Query(10, ge=1, le=50, description="Number of recent documents to scan (max 50)"),
     since_days: Optional[int] = Query(None, ge=1, le=365, description="Only scan documents with original_date in the last N days"),
     current_user=Depends(get_current_user)
 ):
@@ -937,11 +937,13 @@ async def scan_documents_for_tasks(
     Scan recent documents for potential tasks.
 
     This triggers the Taskmaster auto-extractor on documents that haven't been
-    scanned yet (or can be re-scanned). Found tasks are stored as candidates
-    for user review.
+    scanned yet. Found tasks are stored as candidates for user review.
+
+    Uses Claude Sonnet for intelligent extraction - limit to 10-20 docs for
+    reasonable response times (~3-5 sec per doc).
 
     Args:
-        limit: Max number of documents to scan (1-50)
+        limit: Max number of documents to scan (1-50, default 10)
         since_days: Only scan documents with original_date in the last N days
     """
     try:
@@ -981,11 +983,8 @@ async def scan_documents_for_tasks(
 
         from services.task_auto_extractor import extract_tasks_from_document
 
-        results = []
-        total_found = 0
-        total_stored = 0
-
-        for doc in docs_result.data:
+        # Process documents in parallel for speed (Sonnet calls take ~3-5 sec each)
+        async def process_doc(doc):
             doc_name = doc.get('title') or doc.get('filename', 'Unknown')
             try:
                 result = await extract_tasks_from_document(
@@ -994,27 +993,51 @@ async def scan_documents_for_tasks(
                     user_name=user_name,
                     auto_store=True
                 )
+                return {
+                    'document_id': doc['id'],
+                    'document_name': doc_name,
+                    'tasks_found': result.get('tasks_found', 0),
+                    'tasks_stored': result.get('tasks_stored', 0),
+                    'status': result.get('status', 'completed')
+                }
+            except Exception as e:
+                logger.warning(f"Failed to scan document {doc['id']}: {e}")
+                return {
+                    'document_id': doc['id'],
+                    'document_name': doc_name,
+                    'tasks_found': 0,
+                    'tasks_stored': 0,
+                    'error': str(e)
+                }
 
+        # Run all extractions in parallel (with semaphore to limit concurrency)
+        semaphore = asyncio.Semaphore(5)  # Max 5 concurrent LLM calls
+
+        async def process_with_semaphore(doc):
+            async with semaphore:
+                return await process_doc(doc)
+
+        all_results = await asyncio.gather(
+            *[process_with_semaphore(doc) for doc in docs_result.data],
+            return_exceptions=True
+        )
+
+        # Aggregate results
+        results = []
+        total_found = 0
+        total_stored = 0
+
+        for result in all_results:
+            if isinstance(result, Exception):
+                logger.warning(f"Document scan exception: {result}")
+                continue
+            if isinstance(result, dict):
                 found = result.get('tasks_found', 0)
                 stored = result.get('tasks_stored', 0)
                 total_found += found
                 total_stored += stored
-
-                if found > 0:
-                    results.append({
-                        'document_id': doc['id'],
-                        'document_name': doc_name,
-                        'tasks_found': found,
-                        'tasks_stored': stored
-                    })
-
-            except Exception as e:
-                logger.warning(f"Failed to scan document {doc['id']}: {e}")
-                results.append({
-                    'document_id': doc['id'],
-                    'document_name': doc_name,
-                    'error': str(e)
-                })
+                if found > 0 or result.get('error'):
+                    results.append(result)
 
         return {
             'success': True,
