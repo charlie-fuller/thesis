@@ -10,6 +10,7 @@ import { logger } from '@/lib/logger';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { AgentIcon, getAgentColor } from '@/components/AgentIcon';
 import CareerStatusReportModal from '@/components/compass/CareerStatusReportModal';
+import TaskCandidateReviewModal from '@/components/tasks/TaskCandidateReviewModal';
 
 interface InstructionVersion {
   id: string;
@@ -190,6 +191,7 @@ export default function AgentDetailPage() {
   }
   const [taskScanResult, setTaskScanResult] = useState<ScanResult | null>(null);
   const [taskScanLoading, setTaskScanLoading] = useState(false);
+  const [showCandidateReview, setShowCandidateReview] = useState(false);
 
   useEffect(() => {
     fetchAgent();
@@ -582,26 +584,35 @@ export default function AgentDetailPage() {
       const scanResponse = await apiPost<ScanApiResponse>('/api/tasks/scan-documents?limit=10&since_days=30', {});
 
       // Then fetch the pending candidates to display
-      const candidatesResponse = await apiGet<{ candidates: TaskCandidate[] }>('/api/tasks/candidates?status=pending&limit=10');
+      const candidatesResponse = await apiGet<{ candidates: TaskCandidate[] }>('/api/tasks/candidates?status=pending&limit=20');
 
       const result: ScanResult = {
         documents_scanned: scanResponse.documents_scanned,
-        total_candidates_found: scanResponse.total_tasks_stored,
+        total_candidates_found: candidatesResponse.candidates?.length || 0,
         candidates: candidatesResponse.candidates || []
       };
 
       setTaskScanResult(result);
 
-      if (scanResponse.total_tasks_stored > 0) {
-        toast.success(`Found ${scanResponse.total_tasks_stored} potential task(s) from ${scanResponse.documents_scanned} document(s)`);
+      if (result.candidates.length > 0) {
+        // Open the review modal to process candidates
+        setShowCandidateReview(true);
       } else {
-        toast.success(`Scanned ${scanResponse.documents_scanned} documents - no new tasks found`);
+        toast.success(`Scanned ${scanResponse.documents_scanned} documents - no pending tasks to review`);
       }
     } catch (err) {
       logger.error('Failed to scan documents for tasks:', err);
       toast.error('Failed to scan documents for tasks');
     } finally {
       setTaskScanLoading(false);
+    }
+  };
+
+  const handleCandidateReviewComplete = (stats: { accepted: number; rejected: number }) => {
+    setShowCandidateReview(false);
+    setTaskScanResult(null);
+    if (stats.accepted > 0 || stats.rejected > 0) {
+      toast.success(`Review complete: ${stats.accepted} task(s) created, ${stats.rejected} skipped`);
     }
   };
 
@@ -983,74 +994,15 @@ export default function AgentDetailPage() {
                   )}
                 </button>
 
-                {/* Show scan results */}
-                {taskScanResult && (
-                  <div className="mt-4 p-4 bg-page rounded-lg border border-border">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-medium text-primary">
-                        Scan Results
-                      </span>
-                      <span className="text-xs text-secondary">
-                        {taskScanResult.documents_scanned} docs scanned
-                      </span>
-                    </div>
-
-                    {taskScanResult.candidates.length > 0 ? (
-                      <div className="space-y-2">
-                        {taskScanResult.candidates.slice(0, 5).map((candidate) => (
-                          <div
-                            key={candidate.id}
-                            className="p-3 bg-card rounded border border-border"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-primary truncate">
-                                  {candidate.title}
-                                </p>
-                                <p className="text-xs text-secondary mt-0.5">
-                                  From: {candidate.source_document_name}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                  candidate.confidence === 'high'
-                                    ? 'bg-green-500/20 text-green-400'
-                                    : 'bg-yellow-500/20 text-yellow-400'
-                                }`}>
-                                  {candidate.confidence}
-                                </span>
-                                <span className="text-xs text-secondary">
-                                  P{candidate.suggested_priority}
-                                </span>
-                              </div>
-                            </div>
-                            {candidate.due_date_text && (
-                              <p className="text-xs text-amber-400 mt-1">
-                                Due: {candidate.due_date_text}
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                        {taskScanResult.candidates.length > 5 && (
-                          <p className="text-xs text-secondary text-center pt-2">
-                            +{taskScanResult.candidates.length - 5} more candidates
-                          </p>
-                        )}
-                        <div className="pt-3 border-t border-border mt-3">
-                          <Link
-                            href="/tasks"
-                            className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
-                          >
-                            Go to Tasks to review candidates →
-                          </Link>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-secondary">
-                        No new task candidates found in recent documents.
-                      </p>
-                    )}
-                  </div>
+                {/* Show button to review pending candidates if any exist */}
+                {taskScanResult && taskScanResult.candidates.length > 0 && !showCandidateReview && (
+                  <button
+                    onClick={() => setShowCandidateReview(true)}
+                    className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-page border border-amber-500/30 text-amber-400 rounded-lg hover:bg-amber-500/10 transition-colors"
+                  >
+                    <ListChecks className="w-5 h-5" />
+                    Review {taskScanResult.candidates.length} Pending Task{taskScanResult.candidates.length !== 1 ? 's' : ''}
+                  </button>
                 )}
 
                 <p className="text-muted text-xs mt-3">
@@ -2367,6 +2319,16 @@ export default function AgentDetailPage() {
           onClose={() => setShowCareerReportModal(false)}
           onRegenerate={handleGenerateCareerReport}
           regenerating={careerReportLoading}
+        />
+      )}
+
+      {/* Task Candidate Review Modal (Taskmaster only) */}
+      {taskScanResult && taskScanResult.candidates.length > 0 && (
+        <TaskCandidateReviewModal
+          open={showCandidateReview}
+          onClose={() => setShowCandidateReview(false)}
+          onComplete={handleCandidateReviewComplete}
+          candidates={taskScanResult.candidates}
         />
       )}
     </div>
