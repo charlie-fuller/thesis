@@ -48,8 +48,15 @@ export default function TaskCard({ task, onClick }: TaskCardProps) {
     el.classList.remove('opacity-50')
   }, [])
 
-  // Check if overdue
-  const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed'
+  // Check urgency
+  const now = new Date()
+  const dueDate = task.due_date ? new Date(task.due_date) : null
+  const isOverdue = dueDate && dueDate < now && task.status !== 'completed'
+
+  // Check if due soon (within 3 days)
+  const threeDaysFromNow = new Date(now)
+  threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3)
+  const isDueSoon = dueDate && !isOverdue && dueDate <= threeDaysFromNow && task.status !== 'completed'
 
   // Get source icon
   const SourceIcon = task.source_type ? SOURCE_ICONS[task.source_type as keyof typeof SOURCE_ICONS] : null
@@ -102,9 +109,13 @@ export default function TaskCard({ task, onClick }: TaskCardProps) {
         {task.due_date && (
           <div
             className={`flex items-center gap-1 ${
-              isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : ''
+              isOverdue
+                ? 'text-red-600 dark:text-red-400 font-medium'
+                : isDueSoon
+                  ? 'text-amber-600 dark:text-amber-400 font-medium'
+                  : ''
             }`}
-            title={isOverdue ? 'Overdue!' : `Due: ${task.due_date}`}
+            title={isOverdue ? 'Overdue!' : isDueSoon ? 'Due soon!' : `Due: ${task.due_date}`}
           >
             <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
             <span>{formatDate(task.due_date)}</span>

@@ -136,7 +136,7 @@ function PriorityQueuePanel({
         <span className="text-xs text-slate-500">Ranked by impact/effort</span>
       </div>
 
-      <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[400px] overflow-y-auto">
+      <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[720px] overflow-y-auto">
         {opportunities.length === 0 ? (
           <div className="px-4 py-8 text-center text-slate-500">
             <Target className="w-8 h-8 mx-auto mb-2 opacity-40" />
@@ -212,7 +212,7 @@ function CommitmentsPanel({
         <span className="text-xs text-slate-500">What you owe</span>
       </div>
 
-      <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[400px] overflow-y-auto">
+      <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[720px] overflow-y-auto">
         {commitments.length === 0 ? (
           <div className="px-4 py-8 text-center text-slate-500">
             <CheckSquare className="w-8 h-8 mx-auto mb-2 opacity-40" />
@@ -291,7 +291,7 @@ function StakeholderPulsePanel({
         <span className="text-xs text-slate-500">Engagement levels</span>
       </div>
 
-      <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[400px] overflow-y-auto">
+      <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[720px] overflow-y-auto">
         {stakeholders.length === 0 ? (
           <div className="px-4 py-8 text-center text-slate-500">
             <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />

@@ -28,7 +28,6 @@ export default function PageHeader({
   // Navigation links
   const userLinks = [
     { href: '/', label: 'Dashboard' },
-    { href: '/pipeline', label: 'Pipeline' },
     { href: '/chat', label: 'Chat' },
     { href: '/meeting-room', label: 'Meeting Room' },
     { href: '/tasks', label: 'Tasks' },

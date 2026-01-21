@@ -283,7 +283,7 @@ export default function KBDocumentsContent() {
 
   // Upload and Documents section state
   const [uploadExpanded, setUploadExpanded] = useState<boolean>(false)
-  const [documentsExpanded, setDocumentsExpanded] = useState<boolean>(true)
+  const [documentsExpanded, setDocumentsExpanded] = useState<boolean>(false)
 
 
   // Define functions first with useCallback

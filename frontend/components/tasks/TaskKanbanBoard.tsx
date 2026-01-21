@@ -351,6 +351,20 @@ export default function TaskKanbanBoard() {
     return count
   }, [filters])
 
+  // Calculate due soon count (within 3 days, not overdue, not completed)
+  const dueSoonCount = useMemo(() => {
+    const now = new Date()
+    const threeDaysFromNow = new Date(now)
+    threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3)
+
+    const allTasks = [...columns.pending, ...columns.in_progress, ...columns.blocked]
+    return allTasks.filter(task => {
+      if (!task.due_date) return false
+      const dueDate = new Date(task.due_date)
+      return dueDate >= now && dueDate <= threeDaysFromNow
+    }).length
+  }, [columns])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -370,6 +384,11 @@ export default function TaskKanbanBoard() {
             {counts.overdue > 0 && (
               <span className="text-red-600 dark:text-red-400 ml-2">
                 ({counts.overdue} overdue)
+              </span>
+            )}
+            {dueSoonCount > 0 && (
+              <span className="text-amber-600 dark:text-amber-400 ml-2">
+                ({dueSoonCount} due soon)
               </span>
             )}
           </p>

@@ -14,7 +14,10 @@ import {
   Filter,
   User,
   Building2,
-  ExternalLink
+  ExternalLink,
+  LayoutGrid,
+  List,
+  Zap
 } from 'lucide-react'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
 import PageHeader from '@/components/PageHeader'
@@ -222,6 +225,90 @@ function TierSection({
   )
 }
 
+function PriorityListView({
+  opportunities,
+  onOpportunityClick,
+}: {
+  opportunities: Opportunity[]
+  onOpportunityClick: (opportunity: Opportunity) => void
+}) {
+  // Sort by total_score descending
+  const sorted = [...opportunities].sort((a, b) => b.total_score - a.total_score)
+
+  return (
+    <div className="bg-card border border-default rounded-lg overflow-hidden">
+      <div className="px-4 py-3 border-b border-default flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Zap className="w-5 h-5 text-amber-500" />
+          <h2 className="font-semibold text-primary">Priority Queue</h2>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-muted">
+            {sorted.length}
+          </span>
+        </div>
+        <span className="text-xs text-muted">Ranked by total score</span>
+      </div>
+
+      <div className="divide-y divide-default max-h-[720px] overflow-y-auto">
+        {sorted.length === 0 ? (
+          <div className="px-4 py-8 text-center text-muted">
+            <Target className="w-8 h-8 mx-auto mb-2 opacity-40" />
+            <p className="text-sm">No opportunities match current filters</p>
+          </div>
+        ) : (
+          sorted.map((opp, index) => {
+            const statusConfig = STATUS_CONFIG[opp.status] || STATUS_CONFIG.identified
+            return (
+              <div
+                key={opp.id}
+                className="px-4 py-3 hover:bg-hover cursor-pointer transition-colors"
+                onClick={() => onOpportunityClick(opp)}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-medium text-muted">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-mono text-muted">{opp.opportunity_code}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        TIER_CONFIG[opp.tier as 1|2|3|4]?.bg || ''
+                      } ${TIER_CONFIG[opp.tier as 1|2|3|4]?.color || ''}`}>
+                        T{opp.tier}
+                      </span>
+                      <span className={`text-xs ${statusConfig.color}`}>
+                        {statusConfig.label}
+                      </span>
+                      {opp.department && (
+                        <span className="text-xs text-muted">{opp.department}</span>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium text-primary truncate">
+                      {opp.title}
+                    </p>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted">
+                      <span className="flex items-center gap-1">
+                        <Zap className="w-3 h-3" />
+                        Score: {opp.total_score}/20
+                      </span>
+                      {opp.owner_name && (
+                        <span className="flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          {opp.owner_name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted flex-shrink-0" />
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ============================================================================
 // MAIN PAGE
 // ============================================================================
@@ -231,6 +318,9 @@ export default function OpportunitiesPage() {
   const [data, setData] = useState<OpportunitiesByTier | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // View mode
+  const [viewMode, setViewMode] = useState<'tier' | 'priority'>('tier')
 
   // Filters
   const [departmentFilter, setDepartmentFilter] = useState<string>('')
@@ -318,13 +408,40 @@ export default function OpportunitiesPage() {
               {data?.summary.total || 0} opportunities tracked
             </p>
           </div>
-          <button
-            onClick={() => router.push('/opportunities/new')}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4" />
-            Add Opportunity
-          </button>
+          <div className="flex items-center gap-3">
+            {/* View toggle */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('tier')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'tier'
+                    ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
+                    : 'text-muted hover:text-primary'
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                Tiers
+              </button>
+              <button
+                onClick={() => setViewMode('priority')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'priority'
+                    ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
+                    : 'text-muted hover:text-primary'
+                }`}
+              >
+                <List className="w-4 h-4" />
+                Priority
+              </button>
+            </div>
+            <button
+              onClick={() => router.push('/opportunities/new')}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4" />
+              Add Opportunity
+            </button>
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -384,33 +501,42 @@ export default function OpportunitiesPage() {
           )}
         </div>
 
-        {/* Tier Sections */}
-        <div className="space-y-6">
-          {data && (
-            <>
-              <TierSection
-                tier={1}
-                opportunities={data.tier_1}
-                onOpportunityClick={handleOpportunityClick}
-              />
-              <TierSection
-                tier={2}
-                opportunities={data.tier_2}
-                onOpportunityClick={handleOpportunityClick}
-              />
-              <TierSection
-                tier={3}
-                opportunities={data.tier_3}
-                onOpportunityClick={handleOpportunityClick}
-              />
-              <TierSection
-                tier={4}
-                opportunities={data.tier_4}
-                onOpportunityClick={handleOpportunityClick}
-              />
-            </>
-          )}
-        </div>
+        {/* Tier Sections or Priority View */}
+        {viewMode === 'tier' ? (
+          <div className="space-y-6">
+            {data && (
+              <>
+                <TierSection
+                  tier={1}
+                  opportunities={data.tier_1}
+                  onOpportunityClick={handleOpportunityClick}
+                />
+                <TierSection
+                  tier={2}
+                  opportunities={data.tier_2}
+                  onOpportunityClick={handleOpportunityClick}
+                />
+                <TierSection
+                  tier={3}
+                  opportunities={data.tier_3}
+                  onOpportunityClick={handleOpportunityClick}
+                />
+                <TierSection
+                  tier={4}
+                  opportunities={data.tier_4}
+                  onOpportunityClick={handleOpportunityClick}
+                />
+              </>
+            )}
+          </div>
+        ) : (
+          data && (
+            <PriorityListView
+              opportunities={[...data.tier_1, ...data.tier_2, ...data.tier_3, ...data.tier_4]}
+              onOpportunityClick={handleOpportunityClick}
+            />
+          )
+        )}
 
         {/* Empty State */}
         {data && data.summary.total === 0 && (
