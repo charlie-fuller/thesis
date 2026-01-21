@@ -8,6 +8,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import PageHeader from '@/components/PageHeader'
 import InterfaceHealthPanel from '@/components/InterfaceHealthPanel'
 import TaskReviewPanel from '@/components/TaskReviewPanel'
+import StakeholderReviewPanel from '@/components/StakeholderReviewPanel'
 import GraphStatsPanel from '@/components/GraphStatsPanel'
 import GraphVisualizationPanel from '@/components/admin/GraphVisualizationPanel'
 
@@ -102,6 +103,7 @@ export default function HomePage() {
         {activeTab === 'system' && (
           <div className="space-y-6">
             <TaskReviewPanel />
+            <StakeholderReviewPanel />
             <InterfaceHealthPanel />
           </div>
         )}

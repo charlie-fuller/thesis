@@ -95,6 +95,13 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
    - View and manage conversation history
 3. **Meeting Intelligence**: Upload meeting transcripts (Granola/Otter/Teams/Zoom), extract stakeholder insights with evidence-based sentiment analysis, power dynamics, and strategic recommendations
 4. **Stakeholder Tracking**: Full CRM-style tracking with sentiment, engagement, alignment scores
+   - **Auto-discovery from meetings**: Scan meeting documents to extract stakeholder mentions
+     - Uses Claude Sonnet to identify names, roles, departments, concerns, interests, sentiment
+     - Deduplication detects potential matches with existing stakeholders
+     - Candidate review system: accept, reject, or merge into existing stakeholder
+     - Auto-links accepted stakeholders to related opportunities and tasks
+     - Manual scan via "Scan for Stakeholders" button (no auto-extraction on upload)
+   - Dashboard panel shows count of pending stakeholder candidates
 5. **Research Intelligence**: Proactive monitoring of GenAI implementation research
    - Atlas auto-performs web research when no knowledge base results found
    - Uses Anthropic's native web search tool (`web_search_20250305`) with Claude 3.7 Sonnet
@@ -340,6 +347,7 @@ agent_knowledge_base         -- Document-to-agent links for RAG (with relevance_
 
 -- Stakeholder Management
 stakeholders                 -- CRM-style tracking with priority_level, pain_points, win_conditions
+stakeholder_candidates       -- Auto-extracted stakeholders pending user review (accept/reject/merge)
 stakeholder_insights         -- Extracted insights from transcripts
 engagement_level_history     -- Historical engagement level tracking for trends
 
@@ -416,6 +424,7 @@ Run migrations in order from `/database/migrations/`:
 | 027 | compass_improvement_actions | Improvement actions column for career status reports |
 | 027 | add_taskmaster_agent | Taskmaster agent for task discovery and tracking |
 | 028 | document_task_scan_tracking | Track when documents were scanned for tasks (prevents duplicates) |
+| 030 | stakeholder_candidates | Auto-extracted stakeholders pending review, document scan tracking |
 
 ## Environment Variables
 
@@ -512,6 +521,10 @@ uv run pytest tests/ -v --tb=short
 - `/backend/services/career_status_report.py` - Career status report generation with 5-dimension rubric
 - `/backend/services/task_auto_extractor.py` - Auto-extract tasks from KB documents on upload (background)
 - `/backend/services/task_extractor.py` - LLM task extraction with natural prompt (Claude Sonnet)
+- `/backend/services/stakeholder_extractor.py` - LLM extraction of stakeholders from meeting documents
+- `/backend/services/stakeholder_scanner.py` - Coordinates manual stakeholder scanning workflow
+- `/backend/services/stakeholder_deduplicator.py` - Detects potential matches with existing stakeholders
+- `/backend/services/stakeholder_linker.py` - Links stakeholders to related opportunities/tasks
 - `/backend/services/graph/query_service.py` - Neo4j graph queries including `get_meeting_context()` for stakeholder/concern retrieval
 - `/backend/services/graph/connection.py` - Neo4j connection management
 - `/backend/system_instructions/agents/*.xml` - Agent behavior configuration (Gigawatt v4.0)
@@ -560,10 +573,13 @@ uv run pytest tests/ -v --tb=short
 - `/frontend/components/kb/ClassificationReviewBanner.tsx` - Document classification review UI
 - `/frontend/components/EngagementTrendsChart.tsx` - Stakeholder engagement visualization
 - `/frontend/components/TaskReviewPanel.tsx` - Dashboard panel showing pending task candidates count
+- `/frontend/components/StakeholderReviewPanel.tsx` - Dashboard panel showing pending stakeholder candidates
+- `/frontend/components/stakeholders/StakeholderCandidateCard.tsx` - Candidate card with accept/reject/merge actions
+- `/frontend/components/stakeholders/StakeholderCandidatesSection.tsx` - Scan controls and candidate list for Intelligence page
 
 ### Database
 - `/database/thesis_schema.sql` - Complete DB schema
-- `/database/migrations/` - All migration scripts (001-027, 040)
+- `/database/migrations/` - All migration scripts (001-030, 040)
 
 ### Documentation
 - `/docs/AGENT_GUARDRAILS.md` - Agent brevity rules, word limits, conversational coherence, and behavioral constraints

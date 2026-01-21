@@ -1,14 +1,16 @@
 """
 Stakeholders API Routes
 
-Endpoints for managing stakeholders and their insights.
+Endpoints for managing stakeholders, their insights, and stakeholder candidates.
 """
 
 import logging
+import os
 from typing import Optional
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+import anthropic
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 
 from auth import get_current_user
@@ -111,6 +113,66 @@ class StakeholderInsightResponse(BaseModel):
 class InsightResolve(BaseModel):
     """Resolve an insight."""
     resolution_notes: Optional[str] = None
+
+
+# ============================================================================
+# STAKEHOLDER CANDIDATE MODELS
+# ============================================================================
+
+class StakeholderCandidateResponse(BaseModel):
+    """Stakeholder candidate response."""
+    id: str
+    name: str
+    role: Optional[str]
+    department: Optional[str]
+    organization: Optional[str]
+    email: Optional[str]
+    key_concerns: list
+    interests: list
+    initial_sentiment: Optional[str]
+    influence_level: Optional[str]
+    source_document_id: Optional[str]
+    source_document_name: Optional[str]
+    source_text: Optional[str]
+    extraction_context: Optional[str]
+    related_opportunity_ids: list
+    related_task_ids: list
+    status: str
+    confidence: str
+    potential_match_stakeholder_id: Optional[str]
+    potential_match_name: Optional[str]
+    match_confidence: Optional[float]
+    created_at: str
+
+
+class CandidateAccept(BaseModel):
+    """Accept a stakeholder candidate."""
+    # Override extracted values if needed
+    name: Optional[str] = None
+    role: Optional[str] = None
+    department: Optional[str] = None
+    organization: Optional[str] = None
+    email: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CandidateReject(BaseModel):
+    """Reject a stakeholder candidate."""
+    reason: Optional[str] = None
+
+
+class CandidateMerge(BaseModel):
+    """Merge candidate into existing stakeholder."""
+    target_stakeholder_id: str
+    update_concerns: bool = True
+    update_interests: bool = True
+
+
+class ScanDocumentsRequest(BaseModel):
+    """Request to scan documents for stakeholders."""
+    force_rescan: bool = False
+    since_days: int = 90
+    limit: int = 20
 
 
 @router.get("/", response_model=list[StakeholderResponse])
@@ -387,6 +449,338 @@ async def get_stakeholder_dashboard(
     }
 
 
+# ============================================================================
+# STAKEHOLDER CANDIDATES ENDPOINTS
+# ============================================================================
+# NOTE: These static routes must be defined before parameterized routes (/{stakeholder_id})
+
+@router.get("/candidates", response_model=list[StakeholderCandidateResponse])
+async def list_stakeholder_candidates(
+    status: Optional[str] = "pending",
+    limit: int = 50,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """List stakeholder candidates for review."""
+    query = supabase.table("stakeholder_candidates") \
+        .select("*") \
+        .eq("client_id", current_user["client_id"])
+
+    if status:
+        query = query.eq("status", status)
+
+    result = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
+
+    # Get potential match names
+    candidates_with_matches = []
+    for c in result.data:
+        formatted = _format_candidate(c)
+
+        # Get match name if there's a potential match
+        if c.get("potential_match_stakeholder_id"):
+            match = supabase.table("stakeholders") \
+                .select("name") \
+                .eq("id", c["potential_match_stakeholder_id"]) \
+                .single() \
+                .execute()
+            if match.data:
+                formatted["potential_match_name"] = match.data["name"]
+
+        candidates_with_matches.append(formatted)
+
+    return candidates_with_matches
+
+
+@router.get("/candidates/count")
+async def get_candidate_count(
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """Get count of pending stakeholder candidates."""
+    result = supabase.table("stakeholder_candidates") \
+        .select("id", count="exact") \
+        .eq("client_id", current_user["client_id"]) \
+        .eq("status", "pending") \
+        .execute()
+
+    return {"count": result.count if result.count else 0}
+
+
+@router.post("/candidates/{candidate_id}/accept", response_model=StakeholderResponse)
+async def accept_stakeholder_candidate(
+    candidate_id: str,
+    accept: CandidateAccept = CandidateAccept(),
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """Accept a stakeholder candidate and create the stakeholder."""
+    # Get the candidate
+    candidate = supabase.table("stakeholder_candidates") \
+        .select("*") \
+        .eq("id", candidate_id) \
+        .eq("client_id", current_user["client_id"]) \
+        .eq("status", "pending") \
+        .single() \
+        .execute()
+
+    if not candidate.data:
+        raise HTTPException(status_code=404, detail="Candidate not found or already processed")
+
+    c = candidate.data
+
+    # Create the stakeholder (use overrides if provided)
+    stakeholder_data = {
+        "client_id": current_user["client_id"],
+        "name": accept.name or c["name"],
+        "email": accept.email or c.get("email"),
+        "role": accept.role or c.get("role"),
+        "department": accept.department or c.get("department"),
+        "organization": accept.organization or c.get("organization") or "Contentful",
+        "key_concerns": c.get("key_concerns", []),
+        "interests": c.get("interests", []),
+        "notes": accept.notes,
+        "first_interaction": datetime.now(timezone.utc).date().isoformat()
+    }
+
+    # Set initial sentiment-based engagement
+    sentiment = c.get("initial_sentiment", "neutral")
+    if sentiment == "positive":
+        stakeholder_data["engagement_level"] = "supporter"
+        stakeholder_data["sentiment_score"] = 0.5
+    elif sentiment == "negative":
+        stakeholder_data["engagement_level"] = "skeptic"
+        stakeholder_data["sentiment_score"] = -0.5
+    else:
+        stakeholder_data["engagement_level"] = "neutral"
+        stakeholder_data["sentiment_score"] = 0.0
+
+    # Create stakeholder
+    stakeholder_result = supabase.table("stakeholders").insert(stakeholder_data).execute()
+
+    if not stakeholder_result.data:
+        raise HTTPException(status_code=500, detail="Failed to create stakeholder")
+
+    new_stakeholder = stakeholder_result.data[0]
+
+    # Link to related entities
+    opportunity_ids = c.get("related_opportunity_ids", [])
+    task_ids = c.get("related_task_ids", [])
+
+    if opportunity_ids or task_ids:
+        from services.stakeholder_linker import link_stakeholder_to_entities
+        await link_stakeholder_to_entities(
+            supabase, new_stakeholder["id"], opportunity_ids, task_ids
+        )
+
+    # Update candidate status
+    supabase.table("stakeholder_candidates") \
+        .update({
+            "status": "accepted",
+            "accepted_at": datetime.now(timezone.utc).isoformat(),
+            "accepted_by": current_user["id"],
+            "created_stakeholder_id": new_stakeholder["id"]
+        }) \
+        .eq("id", candidate_id) \
+        .execute()
+
+    return _format_stakeholder(new_stakeholder)
+
+
+@router.post("/candidates/{candidate_id}/reject")
+async def reject_stakeholder_candidate(
+    candidate_id: str,
+    reject: CandidateReject = CandidateReject(),
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """Reject a stakeholder candidate."""
+    result = supabase.table("stakeholder_candidates") \
+        .update({
+            "status": "rejected",
+            "rejection_reason": reject.reason,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }) \
+        .eq("id", candidate_id) \
+        .eq("client_id", current_user["client_id"]) \
+        .eq("status", "pending") \
+        .execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Candidate not found or already processed")
+
+    return {"message": "Candidate rejected"}
+
+
+@router.post("/candidates/{candidate_id}/merge")
+async def merge_stakeholder_candidate(
+    candidate_id: str,
+    merge: CandidateMerge,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """Merge a candidate into an existing stakeholder."""
+    # Get the candidate
+    candidate = supabase.table("stakeholder_candidates") \
+        .select("*") \
+        .eq("id", candidate_id) \
+        .eq("client_id", current_user["client_id"]) \
+        .eq("status", "pending") \
+        .single() \
+        .execute()
+
+    if not candidate.data:
+        raise HTTPException(status_code=404, detail="Candidate not found or already processed")
+
+    c = candidate.data
+
+    # Get the target stakeholder
+    target = supabase.table("stakeholders") \
+        .select("*") \
+        .eq("id", merge.target_stakeholder_id) \
+        .eq("client_id", current_user["client_id"]) \
+        .single() \
+        .execute()
+
+    if not target.data:
+        raise HTTPException(status_code=404, detail="Target stakeholder not found")
+
+    t = target.data
+
+    # Build update data
+    update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
+
+    # Merge concerns if requested
+    if merge.update_concerns and c.get("key_concerns"):
+        existing_concerns = t.get("key_concerns", []) or []
+        new_concerns = c.get("key_concerns", [])
+        # Add only unique concerns
+        for concern in new_concerns:
+            if concern not in existing_concerns:
+                existing_concerns.append(concern)
+        update_data["key_concerns"] = existing_concerns
+
+    # Merge interests if requested
+    if merge.update_interests and c.get("interests"):
+        existing_interests = t.get("interests", []) or []
+        new_interests = c.get("interests", [])
+        # Add only unique interests
+        for interest in new_interests:
+            if interest not in existing_interests:
+                existing_interests.append(interest)
+        update_data["interests"] = existing_interests
+
+    # Update target stakeholder
+    supabase.table("stakeholders") \
+        .update(update_data) \
+        .eq("id", merge.target_stakeholder_id) \
+        .execute()
+
+    # Link to related entities
+    opportunity_ids = c.get("related_opportunity_ids", [])
+    task_ids = c.get("related_task_ids", [])
+
+    if opportunity_ids or task_ids:
+        from services.stakeholder_linker import link_stakeholder_to_entities
+        await link_stakeholder_to_entities(
+            supabase, merge.target_stakeholder_id, opportunity_ids, task_ids
+        )
+
+    # Update candidate status
+    supabase.table("stakeholder_candidates") \
+        .update({
+            "status": "merged",
+            "accepted_at": datetime.now(timezone.utc).isoformat(),
+            "accepted_by": current_user["id"],
+            "merged_into_stakeholder_id": merge.target_stakeholder_id
+        }) \
+        .eq("id", candidate_id) \
+        .execute()
+
+    return {"message": "Candidate merged into existing stakeholder"}
+
+
+@router.post("/candidates/bulk")
+async def bulk_process_candidates(
+    candidate_ids: list[str],
+    action: str,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """Bulk accept or reject candidates."""
+    if action not in ("accept", "reject"):
+        raise HTTPException(status_code=400, detail="Action must be 'accept' or 'reject'")
+
+    results = {"processed": 0, "errors": []}
+
+    for candidate_id in candidate_ids:
+        try:
+            if action == "accept":
+                await accept_stakeholder_candidate(
+                    candidate_id,
+                    CandidateAccept(),
+                    current_user,
+                    supabase
+                )
+            else:
+                await reject_stakeholder_candidate(
+                    candidate_id,
+                    CandidateReject(),
+                    current_user,
+                    supabase
+                )
+            results["processed"] += 1
+        except HTTPException as e:
+            results["errors"].append(f"{candidate_id}: {e.detail}")
+        except Exception as e:
+            results["errors"].append(f"{candidate_id}: {str(e)}")
+
+    return results
+
+
+@router.post("/scan-documents")
+async def scan_documents_for_stakeholders(
+    request: ScanDocumentsRequest = ScanDocumentsRequest(),
+    background_tasks: BackgroundTasks = None,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Manually trigger stakeholder extraction from meeting documents.
+
+    Scans meeting summaries and transcripts for stakeholder mentions,
+    creates candidates for review.
+    """
+    from services.stakeholder_scanner import StakeholderScanner
+
+    # Create Anthropic client
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Anthropic API key not configured")
+
+    anthropic_client = anthropic.Anthropic(api_key=api_key)
+
+    scanner = StakeholderScanner(supabase, anthropic_client)
+
+    # Run scan
+    result = await scanner.scan_documents(
+        client_id=current_user["client_id"],
+        user_id=current_user["id"],
+        force_rescan=request.force_rescan,
+        since_days=request.since_days,
+        limit=request.limit
+    )
+
+    return {
+        "message": "Stakeholder scan completed",
+        "documents_scanned": result["documents_scanned"],
+        "stakeholders_found": result["stakeholders_found"],
+        "candidates_created": result["candidates_created"],
+        "duplicates_found": result["duplicates_found"],
+        "errors": result["errors"]
+    }
+
+
 @router.post("/", response_model=StakeholderResponse)
 async def create_stakeholder(
     stakeholder: StakeholderCreate,
@@ -651,3 +1045,31 @@ def _format_stakeholder(s: dict) -> StakeholderResponse:
         reports_to_name=s.get("reports_to_name"),
         team_size=s.get("team_size"),
     )
+
+
+def _format_candidate(c: dict) -> dict:
+    """Format a stakeholder candidate record for response."""
+    return {
+        "id": c["id"],
+        "name": c["name"],
+        "role": c.get("role"),
+        "department": c.get("department"),
+        "organization": c.get("organization"),
+        "email": c.get("email"),
+        "key_concerns": c.get("key_concerns", []) or [],
+        "interests": c.get("interests", []) or [],
+        "initial_sentiment": c.get("initial_sentiment"),
+        "influence_level": c.get("influence_level"),
+        "source_document_id": c.get("source_document_id"),
+        "source_document_name": c.get("source_document_name"),
+        "source_text": c.get("source_text"),
+        "extraction_context": c.get("extraction_context"),
+        "related_opportunity_ids": c.get("related_opportunity_ids", []) or [],
+        "related_task_ids": c.get("related_task_ids", []) or [],
+        "status": c.get("status", "pending"),
+        "confidence": c.get("confidence", "medium"),
+        "potential_match_stakeholder_id": c.get("potential_match_stakeholder_id"),
+        "potential_match_name": None,  # Will be populated by endpoint
+        "match_confidence": c.get("match_confidence"),
+        "created_at": c["created_at"]
+    }

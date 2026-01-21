@@ -79,6 +79,18 @@ interface RelatedDocument {
   }
 }
 
+interface LinkedStakeholder {
+  id: string
+  opportunity_id: string
+  stakeholder_id: string
+  stakeholder_name: string | null
+  stakeholder_role: string | null
+  stakeholder_department: string | null
+  role: string  // Link role (owner, stakeholder, etc.)
+  notes: string | null
+  created_at: string
+}
+
 interface Conversation {
   id: string
   question: string
@@ -133,6 +145,8 @@ export default function OpportunityDetailModal({
   // State
   const [relatedDocs, setRelatedDocs] = useState<RelatedDocument[]>([])
   const [docsLoading, setDocsLoading] = useState(false)
+  const [linkedStakeholders, setLinkedStakeholders] = useState<LinkedStakeholder[]>([])
+  const [stakeholdersLoading, setStakeholdersLoading] = useState(false)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [conversationsLoading, setConversationsLoading] = useState(false)
   const [showConversations, setShowConversations] = useState(false)
@@ -161,10 +175,11 @@ export default function OpportunityDetailModal({
     setOpportunity(initialOpportunity)
   }, [initialOpportunity])
 
-  // Fetch related documents on open
+  // Fetch related documents and stakeholders on open
   useEffect(() => {
     if (open && opportunity) {
       fetchRelatedDocuments()
+      fetchLinkedStakeholders()
       fetchConversations()
     }
   }, [open, opportunity?.id])
@@ -188,6 +203,20 @@ export default function OpportunityDetailModal({
       console.error('Failed to fetch related documents:', error)
     } finally {
       setDocsLoading(false)
+    }
+  }
+
+  const fetchLinkedStakeholders = async () => {
+    setStakeholdersLoading(true)
+    try {
+      const stakeholders = await apiGet<LinkedStakeholder[]>(
+        `/api/opportunities/${opportunity.id}/stakeholders`
+      )
+      setLinkedStakeholders(stakeholders)
+    } catch (error) {
+      console.error('Failed to fetch linked stakeholders:', error)
+    } finally {
+      setStakeholdersLoading(false)
     }
   }
 
@@ -249,6 +278,36 @@ export default function OpportunityDetailModal({
     if (score >= 0.5) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
     if (score >= 0.3) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
     return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+  }
+
+  const getEngagementBadge = (level: string) => {
+    switch (level) {
+      case 'champion':
+        return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+      case 'supporter':
+        return 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300'
+      case 'neutral':
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+      case 'skeptic':
+        return 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+      case 'blocker':
+        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+      default:
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+    }
+  }
+
+  const getSupportLevelBadge = (level: string | null) => {
+    switch (level) {
+      case 'strong_support':
+        return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+      case 'support':
+        return 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300'
+      case 'opposed':
+        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+      default:
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+    }
   }
 
   const handleGenerateJustifications = async () => {
@@ -447,6 +506,60 @@ export default function OpportunityDetailModal({
               )}
             </div>
           </section>
+
+          {/* Linked Stakeholders */}
+          {(linkedStakeholders.length > 0 || stakeholdersLoading) && (
+            <section>
+              <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4 flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Linked Stakeholders
+                {linkedStakeholders.length > 0 && (
+                  <span className="text-xs font-normal">({linkedStakeholders.length})</span>
+                )}
+              </h3>
+
+              {stakeholdersLoading ? (
+                <div className="flex items-center gap-2 text-muted py-4">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Loading stakeholders...</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {linkedStakeholders.map((stakeholder) => (
+                    <div
+                      key={stakeholder.id}
+                      className="border border-default rounded-lg p-3 hover:bg-hover transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-muted flex-shrink-0" />
+                            <span className="text-sm font-medium text-primary truncate">
+                              {stakeholder.stakeholder_name || 'Unknown'}
+                            </span>
+                          </div>
+                          {stakeholder.stakeholder_role && (
+                            <p className="text-xs text-muted ml-6 truncate">
+                              {stakeholder.stakeholder_role}
+                              {stakeholder.stakeholder_department && ` - ${stakeholder.stakeholder_department}`}
+                            </p>
+                          )}
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-xs font-medium capitalize bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                          {stakeholder.role}
+                        </span>
+                      </div>
+                      {stakeholder.notes && (
+                        <p className="text-xs text-muted mt-2 ml-6 line-clamp-2">
+                          {stakeholder.notes}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Related Documents */}
           <section>
