@@ -82,14 +82,14 @@ export default function AgentChatTab({
   }
 
   return (
-    <div className="flex h-[calc(100vh-280px)] min-h-[500px] border border-border rounded-lg overflow-hidden bg-background">
+    <div className="flex h-[calc(100vh-280px)] min-h-[500px] border border-default rounded-lg overflow-hidden page-bg">
       {/* Left: Conversation list */}
-      <div className="w-72 border-r border-border flex flex-col bg-muted/30">
+      <div className="w-72 border-r border-default flex flex-col bg-card">
         {/* Header with New Chat button */}
-        <div className="p-3 border-b border-border">
+        <div className="p-3 border-b border-default">
           <button
             onClick={handleNewChat}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            className="w-full flex items-center justify-center gap-2 btn-primary"
           >
             <Plus className="w-4 h-4" />
             <span>New Chat with {displayName}</span>
@@ -100,15 +100,15 @@ export default function AgentChatTab({
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center p-8">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              <Loader2 className="w-6 h-6 animate-spin text-muted" />
             </div>
           ) : conversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-center">
-              <MessageSquare className="w-12 h-12 text-muted-foreground/50 mb-3" />
-              <p className="text-sm text-muted-foreground">
+              <MessageSquare className="w-12 h-12 text-muted opacity-50 mb-3" />
+              <p className="text-sm text-muted">
                 No conversations yet
               </p>
-              <p className="text-xs text-muted-foreground/70 mt-1">
+              <p className="text-xs text-secondary mt-1">
                 Start a new chat with {displayName}
               </p>
             </div>
@@ -120,14 +120,14 @@ export default function AgentChatTab({
                   onClick={() => handleSelectConversation(conv.id)}
                   className={`w-full text-left p-3 rounded-md transition-colors ${
                     currentConversationId === conv.id
-                      ? 'bg-primary/10 border border-primary/30'
-                      : 'hover:bg-muted'
+                      ? 'bg-hover border border-default'
+                      : 'hover:bg-hover'
                   }`}
                 >
-                  <p className="text-sm font-medium truncate">
+                  <p className="text-sm font-medium text-primary truncate">
                     {conv.title || 'New Conversation'}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted mt-1">
                     {formatTimeAgo(new Date(conv.updated_at))}
                     {conv.message_count !== undefined && (
                       <span className="ml-2">
