@@ -219,20 +219,25 @@ class TaskExtractor:
 
 {user_context}
 
-Skip meeting facilitation ("I'll turn it over to...", "Let me share my screen"), vague statements, and anything that's not post-meeting work with a clear deliverable.
+Skip meeting facilitation, vague statements, and anything without a clear post-meeting deliverable.
 
-For each task, output JSON with:
-- "title": Clear actionable title starting with a verb
-- "description": 2-4 sentences with full context: WHAT needs to be done, WHY it matters, WHO is involved, WHEN it's due. Include specific names, dates, and deliverables from the document.
-- "assignee": Person responsible (use "{user_name or 'the user'}" for "I will" statements)
-- "priority": "high"/"medium"/"low" based on urgency
-- "source_text": Exact quote that indicates this task (max 150 chars)
-- "meeting_context": What meeting/discussion was this from?
-- "team": Department involved (if mentioned)
-- "stakeholder_name": Key person who requested this (if mentioned)
-- "value_proposition": Business impact (if clear)
-- "due_date_text": Deadline if mentioned
-- "topics": 1-3 relevant tags
+For each task found, output JSON with ALL of these fields:
+
+{{
+  "title": "Clear actionable title starting with a verb (e.g., 'Send Q1 budget to finance team')",
+  "description": "REQUIRED: 2-4 sentences explaining the full context. Include: what specifically needs to be done, why it matters (business impact), who else is involved, any relevant background from the document. DO NOT just repeat the source text - add context and detail.",
+  "assignee": "Person responsible (use '{user_name or 'the user'}' for 'I will' statements)",
+  "priority": "high/medium/low based on urgency signals in the document",
+  "source_text": "Exact quote from document that indicates this task (max 150 chars)",
+  "meeting_context": "What meeting/discussion was this from? (e.g., 'Q1 Planning meeting')",
+  "team": "Department involved if mentioned",
+  "stakeholder_name": "Key person who requested or cares about this",
+  "value_proposition": "Business impact if clear from context",
+  "due_date_text": "Deadline if mentioned (e.g., 'by Friday', 'next week')",
+  "topics": ["1-3", "relevant", "tags"]
+}}
+
+IMPORTANT: The description must ADD VALUE beyond the source text - explain context, stakeholders, why it matters, what success looks like. Don't just paraphrase the source.
 
 Output ONLY a JSON array. If no genuine tasks, output: []
 
