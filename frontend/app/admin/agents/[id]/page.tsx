@@ -205,6 +205,7 @@ export default function AgentDetailPage() {
   const [scanStats, setScanStats] = useState<ScanStats | null>(null);
   const [scanLimit, setScanLimit] = useState(5);
   const [sinceDays, setSinceDays] = useState(30);
+  const [forceRescan, setForceRescan] = useState(false);
 
   useEffect(() => {
     fetchAgent();
@@ -613,7 +614,8 @@ export default function AgentDetailPage() {
       // Build query params with user-selected values
       const params = new URLSearchParams({
         limit: scanLimit.toString(),
-        ...(sinceDays > 0 && { since_days: sinceDays.toString() })
+        ...(sinceDays > 0 && { since_days: sinceDays.toString() }),
+        ...(forceRescan && { force_rescan: 'true' })
       });
 
       // First, trigger the scan (use longer timeout for LLM-based extraction - 120s for Sonnet quality)
@@ -1091,6 +1093,20 @@ export default function AgentDetailPage() {
                       <option value={365}>Last year</option>
                       <option value={0}>All time</option>
                     </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="forceRescan" className="text-sm text-secondary">Rescan:</label>
+                    <button
+                      id="forceRescan"
+                      onClick={() => setForceRescan(!forceRescan)}
+                      className={`px-3 py-1 text-sm rounded-md border transition-colors ${
+                        forceRescan
+                          ? 'bg-amber-600/20 border-amber-500/50 text-amber-400'
+                          : 'bg-page border-border text-muted hover:text-primary'
+                      }`}
+                    >
+                      {forceRescan ? 'On' : 'Off'}
+                    </button>
                   </div>
                 </div>
 
