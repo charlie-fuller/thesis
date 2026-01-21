@@ -128,6 +128,9 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - Task candidates system: extracted tasks staged for user review before creation
     - Rich task context: description, meeting context, stakeholders, value proposition, topics
     - Priority levels, assignees, due dates
+    - **Team/department assignment**: Optional dropdown (Finance, Legal, IT, Operations, HR, Marketing, Sales, Engineering, Executive, Other)
+    - **Project linking**: Tasks can be linked to parent opportunities/projects
+    - Filtering by team, linked project, and other criteria
     - Status history tracking
     - Wider modal UI, taller description fields, column add buttons
 13. **Project Triage (Operator)**: AI opportunity pipeline management
@@ -358,7 +361,7 @@ meeting_room_participants    -- Agents in each meeting
 meeting_room_messages        -- Messages with agent attribution
 
 -- Task Management
-project_tasks                -- Kanban tasks with status, priority, assignee
+project_tasks                -- Kanban tasks with status, priority, assignee, team, linked_opportunity_id
 task_comments                -- Comments on tasks
 task_history                 -- Status/priority/assignee change history
 
@@ -425,6 +428,7 @@ Run migrations in order from `/database/migrations/`:
 | 027 | add_taskmaster_agent | Taskmaster agent for task discovery and tracking |
 | 028 | document_task_scan_tracking | Track when documents were scanned for tasks (prevents duplicates) |
 | 030 | stakeholder_candidates | Auto-extracted stakeholders pending review, document scan tracking |
+| 034 | project_name_and_team | Team field for tasks, project naming for opportunities, linked_opportunity_id |
 
 ## Environment Variables
 
