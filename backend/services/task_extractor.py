@@ -215,46 +215,45 @@ class TaskExtractor:
             return self.extract_from_text(text, source_document, user_name)
 
         try:
-            user_context = f"The document belongs to {user_name}. " if user_name else ""
-            date_context = f"Document date: {document_date}. " if document_date else ""
-            prompt = f"""Extract genuine action items from this document - real tasks someone must complete AFTER the meeting.
+            # Build context string
+            date_str = f" (dated {document_date})" if document_date else ""
+            user_str = f" for {user_name}" if user_name else ""
 
-Document: "{source_document}"
-{date_context}{user_context}
+            prompt = f"""I need you to find action items{user_str} from this document: "{source_document}"{date_str}
 
-Skip meeting facilitation, vague statements, and anything without a clear post-meeting deliverable.
+Read this document and identify REAL tasks - things someone committed to DO after the meeting/conversation.
 
-For each task found, output JSON with ALL of these fields:
+A task is:
+- A specific deliverable someone agreed to complete
+- Something with a clear owner (explicit or implied)
+- An action that requires work AFTER this document was created
 
+NOT a task:
+- Meeting facilitation ("Let me share my screen", "Who wants to go next?")
+- Vague discussion ("We should think about X")
+- Status updates or completed work ("I finished the report")
+- Questions or observations
+
+For each genuine task found, return JSON:
 {{
-  "title": "Clear actionable title starting with a verb (e.g., 'Send Q1 budget to finance team')",
-  "description": "REQUIRED: 2-4 sentences explaining the full context. Include: what specifically needs to be done, why it matters (business impact), who else is involved, any relevant background from the document. DO NOT just repeat the source text - add context and detail.",
-  "assignee": "Person responsible (use '{user_name or 'the user'}' for 'I will' statements)",
-  "priority": "high/medium/low based on urgency signals in the document",
-  "source_text": "Exact quote from document that indicates this task (max 150 chars)",
-  "meeting_context": "What meeting/discussion was this from? (e.g., 'Q1 Planning meeting')",
-  "team": "Department involved if mentioned",
-  "stakeholder_name": "Key person who requested or cares about this",
-  "value_proposition": "Business impact if clear from context",
-  "due_date_text": "Deadline if mentioned (e.g., 'by Friday', 'next week')",
-  "topics": ["1-3", "relevant", "tags"]
+  "title": "Action verb + specific deliverable (e.g., 'Send budget proposal to Sarah')",
+  "description": "2-3 sentences with FULL CONTEXT: What's the background? Why does this matter? What's the expected outcome? Include the document date.",
+  "assignee": "Who owns this (name or '{user_name or "the author"}' for first-person commitments)",
+  "priority": "high/medium/low",
+  "source_text": "The exact quote that shows this commitment",
+  "due_date_text": "Any mentioned deadline",
+  "meeting_context": "What was this meeting/document about?",
+  "stakeholder_name": "Who requested or cares about this?",
+  "topics": ["relevant", "tags"]
 }}
 
-IMPORTANT: The description must ADD VALUE beyond the source text:
-- Start with the document date/context (e.g., "From the Jan 15 Q1 Planning meeting:")
-- Explain what specifically needs to be done and why it matters
-- Include relevant stakeholders, deadlines, and business impact
-- Don't just paraphrase the source text
+Return a JSON array. If there are NO genuine tasks, return: []
 
-Output ONLY a JSON array. If no genuine tasks, output: []
-
-Document:
----
-{text[:8000]}
----"""
+DOCUMENT CONTENT:
+{text[:8000]}"""
 
             response = self.anthropic.messages.create(
-                model="claude-haiku-4-20250514",
+                model="claude-sonnet-4-20250514",
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}]
             )

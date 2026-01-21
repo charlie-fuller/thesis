@@ -931,19 +931,22 @@ async def get_scan_stats(
 async def scan_documents_for_tasks(
     limit: int = Query(10, ge=1, le=50, description="Number of recent documents to scan (max 50)"),
     since_days: Optional[int] = Query(None, ge=1, le=365, description="Only scan documents with original_date in the last N days"),
+    force_rescan: bool = Query(False, description="Rescan documents even if already scanned"),
     current_user=Depends(get_current_user)
 ):
     """
     Scan recent documents for potential tasks.
 
-    This triggers the Taskmaster auto-extractor on documents that haven't been
-    scanned yet. Found tasks are stored as candidates for user review.
+    This triggers the Taskmaster auto-extractor on documents. By default only
+    scans documents that haven't been scanned yet. Found tasks are stored as
+    candidates for user review.
 
-    Uses Claude Haiku for fast extraction - typical response times ~1 sec per doc.
+    Uses Claude Sonnet for high-quality extraction (runs in background on upload).
 
     Args:
         limit: Max number of documents to scan (1-50, default 10)
         since_days: Only scan documents with original_date in the last N days
+        force_rescan: If true, rescan even previously scanned documents
     """
     try:
         client_id = current_user.get('client_id') or get_default_client_id()
@@ -958,10 +961,14 @@ async def scan_documents_for_tasks(
         if user_result.data:
             user_name = user_result.data.get('full_name') or user_result.data.get('name') or user_result.data.get('email', '').split('@')[0]
 
-        # Build query for recent documents, ordered by original_date (document's actual date)
+        # Build query for recent documents
         query = supabase.table('documents').select(
             'id, filename, title, original_date, uploaded_at'
         ).eq('client_id', client_id)
+
+        # Only scan unscanned docs unless force_rescan is enabled
+        if not force_rescan:
+            query = query.is_('tasks_scanned_at', 'null')
 
         # Filter by original_date if since_days specified
         if since_days:

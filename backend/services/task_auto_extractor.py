@@ -102,6 +102,14 @@ async def extract_tasks_from_document(
                 include_inferred=True
             )
 
+        # Mark document as scanned (regardless of whether tasks found)
+        try:
+            supabase.table('documents').update({
+                'tasks_scanned_at': datetime.utcnow().isoformat()
+            }).eq('id', document_id).execute()
+        except Exception as e:
+            logger.warning(f"Failed to mark document as scanned: {e}")
+
         if not tasks:
             logger.info(f"No tasks found in document {document_id}")
             return {
