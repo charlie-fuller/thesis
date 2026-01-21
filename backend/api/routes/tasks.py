@@ -696,7 +696,15 @@ async def get_task_candidates(
                 'source_text': c['source_text'],
                 'confidence': c['confidence'],
                 'status': c['status'],
-                'created_at': c['created_at']
+                'created_at': c['created_at'],
+                # Rich context fields (from migration 029)
+                'description': c.get('description'),
+                'meeting_context': c.get('meeting_context'),
+                'team': c.get('team'),
+                'stakeholder_name': c.get('stakeholder_name'),
+                'value_proposition': c.get('value_proposition'),
+                'document_date': c.get('document_date'),
+                'topics': c.get('topics'),
             })
 
         return {
