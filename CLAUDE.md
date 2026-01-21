@@ -559,6 +559,7 @@ uv run pytest tests/ -v --tb=short
 - `/frontend/components/compass/ScoreDimensionCard.tsx` - Individual dimension score card with justification
 - `/frontend/components/kb/ClassificationReviewBanner.tsx` - Document classification review UI
 - `/frontend/components/EngagementTrendsChart.tsx` - Stakeholder engagement visualization
+- `/frontend/components/TaskReviewPanel.tsx` - Dashboard panel showing pending task candidates count
 
 ### Database
 - `/database/thesis_schema.sql` - Complete DB schema
