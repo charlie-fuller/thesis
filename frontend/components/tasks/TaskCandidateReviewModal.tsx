@@ -32,6 +32,13 @@ interface TaskCandidateReviewModalProps {
   candidates: TaskCandidate[]
 }
 
+const STATUS_OPTIONS = [
+  { value: 'pending', label: 'To Do' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'blocked', label: 'Blocked' },
+  { value: 'completed', label: 'Done' },
+]
+
 const PRIORITY_OPTIONS = [
   { value: 1, label: 'Low' },
   { value: 2, label: 'Medium-Low' },
@@ -54,9 +61,13 @@ export default function TaskCandidateReviewModal({
   // Form state for current candidate
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [status, setStatus] = useState('pending')
   const [priority, setPriority] = useState(3)
   const [dueDate, setDueDate] = useState('')
   const [assigneeName, setAssigneeName] = useState('')
+  const [category, setCategory] = useState('')
+  const [tags, setTags] = useState('')
+  const [blockerReason, setBlockerReason] = useState('')
 
   // Initialize candidates when modal opens
   useEffect(() => {
@@ -73,9 +84,13 @@ export default function TaskCandidateReviewModal({
     setTitle(candidate.title || '')
     // Use rich description if available, otherwise fall back to source_text
     setDescription(candidate.description || candidate.source_text || '')
+    setStatus('pending')  // Always start as pending
     setPriority(candidate.suggested_priority || 3)
     setDueDate(candidate.suggested_due_date || '')
     setAssigneeName(candidate.assignee_name || '')
+    setCategory('meeting_action')  // Default for document-extracted tasks
+    setTags(candidate.topics?.join(', ') || '')
+    setBlockerReason('')
   }, [])
 
   // Move to next candidate or finish
@@ -101,9 +116,13 @@ export default function TaskCandidateReviewModal({
         overrides: {
           title: title.trim(),
           description: description.trim() || null,
+          status,
           priority,
           due_date: dueDate || null,
           assignee_name: assigneeName.trim() || null,
+          category: category.trim() || null,
+          tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+          blocker_reason: status === 'blocked' ? blockerReason.trim() || null : null,
         }
       })
       toast.success('Task created')
@@ -115,7 +134,7 @@ export default function TaskCandidateReviewModal({
     } finally {
       setSaving(false)
     }
-  }, [candidates, currentIndex, title, description, priority, dueDate, assigneeName, moveToNext])
+  }, [candidates, currentIndex, title, description, status, priority, dueDate, assigneeName, category, tags, blockerReason, moveToNext])
 
   // Reject current candidate (skip without creating)
   const handleReject = useCallback(async () => {
@@ -257,7 +276,7 @@ export default function TaskCandidateReviewModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Additional details and context..."
-              rows={5}
+              rows={10}
               className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none text-sm"
             />
           </div>
@@ -270,8 +289,22 @@ export default function TaskCandidateReviewModal({
             </div>
           )}
 
-          {/* Priority & Due Date Row */}
+          {/* Status & Priority Row */}
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-secondary mb-1">
+                Status
+              </label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                {STATUS_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-sm font-medium text-secondary mb-1">
                 Priority
@@ -285,6 +318,38 @@ export default function TaskCandidateReviewModal({
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          {/* Blocker Reason (conditional) */}
+          {status === 'blocked' && (
+            <div>
+              <label className="block text-sm font-medium text-secondary mb-1">
+                Blocker Reason
+              </label>
+              <input
+                type="text"
+                value={blockerReason}
+                onChange={(e) => setBlockerReason(e.target.value)}
+                placeholder="What's blocking this task?"
+                className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+          )}
+
+          {/* Assignee & Due Date Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-secondary mb-1">
+                Assignee
+              </label>
+              <input
+                type="text"
+                value={assigneeName}
+                onChange={(e) => setAssigneeName(e.target.value)}
+                placeholder="Who is responsible?"
+                className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-secondary mb-1">
@@ -301,18 +366,32 @@ export default function TaskCandidateReviewModal({
             </div>
           </div>
 
-          {/* Assignee */}
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-1">
-              Assignee
-            </label>
-            <input
-              type="text"
-              value={assigneeName}
-              onChange={(e) => setAssigneeName(e.target.value)}
-              placeholder="Who is responsible?"
-              className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
+          {/* Category & Tags Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-secondary mb-1">
+                Category
+              </label>
+              <input
+                type="text"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="e.g., meeting_action"
+                className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-secondary mb-1">
+                Tags
+              </label>
+              <input
+                type="text"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="tag1, tag2, tag3"
+                className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
           </div>
         </div>
 

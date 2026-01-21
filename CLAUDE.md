@@ -30,7 +30,7 @@ If the conversation included important decisions or unfinished work, save a summ
 
 Thesis is a multi-agent platform for enterprise GenAI strategy implementation. It helps AI Solutions Partners guide and manage successful AI initiatives by providing specialized agents for research, finance, IT/governance, legal, and meeting analysis.
 
-### Agent Roster (22 Agents)
+### Agent Roster (21 Agents)
 
 #### Meta-Agents (Always Present in Meetings)
 | Agent | Name | Purpose |
@@ -113,8 +113,11 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 11. **Auto-Generated Titles**: Conversation titles auto-generated from initial message using Claude
 12. **Task Management**: Kanban-style task board (`/tasks` page) with drag-and-drop status updates
     - Task extraction from meeting transcripts
+    - **Auto-extraction from KB documents**: Tasks automatically discovered via Taskmaster agent scan
+    - Task candidates system: extracted tasks staged for user review before creation
     - Priority levels, assignees, due dates
     - Status history tracking
+    - Wider modal UI, taller description fields, column add buttons
 13. **Project Triage (Operator)**: AI opportunity pipeline management
     - Tier-based opportunity scoring (Tier 1-4)
     - Stakeholder-linked opportunities with owner tracking
@@ -151,6 +154,20 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - Converts `[[wikilinks]]` to standard markdown links
     - Incremental sync via content hash change detection
     - CLI watcher: `python -m scripts.obsidian_watcher --user-id <uuid>`
+18. **Career Status Reports (Compass)**: AI-powered career performance assessment
+    - 5-dimension rubric: Strategic Impact (25%), Execution Quality (25%), Relationship Building (20%), Growth Mindset (15%), Leadership Presence (15%)
+    - Level descriptors (1-5 scale) with clear criteria for each dimension
+    - AI-generated justifications citing evidence from KB documents
+    - Areas of strength, growth opportunities, and recommended actions
+    - Improvement actions per dimension with concrete next steps
+    - Report history with period filtering
+    - Generate from Agent Detail page (`/admin/agents/[compass_id]`)
+19. **Enhanced RAG Search**: Improved document retrieval for context-aware responses
+    - **Original date tracking**: Documents preserve their original creation date (not just upload date)
+    - **Document type filtering**: RAG queries can target specific document types (transcripts, reports, etc.)
+    - **Recency boost**: Recent documents weighted higher for work/task queries
+    - Meeting/transcript documents prioritized in meeting-related queries
+    - Cache clearing endpoint for admin (`POST /api/admin/rag-cache/clear`)
 
 ## Tech Stack
 
@@ -348,6 +365,9 @@ glean_connector_gaps (view)  -- Prioritized view of requested connectors
 obsidian_vault_configs       -- User vault configuration with sync options
 obsidian_sync_state          -- Per-file sync state for incremental sync (file_path, hash, mtime)
 obsidian_sync_log            -- Sync operation history and error tracking
+
+-- Career Intelligence (Compass)
+compass_status_reports       -- Career status reports with 5-dimension rubric scores and AI justifications
 ```
 
 ## Database Migrations
@@ -382,6 +402,9 @@ Run migrations in order from `/database/migrations/`:
 | 022 | opportunity_conversations | Opportunity conversations table |
 | 023 | add_manual_agent | Manual (Documentation Assistant) agent |
 | 025 | opportunity_justifications | AI-generated justification columns for opportunities |
+| 026 | compass_status_reports | Career status report storage with 5-dimension rubric scores |
+| 027 | compass_improvement_actions | Improvement actions column for career status reports |
+| 027 | add_taskmaster_agent | Taskmaster agent for task discovery and tracking |
 
 ## Environment Variables
 
@@ -460,7 +483,8 @@ uv run pytest tests/ -v --tb=short
 - `/backend/agents/base_agent.py` - Base class with instruction loading
 - `/backend/agents/atlas.py` - Research agent with web search capability
 - `/backend/agents/glean_evaluator.py` - Glean platform fit assessment agent
-- `/backend/agents/compass.py` - Career coaching agent for win tracking
+- `/backend/agents/compass.py` - Career coaching agent for win tracking and status reports
+- `/backend/agents/taskmaster.py` - Personal accountability agent for task discovery and tracking
 - `/backend/agents/manual.py` - Documentation assistant agent for in-app help
 - `/backend/services/transcript_analyzer.py` - Meeting transcript analysis
 - `/backend/services/meeting_orchestrator.py` - Multi-agent meeting coordination
@@ -474,6 +498,8 @@ uv run pytest tests/ -v --tb=short
 - `/backend/services/engagement_scheduler.py` - Weekly engagement recalculation scheduler
 - `/backend/services/document_classifier.py` - Hybrid keyword + LLM document classification
 - `/backend/services/obsidian_sync.py` - Obsidian vault sync: file watching, frontmatter parsing, wikilink conversion
+- `/backend/services/career_status_report.py` - Career status report generation with 5-dimension rubric
+- `/backend/services/task_auto_extractor.py` - Auto-extract tasks from KB documents for user review
 - `/backend/services/graph/query_service.py` - Neo4j graph queries including `get_meeting_context()` for stakeholder/concern retrieval
 - `/backend/services/graph/connection.py` - Neo4j connection management
 - `/backend/system_instructions/agents/*.xml` - Agent behavior configuration (Gigawatt v4.0)
@@ -486,7 +512,8 @@ uv run pytest tests/ -v --tb=short
 - `/backend/api/routes/documents.py` - Document CRUD, upload, processing, classification, and agent assignment endpoints
 - `/backend/api/routes/research.py` - Atlas research API endpoints
 - `/backend/api/routes/glean_connectors.py` - Glean connector registry and gap tracking endpoints
-- `/backend/api/routes/tasks.py` - Kanban task management CRUD and transcript extraction
+- `/backend/api/routes/tasks.py` - Kanban task management CRUD, transcript extraction, and auto-extraction
+- `/backend/api/routes/compass.py` - Compass career status report generation and history endpoints
 - `/backend/api/routes/opportunities.py` - AI opportunity pipeline management with detail modal and justification endpoints
 - `/backend/services/opportunity_context.py` - Vector search for opportunity-related KB documents
 - `/backend/services/opportunity_chat.py` - Q&A chat service for opportunity detail modal
@@ -516,12 +543,14 @@ uv run pytest tests/ -v --tb=short
 - `/frontend/app/intelligence/` - Analytics and engagement trends
 - `/frontend/app/admin/agents/` - Agent admin interface
 - `/frontend/components/tasks/` - Kanban board components (TaskKanbanBoard, TaskCard, etc.)
+- `/frontend/components/compass/CareerStatusReportModal.tsx` - Career status report display modal with 5-dimension scores
+- `/frontend/components/compass/ScoreDimensionCard.tsx` - Individual dimension score card with justification
 - `/frontend/components/kb/ClassificationReviewBanner.tsx` - Document classification review UI
 - `/frontend/components/EngagementTrendsChart.tsx` - Stakeholder engagement visualization
 
 ### Database
 - `/database/thesis_schema.sql` - Complete DB schema
-- `/database/migrations/` - All migration scripts (001-023, 040)
+- `/database/migrations/` - All migration scripts (001-027, 040)
 
 ### Documentation
 - `/docs/AGENT_GUARDRAILS.md` - Agent brevity rules, word limits, conversational coherence, and behavioral constraints

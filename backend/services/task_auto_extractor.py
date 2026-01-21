@@ -229,25 +229,75 @@ async def accept_task_candidate(
 
     candidate = candidate_result.data
 
-    # Build task data
+    # Build rich metadata from candidate context
+    metadata = {
+        'extracted_from': candidate['source_document_name'],
+        'extraction_pattern': candidate.get('extraction_pattern'),
+        'confidence': candidate.get('confidence'),
+        'source_document_id': candidate.get('source_document_id'),
+    }
+
+    # Add rich context to metadata if available
+    if candidate.get('meeting_context'):
+        metadata['meeting_context'] = candidate['meeting_context']
+    if candidate.get('team'):
+        metadata['team'] = candidate['team']
+    if candidate.get('stakeholder_name'):
+        metadata['stakeholder'] = candidate['stakeholder_name']
+    if candidate.get('value_proposition'):
+        metadata['value_proposition'] = candidate['value_proposition']
+    if candidate.get('document_date'):
+        metadata['document_date'] = candidate['document_date']
+
+    # Build description: use override, then candidate description, then source_text
+    description = None
+    if overrides and overrides.get('description'):
+        description = overrides['description']
+    elif candidate.get('description'):
+        description = candidate['description']
+    elif candidate.get('source_text'):
+        # Fall back to source text as a minimal description
+        description = candidate['source_text']
+
+    # Determine status (default to pending, allow override)
+    task_status = 'pending'
+    if overrides and overrides.get('status'):
+        task_status = overrides['status']
+
+    # Determine category (default to meeting_action, allow override)
+    task_category = 'meeting_action'
+    if overrides and overrides.get('category'):
+        task_category = overrides['category']
+
+    # Determine tags (use override if provided, otherwise use topics from candidate)
+    task_tags = candidate.get('topics')
+    if overrides and overrides.get('tags'):
+        task_tags = overrides['tags']
+
+    # Determine blocker reason (only if status is blocked)
+    blocker_reason = None
+    if task_status == 'blocked' and overrides and overrides.get('blocker_reason'):
+        blocker_reason = overrides['blocker_reason']
+
+    # Build task data with all available fields
     task_data = {
         'id': str(uuid.uuid4()),
         'client_id': candidate['client_id'],
         'title': overrides.get('title', candidate['title']) if overrides else candidate['title'],
+        'description': description,
         'priority': overrides.get('priority', candidate['suggested_priority']) if overrides else candidate['suggested_priority'],
         'due_date': overrides.get('due_date', candidate['suggested_due_date']) if overrides else candidate['suggested_due_date'],
         'assignee_user_id': user_id,
-        'assignee_name': candidate.get('assignee_name'),
-        'status': 'pending',
+        'assignee_name': overrides.get('assignee_name', candidate.get('assignee_name')) if overrides else candidate.get('assignee_name'),
+        'status': task_status,
         'source_type': 'document',
-        'source_text': candidate['source_text'],
+        'source_text': candidate.get('source_text'),
         'source_extracted_at': datetime.utcnow().isoformat(),
         'created_by': user_id,
-        'metadata': {
-            'extracted_from': candidate['source_document_name'],
-            'extraction_pattern': candidate['extraction_pattern'],
-            'confidence': candidate['confidence']
-        }
+        'category': task_category,
+        'tags': task_tags,
+        'blocker_reason': blocker_reason,
+        'metadata': metadata
     }
 
     # Create task
