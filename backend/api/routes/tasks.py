@@ -137,6 +137,11 @@ class TaskCommentCreate(BaseModel):
 
 def serialize_task(task: dict) -> dict:
     """Convert task record to API response format."""
+    # Handle due_date - may be string (from Supabase) or date object
+    due_date = task.get('due_date')
+    if due_date:
+        due_date = due_date.isoformat() if hasattr(due_date, 'isoformat') else str(due_date)
+
     return {
         'id': task['id'],
         'client_id': task['client_id'],
@@ -147,8 +152,8 @@ def serialize_task(task: dict) -> dict:
         'assignee_stakeholder_id': task.get('assignee_stakeholder_id'),
         'assignee_user_id': task.get('assignee_user_id'),
         'assignee_name': task.get('assignee_name'),
-        'due_date': task['due_date'].isoformat() if task.get('due_date') else None,
-        'completed_at': task['completed_at'] if task.get('completed_at') else None,
+        'due_date': due_date,
+        'completed_at': task.get('completed_at'),
         'source_type': task.get('source_type'),
         'source_transcript_id': task.get('source_transcript_id'),
         'source_conversation_id': task.get('source_conversation_id'),
@@ -157,7 +162,7 @@ def serialize_task(task: dict) -> dict:
         'category': task.get('category'),
         'tags': task.get('tags') or [],
         'blocker_reason': task.get('blocker_reason'),
-        'blocked_at': task['blocked_at'] if task.get('blocked_at') else None,
+        'blocked_at': task.get('blocked_at'),
         'related_opportunity_id': task.get('related_opportunity_id'),
         'position': task.get('position', 0),
         'created_at': task['created_at'],
