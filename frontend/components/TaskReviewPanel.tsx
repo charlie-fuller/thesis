@@ -47,37 +47,44 @@ export default function TaskReviewPanel() {
     router.push('/tasks');
   };
 
-  // Don't show panel if no pending tasks
-  if (!loading && pendingCount === 0) {
-    return null;
-  }
-
   // Don't render anything while loading to prevent flash
   if (loading) {
     return null;
   }
 
+  const hasTasksToReview = pendingCount !== null && pendingCount > 0;
+
   return (
     <div className="card p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-amber-500/10">
-            <ListChecks className="w-6 h-6 text-amber-500" />
+          <div className={`p-3 rounded-lg ${hasTasksToReview ? 'bg-amber-500/10' : 'bg-green-500/10'}`}>
+            <ListChecks className={`w-6 h-6 ${hasTasksToReview ? 'text-amber-500' : 'text-green-500'}`} />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-primary">Tasks to Review</h3>
             <p className="text-sm text-secondary">
-              <span className="font-medium text-amber-500">{pendingCount}</span>
-              {' '}task candidate{pendingCount !== 1 ? 's' : ''} discovered from your documents
+              {hasTasksToReview ? (
+                <>
+                  <span className="font-medium text-amber-500">{pendingCount}</span>
+                  {' '}task candidate{pendingCount !== 1 ? 's' : ''} discovered from your documents
+                </>
+              ) : (
+                <span className="text-green-500">All caught up - no pending tasks</span>
+              )}
             </p>
           </div>
         </div>
 
         <button
           onClick={handleProcessTasks}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors"
+          className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-colors ${
+            hasTasksToReview
+              ? 'bg-amber-500 hover:bg-amber-600 text-white'
+              : 'bg-secondary hover:bg-hover text-secondary'
+          }`}
         >
-          Process Tasks
+          {hasTasksToReview ? 'Process Tasks' : 'View Tasks'}
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
