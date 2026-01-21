@@ -215,32 +215,43 @@ class TaskExtractor:
 
         try:
             user_context = f"The document belongs to {user_name}. " if user_name else ""
-            prompt = f"""Analyze this document and extract actionable tasks or action items WITH RICH CONTEXT.
+            prompt = f"""Analyze this document and extract ONLY genuine actionable tasks - things someone needs to DO after the meeting.
 
-{user_context}Look for:
-- Commitments ("I will...", "I'll...", "I need to...")
-- Action items from meetings
-- TODOs and next steps
-- Unchecked checkboxes (- [ ])
-- Assignments ("[Name] to...", "[Name] owns...")
-- Deadlines and due dates
+{user_context}EXTRACT these types of tasks:
+- Explicit commitments: "I will send the report", "I'll follow up with vendor"
+- Assigned actions: "John to schedule the meeting", "Sarah owns the budget review"
+- TODOs and next steps with clear deliverables
+- Unchecked checkboxes (- [ ]) with actionable items
 
-For each task found, output a JSON array with objects containing:
+DO NOT EXTRACT (these are NOT tasks):
+- Meeting facilitation: "I'll turn it over to...", "Let me hand off to...", "I'll let X take it from here"
+- Conversational transitions: "I'll start by...", "Let me begin with...", "I'll go ahead and..."
+- Introductions: "I'll introduce myself", "Let me say hello"
+- Status updates without action: "I'll be out next week", "I'm traveling Monday"
+- Vague statements: "I'll think about it", "We should consider..."
+- Past tense: "I sent the email", "We completed the review"
+
+A REAL task has:
+1. A specific deliverable (document, meeting, email, decision, etc.)
+2. A clear owner who must take action
+3. Something that can be checked off when done
+
+For each GENUINE task found, output a JSON array with objects containing:
 
 REQUIRED FIELDS:
-- "title": Clear, actionable task title starting with a verb (e.g., "Schedule follow-up meeting with IT team")
-- "description": 2-4 sentence description explaining WHAT the task is, WHY it matters, and any important context. Include names, dates, and specifics from the document.
-- "assignee": Who should do it (use "{user_name or 'user'}" if it's the document owner, or the specific name mentioned)
+- "title": Clear, actionable task title starting with a verb (e.g., "Send Q1 budget proposal to finance team")
+- "description": 2-4 sentence description explaining WHAT needs to be done, WHY it matters, and WHO is involved. Include specific names, dates, deliverables from the document.
+- "assignee": Who must do this (use "{user_name or 'user'}" if it's the document owner)
 - "priority": "high", "medium", or "low" based on urgency signals
-- "source_text": The exact phrase from the document that indicates this task (max 150 chars)
+- "source_text": The exact phrase that indicates this task (max 150 chars)
 
 CONTEXT FIELDS (extract if mentioned, null if not):
-- "meeting_context": Brief summary of the meeting/discussion where this came up (e.g., "Weekly IT sync on Jan 15 discussing cloud migration")
-- "team": Team or department involved (e.g., "IT Infrastructure", "Marketing", "Executive Leadership")
-- "stakeholder_name": Key person who requested, owns, or cares about this task (beyond the assignee)
-- "value_proposition": Business value or why this matters (e.g., "Reduces deployment time by 40%", "Required for Q1 compliance audit")
-- "due_date_text": Any mentioned deadline in original words (e.g., "by end of week", "before the board meeting")
-- "topics": Array of 1-3 relevant topic tags (e.g., ["cloud migration", "security", "compliance"])
+- "meeting_context": What meeting/discussion was this from? (e.g., "Q1 Planning meeting discussing budget allocation")
+- "team": Team or department involved (e.g., "Finance", "Engineering", "Executive Leadership")
+- "stakeholder_name": Key person who requested or cares about this (beyond assignee)
+- "value_proposition": Why this matters to the business (e.g., "Required for board presentation", "Blocks product launch")
+- "due_date_text": Any deadline mentioned (e.g., "by Friday", "before the board meeting")
+- "topics": Array of 1-3 topic tags (e.g., ["budget", "Q1 planning", "finance"])
 
 Output ONLY valid JSON array, no other text. If no tasks found, output: []
 
