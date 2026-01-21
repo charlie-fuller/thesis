@@ -29,6 +29,10 @@ export default function StakeholderCandidatesSection({
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Scan options (matching task discovery)
+  const [scanLimit, setScanLimit] = useState(5);
+  const [sinceDays, setSinceDays] = useState(30);
   const [forceRescan, setForceRescan] = useState(false);
 
   const fetchCandidates = useCallback(async () => {
@@ -57,8 +61,8 @@ export default function StakeholderCandidatesSection({
 
       const result = await apiPost<ScanResult>('/api/stakeholders/scan-documents', {
         force_rescan: forceRescan,
-        since_days: 90,
-        limit: 20
+        since_days: sinceDays,
+        limit: scanLimit
       });
 
       setScanResult(result);
@@ -124,34 +128,69 @@ export default function StakeholderCandidatesSection({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-secondary cursor-pointer">
-              <input
-                type="checkbox"
-                checked={forceRescan}
-                onChange={(e) => setForceRescan(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              Rescan all docs
-            </label>
-            <button
-              onClick={handleScan}
-              disabled={scanning}
-              className="flex items-center gap-2 px-4 py-2 bg-brand hover:bg-brand/90 text-white rounded-lg transition-colors disabled:opacity-50"
+        </div>
+
+        {/* Scan Options */}
+        <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-default">
+          <div className="flex items-center gap-2">
+            <label htmlFor="scanLimit" className="text-sm text-secondary">Documents:</label>
+            <select
+              id="scanLimit"
+              value={scanLimit}
+              onChange={(e) => setScanLimit(Number(e.target.value))}
+              className="px-2 py-1.5 text-sm bg-page border border-default rounded-md text-primary"
             >
-              {scanning ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Scanning...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-4 h-4" />
-                  Scan for Stakeholders
-                </>
-              )}
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <label htmlFor="sinceDays" className="text-sm text-secondary">Time range:</label>
+            <select
+              id="sinceDays"
+              value={sinceDays}
+              onChange={(e) => setSinceDays(Number(e.target.value))}
+              className="px-2 py-1.5 text-sm bg-page border border-default rounded-md text-primary"
+            >
+              <option value={7}>Last 7 days</option>
+              <option value={30}>Last 30 days</option>
+              <option value={90}>Last 90 days</option>
+              <option value={365}>Last year</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <label htmlFor="forceRescan" className="text-sm text-secondary">Rescan:</label>
+            <button
+              id="forceRescan"
+              onClick={() => setForceRescan(!forceRescan)}
+              className={`px-3 py-1 text-sm rounded-md border transition-colors ${
+                forceRescan
+                  ? 'bg-amber-600/20 border-amber-500/50 text-amber-500'
+                  : 'bg-page border-default text-muted hover:text-primary'
+              }`}
+            >
+              {forceRescan ? 'On' : 'Off'}
             </button>
           </div>
+          <button
+            onClick={handleScan}
+            disabled={scanning}
+            className="flex items-center gap-2 px-4 py-2 bg-brand hover:bg-brand/90 text-white rounded-lg transition-colors disabled:opacity-50 ml-auto"
+          >
+            {scanning ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Scanning {scanLimit} Documents...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4" />
+                Scan for Stakeholders
+              </>
+            )}
+          </button>
         </div>
 
         {/* Scan Result */}
