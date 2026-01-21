@@ -189,12 +189,29 @@ export default function AgentDetailPage() {
     total_candidates_found: number;
     candidates: TaskCandidate[];
   }
+  interface ScanStats {
+    total_documents: number;
+    recent_documents_30d: number;
+    pending_candidates: number;
+    last_scan_at: string | null;
+    documents_scanned_ever: number;
+  }
   const [taskScanResult, setTaskScanResult] = useState<ScanResult | null>(null);
   const [taskScanLoading, setTaskScanLoading] = useState(false);
   const [showCandidateReview, setShowCandidateReview] = useState(false);
+  const [scanStats, setScanStats] = useState<ScanStats | null>(null);
+  const [scanLimit, setScanLimit] = useState(50);
+  const [sinceDays, setSinceDays] = useState(30);
 
   useEffect(() => {
     fetchAgent();
+  }, [agentId]);
+
+  // Fetch scan stats when viewing Taskmaster agent
+  useEffect(() => {
+    if (agentId === 'taskmaster') {
+      fetchScanStats();
+    }
   }, [agentId]);
 
   const fetchAgent = async () => {
@@ -574,17 +591,33 @@ export default function AgentDetailPage() {
     }
   };
 
+  // Fetch scan stats when Taskmaster page loads
+  const fetchScanStats = async () => {
+    try {
+      const stats = await apiGet<ScanStats>('/api/tasks/scan-stats');
+      setScanStats(stats);
+    } catch (err) {
+      logger.error('Failed to fetch scan stats:', err);
+    }
+  };
+
   // Scan documents for tasks (Taskmaster agent)
   const handleScanDocumentsForTasks = async () => {
     try {
       setTaskScanLoading(true);
       setTaskScanResult(null);
 
+      // Build query params with user-selected values
+      const params = new URLSearchParams({
+        limit: scanLimit.toString(),
+        ...(sinceDays > 0 && { since_days: sinceDays.toString() })
+      });
+
       // First, trigger the scan
-      const scanResponse = await apiPost<ScanApiResponse>('/api/tasks/scan-documents?limit=10&since_days=30', {});
+      const scanResponse = await apiPost<ScanApiResponse>(`/api/tasks/scan-documents?${params}`, {});
 
       // Then fetch the pending candidates to display
-      const candidatesResponse = await apiGet<{ candidates: TaskCandidate[] }>('/api/tasks/candidates?status=pending&limit=20');
+      const candidatesResponse = await apiGet<{ candidates: TaskCandidate[] }>('/api/tasks/candidates?status=pending&limit=50');
 
       const result: ScanResult = {
         documents_scanned: scanResponse.documents_scanned,
@@ -593,6 +626,9 @@ export default function AgentDetailPage() {
       };
 
       setTaskScanResult(result);
+
+      // Refresh scan stats after scan
+      await fetchScanStats();
 
       if (result.candidates.length > 0) {
         // Open the review modal to process candidates
@@ -973,9 +1009,69 @@ export default function AgentDetailPage() {
               </summary>
               <div className="px-6 pb-6 pt-2 border-t border-border">
                 <p className="text-secondary text-sm mb-4">
-                  Scan your recent Knowledge Base documents (meetings, transcripts, notes) for potential tasks.
+                  Scan your Knowledge Base documents (meetings, transcripts, notes) for potential tasks.
                   Found tasks are saved as candidates for you to review, accept, or reject.
                 </p>
+
+                {/* Scan Stats */}
+                {scanStats && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 p-3 bg-page rounded-lg border border-border">
+                    <div className="text-center">
+                      <div className="text-xl font-semibold text-primary">{scanStats.total_documents}</div>
+                      <div className="text-xs text-muted">Total Docs</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xl font-semibold text-primary">{scanStats.recent_documents_30d}</div>
+                      <div className="text-xs text-muted">Last 30 Days</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xl font-semibold text-amber-500">{scanStats.pending_candidates}</div>
+                      <div className="text-xs text-muted">Pending Review</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm font-medium text-primary">
+                        {scanStats.last_scan_at
+                          ? new Date(scanStats.last_scan_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                          : 'Never'}
+                      </div>
+                      <div className="text-xs text-muted">Last Scanned</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Scan Settings */}
+                <div className="flex flex-wrap gap-4 mb-4">
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="scanLimit" className="text-sm text-secondary">Documents:</label>
+                    <select
+                      id="scanLimit"
+                      value={scanLimit}
+                      onChange={(e) => setScanLimit(Number(e.target.value))}
+                      className="px-2 py-1 text-sm bg-page border border-border rounded-md text-primary"
+                    >
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                      <option value={200}>All (200)</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="sinceDays" className="text-sm text-secondary">Time range:</label>
+                    <select
+                      id="sinceDays"
+                      value={sinceDays}
+                      onChange={(e) => setSinceDays(Number(e.target.value))}
+                      className="px-2 py-1 text-sm bg-page border border-border rounded-md text-primary"
+                    >
+                      <option value={7}>Last 7 days</option>
+                      <option value={30}>Last 30 days</option>
+                      <option value={90}>Last 90 days</option>
+                      <option value={365}>Last year</option>
+                      <option value={0}>All time</option>
+                    </select>
+                  </div>
+                </div>
+
                 <button
                   onClick={handleScanDocumentsForTasks}
                   disabled={taskScanLoading}
@@ -984,12 +1080,12 @@ export default function AgentDetailPage() {
                   {taskScanLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Scanning Documents...
+                      Scanning {scanLimit} Documents...
                     </>
                   ) : (
                     <>
                       <ListChecks className="w-5 h-5" />
-                      Scan Recent Documents
+                      Scan Documents
                     </>
                   )}
                 </button>
@@ -1006,7 +1102,7 @@ export default function AgentDetailPage() {
                 )}
 
                 <p className="text-muted text-xs mt-3">
-                  Scans documents from the last 30 days. Tasks are extracted from commitments like &quot;I will...&quot;, &quot;I&apos;ll follow up...&quot;, or explicit action items.
+                  Tasks are extracted from commitments like &quot;I will...&quot;, &quot;I&apos;ll follow up...&quot;, action items, and TODOs.
                 </p>
               </div>
             </details>

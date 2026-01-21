@@ -48,17 +48,19 @@ async def extract_tasks_from_document(
         document = doc_result.data
         source_name = document.get('title') or document.get('filename', 'Unknown')
 
-        # Get document chunks for content
+        # Get document chunks for content (increased from 10 to 30 for better coverage)
         chunks_result = supabase.table('document_chunks').select(
             'content'
-        ).eq('document_id', document_id).order('chunk_index').limit(10).execute()
+        ).eq('document_id', document_id).order('chunk_index').limit(30).execute()
 
         if not chunks_result.data:
             logger.info(f"No chunks found for document {document_id}, skipping task extraction")
             return {'status': 'skipped', 'reason': 'no_content'}
 
-        # Combine chunks for extraction
+        # Combine chunks for extraction (limit to ~8000 chars for LLM context)
         content = "\n\n".join([c['content'] for c in chunks_result.data])
+        if len(content) > 8000:
+            content = content[:8000]
 
         # Get user name if not provided
         if not user_name and document.get('user_id'):
@@ -69,14 +71,34 @@ async def extract_tasks_from_document(
             if user_result.data:
                 user_name = user_result.data.get('full_name') or user_result.data.get('email', '').split('@')[0]
 
-        # Extract tasks
-        extractor = TaskExtractor()
-        tasks = extractor.extract_from_text(
-            text=content,
-            source_document=source_name,
-            user_name=user_name,
-            include_inferred=True
-        )
+        # Extract tasks using LLM (Claude Haiku) with regex fallback
+        import anthropic
+        import os
+
+        anthropic_client = None
+        try:
+            api_key = os.getenv('ANTHROPIC_API_KEY')
+            if api_key:
+                anthropic_client = anthropic.Anthropic(api_key=api_key)
+        except Exception as e:
+            logger.warning(f"Failed to initialize Anthropic client: {e}")
+
+        extractor = TaskExtractor(anthropic_client=anthropic_client)
+
+        # Use LLM extraction if available, otherwise fall back to regex
+        if anthropic_client:
+            tasks = await extractor.extract_with_llm(
+                text=content,
+                source_document=source_name,
+                user_name=user_name
+            )
+        else:
+            tasks = extractor.extract_from_text(
+                text=content,
+                source_document=source_name,
+                user_name=user_name,
+                include_inferred=True
+            )
 
         if not tasks:
             logger.info(f"No tasks found in document {document_id}")

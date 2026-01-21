@@ -32,20 +32,25 @@ class ExtractedTask:
     extraction_pattern: str  # Which pattern matched
 
 
+# Task verb pattern for task-like content detection
+TASK_VERB_PATTERN = r'\b(?:send|create|write|prepare|review|complete|finish|submit|deliver|schedule|set\s+up|follow[\s-]?up|update|check|confirm|arrange|book|draft|finalize|investigate|research|analyze|compile|document|share|circulate|distribute|forward|reach\s+out|contact|call|email|message|post|publish|upload|download|fix|resolve|address|handle|process|implement|deploy|clean|organize|plan|design|test|validate|notify|remind|track|monitor)\b'
+
 # Explicit patterns (high confidence)
 EXPLICIT_PATTERNS = [
-    # "I will [action]" patterns
-    (r"I(?:'ll| will)\s+(.{10,100}?)(?:\.|$|,\s*(?:and|but))", "i_will"),
+    # "I will [action]" patterns (reduced minimum from 10 to 5)
+    (r"I(?:'ll| will)\s+(.{5,100}?)(?:\.|$|,\s*(?:and|but))", "i_will"),
     # "Action: [name] to [action]" patterns
-    (r"Action:\s*(\w+(?:\s+\w+)?)\s+to\s+(.{10,100}?)(?:\.|$)", "action_to"),
+    (r"Action:\s*(\w+(?:\s+\w+)?)\s+to\s+(.{5,100}?)(?:\.|$)", "action_to"),
     # "[name] to follow up" patterns
     (r"(\w+(?:\s+\w+)?)\s+to\s+follow\s*up\s+(?:on\s+)?(.{5,100}?)(?:\.|$)", "follow_up"),
     # "[name] owns [deliverable]" patterns
-    (r"(\w+(?:\s+\w+)?)\s+owns\s+(.{10,100}?)(?:\.|$)", "owns"),
+    (r"(\w+(?:\s+\w+)?)\s+owns\s+(.{5,100}?)(?:\.|$)", "owns"),
     # "TODO: [action]" patterns
-    (r"TODO:\s*(.{10,200}?)(?:\.|$|\n)", "todo"),
+    (r"TODO:\s*(.{5,200}?)(?:\.|$|\n)", "todo"),
     # "Next step: [action]" patterns
-    (r"Next\s+step[s]?:\s*(.{10,200}?)(?:\.|$|\n)", "next_step"),
+    (r"Next\s+step[s]?:\s*(.{5,200}?)(?:\.|$|\n)", "next_step"),
+    # Markdown checkbox patterns: "- [ ] Task" or "* [ ] Task" (always tasks)
+    (r"[-*]\s*\[\s*\]\s*(.{5,200}?)(?:\n|$)", "checkbox_unchecked"),
 ]
 
 # Inferred patterns (medium confidence)
@@ -196,38 +201,98 @@ class TaskExtractor:
 
         Falls back to regex extraction if LLM is not available.
         """
+        import json
         if not self.anthropic:
+            logger.info("No Anthropic client, falling back to regex extraction")
             return self.extract_from_text(text, source_document, user_name)
 
         try:
-            prompt = f"""Analyze this text and extract any tasks or action items.
+            user_context = f"The document belongs to {user_name}. " if user_name else ""
+            prompt = f"""Analyze this document and extract actionable tasks or action items.
 
-For each task found, provide:
-1. Task title (clear, actionable description)
-2. Assignee name (if mentioned)
-3. Due date (if mentioned, in any format)
-4. Priority signal (any urgency indicators)
-5. The exact quote that led to this extraction
+{user_context}Look for:
+- Commitments ("I will...", "I'll...", "I need to...")
+- Action items from meetings
+- TODOs and next steps
+- Unchecked checkboxes (- [ ])
+- Assignments ("[Name] to...", "[Name] owns...")
+- Deadlines and due dates
 
-User name for filtering: {user_name or 'Not specified'}
+For each task found, output ONLY a JSON array with objects containing:
+- "title": Clear, actionable task description (start with verb)
+- "assignee": Who should do it (use "{user_name or 'user'}" if it's the document owner)
+- "due_date_text": Any mentioned deadline (null if none)
+- "priority": "high", "medium", or "low" based on urgency signals
+- "source_text": The exact phrase that indicates this task (max 100 chars)
 
-Text to analyze:
+Output ONLY valid JSON array, no other text. If no tasks found, output: []
+
+Document:
 ---
-{text[:3000]}
----
+{text[:4000]}
+---"""
 
-Output as a structured list. If no tasks found, say "No tasks found."
-"""
             response = self.anthropic.messages.create(
                 model="claude-haiku-4-20250514",
-                max_tokens=1024,
+                max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}]
             )
 
-            # Parse LLM response and convert to ExtractedTask objects
-            # For now, fall back to regex extraction
-            # TODO: Implement LLM response parsing
-            return self.extract_from_text(text, source_document, user_name)
+            response_text = response.content[0].text.strip()
+            logger.debug(f"LLM extraction response: {response_text[:500]}")
+
+            # Parse JSON response
+            try:
+                # Handle potential markdown code blocks
+                if response_text.startswith("```"):
+                    response_text = response_text.split("```")[1]
+                    if response_text.startswith("json"):
+                        response_text = response_text[4:]
+                    response_text = response_text.strip()
+
+                tasks_data = json.loads(response_text)
+                if not isinstance(tasks_data, list):
+                    logger.warning("LLM response not a list, falling back to regex")
+                    return self.extract_from_text(text, source_document, user_name)
+
+                tasks = []
+                priority_map = {"high": 2, "medium": 3, "low": 4}
+
+                for item in tasks_data:
+                    if not isinstance(item, dict) or "title" not in item:
+                        continue
+
+                    title = item.get("title", "").strip()
+                    if len(title) < 5:
+                        continue
+
+                    priority = priority_map.get(item.get("priority", "medium"), 3)
+                    due_date_text = item.get("due_date_text")
+                    due_date = None
+
+                    # Try to parse due date
+                    if due_date_text:
+                        due_date, _ = self._extract_due_date(due_date_text)
+
+                    tasks.append(ExtractedTask(
+                        title=title[:200],
+                        priority=priority,
+                        priority_label=self._priority_label(priority),
+                        due_date=due_date,
+                        due_date_text=due_date_text,
+                        assignee_name=item.get("assignee"),
+                        source_document=source_document,
+                        source_text=item.get("source_text", "")[:300],
+                        confidence="high",  # LLM extraction is high confidence
+                        extraction_pattern="llm"
+                    ))
+
+                logger.info(f"LLM extracted {len(tasks)} tasks from {source_document}")
+                return tasks
+
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse LLM JSON response: {e}")
+                return self.extract_from_text(text, source_document, user_name)
 
         except Exception as e:
             logger.warning(f"LLM extraction failed, falling back to regex: {e}")
@@ -246,8 +311,8 @@ Output as a structured list. If no tasks found, say "No tasks found."
         source_text = match.group(0)
 
         # Extract assignee and action based on pattern type
-        if pattern_name in ['i_will', 'todo', 'next_step']:
-            assignee = user_name  # "I will" means it's the user's task
+        if pattern_name in ['i_will', 'todo', 'next_step', 'checkbox_unchecked', 'bullet_item', 'numbered_item']:
+            assignee = user_name  # "I will" or checklist items are the user's tasks
             action = groups[0].strip()
         elif pattern_name in ['action_to', 'follow_up', 'owns', 'mentioned_would',
                               'agreed_will', 'responsible_for', 'needs_to', 'should']:

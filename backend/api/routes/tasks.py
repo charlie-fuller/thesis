@@ -841,9 +841,64 @@ async def bulk_action_candidates(
 # Document Scanning for Tasks
 # ============================================================================
 
+@router.get("/scan-stats")
+async def get_scan_stats(
+    current_user=Depends(get_current_user)
+):
+    """
+    Get scan statistics including last scan time, document counts, and pending candidates.
+    """
+    try:
+        client_id = current_user.get('client_id') or get_default_client_id()
+
+        # Get total document count
+        docs_result = supabase.table('documents').select(
+            'id', count='exact'
+        ).eq('client_id', client_id).execute()
+        total_docs = docs_result.count or 0
+
+        # Get documents with original_date (scannable)
+        from datetime import datetime, timedelta
+        thirty_days_ago = (datetime.utcnow() - timedelta(days=30)).date().isoformat()
+        recent_docs_result = supabase.table('documents').select(
+            'id', count='exact'
+        ).eq('client_id', client_id).gte('original_date', thirty_days_ago).execute()
+        recent_docs = recent_docs_result.count or 0
+
+        # Get pending candidate count
+        candidates_result = supabase.table('task_candidates').select(
+            'id', count='exact'
+        ).eq('client_id', client_id).eq('status', 'pending').execute()
+        pending_candidates = candidates_result.count or 0
+
+        # Get last scan time (most recent candidate created_at)
+        last_scan_result = supabase.table('task_candidates').select(
+            'created_at'
+        ).eq('client_id', client_id).order('created_at', desc=True).limit(1).execute()
+        last_scan = last_scan_result.data[0]['created_at'] if last_scan_result.data else None
+
+        # Get documents that have been scanned (have candidates)
+        scanned_docs_result = supabase.table('task_candidates').select(
+            'source_document_id'
+        ).eq('client_id', client_id).execute()
+        scanned_doc_ids = set(c['source_document_id'] for c in (scanned_docs_result.data or []))
+
+        return {
+            'total_documents': total_docs,
+            'recent_documents_30d': recent_docs,
+            'pending_candidates': pending_candidates,
+            'last_scan_at': last_scan,
+            'documents_scanned_ever': len(scanned_doc_ids)
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting scan stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/scan-documents")
 async def scan_documents_for_tasks(
-    limit: int = Query(10, ge=1, le=50, description="Number of recent documents to scan"),
+    limit: int = Query(50, ge=1, le=200, description="Number of recent documents to scan"),
     since_days: Optional[int] = Query(None, ge=1, le=365, description="Only scan documents with original_date in the last N days"),
     current_user=Depends(get_current_user)
 ):
