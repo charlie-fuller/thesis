@@ -215,66 +215,34 @@ class TaskExtractor:
 
         try:
             user_context = f"The document belongs to {user_name}. " if user_name else ""
-            prompt = f"""You are a strict task extractor. Extract ONLY genuine POST-MEETING action items - work someone must complete AFTER the meeting ends.
+            prompt = f"""Extract genuine action items from this document - real tasks someone must complete AFTER the meeting.
 
 {user_context}
 
-=== CRITICAL: WHAT IS NOT A TASK ===
-NEVER extract these - they are meeting conversation, not tasks:
+Skip meeting facilitation ("I'll turn it over to...", "Let me share my screen"), vague statements, and anything that's not post-meeting work with a clear deliverable.
 
-BAD (meeting facilitation - SKIP THESE):
-- "I'll turn it over to Jessica" - just handing off speaking
-- "Let me hand off to the next person" - presentation transition
-- "I'll drag over here that there's a BDR row" - showing something on screen
-- "I'll go ahead and share my screen" - meeting action
-- "Let me start by introducing..." - introduction
-
-BAD (vague/no deliverable - SKIP THESE):
-- "I'll think about it" - no specific output
-- "We should look into that" - no commitment
-- "Update master-opportunities-index.md scores" - too vague, what scores?
-
-=== WHAT IS A REAL TASK ===
-A task MUST have ALL of these:
-1. SPECIFIC DELIVERABLE: A document, email, meeting, report, decision - something tangible
-2. CLEAR OWNER: Someone's name who is responsible
-3. POST-MEETING WORK: Something done AFTER the meeting, not during it
-4. CHECKABLE: Can be marked "done" when complete
-
-GOOD EXAMPLES:
-- "John will send the Q1 budget proposal to the finance team by Friday"
-- "Sarah to schedule a follow-up meeting with the vendor next week"
-- "I'll draft the project timeline and share it before our next standup"
-
-=== OUTPUT FORMAT ===
-For each GENUINE task, output JSON with:
-
-REQUIRED:
-- "title": Actionable title starting with verb (e.g., "Send Q1 budget proposal to finance team")
-- "description": 2-4 sentences explaining WHAT, WHY, WHO, and WHEN. Be specific with names and dates from the document.
-- "assignee": Person responsible (use "{user_name or 'the user'}" if it's the document owner saying "I will")
-- "priority": "high"/"medium"/"low"
-- "source_text": Exact quote from document (max 150 chars)
-
-CONTEXT (include if mentioned in document, null otherwise):
-- "meeting_context": Meeting name/topic (e.g., "Q1 Planning - budget discussion")
-- "team": Department involved
-- "stakeholder_name": Person who requested/cares about this
-- "value_proposition": Business impact
+For each task, output JSON with:
+- "title": Clear actionable title starting with a verb
+- "description": 2-4 sentences with full context: WHAT needs to be done, WHY it matters, WHO is involved, WHEN it's due. Include specific names, dates, and deliverables from the document.
+- "assignee": Person responsible (use "{user_name or 'the user'}" for "I will" statements)
+- "priority": "high"/"medium"/"low" based on urgency
+- "source_text": Exact quote that indicates this task (max 150 chars)
+- "meeting_context": What meeting/discussion was this from?
+- "team": Department involved (if mentioned)
+- "stakeholder_name": Key person who requested this (if mentioned)
+- "value_proposition": Business impact (if clear)
 - "due_date_text": Deadline if mentioned
-- "topics": 1-3 tags
+- "topics": 1-3 relevant tags
 
-Output ONLY valid JSON array. If no genuine tasks, output: []
-
-BE STRICT. When in doubt, DO NOT extract. Quality over quantity.
+Output ONLY a JSON array. If no genuine tasks, output: []
 
 Document:
 ---
-{text[:6000]}
+{text[:8000]}
 ---"""
 
             response = self.anthropic.messages.create(
-                model="claude-haiku-4-20250514",
+                model="claude-sonnet-4-20250514",
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}]
             )
