@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Plus, Filter, RefreshCw } from 'lucide-react'
+import { Plus, Filter, RefreshCw, ListChecks, ArrowRight, ChevronDown, ChevronUp, Loader2, Search, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { apiGet, apiPatch } from '@/lib/api'
+import { apiGet, apiPatch, apiPost, apiDelete } from '@/lib/api'
+import { logger } from '@/lib/logger'
 import TaskColumn from './TaskColumn'
 import TaskCreateModal from './TaskCreateModal'
 import TaskFilters from './TaskFilters'
+import TaskCandidateReviewModal from './TaskCandidateReviewModal'
 import LoadingSpinner from '@/components/LoadingSpinner'
 
 // Task types
@@ -102,6 +104,43 @@ export default function TaskKanbanBoard() {
     include_completed: true,
   })
 
+  // Task candidates state
+  interface TaskCandidate {
+    id: string
+    title: string
+    source_document_name: string
+    source_text?: string
+    suggested_priority: number
+    suggested_due_date?: string
+    due_date_text?: string
+    assignee_name?: string
+    confidence: string
+    description?: string
+    meeting_context?: string
+    team?: string
+    stakeholder_name?: string
+    value_proposition?: string
+    document_date?: string
+    topics?: string[]
+  }
+  const [candidates, setCandidates] = useState<TaskCandidate[]>([])
+  const [candidatesCount, setCandidatesCount] = useState(0)
+  const [showCandidateReview, setShowCandidateReview] = useState(false)
+
+  // Task discovery panel state
+  const [discoveryExpanded, setDiscoveryExpanded] = useState(false)
+  const [scanLoading, setScanLoading] = useState(false)
+  const [scanLimit, setScanLimit] = useState(50)
+  const [sinceDays, setSinceDays] = useState(30)
+  interface ScanStats {
+    total_documents: number
+    recent_documents_30d: number
+    pending_candidates: number
+    last_scan_at: string | null
+    documents_scanned_ever: number
+  }
+  const [scanStats, setScanStats] = useState<ScanStats | null>(null)
+
   // Build query string from filters
   const buildQueryString = useCallback((f: TaskFiltersState) => {
     const params = new URLSearchParams()
@@ -141,10 +180,86 @@ export default function TaskKanbanBoard() {
     }
   }, [filters, buildQueryString])
 
+  // Fetch task candidates
+  const fetchCandidates = useCallback(async () => {
+    try {
+      const response = await apiGet<{ success: boolean; candidates: TaskCandidate[]; count: number }>(
+        '/api/tasks/candidates?status=pending&limit=50'
+      )
+      if (response.success) {
+        setCandidates(response.candidates || [])
+        setCandidatesCount(response.count || 0)
+      }
+    } catch (err) {
+      logger.error('Error fetching task candidates:', err)
+    }
+  }, [])
+
+  // Fetch scan stats
+  const fetchScanStats = useCallback(async () => {
+    try {
+      const stats = await apiGet<ScanStats>('/api/tasks/scan-stats')
+      setScanStats(stats)
+    } catch (err) {
+      logger.error('Error fetching scan stats:', err)
+    }
+  }, [])
+
+  // Scan documents for tasks
+  const handleScanDocuments = useCallback(async () => {
+    try {
+      setScanLoading(true)
+
+      const params = new URLSearchParams({
+        limit: scanLimit.toString(),
+        ...(sinceDays > 0 && { since_days: sinceDays.toString() })
+      })
+
+      interface ScanApiResponse {
+        success: boolean
+        documents_scanned: number
+        total_tasks_found: number
+        total_tasks_stored: number
+        message: string
+      }
+
+      const scanResponse = await apiPost<ScanApiResponse>(`/api/tasks/scan-documents?${params}`, {})
+
+      // Refresh candidates and stats
+      await Promise.all([fetchCandidates(), fetchScanStats()])
+
+      if (scanResponse.total_tasks_found > 0) {
+        setShowCandidateReview(true)
+        toast.success(`Found ${scanResponse.total_tasks_found} potential tasks from ${scanResponse.documents_scanned} documents`)
+      } else {
+        toast.success(`Scanned ${scanResponse.documents_scanned} documents - no new tasks found`)
+      }
+    } catch (err) {
+      logger.error('Failed to scan documents:', err)
+      toast.error('Failed to scan documents for tasks')
+    } finally {
+      setScanLoading(false)
+    }
+  }, [scanLimit, sinceDays, fetchCandidates, fetchScanStats])
+
+  // Clear all candidates
+  const handleClearCandidates = useCallback(async () => {
+    try {
+      const response = await apiDelete<{ deleted_count: number }>('/api/tasks/candidates/clear?status=all')
+      toast.success(`Cleared ${response.deleted_count} candidates`)
+      await Promise.all([fetchCandidates(), fetchScanStats()])
+    } catch (err) {
+      logger.error('Failed to clear candidates:', err)
+      toast.error('Failed to clear candidates')
+    }
+  }, [fetchCandidates, fetchScanStats])
+
   // Initial load
   useEffect(() => {
     fetchKanban()
-  }, [fetchKanban])
+    fetchCandidates()
+    fetchScanStats()
+  }, [fetchKanban, fetchCandidates, fetchScanStats])
 
   // Handle drag and drop
   const handleDrop = useCallback(async (taskId: string, newStatus: Task['status'], newPosition?: number) => {
@@ -217,6 +332,17 @@ export default function TaskKanbanBoard() {
     handleModalClose()
     fetchKanban(false)
   }, [handleModalClose, fetchKanban])
+
+  // Handle candidate review complete
+  const handleCandidateReviewComplete = useCallback((stats: { accepted: number; rejected: number }) => {
+    setShowCandidateReview(false)
+    if (stats.accepted > 0) {
+      toast.success(`Created ${stats.accepted} task${stats.accepted !== 1 ? 's' : ''}`)
+      fetchKanban(false)
+    }
+    fetchCandidates()
+    fetchScanStats()
+  }, [fetchKanban, fetchCandidates, fetchScanStats])
 
   // Active filters count
   const activeFiltersCount = useMemo(() => {
@@ -292,6 +418,39 @@ export default function TaskKanbanBoard() {
         </div>
       </div>
 
+      {/* Task Candidates Banner */}
+      <div className="card p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${candidatesCount > 0 ? 'bg-amber-500/10' : 'bg-green-500/10'}`}>
+              <ListChecks className={`w-5 h-5 ${candidatesCount > 0 ? 'text-amber-500' : 'text-green-500'}`} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-primary">Task Candidates</p>
+              <p className="text-xs text-secondary">
+                {candidatesCount > 0 ? (
+                  <>
+                    <span className="font-medium text-amber-500">{candidatesCount}</span>
+                    {' '}task{candidatesCount !== 1 ? 's' : ''} discovered from documents
+                  </>
+                ) : (
+                  <span className="text-green-500">All caught up</span>
+                )}
+              </p>
+            </div>
+          </div>
+          {candidatesCount > 0 && (
+            <button
+              onClick={() => setShowCandidateReview(true)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors"
+            >
+              Review
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Filters */}
       {showFilters && (
         <TaskFilters
@@ -327,6 +486,16 @@ export default function TaskKanbanBoard() {
           onSaved={handleTaskSaved}
           editTask={editTask}
           defaultStatus={defaultStatus}
+        />
+      )}
+
+      {/* Candidate Review Modal */}
+      {showCandidateReview && (
+        <TaskCandidateReviewModal
+          open={showCandidateReview}
+          onClose={() => setShowCandidateReview(false)}
+          onComplete={handleCandidateReviewComplete}
+          candidates={candidates}
         />
       )}
     </div>
