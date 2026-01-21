@@ -934,8 +934,8 @@ MEETING_SUMMARIES_FOLDER = "Granola/Meeting-summaries"
 
 @router.post("/scan-documents")
 async def scan_documents_for_tasks(
-    limit: int = Query(10, ge=1, le=50, description="Number of recent documents to scan (max 50)"),
-    since_days: Optional[int] = Query(None, ge=1, le=365, description="Only scan documents with original_date in the last N days"),
+    limit: int = Query(5, ge=1, le=50, description="Number of recent documents to scan (max 50)"),
+    since_days: int = Query(7, ge=1, le=365, description="Only scan documents with original_date in the last N days"),
     force_rescan: bool = Query(False, description="Rescan documents even if already scanned"),
     current_user=Depends(get_current_user)
 ):
@@ -975,11 +975,10 @@ async def scan_documents_for_tasks(
         if not force_rescan:
             query = query.is_('tasks_scanned_at', 'null')
 
-        # Filter by original_date if since_days specified
-        if since_days:
-            from datetime import datetime, timedelta
-            cutoff = (datetime.utcnow() - timedelta(days=since_days)).date().isoformat()
-            query = query.gte('original_date', cutoff)
+        # Filter by original_date (defaults to last 7 days)
+        from datetime import datetime, timedelta
+        cutoff = (datetime.utcnow() - timedelta(days=since_days)).date().isoformat()
+        query = query.gte('original_date', cutoff)
 
         # Order by original_date (falls back to uploaded_at for docs without original_date)
         docs_result = query.order('original_date', desc=True, nullsfirst=False).limit(limit).execute()
