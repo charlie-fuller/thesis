@@ -939,8 +939,7 @@ async def scan_documents_for_tasks(
     This triggers the Taskmaster auto-extractor on documents that haven't been
     scanned yet. Found tasks are stored as candidates for user review.
 
-    Uses Claude Sonnet for intelligent extraction - limit to 10-20 docs for
-    reasonable response times (~3-5 sec per doc).
+    Uses Claude Haiku for fast extraction - typical response times ~1 sec per doc.
 
     Args:
         limit: Max number of documents to scan (1-50, default 10)
