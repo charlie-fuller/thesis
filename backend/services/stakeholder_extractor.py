@@ -168,6 +168,11 @@ DOCUMENT CONTENT:
                 if len(name) < 2:
                     continue
 
+                # Skip multi-person entries (e.g., "ashley/tricia", "tyler & charlie")
+                if self._is_multi_person(name):
+                    logger.debug(f"Skipping multi-person entry: {name}")
+                    continue
+
                 # Normalize department to lowercase
                 department = item.get("department")
                 if department:
@@ -223,6 +228,38 @@ DOCUMENT CONTENT:
         except Exception as e:
             logger.warning(f"Error parsing stakeholder response: {e}")
             return []
+
+    def _is_multi_person(self, name: str) -> bool:
+        """Check if a name represents multiple people."""
+        # Common separators for multiple people
+        multi_person_patterns = [
+            "/",           # ashley/tricia
+            " & ",         # tyler & charlie
+            " and ",       # tyler and charlie
+            ", and ",      # tyler, and charlie
+            " + ",         # tyler + charlie
+            " or ",        # tyler or charlie (ambiguous reference)
+        ]
+
+        name_lower = name.lower()
+        for pattern in multi_person_patterns:
+            if pattern in name_lower:
+                return True
+
+        # Check for patterns like "Name1, Name2" (but not "Last, First")
+        # If there's a comma and both parts look like first names (no spaces), it's likely multiple people
+        if ", " in name:
+            parts = name.split(", ")
+            # "Last, First" typically has 2 parts where second part has no comma
+            # "Name1, Name2" would have simple names on both sides
+            if len(parts) == 2:
+                # If both parts are single words and roughly same length, likely multiple people
+                if " " not in parts[0] and " " not in parts[1]:
+                    # Probably "FirstName1, FirstName2" not "LastName, FirstName"
+                    if len(parts[0]) < 15 and len(parts[1]) < 15:
+                        return True
+
+        return False
 
     def _calculate_confidence(self, item: dict) -> str:
         """Calculate extraction confidence based on available information."""
