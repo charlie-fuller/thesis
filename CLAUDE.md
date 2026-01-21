@@ -183,11 +183,21 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - **Recency boost**: Recent documents weighted higher for work/task queries
     - Meeting/transcript documents prioritized in meeting-related queries
     - Cache clearing endpoint for admin (`POST /api/admin/rag-cache/clear`)
-20. **Dashboard Task Review Panel**: Quick access to pending task candidates
-    - Shows count of pending task candidates discovered from documents
-    - "Process Tasks" button navigates to `/tasks` page for review
-    - Auto-hides when no pending tasks
-    - Refreshes every 2 minutes
+20. **Unified Discovery Inbox**: Dashboard panel for reviewing all pending candidates
+    - Tabbed interface: Tasks | Opportunities | Stakeholders with count badges
+    - Inline accept/reject with carousel navigation through candidates
+    - Source context display showing where items were discovered
+    - **Opportunity Candidates**: Extracted from meeting documents via Granola scanner
+      - Deduplication: Fuzzy title matching detects existing opportunities
+      - Accept creates opportunity, reject discards with reason
+      - "Link to existing" option when duplicate detected
+    - **Task Candidates**: Discovered from KB documents
+    - **Stakeholder Candidates**: Extracted from meeting transcripts
+    - Auto-refreshes every 2 minutes
+21. **Project Naming Workflow**: Required project name for opportunities in active phases
+    - Modal triggered when opportunity status changes to scoping or pilot
+    - Project name required, description optional
+    - Enables task linking to parent projects
 
 ## Tech Stack
 
@@ -428,6 +438,7 @@ Run migrations in order from `/database/migrations/`:
 | 027 | add_taskmaster_agent | Taskmaster agent for task discovery and tracking |
 | 028 | document_task_scan_tracking | Track when documents were scanned for tasks (prevents duplicates) |
 | 030 | stakeholder_candidates | Auto-extracted stakeholders pending review, document scan tracking |
+| 033 | opportunity_candidates | Opportunity candidates table with deduplication support |
 | 034 | project_name_and_team | Team field for tasks, project naming for opportunities, linked_opportunity_id |
 
 ## Environment Variables
@@ -543,7 +554,8 @@ uv run pytest tests/ -v --tb=short
 - `/backend/api/routes/glean_connectors.py` - Glean connector registry and gap tracking endpoints
 - `/backend/api/routes/tasks.py` - Kanban task management CRUD, transcript extraction, and auto-extraction
 - `/backend/api/routes/compass.py` - Compass career status report generation and history endpoints
-- `/backend/api/routes/opportunities.py` - AI opportunity pipeline management with detail modal and justification endpoints
+- `/backend/api/routes/opportunities.py` - AI opportunity pipeline management with detail modal, justification, and candidate endpoints
+- `/backend/api/routes/discovery.py` - Unified discovery endpoints for pending candidates (tasks, opportunities, stakeholders)
 - `/backend/services/opportunity_context.py` - Vector search for opportunity-related KB documents
 - `/backend/services/opportunity_chat.py` - Q&A chat service for opportunity detail modal
 - `/backend/services/opportunity_justification.py` - AI-generated justifications using Claude Haiku
@@ -576,14 +588,15 @@ uv run pytest tests/ -v --tb=short
 - `/frontend/components/compass/ScoreDimensionCard.tsx` - Individual dimension score card with justification
 - `/frontend/components/kb/ClassificationReviewBanner.tsx` - Document classification review UI
 - `/frontend/components/EngagementTrendsChart.tsx` - Stakeholder engagement visualization
-- `/frontend/components/TaskReviewPanel.tsx` - Dashboard panel showing pending task candidates count
-- `/frontend/components/StakeholderReviewPanel.tsx` - Dashboard panel showing pending stakeholder candidates
+- `/frontend/components/discovery/UnifiedDiscoveryPanel.tsx` - Dashboard panel with tabs for all pending candidates
+- `/frontend/components/opportunities/OpportunityCandidateReviewModal.tsx` - Inline review for opportunity candidates
+- `/frontend/components/opportunities/ProjectNameModal.tsx` - Modal for naming projects on status change
 - `/frontend/components/stakeholders/StakeholderCandidateCard.tsx` - Candidate card with accept/reject/merge actions
 - `/frontend/components/stakeholders/StakeholderCandidatesSection.tsx` - Scan controls and candidate list for Intelligence page
 
 ### Database
 - `/database/thesis_schema.sql` - Complete DB schema
-- `/database/migrations/` - All migration scripts (001-030, 040)
+- `/database/migrations/` - All migration scripts (001-034, 040)
 
 ### Documentation
 - `/docs/AGENT_GUARDRAILS.md` - Agent brevity rules, word limits, conversational coherence, and behavioral constraints
