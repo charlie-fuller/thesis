@@ -616,8 +616,12 @@ export default function AgentDetailPage() {
         ...(sinceDays > 0 && { since_days: sinceDays.toString() })
       });
 
-      // First, trigger the scan
-      const scanResponse = await apiPost<ScanApiResponse>(`/api/tasks/scan-documents?${params}`, {});
+      // First, trigger the scan (use longer timeout for LLM-based extraction - 120s for Sonnet quality)
+      const scanResponse = await apiPost<ScanApiResponse>(
+        `/api/tasks/scan-documents?${params}`,
+        {},
+        { timeout: 120000 }
+      );
 
       // Then fetch the pending candidates to display
       const candidatesResponse = await apiGet<{ candidates: TaskCandidate[] }>('/api/tasks/candidates?status=pending&limit=50');

@@ -223,7 +223,12 @@ export default function TaskKanbanBoard() {
         message: string
       }
 
-      const scanResponse = await apiPost<ScanApiResponse>(`/api/tasks/scan-documents?${params}`, {})
+      // Use longer timeout for LLM-based task extraction (120s for Sonnet quality)
+      const scanResponse = await apiPost<ScanApiResponse>(
+        `/api/tasks/scan-documents?${params}`,
+        {},
+        { timeout: 120000 }
+      )
 
       // Refresh candidates and stats
       await Promise.all([fetchCandidates(), fetchScanStats()])
