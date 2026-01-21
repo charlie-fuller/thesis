@@ -805,6 +805,80 @@ async def get_upload_health(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/analytics/upload-health/clear-issues")
+async def clear_upload_issues(
+    current_user: dict = Depends(require_admin)
+):
+    """
+    Clear stuck documents and recent failures from the upload health panel.
+    - Stuck documents: marked as 'failed' with explanation
+    - Recent failures: deleted from database
+    """
+    try:
+        now = datetime.now(timezone.utc)
+        one_hour_ago = (now - timedelta(hours=1)).isoformat()
+        seven_days_ago = (now - timedelta(days=7)).isoformat()
+
+        # Get stuck documents (pending/processing for > 1 hour)
+        stuck_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, filename')
+                .in_('processing_status', ['pending', 'processing'])
+                .lt('uploaded_at', one_hour_ago)
+                .execute()
+        )
+        stuck_docs = stuck_result.data or []
+
+        # Mark stuck documents as failed
+        stuck_count = 0
+        for doc in stuck_docs:
+            await asyncio.to_thread(
+                lambda doc_id=doc['id']: supabase.table('documents')
+                    .update({
+                        'processing_status': 'failed',
+                        'processing_error': 'Cleared by admin - document was stuck in processing'
+                    })
+                    .eq('id', doc_id)
+                    .execute()
+            )
+            stuck_count += 1
+
+        # Get recent failures
+        failures_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id')
+                .eq('processing_status', 'failed')
+                .gte('uploaded_at', seven_days_ago)
+                .execute()
+        )
+        failed_docs = failures_result.data or []
+
+        # Delete failed documents
+        failures_count = 0
+        for doc in failed_docs:
+            await asyncio.to_thread(
+                lambda doc_id=doc['id']: supabase.table('documents')
+                    .delete()
+                    .eq('id', doc_id)
+                    .execute()
+            )
+            failures_count += 1
+
+        logger.info(f"🧹 Admin {current_user.get('email')} cleared upload issues: {stuck_count} stuck, {failures_count} failures")
+
+        return {
+            'success': True,
+            'cleared': {
+                'stuck_documents': stuck_count,
+                'recent_failures': failures_count
+            },
+            'message': f'Cleared {stuck_count} stuck documents and {failures_count} failed uploads'
+        }
+    except Exception as e:
+        logger.error(f"❌ Clear upload issues error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/analytics/interface-health")
 async def get_interface_health(
     current_user: dict = Depends(require_admin)

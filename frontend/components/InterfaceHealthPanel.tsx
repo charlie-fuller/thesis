@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { apiGet } from '@/lib/api';
+import { apiGet, apiPost } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import LoadingSpinner from './LoadingSpinner';
 import { useAuth } from '@/contexts/AuthContext';
+import { Trash2, Loader2 } from 'lucide-react';
 
 interface UploadHealth {
   periods: {
@@ -71,6 +72,7 @@ export default function InterfaceHealthPanel() {
   const [interfaceHealth, setInterfaceHealth] = useState<InterfaceHealth | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     // Wait for auth to complete and session to be available before fetching data
@@ -104,6 +106,22 @@ export default function InterfaceHealthPanel() {
       setError('Failed to load health metrics');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleClearIssues = async () => {
+    try {
+      setClearing(true);
+      await apiPost<{ success: boolean; message: string }>(
+        '/api/admin/analytics/upload-health/clear-issues',
+        {}
+      );
+      // Refresh the health data
+      await fetchHealthData();
+    } catch (err) {
+      logger.error('Error clearing issues:', err);
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -321,7 +339,22 @@ export default function InterfaceHealthPanel() {
       {/* Expandable Details */}
       {((uploadHealth?.stuck_documents?.length ?? 0) > 0 || (uploadHealth?.recent_failures?.length ?? 0) > 0) && (
         <div className="mt-8 pt-6 border-t border-border">
-          <h4 className="text-sm font-medium text-secondary mb-4">Issues Requiring Attention</h4>
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-sm font-medium text-secondary">Issues Requiring Attention</h4>
+            <button
+              onClick={handleClearIssues}
+              disabled={clearing}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Clear stuck documents (mark as failed) and delete recent failures"
+            >
+              {clearing ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5" />
+              )}
+              {clearing ? 'Clearing...' : 'Clear All'}
+            </button>
+          </div>
 
           {/* Stuck Documents */}
           {(uploadHealth?.stuck_documents?.length ?? 0) > 0 && (
