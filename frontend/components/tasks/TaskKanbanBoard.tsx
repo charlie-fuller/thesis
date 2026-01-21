@@ -29,6 +29,8 @@ export interface Task {
   source_transcript_id: string | null
   category: string | null
   tags: string[]
+  team: string | null
+  linked_opportunity_id: string | null
   blocker_reason: string | null
   blocked_at: string | null
   position: number
@@ -62,6 +64,8 @@ export interface TaskFiltersState {
   due_date_to: string | null
   priority: number[] | null
   source_type: string[] | null
+  team: string | null
+  linked_opportunity_id: string | null
   search: string | null
   include_completed: boolean
 }
@@ -100,6 +104,8 @@ export default function TaskKanbanBoard() {
     due_date_to: null,
     priority: null,
     source_type: null,
+    team: null,
+    linked_opportunity_id: null,
     search: null,
     include_completed: true,
   })
@@ -154,6 +160,8 @@ export default function TaskKanbanBoard() {
     if (f.source_type && f.source_type.length > 0) {
       f.source_type.forEach(s => params.append('source_type', s))
     }
+    if (f.team) params.append('team', f.team)
+    if (f.linked_opportunity_id) params.append('linked_opportunity_id', f.linked_opportunity_id)
     if (f.search) params.append('search', f.search)
     params.append('include_completed', f.include_completed.toString())
     return params.toString()
@@ -346,6 +354,8 @@ export default function TaskKanbanBoard() {
     if (filters.due_date_from || filters.due_date_to) count++
     if (filters.priority && filters.priority.length > 0) count++
     if (filters.source_type && filters.source_type.length > 0) count++
+    if (filters.team) count++
+    if (filters.linked_opportunity_id) count++
     if (filters.search) count++
     if (!filters.include_completed) count++
     return count

@@ -18,6 +18,26 @@ interface Stakeholder {
   department?: string
 }
 
+interface Opportunity {
+  id: string
+  title: string
+  project_name: string | null
+  opportunity_code: string
+}
+
+const TEAM_OPTIONS = [
+  'Finance',
+  'Legal',
+  'IT',
+  'HR',
+  'Operations',
+  'Marketing',
+  'Sales',
+  'Engineering',
+  'Executive',
+  'Other',
+]
+
 const PRIORITY_OPTIONS = [
   { value: 1, label: 'Low' },
   { value: 2, label: 'Medium-Low' },
@@ -36,21 +56,29 @@ const SOURCE_TYPE_OPTIONS = [
 
 export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersProps) {
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([])
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [searchValue, setSearchValue] = useState(filters.search || '')
 
-  // Load stakeholders
+  // Load stakeholders and opportunities
   useEffect(() => {
-    const loadStakeholders = async () => {
+    const loadData = async () => {
       try {
-        const response = await apiGet<{ success: boolean; stakeholders: Stakeholder[] }>('/api/stakeholders')
-        if (response.success) {
-          setStakeholders(response.stakeholders)
+        // Load stakeholders
+        const stakeholderResponse = await apiGet<{ success: boolean; stakeholders: Stakeholder[] }>('/api/stakeholders')
+        if (stakeholderResponse.success) {
+          setStakeholders(stakeholderResponse.stakeholders)
+        }
+
+        // Load opportunities for project filter
+        const oppResponse = await apiGet<Opportunity[]>('/api/opportunities')
+        if (Array.isArray(oppResponse)) {
+          setOpportunities(oppResponse)
         }
       } catch (error) {
-        console.error('Failed to load stakeholders:', error)
+        console.error('Failed to load filter data:', error)
       }
     }
-    loadStakeholders()
+    loadData()
   }, [])
 
   // Debounced search
@@ -71,6 +99,8 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
       due_date_to: null,
       priority: null,
       source_type: null,
+      team: null,
+      linked_opportunity_id: null,
       search: null,
       include_completed: true,
     })
@@ -143,6 +173,40 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
           </select>
         </div>
 
+        {/* Team */}
+        <div>
+          <label className="block text-sm font-medium text-secondary mb-1">Team</label>
+          <select
+            value={filters.team || ''}
+            onChange={(e) => onChange({ ...filters, team: e.target.value || null })}
+            className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+          >
+            <option value="">All teams</option>
+            {TEAM_OPTIONS.map(team => (
+              <option key={team} value={team}>{team}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Project/Opportunity */}
+        <div>
+          <label className="block text-sm font-medium text-secondary mb-1">Project</label>
+          <select
+            value={filters.linked_opportunity_id || ''}
+            onChange={(e) => onChange({ ...filters, linked_opportunity_id: e.target.value || null })}
+            className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+          >
+            <option value="">All projects</option>
+            {opportunities.map(opp => (
+              <option key={opp.id} value={opp.id}>
+                {opp.project_name || opp.title} ({opp.opportunity_code})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Due Date From */}
         <div>
           <label className="block text-sm font-medium text-secondary mb-1">Due From</label>

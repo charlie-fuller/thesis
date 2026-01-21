@@ -37,6 +37,20 @@ const PRIORITY_OPTIONS = [
   { value: 5, label: 'Critical' },
 ]
 
+const TEAM_OPTIONS = [
+  { value: '', label: 'None' },
+  { value: 'Finance', label: 'Finance' },
+  { value: 'Legal', label: 'Legal' },
+  { value: 'IT', label: 'IT' },
+  { value: 'Operations', label: 'Operations' },
+  { value: 'HR', label: 'HR' },
+  { value: 'Marketing', label: 'Marketing' },
+  { value: 'Sales', label: 'Sales' },
+  { value: 'Engineering', label: 'Engineering' },
+  { value: 'Executive', label: 'Executive' },
+  { value: 'Other', label: 'Other' },
+]
+
 export default function TaskCreateModal({
   open,
   onClose,
@@ -53,6 +67,7 @@ export default function TaskCreateModal({
   const [dueDate, setDueDate] = useState('')
   const [category, setCategory] = useState('')
   const [tags, setTags] = useState('')
+  const [team, setTeam] = useState('')
   const [blockerReason, setBlockerReason] = useState('')
 
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([])
@@ -87,6 +102,7 @@ export default function TaskCreateModal({
       setDueDate(editTask.due_date || '')
       setCategory(editTask.category || '')
       setTags(editTask.tags?.join(', ') || '')
+      setTeam(editTask.team || '')
       setBlockerReason(editTask.blocker_reason || '')
     } else {
       // Reset form for new task
@@ -99,6 +115,7 @@ export default function TaskCreateModal({
       setDueDate('')
       setCategory('')
       setTags('')
+      setTeam('')
       setBlockerReason('')
     }
   }, [editTask, defaultStatus])
@@ -124,6 +141,7 @@ export default function TaskCreateModal({
         due_date: dueDate || null,
         category: category.trim() || null,
         tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+        team: team || null,
         blocker_reason: status === 'blocked' ? blockerReason.trim() || null : null,
       }
 
@@ -142,7 +160,7 @@ export default function TaskCreateModal({
     } finally {
       setSaving(false)
     }
-  }, [title, description, status, priority, assigneeStakeholderId, assigneeName, dueDate, category, tags, blockerReason, editTask, onSaved])
+  }, [title, description, status, priority, assigneeStakeholderId, assigneeName, dueDate, category, tags, team, blockerReason, editTask, onSaved])
 
   const handleDelete = useCallback(async () => {
     if (!editTask) return
@@ -311,6 +329,22 @@ export default function TaskCreateModal({
                 onChange={(e) => setDueDate(e.target.value)}
                 className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
               />
+            </div>
+
+            {/* Team */}
+            <div>
+              <label className="block text-sm font-medium text-secondary mb-1">
+                Team
+              </label>
+              <select
+                value={team}
+                onChange={(e) => setTeam(e.target.value)}
+                className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+              >
+                {TEAM_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
             </div>
 
             {/* Category & Tags Row */}
