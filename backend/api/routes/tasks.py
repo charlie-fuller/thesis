@@ -928,7 +928,8 @@ async def get_scan_stats(
 
 
 # Meeting summaries folder path - only scan these for tasks
-MEETING_SUMMARIES_FOLDER = "granola/meeting-summaries"
+# Note: Path is case-sensitive, matches Obsidian vault structure
+MEETING_SUMMARIES_FOLDER = "Granola/Meeting-summaries"
 
 
 @router.post("/scan-documents")

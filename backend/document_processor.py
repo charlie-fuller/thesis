@@ -554,7 +554,8 @@ async def process_document_with_classification(
 
     # Auto-extract potential tasks for Taskmaster (only from meeting summaries)
     # Check if document is in the meeting summaries folder
-    MEETING_SUMMARIES_FOLDER = "granola/meeting-summaries"
+    # Note: Path is case-sensitive, matches Obsidian vault structure
+    MEETING_SUMMARIES_FOLDER = "Granola/Meeting-summaries"
     try:
         doc_result = supabase.table('documents').select(
             'obsidian_file_path'
