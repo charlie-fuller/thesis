@@ -202,10 +202,15 @@ class TaskExtractor:
         text: str,
         source_document: str,
         user_name: Optional[str] = None,
-        document_date: Optional[str] = None
+        document_date: Optional[str] = None,
+        use_fast_model: bool = False
     ) -> list[ExtractedTask]:
         """
         Use LLM to extract tasks for complex or ambiguous content.
+
+        Args:
+            use_fast_model: If True, uses Haiku for speed (manual scans).
+                           If False, uses Sonnet for quality (background extraction).
 
         Falls back to regex extraction if LLM is not available.
         """
@@ -252,8 +257,12 @@ Return a JSON array. If there are NO genuine tasks, return: []
 DOCUMENT CONTENT:
 {text[:8000]}"""
 
+            # Use Haiku for speed on manual scans, Sonnet for quality on background extraction
+            model = "claude-haiku-4-20250514" if use_fast_model else "claude-sonnet-4-20250514"
+            logger.info(f"Using {model} for task extraction (fast_mode={use_fast_model})")
+
             response = self.anthropic.messages.create(
-                model="claude-sonnet-4-20250514",
+                model=model,
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}]
             )

@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Plus, Filter, RefreshCw, ListChecks, ArrowRight, ChevronDown, ChevronUp, Loader2, Search, Trash2 } from 'lucide-react'
+import { Plus, Filter, RefreshCw, ListChecks, ChevronDown, ChevronUp, Loader2, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { apiGet, apiPatch, apiPost, apiDelete } from '@/lib/api'
+import { apiGet, apiPatch, apiPost } from '@/lib/api'
 import { logger } from '@/lib/logger'
 import TaskColumn from './TaskColumn'
 import TaskCreateModal from './TaskCreateModal'
@@ -242,18 +242,6 @@ export default function TaskKanbanBoard() {
     }
   }, [scanLimit, sinceDays, fetchCandidates, fetchScanStats])
 
-  // Clear all candidates
-  const handleClearCandidates = useCallback(async () => {
-    try {
-      const response = await apiDelete<{ deleted_count: number }>('/api/tasks/candidates/clear?status=all')
-      toast.success(`Cleared ${response.deleted_count} candidates`)
-      await Promise.all([fetchCandidates(), fetchScanStats()])
-    } catch (err) {
-      logger.error('Failed to clear candidates:', err)
-      toast.error('Failed to clear candidates')
-    }
-  }, [fetchCandidates, fetchScanStats])
-
   // Initial load
   useEffect(() => {
     fetchKanban()
@@ -418,37 +406,90 @@ export default function TaskKanbanBoard() {
         </div>
       </div>
 
-      {/* Task Candidates Banner */}
-      <div className="card p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${candidatesCount > 0 ? 'bg-amber-500/10' : 'bg-green-500/10'}`}>
-              <ListChecks className={`w-5 h-5 ${candidatesCount > 0 ? 'text-amber-500' : 'text-green-500'}`} />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-primary">Task Candidates</p>
-              <p className="text-xs text-secondary">
-                {candidatesCount > 0 ? (
-                  <>
-                    <span className="font-medium text-amber-500">{candidatesCount}</span>
-                    {' '}task{candidatesCount !== 1 ? 's' : ''} discovered from documents
-                  </>
-                ) : (
-                  <span className="text-green-500">All caught up</span>
-                )}
-              </p>
-            </div>
+      {/* Task Discovery Panel - matches kanban board width: 4 columns * 320px + 3 gaps * 16px */}
+      <div className="card" style={{ maxWidth: 'calc(4 * 320px + 3 * 16px)' }}>
+        {/* Header */}
+        <button
+          onClick={() => setDiscoveryExpanded(!discoveryExpanded)}
+          className="w-full p-4 flex items-center justify-between hover:bg-page/50 transition-colors rounded-lg"
+        >
+          <div className="flex items-center gap-2">
+            <ListChecks className="w-5 h-5 text-amber-500" />
+            <span className="font-semibold text-primary">Task Discovery</span>
+            {candidatesCount > 0 && (
+              <span className="px-2 py-0.5 text-xs bg-amber-500/20 text-amber-500 rounded-full font-medium">
+                {candidatesCount} pending
+              </span>
+            )}
           </div>
-          {candidatesCount > 0 && (
-            <button
-              onClick={() => setShowCandidateReview(true)}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors"
-            >
-              Review
-              <ArrowRight className="w-4 h-4" />
-            </button>
+          {discoveryExpanded ? (
+            <ChevronUp className="w-5 h-5 text-secondary" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-secondary" />
           )}
-        </div>
+        </button>
+
+        {/* Expanded Content */}
+        {discoveryExpanded && (
+          <div className="px-4 pb-4 border-t border-border">
+            <p className="text-secondary text-sm my-4">
+              Scan your Knowledge Base documents (meetings, transcripts, notes) for potential tasks.
+              Found tasks are saved as candidates for you to review, accept, or reject.
+            </p>
+
+            {/* Scan Settings - inline */}
+            <div className="flex flex-wrap items-center gap-4 mb-4">
+              <div className="flex items-center gap-2">
+                <label htmlFor="scanLimit" className="text-sm text-secondary">Documents:</label>
+                <select
+                  id="scanLimit"
+                  value={scanLimit}
+                  onChange={(e) => setScanLimit(Number(e.target.value))}
+                  className="px-2 py-1.5 text-sm bg-page border border-border rounded-md text-primary"
+                >
+                  <option value={5}>5</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="sinceDays" className="text-sm text-secondary">Time range:</label>
+                <select
+                  id="sinceDays"
+                  value={sinceDays}
+                  onChange={(e) => setSinceDays(Number(e.target.value))}
+                  className="px-2 py-1.5 text-sm bg-page border border-border rounded-md text-primary"
+                >
+                  <option value={7}>Last 7 days</option>
+                  <option value={30}>Last 30 days</option>
+                  <option value={90}>Last 90 days</option>
+                  <option value={365}>Last year</option>
+                  <option value={0}>All time</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Scan Button */}
+            <button
+              onClick={handleScanDocuments}
+              disabled={scanLoading}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50 font-medium"
+            >
+              {scanLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Scanning {scanLimit} Documents...
+                </>
+              ) : (
+                <>
+                  <Search className="w-4 h-4" />
+                  Scan Documents
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Filters */}

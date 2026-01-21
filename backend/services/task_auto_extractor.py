@@ -21,7 +21,8 @@ async def extract_tasks_from_document(
     document_id: str,
     supabase: Client,
     user_name: Optional[str] = None,
-    auto_store: bool = True
+    auto_store: bool = True,
+    use_fast_model: bool = False
 ) -> dict:
     """
     Extract potential tasks from a document and optionally store as candidates.
@@ -31,6 +32,8 @@ async def extract_tasks_from_document(
         supabase: Supabase client
         user_name: Optional user name to filter tasks for
         auto_store: Whether to store extracted tasks as candidates
+        use_fast_model: If True, uses Haiku for speed (manual scans).
+                       If False, uses Sonnet for quality (background extraction).
 
     Returns:
         dict with extraction results
@@ -92,7 +95,8 @@ async def extract_tasks_from_document(
                 text=content,
                 source_document=source_name,
                 user_name=user_name,
-                document_date=doc_date
+                document_date=doc_date,
+                use_fast_model=use_fast_model
             )
         else:
             tasks = extractor.extract_from_text(

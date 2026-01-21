@@ -997,7 +997,8 @@ async def scan_documents_for_tasks(
                     document_id=doc['id'],
                     supabase=supabase,
                     user_name=user_name,
-                    auto_store=True
+                    auto_store=True,
+                    use_fast_model=False  # Use Sonnet for quality
                 )
                 return {
                     'document_id': doc['id'],
@@ -1058,6 +1059,82 @@ async def scan_documents_for_tasks(
         raise
     except Exception as e:
         logger.error(f"Error scanning documents for tasks: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/scan-document/{document_id}")
+async def scan_single_document_for_tasks(
+    document_id: str,
+    force_rescan: bool = Query(False, description="Rescan even if already scanned"),
+    current_user=Depends(get_current_user)
+):
+    """
+    Scan a single document for potential tasks.
+
+    Use this endpoint to test task extraction quality on individual documents
+    without batch timeout issues.
+    """
+    try:
+        validate_uuid(document_id, "document_id")
+        client_id = current_user.get('client_id') or get_default_client_id()
+        user_id = current_user['id']
+
+        # Verify document exists and belongs to user's client
+        doc_result = supabase.table('documents').select(
+            'id, filename, title, tasks_scanned_at'
+        ).eq('id', document_id).eq('client_id', client_id).single().execute()
+
+        if not doc_result.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        doc = doc_result.data
+        doc_name = doc.get('title') or doc.get('filename', 'Unknown')
+
+        # Check if already scanned
+        if doc.get('tasks_scanned_at') and not force_rescan:
+            return {
+                'success': True,
+                'already_scanned': True,
+                'document_name': doc_name,
+                'scanned_at': doc['tasks_scanned_at'],
+                'message': f'Document "{doc_name}" was already scanned. Use force_rescan=true to rescan.'
+            }
+
+        # Get user's name for task filtering
+        user_result = supabase.table('users').select(
+            '*'
+        ).eq('id', user_id).single().execute()
+
+        user_name = None
+        if user_result.data:
+            user_name = user_result.data.get('full_name') or user_result.data.get('name') or user_result.data.get('email', '').split('@')[0]
+
+        # Extract tasks
+        from services.task_auto_extractor import extract_tasks_from_document
+
+        result = await extract_tasks_from_document(
+            document_id=document_id,
+            supabase=supabase,
+            user_name=user_name,
+            auto_store=True,
+            use_fast_model=False  # Use Sonnet for quality
+        )
+
+        return {
+            'success': True,
+            'document_id': document_id,
+            'document_name': doc_name,
+            'tasks_found': result.get('tasks_found', 0),
+            'tasks_stored': result.get('tasks_stored', 0),
+            'tasks': result.get('tasks', []),
+            'status': result.get('status', 'completed'),
+            'message': f'Found {result.get("tasks_found", 0)} potential tasks in "{doc_name}"'
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error scanning document {document_id} for tasks: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
