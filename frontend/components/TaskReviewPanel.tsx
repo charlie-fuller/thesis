@@ -52,6 +52,11 @@ export default function TaskReviewPanel() {
     return null;
   }
 
+  // Don't render anything while loading to prevent flash
+  if (loading) {
+    return null;
+  }
+
   return (
     <div className="card p-6">
       <div className="flex items-center justify-between">
@@ -62,25 +67,15 @@ export default function TaskReviewPanel() {
           <div>
             <h3 className="text-lg font-semibold text-primary">Tasks to Review</h3>
             <p className="text-sm text-secondary">
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Loading...
-                </span>
-              ) : (
-                <>
-                  <span className="font-medium text-amber-500">{pendingCount}</span>
-                  {' '}task candidate{pendingCount !== 1 ? 's' : ''} discovered from your documents
-                </>
-              )}
+              <span className="font-medium text-amber-500">{pendingCount}</span>
+              {' '}task candidate{pendingCount !== 1 ? 's' : ''} discovered from your documents
             </p>
           </div>
         </div>
 
         <button
           onClick={handleProcessTasks}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-white font-medium rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors"
         >
           Process Tasks
           <ArrowRight className="w-4 h-4" />
