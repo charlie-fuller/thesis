@@ -178,6 +178,68 @@ async def list_agents(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/{agent_id}/conversations")
+async def get_agent_conversations(
+    agent_id: str,
+    limit: int = 50,
+    include_archived: bool = False,
+    supabase: Client = Depends(get_supabase)
+):
+    """Get conversations for a specific agent."""
+    try:
+        # Verify agent exists
+        agent_result = supabase.table("agents")\
+            .select("id, name, display_name")\
+            .eq("id", agent_id)\
+            .execute()
+
+        if not agent_result.data:
+            raise HTTPException(status_code=404, detail="Agent not found")
+
+        # Build query for conversations
+        query = supabase.table("conversations")\
+            .select("id, title, created_at, updated_at, archived, user_id")\
+            .eq("agent_id", agent_id)
+
+        if not include_archived:
+            query = query.eq("archived", False)
+
+        result = query.order("updated_at", desc=True).limit(limit).execute()
+
+        conversations = result.data or []
+
+        # Get message counts for all conversations in a single batch query
+        if conversations:
+            conv_ids = [c['id'] for c in conversations]
+            msg_result = supabase.table('messages')\
+                .select('conversation_id')\
+                .in_('conversation_id', conv_ids)\
+                .execute()
+
+            # Count messages per conversation
+            msg_counts = {}
+            for msg in msg_result.data:
+                conv_id = msg['conversation_id']
+                msg_counts[conv_id] = msg_counts.get(conv_id, 0) + 1
+
+            # Apply counts to conversations
+            for conv in conversations:
+                conv['message_count'] = msg_counts.get(conv['id'], 0)
+
+        return {
+            "success": True,
+            "agent": agent_result.data[0],
+            "conversations": conversations,
+            "count": len(conversations)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get conversations for agent {agent_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{agent_id}")
 async def get_agent(
     agent_id: str,

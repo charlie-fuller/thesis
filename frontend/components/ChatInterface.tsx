@@ -39,7 +39,11 @@ interface ChatInterfaceProps {
   apiBaseUrl?: string
   initialPromptText?: string | null
   onPromptUsed?: () => void
-  onConversationCreated?: () => void
+  onConversationCreated?: ((conversationId?: string) => void)
+  // Agent chat tab props
+  lockedAgentId?: string  // Lock to specific agent name (hides selector)
+  lockedAgentDisplayName?: string  // Display name for locked agent
+  agentIdForConversation?: string  // UUID of agent (for conversation creation)
 }
 
 export default function ChatInterface({
@@ -51,7 +55,10 @@ export default function ChatInterface({
   apiBaseUrl: _apiBaseUrl = API_BASE_URL,
   initialPromptText,
   onPromptUsed,
-  onConversationCreated
+  onConversationCreated,
+  lockedAgentId,
+  lockedAgentDisplayName,
+  agentIdForConversation
 }: ChatInterfaceProps) {
   const router = useRouter()
   const [messages, setMessages] = useState<Message[]>([])
@@ -80,8 +87,8 @@ export default function ChatInterface({
   const [totalTokensUsed, setTotalTokensUsed] = useState(0)
   const contextPercentage = Math.min((totalTokensUsed / CLAUDE_CONTEXT_WINDOW) * 100, 100)
 
-  // Agent selection state
-  const [selectedAgents, setSelectedAgents] = useState<string[]>([]) // Empty = auto (coordinator)
+  // Agent selection state - initialize with locked agent if provided
+  const [selectedAgents, setSelectedAgents] = useState<string[]>(lockedAgentId ? [lockedAgentId] : [])
   const [currentResponseAgent, setCurrentResponseAgent] = useState<{ name: string; displayName: string } | null>(null)
 
   // Save to KB modal state
@@ -277,14 +284,17 @@ export default function ChatInterface({
         const createData = await apiPost<{ conversation_id: string }>('/api/conversations/create', {
           client_id: clientId,
           user_id: userId,
-          title: 'New Conversation'
+          title: 'New Conversation',
+          agent_id: agentIdForConversation  // Link conversation to specific agent (if provided)
         })
 
         conversationIdToUse = createData.conversation_id
         setCurrentConversationId(conversationIdToUse)
 
-        // Update URL to include the conversation ID
-        router.push(`/chat?id=${conversationIdToUse}`)
+        // Update URL to include the conversation ID (skip for agent chat tab)
+        if (!lockedAgentId) {
+          router.push(`/chat?id=${conversationIdToUse}`)
+        }
 
         // Generate a title for the conversation in the background (don't await)
         // Include agent name if exactly one agent is selected
@@ -297,13 +307,13 @@ export default function ChatInterface({
         apiPost(`/api/conversations/${conversationIdToUse}/generate-title`, titlePayload)
           .then(() => {
             // Refresh the sidebar to show the new title
-            onConversationCreated?.()
+            onConversationCreated?.(conversationIdToUse ?? undefined)
           }).catch((err) => {
             logger.warn('Failed to generate conversation title:', err)
           })
 
         // Notify parent that a new conversation was created
-        onConversationCreated?.()
+        onConversationCreated?.(conversationIdToUse ?? undefined)
       }
 
       // Ensure we have a conversation ID at this point
@@ -778,25 +788,42 @@ export default function ChatInterface({
       <div className="bg-card border-t border-default px-6 py-4 shadow-lg">
         <div className="max-w-4xl mx-auto">
 
-          {/* Agent Selector */}
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-medium text-muted">Agent:</span>
-              <AgentSelector
-                selectedAgents={selectedAgents}
-                onAgentsChange={setSelectedAgents}
-                maxAgents={3}
-                disabled={loading}
-              />
-            </div>
-            {/* Show current responding agent during streaming */}
-            {loading && currentResponseAgent && (
-              <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border ${getAgentColor(currentResponseAgent.name)}`}>
-                <AgentIcon name={currentResponseAgent.name} size="sm" />
-                <span>{currentResponseAgent.displayName} responding...</span>
+          {/* Agent Selector - hidden when agent is locked */}
+          {!lockedAgentId ? (
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-medium text-muted">Agent:</span>
+                <AgentSelector
+                  selectedAgents={selectedAgents}
+                  onAgentsChange={setSelectedAgents}
+                  maxAgents={3}
+                  disabled={loading}
+                />
               </div>
-            )}
-          </div>
+              {/* Show current responding agent during streaming */}
+              {loading && currentResponseAgent && (
+                <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border ${getAgentColor(currentResponseAgent.name)}`}>
+                  <AgentIcon name={currentResponseAgent.name} size="sm" />
+                  <span>{currentResponseAgent.displayName} responding...</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Locked agent badge - shown when chatting with specific agent */
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-medium text-muted">Chatting with:</span>
+                <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border ${getAgentColor(lockedAgentId)}`}>
+                  <AgentIcon name={lockedAgentId} size="sm" />
+                  <span>{lockedAgentDisplayName || lockedAgentId}</span>
+                </div>
+              </div>
+              {/* Show responding indicator during streaming */}
+              {loading && (
+                <span className="text-xs text-muted-foreground animate-pulse">responding...</span>
+              )}
+            </div>
+          )}
 
           {/* Attached Files Preview */}
           {attachedFiles.length > 0 && (

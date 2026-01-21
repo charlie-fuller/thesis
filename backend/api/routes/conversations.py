@@ -31,6 +31,7 @@ class ConversationCreateRequest(BaseModel):
     user_id: str
     title: str = "New Conversation"
     client_id: Optional[str] = None
+    agent_id: Optional[str] = None  # Link to specific agent for agent-focused chat
 
 
 class ConversationUpdateRequest(BaseModel):
@@ -62,13 +63,19 @@ async def create_conversation(
         client_id = request.client_id or get_default_client_id()
         logger.info(f"💬 Creating conversation for client: {client_id}")
 
+        # Build conversation data
+        conversation_data = {
+            'client_id': client_id,
+            'user_id': request.user_id,
+            'title': request.title
+        }
+        # Only include agent_id if provided (NULL means auto/coordinator mode)
+        if request.agent_id:
+            conversation_data['agent_id'] = request.agent_id
+
         # Create conversation in database
         result = await asyncio.to_thread(
-            lambda: supabase.table('conversations').insert({
-                'client_id': client_id,
-                'user_id': request.user_id,
-                'title': request.title
-            }).execute()
+            lambda: supabase.table('conversations').insert(conversation_data).execute()
         )
 
         conversation = result.data[0]
@@ -80,6 +87,7 @@ async def create_conversation(
             'client_id': conversation['client_id'],
             'user_id': conversation['user_id'],
             'title': conversation['title'],
+            'agent_id': conversation.get('agent_id'),
             'created_at': conversation['created_at']
         }
 

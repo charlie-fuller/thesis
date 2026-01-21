@@ -11,6 +11,8 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { AgentIcon, getAgentColor } from '@/components/AgentIcon';
 import CareerStatusReportModal from '@/components/compass/CareerStatusReportModal';
 import TaskCandidateReviewModal from '@/components/tasks/TaskCandidateReviewModal';
+import AgentChatTab from '@/components/AgentChatTab';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface InstructionVersion {
   id: string;
@@ -117,11 +119,12 @@ function isPlaceholderInstruction(instruction: string | null | undefined): boole
   return false;
 }
 
-type TabType = 'overview' | 'instructions' | 'compare' | 'knowledge' | 'config' | 'stats';
+type TabType = 'overview' | 'chat' | 'instructions' | 'compare' | 'knowledge' | 'config' | 'stats';
 
 export default function AgentDetailPage() {
   const params = useParams();
   const agentId = params.id as string;
+  const { user, profile } = useAuth();
 
   const [data, setData] = useState<AgentData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -726,7 +729,7 @@ export default function AgentDetailPage() {
 
       {/* Tabs */}
       <div className="flex border-b border-border mb-6">
-        {(['overview', 'instructions', 'compare', 'knowledge', 'config', 'stats'] as TabType[]).map((tab) => (
+        {(['overview', 'chat', 'instructions', 'compare', 'knowledge', 'config', 'stats'] as TabType[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -1125,10 +1128,6 @@ export default function AgentDetailPage() {
                     Review {taskScanResult.candidates.length} Pending Task{taskScanResult.candidates.length !== 1 ? 's' : ''}
                   </button>
                 )}
-
-                <p className="text-muted text-xs mt-3">
-                  Tasks are extracted from commitments like &quot;I will...&quot;, &quot;I&apos;ll follow up...&quot;, action items, and TODOs.
-                </p>
               </div>
             </details>
           )}
@@ -1726,6 +1725,16 @@ export default function AgentDetailPage() {
             </div>
           </details>
         </div>
+      )}
+
+      {activeTab === 'chat' && user && (
+        <AgentChatTab
+          agentId={agentId}
+          agentName={agent.name}
+          displayName={agent.display_name}
+          userId={user.id}
+          clientId={profile?.client_id}
+        />
       )}
 
       {activeTab === 'instructions' && (
