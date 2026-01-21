@@ -200,7 +200,7 @@ export default function AgentDetailPage() {
   const [taskScanLoading, setTaskScanLoading] = useState(false);
   const [showCandidateReview, setShowCandidateReview] = useState(false);
   const [scanStats, setScanStats] = useState<ScanStats | null>(null);
-  const [scanLimit, setScanLimit] = useState(50);
+  const [scanLimit, setScanLimit] = useState(5);
   const [sinceDays, setSinceDays] = useState(30);
 
   useEffect(() => {
@@ -1064,10 +1064,10 @@ export default function AgentDetailPage() {
                       onChange={(e) => setScanLimit(Number(e.target.value))}
                       className="px-2 py-1 text-sm bg-page border border-border rounded-md text-primary"
                     >
-                      <option value={25}>25</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                      <option value={200}>All (200)</option>
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50 (slow)</option>
                     </select>
                   </div>
                   <div className="flex items-center gap-2">

@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import PageHeader from '@/components/PageHeader'
 import InterfaceHealthPanel from '@/components/InterfaceHealthPanel'
+import TaskReviewPanel from '@/components/TaskReviewPanel'
 import GraphStatsPanel from '@/components/GraphStatsPanel'
 import GraphVisualizationPanel from '@/components/admin/GraphVisualizationPanel'
 
@@ -100,6 +101,7 @@ export default function HomePage() {
         {/* System Health Tab */}
         {activeTab === 'system' && (
           <div className="space-y-6">
+            <TaskReviewPanel />
             <InterfaceHealthPanel />
           </div>
         )}
