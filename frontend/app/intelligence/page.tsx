@@ -23,8 +23,17 @@ const StakeholderCandidatesSection = dynamic(
   { ssr: false, loading: () => <LoadingSpinner /> }
 )
 
+// Lazy load the department grouped view
+const DepartmentGroupedView = dynamic(
+  () => import('@/components/stakeholders/DepartmentGroupedView'),
+  { ssr: false, loading: () => <LoadingSpinner /> }
+)
+
 // Tab type
 type TabType = 'agents' | 'stakeholders'
+
+// Stakeholder view mode
+type StakeholderViewMode = 'grid' | 'department'
 
 // Stakeholder types
 interface Stakeholder {
@@ -101,6 +110,7 @@ export default function IntelligencePage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [filterDepartment, setFilterDepartment] = useState<string>('')
   const [filterEngagement, setFilterEngagement] = useState<string>('')
+  const [stakeholderViewMode, setStakeholderViewMode] = useState<StakeholderViewMode>('department')
   const [createForm, setCreateForm] = useState<StakeholderCreateForm>({
     name: '',
     email: '',
@@ -543,28 +553,54 @@ export default function IntelligencePage() {
               </div>
             )}
 
-            {/* Filters */}
-            <div className="flex gap-4 mb-6">
-              <select
-                value={filterDepartment}
-                onChange={e => setFilterDepartment(e.target.value)}
-                className="px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm"
-              >
-                <option value="">All Departments</option>
-                {DEPARTMENTS.map(d => (
-                  <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
-                ))}
-              </select>
-              <select
-                value={filterEngagement}
-                onChange={e => setFilterEngagement(e.target.value)}
-                className="px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm"
-              >
-                <option value="">All Engagement Levels</option>
-                {ENGAGEMENT_LEVELS.map(l => (
-                  <option key={l} value={l}>{l.charAt(0).toUpperCase() + l.slice(1)}</option>
-                ))}
-              </select>
+            {/* Filters and View Toggle */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex gap-4">
+                <select
+                  value={filterDepartment}
+                  onChange={e => setFilterDepartment(e.target.value)}
+                  className="px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm"
+                >
+                  <option value="">All Departments</option>
+                  {DEPARTMENTS.map(d => (
+                    <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
+                  ))}
+                </select>
+                <select
+                  value={filterEngagement}
+                  onChange={e => setFilterEngagement(e.target.value)}
+                  className="px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm"
+                >
+                  <option value="">All Engagement Levels</option>
+                  {ENGAGEMENT_LEVELS.map(l => (
+                    <option key={l} value={l}>{l.charAt(0).toUpperCase() + l.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* View Toggle */}
+              <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                <button
+                  onClick={() => setStakeholderViewMode('department')}
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    stakeholderViewMode === 'department'
+                      ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  By Team
+                </button>
+                <button
+                  onClick={() => setStakeholderViewMode('grid')}
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    stakeholderViewMode === 'grid'
+                      ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  Grid
+                </button>
+              </div>
             </div>
 
             {/* Error State */}
@@ -609,8 +645,16 @@ export default function IntelligencePage() {
               </div>
             )}
 
-            {/* Stakeholders Grid */}
-            {!stakeholderLoading && stakeholders.length > 0 && (
+            {/* Stakeholders Display - Department Grouped View */}
+            {!stakeholderLoading && stakeholders.length > 0 && stakeholderViewMode === 'department' && (
+              <DepartmentGroupedView
+                stakeholders={stakeholders}
+                onDelete={handleDeleteStakeholder}
+              />
+            )}
+
+            {/* Stakeholders Display - Grid View */}
+            {!stakeholderLoading && stakeholders.length > 0 && stakeholderViewMode === 'grid' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {stakeholders.map(stakeholder => (
                   <div
