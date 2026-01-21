@@ -113,8 +113,13 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
 11. **Auto-Generated Titles**: Conversation titles auto-generated from initial message using Claude
 12. **Task Management**: Kanban-style task board (`/tasks` page) with drag-and-drop status updates
     - Task extraction from meeting transcripts
-    - **Auto-extraction from KB documents**: Tasks automatically discovered via Taskmaster agent scan
+    - **Auto-extraction from KB documents**: Tasks automatically discovered on document upload
+      - Uses Claude Sonnet for high-quality extraction (runs in background)
+      - Simple, natural prompt: "Find action items from this document"
+      - Documents tracked with `tasks_scanned_at` to prevent duplicate scanning
+      - `force_rescan` option available to re-scan previously processed documents
     - Task candidates system: extracted tasks staged for user review before creation
+    - Rich task context: description, meeting context, stakeholders, value proposition, topics
     - Priority levels, assignees, due dates
     - Status history tracking
     - Wider modal UI, taller description fields, column add buttons
@@ -168,6 +173,11 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - **Recency boost**: Recent documents weighted higher for work/task queries
     - Meeting/transcript documents prioritized in meeting-related queries
     - Cache clearing endpoint for admin (`POST /api/admin/rag-cache/clear`)
+20. **Dashboard Task Review Panel**: Quick access to pending task candidates
+    - Shows count of pending task candidates discovered from documents
+    - "Process Tasks" button navigates to `/tasks` page for review
+    - Auto-hides when no pending tasks
+    - Refreshes every 2 minutes
 
 ## Tech Stack
 
@@ -405,6 +415,7 @@ Run migrations in order from `/database/migrations/`:
 | 026 | compass_status_reports | Career status report storage with 5-dimension rubric scores |
 | 027 | compass_improvement_actions | Improvement actions column for career status reports |
 | 027 | add_taskmaster_agent | Taskmaster agent for task discovery and tracking |
+| 028 | document_task_scan_tracking | Track when documents were scanned for tasks (prevents duplicates) |
 
 ## Environment Variables
 
@@ -499,7 +510,8 @@ uv run pytest tests/ -v --tb=short
 - `/backend/services/document_classifier.py` - Hybrid keyword + LLM document classification
 - `/backend/services/obsidian_sync.py` - Obsidian vault sync: file watching, frontmatter parsing, wikilink conversion
 - `/backend/services/career_status_report.py` - Career status report generation with 5-dimension rubric
-- `/backend/services/task_auto_extractor.py` - Auto-extract tasks from KB documents for user review
+- `/backend/services/task_auto_extractor.py` - Auto-extract tasks from KB documents on upload (background)
+- `/backend/services/task_extractor.py` - LLM task extraction with natural prompt (Claude Sonnet)
 - `/backend/services/graph/query_service.py` - Neo4j graph queries including `get_meeting_context()` for stakeholder/concern retrieval
 - `/backend/services/graph/connection.py` - Neo4j connection management
 - `/backend/system_instructions/agents/*.xml` - Agent behavior configuration (Gigawatt v4.0)
