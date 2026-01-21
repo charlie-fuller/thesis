@@ -130,8 +130,9 @@ export default function TaskKanbanBoard() {
   // Task discovery panel state
   const [discoveryExpanded, setDiscoveryExpanded] = useState(false)
   const [scanLoading, setScanLoading] = useState(false)
-  const [scanLimit, setScanLimit] = useState(50)
+  const [scanLimit, setScanLimit] = useState(5)
   const [sinceDays, setSinceDays] = useState(30)
+  const [forceRescan, setForceRescan] = useState(false)
   interface ScanStats {
     total_documents: number
     recent_documents_30d: number
@@ -212,7 +213,8 @@ export default function TaskKanbanBoard() {
 
       const params = new URLSearchParams({
         limit: scanLimit.toString(),
-        ...(sinceDays > 0 && { since_days: sinceDays.toString() })
+        ...(sinceDays > 0 && { since_days: sinceDays.toString() }),
+        ...(forceRescan && { force_rescan: 'true' })
       })
 
       interface ScanApiResponse {
@@ -245,7 +247,7 @@ export default function TaskKanbanBoard() {
     } finally {
       setScanLoading(false)
     }
-  }, [scanLimit, sinceDays, fetchCandidates, fetchScanStats])
+  }, [scanLimit, sinceDays, forceRescan, fetchCandidates, fetchScanStats])
 
   // Initial load
   useEffect(() => {
@@ -472,6 +474,20 @@ export default function TaskKanbanBoard() {
                   <option value={365}>Last year</option>
                   <option value={0}>All time</option>
                 </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="forceRescan" className="text-sm text-secondary">Rescan:</label>
+                <button
+                  id="forceRescan"
+                  onClick={() => setForceRescan(!forceRescan)}
+                  className={`px-3 py-1 text-sm rounded-md border transition-colors ${
+                    forceRescan
+                      ? 'bg-amber-600/20 border-amber-500/50 text-amber-500'
+                      : 'bg-page border-border text-muted hover:text-primary'
+                  }`}
+                >
+                  {forceRescan ? 'On' : 'Off'}
+                </button>
               </div>
             </div>
 
