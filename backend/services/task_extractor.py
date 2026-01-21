@@ -215,49 +215,62 @@ class TaskExtractor:
 
         try:
             user_context = f"The document belongs to {user_name}. " if user_name else ""
-            prompt = f"""Analyze this document and extract ONLY genuine actionable tasks - things someone needs to DO after the meeting.
+            prompt = f"""You are a strict task extractor. Extract ONLY genuine POST-MEETING action items - work someone must complete AFTER the meeting ends.
 
-{user_context}EXTRACT these types of tasks:
-- Explicit commitments: "I will send the report", "I'll follow up with vendor"
-- Assigned actions: "John to schedule the meeting", "Sarah owns the budget review"
-- TODOs and next steps with clear deliverables
-- Unchecked checkboxes (- [ ]) with actionable items
+{user_context}
 
-DO NOT EXTRACT (these are NOT tasks):
-- Meeting facilitation: "I'll turn it over to...", "Let me hand off to...", "I'll let X take it from here"
-- Conversational transitions: "I'll start by...", "Let me begin with...", "I'll go ahead and..."
-- Introductions: "I'll introduce myself", "Let me say hello"
-- Status updates without action: "I'll be out next week", "I'm traveling Monday"
-- Vague statements: "I'll think about it", "We should consider..."
-- Past tense: "I sent the email", "We completed the review"
+=== CRITICAL: WHAT IS NOT A TASK ===
+NEVER extract these - they are meeting conversation, not tasks:
 
-A REAL task has:
-1. A specific deliverable (document, meeting, email, decision, etc.)
-2. A clear owner who must take action
-3. Something that can be checked off when done
+BAD (meeting facilitation - SKIP THESE):
+- "I'll turn it over to Jessica" - just handing off speaking
+- "Let me hand off to the next person" - presentation transition
+- "I'll drag over here that there's a BDR row" - showing something on screen
+- "I'll go ahead and share my screen" - meeting action
+- "Let me start by introducing..." - introduction
 
-For each GENUINE task found, output a JSON array with objects containing:
+BAD (vague/no deliverable - SKIP THESE):
+- "I'll think about it" - no specific output
+- "We should look into that" - no commitment
+- "Update master-opportunities-index.md scores" - too vague, what scores?
 
-REQUIRED FIELDS:
-- "title": Clear, actionable task title starting with a verb (e.g., "Send Q1 budget proposal to finance team")
-- "description": 2-4 sentence description explaining WHAT needs to be done, WHY it matters, and WHO is involved. Include specific names, dates, deliverables from the document.
-- "assignee": Who must do this (use "{user_name or 'user'}" if it's the document owner)
-- "priority": "high", "medium", or "low" based on urgency signals
-- "source_text": The exact phrase that indicates this task (max 150 chars)
+=== WHAT IS A REAL TASK ===
+A task MUST have ALL of these:
+1. SPECIFIC DELIVERABLE: A document, email, meeting, report, decision - something tangible
+2. CLEAR OWNER: Someone's name who is responsible
+3. POST-MEETING WORK: Something done AFTER the meeting, not during it
+4. CHECKABLE: Can be marked "done" when complete
 
-CONTEXT FIELDS (extract if mentioned, null if not):
-- "meeting_context": What meeting/discussion was this from? (e.g., "Q1 Planning meeting discussing budget allocation")
-- "team": Team or department involved (e.g., "Finance", "Engineering", "Executive Leadership")
-- "stakeholder_name": Key person who requested or cares about this (beyond assignee)
-- "value_proposition": Why this matters to the business (e.g., "Required for board presentation", "Blocks product launch")
-- "due_date_text": Any deadline mentioned (e.g., "by Friday", "before the board meeting")
-- "topics": Array of 1-3 topic tags (e.g., ["budget", "Q1 planning", "finance"])
+GOOD EXAMPLES:
+- "John will send the Q1 budget proposal to the finance team by Friday"
+- "Sarah to schedule a follow-up meeting with the vendor next week"
+- "I'll draft the project timeline and share it before our next standup"
 
-Output ONLY valid JSON array, no other text. If no tasks found, output: []
+=== OUTPUT FORMAT ===
+For each GENUINE task, output JSON with:
+
+REQUIRED:
+- "title": Actionable title starting with verb (e.g., "Send Q1 budget proposal to finance team")
+- "description": 2-4 sentences explaining WHAT, WHY, WHO, and WHEN. Be specific with names and dates from the document.
+- "assignee": Person responsible (use "{user_name or 'the user'}" if it's the document owner saying "I will")
+- "priority": "high"/"medium"/"low"
+- "source_text": Exact quote from document (max 150 chars)
+
+CONTEXT (include if mentioned in document, null otherwise):
+- "meeting_context": Meeting name/topic (e.g., "Q1 Planning - budget discussion")
+- "team": Department involved
+- "stakeholder_name": Person who requested/cares about this
+- "value_proposition": Business impact
+- "due_date_text": Deadline if mentioned
+- "topics": 1-3 tags
+
+Output ONLY valid JSON array. If no genuine tasks, output: []
+
+BE STRICT. When in doubt, DO NOT extract. Quality over quantity.
 
 Document:
 ---
-{text[:5000]}
+{text[:6000]}
 ---"""
 
             response = self.anthropic.messages.create(
