@@ -275,6 +275,7 @@ from api.routes import (
     compass,
     conversations,
     digest,
+    discovery,
     document_mappings,
     documents,
     glean_connectors,
@@ -322,6 +323,7 @@ app.include_router(research.router)
 app.include_router(projects.router)
 app.include_router(glean_connectors.router)
 app.include_router(opportunities.router)
+app.include_router(discovery.router)
 app.include_router(stakeholder_metrics.router)
 app.include_router(meeting_prep.router)
 app.include_router(tasks.router)

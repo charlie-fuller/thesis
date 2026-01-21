@@ -111,6 +111,9 @@ class OpportunityResponse(BaseModel):
     source_notes: Optional[str]
     created_at: str
     updated_at: str
+    # Project fields (for scoping/pilot phase)
+    project_name: Optional[str] = None
+    project_description: Optional[str] = None
     # Justification fields
     opportunity_summary: Optional[str] = None
     roi_justification: Optional[str] = None
@@ -212,6 +215,9 @@ def _format_opportunity(opp: dict, owner_name: Optional[str] = None) -> dict:
         "source_notes": opp.get("source_notes"),
         "created_at": opp["created_at"],
         "updated_at": opp.get("updated_at", opp["created_at"]),
+        # Project fields
+        "project_name": opp.get("project_name"),
+        "project_description": opp.get("project_description"),
         # Justification fields
         "opportunity_summary": opp.get("opportunity_summary"),
         "roi_justification": opp.get("roi_justification"),
@@ -873,11 +879,18 @@ async def update_opportunity_scores(
     return _format_opportunity(updated_opp)
 
 
+class StatusUpdateRequest(BaseModel):
+    """Update opportunity status with optional project name."""
+    status: str
+    next_step: Optional[str] = None
+    project_name: Optional[str] = None
+    project_description: Optional[str] = None
+
+
 @router.patch("/{opportunity_id}/status")
 async def update_opportunity_status(
     opportunity_id: str,
-    status: str,
-    next_step: Optional[str] = None,
+    request: StatusUpdateRequest,
     current_user: dict = Depends(get_current_user),
     supabase = Depends(get_supabase)
 ):
@@ -885,17 +898,20 @@ async def update_opportunity_status(
     Update opportunity status.
 
     Valid statuses: identified, scoping, pilot, scaling, completed, blocked
+
+    When moving to 'scoping' or 'pilot', a project_name is required
+    if not already set on the opportunity.
     """
     valid_statuses = ["identified", "scoping", "pilot", "scaling", "completed", "blocked"]
-    if status not in valid_statuses:
+    if request.status not in valid_statuses:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
         )
 
-    # Verify ownership
+    # Verify ownership and get current data
     existing = supabase.table("ai_opportunities") \
-        .select("id") \
+        .select("id, project_name, status") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
         .single() \
@@ -904,9 +920,23 @@ async def update_opportunity_status(
     if not existing.data:
         raise HTTPException(status_code=404, detail="Opportunity not found")
 
-    update_data = {"status": status}
-    if next_step is not None:
-        update_data["next_step"] = next_step
+    # Require project_name when moving to scoping or pilot
+    requires_project_name = request.status in ["scoping", "pilot"]
+    has_project_name = existing.data.get("project_name") or request.project_name
+
+    if requires_project_name and not has_project_name:
+        raise HTTPException(
+            status_code=400,
+            detail="project_name is required when moving to scoping or pilot status"
+        )
+
+    update_data = {"status": request.status}
+    if request.next_step is not None:
+        update_data["next_step"] = request.next_step
+    if request.project_name:
+        update_data["project_name"] = request.project_name
+    if request.project_description:
+        update_data["project_description"] = request.project_description
 
     result = supabase.table("ai_opportunities") \
         .update(update_data) \
@@ -1071,3 +1101,292 @@ async def unlink_stakeholder_from_opportunity(
         .execute()
 
     return {"message": "Stakeholder unlinked from opportunity"}
+
+
+# ============================================================================
+# OPPORTUNITY CANDIDATES ENDPOINTS
+# ============================================================================
+
+
+class OpportunityCandidateResponse(BaseModel):
+    """Opportunity candidate response model."""
+    id: str
+    title: str
+    description: Optional[str]
+    department: Optional[str]
+    source_document_id: Optional[str]
+    source_document_name: Optional[str]
+    source_text: Optional[str]
+    suggested_roi_potential: Optional[int]
+    suggested_effort: Optional[int]
+    suggested_alignment: Optional[int]
+    suggested_readiness: Optional[int]
+    potential_impact: Optional[str]
+    related_stakeholder_names: Optional[List[str]]
+    status: str
+    confidence: str
+    matched_opportunity_id: Optional[str]
+    match_confidence: Optional[float]
+    match_reason: Optional[str]
+    created_at: str
+
+
+class OpportunityCandidateAccept(BaseModel):
+    """Accept an opportunity candidate, optionally overriding fields."""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    department: Optional[str] = None
+    roi_potential: Optional[int] = Field(None, ge=1, le=5)
+    implementation_effort: Optional[int] = Field(None, ge=1, le=5)
+    strategic_alignment: Optional[int] = Field(None, ge=1, le=5)
+    stakeholder_readiness: Optional[int] = Field(None, ge=1, le=5)
+    link_to_existing: bool = False  # If true, link source to existing opportunity instead of creating new
+
+
+class OpportunityCandidateReject(BaseModel):
+    """Reject an opportunity candidate with reason."""
+    reason: Optional[str] = None
+
+
+@router.get("/candidates/list", response_model=List[OpportunityCandidateResponse])
+async def list_opportunity_candidates(
+    status: str = "pending",
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    List opportunity candidates for review.
+
+    Candidates are extracted from meeting documents and await user review
+    before becoming real opportunities.
+    """
+    query = supabase.table("opportunity_candidates") \
+        .select("*") \
+        .eq("client_id", current_user["client_id"]) \
+        .eq("status", status) \
+        .order("created_at", desc=True) \
+        .range(offset, offset + limit - 1)
+
+    result = query.execute()
+
+    return [
+        {
+            "id": c["id"],
+            "title": c["title"],
+            "description": c.get("description"),
+            "department": c.get("department"),
+            "source_document_id": c.get("source_document_id"),
+            "source_document_name": c.get("source_document_name"),
+            "source_text": c.get("source_text"),
+            "suggested_roi_potential": c.get("suggested_roi_potential"),
+            "suggested_effort": c.get("suggested_effort"),
+            "suggested_alignment": c.get("suggested_alignment"),
+            "suggested_readiness": c.get("suggested_readiness"),
+            "potential_impact": c.get("potential_impact"),
+            "related_stakeholder_names": c.get("related_stakeholder_names") or [],
+            "status": c["status"],
+            "confidence": c.get("confidence", "medium"),
+            "matched_opportunity_id": c.get("matched_opportunity_id"),
+            "match_confidence": c.get("match_confidence"),
+            "match_reason": c.get("match_reason"),
+            "created_at": c["created_at"],
+        }
+        for c in result.data
+    ]
+
+
+@router.get("/candidates/count")
+async def get_opportunity_candidates_count(
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Get count of pending opportunity candidates.
+
+    Used for dashboard badge display.
+    """
+    result = supabase.table("opportunity_candidates") \
+        .select("id", count="exact") \
+        .eq("client_id", current_user["client_id"]) \
+        .eq("status", "pending") \
+        .execute()
+
+    return {"count": result.count or 0}
+
+
+@router.post("/candidates/{candidate_id}/accept", response_model=OpportunityResponse)
+async def accept_opportunity_candidate(
+    candidate_id: str,
+    accept_data: OpportunityCandidateAccept = None,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Accept an opportunity candidate, creating a new opportunity.
+
+    If the candidate has a matched_opportunity_id and link_to_existing is True,
+    the source document will be linked to the existing opportunity instead
+    of creating a new one.
+    """
+    if accept_data is None:
+        accept_data = OpportunityCandidateAccept()
+
+    # Get the candidate
+    candidate = supabase.table("opportunity_candidates") \
+        .select("*") \
+        .eq("id", candidate_id) \
+        .eq("client_id", current_user["client_id"]) \
+        .eq("status", "pending") \
+        .single() \
+        .execute()
+
+    if not candidate.data:
+        raise HTTPException(status_code=404, detail="Candidate not found or already processed")
+
+    cand = candidate.data
+    now = datetime.now(timezone.utc).isoformat()
+
+    # If linking to existing opportunity
+    if accept_data.link_to_existing and cand.get("matched_opportunity_id"):
+        # Just update the existing opportunity's source_notes with this new info
+        existing_opp = supabase.table("ai_opportunities") \
+            .select("*") \
+            .eq("id", cand["matched_opportunity_id"]) \
+            .single() \
+            .execute()
+
+        if existing_opp.data:
+            # Append source info to notes
+            existing_notes = existing_opp.data.get("source_notes") or ""
+            new_notes = f"{existing_notes}\n\nLinked from: {cand.get('source_document_name', 'Document')}\nQuote: {cand.get('source_text', '')[:200]}"
+
+            supabase.table("ai_opportunities") \
+                .update({"source_notes": new_notes.strip()}) \
+                .eq("id", cand["matched_opportunity_id"]) \
+                .execute()
+
+            # Mark candidate as accepted
+            supabase.table("opportunity_candidates") \
+                .update({
+                    "status": "accepted",
+                    "accepted_at": now,
+                    "accepted_by": current_user["id"],
+                    "created_opportunity_id": cand["matched_opportunity_id"]
+                }) \
+                .eq("id", candidate_id) \
+                .execute()
+
+            return _format_opportunity(existing_opp.data)
+
+    # Create new opportunity
+    dept = accept_data.department or cand.get("department") or "General"
+    dept_prefix = dept[0].upper() if dept else "G"
+
+    # Get next opportunity code
+    existing_codes = supabase.table("ai_opportunities") \
+        .select("opportunity_code") \
+        .eq("client_id", current_user["client_id"]) \
+        .ilike("opportunity_code", f"{dept_prefix}%") \
+        .execute()
+
+    next_num = len(existing_codes.data) + 1 if existing_codes.data else 1
+    opp_code = f"{dept_prefix}{next_num:02d}"
+
+    opp_data = {
+        "client_id": current_user["client_id"],
+        "opportunity_code": opp_code,
+        "title": accept_data.title or cand["title"],
+        "description": accept_data.description or cand.get("description"),
+        "department": dept,
+        "roi_potential": accept_data.roi_potential or cand.get("suggested_roi_potential") or 3,
+        "implementation_effort": accept_data.implementation_effort or cand.get("suggested_effort") or 3,
+        "strategic_alignment": accept_data.strategic_alignment or cand.get("suggested_alignment") or 3,
+        "stakeholder_readiness": accept_data.stakeholder_readiness or cand.get("suggested_readiness") or 3,
+        "status": "identified",
+        "source_type": "meeting",
+        "source_id": cand.get("source_document_id"),
+        "source_notes": cand.get("source_text"),
+        "created_at": now,
+    }
+
+    try:
+        result = supabase.table("ai_opportunities").insert(opp_data).execute()
+        new_opp = result.data[0]
+
+        # Mark candidate as accepted
+        supabase.table("opportunity_candidates") \
+            .update({
+                "status": "accepted",
+                "accepted_at": now,
+                "accepted_by": current_user["id"],
+                "created_opportunity_id": new_opp["id"]
+            }) \
+            .eq("id", candidate_id) \
+            .execute()
+
+        # Generate justifications for the new opportunity
+        try:
+            await generate_opportunity_justifications(
+                opportunity_id=new_opp["id"],
+                client_id=current_user["client_id"]
+            )
+            # Refetch to get updated justifications
+            updated = supabase.table("ai_opportunities") \
+                .select("*") \
+                .eq("id", new_opp["id"]) \
+                .single() \
+                .execute()
+            new_opp = updated.data
+        except Exception as e:
+            logger.warning(f"Failed to generate justifications for accepted candidate: {e}")
+
+        return _format_opportunity(new_opp)
+
+    except Exception as e:
+        if "duplicate" in str(e).lower():
+            raise HTTPException(status_code=409, detail="Opportunity code already exists")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/candidates/{candidate_id}/reject")
+async def reject_opportunity_candidate(
+    candidate_id: str,
+    reject_data: OpportunityCandidateReject = None,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Reject an opportunity candidate.
+
+    Optionally provide a reason for rejection.
+    """
+    if reject_data is None:
+        reject_data = OpportunityCandidateReject()
+
+    # Verify candidate exists and is pending
+    candidate = supabase.table("opportunity_candidates") \
+        .select("id") \
+        .eq("id", candidate_id) \
+        .eq("client_id", current_user["client_id"]) \
+        .eq("status", "pending") \
+        .single() \
+        .execute()
+
+    if not candidate.data:
+        raise HTTPException(status_code=404, detail="Candidate not found or already processed")
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    supabase.table("opportunity_candidates") \
+        .update({
+            "status": "rejected",
+            "rejected_at": now,
+            "rejected_by": current_user["id"],
+            "rejection_reason": reject_data.reason
+        }) \
+        .eq("id", candidate_id) \
+        .execute()
+
+    return {"message": "Candidate rejected"}

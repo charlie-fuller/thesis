@@ -2,17 +2,18 @@
 Granola Meeting Scanner Service
 
 Scans synced Granola meeting documents from the KB and extracts:
-- AI opportunities
-- Action items/tasks
-- Stakeholder mentions
+- AI opportunities (as candidates for review)
+- Action items/tasks (as candidates for review)
+- Stakeholder mentions (as candidates for review)
 
 Works with documents already synced via Obsidian vault sync.
-Uses existing tables (ai_opportunities, project_tasks, stakeholders) - no new schema needed.
+Extracted items go to candidate tables for user review before becoming real entries.
 """
 
 import os
 import re
 from datetime import datetime, timezone, date
+from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
@@ -20,8 +21,9 @@ import anthropic
 import httpx
 
 from database import get_supabase
-from document_processor import process_document
+from document_processor import search_similar_chunks
 from logger_config import get_logger
+from services.embeddings import create_embedding
 
 logger = get_logger(__name__)
 
@@ -69,6 +71,128 @@ def parse_date_from_iso(date_str: str) -> Optional[date]:
         return None
 
 
+def fuzzy_match(str1: str, str2: str) -> float:
+    """
+    Calculate fuzzy similarity between two strings.
+    Returns a score between 0 and 1.
+    """
+    if not str1 or not str2:
+        return 0.0
+    # Normalize strings
+    s1 = str1.lower().strip()
+    s2 = str2.lower().strip()
+    return SequenceMatcher(None, s1, s2).ratio()
+
+
+async def find_matching_opportunity(
+    client_id: str,
+    extracted_title: str,
+    extracted_quote: str = ""
+) -> Optional[Dict[str, Any]]:
+    """
+    Check if extracted opportunity matches an existing one.
+    Uses multi-layer matching: fuzzy title match + vector similarity.
+
+    Returns dict with matched_opportunity_id, match_confidence, match_reason
+    if match found, otherwise None.
+    """
+    # Layer 1: Title/project_name fuzzy match
+    existing = supabase.table('ai_opportunities') \
+        .select('id, title, project_name, description') \
+        .eq('client_id', client_id) \
+        .execute()
+
+    for opp in existing.data or []:
+        # Check title similarity
+        title_sim = fuzzy_match(extracted_title, opp.get('title', ''))
+        if title_sim > 0.85:
+            return {
+                'matched_opportunity_id': opp['id'],
+                'match_confidence': title_sim,
+                'match_reason': f"Title match ({title_sim:.0%}): '{opp['title'][:50]}'"
+            }
+
+        # Check project_name similarity
+        project_name = opp.get('project_name')
+        if project_name:
+            proj_sim = fuzzy_match(extracted_title, project_name)
+            if proj_sim > 0.85:
+                return {
+                    'matched_opportunity_id': opp['id'],
+                    'match_confidence': proj_sim,
+                    'match_reason': f"Project name match ({proj_sim:.0%}): '{project_name[:50]}'"
+                }
+
+    # Layer 2: Vector similarity search
+    try:
+        search_text = extracted_title
+        if extracted_quote:
+            search_text = f"{extracted_title} {extracted_quote[:200]}"
+
+        # Search existing opportunities by embedding their descriptions
+        # Use document chunks that may have been linked to opportunities
+        chunks = search_similar_chunks(
+            query=search_text,
+            client_id=client_id,
+            limit=5,
+            include_conversations=False,
+            min_similarity=0.85
+        )
+
+        # Check if any chunks are from documents linked to opportunities
+        for chunk in chunks:
+            doc_id = chunk.get('document_id')
+            if not doc_id:
+                continue
+
+            # Check if this document is a source for any opportunity
+            linked_opp = supabase.table('ai_opportunities') \
+                .select('id, title') \
+                .eq('source_id', doc_id) \
+                .execute()
+
+            if linked_opp.data:
+                opp = linked_opp.data[0]
+                return {
+                    'matched_opportunity_id': opp['id'],
+                    'match_confidence': chunk.get('similarity', 0.85),
+                    'match_reason': f"Similar content to '{opp['title'][:50]}'"
+                }
+
+    except Exception as e:
+        logger.warning(f"Vector search for deduplication failed: {e}")
+
+    return None
+
+
+async def find_matching_task(
+    client_id: str,
+    extracted_title: str
+) -> Optional[Dict[str, Any]]:
+    """
+    Check if extracted task matches an existing one.
+    Uses fuzzy title matching.
+
+    Returns dict with matched_task_id and match_confidence if found.
+    """
+    existing = supabase.table('project_tasks') \
+        .select('id, title') \
+        .eq('client_id', client_id) \
+        .neq('status', 'completed') \
+        .execute()
+
+    for task in existing.data or []:
+        title_sim = fuzzy_match(extracted_title, task.get('title', ''))
+        if title_sim > 0.85:
+            return {
+                'matched_task_id': task['id'],
+                'match_confidence': title_sim,
+                'match_reason': f"Title match ({title_sim:.0%}): '{task['title'][:50]}'"
+            }
+
+    return None
+
+
 async def fetch_document_content(storage_url: str) -> Optional[str]:
     """Fetch document content from Supabase storage."""
     try:
@@ -110,18 +234,20 @@ Content:
 Extract the following in JSON format:
 
 1. **opportunities** - AI/automation opportunities mentioned:
-   - description: What the opportunity is
-   - department: Which department (Legal, HR, Finance, IT, Engineering, etc.)
+   - description: What the opportunity is (keep it concise, under 200 chars)
+   - department: Which department (Legal, HR, Finance, IT, Engineering, Sales, Marketing, Operations, etc.)
    - potential_impact: 1-5 score (5 = transformative)
    - effort_estimate: 1-5 score (5 = very complex)
    - strategic_alignment: 1-5 score (5 = highly strategic)
-   - quote: A relevant quote from the content (if any)
+   - readiness: 1-5 score (5 = champion identified and ready to start)
+   - quote: A relevant quote from the content supporting this opportunity
 
 2. **tasks** - Action items, follow-ups, commitments:
    - title: Short task title
-   - description: What needs to be done
+   - description: What needs to be done with context
    - assignee_name: Who is responsible (if mentioned)
    - due_date: When it's due (if mentioned, in YYYY-MM-DD format)
+   - team: Which team/department this task belongs to (if clear from context)
 
 3. **stakeholders** - People mentioned with context:
    - name: Person's name
@@ -206,82 +332,127 @@ async def scan_document(
         # Extract structured data
         extracted = await extract_structured_data(body_content, title, meeting_date)
 
-        # Update document scan timestamp
+        # Update document scan timestamp (for all extraction types)
         now = datetime.now(timezone.utc).isoformat()
         supabase.table('documents').update({
             'granola_scanned_at': now,
+            'opportunities_scanned_at': now,
+            'tasks_scanned_at': now,
+            'stakeholders_scanned_at': now,
             'updated_at': now
         }).eq('id', document_id).execute()
 
-        # Store extracted opportunities
+        # Store extracted opportunities as candidates
         opportunities_created = 0
         for opp in extracted.get('opportunities', []):
             try:
-                # Generate opportunity code based on department
-                dept = opp.get('department', 'General')
-                dept_prefix = dept[0].upper() if dept else 'G'
+                opp_title = opp.get('description', '')[:200]
+                if not opp_title or len(opp_title) < 10:
+                    continue
 
-                # Get next number for this department
-                existing = supabase.table('ai_opportunities') \
-                    .select('opportunity_code') \
+                # Check for duplicate candidate
+                existing_cand = supabase.table('opportunity_candidates') \
+                    .select('id') \
                     .eq('client_id', client_id) \
-                    .ilike('opportunity_code', f'{dept_prefix}%') \
+                    .eq('status', 'pending') \
+                    .ilike('title', f'%{opp_title[:50]}%') \
                     .execute()
 
-                next_num = len(existing.data) + 1 if existing.data else 1
-                opp_code = f"{dept_prefix}{next_num:02d}"
+                if existing_cand.data:
+                    logger.debug(f"Skipping duplicate opportunity candidate: {opp_title[:50]}")
+                    continue
 
-                supabase.table('ai_opportunities').insert({
+                # Check for matching existing opportunity (deduplication)
+                match = await find_matching_opportunity(
+                    client_id,
+                    opp_title,
+                    opp.get('quote', '')
+                )
+
+                candidate_data = {
                     'client_id': client_id,
-                    'opportunity_code': opp_code,
-                    'title': opp.get('description', '')[:200],
+                    'title': opp_title,
                     'description': opp.get('description', ''),
-                    'department': dept,
-                    'roi_potential': opp.get('potential_impact', 3),
-                    'implementation_effort': opp.get('effort_estimate', 3),
-                    'strategic_alignment': opp.get('strategic_alignment', 3),
-                    'stakeholder_readiness': 3,  # Default
-                    'status': 'identified',
-                    'source_type': 'meeting',
-                    'source_id': document_id,
-                    'source_notes': opp.get('quote', ''),
+                    'department': opp.get('department', 'General'),
+                    'source_document_id': document_id,
+                    'source_document_name': title,
+                    'source_text': opp.get('quote', ''),
+                    'suggested_roi_potential': opp.get('potential_impact', 3),
+                    'suggested_effort': opp.get('effort_estimate', 3),
+                    'suggested_alignment': opp.get('strategic_alignment', 3),
+                    'suggested_readiness': opp.get('readiness', 3),
+                    'potential_impact': opp.get('description', ''),
+                    'status': 'pending',
+                    'confidence': 'medium',
                     'created_at': now
-                }).execute()
-                opportunities_created += 1
-            except Exception as e:
-                logger.warning(f"Failed to create opportunity: {e}")
+                }
 
-        # Store extracted tasks
+                # Add deduplication info if match found
+                if match:
+                    candidate_data['matched_opportunity_id'] = match['matched_opportunity_id']
+                    candidate_data['match_confidence'] = match['match_confidence']
+                    candidate_data['match_reason'] = match['match_reason']
+                    logger.info(f"Potential duplicate found: {match['match_reason']}")
+
+                supabase.table('opportunity_candidates').insert(candidate_data).execute()
+                opportunities_created += 1
+
+            except Exception as e:
+                logger.warning(f"Failed to create opportunity candidate: {e}")
+
+        # Store extracted tasks as candidates
         tasks_created = 0
         for task in extracted.get('tasks', []):
             try:
                 task_title = task.get('title', '')[:200]
-                if not task_title:
+                if not task_title or len(task_title) < 5:
                     continue
 
-                # Check for duplicate by title
-                existing_task = supabase.table('project_tasks') \
+                # Check for duplicate candidate
+                existing_cand = supabase.table('task_candidates') \
                     .select('id') \
                     .eq('client_id', client_id) \
-                    .eq('title', task_title) \
+                    .eq('status', 'pending') \
+                    .ilike('title', f'%{task_title[:50]}%') \
                     .execute()
 
-                if not existing_task.data:
-                    supabase.table('project_tasks').insert({
-                        'client_id': client_id,
-                        'title': task_title,
-                        'description': task.get('description', ''),
-                        'assignee_name': task.get('assignee_name'),
-                        'due_date': task.get('due_date'),
-                        'status': 'pending',
-                        'priority': 3,
-                        'source_type': 'meeting',
-                        'source_document_id': document_id,
-                        'created_at': now
-                    }).execute()
-                    tasks_created += 1
+                if existing_cand.data:
+                    logger.debug(f"Skipping duplicate task candidate: {task_title[:50]}")
+                    continue
+
+                # Check for matching existing task
+                task_match = await find_matching_task(client_id, task_title)
+
+                candidate_data = {
+                    'client_id': client_id,
+                    'title': task_title,
+                    'description': task.get('description', ''),
+                    'assignee_name': task.get('assignee_name'),
+                    'suggested_due_date': task.get('due_date'),
+                    'team': task.get('team'),
+                    'meeting_context': f"From meeting: {title}",
+                    'document_date': meeting_date.isoformat() if meeting_date else None,
+                    'source_document_id': document_id,
+                    'source_document_name': title,
+                    'source_text': task.get('description', ''),
+                    'status': 'pending',
+                    'confidence': 'medium',
+                    'suggested_priority': 3,
+                    'created_at': now
+                }
+
+                # Note: task_candidates doesn't have match fields yet
+                # but we can log it for awareness
+                if task_match:
+                    logger.info(f"Similar task exists: {task_match['match_reason']}")
+                    # Skip creating if very similar task exists
+                    continue
+
+                supabase.table('task_candidates').insert(candidate_data).execute()
+                tasks_created += 1
+
             except Exception as e:
-                logger.warning(f"Failed to create task: {e}")
+                logger.warning(f"Failed to create task candidate: {e}")
 
         # Store extracted stakeholders (as candidates for review)
         stakeholders_created = 0

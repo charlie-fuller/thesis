@@ -1,0 +1,235 @@
+"""
+Discovery API Routes
+
+Unified endpoints for the Discovery Inbox feature.
+Provides counts and data across all candidate types (tasks, opportunities, stakeholders).
+"""
+
+import logging
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
+
+from auth import get_current_user
+from database import get_supabase
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/discovery", tags=["discovery"])
+
+
+# ============================================================================
+# PYDANTIC MODELS
+# ============================================================================
+
+
+class DiscoveryCounts(BaseModel):
+    """Counts of pending candidates across all types."""
+    tasks: int
+    opportunities: int
+    stakeholders: int
+    total: int
+
+
+class TaskCandidateItem(BaseModel):
+    """Task candidate for discovery panel."""
+    id: str
+    title: str
+    description: Optional[str]
+    assignee_name: Optional[str]
+    suggested_due_date: Optional[str]
+    team: Optional[str]
+    source_document_name: Optional[str]
+    confidence: str
+    created_at: str
+
+
+class OpportunityCandidateItem(BaseModel):
+    """Opportunity candidate for discovery panel."""
+    id: str
+    title: str
+    description: Optional[str]
+    department: Optional[str]
+    source_document_name: Optional[str]
+    suggested_roi_potential: Optional[int]
+    suggested_effort: Optional[int]
+    suggested_alignment: Optional[int]
+    suggested_readiness: Optional[int]
+    confidence: str
+    matched_opportunity_id: Optional[str]
+    match_reason: Optional[str]
+    created_at: str
+
+
+class StakeholderCandidateItem(BaseModel):
+    """Stakeholder candidate for discovery panel."""
+    id: str
+    name: str
+    role: Optional[str]
+    department: Optional[str]
+    source_document_name: Optional[str]
+    initial_sentiment: Optional[str]
+    confidence: str
+    potential_match_stakeholder_id: Optional[str]
+    created_at: str
+
+
+class DiscoveryAllResponse(BaseModel):
+    """All pending candidates for inline review."""
+    tasks: List[TaskCandidateItem]
+    opportunities: List[OpportunityCandidateItem]
+    stakeholders: List[StakeholderCandidateItem]
+    counts: DiscoveryCounts
+
+
+# ============================================================================
+# ENDPOINTS
+# ============================================================================
+
+
+@router.get("/counts", response_model=DiscoveryCounts)
+async def get_discovery_counts(
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Get counts of pending candidates across all types.
+
+    Used for dashboard badge display showing total pending items.
+    """
+    client_id = current_user["client_id"]
+
+    # Get task candidates count
+    tasks_result = supabase.table("task_candidates") \
+        .select("id", count="exact") \
+        .eq("client_id", client_id) \
+        .eq("status", "pending") \
+        .execute()
+    tasks_count = tasks_result.count or 0
+
+    # Get opportunity candidates count
+    opps_result = supabase.table("opportunity_candidates") \
+        .select("id", count="exact") \
+        .eq("client_id", client_id) \
+        .eq("status", "pending") \
+        .execute()
+    opps_count = opps_result.count or 0
+
+    # Get stakeholder candidates count
+    stakeholders_result = supabase.table("stakeholder_candidates") \
+        .select("id", count="exact") \
+        .eq("client_id", client_id) \
+        .eq("status", "pending") \
+        .execute()
+    stakeholders_count = stakeholders_result.count or 0
+
+    return {
+        "tasks": tasks_count,
+        "opportunities": opps_count,
+        "stakeholders": stakeholders_count,
+        "total": tasks_count + opps_count + stakeholders_count
+    }
+
+
+@router.get("/all", response_model=DiscoveryAllResponse)
+async def get_all_pending_candidates(
+    limit: int = Query(20, ge=1, le=100),
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Get all pending candidates for inline review.
+
+    Returns tasks, opportunities, and stakeholders with their counts.
+    Used by the unified discovery panel for carousel-style review.
+    """
+    client_id = current_user["client_id"]
+
+    # Get pending task candidates
+    tasks_result = supabase.table("task_candidates") \
+        .select("*") \
+        .eq("client_id", client_id) \
+        .eq("status", "pending") \
+        .order("created_at", desc=True) \
+        .limit(limit) \
+        .execute()
+
+    tasks = [
+        {
+            "id": t["id"],
+            "title": t["title"],
+            "description": t.get("description"),
+            "assignee_name": t.get("assignee_name"),
+            "suggested_due_date": t.get("suggested_due_date"),
+            "team": t.get("team"),
+            "source_document_name": t.get("source_document_name"),
+            "confidence": t.get("confidence", "medium"),
+            "created_at": t["created_at"],
+        }
+        for t in tasks_result.data
+    ]
+
+    # Get pending opportunity candidates
+    opps_result = supabase.table("opportunity_candidates") \
+        .select("*") \
+        .eq("client_id", client_id) \
+        .eq("status", "pending") \
+        .order("created_at", desc=True) \
+        .limit(limit) \
+        .execute()
+
+    opportunities = [
+        {
+            "id": o["id"],
+            "title": o["title"],
+            "description": o.get("description"),
+            "department": o.get("department"),
+            "source_document_name": o.get("source_document_name"),
+            "suggested_roi_potential": o.get("suggested_roi_potential"),
+            "suggested_effort": o.get("suggested_effort"),
+            "suggested_alignment": o.get("suggested_alignment"),
+            "suggested_readiness": o.get("suggested_readiness"),
+            "confidence": o.get("confidence", "medium"),
+            "matched_opportunity_id": o.get("matched_opportunity_id"),
+            "match_reason": o.get("match_reason"),
+            "created_at": o["created_at"],
+        }
+        for o in opps_result.data
+    ]
+
+    # Get pending stakeholder candidates
+    stakeholders_result = supabase.table("stakeholder_candidates") \
+        .select("*") \
+        .eq("client_id", client_id) \
+        .eq("status", "pending") \
+        .order("created_at", desc=True) \
+        .limit(limit) \
+        .execute()
+
+    stakeholders = [
+        {
+            "id": s["id"],
+            "name": s["name"],
+            "role": s.get("role"),
+            "department": s.get("department"),
+            "source_document_name": s.get("source_document_name"),
+            "initial_sentiment": s.get("initial_sentiment"),
+            "confidence": s.get("confidence", "medium"),
+            "potential_match_stakeholder_id": s.get("potential_match_stakeholder_id"),
+            "created_at": s["created_at"],
+        }
+        for s in stakeholders_result.data
+    ]
+
+    return {
+        "tasks": tasks,
+        "opportunities": opportunities,
+        "stakeholders": stakeholders,
+        "counts": {
+            "tasks": len(tasks),
+            "opportunities": len(opportunities),
+            "stakeholders": len(stakeholders),
+            "total": len(tasks) + len(opportunities) + len(stakeholders)
+        }
+    }
