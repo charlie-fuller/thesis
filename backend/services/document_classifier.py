@@ -304,43 +304,50 @@ class DocumentClassifier:
         return sorted_scores[0] >= self.HIGH_CONFIDENCE_THRESHOLD and \
                sorted_scores[0] - sorted_scores[1] >= 0.20
 
-    def _build_llm_prompt(self, sample_text: str) -> str:
-        """Build the LLM classification prompt."""
-        agent_list = "\n".join([
-            f"- {name}: {desc}"
-            for name, desc in self.AGENT_DESCRIPTIONS.items()
-        ])
+    def _build_llm_prompt(self, sample_text: str, candidates: Optional[list[str]] = None) -> str:
+        """Build the LLM classification prompt.
 
-        return f"""You are classifying a document to determine which Thesis agents should have access to it.
+        Args:
+            sample_text: Document text to classify
+            candidates: Optional list of candidate agents from keyword scoring.
+                       If provided, only these agents are considered (saves tokens).
+                       If None, all agents are sent (fallback behavior).
+        """
+        # If we have candidates from keyword scoring, only send those (more efficient)
+        if candidates and len(candidates) >= 2:
+            agent_list = "\n".join([
+                f"- {name}: {self.AGENT_DESCRIPTIONS.get(name, 'Specialist agent')}"
+                for name in candidates[:6]  # Max 6 candidates to keep prompt small
+            ])
+            agent_note = "From these candidate agents, select the most relevant:"
+        else:
+            # Fallback: send all agents (less efficient but comprehensive)
+            agent_list = "\n".join([
+                f"- {name}: {desc}"
+                for name, desc in self.AGENT_DESCRIPTIONS.items()
+            ])
+            agent_note = "Select which agents should have access to this document:"
 
-<agents>
+        return f"""Classify this document for agent relevance.
+
+{agent_note}
 {agent_list}
-</agents>
 
-<document_sample>
-{sample_text[:3000]}
-</document_sample>
+Document excerpt:
+{sample_text[:2500]}
 
-Analyze the document sample and determine which agents would find this document relevant to their domain.
+Return JSON with the most relevant agents (max 3):
+{{"agents": [{{"name": "agent_name", "confidence": 0.8, "reason": "brief reason"}}], "document_type": "type"}}"""
 
-Return ONLY valid JSON with this exact structure:
-{{
-  "agents": [
-    {{"name": "agent_name", "confidence": 0.0, "reason": "brief explanation"}}
-  ],
-  "document_type": "brief description of document type"
-}}
-
-Rules:
-- Include only agents with confidence >= 0.4
-- Order by confidence descending
-- Maximum 3 agents per document
-- Confidence should be between 0.0 and 1.0
-- If document seems general-purpose, include only the most relevant 1-2 agents"""
-
-    async def _classify_with_llm(self, sample_text: str) -> tuple[dict[str, float], str, int]:
+    async def _classify_with_llm(
+        self, sample_text: str, candidates: Optional[list[str]] = None
+    ) -> tuple[dict[str, float], str, int]:
         """
         Use Claude Haiku for LLM-based classification.
+
+        Args:
+            sample_text: Document text to classify
+            candidates: Optional list of candidate agents from keyword scoring
 
         Returns:
             Tuple of (scores dict, detected_type, tokens_used)
@@ -350,7 +357,7 @@ Rules:
             return {}, "unknown", 0
 
         try:
-            prompt = self._build_llm_prompt(sample_text)
+            prompt = self._build_llm_prompt(sample_text, candidates)
 
             response = self.anthropic.messages.create(
                 model="claude-3-5-haiku-20241022",
@@ -448,7 +455,11 @@ Rules:
         # Phase 2: LLM classification if ambiguous
         if not self._has_clear_winner(keyword_scores):
             method = "hybrid"
-            llm_scores, detected_type, tokens_used = await self._classify_with_llm(combined_text)
+            # Pass keyword candidates to LLM for more efficient classification
+            candidates = list(keyword_scores.keys()) if keyword_scores else None
+            llm_scores, detected_type, tokens_used = await self._classify_with_llm(
+                combined_text, candidates
+            )
             logger.info(f"LLM scores for document {document_id}: {llm_scores}")
 
         # Merge scores (LLM takes precedence for ambiguous cases)

@@ -552,21 +552,37 @@ async def process_document_with_classification(
             'error': str(e)
         }
 
-    # Auto-extract potential tasks for Taskmaster
+    # Auto-extract potential tasks for Taskmaster (only from meeting summaries)
+    # Check if document is in the meeting summaries folder
+    MEETING_SUMMARIES_FOLDER = "granola/meeting-summaries"
     try:
-        from services.task_auto_extractor import extract_tasks_from_document
-        task_result = await extract_tasks_from_document(
-            document_id=document_id,
-            supabase=supabase,
-            auto_store=True
-        )
-        result['task_extraction'] = {
-            'status': task_result.get('status', 'unknown'),
-            'tasks_found': task_result.get('tasks_found', 0),
-            'tasks_stored': task_result.get('tasks_stored', 0)
-        }
-        if task_result.get('tasks_found', 0) > 0:
-            logger.info(f"Extracted {task_result['tasks_found']} potential tasks from document {document_id}")
+        doc_result = supabase.table('documents').select(
+            'obsidian_file_path'
+        ).eq('id', document_id).single().execute()
+
+        obsidian_path = doc_result.data.get('obsidian_file_path', '') if doc_result.data else ''
+        is_meeting_summary = obsidian_path.startswith(MEETING_SUMMARIES_FOLDER)
+
+        if is_meeting_summary:
+            from services.task_auto_extractor import extract_tasks_from_document
+            task_result = await extract_tasks_from_document(
+                document_id=document_id,
+                supabase=supabase,
+                auto_store=True
+            )
+            result['task_extraction'] = {
+                'status': task_result.get('status', 'unknown'),
+                'tasks_found': task_result.get('tasks_found', 0),
+                'tasks_stored': task_result.get('tasks_stored', 0)
+            }
+            if task_result.get('tasks_found', 0) > 0:
+                logger.info(f"Extracted {task_result['tasks_found']} potential tasks from meeting summary {document_id}")
+        else:
+            result['task_extraction'] = {
+                'status': 'skipped',
+                'reason': 'not_meeting_summary'
+            }
+            logger.debug(f"Skipping task extraction for non-meeting-summary document {document_id}")
     except Exception as e:
         logger.warning(f"Task extraction failed for document {document_id}: {e}")
         result['task_extraction'] = {

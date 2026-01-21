@@ -269,48 +269,47 @@ def _build_assessment_prompt(context: dict) -> str:
         for mem in context["memories"]:
             memory_context += f"- {mem}\n"
 
-    return f"""You are Compass, a career coaching agent. Generate a comprehensive career status report based on the rubric and available context.
+    return f"""You are Compass, a career coaching agent. Generate a career status report based on the rubric and available context.
 
 {rubric_text}
 {kb_context}
 {memory_context}
 
-Based on the available information, assess career performance across all 5 dimensions. If specific evidence is limited, make reasonable inferences but note the confidence level.
+Assess performance across all 5 dimensions. If evidence is limited, make reasonable inferences but note confidence level.
 
-Generate the following:
+For each dimension provide:
+- A score (1-5 based on the rubric)
+- Brief justification (2-3 sentences with evidence when available)
+- 2-3 concrete improvement actions (specific things to do this week/month)
 
-1. EXECUTIVE_SUMMARY: A 2-3 sentence overall assessment of career trajectory and performance.
+Also provide:
+- Executive summary (2-3 sentences on overall trajectory)
+- 2-3 key strengths
+- 2-3 growth opportunities
+- 2-3 priority next steps
 
-2. For each dimension, provide:
-   - SCORE (1-5 based on rubric levels)
-   - JUSTIFICATION (2-3 sentences explaining the score with specific evidence if available)
-   - IMPROVEMENT_ACTIONS: 2-3 concrete, actionable steps to improve this dimension (specific things to do this week/month)
+Use these section labels (the parser expects this format):
 
-3. AREAS_OF_STRENGTH: List 2-3 specific strengths demonstrated
-4. GROWTH_OPPORTUNITIES: List 2-3 areas for development
-5. RECOMMENDED_ACTIONS: List 2-3 concrete next steps (highest priority actions across all dimensions)
-
-Format your response EXACTLY as:
-EXECUTIVE_SUMMARY: [your text]
+EXECUTIVE_SUMMARY: [text]
 
 STRATEGIC_IMPACT_SCORE: [1-5]
-STRATEGIC_IMPACT_JUSTIFICATION: [your text]
+STRATEGIC_IMPACT_JUSTIFICATION: [text]
 STRATEGIC_IMPACT_IMPROVEMENTS: [action1] | [action2] | [action3]
 
 EXECUTION_QUALITY_SCORE: [1-5]
-EXECUTION_QUALITY_JUSTIFICATION: [your text]
+EXECUTION_QUALITY_JUSTIFICATION: [text]
 EXECUTION_QUALITY_IMPROVEMENTS: [action1] | [action2] | [action3]
 
 RELATIONSHIP_BUILDING_SCORE: [1-5]
-RELATIONSHIP_BUILDING_JUSTIFICATION: [your text]
+RELATIONSHIP_BUILDING_JUSTIFICATION: [text]
 RELATIONSHIP_BUILDING_IMPROVEMENTS: [action1] | [action2] | [action3]
 
 GROWTH_MINDSET_SCORE: [1-5]
-GROWTH_MINDSET_JUSTIFICATION: [your text]
+GROWTH_MINDSET_JUSTIFICATION: [text]
 GROWTH_MINDSET_IMPROVEMENTS: [action1] | [action2] | [action3]
 
 LEADERSHIP_PRESENCE_SCORE: [1-5]
-LEADERSHIP_PRESENCE_JUSTIFICATION: [your text]
+LEADERSHIP_PRESENCE_JUSTIFICATION: [text]
 LEADERSHIP_PRESENCE_IMPROVEMENTS: [action1] | [action2] | [action3]
 
 AREAS_OF_STRENGTH: [item1] | [item2] | [item3]

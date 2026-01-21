@@ -927,6 +927,10 @@ async def get_scan_stats(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Meeting summaries folder path - only scan these for tasks
+MEETING_SUMMARIES_FOLDER = "granola/meeting-summaries"
+
+
 @router.post("/scan-documents")
 async def scan_documents_for_tasks(
     limit: int = Query(10, ge=1, le=50, description="Number of recent documents to scan (max 50)"),
@@ -935,13 +939,13 @@ async def scan_documents_for_tasks(
     current_user=Depends(get_current_user)
 ):
     """
-    Scan recent documents for potential tasks.
+    Scan meeting summary documents for potential tasks.
 
-    This triggers the Taskmaster auto-extractor on documents. By default only
-    scans documents that haven't been scanned yet. Found tasks are stored as
-    candidates for user review.
+    Only scans documents in the granola/meeting-summaries folder, which contain
+    structured meeting summaries ideal for task extraction. By default only
+    scans documents that haven't been scanned yet.
 
-    Uses Claude Sonnet for high-quality extraction (runs in background on upload).
+    Uses Claude Sonnet for high-quality extraction.
 
     Args:
         limit: Max number of documents to scan (1-50, default 10)
@@ -961,10 +965,10 @@ async def scan_documents_for_tasks(
         if user_result.data:
             user_name = user_result.data.get('full_name') or user_result.data.get('name') or user_result.data.get('email', '').split('@')[0]
 
-        # Build query for recent documents
+        # Build query for meeting summary documents only
         query = supabase.table('documents').select(
-            'id, filename, title, original_date, uploaded_at'
-        ).eq('client_id', client_id)
+            'id, filename, title, original_date, uploaded_at, obsidian_file_path'
+        ).eq('client_id', client_id).like('obsidian_file_path', f'{MEETING_SUMMARIES_FOLDER}/%')
 
         # Only scan unscanned docs unless force_rescan is enabled
         if not force_rescan:
@@ -984,7 +988,7 @@ async def scan_documents_for_tasks(
                 'success': True,
                 'documents_scanned': 0,
                 'total_tasks_found': 0,
-                'message': 'No documents found to scan'
+                'message': f'No meeting summaries found to scan in {MEETING_SUMMARIES_FOLDER}'
             }
 
         from services.task_auto_extractor import extract_tasks_from_document

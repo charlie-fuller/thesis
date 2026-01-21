@@ -44,45 +44,34 @@ def _build_generation_prompt(opportunity: dict) -> str:
             f"{k}: {v}" for k, v in roi_indicators.items()
         )
 
-    return f"""You are analyzing an AI implementation opportunity for an enterprise client. Generate concise justifications for the opportunity and its scores.
+    return f"""Analyze this AI opportunity and explain the scores.
 
-OPPORTUNITY DETAILS:
+OPPORTUNITY:
 - Title: {title}
 - Department: {department}
 - Description: {description}
 - Current State: {current_state}
 - Desired State: {desired_state}{roi_details}
 
-SCORES (1-5 scale):
-- ROI Potential: {roi if roi else 'Not scored'}/5
-- Implementation Ease: {effort if effort else 'Not scored'}/5 (5 = easiest)
-- Strategic Alignment: {alignment if alignment else 'Not scored'}/5
-- Stakeholder Readiness: {readiness if readiness else 'Not scored'}/5
+SCORES (1-5 scale, where 5 is best):
+- ROI Potential: {roi if roi else 'Not scored'}/5 (revenue, cost savings, time impact)
+- Implementation Ease: {effort if effort else 'Not scored'}/5 (5=plug-and-play, 1=very complex)
+- Strategic Alignment: {alignment if alignment else 'Not scored'}/5 (fit with business priorities)
+- Stakeholder Readiness: {readiness if readiness else 'Not scored'}/5 (champion, data, team eagerness)
 
-SCORING DEFINITIONS:
-- ROI Potential: Revenue, cost savings, or time impact. 5=transformative, 4=high, 3=moderate, 2=low, 1=minimal
-- Implementation Ease: How easy to implement. 5=plug-and-play, 4=low effort, 3=moderate, 2=high effort, 1=very complex
-- Strategic Alignment: Alignment with business goals. 5=core priority, 4=strong, 3=moderate, 2=weak, 1=misaligned
-- Stakeholder Readiness: Champion identified, data ready, team eager. 5=fully ready, 4=mostly ready, 3=partial, 2=low, 1=not ready
+Write brief justifications (2-4 sentences each) for:
+1. What this opportunity is and its business impact
+2. Why ROI potential is scored as shown
+3. Why implementation ease is scored as shown
+4. Why strategic alignment is scored as shown
+5. Why stakeholder readiness is scored as shown
 
-Generate the following in a professional, concise tone. Each should be exactly 3-4 sentences:
-
-1. OPPORTUNITY_SUMMARY: Describe what this opportunity is and its potential business impact.
-
-2. ROI_JUSTIFICATION: Explain why this opportunity received its ROI score, referencing specific potential benefits.
-
-3. EFFORT_JUSTIFICATION: Explain why this opportunity received its implementation ease score, considering technical complexity and integration needs.
-
-4. ALIGNMENT_JUSTIFICATION: Explain why this opportunity received its strategic alignment score, connecting to likely business priorities.
-
-5. READINESS_JUSTIFICATION: Explain why this opportunity received its stakeholder readiness score, considering organizational factors.
-
-Format your response exactly as:
-OPPORTUNITY_SUMMARY: [your text]
-ROI_JUSTIFICATION: [your text]
-EFFORT_JUSTIFICATION: [your text]
-ALIGNMENT_JUSTIFICATION: [your text]
-READINESS_JUSTIFICATION: [your text]"""
+Use these section labels (parser expects this format):
+OPPORTUNITY_SUMMARY: [text]
+ROI_JUSTIFICATION: [text]
+EFFORT_JUSTIFICATION: [text]
+ALIGNMENT_JUSTIFICATION: [text]
+READINESS_JUSTIFICATION: [text]"""
 
 
 def _parse_generation_response(response_text: str) -> dict:
