@@ -36,9 +36,9 @@ async def extract_tasks_from_document(
         dict with extraction results
     """
     try:
-        # Get document info
+        # Get document info including original_date
         doc_result = supabase.table('documents').select(
-            'id, filename, title, client_id, user_id'
+            'id, filename, title, client_id, user_id, original_date'
         ).eq('id', document_id).single().execute()
 
         if not doc_result.data:
@@ -47,6 +47,7 @@ async def extract_tasks_from_document(
 
         document = doc_result.data
         source_name = document.get('title') or document.get('filename', 'Unknown')
+        doc_date = document.get('original_date')  # e.g., "2025-01-15"
 
         # Get document chunks for content (increased from 10 to 30 for better coverage)
         chunks_result = supabase.table('document_chunks').select(
@@ -90,7 +91,8 @@ async def extract_tasks_from_document(
             tasks = await extractor.extract_with_llm(
                 text=content,
                 source_document=source_name,
-                user_name=user_name
+                user_name=user_name,
+                document_date=doc_date
             )
         else:
             tasks = extractor.extract_from_text(
@@ -113,12 +115,6 @@ async def extract_tasks_from_document(
         # Store as candidates if enabled
         stored_count = 0
         if auto_store:
-            # Get document date for context
-            doc_date_result = supabase.table('documents').select(
-                'original_date'
-            ).eq('id', document_id).single().execute()
-            doc_date = doc_date_result.data.get('original_date') if doc_date_result.data else None
-
             for task in tasks:
                 try:
                     candidate_id = str(uuid.uuid4())

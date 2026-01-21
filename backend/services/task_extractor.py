@@ -201,7 +201,8 @@ class TaskExtractor:
         self,
         text: str,
         source_document: str,
-        user_name: Optional[str] = None
+        user_name: Optional[str] = None,
+        document_date: Optional[str] = None
     ) -> list[ExtractedTask]:
         """
         Use LLM to extract tasks for complex or ambiguous content.
@@ -215,9 +216,11 @@ class TaskExtractor:
 
         try:
             user_context = f"The document belongs to {user_name}. " if user_name else ""
+            date_context = f"Document date: {document_date}. " if document_date else ""
             prompt = f"""Extract genuine action items from this document - real tasks someone must complete AFTER the meeting.
 
-{user_context}
+Document: "{source_document}"
+{date_context}{user_context}
 
 Skip meeting facilitation, vague statements, and anything without a clear post-meeting deliverable.
 
@@ -237,7 +240,11 @@ For each task found, output JSON with ALL of these fields:
   "topics": ["1-3", "relevant", "tags"]
 }}
 
-IMPORTANT: The description must ADD VALUE beyond the source text - explain context, stakeholders, why it matters, what success looks like. Don't just paraphrase the source.
+IMPORTANT: The description must ADD VALUE beyond the source text:
+- Start with the document date/context (e.g., "From the Jan 15 Q1 Planning meeting:")
+- Explain what specifically needs to be done and why it matters
+- Include relevant stakeholders, deadlines, and business impact
+- Don't just paraphrase the source text
 
 Output ONLY a JSON array. If no genuine tasks, output: []
 
