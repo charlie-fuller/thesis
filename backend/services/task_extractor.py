@@ -285,7 +285,6 @@ DOCUMENT CONTENT:
                     return self.extract_from_text(text, source_document, user_name)
 
                 tasks = []
-                priority_map = {"high": 2, "medium": 3, "low": 4}
 
                 for item in tasks_data:
                     if not isinstance(item, dict) or "title" not in item:
@@ -295,7 +294,16 @@ DOCUMENT CONTENT:
                     if len(title) < 5:
                         continue
 
-                    priority = priority_map.get(item.get("priority", "medium"), 3)
+                    # Handle priority - LLM returns 1-5 integer, but also accept string
+                    raw_priority = item.get("priority", 3)
+                    if isinstance(raw_priority, int):
+                        priority = max(1, min(5, raw_priority))  # Clamp to 1-5
+                    elif isinstance(raw_priority, str):
+                        priority_map = {"high": 4, "medium": 3, "low": 2, "critical": 5}
+                        priority = priority_map.get(raw_priority.lower(), 3)
+                    else:
+                        priority = 3
+
                     due_date_text = item.get("due_date_text")
                     due_date = None
 
@@ -308,16 +316,19 @@ DOCUMENT CONTENT:
                     if topics and not isinstance(topics, list):
                         topics = [topics] if isinstance(topics, str) else None
 
+                    # Get assignee - try both field names for compatibility
+                    assignee = item.get("assignee_name") or item.get("assignee")
+
                     tasks.append(ExtractedTask(
                         title=title[:200],
                         priority=priority,
                         priority_label=self._priority_label(priority),
                         due_date=due_date,
                         due_date_text=due_date_text,
-                        assignee_name=item.get("assignee"),
+                        assignee_name=assignee,
                         source_document=source_document,
                         source_text=item.get("source_text", "")[:300],
-                        confidence="high",  # LLM extraction is high confidence
+                        confidence=item.get("confidence", "high"),
                         extraction_pattern="llm",
                         # Rich context fields
                         description=item.get("description"),
