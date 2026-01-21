@@ -119,24 +119,6 @@ export default function TaskCard({ task, onClick }: TaskCardProps) {
         )}
       </div>
 
-      {/* Tags */}
-      {task.tags && task.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2">
-          {task.tags.slice(0, 3).map((tag, idx) => (
-            <span
-              key={idx}
-              className="px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 text-muted rounded"
-            >
-              {tag}
-            </span>
-          ))}
-          {task.tags.length > 3 && (
-            <span className="px-1.5 py-0.5 text-xs text-muted">
-              +{task.tags.length - 3}
-            </span>
-          )}
-        </div>
-      )}
     </div>
   )
 }
