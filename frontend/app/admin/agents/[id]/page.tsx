@@ -650,6 +650,21 @@ export default function AgentDetailPage() {
     if (stats.accepted > 0 || stats.rejected > 0) {
       toast.success(`Review complete: ${stats.accepted} task(s) created, ${stats.rejected} skipped`);
     }
+    // Refresh stats after review
+    fetchScanStats();
+  };
+
+  // Clear all task candidates (for testing)
+  const handleClearCandidates = async () => {
+    try {
+      const response = await apiDelete<{ deleted_count: number }>('/api/tasks/candidates/clear?status=all');
+      toast.success(`Cleared ${response.deleted_count} candidates`);
+      setTaskScanResult(null);
+      await fetchScanStats();
+    } catch (err) {
+      logger.error('Failed to clear candidates:', err);
+      toast.error('Failed to clear candidates');
+    }
   };
 
   if (loading) {
@@ -1072,23 +1087,33 @@ export default function AgentDetailPage() {
                   </div>
                 </div>
 
-                <button
-                  onClick={handleScanDocumentsForTasks}
-                  disabled={taskScanLoading}
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50 font-medium"
-                >
-                  {taskScanLoading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Scanning {scanLimit} Documents...
-                    </>
-                  ) : (
-                    <>
-                      <ListChecks className="w-5 h-5" />
-                      Scan Documents
-                    </>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleScanDocumentsForTasks}
+                    disabled={taskScanLoading}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50 font-medium"
+                  >
+                    {taskScanLoading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Scanning {scanLimit} Documents...
+                      </>
+                    ) : (
+                      <>
+                        <ListChecks className="w-5 h-5" />
+                        Scan Documents
+                      </>
+                    )}
+                  </button>
+                  {scanStats && scanStats.pending_candidates > 0 && (
+                    <button
+                      onClick={handleClearCandidates}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 rounded-lg transition-colors text-sm"
+                    >
+                      Clear All
+                    </button>
                   )}
-                </button>
+                </div>
 
                 {/* Show button to review pending candidates if any exist */}
                 {taskScanResult && taskScanResult.candidates.length > 0 && !showCandidateReview && (
