@@ -30,6 +30,13 @@ class ExtractedTask:
     source_text: str  # The original text that led to this extraction
     confidence: str  # 'high' for explicit, 'medium' for inferred
     extraction_pattern: str  # Which pattern matched
+    # Rich context fields (populated by LLM extraction)
+    description: Optional[str] = None  # Full description with context
+    meeting_context: Optional[str] = None  # Summary of meeting/document context
+    team: Optional[str] = None  # Team or department involved
+    stakeholder_name: Optional[str] = None  # Key stakeholder or requester
+    value_proposition: Optional[str] = None  # Business value or impact
+    topics: Optional[list[str]] = None  # Related topics/tags
 
 
 # Task verb pattern for task-like content detection
@@ -208,7 +215,7 @@ class TaskExtractor:
 
         try:
             user_context = f"The document belongs to {user_name}. " if user_name else ""
-            prompt = f"""Analyze this document and extract actionable tasks or action items.
+            prompt = f"""Analyze this document and extract actionable tasks or action items WITH RICH CONTEXT.
 
 {user_context}Look for:
 - Commitments ("I will...", "I'll...", "I need to...")
@@ -218,18 +225,28 @@ class TaskExtractor:
 - Assignments ("[Name] to...", "[Name] owns...")
 - Deadlines and due dates
 
-For each task found, output ONLY a JSON array with objects containing:
-- "title": Clear, actionable task description (start with verb)
-- "assignee": Who should do it (use "{user_name or 'user'}" if it's the document owner)
-- "due_date_text": Any mentioned deadline (null if none)
+For each task found, output a JSON array with objects containing:
+
+REQUIRED FIELDS:
+- "title": Clear, actionable task title starting with a verb (e.g., "Schedule follow-up meeting with IT team")
+- "description": 2-4 sentence description explaining WHAT the task is, WHY it matters, and any important context. Include names, dates, and specifics from the document.
+- "assignee": Who should do it (use "{user_name or 'user'}" if it's the document owner, or the specific name mentioned)
 - "priority": "high", "medium", or "low" based on urgency signals
-- "source_text": The exact phrase that indicates this task (max 100 chars)
+- "source_text": The exact phrase from the document that indicates this task (max 150 chars)
+
+CONTEXT FIELDS (extract if mentioned, null if not):
+- "meeting_context": Brief summary of the meeting/discussion where this came up (e.g., "Weekly IT sync on Jan 15 discussing cloud migration")
+- "team": Team or department involved (e.g., "IT Infrastructure", "Marketing", "Executive Leadership")
+- "stakeholder_name": Key person who requested, owns, or cares about this task (beyond the assignee)
+- "value_proposition": Business value or why this matters (e.g., "Reduces deployment time by 40%", "Required for Q1 compliance audit")
+- "due_date_text": Any mentioned deadline in original words (e.g., "by end of week", "before the board meeting")
+- "topics": Array of 1-3 relevant topic tags (e.g., ["cloud migration", "security", "compliance"])
 
 Output ONLY valid JSON array, no other text. If no tasks found, output: []
 
 Document:
 ---
-{text[:4000]}
+{text[:5000]}
 ---"""
 
             response = self.anthropic.messages.create(
@@ -274,6 +291,11 @@ Document:
                     if due_date_text:
                         due_date, _ = self._extract_due_date(due_date_text)
 
+                    # Extract topics (ensure it's a list)
+                    topics = item.get("topics")
+                    if topics and not isinstance(topics, list):
+                        topics = [topics] if isinstance(topics, str) else None
+
                     tasks.append(ExtractedTask(
                         title=title[:200],
                         priority=priority,
@@ -284,7 +306,14 @@ Document:
                         source_document=source_document,
                         source_text=item.get("source_text", "")[:300],
                         confidence="high",  # LLM extraction is high confidence
-                        extraction_pattern="llm"
+                        extraction_pattern="llm",
+                        # Rich context fields
+                        description=item.get("description"),
+                        meeting_context=item.get("meeting_context"),
+                        team=item.get("team"),
+                        stakeholder_name=item.get("stakeholder_name"),
+                        value_proposition=item.get("value_proposition"),
+                        topics=topics
                     ))
 
                 logger.info(f"LLM extracted {len(tasks)} tasks from {source_document}")

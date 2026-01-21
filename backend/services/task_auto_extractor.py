@@ -113,10 +113,16 @@ async def extract_tasks_from_document(
         # Store as candidates if enabled
         stored_count = 0
         if auto_store:
+            # Get document date for context
+            doc_date_result = supabase.table('documents').select(
+                'original_date'
+            ).eq('id', document_id).single().execute()
+            doc_date = doc_date_result.data.get('original_date') if doc_date_result.data else None
+
             for task in tasks:
                 try:
                     candidate_id = str(uuid.uuid4())
-                    supabase.table('task_candidates').insert({
+                    candidate_data = {
                         'id': candidate_id,
                         'client_id': document['client_id'],
                         'user_id': document.get('user_id'),
@@ -130,8 +136,17 @@ async def extract_tasks_from_document(
                         'source_text': task.source_text,
                         'confidence': task.confidence,
                         'extraction_pattern': task.extraction_pattern,
-                        'status': 'pending'  # pending, accepted, rejected
-                    }).execute()
+                        'status': 'pending',  # pending, accepted, rejected
+                        # Rich context fields
+                        'description': task.description,
+                        'meeting_context': task.meeting_context,
+                        'team': task.team,
+                        'stakeholder_name': task.stakeholder_name,
+                        'value_proposition': task.value_proposition,
+                        'document_date': doc_date,
+                        'topics': task.topics
+                    }
+                    supabase.table('task_candidates').insert(candidate_data).execute()
                     stored_count += 1
                 except Exception as e:
                     logger.warning(f"Failed to store task candidate: {e}")

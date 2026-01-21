@@ -15,6 +15,14 @@ interface TaskCandidate {
   due_date_text?: string
   assignee_name?: string
   confidence: string
+  // Rich context fields
+  description?: string
+  meeting_context?: string
+  team?: string
+  stakeholder_name?: string
+  value_proposition?: string
+  document_date?: string
+  topics?: string[]
 }
 
 interface TaskCandidateReviewModalProps {
@@ -63,7 +71,8 @@ export default function TaskCandidateReviewModal({
   // Load candidate data into form
   const loadCandidate = useCallback((candidate: TaskCandidate) => {
     setTitle(candidate.title || '')
-    setDescription(candidate.source_text || '')
+    // Use rich description if available, otherwise fall back to source_text
+    setDescription(candidate.description || candidate.source_text || '')
     setPriority(candidate.suggested_priority || 3)
     setDueDate(candidate.suggested_due_date || '')
     setAssigneeName(candidate.assignee_name || '')
@@ -169,11 +178,16 @@ export default function TaskCandidateReviewModal({
           />
         </div>
 
-        {/* Source info */}
+        {/* Source info with rich context */}
         <div className="px-4 py-3 bg-page border-b border-default">
-          <div className="flex items-center gap-2 text-sm text-secondary">
+          <div className="flex items-center gap-2 text-sm text-secondary mb-2">
             <FileText className="w-4 h-4" />
-            <span>From: {currentCandidate.source_document_name}</span>
+            <span className="font-medium">From: {currentCandidate.source_document_name}</span>
+            {currentCandidate.document_date && (
+              <span className="text-muted">
+                ({new Date(currentCandidate.document_date).toLocaleDateString()})
+              </span>
+            )}
             <span className={`ml-auto px-2 py-0.5 rounded text-xs font-medium ${
               currentCandidate.confidence === 'high'
                 ? 'bg-green-500/20 text-green-400'
@@ -182,6 +196,39 @@ export default function TaskCandidateReviewModal({
               {currentCandidate.confidence} confidence
             </span>
           </div>
+
+          {/* Rich context badges */}
+          <div className="flex flex-wrap gap-2">
+            {currentCandidate.team && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-500/20 text-blue-400">
+                Team: {currentCandidate.team}
+              </span>
+            )}
+            {currentCandidate.stakeholder_name && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-purple-500/20 text-purple-400">
+                Stakeholder: {currentCandidate.stakeholder_name}
+              </span>
+            )}
+            {currentCandidate.topics?.map((topic) => (
+              <span key={topic} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-500/20 text-gray-400">
+                {topic}
+              </span>
+            ))}
+          </div>
+
+          {/* Meeting context if available */}
+          {currentCandidate.meeting_context && (
+            <div className="mt-2 text-xs text-muted italic border-l-2 border-amber-500/50 pl-2">
+              {currentCandidate.meeting_context}
+            </div>
+          )}
+
+          {/* Value proposition if available */}
+          {currentCandidate.value_proposition && (
+            <div className="mt-2 text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded">
+              Value: {currentCandidate.value_proposition}
+            </div>
+          )}
         </div>
 
         {/* Form */}
@@ -201,19 +248,27 @@ export default function TaskCandidateReviewModal({
             />
           </div>
 
-          {/* Description / Source Text */}
+          {/* Description / Context */}
           <div>
             <label className="block text-sm font-medium text-secondary mb-1">
-              Description / Context
+              Description
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Additional details..."
-              rows={4}
+              placeholder="Additional details and context..."
+              rows={5}
               className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none text-sm"
             />
           </div>
+
+          {/* Source text quote (read-only reference) */}
+          {currentCandidate.source_text && currentCandidate.source_text !== description && (
+            <div className="text-xs text-muted bg-page p-2 rounded border border-default">
+              <span className="font-medium">Source quote:</span>
+              <span className="italic ml-1">&ldquo;{currentCandidate.source_text}&rdquo;</span>
+            </div>
+          )}
 
           {/* Priority & Due Date Row */}
           <div className="grid grid-cols-2 gap-4">
