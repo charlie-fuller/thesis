@@ -96,6 +96,12 @@ interface EditFormState {
   strategic_alignment: number | null
   stakeholder_readiness: number | null
   status: string
+  // Justification fields
+  opportunity_summary: string
+  roi_justification: string
+  effort_justification: string
+  alignment_justification: string
+  readiness_justification: string
 }
 
 interface RelatedDocument {
@@ -238,6 +244,11 @@ export default function OpportunityDetailModal({
     strategic_alignment: null,
     stakeholder_readiness: null,
     status: 'identified',
+    opportunity_summary: '',
+    roi_justification: '',
+    effort_justification: '',
+    alignment_justification: '',
+    readiness_justification: '',
   })
   const [isSaving, setIsSaving] = useState(false)
 
@@ -269,6 +280,12 @@ export default function OpportunityDetailModal({
         strategic_alignment: opportunity.strategic_alignment,
         stakeholder_readiness: opportunity.stakeholder_readiness,
         status: opportunity.status || 'identified',
+        // Justification fields
+        opportunity_summary: opportunity.opportunity_summary || '',
+        roi_justification: opportunity.roi_justification || '',
+        effort_justification: opportunity.effort_justification || '',
+        alignment_justification: opportunity.alignment_justification || '',
+        readiness_justification: opportunity.readiness_justification || '',
       })
     }
   }, [isEditMode, opportunity])
@@ -448,6 +465,12 @@ export default function OpportunityDetailModal({
       if (editForm.implementation_effort !== opportunity.implementation_effort) updateData.implementation_effort = editForm.implementation_effort
       if (editForm.strategic_alignment !== opportunity.strategic_alignment) updateData.strategic_alignment = editForm.strategic_alignment
       if (editForm.stakeholder_readiness !== opportunity.stakeholder_readiness) updateData.stakeholder_readiness = editForm.stakeholder_readiness
+      // Justification fields
+      if (editForm.opportunity_summary !== (opportunity.opportunity_summary || '')) updateData.opportunity_summary = editForm.opportunity_summary || null
+      if (editForm.roi_justification !== (opportunity.roi_justification || '')) updateData.roi_justification = editForm.roi_justification || null
+      if (editForm.effort_justification !== (opportunity.effort_justification || '')) updateData.effort_justification = editForm.effort_justification || null
+      if (editForm.alignment_justification !== (opportunity.alignment_justification || '')) updateData.alignment_justification = editForm.alignment_justification || null
+      if (editForm.readiness_justification !== (opportunity.readiness_justification || '')) updateData.readiness_justification = editForm.readiness_justification || null
 
       // Handle status changes separately (may require project name)
       if (editForm.status !== opportunity.status) {
@@ -620,40 +643,114 @@ export default function OpportunityDetailModal({
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
                 <Target className="w-4 h-4" />
-                Score Justification
+                Score Justification {isEditMode && <span className="text-blue-500 normal-case">(Editing)</span>}
               </h3>
-              <button
-                onClick={handleGenerateJustifications}
-                disabled={generating}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {generating ? (
-                  <>
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    {hasJustifications ? 'Regenerate' : 'Generate'} Analysis
-                  </>
-                )}
-              </button>
+              {!isEditMode && (
+                <button
+                  onClick={handleGenerateJustifications}
+                  disabled={generating}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {generating ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      {hasJustifications ? 'Regenerate' : 'Generate'} Analysis
+                    </>
+                  )}
+                </button>
+              )}
             </div>
-            <ScoreJustification
-              roiPotential={opportunity.roi_potential}
-              implementationEffort={opportunity.implementation_effort}
-              strategicAlignment={opportunity.strategic_alignment}
-              stakeholderReadiness={opportunity.stakeholder_readiness}
-              totalScore={opportunity.total_score}
-              tier={opportunity.tier}
-              opportunityDescription={opportunity.opportunity_summary || undefined}
-              dimensionJustifications={{
-                roi_potential: opportunity.roi_justification || undefined,
-                implementation_effort: opportunity.effort_justification || undefined,
-                strategic_alignment: opportunity.alignment_justification || undefined,
-                stakeholder_readiness: opportunity.readiness_justification || undefined,
-              }}
-            />
+
+            {isEditMode ? (
+              /* Editable Justifications */
+              <div className="space-y-4">
+                {/* Opportunity Summary */}
+                <div>
+                  <label className="text-xs font-medium text-muted uppercase block mb-1">
+                    Opportunity Summary
+                  </label>
+                  <textarea
+                    value={editForm.opportunity_summary}
+                    onChange={(e) => handleEditFormChange('opportunity_summary', e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    placeholder="Summary of the opportunity and its potential business impact..."
+                  />
+                </div>
+
+                {/* Dimension Justifications */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-muted uppercase block mb-1">
+                      ROI Potential Justification (Score: {editForm.roi_potential || '-'})
+                    </label>
+                    <textarea
+                      value={editForm.roi_justification}
+                      onChange={(e) => handleEditFormChange('roi_justification', e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      placeholder="Why this ROI score? What value does this opportunity provide?"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted uppercase block mb-1">
+                      Implementation Effort Justification (Score: {editForm.implementation_effort || '-'})
+                    </label>
+                    <textarea
+                      value={editForm.effort_justification}
+                      onChange={(e) => handleEditFormChange('effort_justification', e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      placeholder="Why this effort score? What resources/time are needed?"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted uppercase block mb-1">
+                      Strategic Alignment Justification (Score: {editForm.strategic_alignment || '-'})
+                    </label>
+                    <textarea
+                      value={editForm.alignment_justification}
+                      onChange={(e) => handleEditFormChange('alignment_justification', e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      placeholder="Why this alignment score? How does it fit business strategy?"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted uppercase block mb-1">
+                      Stakeholder Readiness Justification (Score: {editForm.stakeholder_readiness || '-'})
+                    </label>
+                    <textarea
+                      value={editForm.readiness_justification}
+                      onChange={(e) => handleEditFormChange('readiness_justification', e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      placeholder="Why this readiness score? Are stakeholders prepared for change?"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <ScoreJustification
+                roiPotential={opportunity.roi_potential}
+                implementationEffort={opportunity.implementation_effort}
+                strategicAlignment={opportunity.strategic_alignment}
+                stakeholderReadiness={opportunity.stakeholder_readiness}
+                totalScore={opportunity.total_score}
+                tier={opportunity.tier}
+                opportunityDescription={opportunity.opportunity_summary || undefined}
+                dimensionJustifications={{
+                  roi_potential: opportunity.roi_justification || undefined,
+                  implementation_effort: opportunity.effort_justification || undefined,
+                  strategic_alignment: opportunity.alignment_justification || undefined,
+                  stakeholder_readiness: opportunity.readiness_justification || undefined,
+                }}
+              />
+            )}
           </section>
 
           {/* Scoring Confidence */}
@@ -1176,13 +1273,31 @@ export default function OpportunityDetailModal({
             )}
           </section>
 
-          {/* Taskmaster Section - Only visible when opportunity is a project */}
-          {!isEditMode && opportunity.project_name && (
-            <TaskmasterChatSection
-              opportunityId={opportunity.id}
-              projectName={opportunity.project_name}
-              opportunityTitle={opportunity.title}
-            />
+          {/* Taskmaster Section */}
+          {!isEditMode && (
+            opportunity.project_name ? (
+              <TaskmasterChatSection
+                opportunityId={opportunity.id}
+                projectName={opportunity.project_name}
+                opportunityTitle={opportunity.title}
+              />
+            ) : (
+              /* Prompt to convert to project first */
+              <section className="border border-dashed border-amber-300 dark:border-amber-700 rounded-lg p-4 bg-amber-50/50 dark:bg-amber-900/10">
+                <div className="flex items-start gap-3">
+                  <ListTodo className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                      Break Down Tasks with Taskmaster
+                    </h3>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      Convert this opportunity to a project first to unlock Taskmaster.
+                      Click &quot;Start as Project&quot; above or change the status to Scoping/Pilot to begin.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            )
           )}
         </div>
 
