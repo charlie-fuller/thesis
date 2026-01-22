@@ -350,13 +350,15 @@ async def scan_document(
                 if not opp_title or len(opp_title) < 10:
                     continue
 
-                # Check for duplicate candidate
-                existing_cand = supabase.table('opportunity_candidates') \
-                    .select('id') \
-                    .eq('client_id', client_id) \
-                    .eq('status', 'pending') \
-                    .ilike('title', f'%{opp_title[:50]}%') \
-                    .execute()
+                # Check for duplicate candidate using RPC (avoids PostgREST ilike issues)
+                try:
+                    existing_cand = supabase.rpc('check_duplicate_opportunity_candidate', {
+                        'p_client_id': client_id,
+                        'p_title_prefix': opp_title[:50]
+                    }).execute()
+                except Exception as rpc_err:
+                    logger.warning(f"RPC check_duplicate_opportunity_candidate failed: {rpc_err}")
+                    existing_cand = type('obj', (object,), {'data': []})()
 
                 if existing_cand.data:
                     logger.debug(f"Skipping duplicate opportunity candidate: {opp_title[:50]}")
@@ -408,13 +410,15 @@ async def scan_document(
                 if not task_title or len(task_title) < 5:
                     continue
 
-                # Check for duplicate candidate
-                existing_cand = supabase.table('task_candidates') \
-                    .select('id') \
-                    .eq('client_id', client_id) \
-                    .eq('status', 'pending') \
-                    .ilike('title', f'%{task_title[:50]}%') \
-                    .execute()
+                # Check for duplicate candidate using RPC (avoids PostgREST ilike issues)
+                try:
+                    existing_cand = supabase.rpc('check_duplicate_task_candidate', {
+                        'p_client_id': client_id,
+                        'p_title_prefix': task_title[:50]
+                    }).execute()
+                except Exception as rpc_err:
+                    logger.warning(f"RPC check_duplicate_task_candidate failed: {rpc_err}")
+                    existing_cand = type('obj', (object,), {'data': []})()
 
                 if existing_cand.data:
                     logger.debug(f"Skipping duplicate task candidate: {task_title[:50]}")
@@ -462,20 +466,26 @@ async def scan_document(
                 if not name or len(name) < 2:
                     continue
 
-                # Check for existing stakeholder
-                existing_sh = supabase.table('stakeholders') \
-                    .select('id') \
-                    .eq('client_id', client_id) \
-                    .ilike('name', f'%{name}%') \
-                    .execute()
+                # Check for existing stakeholder using RPC (avoids PostgREST ilike issues)
+                try:
+                    existing_sh = supabase.rpc('check_existing_stakeholder', {
+                        'p_client_id': client_id,
+                        'p_name': name
+                    }).execute()
+                except Exception as rpc_err:
+                    logger.warning(f"RPC check_existing_stakeholder failed: {rpc_err}")
+                    existing_sh = type('obj', (object,), {'data': []})()
 
                 if not existing_sh.data:
-                    # Check for existing candidate
-                    existing_cand = supabase.table('stakeholder_candidates') \
-                        .select('id') \
-                        .eq('client_id', client_id) \
-                        .ilike('name', f'%{name}%') \
-                        .execute()
+                    # Check for existing candidate using RPC
+                    try:
+                        existing_cand = supabase.rpc('check_existing_stakeholder_candidate', {
+                            'p_client_id': client_id,
+                            'p_name': name
+                        }).execute()
+                    except Exception as rpc_err:
+                        logger.warning(f"RPC check_existing_stakeholder_candidate failed: {rpc_err}")
+                        existing_cand = type('obj', (object,), {'data': []})()
 
                     if not existing_cand.data:
                         supabase.table('stakeholder_candidates').insert({
