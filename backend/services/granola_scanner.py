@@ -195,16 +195,24 @@ async def find_matching_task(
 
 async def fetch_document_content(storage_url: str) -> Optional[str]:
     """Fetch document content from Supabase storage."""
+    if not storage_url:
+        logger.warning("No storage URL provided")
+        return None
+
+    logger.info(f"Fetching document from: {storage_url[:100]}...")
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(storage_url, timeout=30.0)
             if response.status_code == 200:
-                return response.text
+                content = response.text
+                logger.info(f"Successfully fetched {len(content)} chars")
+                return content
             else:
-                logger.warning(f"Failed to fetch document: {response.status_code}")
+                logger.warning(f"Failed to fetch document: HTTP {response.status_code} - {response.text[:200]}")
                 return None
     except Exception as e:
-        logger.error(f"Error fetching document content: {e}")
+        logger.error(f"Error fetching document content: {type(e).__name__}: {e}")
         return None
 
 

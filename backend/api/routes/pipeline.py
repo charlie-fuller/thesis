@@ -102,6 +102,7 @@ class GranolaScanResult(BaseModel):
     opportunities_created: int
     tasks_created: int
     stakeholders_created: int
+    failed_details: Optional[List[dict]] = None  # Details of failures
 
 
 # ============================================================================
@@ -471,6 +472,18 @@ async def scan_granola_vault(
         result = await do_scan(user_id, client_id, force_rescan=force_rescan)
 
         stats = result.get('stats', {})
+
+        # Extract failure details for debugging
+        failed_details = None
+        if stats.get('files_failed', 0) > 0:
+            results_list = result.get('results', [])
+            failed_details = [
+                {'file': r.get('file'), 'error': r.get('error')}
+                for r in results_list
+                if r.get('status') == 'failed'
+            ]
+            logger.warning(f"Scan failures: {failed_details}")
+
         return GranolaScanResult(
             status=result.get('status', 'unknown'),
             files_scanned=stats.get('files_scanned', 0),
@@ -479,9 +492,62 @@ async def scan_granola_vault(
             files_failed=stats.get('files_failed', 0),
             opportunities_created=stats.get('opportunities_created', 0),
             tasks_created=stats.get('tasks_created', 0),
-            stakeholders_created=stats.get('stakeholders_created', 0)
+            stakeholders_created=stats.get('stakeholders_created', 0),
+            failed_details=failed_details
         )
 
     except Exception as e:
         logger.error(f"Granola scan failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/granola/debug")
+async def debug_granola_documents(
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Debug endpoint to check Granola documents and their storage URLs.
+    Returns info about documents that would be scanned.
+    """
+    import httpx
+
+    user_id = current_user["id"]
+
+    # Get documents using RPC
+    try:
+        result = supabase.rpc('get_granola_documents_to_scan', {
+            'p_user_id': user_id,
+            'p_force_rescan': True  # Show all, not just unscanned
+        }).execute()
+        documents = result.data or []
+    except Exception as e:
+        return {"error": f"Failed to query documents: {e}", "documents": []}
+
+    # Check each document's storage URL
+    debug_info = []
+    async with httpx.AsyncClient() as client:
+        for doc in documents[:5]:  # Limit to 5 for debug
+            storage_url = doc.get('storage_url')
+            doc_info = {
+                "id": doc.get('id'),
+                "filename": doc.get('filename'),
+                "storage_url": storage_url[:100] if storage_url else None,
+                "storage_url_accessible": False,
+                "error": None
+            }
+
+            if storage_url:
+                try:
+                    resp = await client.head(storage_url, timeout=10.0)
+                    doc_info["storage_url_accessible"] = resp.status_code == 200
+                    doc_info["http_status"] = resp.status_code
+                except Exception as e:
+                    doc_info["error"] = str(e)
+
+            debug_info.append(doc_info)
+
+    return {
+        "total_documents": len(documents),
+        "sample_documents": debug_info
+    }
