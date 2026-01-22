@@ -17,11 +17,13 @@ import {
   ExternalLink,
   LayoutGrid,
   List,
-  Zap
+  Zap,
+  ScatterChart
 } from 'lucide-react'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
 import PageHeader from '@/components/PageHeader'
 import OpportunityDetailModal from '@/components/opportunities/OpportunityDetailModal'
+import OpportunityScatterPlot from '@/components/opportunities/OpportunityScatterPlot'
 
 // ============================================================================
 // TYPES
@@ -319,7 +321,10 @@ export default function OpportunitiesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // View mode
+  // Page tab (Pipeline vs Analysis)
+  const [activeTab, setActiveTab] = useState<'pipeline' | 'analysis'>('pipeline')
+
+  // View mode (within Pipeline tab)
   const [viewMode, setViewMode] = useState<'tier' | 'priority'>('tier')
 
   // Filters
@@ -409,31 +414,6 @@ export default function OpportunitiesPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {/* View toggle */}
-            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('tier')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'tier'
-                    ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
-                    : 'text-muted hover:text-primary'
-                }`}
-              >
-                <LayoutGrid className="w-4 h-4" />
-                Tiers
-              </button>
-              <button
-                onClick={() => setViewMode('priority')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'priority'
-                    ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
-                    : 'text-muted hover:text-primary'
-                }`}
-              >
-                <List className="w-4 h-4" />
-                Priority
-              </button>
-            </div>
             <button
               onClick={() => router.push('/opportunities/new')}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -445,7 +425,7 @@ export default function OpportunitiesPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {([1, 2, 3, 4] as const).map((tier) => {
             const config = TIER_CONFIG[tier]
             const count = data?.summary[`tier_${tier}_count` as keyof typeof data.summary] || 0
@@ -458,88 +438,158 @@ export default function OpportunitiesPage() {
           })}
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-muted" />
-            <span className="text-sm text-muted">Filter:</span>
-          </div>
-          <select
-            value={departmentFilter}
-            onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="px-3 py-1.5 border border-default rounded text-sm bg-card text-primary"
+        {/* Tab Navigation */}
+        <div className="flex border-b border-default mb-6">
+          <button
+            onClick={() => setActiveTab('pipeline')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors relative ${
+              activeTab === 'pipeline'
+                ? 'text-primary'
+                : 'text-muted hover:text-primary'
+            }`}
           >
-            <option value="">All Departments</option>
-            {DEPARTMENTS.map((dept) => (
-              <option key={dept} value={dept}>
-                {dept.charAt(0).toUpperCase() + dept.slice(1)}
-              </option>
-            ))}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 border border-default rounded text-sm bg-card text-primary"
+            <LayoutGrid className="w-4 h-4" />
+            Pipeline
+            {activeTab === 'pipeline' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('analysis')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors relative ${
+              activeTab === 'analysis'
+                ? 'text-primary'
+                : 'text-muted hover:text-primary'
+            }`}
           >
-            <option value="">All Statuses</option>
-            {Object.entries(STATUS_CONFIG).map(([status, config]) => (
-              <option key={status} value={status}>
-                {config.label}
-              </option>
-            ))}
-          </select>
-          {(departmentFilter || statusFilter) && (
-            <button
-              onClick={() => {
-                setDepartmentFilter('')
-                setStatusFilter('')
-              }}
-              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-            >
-              Clear filters
-            </button>
-          )}
+            <ScatterChart className="w-4 h-4" />
+            Analysis
+            {activeTab === 'analysis' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
+            )}
+          </button>
         </div>
 
-        {/* Tier Sections or Priority View */}
-        {viewMode === 'tier' ? (
-          <div className="space-y-6">
-            {data && (
-              <>
-                <TierSection
-                  tier={1}
-                  opportunities={data.tier_1}
+        {/* Pipeline Tab Content */}
+        {activeTab === 'pipeline' && (
+          <>
+            {/* Filters */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-muted" />
+                <span className="text-sm text-muted">Filter:</span>
+              </div>
+              <select
+                value={departmentFilter}
+                onChange={(e) => setDepartmentFilter(e.target.value)}
+                className="px-3 py-1.5 border border-default rounded text-sm bg-card text-primary"
+              >
+                <option value="">All Departments</option>
+                {DEPARTMENTS.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept.charAt(0).toUpperCase() + dept.slice(1)}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-1.5 border border-default rounded text-sm bg-card text-primary"
+              >
+                <option value="">All Statuses</option>
+                {Object.entries(STATUS_CONFIG).map(([status, config]) => (
+                  <option key={status} value={status}>
+                    {config.label}
+                  </option>
+                ))}
+              </select>
+              {(departmentFilter || statusFilter) && (
+                <button
+                  onClick={() => {
+                    setDepartmentFilter('')
+                    setStatusFilter('')
+                  }}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                >
+                  Clear filters
+                </button>
+              )}
+              {/* View toggle */}
+              <div className="ml-auto flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('tier')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === 'tier'
+                      ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
+                      : 'text-muted hover:text-primary'
+                  }`}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                  Tiers
+                </button>
+                <button
+                  onClick={() => setViewMode('priority')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === 'priority'
+                      ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
+                      : 'text-muted hover:text-primary'
+                  }`}
+                >
+                  <List className="w-4 h-4" />
+                  Priority
+                </button>
+              </div>
+            </div>
+
+            {/* Tier Sections or Priority View */}
+            {viewMode === 'tier' ? (
+              <div className="space-y-6">
+                {data && (
+                  <>
+                    <TierSection
+                      tier={1}
+                      opportunities={data.tier_1}
+                      onOpportunityClick={handleOpportunityClick}
+                    />
+                    <TierSection
+                      tier={2}
+                      opportunities={data.tier_2}
+                      onOpportunityClick={handleOpportunityClick}
+                    />
+                    <TierSection
+                      tier={3}
+                      opportunities={data.tier_3}
+                      onOpportunityClick={handleOpportunityClick}
+                    />
+                    <TierSection
+                      tier={4}
+                      opportunities={data.tier_4}
+                      onOpportunityClick={handleOpportunityClick}
+                    />
+                  </>
+                )}
+              </div>
+            ) : (
+              data && (
+                <PriorityListView
+                  opportunities={[...data.tier_1, ...data.tier_2, ...data.tier_3, ...data.tier_4]}
                   onOpportunityClick={handleOpportunityClick}
                 />
-                <TierSection
-                  tier={2}
-                  opportunities={data.tier_2}
-                  onOpportunityClick={handleOpportunityClick}
-                />
-                <TierSection
-                  tier={3}
-                  opportunities={data.tier_3}
-                  onOpportunityClick={handleOpportunityClick}
-                />
-                <TierSection
-                  tier={4}
-                  opportunities={data.tier_4}
-                  onOpportunityClick={handleOpportunityClick}
-                />
-              </>
+              )
             )}
-          </div>
-        ) : (
-          data && (
-            <PriorityListView
-              opportunities={[...data.tier_1, ...data.tier_2, ...data.tier_3, ...data.tier_4]}
-              onOpportunityClick={handleOpportunityClick}
-            />
-          )
+          </>
+        )}
+
+        {/* Analysis Tab Content */}
+        {activeTab === 'analysis' && data && (
+          <OpportunityScatterPlot
+            opportunities={[...data.tier_1, ...data.tier_2, ...data.tier_3, ...data.tier_4]}
+            onOpportunityClick={handleOpportunityClick}
+          />
         )}
 
         {/* Empty State */}
-        {data && data.summary.total === 0 && (
+        {data && data.summary.total === 0 && activeTab === 'pipeline' && (
           <div className="text-center py-12">
             <Target className="w-12 h-12 text-muted mx-auto mb-4" />
             <h3 className="text-lg font-medium text-primary mb-2">No opportunities yet</h3>
