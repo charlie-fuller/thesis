@@ -617,25 +617,15 @@ def get_scan_status(user_id: str) -> Dict[str, Any]:
     Returns counts of scanned vs unscanned Granola meeting documents.
     """
     try:
-        # Count total Granola meeting documents
-        # Use obsidian_file_path which contains original vault folder structure
-        total_result = supabase.table('documents') \
-            .select('id', count='exact') \
-            .eq('user_id', user_id) \
-            .ilike('obsidian_file_path', '%Granola%Meeting-summaries%') \
-            .execute()
+        # Use RPC function to get counts (avoids PostgREST ilike issues)
+        result = supabase.rpc('get_granola_scan_status', {'p_user_id': user_id}).execute()
 
-        total_files = total_result.count or 0
-
-        # Count scanned documents
-        scanned_result = supabase.table('documents') \
-            .select('id', count='exact') \
-            .eq('user_id', user_id) \
-            .ilike('obsidian_file_path', '%Granola%Meeting-summaries%') \
-            .not_.is_('granola_scanned_at', 'null') \
-            .execute()
-
-        scanned_count = scanned_result.count or 0
+        if result.data and len(result.data) > 0:
+            total_files = result.data[0].get('total_files', 0) or 0
+            scanned_count = result.data[0].get('scanned_files', 0) or 0
+        else:
+            total_files = 0
+            scanned_count = 0
 
         return {
             'connected': total_files > 0,
