@@ -802,7 +802,18 @@ async def get_upload_health(
         }
     except Exception as e:
         logger.error(f"❌ Upload health error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return empty data instead of crashing on connection errors
+        return {
+            'success': False,
+            'error': 'Database temporarily unavailable',
+            'periods': {
+                '24h': {'total': 0, 'completed': 0, 'failed': 0, 'pending': 0, 'processing': 0, 'success_rate': 0, 'failed_by_type': {}},
+                '7d': {'total': 0, 'completed': 0, 'failed': 0, 'success_rate': 0, 'failed_by_type': {}},
+                '30d': {'total': 0, 'completed': 0, 'failed': 0, 'success_rate': 0}
+            },
+            'stuck_documents': [],
+            'recent_failures': []
+        }
 
 
 @router.post("/analytics/upload-health/clear-issues")
@@ -1011,7 +1022,28 @@ async def get_interface_health(
         }
     except Exception as e:
         logger.error(f"❌ Interface health error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return empty data instead of crashing on connection errors
+        return {
+            'success': False,
+            'error': 'Database temporarily unavailable',
+            'response_metrics': {
+                'avg_word_count': 0,
+                'total_responses': 0,
+                'target': 500,
+                'status': 'unknown'
+            },
+            'activity_metrics': {
+                'conversations_7d': 0,
+                'active_users_7d': 0
+            },
+            'workflow_metrics': {
+                'avg_turns_to_useable': 0,
+                'conversations_tracked': 0,
+                'stuck_conversations': 0,
+                'stuck_status': 'unknown'
+            },
+            'period': '7d'
+        }
 
 
 @router.get("/help-documents/{document_id}")
