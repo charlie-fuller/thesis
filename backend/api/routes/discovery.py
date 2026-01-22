@@ -240,14 +240,39 @@ async def get_all_pending_candidates(
         for s in stakeholders_result.data
     ]
 
+    # Get actual counts (not limited)
+    tasks_count_result = supabase.table("task_candidates") \
+        .select("id", count="exact") \
+        .eq("client_id", client_id) \
+        .eq("status", "pending") \
+        .gte("created_at", cutoff_date) \
+        .execute()
+    tasks_count = tasks_count_result.count or 0
+
+    opps_count_result = supabase.table("opportunity_candidates") \
+        .select("id", count="exact") \
+        .eq("client_id", client_id) \
+        .eq("status", "pending") \
+        .gte("created_at", cutoff_date) \
+        .execute()
+    opps_count = opps_count_result.count or 0
+
+    stakeholders_count_result = supabase.table("stakeholder_candidates") \
+        .select("id", count="exact") \
+        .eq("client_id", client_id) \
+        .eq("status", "pending") \
+        .gte("created_at", cutoff_date) \
+        .execute()
+    stakeholders_count = stakeholders_count_result.count or 0
+
     return {
         "tasks": tasks,
         "opportunities": opportunities,
         "stakeholders": stakeholders,
         "counts": {
-            "tasks": len(tasks),
-            "opportunities": len(opportunities),
-            "stakeholders": len(stakeholders),
-            "total": len(tasks) + len(opportunities) + len(stakeholders)
+            "tasks": tasks_count,
+            "opportunities": opps_count,
+            "stakeholders": stakeholders_count,
+            "total": tasks_count + opps_count + stakeholders_count
         }
     }
