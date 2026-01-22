@@ -895,6 +895,11 @@ def sync_file(
         # Encode content for storage
         file_content = processed_content.encode('utf-8')
 
+        # Validate content is not empty before proceeding
+        if len(file_content) == 0:
+            logger.warning(f"      Skipping empty file: {relative_path}")
+            return {'status': 'skipped', 'reason': 'empty_content'}
+
         # Check if we're updating or creating
         document_id = existing_state.get('document_id') if existing_state else None
 
@@ -911,18 +916,40 @@ def sync_file(
             )
             action = 'updated'
         else:
-            # Create new document
-            logger.debug(f"      Creating new document")
-            document_id = _create_obsidian_document(
-                config=config,
-                file_content=file_content,
-                filename=file_path.name,
-                title=title,
-                relative_path=relative_path,
-                frontmatter=frontmatter,
-                original_date=original_date_value
-            )
-            action = 'added'
+            # Check for existing document with same path (deduplication)
+            # This prevents duplicates if sync state was lost/corrupted
+            existing_doc = supabase.table('documents') \
+                .select('id') \
+                .eq('user_id', config['user_id']) \
+                .eq('obsidian_file_path', relative_path) \
+                .execute()
+
+            if existing_doc.data:
+                # Document exists, update instead of create
+                document_id = existing_doc.data[0]['id']
+                logger.info(f"      Found existing document (dedup): {document_id}")
+                updated = _update_obsidian_document(
+                    document_id=document_id,
+                    file_content=file_content,
+                    title=title,
+                    relative_path=relative_path,
+                    frontmatter=frontmatter,
+                    original_date=original_date_value
+                )
+                action = 'updated'
+            else:
+                # Create new document
+                logger.debug(f"      Creating new document")
+                document_id = _create_obsidian_document(
+                    config=config,
+                    file_content=file_content,
+                    filename=file_path.name,
+                    title=title,
+                    relative_path=relative_path,
+                    frontmatter=frontmatter,
+                    original_date=original_date_value
+                )
+                action = 'added'
 
         # Update sync state
         update_sync_state(
@@ -972,7 +999,14 @@ def _create_obsidian_document(
 
     Returns:
         UUID of created document
+
+    Raises:
+        ObsidianSyncError: If content is empty or upload fails
     """
+    # Validate content is not empty
+    if not file_content or len(file_content) == 0:
+        raise ObsidianSyncError(f"Cannot upload empty file: {filename}")
+
     user_id = config['user_id']
     client_id = config['client_id']
     vault_path = config['vault_path']
@@ -985,12 +1019,22 @@ def _create_obsidian_document(
         safe_filename = 'document.md'
     storage_path = f"obsidian/{client_id}/{unique_id}_{safe_filename}"
 
-    # Upload to Supabase storage
-    supabase.storage.from_('documents').upload(
-        path=storage_path,
-        file=file_content,
-        file_options={"content-type": "text/markdown"}
-    )
+    # Upload to Supabase storage with error handling
+    logger.info(f"Uploading {len(file_content)} bytes to storage: {storage_path}")
+    try:
+        upload_result = supabase.storage.from_('documents').upload(
+            path=storage_path,
+            file=file_content,
+            file_options={"content-type": "text/markdown"}
+        )
+        # Check for upload errors (Supabase returns error in response, not exception)
+        if hasattr(upload_result, 'error') and upload_result.error:
+            raise ObsidianSyncError(f"Storage upload failed: {upload_result.error}")
+        logger.info(f"Upload successful: {storage_path}")
+    except ObsidianSyncError:
+        raise
+    except Exception as e:
+        raise ObsidianSyncError(f"Storage upload failed for {filename}: {e}")
 
     storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
 
@@ -1055,10 +1099,17 @@ def _update_obsidian_document(
 
     Returns:
         Updated document record
+
+    Raises:
+        ObsidianSyncError: If content is empty or upload fails
     """
+    # Validate content is not empty
+    if not file_content or len(file_content) == 0:
+        raise ObsidianSyncError(f"Cannot update with empty content: {document_id}")
+
     # Get existing document
     doc_result = supabase.table('documents') \
-        .select('storage_url') \
+        .select('storage_url, filename') \
         .eq('id', document_id) \
         .execute()
 
@@ -1066,14 +1117,25 @@ def _update_obsidian_document(
         raise ObsidianSyncError(f"Document not found: {document_id}")
 
     storage_url = doc_result.data[0]['storage_url']
+    filename = doc_result.data[0].get('filename', document_id)
     storage_path = storage_url.split('/documents/')[-1]
 
-    # Update file in storage
-    supabase.storage.from_('documents').update(
-        path=storage_path,
-        file=file_content,
-        file_options={"upsert": "true"}
-    )
+    # Update file in storage with error handling
+    logger.info(f"Updating {len(file_content)} bytes in storage: {storage_path}")
+    try:
+        update_result = supabase.storage.from_('documents').update(
+            path=storage_path,
+            file=file_content,
+            file_options={"upsert": "true"}
+        )
+        # Check for update errors
+        if hasattr(update_result, 'error') and update_result.error:
+            raise ObsidianSyncError(f"Storage update failed: {update_result.error}")
+        logger.info(f"Update successful: {storage_path}")
+    except ObsidianSyncError:
+        raise
+    except Exception as e:
+        raise ObsidianSyncError(f"Storage update failed for {filename}: {e}")
 
     # Delete old embeddings
     supabase.table('document_chunks') \

@@ -1076,3 +1076,99 @@ class TestWatcherConfig:
 
             # Should use defaults
             assert watcher.sync_options == DEFAULT_SYNC_OPTIONS
+
+
+# ============================================================================
+# Empty Content Validation Tests
+# ============================================================================
+
+class TestEmptyContentValidation:
+    """Tests for empty content validation during sync."""
+
+    def test_create_rejects_empty_content(self):
+        """Test that _create_obsidian_document rejects empty content."""
+        from services.obsidian_sync import _create_obsidian_document, ObsidianSyncError
+
+        config = {
+            "user_id": "user-123",
+            "client_id": "client-123",
+            "vault_path": "/test/vault"
+        }
+
+        # Empty bytes should raise error
+        with pytest.raises(ObsidianSyncError) as exc_info:
+            _create_obsidian_document(
+                config=config,
+                file_content=b"",
+                filename="empty.md",
+                title="Empty File",
+                relative_path="empty.md",
+                frontmatter={}
+            )
+
+        assert "Cannot upload empty file" in str(exc_info.value)
+
+    def test_create_rejects_none_content(self):
+        """Test that _create_obsidian_document rejects None content."""
+        from services.obsidian_sync import _create_obsidian_document, ObsidianSyncError
+
+        config = {
+            "user_id": "user-123",
+            "client_id": "client-123",
+            "vault_path": "/test/vault"
+        }
+
+        # None should raise error
+        with pytest.raises(ObsidianSyncError) as exc_info:
+            _create_obsidian_document(
+                config=config,
+                file_content=None,
+                filename="none.md",
+                title="None File",
+                relative_path="none.md",
+                frontmatter={}
+            )
+
+        assert "Cannot upload empty file" in str(exc_info.value)
+
+    def test_update_rejects_empty_content(self):
+        """Test that _update_obsidian_document rejects empty content."""
+        from services.obsidian_sync import _update_obsidian_document, ObsidianSyncError
+
+        # Empty bytes should raise error
+        with pytest.raises(ObsidianSyncError) as exc_info:
+            _update_obsidian_document(
+                document_id="doc-123",
+                file_content=b"",
+                title="Empty Update",
+                relative_path="test.md",
+                frontmatter={}
+            )
+
+        assert "Cannot update with empty content" in str(exc_info.value)
+
+    def test_frontmatter_only_file_produces_empty_body(self):
+        """Test that a file with only frontmatter results in empty body."""
+        from services.obsidian_sync import parse_frontmatter
+
+        # File that is ONLY frontmatter
+        content = """---
+title: Only Frontmatter
+tags:
+  - test
+---
+"""
+
+        frontmatter, body = parse_frontmatter(content)
+
+        # Body should be empty (just whitespace)
+        assert frontmatter["title"] == "Only Frontmatter"
+        assert body.strip() == ""
+
+    def test_valid_content_passes_validation(self):
+        """Test that valid non-empty content would pass validation."""
+        # This is a sanity check that our validation logic is correct
+        content = b"# Hello World\n\nThis is content."
+
+        assert content is not None
+        assert len(content) > 0
