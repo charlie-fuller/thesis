@@ -210,6 +210,21 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - Modal triggered when opportunity status changes to scoping or pilot
     - Project name required, description optional
     - Enables task linking to parent projects
+22. **Granola Vault Scanner**: Extracts structured data from synced Granola meeting notes
+    - **Dashboard Panel**: Shows scan status on System Health tab (total/scanned/new counts)
+    - **What it extracts** (all as candidates for review):
+      - AI opportunities with scores (ROI, effort, strategic alignment, readiness)
+      - Tasks with assignees and due dates
+      - Stakeholders with roles, sentiment, concerns, and interests
+    - **Deduplication logic**:
+      - Opportunities: Fuzzy title match (>85%) + vector similarity search; matches flagged with "Link to existing" option
+      - Tasks: Fuzzy title match (>85%); similar tasks skipped entirely
+      - Stakeholders: Name match against existing; duplicates skipped
+    - **Scan tracking**: Each document stamped with `granola_scanned_at` after processing
+      - Future scans only process documents where `granola_scanned_at IS NULL`
+      - `force_rescan=true` parameter available to re-process all documents
+    - **Source detection**: Finds documents via `obsidian_file_path ILIKE '%Granola%Meeting-summaries%'`
+    - **Backend**: `services/granola_scanner.py`, RPC function `get_granola_scan_status()`
 
 ## Tech Stack
 
