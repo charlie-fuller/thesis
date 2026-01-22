@@ -3,9 +3,12 @@ Discovery API Routes
 
 Unified endpoints for the Discovery Inbox feature.
 Provides counts and data across all candidate types (tasks, opportunities, stakeholders).
+
+Note: Only shows candidates from the last 3 weeks to avoid stale items.
 """
 
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -13,6 +16,9 @@ from pydantic import BaseModel
 
 from auth import get_current_user
 from database import get_supabase
+
+# Only show candidates from the last N weeks
+DISCOVERY_MAX_AGE_WEEKS = 3
 
 logger = logging.getLogger(__name__)
 
@@ -100,11 +106,15 @@ async def get_discovery_counts(
     """
     client_id = current_user["client_id"]
 
+    # Only show candidates from the last N weeks
+    cutoff_date = (datetime.now(timezone.utc) - timedelta(weeks=DISCOVERY_MAX_AGE_WEEKS)).isoformat()
+
     # Get task candidates count
     tasks_result = supabase.table("task_candidates") \
         .select("id", count="exact") \
         .eq("client_id", client_id) \
         .eq("status", "pending") \
+        .gte("created_at", cutoff_date) \
         .execute()
     tasks_count = tasks_result.count or 0
 
@@ -113,6 +123,7 @@ async def get_discovery_counts(
         .select("id", count="exact") \
         .eq("client_id", client_id) \
         .eq("status", "pending") \
+        .gte("created_at", cutoff_date) \
         .execute()
     opps_count = opps_result.count or 0
 
@@ -121,6 +132,7 @@ async def get_discovery_counts(
         .select("id", count="exact") \
         .eq("client_id", client_id) \
         .eq("status", "pending") \
+        .gte("created_at", cutoff_date) \
         .execute()
     stakeholders_count = stakeholders_result.count or 0
 
@@ -146,11 +158,15 @@ async def get_all_pending_candidates(
     """
     client_id = current_user["client_id"]
 
+    # Only show candidates from the last N weeks
+    cutoff_date = (datetime.now(timezone.utc) - timedelta(weeks=DISCOVERY_MAX_AGE_WEEKS)).isoformat()
+
     # Get pending task candidates
     tasks_result = supabase.table("task_candidates") \
         .select("*") \
         .eq("client_id", client_id) \
         .eq("status", "pending") \
+        .gte("created_at", cutoff_date) \
         .order("created_at", desc=True) \
         .limit(limit) \
         .execute()
@@ -175,6 +191,7 @@ async def get_all_pending_candidates(
         .select("*") \
         .eq("client_id", client_id) \
         .eq("status", "pending") \
+        .gte("created_at", cutoff_date) \
         .order("created_at", desc=True) \
         .limit(limit) \
         .execute()
@@ -203,6 +220,7 @@ async def get_all_pending_candidates(
         .select("*") \
         .eq("client_id", client_id) \
         .eq("status", "pending") \
+        .gte("created_at", cutoff_date) \
         .order("created_at", desc=True) \
         .limit(limit) \
         .execute()
