@@ -148,6 +148,15 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
       - Clickable dots open opportunity detail modal
       - Summary cards show count per quadrant
     - Click any opportunity card to open detail modal with:
+      - **Edit Mode**: Click pencil icon to edit scores and details inline
+        - Editable: title, description, department, current/desired state, next step
+        - Score inputs: ROI Potential, Effort, Strategic Alignment, Readiness (1-5)
+        - Status dropdown with all status options
+        - Save/Cancel buttons in footer
+      - **Convert to Project**: "Start as Project" CTA button for identified opportunities
+        - Opens ProjectNameModal to name the project
+        - Changes status to "scoping" and sets project_name
+        - Enables Taskmaster section for task breakdown
       - **Score Justification**: Visual breakdown of 4 dimensions (ROI, Effort, Strategic, Readiness) with explanations of what each score level means
       - **Scoring Confidence**: 0-100% meter showing confidence in scores
         - Rubric-based evaluation of information completeness
@@ -164,6 +173,12 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
         - **Inline Document Viewer**: Click Eye icon to view document content in modal without leaving the page
         - External link icon opens document in Knowledge Base (new tab)
       - **Q&A Chat**: Ask questions about the opportunity and get AI answers with source citations
+      - **Taskmaster Chat**: Break projects into tasks (only visible for projects with project_name)
+        - Chat with Taskmaster agent using project context
+        - Extracts tasks from conversation using `[TASK]...[/TASK]` format
+        - Creates task_candidates linked to the opportunity
+        - Tasks appear in Discovery Inbox for review
+        - Suggested prompts for quick start
     - Create new opportunities with scoring criteria
     - **Confidence Evaluation**: `POST /api/opportunities/evaluate-confidence` to batch-evaluate all opportunities
 15. **Meeting Prep**: Stakeholder briefing pages (`/meeting-prep/[stakeholder_id]`)
@@ -180,7 +195,10 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - Parses YAML frontmatter (including `thesis-agents` for auto-tagging)
     - Converts `[[wikilinks]]` to standard markdown links
     - Incremental sync via content hash change detection
+    - **Empty content validation**: Rejects files with 0 bytes after frontmatter parsing
+    - **Deduplication**: Checks `obsidian_file_path` before creating to prevent duplicates
     - CLI watcher: `python -m scripts.obsidian_watcher --user-id <uuid>`
+    - Full resync: `POST /api/obsidian/sync/full` clears sync state and re-syncs all files
 18. **Career Status Reports (Compass)**: AI-powered career performance assessment
     - 5-dimension rubric: Strategic Impact (25%), Execution Quality (25%), Relationship Building (20%), Growth Mindset (15%), Leadership Presence (15%)
     - Level descriptors (1-5 scale) with clear criteria for each dimension
@@ -589,6 +607,7 @@ uv run pytest tests/ -v --tb=short
 - `/backend/services/opportunity_justification.py` - AI-generated justifications using Claude Haiku
 - `/backend/services/opportunity_confidence.py` - Scoring confidence rubric evaluation (0-100% based on completeness)
 - `/backend/services/opportunity_kb_sync.py` - KB change detection and opportunity re-evaluation
+- `/backend/services/opportunity_taskmaster.py` - Taskmaster chat for breaking opportunities/projects into tasks
 - `/backend/scripts/generate_all_justifications.py` - Batch generation script for existing opportunities
 - `/backend/api/routes/meeting_prep.py` - Stakeholder briefing endpoints
 - `/backend/api/routes/stakeholder_metrics.py` - KPI tracking with validation status
@@ -606,10 +625,11 @@ uv run pytest tests/ -v --tb=short
 - `/frontend/app/meeting-room/` - Meeting room pages
 - `/frontend/app/tasks/` - Kanban task management
 - `/frontend/app/opportunities/` - AI opportunity pipeline
-- `/frontend/components/opportunities/OpportunityDetailModal.tsx` - Full detail modal with score justification, confidence meter, related docs, Q&A
+- `/frontend/components/opportunities/OpportunityDetailModal.tsx` - Full detail modal with score justification, confidence meter, related docs, Q&A, edit mode, and Taskmaster chat
 - `/frontend/components/opportunities/OpportunityScatterPlot.tsx` - ROI vs Effort scatter plot with quadrant analysis
 - `/frontend/components/opportunities/DocumentViewerModal.tsx` - Inline document viewer modal with markdown rendering
 - `/frontend/components/opportunities/ScoreJustification.tsx` - Visual score breakdown component
+- `/frontend/components/opportunities/TaskmasterChatSection.tsx` - Taskmaster chat for breaking projects into tasks
 - `/frontend/app/meeting-prep/` - Stakeholder briefing pages
 - `/frontend/app/intelligence/` - Analytics and engagement trends
 - `/frontend/app/admin/agents/` - Agent admin interface
@@ -707,3 +727,26 @@ Lucide icons don't support the `title` attribute directly. Wrap in a `<span>` fo
   <Check className="w-4 h-4" />
 </span>
 ```
+
+### Granola Scanner Debugging
+The Granola scanner (`/api/pipeline/granola/scan`) extracts opportunities, tasks, and stakeholders from meeting documents. If scans fail:
+
+1. **Debug endpoint**: `GET /api/pipeline/granola/debug` - checks document storage URLs
+2. **Empty content**: Documents may have been synced with 0 bytes. Check with:
+   ```sql
+   SELECT id, filename, storage_url FROM documents
+   WHERE obsidian_file_path ILIKE '%Granola/Meeting-summaries%'
+     AND granola_scanned_at IS NULL;
+   ```
+3. **Verify storage URL is accessible**: `curl -I "<storage_url>"` should return `content-length: > 0`
+4. **Fix empty documents**: Delete and re-sync via `POST /api/obsidian/sync/full`
+
+### Required RPC Functions
+The Granola scanner uses RPC functions to avoid PostgREST `ilike` issues (Cloudflare Error 1101). Ensure these exist in Supabase:
+
+- `get_granola_documents_to_scan(p_user_id, p_force_rescan)` - Returns unscanned Granola documents
+- `get_granola_scan_status(p_user_id)` - Returns scan counts
+- `check_duplicate_opportunity_candidate(p_client_id, p_title_prefix)` - Deduplication check
+- `check_duplicate_task_candidate(p_client_id, p_title_prefix)` - Deduplication check
+- `check_existing_stakeholder_candidate(p_client_id, p_name)` - Deduplication check
+- `check_existing_stakeholder(p_client_id, p_name)` - Deduplication check
