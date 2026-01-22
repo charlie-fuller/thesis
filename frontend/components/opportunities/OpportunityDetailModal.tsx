@@ -25,6 +25,8 @@ import {
   Target,
   AlertCircle,
   Eye,
+  HelpCircle,
+  Gauge,
 } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 import ScoreJustification from './ScoreJustification'
@@ -63,6 +65,9 @@ interface Opportunity {
   effort_justification?: string | null
   alignment_justification?: string | null
   readiness_justification?: string | null
+  // Scoring confidence fields
+  scoring_confidence?: number | null  // 0-100 percentage
+  confidence_questions?: string[]  // Questions that would raise confidence
 }
 
 interface RelatedDocument {
@@ -433,6 +438,75 @@ export default function OpportunityDetailModal({
               }}
             />
           </section>
+
+          {/* Scoring Confidence */}
+          {(opportunity.scoring_confidence !== null && opportunity.scoring_confidence !== undefined) && (
+            <section>
+              <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4 flex items-center gap-2">
+                <Gauge className="w-4 h-4" />
+                Scoring Confidence
+              </h3>
+              <div className="bg-card border border-default rounded-lg p-4 space-y-4">
+                {/* Confidence Meter */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-secondary">Confidence Level</span>
+                    <span className={`text-lg font-bold ${
+                      opportunity.scoring_confidence >= 80 ? 'text-green-600 dark:text-green-400' :
+                      opportunity.scoring_confidence >= 60 ? 'text-blue-600 dark:text-blue-400' :
+                      opportunity.scoring_confidence >= 40 ? 'text-amber-600 dark:text-amber-400' :
+                      'text-red-600 dark:text-red-400'
+                    }`}>
+                      {opportunity.scoring_confidence}%
+                    </span>
+                  </div>
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        opportunity.scoring_confidence >= 80 ? 'bg-green-500' :
+                        opportunity.scoring_confidence >= 60 ? 'bg-blue-500' :
+                        opportunity.scoring_confidence >= 40 ? 'bg-amber-500' :
+                        'bg-red-500'
+                      }`}
+                      style={{ width: `${opportunity.scoring_confidence}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted mt-1">
+                    {opportunity.scoring_confidence >= 80 ? 'High confidence - scores are well-supported' :
+                     opportunity.scoring_confidence >= 60 ? 'Moderate confidence - some assumptions made' :
+                     opportunity.scoring_confidence >= 40 ? 'Low confidence - significant unknowns' :
+                     'Very low confidence - mostly speculative'}
+                  </p>
+                </div>
+
+                {/* Questions to Raise Confidence */}
+                {opportunity.confidence_questions && opportunity.confidence_questions.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-medium text-muted uppercase mb-2 flex items-center gap-1">
+                      <HelpCircle className="w-3 h-3" />
+                      Questions to Raise Confidence
+                    </h4>
+                    <ul className="space-y-2">
+                      {opportunity.confidence_questions.map((question, i) => (
+                        <li
+                          key={i}
+                          className="flex items-start gap-2 text-sm text-secondary bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2"
+                        >
+                          <span className="flex-shrink-0 w-5 h-5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full flex items-center justify-center text-xs font-medium">
+                            {i + 1}
+                          </span>
+                          <span>{question}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-muted mt-2">
+                      Answering these questions would help refine the scoring accuracy.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* Opportunity Details */}
           <section>

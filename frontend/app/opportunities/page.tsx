@@ -52,6 +52,9 @@ interface Opportunity {
   roi_indicators: Record<string, unknown>
   created_at: string
   updated_at: string
+  // Scoring confidence fields
+  scoring_confidence?: number | null
+  confidence_questions?: string[]
 }
 
 interface OpportunitiesByTier {

@@ -53,6 +53,8 @@ class OpportunityCreate(BaseModel):
     roi_indicators: dict = {}
     source_type: Optional[str] = None
     source_notes: Optional[str] = None
+    scoring_confidence: Optional[int] = Field(None, ge=0, le=100, description="Confidence in scoring (0-100)")
+    confidence_questions: List[str] = Field(default=[], description="Questions that would raise confidence")
 
 
 class OpportunityUpdate(BaseModel):
@@ -75,6 +77,8 @@ class OpportunityUpdate(BaseModel):
     roi_indicators: Optional[dict] = None
     source_type: Optional[str] = None
     source_notes: Optional[str] = None
+    scoring_confidence: Optional[int] = Field(None, ge=0, le=100)
+    confidence_questions: Optional[List[str]] = None
 
 
 class OpportunityScoreUpdate(BaseModel):
@@ -120,6 +124,9 @@ class OpportunityResponse(BaseModel):
     effort_justification: Optional[str] = None
     alignment_justification: Optional[str] = None
     readiness_justification: Optional[str] = None
+    # Scoring confidence fields
+    scoring_confidence: Optional[int] = None  # 0-100 percentage
+    confidence_questions: List[str] = []  # Questions that would raise confidence
 
 
 class StakeholderLinkCreate(BaseModel):
@@ -224,6 +231,9 @@ def _format_opportunity(opp: dict, owner_name: Optional[str] = None) -> dict:
         "effort_justification": opp.get("effort_justification"),
         "alignment_justification": opp.get("alignment_justification"),
         "readiness_justification": opp.get("readiness_justification"),
+        # Scoring confidence fields
+        "scoring_confidence": opp.get("scoring_confidence"),
+        "confidence_questions": opp.get("confidence_questions") or [],
     }
 
 
