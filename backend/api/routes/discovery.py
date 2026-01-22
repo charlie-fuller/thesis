@@ -18,7 +18,7 @@ from auth import get_current_user
 from database import get_supabase
 
 # Only show candidates from the last N weeks
-DISCOVERY_MAX_AGE_WEEKS = 3
+DISCOVERY_MAX_AGE_WEEKS = 2
 
 logger = logging.getLogger(__name__)
 
