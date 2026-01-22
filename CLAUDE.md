@@ -139,10 +139,21 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - Department filtering and status progression
     - Operator agent auto-injects triage context for relevant queries
 14. **Opportunities Pipeline**: Dedicated opportunities management (`/opportunities` page)
+    - **Two-tab interface**: Pipeline (tier/priority views) and Analysis (scatter plot)
     - Visual tier-based grouping with expandable sections
     - Status tracking (identified, scoping, pilot, scaling, completed, blocked)
+    - **Analysis Tab**: ROI vs Effort scatter plot visualization
+      - Quadrant view: Quick Wins, Strategic Bets, Low Priority, Questionable
+      - Dots colored by tier (T1=rose, T2=amber, T3=blue, T4=slate)
+      - Clickable dots open opportunity detail modal
+      - Summary cards show count per quadrant
     - Click any opportunity card to open detail modal with:
       - **Score Justification**: Visual breakdown of 4 dimensions (ROI, Effort, Strategic, Readiness) with explanations of what each score level means
+      - **Scoring Confidence**: 0-100% meter showing confidence in scores
+        - Rubric-based evaluation of information completeness
+        - Color-coded: green (80+), blue (60-79), amber (40-59), red (<40)
+        - Lists questions that would raise confidence if answered
+        - Auto-calculated when justifications are generated
       - **AI-Generated Justifications**: Claude generates 3-4 sentence descriptions for:
         - Opportunity summary (what it is and potential business impact)
         - Each scoring dimension (why it received that score)
@@ -154,6 +165,7 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
         - External link icon opens document in Knowledge Base (new tab)
       - **Q&A Chat**: Ask questions about the opportunity and get AI answers with source citations
     - Create new opportunities with scoring criteria
+    - **Confidence Evaluation**: `POST /api/opportunities/evaluate-confidence` to batch-evaluate all opportunities
 15. **Meeting Prep**: Stakeholder briefing pages (`/meeting-prep/[stakeholder_id]`)
     - Pre-meeting context on stakeholder priorities and pain points
     - Recent interaction history and open questions
@@ -376,7 +388,7 @@ task_comments                -- Comments on tasks
 task_history                 -- Status/priority/assignee change history
 
 -- Business Intelligence (Project Triage)
-ai_opportunities             -- Tier-scored AI opportunities with department/owner and AI-generated justifications
+ai_opportunities             -- Tier-scored AI opportunities with department/owner, justifications, and scoring_confidence
 opportunity_conversations    -- Q&A history for opportunity detail modal
 roi_opportunities            -- Identified ROI opportunities
 
@@ -440,6 +452,7 @@ Run migrations in order from `/database/migrations/`:
 | 030 | stakeholder_candidates | Auto-extracted stakeholders pending review, document scan tracking |
 | 033 | opportunity_candidates | Opportunity candidates table with deduplication support |
 | 034 | project_name_and_team | Team field for tasks, project naming for opportunities, linked_opportunity_id |
+| 035 | opportunity_scoring_confidence | scoring_confidence (0-100) and confidence_questions array for opportunities |
 
 ## Environment Variables
 
@@ -559,6 +572,7 @@ uv run pytest tests/ -v --tb=short
 - `/backend/services/opportunity_context.py` - Vector search for opportunity-related KB documents
 - `/backend/services/opportunity_chat.py` - Q&A chat service for opportunity detail modal
 - `/backend/services/opportunity_justification.py` - AI-generated justifications using Claude Haiku
+- `/backend/services/opportunity_confidence.py` - Scoring confidence rubric evaluation (0-100% based on completeness)
 - `/backend/services/opportunity_kb_sync.py` - KB change detection and opportunity re-evaluation
 - `/backend/scripts/generate_all_justifications.py` - Batch generation script for existing opportunities
 - `/backend/api/routes/meeting_prep.py` - Stakeholder briefing endpoints
@@ -577,7 +591,8 @@ uv run pytest tests/ -v --tb=short
 - `/frontend/app/meeting-room/` - Meeting room pages
 - `/frontend/app/tasks/` - Kanban task management
 - `/frontend/app/opportunities/` - AI opportunity pipeline
-- `/frontend/components/opportunities/OpportunityDetailModal.tsx` - Full detail modal with score justification, related docs, Q&A
+- `/frontend/components/opportunities/OpportunityDetailModal.tsx` - Full detail modal with score justification, confidence meter, related docs, Q&A
+- `/frontend/components/opportunities/OpportunityScatterPlot.tsx` - ROI vs Effort scatter plot with quadrant analysis
 - `/frontend/components/opportunities/DocumentViewerModal.tsx` - Inline document viewer modal with markdown rendering
 - `/frontend/components/opportunities/ScoreJustification.tsx` - Visual score breakdown component
 - `/frontend/app/meeting-prep/` - Stakeholder briefing pages
