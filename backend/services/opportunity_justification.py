@@ -5,6 +5,8 @@ Generates AI-powered justifications for opportunity scores using Claude.
 Produces:
 - A 3-4 sentence summary of the opportunity
 - A 3-4 sentence justification for each of the 4 scoring dimensions
+- Confidence score (0-100) based on information completeness
+- Questions that would raise confidence if answered
 """
 
 import logging
@@ -13,6 +15,7 @@ from typing import Optional
 import anthropic
 
 from database import get_supabase
+from services.opportunity_confidence import evaluate_opportunity_confidence
 
 logger = logging.getLogger(__name__)
 
@@ -157,10 +160,29 @@ async def generate_opportunity_justifications(
         response_text = response.content[0].text
         justifications = _parse_generation_response(response_text)
 
-        # Update the opportunity in database
+        # Update the opportunity in database with justifications
         supabase.table("ai_opportunities").update(justifications).eq("id", opportunity_id).execute()
 
-        logger.info(f"Generated justifications for opportunity {opportunity_id}")
+        # Re-fetch the opportunity to get updated data for confidence calculation
+        updated_result = supabase.table("ai_opportunities").select("*").eq("id", opportunity_id).single().execute()
+        updated_opportunity = updated_result.data
+
+        # Calculate and save confidence score
+        confidence, questions = evaluate_opportunity_confidence(updated_opportunity)
+        supabase.table("ai_opportunities").update({
+            "scoring_confidence": confidence,
+            "confidence_questions": questions,
+        }).eq("id", opportunity_id).execute()
+
+        logger.info(
+            f"Generated justifications for opportunity {opportunity_id} "
+            f"(confidence: {confidence}%)"
+        )
+
+        # Include confidence in return value
+        justifications["scoring_confidence"] = confidence
+        justifications["confidence_questions"] = questions
+
         return justifications
 
     except Exception as e:

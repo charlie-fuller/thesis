@@ -1400,3 +1400,78 @@ async def reject_opportunity_candidate(
         .execute()
 
     return {"message": "Candidate rejected"}
+
+
+# ============================================================================
+# CONFIDENCE EVALUATION ENDPOINTS
+# ============================================================================
+
+@router.post("/evaluate-confidence")
+async def evaluate_all_confidence(
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Evaluate confidence scores for all opportunities.
+
+    Uses a rubric based on information completeness:
+    - 80-100%: High confidence - scores well-supported
+    - 60-79%: Moderate confidence - some assumptions
+    - 40-59%: Low confidence - significant unknowns
+    - 0-39%: Very low confidence - mostly speculative
+
+    Returns distribution and average confidence.
+    """
+    from services.opportunity_confidence import evaluate_all_opportunities
+
+    try:
+        result = await evaluate_all_opportunities(current_user["client_id"])
+        return result
+    except Exception as e:
+        logger.error(f"Failed to evaluate confidence: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{opportunity_id}/evaluate-confidence")
+async def evaluate_single_confidence(
+    opportunity_id: str,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Evaluate and update confidence score for a single opportunity.
+    """
+    from services.opportunity_confidence import evaluate_opportunity_confidence
+
+    # Fetch opportunity
+    result = supabase.table("ai_opportunities") \
+        .select("*") \
+        .eq("id", opportunity_id) \
+        .eq("client_id", current_user["client_id"]) \
+        .single() \
+        .execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    opportunity = result.data
+
+    # Evaluate confidence
+    confidence, questions = evaluate_opportunity_confidence(opportunity)
+
+    # Update in database
+    supabase.table("ai_opportunities").update({
+        "scoring_confidence": confidence,
+        "confidence_questions": questions,
+    }).eq("id", opportunity_id).execute()
+
+    return {
+        "opportunity_id": opportunity_id,
+        "scoring_confidence": confidence,
+        "confidence_questions": questions,
+        "level": (
+            "high" if confidence >= 80 else
+            "moderate" if confidence >= 60 else
+            "low" if confidence >= 40 else
+            "very_low"
+        ),
+    }
