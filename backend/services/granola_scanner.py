@@ -519,7 +519,7 @@ async def scan_granola_documents(
     """
     Scan Granola meeting documents from the KB.
 
-    Finds documents with storage paths containing 'Granola/Meeting-summaries'
+    Finds documents with obsidian_file_path containing 'Granola/Meeting-summaries'
     and extracts opportunities, tasks, and stakeholders.
 
     Args:
@@ -533,12 +533,13 @@ async def scan_granola_documents(
     logger.info("Scanning Granola documents from KB")
 
     # Find Granola meeting documents in KB
-    # Look for documents with storage_path containing Granola/Meeting-summaries
+    # Look for documents with obsidian_file_path containing Granola/Meeting-summaries
+    # (storage_path contains Supabase path, obsidian_file_path contains original vault path)
     try:
         query = supabase.table('documents') \
-            .select('id, filename, title, storage_url, storage_path, granola_scanned_at') \
+            .select('id, filename, title, storage_url, obsidian_file_path, granola_scanned_at') \
             .eq('user_id', user_id) \
-            .ilike('storage_path', '%Granola%Meeting-summaries%')
+            .ilike('obsidian_file_path', '%Granola%Meeting-summaries%')
 
         if not force_rescan:
             query = query.is_('granola_scanned_at', 'null')
@@ -617,10 +618,11 @@ def get_scan_status(user_id: str) -> Dict[str, Any]:
     """
     try:
         # Count total Granola meeting documents
+        # Use obsidian_file_path which contains original vault folder structure
         total_result = supabase.table('documents') \
             .select('id', count='exact') \
             .eq('user_id', user_id) \
-            .ilike('storage_path', '%Granola%Meeting-summaries%') \
+            .ilike('obsidian_file_path', '%Granola%Meeting-summaries%') \
             .execute()
 
         total_files = total_result.count or 0
@@ -629,7 +631,7 @@ def get_scan_status(user_id: str) -> Dict[str, Any]:
         scanned_result = supabase.table('documents') \
             .select('id', count='exact') \
             .eq('user_id', user_id) \
-            .ilike('storage_path', '%Granola%Meeting-summaries%') \
+            .ilike('obsidian_file_path', '%Granola%Meeting-summaries%') \
             .not_.is_('granola_scanned_at', 'null') \
             .execute()
 

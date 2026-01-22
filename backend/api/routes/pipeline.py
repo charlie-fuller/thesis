@@ -419,7 +419,7 @@ async def get_granola_status(
         last_doc = supabase.table('documents') \
             .select('granola_scanned_at') \
             .eq('user_id', user_id) \
-            .ilike('storage_path', '%Granola%Meeting-summaries%') \
+            .ilike('obsidian_file_path', '%Granola%Meeting-summaries%') \
             .not_.is_('granola_scanned_at', 'null') \
             .order('granola_scanned_at', desc=True) \
             .limit(1) \
