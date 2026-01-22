@@ -217,7 +217,8 @@ export default function UnifiedDiscoveryPanel() {
       }
 
       await apiPost(endpoint, body);
-      toast.success(`${activeTab.slice(0, -1)} created`);
+      const singular = activeTab === 'opportunities' ? 'Opportunity' : activeTab.slice(0, -1).charAt(0).toUpperCase() + activeTab.slice(0, -1).slice(1);
+      toast.success(`${singular} created`);
 
       // Remove from list and update counts
       const list = getCurrentList();
