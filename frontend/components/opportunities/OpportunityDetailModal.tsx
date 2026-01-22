@@ -560,8 +560,8 @@ export default function OpportunityDetailModal({
         onClick={onClose}
       />
 
-      {/* Modal - Larger size */}
-      <div className="relative bg-card border border-default rounded-xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col mx-4">
+      {/* Modal - Fixed large size */}
+      <div className="relative bg-card border border-default rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col mx-4">
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b border-default">
           <div className="flex-1 min-w-0 pr-4">
