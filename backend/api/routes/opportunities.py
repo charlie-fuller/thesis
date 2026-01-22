@@ -23,6 +23,7 @@ from services.opportunity_justification import (
     generate_all_justifications,
     regenerate_if_scores_changed,
 )
+from services.opportunity_taskmaster import chat_with_taskmaster
 
 logger = logging.getLogger(__name__)
 
@@ -625,6 +626,75 @@ async def ask_question_about_opportunity(
     except Exception as e:
         logger.error(f"Error answering question about opportunity: {e}")
         raise HTTPException(status_code=500, detail="Failed to process question")
+
+
+# ============================================================================
+# TASKMASTER CHAT ENDPOINT
+# ============================================================================
+
+class TaskmasterChatRequest(BaseModel):
+    """Request to chat with Taskmaster about an opportunity/project."""
+    message: str = Field(..., min_length=1, max_length=2000)
+
+
+class TaskmasterChatResponse(BaseModel):
+    """Response from Taskmaster chat."""
+    response: str
+    tasks_created: int
+    task_titles: List[str]
+
+
+@router.post("/{opportunity_id}/taskmaster-chat", response_model=TaskmasterChatResponse)
+async def taskmaster_chat_for_opportunity(
+    opportunity_id: str,
+    request: TaskmasterChatRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Chat with Taskmaster to break down an opportunity/project into tasks.
+
+    Taskmaster will:
+    - Respond with task suggestions based on the project context
+    - Extract concrete tasks from the conversation
+    - Create task_candidates linked to this opportunity
+    - Tasks appear in the Discovery Inbox for review
+
+    Only available for opportunities that have a project_name (i.e., are active projects).
+    """
+    # Verify opportunity exists, belongs to client, and is a project
+    opp = supabase.table("ai_opportunities") \
+        .select("id, project_name") \
+        .eq("id", opportunity_id) \
+        .eq("client_id", current_user["client_id"]) \
+        .single() \
+        .execute()
+
+    if not opp.data:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    if not opp.data.get("project_name"):
+        raise HTTPException(
+            status_code=400,
+            detail="Taskmaster is only available for opportunities that have been converted to projects"
+        )
+
+    try:
+        result = await chat_with_taskmaster(
+            opportunity_id=opportunity_id,
+            message=request.message,
+            client_id=current_user["client_id"],
+            user_id=current_user["id"],
+            supabase=supabase
+        )
+
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error in Taskmaster chat: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process Taskmaster chat")
 
 
 # ============================================================================

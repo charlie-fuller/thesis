@@ -1,0 +1,231 @@
+'use client'
+
+/**
+ * TaskmasterChatSection Component
+ *
+ * Chat interface for Taskmaster agent within an opportunity/project context.
+ * Allows users to discuss breaking down the project into tasks.
+ * Tasks are created as candidates that appear in the Discovery Inbox.
+ */
+
+import { useState, useRef, useEffect } from 'react'
+import {
+  ListTodo,
+  Send,
+  Loader2,
+  ChevronDown,
+  ChevronRight,
+  Inbox,
+  Sparkles,
+} from 'lucide-react'
+import { apiPost } from '@/lib/api'
+
+interface TaskmasterMessage {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+  tasksCreated?: number
+}
+
+interface TaskmasterChatSectionProps {
+  opportunityId: string
+  projectName: string
+  opportunityTitle: string
+}
+
+export default function TaskmasterChatSection({
+  opportunityId,
+  projectName,
+  opportunityTitle,
+}: TaskmasterChatSectionProps) {
+  const [messages, setMessages] = useState<TaskmasterMessage[]>([])
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(true)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const handleSendMessage = async () => {
+    if (!input.trim() || isLoading) return
+
+    const userMessage = input.trim()
+    setInput('')
+
+    // Add user message to chat
+    setMessages(prev => [...prev, {
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date(),
+    }])
+
+    setIsLoading(true)
+
+    try {
+      const response = await apiPost<{
+        response: string
+        tasks_created: number
+        task_titles: string[]
+      }>(`/api/opportunities/${opportunityId}/taskmaster-chat`, {
+        message: userMessage,
+      })
+
+      // Add assistant message to chat
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: response.response,
+        timestamp: new Date(),
+        tasksCreated: response.tasks_created,
+      }])
+    } catch (error) {
+      console.error('Taskmaster chat error:', error)
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Sorry, I encountered an error. Please try again.',
+        timestamp: new Date(),
+      }])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
+
+  const suggestedPrompts = [
+    `What tasks are needed to implement ${projectName}?`,
+    'Break this project into phases with milestones.',
+    'What are the first 3 things I should do?',
+    'Create tasks for stakeholder alignment.',
+  ]
+
+  return (
+    <section className="border border-amber-200 dark:border-amber-800 rounded-lg overflow-hidden">
+      {/* Header - Clickable to expand/collapse */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <ListTodo className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          <h3 className="text-sm font-medium text-amber-800 dark:text-amber-300">
+            Break Down Tasks with Taskmaster
+          </h3>
+        </div>
+        {isExpanded ? (
+          <ChevronDown className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+        ) : (
+          <ChevronRight className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="p-4 bg-card">
+          {/* Info Banner */}
+          <div className="flex items-start gap-2 mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-700 dark:text-blue-300">
+            <Inbox className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">Tasks go to your Discovery Inbox</p>
+              <p className="text-blue-600 dark:text-blue-400 mt-0.5">
+                Taskmaster will extract tasks from your conversation. They&apos;ll appear as candidates
+                in the Dashboard&apos;s Discovery Inbox for you to review and accept.
+              </p>
+            </div>
+          </div>
+
+          {/* Chat Messages */}
+          {messages.length > 0 && (
+            <div className="space-y-3 max-h-80 overflow-y-auto mb-4 p-3 bg-hover/50 rounded-lg">
+              {messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[85%] rounded-lg px-3 py-2 ${
+                      message.role === 'user'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-card border border-default'
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    {message.tasksCreated !== undefined && message.tasksCreated > 0 && (
+                      <div className="mt-2 pt-2 border-t border-amber-200 dark:border-amber-700">
+                        <p className="text-xs flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                          <Sparkles className="w-3 h-3" />
+                          {message.tasksCreated} task{message.tasksCreated !== 1 ? 's' : ''} added to Discovery Inbox
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-card border border-default rounded-lg px-3 py-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+
+          {/* Suggested Prompts - Only show when no messages */}
+          {messages.length === 0 && (
+            <div className="mb-4">
+              <p className="text-xs text-muted mb-2">Suggested prompts:</p>
+              <div className="flex flex-wrap gap-2">
+                {suggestedPrompts.map((prompt, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setInput(prompt)}
+                    className="px-3 py-1.5 text-xs bg-hover hover:bg-amber-50 dark:hover:bg-amber-900/20 border border-default rounded-full text-secondary hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                  >
+                    {prompt.length > 40 ? prompt.substring(0, 40) + '...' : prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Input Area */}
+          <div className="relative">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={`Ask Taskmaster to break down "${projectName}" into tasks...`}
+              className="w-full px-4 py-3 pr-12 border border-default rounded-lg bg-card text-primary placeholder-muted resize-none focus:outline-none focus:ring-2 focus:ring-amber-500"
+              rows={2}
+              disabled={isLoading}
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={!input.trim() || isLoading}
+              className="absolute right-3 bottom-3 p-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+          <p className="text-xs text-muted mt-2">
+            Press Enter to send, Shift+Enter for new line
+          </p>
+        </div>
+      )}
+    </section>
+  )
+}

@@ -486,6 +486,7 @@ Run migrations in order from `/database/migrations/`:
 | 033 | opportunity_candidates | Opportunity candidates table with deduplication support |
 | 034 | project_name_and_team | Team field for tasks, project naming for opportunities, linked_opportunity_id |
 | 035 | opportunity_scoring_confidence | scoring_confidence (0-100) and confidence_questions array for opportunities |
+| 036 | task_candidates_opportunity_link | linked_opportunity_id and source_opportunity_id for task_candidates |
 
 ## Environment Variables
 

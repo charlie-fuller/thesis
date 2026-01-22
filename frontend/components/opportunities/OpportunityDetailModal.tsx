@@ -8,6 +8,9 @@
  * - Full opportunity details (description, current/desired state, etc.)
  * - Related documents from knowledge base (sorted by relevance to scoring)
  * - Q&A chat interface with conversation history
+ * - Taskmaster chat for breaking projects into tasks
+ * - Edit mode for modifying scores and details
+ * - Convert to Project workflow
  */
 
 import { useState, useEffect, useRef } from 'react'
@@ -27,10 +30,17 @@ import {
   Eye,
   HelpCircle,
   Gauge,
+  Pencil,
+  Save,
+  XCircle,
+  Rocket,
+  ListTodo,
 } from 'lucide-react'
-import { apiGet, apiPost } from '@/lib/api'
+import { apiGet, apiPost, apiPatch } from '@/lib/api'
 import ScoreJustification from './ScoreJustification'
 import DocumentViewerModal from './DocumentViewerModal'
+import ProjectNameModal from './ProjectNameModal'
+import TaskmasterChatSection from './TaskmasterChatSection'
 
 // ============================================================================
 // TYPES
@@ -59,6 +69,9 @@ interface Opportunity {
   roi_indicators: Record<string, unknown>
   created_at: string
   updated_at: string
+  // Project fields
+  project_name?: string | null
+  project_description?: string | null
   // Extended justification fields
   opportunity_summary?: string | null
   roi_justification?: string | null
@@ -68,6 +81,21 @@ interface Opportunity {
   // Scoring confidence fields
   scoring_confidence?: number | null  // 0-100 percentage
   confidence_questions?: string[]  // Questions that would raise confidence
+}
+
+// Edit form state type
+interface EditFormState {
+  title: string
+  description: string
+  department: string
+  current_state: string
+  desired_state: string
+  next_step: string
+  roi_potential: number | null
+  implementation_effort: number | null
+  strategic_alignment: number | null
+  stakeholder_readiness: number | null
+  status: string
 }
 
 interface RelatedDocument {
@@ -128,6 +156,29 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   blocked: { label: 'Blocked', color: 'text-red-500' },
 }
 
+const STATUS_OPTIONS = [
+  { value: 'identified', label: 'Identified' },
+  { value: 'scoping', label: 'Scoping' },
+  { value: 'pilot', label: 'Pilot' },
+  { value: 'scaling', label: 'Scaling' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'blocked', label: 'Blocked' },
+]
+
+const DEPARTMENT_OPTIONS = [
+  'Finance',
+  'Legal',
+  'IT',
+  'Operations',
+  'HR',
+  'Marketing',
+  'Sales',
+  'Engineering',
+  'Executive',
+  'General',
+  'Other',
+]
+
 const TIER_CONFIG = {
   1: { color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
   2: { color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
@@ -173,12 +224,54 @@ export default function OpportunityDetailModal({
     document_name: string
   } | null>(null)
 
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editForm, setEditForm] = useState<EditFormState>({
+    title: '',
+    description: '',
+    department: '',
+    current_state: '',
+    desired_state: '',
+    next_step: '',
+    roi_potential: null,
+    implementation_effort: null,
+    strategic_alignment: null,
+    stakeholder_readiness: null,
+    status: 'identified',
+  })
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Project name modal state
+  const [showProjectNameModal, setShowProjectNameModal] = useState(false)
+  const [pendingStatus, setPendingStatus] = useState<'scoping' | 'pilot' | null>(null)
+
   const questionInputRef = useRef<HTMLTextAreaElement>(null)
 
   // Update local opportunity when prop changes
   useEffect(() => {
     setOpportunity(initialOpportunity)
+    // Reset edit mode when opportunity changes
+    setIsEditMode(false)
   }, [initialOpportunity])
+
+  // Initialize edit form when entering edit mode
+  useEffect(() => {
+    if (isEditMode && opportunity) {
+      setEditForm({
+        title: opportunity.title || '',
+        description: opportunity.description || '',
+        department: opportunity.department || '',
+        current_state: opportunity.current_state || '',
+        desired_state: opportunity.desired_state || '',
+        next_step: opportunity.next_step || '',
+        roi_potential: opportunity.roi_potential,
+        implementation_effort: opportunity.implementation_effort,
+        strategic_alignment: opportunity.strategic_alignment,
+        stakeholder_readiness: opportunity.stakeholder_readiness,
+        status: opportunity.status || 'identified',
+      })
+    }
+  }, [isEditMode, opportunity])
 
   // Fetch related documents and stakeholders on open
   useEffect(() => {
@@ -333,6 +426,92 @@ export default function OpportunityDetailModal({
     }
   }
 
+  const handleCancelEdit = () => {
+    setIsEditMode(false)
+  }
+
+  const handleSaveEdit = async () => {
+    if (isSaving) return
+
+    setIsSaving(true)
+    try {
+      // Build update payload - only include changed fields
+      const updateData: Record<string, unknown> = {}
+
+      if (editForm.title !== opportunity.title) updateData.title = editForm.title
+      if (editForm.description !== (opportunity.description || '')) updateData.description = editForm.description || null
+      if (editForm.department !== (opportunity.department || '')) updateData.department = editForm.department || null
+      if (editForm.current_state !== (opportunity.current_state || '')) updateData.current_state = editForm.current_state || null
+      if (editForm.desired_state !== (opportunity.desired_state || '')) updateData.desired_state = editForm.desired_state || null
+      if (editForm.next_step !== (opportunity.next_step || '')) updateData.next_step = editForm.next_step || null
+      if (editForm.roi_potential !== opportunity.roi_potential) updateData.roi_potential = editForm.roi_potential
+      if (editForm.implementation_effort !== opportunity.implementation_effort) updateData.implementation_effort = editForm.implementation_effort
+      if (editForm.strategic_alignment !== opportunity.strategic_alignment) updateData.strategic_alignment = editForm.strategic_alignment
+      if (editForm.stakeholder_readiness !== opportunity.stakeholder_readiness) updateData.stakeholder_readiness = editForm.stakeholder_readiness
+
+      // Handle status changes separately (may require project name)
+      if (editForm.status !== opportunity.status) {
+        const requiresProjectName = ['scoping', 'pilot'].includes(editForm.status)
+        const hasProjectName = !!opportunity.project_name
+
+        if (requiresProjectName && !hasProjectName) {
+          // Show project name modal
+          setPendingStatus(editForm.status as 'scoping' | 'pilot')
+          setShowProjectNameModal(true)
+          setIsSaving(false)
+          return
+        }
+
+        updateData.status = editForm.status
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        setIsEditMode(false)
+        setIsSaving(false)
+        return
+      }
+
+      const updated = await apiPatch<Opportunity>(`/api/opportunities/${opportunity.id}`, updateData)
+      setOpportunity(updated)
+      setIsEditMode(false)
+    } catch (error) {
+      console.error('Failed to save opportunity:', error)
+      alert('Failed to save changes. Please try again.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleProjectNameSubmit = async (projectName: string, projectDescription?: string) => {
+    if (!pendingStatus) return
+
+    try {
+      // Update status with project name
+      const updated = await apiPatch<Opportunity>(`/api/opportunities/${opportunity.id}/status`, {
+        status: pendingStatus,
+        project_name: projectName,
+        project_description: projectDescription,
+      })
+      setOpportunity(updated)
+      setShowProjectNameModal(false)
+      setPendingStatus(null)
+      setIsEditMode(false)
+    } catch (error) {
+      console.error('Failed to update status:', error)
+      alert('Failed to update status. Please try again.')
+    }
+  }
+
+  const handleConvertToProject = () => {
+    // Trigger the project name modal for "Start as Project"
+    setPendingStatus('scoping')
+    setShowProjectNameModal(true)
+  }
+
+  const handleEditFormChange = (field: keyof EditFormState, value: string | number | null) => {
+    setEditForm(prev => ({ ...prev, [field]: value }))
+  }
+
   // Check if justifications exist
   const hasJustifications = !!(
     opportunity.opportunity_summary ||
@@ -367,14 +546,41 @@ export default function OpportunityDetailModal({
               <span className={`px-2 py-0.5 rounded text-xs font-medium ${tierConfig.color}`}>
                 Tier {opportunity.tier}
               </span>
-              <span className={`text-xs font-medium ${statusConfig.color}`}>
-                {statusConfig.label}
-              </span>
+              {isEditMode ? (
+                <select
+                  value={editForm.status}
+                  onChange={(e) => handleEditFormChange('status', e.target.value)}
+                  className="px-2 py-0.5 rounded text-xs font-medium border border-default bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {STATUS_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className={`text-xs font-medium ${statusConfig.color}`}>
+                  {statusConfig.label}
+                </span>
+              )}
+              {opportunity.project_name && (
+                <span className="px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                  Project: {opportunity.project_name}
+                </span>
+              )}
             </div>
-            <h2 className="text-xl font-semibold text-primary truncate">
-              {opportunity.title}
-            </h2>
-            {opportunity.owner_name && (
+            {isEditMode ? (
+              <input
+                type="text"
+                value={editForm.title}
+                onChange={(e) => handleEditFormChange('title', e.target.value)}
+                className="text-xl font-semibold text-primary bg-transparent border-b border-blue-500 focus:outline-none w-full"
+                placeholder="Opportunity title"
+              />
+            ) : (
+              <h2 className="text-xl font-semibold text-primary truncate">
+                {opportunity.title}
+              </h2>
+            )}
+            {opportunity.owner_name && !isEditMode && (
               <p className="text-sm text-muted flex items-center gap-1 mt-1">
                 <User className="w-3 h-3" />
                 {opportunity.owner_name}
@@ -388,12 +594,23 @@ export default function OpportunityDetailModal({
               </p>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-muted hover:text-primary hover:bg-hover rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {!isEditMode && (
+              <button
+                onClick={() => setIsEditMode(true)}
+                className="p-2 text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                title="Edit scores and details"
+              >
+                <Pencil className="w-5 h-5" />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-2 text-muted hover:text-primary hover:bg-hover rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Content - Scrollable */}
@@ -511,45 +728,162 @@ export default function OpportunityDetailModal({
           {/* Opportunity Details */}
           <section>
             <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4">
-              Opportunity Details
+              Opportunity Details {isEditMode && <span className="text-blue-500 normal-case">(Editing)</span>}
             </h3>
             <div className="space-y-4">
-              {opportunity.description && (
+              {/* Department (edit mode only or if has value) */}
+              {(isEditMode || opportunity.department) && (
+                <div>
+                  <h4 className="text-xs font-medium text-muted uppercase mb-1">Department</h4>
+                  {isEditMode ? (
+                    <select
+                      value={editForm.department}
+                      onChange={(e) => handleEditFormChange('department', e.target.value)}
+                      className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select department...</option>
+                      {DEPARTMENT_OPTIONS.map(dept => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="text-sm text-secondary">{opportunity.department}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Description */}
+              {(isEditMode || opportunity.description) && (
                 <div>
                   <h4 className="text-xs font-medium text-muted uppercase mb-1">Description</h4>
-                  <p className="text-sm text-secondary whitespace-pre-wrap">{opportunity.description}</p>
+                  {isEditMode ? (
+                    <textarea
+                      value={editForm.description}
+                      onChange={(e) => handleEditFormChange('description', e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      placeholder="Describe the opportunity..."
+                    />
+                  ) : (
+                    <p className="text-sm text-secondary whitespace-pre-wrap">{opportunity.description}</p>
+                  )}
                 </div>
               )}
 
-              {(opportunity.current_state || opportunity.desired_state) && (
+              {/* Current/Desired State */}
+              {(isEditMode || opportunity.current_state || opportunity.desired_state) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {opportunity.current_state && (
-                    <div className="p-3 bg-red-50 dark:bg-red-900/10 rounded-lg">
-                      <h4 className="text-xs font-medium text-red-600 dark:text-red-400 uppercase mb-1">
-                        Current State
-                      </h4>
+                  <div className={`p-3 ${isEditMode ? 'border border-default' : 'bg-red-50 dark:bg-red-900/10'} rounded-lg`}>
+                    <h4 className={`text-xs font-medium ${isEditMode ? 'text-muted' : 'text-red-600 dark:text-red-400'} uppercase mb-1`}>
+                      Current State
+                    </h4>
+                    {isEditMode ? (
+                      <textarea
+                        value={editForm.current_state}
+                        onChange={(e) => handleEditFormChange('current_state', e.target.value)}
+                        rows={3}
+                        className="w-full px-2 py-1 border border-default rounded bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        placeholder="Describe current state..."
+                      />
+                    ) : (
                       <p className="text-sm text-secondary">{opportunity.current_state}</p>
-                    </div>
-                  )}
-                  {opportunity.desired_state && (
-                    <div className="p-3 bg-green-50 dark:bg-green-900/10 rounded-lg">
-                      <h4 className="text-xs font-medium text-green-600 dark:text-green-400 uppercase mb-1">
-                        Desired State
-                      </h4>
+                    )}
+                  </div>
+                  <div className={`p-3 ${isEditMode ? 'border border-default' : 'bg-green-50 dark:bg-green-900/10'} rounded-lg`}>
+                    <h4 className={`text-xs font-medium ${isEditMode ? 'text-muted' : 'text-green-600 dark:text-green-400'} uppercase mb-1`}>
+                      Desired State
+                    </h4>
+                    {isEditMode ? (
+                      <textarea
+                        value={editForm.desired_state}
+                        onChange={(e) => handleEditFormChange('desired_state', e.target.value)}
+                        rows={3}
+                        className="w-full px-2 py-1 border border-default rounded bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        placeholder="Describe desired state..."
+                      />
+                    ) : (
                       <p className="text-sm text-secondary">{opportunity.desired_state}</p>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
 
-              {opportunity.next_step && (
+              {/* Next Step */}
+              {(isEditMode || opportunity.next_step) && (
                 <div>
                   <h4 className="text-xs font-medium text-muted uppercase mb-1">Next Step</h4>
-                  <p className="text-sm text-secondary">{opportunity.next_step}</p>
+                  {isEditMode ? (
+                    <textarea
+                      value={editForm.next_step}
+                      onChange={(e) => handleEditFormChange('next_step', e.target.value)}
+                      rows={2}
+                      className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      placeholder="What's the next step?"
+                    />
+                  ) : (
+                    <p className="text-sm text-secondary">{opportunity.next_step}</p>
+                  )}
                 </div>
               )}
 
-              {opportunity.blockers.length > 0 && (
+              {/* Scores (Edit Mode) */}
+              {isEditMode && (
+                <div>
+                  <h4 className="text-xs font-medium text-muted uppercase mb-2">Scores (1-5)</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="text-xs text-muted block mb-1">ROI Potential</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="5"
+                        value={editForm.roi_potential || ''}
+                        onChange={(e) => handleEditFormChange('roi_potential', e.target.value ? parseInt(e.target.value) : null)}
+                        className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="-"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted block mb-1">Effort</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="5"
+                        value={editForm.implementation_effort || ''}
+                        onChange={(e) => handleEditFormChange('implementation_effort', e.target.value ? parseInt(e.target.value) : null)}
+                        className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="-"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted block mb-1">Strategic</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="5"
+                        value={editForm.strategic_alignment || ''}
+                        onChange={(e) => handleEditFormChange('strategic_alignment', e.target.value ? parseInt(e.target.value) : null)}
+                        className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="-"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted block mb-1">Readiness</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="5"
+                        value={editForm.stakeholder_readiness || ''}
+                        onChange={(e) => handleEditFormChange('stakeholder_readiness', e.target.value ? parseInt(e.target.value) : null)}
+                        className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="-"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {opportunity.blockers.length > 0 && !isEditMode && (
                 <div>
                   <h4 className="text-xs font-medium text-red-500 uppercase mb-1 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
@@ -563,7 +897,7 @@ export default function OpportunityDetailModal({
                 </div>
               )}
 
-              {Object.keys(opportunity.roi_indicators).length > 0 && (
+              {Object.keys(opportunity.roi_indicators).length > 0 && !isEditMode && (
                 <div>
                   <h4 className="text-xs font-medium text-muted uppercase mb-1">ROI Indicators</h4>
                   <div className="flex flex-wrap gap-2">
@@ -580,6 +914,30 @@ export default function OpportunityDetailModal({
               )}
             </div>
           </section>
+
+          {/* Convert to Project CTA - Only show when status is "identified" and no project_name */}
+          {!isEditMode && opportunity.status === 'identified' && !opportunity.project_name && (
+            <section className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                    <Rocket className="w-4 h-4" />
+                    Ready to move forward?
+                  </h3>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                    Convert this opportunity into an active project to start scoping and task planning.
+                  </p>
+                </div>
+                <button
+                  onClick={handleConvertToProject}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2 text-sm font-medium"
+                >
+                  <Rocket className="w-4 h-4" />
+                  Start as Project
+                </button>
+              </div>
+            </section>
+          )}
 
           {/* Linked Stakeholders */}
           {(linkedStakeholders.length > 0 || stakeholdersLoading) && (
@@ -817,16 +1175,58 @@ export default function OpportunityDetailModal({
               </div>
             )}
           </section>
+
+          {/* Taskmaster Section - Only visible when opportunity is a project */}
+          {!isEditMode && opportunity.project_name && (
+            <TaskmasterChatSection
+              opportunityId={opportunity.id}
+              projectName={opportunity.project_name}
+              opportunityTitle={opportunity.title}
+            />
+          )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-4 border-t border-default">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-secondary hover:text-primary hover:bg-hover rounded-lg transition-colors"
-          >
-            Close
-          </button>
+        <div className="flex items-center justify-between gap-3 p-4 border-t border-default">
+          {isEditMode ? (
+            <>
+              <p className="text-xs text-muted">
+                Tip: Changing status to Scoping or Pilot will prompt you to name the project.
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleCancelEdit}
+                  disabled={isSaving}
+                  className="px-4 py-2 text-secondary hover:text-primary hover:bg-hover rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                >
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  Save Changes
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div />
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-secondary hover:text-primary hover:bg-hover rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -835,6 +1235,18 @@ export default function OpportunityDetailModal({
         document={viewingDocument}
         open={!!viewingDocument}
         onClose={() => setViewingDocument(null)}
+      />
+
+      {/* Project Name Modal */}
+      <ProjectNameModal
+        open={showProjectNameModal}
+        onClose={() => {
+          setShowProjectNameModal(false)
+          setPendingStatus(null)
+        }}
+        onSubmit={handleProjectNameSubmit}
+        opportunityTitle={opportunity.title}
+        newStatus={pendingStatus || 'scoping'}
       />
     </div>
   )
