@@ -88,13 +88,20 @@ export async function authenticatedFetch(
  * Helper to handle API response and errors
  */
 async function handleResponse<T = unknown>(response: Response): Promise<T> {
+  // Clone response first so we can read body twice if needed
+  const responseClone = response.clone();
+
   if (!response.ok) {
     let errorData: Record<string, unknown> = {};
     try {
       errorData = await response.json();
     } catch {
-      // Response body is not JSON
-      errorData = { message: await response.text() };
+      // Response body is not JSON, use clone to read as text
+      try {
+        errorData = { message: await responseClone.text() };
+      } catch {
+        errorData = { message: `Request failed with status ${response.status}` };
+      }
     }
 
     throw new APIError(
