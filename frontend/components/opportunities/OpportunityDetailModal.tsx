@@ -256,6 +256,9 @@ export default function OpportunityDetailModal({
   const [showProjectNameModal, setShowProjectNameModal] = useState(false)
   const [pendingStatus, setPendingStatus] = useState<'scoping' | 'pilot' | null>(null)
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'scores' | 'details' | 'related' | 'chat'>('scores')
+
   const questionInputRef = useRef<HTMLTextAreaElement>(null)
 
   // Update local opportunity when prop changes
@@ -557,8 +560,8 @@ export default function OpportunityDetailModal({
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className="relative bg-card border border-default rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col mx-4">
+      {/* Modal - Larger size */}
+      <div className="relative bg-card border border-default rounded-xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col mx-4">
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b border-default">
           <div className="flex-1 min-w-0 pr-4">
@@ -636,8 +639,34 @@ export default function OpportunityDetailModal({
           </div>
         </div>
 
+        {/* Tab Bar */}
+        <div className="flex border-b border-default px-6 bg-hover/30">
+          {[
+            { id: 'scores' as const, label: 'Scores', icon: Target },
+            { id: 'details' as const, label: 'Details', icon: FileText },
+            { id: 'related' as const, label: 'Related', icon: ExternalLink },
+            { id: 'chat' as const, label: 'Chat', icon: MessageSquare },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-muted hover:text-primary hover:border-gray-300'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* SCORES TAB */}
+          {activeTab === 'scores' && (
+            <div className="space-y-8">
           {/* Score Justification */}
           <section>
             <div className="flex items-center justify-between mb-4">
@@ -821,7 +850,12 @@ export default function OpportunityDetailModal({
               </div>
             </section>
           )}
+            </div>
+          )}
 
+          {/* DETAILS TAB */}
+          {activeTab === 'details' && (
+            <div className="space-y-8">
           {/* Opportunity Details */}
           <section>
             <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4">
@@ -1035,7 +1069,12 @@ export default function OpportunityDetailModal({
               </div>
             </section>
           )}
+            </div>
+          )}
 
+          {/* RELATED TAB */}
+          {activeTab === 'related' && (
+            <div className="space-y-8">
           {/* Linked Stakeholders */}
           {(linkedStakeholders.length > 0 || stakeholdersLoading) && (
             <section>
@@ -1164,7 +1203,12 @@ export default function OpportunityDetailModal({
               </div>
             )}
           </section>
+            </div>
+          )}
 
+          {/* CHAT TAB */}
+          {activeTab === 'chat' && (
+            <div className="space-y-8">
           {/* Q&A Section */}
           <section>
             <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4 flex items-center gap-2">
@@ -1298,6 +1342,8 @@ export default function OpportunityDetailModal({
                 </div>
               </section>
             )
+          )}
+            </div>
           )}
         </div>
 
