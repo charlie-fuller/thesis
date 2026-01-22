@@ -78,7 +78,9 @@ export default function GranolaScanPanel() {
             <p className="text-xs text-slate-500">
               {status.connected
                 ? `${status.scanned_files}/${status.total_files} meetings scanned`
-                : status.error || 'Not connected'
+                : (status.error && status.error.length > 100
+                    ? 'Connection error. Please try again.'
+                    : status.error || 'Not connected')
               }
             </p>
           </div>

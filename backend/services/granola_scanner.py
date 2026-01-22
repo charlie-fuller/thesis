@@ -644,13 +644,17 @@ def get_scan_status(user_id: str) -> Dict[str, Any]:
         }
     except Exception as e:
         logger.error(f"Failed to get scan status: {e}")
+        # Truncate error message to avoid displaying raw HTML/long errors
+        error_msg = str(e)
+        if len(error_msg) > 200:
+            error_msg = "Database connection error. Please try again."
         return {
             'connected': False,
             'vault_path': 'KB (Obsidian sync)',
             'total_files': 0,
             'scanned_files': 0,
             'pending_files': 0,
-            'error': str(e)
+            'error': error_msg
         }
 
 
