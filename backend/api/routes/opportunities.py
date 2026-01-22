@@ -1294,14 +1294,18 @@ async def accept_opportunity_candidate(
     dept = accept_data.department or cand.get("department") or "General"
     dept_prefix = dept[0].upper() if dept else "G"
 
-    # Get next opportunity code
-    existing_codes = supabase.table("ai_opportunities") \
-        .select("opportunity_code") \
-        .eq("client_id", current_user["client_id"]) \
-        .ilike("opportunity_code", f"{dept_prefix}%") \
-        .execute()
+    # Get next opportunity code using RPC (avoids PostgREST ilike issues)
+    try:
+        existing_codes = supabase.rpc("count_opportunity_codes_by_prefix", {
+            "p_client_id": current_user["client_id"],
+            "p_prefix": dept_prefix
+        }).execute()
+        code_count = existing_codes.data[0].get("code_count", 0) if existing_codes.data else 0
+    except Exception as rpc_err:
+        logger.warning(f"RPC count_opportunity_codes_by_prefix failed: {rpc_err}")
+        code_count = 0
 
-    next_num = len(existing_codes.data) + 1 if existing_codes.data else 1
+    next_num = code_count + 1
     opp_code = f"{dept_prefix}{next_num:02d}"
 
     opp_data = {
