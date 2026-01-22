@@ -532,19 +532,12 @@ async def scan_granola_documents(
     """
     logger.info("Scanning Granola documents from KB")
 
-    # Find Granola meeting documents in KB
-    # Look for documents with obsidian_file_path containing Granola/Meeting-summaries
-    # (storage_path contains Supabase path, obsidian_file_path contains original vault path)
+    # Find Granola meeting documents in KB using RPC (avoids PostgREST ilike issues)
     try:
-        query = supabase.table('documents') \
-            .select('id, filename, title, storage_url, obsidian_file_path, granola_scanned_at') \
-            .eq('user_id', user_id) \
-            .ilike('obsidian_file_path', '%Granola%Meeting-summaries%')
-
-        if not force_rescan:
-            query = query.is_('granola_scanned_at', 'null')
-
-        result = query.execute()
+        result = supabase.rpc('get_granola_documents_to_scan', {
+            'p_user_id': user_id,
+            'p_force_rescan': force_rescan
+        }).execute()
         documents = result.data or []
     except Exception as e:
         logger.error(f"Failed to query Granola documents: {e}")
