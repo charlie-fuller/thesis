@@ -251,6 +251,25 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
       - `force_rescan=true` parameter available to re-process all documents
     - **Source detection**: Filters documents where `obsidian_file_path` contains 'Granola'
     - **Backend**: `services/granola_scanner.py`, direct queries (avoids Cloudflare 1101 with ilike)
+23. **PuRDy (Product Requirements Document)**: Standalone feature for AI-assisted product discovery
+    - **Separate entry point**: `/purdy` route with dedicated layout for PuRDy-only users
+    - **User access**: Controlled via `app_access` column in users table (values: 'thesis', 'purdy', 'all')
+    - **Initiative-based workflow**: Each initiative contains documents, agent runs, and outputs
+    - **Per-initiative document repository**: Upload documents that grow over time
+    - **Five specialized agents** (loaded from purdy-cf repo):
+      - **Triage (v2.6)**: Quick GO/NO-GO assessment with tier routing and confidence-tagged ROI
+      - **Discovery Planner (v2.7)**: Type-specific discovery plan with quantification gates
+      - **Coverage Tracker (v2.7)**: Track coverage, red flags, and 3M diagnosis
+      - **Synthesizer (v2.7)**: 112%+ synthesis with persona outputs (Finance/Engineering/Sales/Executive briefs)
+      - **Tech Evaluation (v2.6)**: Platform recommendation with confidence-tagged estimates
+    - **Versioned outputs**: Each agent run produces versioned output stored in DB with markdown export
+    - **Previous outputs feed forward**: Subsequent runs automatically include earlier agent outputs as context
+    - **Global System KB**: 19 markdown files pre-loaded for all initiatives (methodology, frameworks, risk patterns)
+    - **Initiative-scoped RAG chat**: Ask questions about initiative documents with source citations
+    - **Multi-user sharing**: Invite members as owner/editor/viewer with role-based permissions
+    - **Backend**: `/backend/services/purdy/` (6 service files), `/backend/api/routes/purdy.py`
+    - **Frontend**: `/frontend/app/purdy/` (page, layout, detail), `/frontend/components/purdy/` (7 components)
+    - **Database**: 11 tables with `purdy_` prefix (initiatives, documents, chunks, runs, outputs, etc.)
 
 ## Tech Stack
 
@@ -278,15 +297,18 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     /meeting-prep - Stakeholder briefing pages
     /intelligence - Analytics and engagement trends
     /admin       - Admin dashboard
+    /purdy       - PuRDy standalone feature (Product Requirements Document)
   /components    - React components
     /kb          - Knowledge Base components (KBDocumentsContent)
     /tasks       - Kanban board components (TaskKanbanBoard, TaskCard, etc.)
+    /purdy       - PuRDy components (DocumentList, AgentRunner, OutputViewer, etc.)
   /contexts      - AuthContext, HelpChatContext, ThemeContext
 
 /backend
   /api/routes    - FastAPI endpoints
   /agents        - Agent implementations (20 agents)
   /services      - Business logic including transcript_analyzer, operator_tools
+    /purdy       - PuRDy services (initiative, document, agent, chat, sharing, system_kb)
   /system_instructions - Agent-specific prompts (XML files)
 
 /database
@@ -452,6 +474,19 @@ obsidian_sync_log            -- Sync operation history and error tracking
 
 -- Career Intelligence (Compass)
 compass_status_reports       -- Career status reports with 5-dimension rubric scores and AI justifications
+
+-- PuRDy (Product Requirements Document)
+purdy_initiatives            -- Initiative container with status (draft, triaged, in_discovery, synthesized, evaluated, archived)
+purdy_initiative_members     -- Multi-user sharing with role (owner, editor, viewer)
+purdy_documents              -- Per-initiative document repository
+purdy_document_chunks        -- Chunked + embedded for RAG (scoped to initiative)
+purdy_runs                   -- Each agent run with status, timing, token usage
+purdy_run_documents          -- Tracks which documents were used in each run
+purdy_outputs                -- Versioned agent outputs with structured fields (recommendation, tier_routing, confidence_level)
+purdy_conversations          -- Initiative chat sessions
+purdy_messages               -- Chat messages with source citations
+purdy_system_kb              -- Global methodology KB (19 files shared across all initiatives)
+purdy_system_kb_chunks       -- Chunked + embedded KB for RAG
 ```
 
 ## Database Migrations
@@ -495,6 +530,7 @@ Run migrations in order from `/database/migrations/`:
 | 034 | project_name_and_team | Team field for tasks, project naming for opportunities, linked_opportunity_id |
 | 035 | opportunity_scoring_confidence | scoring_confidence (0-100) and confidence_questions array for opportunities |
 | 036 | task_candidates_opportunity_link | linked_opportunity_id and source_opportunity_id for task_candidates |
+| 038 | purdy_schema | PuRDy tables (initiatives, documents, chunks, runs, outputs, conversations, system KB) |
 
 ## Environment Variables
 
@@ -506,6 +542,8 @@ Key variables:
 - `ANTHROPIC_API_KEY` (Claude)
 - `VOYAGE_API_KEY` (embeddings)
 - `MEM0_API_KEY` (agent memory)
+- `PURDY_REPO_PATH` (path to purdy-cf repo for agent prompts and KB files)
+- `PURDY_AGENT_MODEL` (Claude model for PuRDy agent runs, default: claude-sonnet-4-20250514)
 
 ## Planning Documents
 
@@ -624,6 +662,15 @@ uv run pytest tests/ -v --tb=short
 - `/backend/api/routes/obsidian_sync.py` - Obsidian vault configuration and sync API endpoints
 - `/backend/scripts/obsidian_watcher.py` - CLI script for background vault file watching
 - `/backend/scripts/seed_manual_docs.py` - CLI script to seed Manual agent with platform documentation
+- `/backend/api/routes/purdy.py` - PuRDy API endpoints (initiatives, documents, runs, outputs, chat, sharing)
+- `/backend/services/purdy/__init__.py` - PuRDy services module exports
+- `/backend/services/purdy/initiative_service.py` - Initiative CRUD operations
+- `/backend/services/purdy/document_service.py` - Document upload, chunking, embedding, RAG search
+- `/backend/services/purdy/agent_service.py` - Load agent prompts from filesystem, run agents, parse outputs
+- `/backend/services/purdy/chat_service.py` - Initiative-scoped RAG chat with source citations
+- `/backend/services/purdy/sharing_service.py` - Multi-user sharing with role-based permissions
+- `/backend/services/purdy/system_kb_service.py` - Global KB sync from filesystem, vector search
+- `/backend/scripts/sync_purdy_kb.py` - CLI script to sync KB files to database
 
 ### Frontend
 - `/frontend/app/layout.tsx` - Root layout with providers
@@ -652,6 +699,15 @@ uv run pytest tests/ -v --tb=short
 - `/frontend/components/opportunities/ProjectNameModal.tsx` - Modal for naming projects on status change
 - `/frontend/components/stakeholders/StakeholderCandidateCard.tsx` - Candidate card with accept/reject/merge actions
 - `/frontend/components/stakeholders/StakeholderCandidatesSection.tsx` - Scan controls and candidate list for Intelligence page
+- `/frontend/app/purdy/page.tsx` - PuRDy initiative list page
+- `/frontend/app/purdy/layout.tsx` - PuRDy-specific layout with access control
+- `/frontend/app/purdy/[id]/page.tsx` - Initiative detail page with tabs (documents, runs, chat)
+- `/frontend/components/purdy/DocumentList.tsx` - Initiative document list with upload/delete
+- `/frontend/components/purdy/DocumentUpload.tsx` - Document upload with drag-and-drop
+- `/frontend/components/purdy/AgentRunner.tsx` - Agent selection and execution with streaming
+- `/frontend/components/purdy/OutputViewer.tsx` - Markdown output viewer with version switching
+- `/frontend/components/purdy/InitiativeChat.tsx` - RAG chat component for initiative Q&A
+- `/frontend/components/purdy/ShareModal.tsx` - Member management modal
 
 ### Database
 - `/database/thesis_schema.sql` - Complete DB schema
