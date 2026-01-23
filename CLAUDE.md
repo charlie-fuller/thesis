@@ -234,6 +234,14 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
       - AI opportunities with scores (ROI, effort, strategic alignment, readiness)
       - Tasks with assignees and due dates
       - Stakeholders with roles, sentiment, concerns, and interests
+    - **Date filtering**: Only scans meetings from Jan 5, 2026 onwards (configurable)
+      - Default cutoff: `DEFAULT_SINCE_DATE = date(2026, 1, 5)` (post role-start)
+      - Multi-method date detection: `original_date` field > filename parsing > path parsing
+      - API parameters: `since_date=YYYY-MM-DD` or `days_back=N`
+    - **Background scanning**: Runs in background thread, continues if user navigates away
+      - Use `background=true` parameter for async scanning
+      - Returns `job_id` for status polling via `GET /api/pipeline/granola/scan/job/{job_id}`
+      - Frontend shows confirmation message: "Scan started! You can navigate away..."
     - **Deduplication logic**:
       - Opportunities: Fuzzy title match (>85%) + vector similarity search; matches flagged with "Link to existing" option
       - Tasks: Fuzzy title match (>85%); similar tasks skipped entirely
@@ -241,8 +249,8 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - **Scan tracking**: Each document stamped with `granola_scanned_at` after processing
       - Future scans only process documents where `granola_scanned_at IS NULL`
       - `force_rescan=true` parameter available to re-process all documents
-    - **Source detection**: Finds documents via `obsidian_file_path ILIKE '%Granola%Meeting-summaries%'`
-    - **Backend**: `services/granola_scanner.py`, RPC function `get_granola_scan_status()`
+    - **Source detection**: Filters documents where `obsidian_file_path` contains 'Granola'
+    - **Backend**: `services/granola_scanner.py`, direct queries (avoids Cloudflare 1101 with ilike)
 
 ## Tech Stack
 
@@ -733,14 +741,23 @@ Lucide icons don't support the `title` attribute directly. Wrap in a `<span>` fo
 The Granola scanner (`/api/pipeline/granola/scan`) extracts opportunities, tasks, and stakeholders from meeting documents. If scans fail:
 
 1. **Debug endpoint**: `GET /api/pipeline/granola/debug` - checks document storage URLs
-2. **Empty content**: Documents may have been synced with 0 bytes. Check with:
+2. **Check date filtering**: Default cutoff is Jan 5, 2026. Use `since_date` param to adjust:
+   ```bash
+   POST /api/pipeline/granola/scan?since_date=2025-01-01  # Scan older meetings
+   POST /api/pipeline/granola/scan?days_back=90          # Last 90 days
+   ```
+3. **Background scan status**: Check job progress:
+   ```bash
+   GET /api/pipeline/granola/scan/job/{job_id}
+   ```
+4. **Empty content**: Documents may have been synced with 0 bytes. Check with:
    ```sql
-   SELECT id, filename, storage_url FROM documents
-   WHERE obsidian_file_path ILIKE '%Granola/Meeting-summaries%'
+   SELECT id, filename, original_date, storage_url FROM documents
+   WHERE obsidian_file_path LIKE '%Granola%'
      AND granola_scanned_at IS NULL;
    ```
-3. **Verify storage URL is accessible**: `curl -I "<storage_url>"` should return `content-length: > 0`
-4. **Fix empty documents**: Delete and re-sync via `POST /api/obsidian/sync/full`
+5. **Verify storage URL is accessible**: `curl -I "<storage_url>"` should return `content-length: > 0`
+6. **Fix empty documents**: Delete and re-sync via `POST /api/obsidian/sync/full`
 
 ### Required RPC Functions
 The Granola scanner uses RPC functions to avoid PostgREST `ilike` issues (Cloudflare Error 1101). Ensure these exist in Supabase:
