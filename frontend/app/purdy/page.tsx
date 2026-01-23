@@ -314,13 +314,23 @@ export default function PurdyInitiativesPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Page Title - Centered */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+          PuRDy
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-1">
+          Product Requirements Document
+        </p>
+      </div>
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
             Initiatives
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             {initiatives.length} initiative{initiatives.length !== 1 ? 's' : ''} total
           </p>
         </div>

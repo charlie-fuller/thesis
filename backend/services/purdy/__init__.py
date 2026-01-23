@@ -1,7 +1,7 @@
 """
 PuRDy Services Module
 
-Product Requirements Discovery (PuRDy) services for:
+Product Requirements Document (PuRDy) services for:
 - Initiative management
 - Document processing and RAG
 - Agent execution

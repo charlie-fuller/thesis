@@ -1,7 +1,7 @@
 """
 PuRDy API Routes
 
-Product Requirements Discovery (PuRDy) API endpoints.
+Product Requirements Document (PuRDy) API endpoints.
 """
 
 import asyncio

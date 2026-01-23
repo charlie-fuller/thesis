@@ -21,7 +21,7 @@ anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY
 
 CHAT_MODEL = os.environ.get("PURDY_CHAT_MODEL", "claude-sonnet-4-20250514")
 
-CHAT_SYSTEM_PROMPT = """You are a helpful assistant for PuRDy (Product Requirements Discovery).
+CHAT_SYSTEM_PROMPT = """You are a helpful assistant for PuRDy (Product Requirements Document).
 You help users understand their initiative documents, agent outputs, and discovery findings.
 
 You have access to:
