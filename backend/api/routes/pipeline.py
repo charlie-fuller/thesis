@@ -451,6 +451,8 @@ async def get_granola_status(
 @router.post("/granola/scan", response_model=GranolaScanResult)
 async def scan_granola_vault(
     force_rescan: bool = Query(False, description="Re-process already scanned files"),
+    since_date: Optional[date] = Query(None, description="Only scan meetings on or after this date (YYYY-MM-DD)"),
+    days_back: Optional[int] = Query(None, description="Only scan meetings from the last N days (alternative to since_date)"),
     background_tasks: BackgroundTasks = None,
     current_user: dict = Depends(get_current_user),
     supabase = Depends(get_supabase)
@@ -459,8 +461,13 @@ async def scan_granola_vault(
     Scan the Granola vault for new meeting summaries.
 
     Extracts opportunities, tasks, and stakeholders from each meeting.
+    Use since_date or days_back to limit scanning to recent meetings.
+    Examples:
+      - since_date=2026-01-01 (scan from Jan 1 onwards)
+      - days_back=30 (scan last 30 days)
     """
     from services.granola_scanner import scan_granola_vault as do_scan
+    from datetime import timedelta
 
     user_id = current_user["id"]
     client_id = current_user.get("client_id")
@@ -468,8 +475,14 @@ async def scan_granola_vault(
     if not client_id:
         raise HTTPException(status_code=400, detail="User has no associated client")
 
+    # Calculate since_date from days_back if provided
+    effective_since_date = since_date
+    if days_back and not since_date:
+        effective_since_date = (datetime.now().date() - timedelta(days=days_back))
+        logger.info(f"Using days_back={days_back}, calculated since_date={effective_since_date}")
+
     try:
-        result = await do_scan(user_id, client_id, force_rescan=force_rescan)
+        result = await do_scan(user_id, client_id, force_rescan=force_rescan, since_date=effective_since_date)
 
         stats = result.get('stats', {})
 

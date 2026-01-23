@@ -34,8 +34,79 @@ supabase = get_supabase()
 # Frontmatter pattern
 FRONTMATTER_PATTERN = re.compile(r'^---\s*\n(.*?)\n---\s*\n', re.DOTALL)
 
+# Pattern to extract date from filename like "2025-07-27.md" or "...-2026-01-06_09-12-32.md"
+FILENAME_DATE_PATTERN = re.compile(r'(\d{4}-\d{2}-\d{2})')
+
 # Pattern to identify Granola meeting documents in storage paths
-GRANOLA_PATH_PATTERN = re.compile(r'Granola[/\\]Meeting-summaries[/\\]', re.IGNORECASE)
+# Supports both Meeting-summaries and Transcripts folders
+GRANOLA_PATH_PATTERN = re.compile(r'Granola[/\\](Meeting-summaries|Transcripts)[/\\]', re.IGNORECASE)
+
+# Patterns to EXCLUDE from scanning (case-insensitive)
+# These documents are not relevant for opportunity/task/stakeholder extraction
+EXCLUDE_PATTERNS = [
+    # Specific people's meetings (not Charlie's direct work)
+    re.compile(r'Paige', re.IGNORECASE),
+    re.compile(r'Vanessa', re.IGNORECASE),
+    # People from before Jan 5, 2026 (pre-role)
+    re.compile(r'Rudy', re.IGNORECASE),
+    re.compile(r'Elizabeth', re.IGNORECASE),
+    # Programs/cohorts
+    re.compile(r'AI[\s_-]*BuildLab', re.IGNORECASE),
+    re.compile(r'Foundations', re.IGNORECASE),
+    re.compile(r'Residents', re.IGNORECASE),
+    # Onboarding/training docs (generic HR content)
+    re.compile(r'New Employee Orient', re.IGNORECASE),
+    re.compile(r'IT New Employee', re.IGNORECASE),
+    re.compile(r'^Training:', re.IGNORECASE),
+    # Casual/non-work meetings
+    re.compile(r'Lunch break', re.IGNORECASE),
+]
+
+# The user whose tasks we want to extract
+TASK_OWNER_NAME = "Charlie"
+
+# Default cutoff date - meetings before this date are not scanned (pre-role)
+DEFAULT_SINCE_DATE = date(2026, 1, 5)
+
+# Minimum total score to surface an opportunity (Tier 1 only)
+# Scoring: roi_potential + implementation_effort + strategic_alignment + stakeholder_readiness
+# Each dimension is 1-5, total max 20
+# Tier 1: 17-20, Tier 2: 14-16, Tier 3: 11-13, Tier 4: <11
+MIN_OPPORTUNITY_TOTAL_SCORE = 17  # Tier 1 only - requires average of 4.25 across all dimensions
+
+
+def calculate_opportunity_total_score(opp: Dict[str, Any]) -> int:
+    """
+    Calculate total score using the same 4-dimension rubric as ai_opportunities.
+
+    Dimensions (1-5 scale each, max 20 total):
+    - roi_potential (potential_impact in extraction)
+    - implementation_effort (effort_estimate in extraction, higher = easier)
+    - strategic_alignment
+    - stakeholder_readiness (readiness in extraction)
+
+    Returns total score 4-20.
+    """
+    roi = opp.get('potential_impact', 3)
+    effort = opp.get('effort_estimate', 3)
+    alignment = opp.get('strategic_alignment', 3)
+    readiness = opp.get('readiness', 3)
+
+    return roi + effort + alignment + readiness
+
+# Key leaders whose task assignments matter (tasks FROM these people are important)
+KEY_LEADERS = ['chris baumgartner', 'chris', 'mikki', 'michael stratton']
+
+# Assignees that indicate "not Charlie's task" - skip these
+EXCLUDED_ASSIGNEES = [
+    'all new hires', 'new hires',
+    'it team', 'workplace team', 'team', 'the team',
+    'unknown', 'tbd', 'n/a',
+    # Specific individuals (not Charlie, not key leaders)
+    'paige', 'vanessa', 'ashley', 'wade', 'tyler',
+    'elizabeth', 'mickey', 'sara', 'sarah', 'joe',
+    'ava', 'danny', 'hannah', 'teresa', 'simone',
+]
 
 
 class GranolaScannerError(Exception):
@@ -69,6 +140,60 @@ def parse_date_from_iso(date_str: str) -> Optional[date]:
         return dt.date()
     except (ValueError, TypeError):
         return None
+
+
+def parse_date_from_filename(filename: str) -> Optional[date]:
+    """
+    Extract meeting date from filename.
+    Supports formats like:
+    - 2025-07-27.md
+    - Chris __ Charlie-transcript-2026-01-06_09-12-32.md
+    """
+    if not filename:
+        return None
+    match = FILENAME_DATE_PATTERN.search(filename)
+    if match:
+        try:
+            return datetime.strptime(match.group(1), '%Y-%m-%d').date()
+        except ValueError:
+            return None
+    return None
+
+
+def get_document_meeting_date(doc: Dict[str, Any]) -> Optional[date]:
+    """
+    Determine the meeting date for a document using multiple methods.
+    Priority order:
+    1. original_date field (if exists and set)
+    2. Date parsed from filename (most reliable for Granola)
+    3. uploaded_at as fallback
+    """
+    # Method 1: Check original_date field
+    original_date = doc.get('original_date')
+    if original_date:
+        parsed = parse_date_from_iso(original_date)
+        if parsed:
+            return parsed
+
+    # Method 2: Parse from filename (works for Granola naming convention)
+    filename = doc.get('filename', '')
+    filename_date = parse_date_from_filename(filename)
+    if filename_date:
+        return filename_date
+
+    # Method 3: Check obsidian_file_path for date
+    obsidian_path = doc.get('obsidian_file_path', '')
+    if obsidian_path:
+        path_date = parse_date_from_filename(obsidian_path)
+        if path_date:
+            return path_date
+
+    # Method 4: Fall back to uploaded_at (sync date, not ideal but better than nothing)
+    uploaded_at = doc.get('uploaded_at')
+    if uploaded_at:
+        return parse_date_from_iso(uploaded_at)
+
+    return None
 
 
 def fuzzy_match(str1: str, str2: str) -> float:
@@ -231,7 +356,7 @@ async def extract_structured_data(
     """
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
-    prompt = f"""Analyze this meeting summary and extract structured data.
+    prompt = f"""Analyze this meeting summary and extract ONLY TIER-1 STRATEGIC items. Be EXTREMELY selective.
 
 Meeting: {title}
 Date: {meeting_date.isoformat() if meeting_date else 'Unknown'}
@@ -239,41 +364,77 @@ Date: {meeting_date.isoformat() if meeting_date else 'Unknown'}
 Content:
 {content}
 
-Extract the following in JSON format:
+Extract the following in JSON format - ONLY include the TOP strategic items (expect 0-2 per meeting):
 
-1. **opportunities** - AI/automation opportunities mentioned:
-   - description: What the opportunity is (keep it concise, under 200 chars)
-   - department: Which department (Legal, HR, Finance, IT, Engineering, Sales, Marketing, Operations, etc.)
-   - potential_impact: 1-5 score (5 = transformative)
-   - effort_estimate: 1-5 score (5 = very complex)
-   - strategic_alignment: 1-5 score (5 = highly strategic)
-   - readiness: 1-5 score (5 = champion identified and ready to start)
-   - quote: A relevant quote from the content supporting this opportunity
+1. **opportunities** - ONLY transformative AI/automation initiatives:
+   Extract ONLY if ALL of these are true:
+   - Executive sponsorship explicitly mentioned
+   - Clear, quantifiable business case ($X savings, Y% improvement)
+   - Directly tied to company strategic priorities
+   - Has identified champion or owner
 
-2. **tasks** - Action items, follow-ups, commitments:
+   SCORING RUBRIC (be harsh - most items should score 2-3):
+   - potential_impact: 5=company-wide transformation, 4=department transformation, 3=team improvement, 2=individual productivity, 1=nice-to-have
+   - effort_estimate: 5=plug-and-play, 4=weeks, 3=months, 2=6+ months, 1=multi-year
+   - strategic_alignment: 5=CEO priority, 4=VP priority, 3=director priority, 2=manager interest, 1=grassroots idea
+   - readiness: 5=budget approved + team ready, 4=budget likely, 3=exploring, 2=early discussion, 1=just an idea
+
+   ONLY extract if total score >= 17 (average 4.25+ across all dimensions)
+
+   For each opportunity:
+   - description: What the opportunity is (concise, under 200 chars)
+   - department: Which department
+   - potential_impact: 1-5 score (use rubric above - be harsh)
+   - effort_estimate: 1-5 score (use rubric above - be harsh)
+   - strategic_alignment: 1-5 score (use rubric above - be harsh)
+   - readiness: 1-5 score (use rubric above - be harsh)
+   - quote: Supporting quote from content
+
+2. **tasks** - ONLY tasks assigned BY or TO key leaders:
+   Extract ONLY if:
+   - Assigned BY Chris Baumgartner, Mikki, or Michael Stratton (leadership direction)
+   - OR Charlie explicitly commits to something strategic (not routine)
+   - Has clear business impact or deadline
+
+   DO NOT extract:
+   - Routine follow-ups or admin tasks
+   - Tasks for other people
+   - Vague action items without clear ownership
+
+   For each STRATEGIC task:
    - title: Short task title
    - description: What needs to be done with context
-   - assignee_name: Who is responsible (if mentioned)
-   - due_date: When it's due (if mentioned, in YYYY-MM-DD format)
-   - team: Which team/department this task belongs to (if clear from context)
+   - assignee_name: Who assigned it or "Charlie" if self-assigned
+   - due_date: When due (YYYY-MM-DD) if mentioned
+   - team: Which team/department
 
-3. **stakeholders** - People mentioned with context:
+3. **stakeholders** - Key decision-makers you need to actively manage:
+   Extract ONLY if:
+   - They are a Manager, VP, Director, or executive with decision authority
+   - They expressed strong opinions (support OR concern) about AI initiatives
+   - You need to actively engage them for project success
+
+   DO NOT extract:
+   - Individual contributors without decision authority
+   - People just mentioned in passing
+   - Anyone without clear stakes in outcomes
+
+   For each KEY stakeholder:
    - name: Person's name
-   - role: Their role/title (if mentioned)
-   - department: Their department (if mentioned)
-   - sentiment: positive/neutral/skeptical based on their AI stance
-   - concerns: Any concerns they raised (array of strings)
-   - interests: What they're interested in (array of strings)
+   - role: Their title (REQUIRED)
+   - department: Their department
+   - sentiment: positive/neutral/skeptical
+   - concerns: Specific concerns (array)
+   - interests: Specific interests (array)
 
-Return ONLY valid JSON with this structure:
+Return ONLY valid JSON:
 {{
   "opportunities": [...],
   "tasks": [...],
   "stakeholders": [...]
 }}
 
-If no items found for a category, return an empty array.
-Be conservative - only extract items that are clearly present in the content."""
+IMPORTANT: It's better to return empty arrays than extract low-value items. Only surface what truly matters strategically."""
 
     try:
         response = client.messages.create(
@@ -312,8 +473,20 @@ async def scan_document(
     document_id = document['id']
     filename = document.get('filename', 'Unknown')
     storage_url = document.get('storage_url')
+    obsidian_path = document.get('obsidian_file_path', '')
 
     logger.info(f"Scanning document: {filename}")
+
+    # Check exclusion patterns (AI BuildLab, Paige, etc.)
+    for pattern in EXCLUDE_PATTERNS:
+        if pattern.search(filename) or pattern.search(obsidian_path):
+            logger.debug(f"Excluded by pattern: {filename}")
+            # Mark as scanned so we don't check again
+            now = datetime.now(timezone.utc).isoformat()
+            supabase.table('documents').update({
+                'granola_scanned_at': now,
+            }).eq('id', document_id).execute()
+            return {'status': 'skipped', 'reason': 'excluded_pattern', 'document_id': document_id}
 
     # Check if already scanned
     if document.get('granola_scanned_at') and not force_rescan:
@@ -350,15 +523,29 @@ async def scan_document(
             'updated_at': now
         }).eq('id', document_id).execute()
 
-        # Store extracted opportunities as candidates
+        # Store extracted opportunities as candidates (only Tier 1-2: total score >= 14)
         opportunities_created = 0
-        for opp in extracted.get('opportunities', []):
+        raw_opportunities = extracted.get('opportunities', [])
+
+        # Filter to opportunities meeting minimum score threshold
+        qualified_opps = []
+        for opp in raw_opportunities:
+            opp_title = opp.get('description', '')[:200]
+            if not opp_title or len(opp_title) < 10:
+                continue
+            total_score = calculate_opportunity_total_score(opp)
+            if total_score >= MIN_OPPORTUNITY_TOTAL_SCORE:
+                qualified_opps.append((total_score, opp))
+            else:
+                logger.debug(f"Skipping low-score opportunity: {opp_title[:50]} (score={total_score}, min={MIN_OPPORTUNITY_TOTAL_SCORE})")
+
+        logger.info(f"Extracted {len(raw_opportunities)} opportunities, {len(qualified_opps)} meet Tier 1-2 threshold (score >= {MIN_OPPORTUNITY_TOTAL_SCORE})")
+
+        for total_score, opp in qualified_opps:
             try:
                 opp_title = opp.get('description', '')[:200]
-                if not opp_title or len(opp_title) < 10:
-                    continue
 
-                # Check for duplicate candidate using RPC (avoids PostgREST ilike issues)
+                # Check for duplicate candidate (pending OR rejected - don't recreate declined items)
                 try:
                     existing_cand = supabase.rpc('check_duplicate_opportunity_candidate', {
                         'p_client_id': client_id,
@@ -370,6 +557,25 @@ async def scan_document(
 
                 if existing_cand.data:
                     logger.debug(f"Skipping duplicate opportunity candidate: {opp_title[:50]}")
+                    continue
+
+                # Also check against rejected candidates (fuzzy match) - don't recreate declined items
+                skip_as_rejected = False
+                try:
+                    rejected_cands = supabase.table('opportunity_candidates') \
+                        .select('id, title') \
+                        .eq('client_id', client_id) \
+                        .eq('status', 'rejected') \
+                        .execute()
+                    for rejected in rejected_cands.data or []:
+                        if fuzzy_match(opp_title, rejected.get('title', '')) > 0.80:
+                            logger.debug(f"Skipping - similar to rejected candidate: {rejected['title'][:50]}")
+                            skip_as_rejected = True
+                            break
+                except Exception as e:
+                    logger.warning(f"Failed to check rejected opportunity candidates: {e}")
+
+                if skip_as_rejected:
                     continue
 
                 # Check for matching existing opportunity (deduplication)
@@ -410,12 +616,26 @@ async def scan_document(
             except Exception as e:
                 logger.warning(f"Failed to create opportunity candidate: {e}")
 
-        # Store extracted tasks as candidates
+        # Store extracted tasks as candidates (only for Charlie)
         tasks_created = 0
         for task in extracted.get('tasks', []):
             try:
                 task_title = task.get('title', '')[:200]
                 if not task_title or len(task_title) < 5:
+                    continue
+
+                # Skip tasks assigned to others (not Charlie or unassigned/first-person)
+                assignee_raw = task.get('assignee_name') or ''
+                assignee = assignee_raw.lower().strip() if assignee_raw else ''
+
+                # Check against excluded assignees list
+                if assignee in EXCLUDED_ASSIGNEES:
+                    logger.debug(f"Skipping task - excluded assignee: {assignee} - {task_title[:50]}")
+                    continue
+
+                # Also skip if assignee is specified but NOT Charlie (catch-all for names not in list)
+                if assignee and assignee not in ['charlie', 'me', 'i', 'myself', '']:
+                    logger.debug(f"Skipping task assigned to someone else: {assignee} - {task_title[:50]}")
                     continue
 
                 # Check for duplicate candidate using RPC (avoids PostgREST ilike issues)
@@ -430,6 +650,25 @@ async def scan_document(
 
                 if existing_cand.data:
                     logger.debug(f"Skipping duplicate task candidate: {task_title[:50]}")
+                    continue
+
+                # Also check against rejected task candidates (fuzzy match)
+                skip_task_as_rejected = False
+                try:
+                    rejected_tasks = supabase.table('task_candidates') \
+                        .select('id, title') \
+                        .eq('client_id', client_id) \
+                        .eq('status', 'rejected') \
+                        .execute()
+                    for rejected in rejected_tasks.data or []:
+                        if fuzzy_match(task_title, rejected.get('title', '')) > 0.80:
+                            logger.debug(f"Skipping - similar to rejected task: {rejected['title'][:50]}")
+                            skip_task_as_rejected = True
+                            break
+                except Exception as e:
+                    logger.warning(f"Failed to check rejected task candidates: {e}")
+
+                if skip_task_as_rejected:
                     continue
 
                 # Check for matching existing task
@@ -495,7 +734,33 @@ async def scan_document(
                         logger.warning(f"RPC check_existing_stakeholder_candidate failed: {rpc_err}")
                         existing_cand = type('obj', (object,), {'data': []})()
 
-                    if not existing_cand.data:
+                    # Also check against rejected stakeholder candidates
+                    skip_stakeholder_as_rejected = False
+                    try:
+                        rejected_stakeholders = supabase.table('stakeholder_candidates') \
+                            .select('id, name') \
+                            .eq('client_id', client_id) \
+                            .eq('status', 'rejected') \
+                            .execute()
+                        for rejected in rejected_stakeholders.data or []:
+                            if fuzzy_match(name, rejected.get('name', '')) > 0.85:
+                                logger.debug(f"Skipping - similar to rejected stakeholder: {rejected['name']}")
+                                skip_stakeholder_as_rejected = True
+                                break
+                    except Exception as e:
+                        logger.warning(f"Failed to check rejected stakeholder candidates: {e}")
+
+                    if not existing_cand.data and not skip_stakeholder_as_rejected:
+                        # Additional validation: require role for stakeholder extraction
+                        role = sh.get('role')
+                        concerns = sh.get('concerns', [])
+                        interests = sh.get('interests', [])
+
+                        # Skip if no role AND no concerns AND no interests (just a name mention)
+                        if not role and not concerns and not interests:
+                            logger.debug(f"Skipping stakeholder with no context: {name}")
+                            continue
+
                         supabase.table('stakeholder_candidates').insert({
                             'client_id': client_id,
                             'name': name,
@@ -532,7 +797,8 @@ async def scan_document(
 async def scan_granola_documents(
     user_id: str,
     client_id: str,
-    force_rescan: bool = False
+    force_rescan: bool = False,
+    since_date: Optional[date] = None
 ) -> Dict[str, Any]:
     """
     Scan Granola meeting documents from the KB.
@@ -544,19 +810,48 @@ async def scan_granola_documents(
         user_id: User ID
         client_id: Client ID
         force_rescan: Re-process already scanned files
+        since_date: Only scan documents created on or after this date (defaults to Jan 5, 2026)
 
     Returns:
         Scan results with stats
     """
-    logger.info("Scanning Granola documents from KB")
+    # Apply default cutoff date if not specified
+    effective_since_date = since_date if since_date is not None else DEFAULT_SINCE_DATE
+    logger.info(f"Scanning Granola documents from KB (since {effective_since_date})")
 
-    # Find Granola meeting documents in KB using RPC (avoids PostgREST ilike issues)
+    # Find Granola meeting documents in KB
+    # Query directly to get original_date for filtering (RPC doesn't return all needed fields)
     try:
-        result = supabase.rpc('get_granola_documents_to_scan', {
-            'p_user_id': user_id,
-            'p_force_rescan': force_rescan
-        }).execute()
-        documents = result.data or []
+        result = supabase.table('documents') \
+            .select('id, filename, title, original_date, storage_url, granola_scanned_at, obsidian_file_path, uploaded_at') \
+            .eq('user_id', user_id) \
+            .limit(2000) \
+            .execute()
+
+        all_docs = result.data or []
+
+        # Filter to Granola docs only (avoiding ilike which causes Cloudflare 1101 errors)
+        granola_docs = [
+            d for d in all_docs
+            if d.get('obsidian_file_path') and 'Granola' in d.get('obsidian_file_path', '')
+        ]
+
+        # Filter by already scanned (unless force_rescan)
+        if not force_rescan:
+            granola_docs = [d for d in granola_docs if not d.get('granola_scanned_at')]
+
+        # Filter by date (always applies - uses default cutoff if not specified)
+        original_count = len(granola_docs)
+        documents = []
+        for doc in granola_docs:
+            # Use get_document_meeting_date for comprehensive date detection
+            doc_date = get_document_meeting_date(doc)
+            if doc_date and doc_date >= effective_since_date:
+                documents.append(doc)
+            elif not doc_date:
+                # Skip docs without any detectable date (safer than including old docs)
+                logger.debug(f"Skipping doc with no date: {doc.get('filename', 'Unknown')[:50]}")
+        logger.info(f"Date filter: {original_count} -> {len(documents)} documents (since {effective_since_date})")
     except Exception as e:
         logger.error(f"Failed to query Granola documents: {e}")
         raise GranolaScannerError(f"Failed to query documents: {e}")
@@ -621,22 +916,44 @@ async def scan_granola_documents(
     }
 
 
-def get_scan_status(user_id: str) -> Dict[str, Any]:
+def get_scan_status(user_id: str, since_date: Optional[date] = None) -> Dict[str, Any]:
     """
     Get current scan status for Granola documents in the KB.
 
     Returns counts of scanned vs unscanned Granola meeting documents.
+    Defaults to counting only documents from Jan 5, 2026 onwards (post role-start).
     """
-    try:
-        # Use RPC function to get counts (avoids PostgREST ilike issues)
-        result = supabase.rpc('get_granola_scan_status', {'p_user_id': user_id}).execute()
+    # Apply default cutoff date if not specified
+    effective_since_date = since_date if since_date is not None else DEFAULT_SINCE_DATE
 
-        if result.data and len(result.data) > 0:
-            total_files = result.data[0].get('total_files', 0) or 0
-            scanned_count = result.data[0].get('scanned_files', 0) or 0
-        else:
-            total_files = 0
-            scanned_count = 0
+    try:
+        # Query documents directly to get original_date for filtering
+        # Note: Can't use ilike with PostgREST due to Cloudflare 1101 errors,
+        # so we fetch all docs and filter in Python
+        result = supabase.table('documents') \
+            .select('id, filename, original_date, granola_scanned_at, obsidian_file_path, uploaded_at') \
+            .eq('user_id', user_id) \
+            .limit(2000) \
+            .execute()
+
+        all_docs = result.data or []
+
+        # Filter to Granola docs only
+        granola_docs = [
+            d for d in all_docs
+            if d.get('obsidian_file_path') and 'Granola' in d.get('obsidian_file_path', '')
+        ]
+
+        # Filter by meeting date
+        filtered_docs = []
+        for doc in granola_docs:
+            doc_date = get_document_meeting_date(doc)
+            if doc_date and doc_date >= effective_since_date:
+                filtered_docs.append(doc)
+            # Skip docs without detectable dates (can't verify they're recent enough)
+
+        total_files = len(filtered_docs)
+        scanned_count = sum(1 for d in filtered_docs if d.get('granola_scanned_at'))
 
         return {
             'connected': total_files > 0,
@@ -666,10 +983,11 @@ async def scan_granola_vault(
     user_id: str,
     client_id: str,
     vault_path: str = "",  # Ignored - uses KB
-    force_rescan: bool = False
+    force_rescan: bool = False,
+    since_date: Optional[date] = None
 ) -> Dict[str, Any]:
     """
     Backwards-compatible wrapper for scan_granola_documents.
     The vault_path parameter is ignored - scanning now uses documents from the KB.
     """
-    return await scan_granola_documents(user_id, client_id, force_rescan)
+    return await scan_granola_documents(user_id, client_id, force_rescan, since_date)
