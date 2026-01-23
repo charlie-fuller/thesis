@@ -8,7 +8,7 @@ Also includes Granola vault scanning endpoints.
 """
 
 import logging
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime, date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
@@ -103,6 +103,8 @@ class GranolaScanResult(BaseModel):
     tasks_created: int
     stakeholders_created: int
     failed_details: Optional[List[dict]] = None  # Details of failures
+    job_id: Optional[str] = None  # For background scans
+    message: Optional[str] = None  # User-friendly message
 
 
 # ============================================================================
@@ -448,11 +450,53 @@ async def get_granola_status(
         )
 
 
+# In-memory scan job tracking (simple approach - could use Redis for production)
+_scan_jobs: Dict[str, Dict] = {}
+
+
+def _run_background_scan(job_id: str, user_id: str, client_id: str, force_rescan: bool, since_date):
+    """Run scan in background and update job status."""
+    import asyncio
+    from services.granola_scanner import scan_granola_vault as do_scan
+
+    async def _async_scan():
+        try:
+            _scan_jobs[job_id]['status'] = 'running'
+            result = await do_scan(user_id, client_id, force_rescan=force_rescan, since_date=since_date)
+            stats = result.get('stats', {})
+            _scan_jobs[job_id].update({
+                'status': 'completed',
+                'result': {
+                    'files_scanned': stats.get('files_scanned', 0),
+                    'files_processed': stats.get('files_processed', 0),
+                    'opportunities_created': stats.get('opportunities_created', 0),
+                    'tasks_created': stats.get('tasks_created', 0),
+                    'stakeholders_created': stats.get('stakeholders_created', 0),
+                },
+                'completed_at': datetime.now().isoformat()
+            })
+        except Exception as e:
+            _scan_jobs[job_id].update({
+                'status': 'failed',
+                'error': str(e),
+                'completed_at': datetime.now().isoformat()
+            })
+
+    # Run in new event loop for background thread
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(_async_scan())
+    finally:
+        loop.close()
+
+
 @router.post("/granola/scan", response_model=GranolaScanResult)
 async def scan_granola_vault(
     force_rescan: bool = Query(False, description="Re-process already scanned files"),
     since_date: Optional[date] = Query(None, description="Only scan meetings on or after this date (YYYY-MM-DD)"),
     days_back: Optional[int] = Query(None, description="Only scan meetings from the last N days (alternative to since_date)"),
+    background: bool = Query(False, description="Run scan in background (returns immediately)"),
     background_tasks: BackgroundTasks = None,
     current_user: dict = Depends(get_current_user),
     supabase = Depends(get_supabase)
@@ -462,12 +506,16 @@ async def scan_granola_vault(
 
     Extracts opportunities, tasks, and stakeholders from each meeting.
     Use since_date or days_back to limit scanning to recent meetings.
+    Use background=true to run in background (you can navigate away).
     Examples:
       - since_date=2026-01-01 (scan from Jan 1 onwards)
       - days_back=30 (scan last 30 days)
+      - background=true (run in background, returns job_id)
     """
     from services.granola_scanner import scan_granola_vault as do_scan
     from datetime import timedelta
+    import uuid
+    import threading
 
     user_id = current_user["id"]
     client_id = current_user.get("client_id")
@@ -480,6 +528,33 @@ async def scan_granola_vault(
     if days_back and not since_date:
         effective_since_date = (datetime.now().date() - timedelta(days=days_back))
         logger.info(f"Using days_back={days_back}, calculated since_date={effective_since_date}")
+
+    # Background mode - return immediately
+    if background:
+        job_id = str(uuid.uuid4())[:8]
+        _scan_jobs[job_id] = {
+            'status': 'starting',
+            'user_id': user_id,
+            'started_at': datetime.now().isoformat()
+        }
+        # Start in background thread
+        thread = threading.Thread(
+            target=_run_background_scan,
+            args=(job_id, user_id, client_id, force_rescan, effective_since_date)
+        )
+        thread.start()
+        return GranolaScanResult(
+            status='started',
+            job_id=job_id,
+            message='Scan started in background. You can navigate away safely.',
+            files_scanned=0,
+            files_processed=0,
+            files_skipped=0,
+            files_failed=0,
+            opportunities_created=0,
+            tasks_created=0,
+            stakeholders_created=0
+        )
 
     try:
         result = await do_scan(user_id, client_id, force_rescan=force_rescan, since_date=effective_since_date)
@@ -512,6 +587,34 @@ async def scan_granola_vault(
     except Exception as e:
         logger.error(f"Granola scan failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/granola/scan/job/{job_id}")
+async def get_scan_job_status(
+    job_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get the status of a background scan job.
+    Returns job status: starting, running, completed, or failed.
+    """
+    if job_id not in _scan_jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job = _scan_jobs[job_id]
+
+    # Verify user owns this job
+    if job.get('user_id') != current_user['id']:
+        raise HTTPException(status_code=403, detail="Not authorized to view this job")
+
+    return {
+        'job_id': job_id,
+        'status': job.get('status'),
+        'started_at': job.get('started_at'),
+        'completed_at': job.get('completed_at'),
+        'result': job.get('result'),
+        'error': job.get('error')
+    }
 
 
 @router.get("/granola/debug")

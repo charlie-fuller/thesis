@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { FileText, RefreshCw } from 'lucide-react'
+import { FileText, RefreshCw, CheckCircle } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 
 interface GranolaScanStatus {
@@ -14,10 +14,17 @@ interface GranolaScanStatus {
   error: string | null
 }
 
+interface ScanResult {
+  status: string
+  job_id?: string
+  message?: string
+}
+
 export default function GranolaScanPanel() {
   const [status, setStatus] = useState<GranolaScanStatus | null>(null)
   const [isScanning, setIsScanning] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [scanMessage, setScanMessage] = useState<string | null>(null)
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -34,14 +41,35 @@ export default function GranolaScanPanel() {
     fetchStatus()
   }, [fetchStatus])
 
+  // Auto-dismiss scan message after 10 seconds
+  useEffect(() => {
+    if (scanMessage) {
+      const timer = setTimeout(() => setScanMessage(null), 10000)
+      return () => clearTimeout(timer)
+    }
+  }, [scanMessage])
+
   const handleScan = async () => {
     try {
       setIsScanning(true)
-      await apiPost('/api/pipeline/granola/scan?force_rescan=false', {})
-      await fetchStatus()
+      setScanMessage(null)
+      // Use background=true so scan continues even if user navigates away
+      const result = await apiPost<ScanResult>('/api/pipeline/granola/scan?force_rescan=false&background=true', {})
+
+      if (result.status === 'started') {
+        setScanMessage('Scan started! You can navigate away - it will continue in the background.')
+        // Poll status after a delay
+        setTimeout(async () => {
+          await fetchStatus()
+          setIsScanning(false)
+        }, 5000)
+      } else {
+        await fetchStatus()
+        setIsScanning(false)
+      }
     } catch (err) {
       console.error('Scan failed:', err)
-    } finally {
+      setScanMessage('Scan failed to start. Please try again.')
       setIsScanning(false)
     }
   }
@@ -107,6 +135,14 @@ export default function GranolaScanPanel() {
         <p className="text-xs text-slate-400 mt-2">
           Last scan: {new Date(status.last_scan).toLocaleString()}
         </p>
+      )}
+
+      {/* Scan status message */}
+      {scanMessage && (
+        <div className="mt-3 flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-2">
+          <CheckCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{scanMessage}</span>
+        </div>
       )}
     </div>
   )
