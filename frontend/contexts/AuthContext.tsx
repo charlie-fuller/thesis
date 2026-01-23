@@ -16,6 +16,7 @@ interface UserProfile {
     notifications_enabled?: boolean;
     email_digest?: boolean;
   };
+  app_access?: string[];  // Apps user can access: 'thesis', 'purdy', 'all'
 }
 
 interface AuthContextType {
@@ -30,6 +31,9 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
   // Whether the user is an admin
   isAdmin: boolean;
+  // App access helpers
+  hasThesisAccess: boolean;
+  hasPurdyAccess: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,6 +46,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Simple admin check - admins have full access to everything
   const isAdmin = profile?.role === 'admin';
+
+  // App access helpers
+  const appAccess = profile?.app_access || ['thesis']; // Default to thesis
+  const hasThesisAccess = isAdmin || appAccess.includes('thesis') || appAccess.includes('all');
+  const hasPurdyAccess = isAdmin || appAccess.includes('purdy') || appAccess.includes('all');
 
   useEffect(() => {
     // Get initial session
@@ -76,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('id, email, name, role, client_id, avatar_url')
+        .select('id, email, name, role, client_id, avatar_url, app_access')
         .eq('id', userId)
         .single();
 
@@ -169,6 +178,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     updatePassword,
     refreshProfile,
     isAdmin,
+    hasThesisAccess,
+    hasPurdyAccess,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

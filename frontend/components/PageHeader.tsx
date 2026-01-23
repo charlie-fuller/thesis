@@ -21,7 +21,7 @@ export default function PageHeader({
   onToggleLeftPanel,
   onToggleRightPanel,
 }: PageHeaderProps) {
-  const { isAdmin } = useAuth()
+  const { isAdmin, hasPurdyAccess } = useAuth()
   const { theme } = useTheme()
   const pathname = usePathname()
 
@@ -32,8 +32,11 @@ export default function PageHeader({
     { href: '/meeting-room', label: 'Meeting Room' },
     { href: '/tasks', label: 'Tasks' },
     { href: '/opportunities', label: 'Opportunities' },
+    { href: '/strategy', label: 'Strategy' },
     { href: '/intelligence', label: 'Intelligence' },
     { href: '/kb', label: 'KB' },
+    // Conditionally add PuRDy link for users with access
+    ...(hasPurdyAccess ? [{ href: '/purdy', label: 'PuRDy' }] : []),
   ]
 
   const isActive = (href: string) => {
@@ -41,9 +44,9 @@ export default function PageHeader({
     if (href === '/') {
       return pathname === '/'
     }
-    // For /admin, match both exact and sub-paths (admin section)
-    if (href === '/admin') {
-      return pathname === href || pathname?.startsWith('/admin/')
+    // For /admin and /purdy, match both exact and sub-paths
+    if (href === '/admin' || href === '/purdy') {
+      return pathname === href || pathname?.startsWith(href + '/')
     }
     // For other routes, match exact or sub-paths
     return pathname === href || pathname?.startsWith(href + '/')

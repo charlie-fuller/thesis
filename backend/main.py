@@ -290,6 +290,7 @@ from api.routes import (
     opportunities,
     pipeline,
     projects,
+    purdy,
     research,
     stakeholder_metrics,
     stakeholders,
@@ -331,8 +332,9 @@ app.include_router(obsidian_sync.router)
 app.include_router(compass.router)
 app.include_router(digest.router)
 app.include_router(pipeline.router)
+app.include_router(purdy.router)
 
-logger.info("All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, task management, Obsidian sync, Compass, Digest, and Pipeline routes)")
+logger.info("All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, task management, Obsidian sync, Compass, Digest, Pipeline, and PuRDy routes)")
 
 # ============================================================================
 # Backward Compatibility Routes

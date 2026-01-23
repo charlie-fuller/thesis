@@ -2,6 +2,12 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// Routes that require thesis access (not available to purdy-only users)
+const thesisRoutes = ['/chat', '/admin', '/profile'];
+
+// Routes that require purdy access
+const purdyRoutes = ['/purdy'];
+
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
 
@@ -44,60 +50,87 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
+  const pathname = req.nextUrl.pathname;
+
   // Protected routes that require authentication
-  const protectedRoutes = ['/admin', '/chat', '/profile'];
+  const protectedRoutes = [...thesisRoutes, ...purdyRoutes];
   const isProtectedRoute = protectedRoutes.some((route) =>
-    req.nextUrl.pathname.startsWith(route)
+    pathname.startsWith(route)
   );
 
-  // Admin routes that require admin role
-  const isAdminRoute = req.nextUrl.pathname.startsWith('/admin');
+  // Check route types
+  const isAdminRoute = pathname.startsWith('/admin');
+  const isThesisRoute = thesisRoutes.some((route) => pathname.startsWith(route));
+  const isPurdyRoute = pathname.startsWith('/purdy');
 
   // Auth routes that should redirect if already logged in
   const authRoutes = ['/auth/login'];
-  const isAuthRoute = authRoutes.some((route) =>
-    req.nextUrl.pathname.startsWith(route)
-  );
+  const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
 
   // If trying to access protected route without session, redirect to login
   if (isProtectedRoute && !session) {
     const redirectUrl = new URL('/auth/login', req.url);
-    redirectUrl.searchParams.set('redirectTo', req.nextUrl.pathname);
+    redirectUrl.searchParams.set('redirectTo', pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
-  // If trying to access admin route, check role
-  if (isAdminRoute && session) {
-    const { data: profile } = await supabase
+  // Fetch user profile with role and app_access for permission checks
+  let profile: { role: string; app_access: string[] | null } | null = null;
+  if (session && (isProtectedRoute || isAuthRoute)) {
+    const { data } = await supabase
       .from('users')
-      .select('role')
+      .select('role, app_access')
       .eq('id', session.user.id)
       .single();
-
-    const isAdmin = profile?.role === 'admin';
-
-    if (!isAdmin) {
-      return NextResponse.redirect(new URL('/chat', req.url));
-    }
+    profile = data;
   }
 
-  // If trying to access auth routes with session, redirect based on role
-  if (isAuthRoute && session) {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
+  if (session && profile) {
+    const isAdmin = profile.role === 'admin';
+    const appAccess = profile.app_access || ['thesis']; // Default to thesis access
+    const hasThesisAccess = isAdmin || appAccess.includes('thesis') || appAccess.includes('all');
+    const hasPurdyAccess = isAdmin || appAccess.includes('purdy') || appAccess.includes('all');
 
-    const isAdmin = profile?.role === 'admin';
-    const redirectPath = isAdmin ? '/admin' : '/chat';
+    // If trying to access admin route without admin role
+    if (isAdminRoute && !isAdmin) {
+      // Redirect based on what access they have
+      const redirectPath = hasPurdyAccess && !hasThesisAccess ? '/purdy' : '/chat';
+      return NextResponse.redirect(new URL(redirectPath, req.url));
+    }
 
-    return NextResponse.redirect(new URL(redirectPath, req.url));
+    // If trying to access thesis routes without thesis access
+    if (isThesisRoute && !hasThesisAccess) {
+      // PuRDy-only user trying to access thesis routes
+      return NextResponse.redirect(new URL('/purdy', req.url));
+    }
+
+    // If trying to access purdy routes without purdy access
+    if (isPurdyRoute && !hasPurdyAccess) {
+      // Thesis-only user trying to access purdy routes
+      return NextResponse.redirect(new URL('/chat', req.url));
+    }
+
+    // If on auth route with session, redirect to appropriate home
+    if (isAuthRoute) {
+      let redirectPath = '/chat';
+      if (isAdmin) {
+        redirectPath = '/admin';
+      } else if (hasPurdyAccess && !hasThesisAccess) {
+        redirectPath = '/purdy';
+      }
+      return NextResponse.redirect(new URL(redirectPath, req.url));
+    }
   }
 
   return res;
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/chat/:path*', '/profile/:path*', '/auth/:path*'],
+  matcher: [
+    '/admin/:path*',
+    '/chat/:path*',
+    '/profile/:path*',
+    '/auth/:path*',
+    '/purdy/:path*',
+  ],
 };

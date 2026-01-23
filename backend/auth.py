@@ -151,22 +151,25 @@ def get_current_user(
 
     user_id = payload.get('sub')
 
-    # Fetch user role and client_id from database using centralized connection
+    # Fetch user role, client_id, and app_access from database using centralized connection
     try:
         supabase = get_supabase()
-        user_result = supabase.table('users').select('role, client_id').eq('id', user_id).single().execute()
+        user_result = supabase.table('users').select('role, client_id, app_access').eq('id', user_id).single().execute()
         user_role = user_result.data.get('role', 'user') if user_result.data else 'user'
         user_client_id = user_result.data.get('client_id') if user_result.data else None
+        user_app_access = user_result.data.get('app_access') if user_result.data else ['thesis']
     except Exception as e:
         logger.info(f"Warning: Could not fetch user data from database: {e}")
         user_role = 'user'
         user_client_id = None
+        user_app_access = ['thesis']
 
     return {
         'id': user_id,
         'email': payload.get('email'),
         'role': user_role,
         'client_id': user_client_id,
+        'app_access': user_app_access or ['thesis'],
     }
 
 
@@ -195,22 +198,25 @@ def get_current_user_optional(
 
     user_id = payload.get('sub')
 
-    # Fetch user role and client_id from database using centralized connection
+    # Fetch user role, client_id, and app_access from database using centralized connection
     try:
         supabase = get_supabase()
-        user_result = supabase.table('users').select('role, client_id').eq('id', user_id).single().execute()
+        user_result = supabase.table('users').select('role, client_id, app_access').eq('id', user_id).single().execute()
         user_role = user_result.data.get('role', 'user') if user_result.data else 'user'
         user_client_id = user_result.data.get('client_id') if user_result.data else None
+        user_app_access = user_result.data.get('app_access') if user_result.data else ['thesis']
     except Exception as e:
         logger.info(f"Warning: Could not fetch user data from database: {e}")
         user_role = 'user'
         user_client_id = None
+        user_app_access = ['thesis']
 
     return {
         'id': user_id,
         'email': payload.get('email'),
         'role': user_role,
         'client_id': user_client_id,
+        'app_access': user_app_access or ['thesis'],
     }
 
 
@@ -245,3 +251,43 @@ require_admin = require_role(['admin'])
 # Note: In single-tenant mode, client_admin role is deprecated
 # For backward compatibility, require_client_admin now just requires 'admin'
 require_client_admin = require_role(['admin'])
+
+
+def require_app_access(required_apps: list):
+    """
+    Dependency factory to require access to specific apps
+
+    Args:
+        required_apps: List of required app names (e.g., ['purdy', 'thesis'])
+
+    Returns:
+        Function that checks if user has required app access
+    """
+    def app_access_checker(current_user: dict = Security(get_current_user)) -> dict:
+        user_role = current_user.get('role', 'user')
+        user_app_access = current_user.get('app_access', ['thesis'])
+
+        # Admins have access to everything
+        if user_role == 'admin':
+            return current_user
+
+        # Check if user has 'all' access
+        if 'all' in user_app_access:
+            return current_user
+
+        # Check if user has any of the required apps
+        has_access = any(app in user_app_access for app in required_apps)
+        if not has_access:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Access denied. Required app access: {', '.join(required_apps)}"
+            )
+
+        return current_user
+
+    return app_access_checker
+
+
+# Convenience dependencies for common app access checks
+require_purdy_access = require_app_access(['purdy'])
+require_thesis_access = require_app_access(['thesis'])
