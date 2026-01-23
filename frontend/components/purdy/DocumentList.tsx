@@ -41,7 +41,7 @@ const DOC_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
 }
 
 function DocumentItem({
-  document,
+  document: doc,
   canDelete,
   initiativeId,
   onDeleted
@@ -55,7 +55,7 @@ function DocumentItem({
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const typeConfig = DOC_TYPE_CONFIG[document.document_type] || DOC_TYPE_CONFIG.uploaded
+  const typeConfig = DOC_TYPE_CONFIG[doc.document_type] || DOC_TYPE_CONFIG.uploaded
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this document?')) {
@@ -66,8 +66,8 @@ function DocumentItem({
     setError(null)
 
     try {
-      await apiDelete(`/api/purdy/initiatives/${initiativeId}/documents/${document.id}`)
-      onDeleted(document.id)
+      await apiDelete(`/api/purdy/initiatives/${initiativeId}/documents/${doc.id}`)
+      onDeleted(doc.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete')
     } finally {
@@ -76,11 +76,11 @@ function DocumentItem({
   }
 
   const handleDownload = () => {
-    const blob = new Blob([document.content], { type: 'text/markdown' })
+    const blob = new Blob([doc.content], { type: 'text/markdown' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = document.filename
+    a.download = doc.filename
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -105,21 +105,21 @@ function DocumentItem({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-medium text-slate-900 dark:text-white truncate">
-              {document.filename}
+              {doc.filename}
             </span>
             <span className={`px-2 py-0.5 text-xs rounded-full ${typeConfig.color}`}>
               {typeConfig.label}
             </span>
-            {document.version > 1 && (
-              <span className="text-xs text-slate-500">v{document.version}</span>
+            {doc.version > 1 && (
+              <span className="text-xs text-slate-500">v{doc.version}</span>
             )}
           </div>
           <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              {new Date(document.uploaded_at).toLocaleDateString()}
+              {new Date(doc.uploaded_at).toLocaleDateString()}
             </span>
-            <span>{document.content.length.toLocaleString()} chars</span>
+            <span>{doc.content.length.toLocaleString()} chars</span>
           </div>
         </div>
 
@@ -159,10 +159,10 @@ function DocumentItem({
       {expanded && (
         <div className="border-t border-slate-200 dark:border-slate-700 p-4 bg-slate-50 dark:bg-slate-900/50">
           <pre className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono max-h-96 overflow-y-auto">
-            {document.content.slice(0, 5000)}
-            {document.content.length > 5000 && (
+            {doc.content.slice(0, 5000)}
+            {doc.content.length > 5000 && (
               <span className="text-slate-400">
-                {'\n\n... (truncated, {(document.content.length - 5000).toLocaleString()} more characters)'}
+                {'\n\n... (truncated, {(doc.content.length - 5000).toLocaleString()} more characters)'}
               </span>
             )}
           </pre>
