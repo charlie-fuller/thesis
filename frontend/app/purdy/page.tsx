@@ -324,7 +324,7 @@ export default function PurdyInitiativesPage() {
         </p>
       </div>
 
-      {/* Header */}
+      {/* Header - only show New Initiative button when there are initiatives */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
@@ -334,13 +334,15 @@ export default function PurdyInitiativesPage() {
             {initiatives.length} initiative{initiatives.length !== 1 ? 's' : ''} total
           </p>
         </div>
-        <button
-          onClick={() => setCreateModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          New Initiative
-        </button>
+        {initiatives.length > 0 && (
+          <button
+            onClick={() => setCreateModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New Initiative
+          </button>
+        )}
       </div>
 
       {/* Summary Cards */}
