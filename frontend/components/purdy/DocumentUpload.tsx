@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, FileText, X, Loader2 } from 'lucide-react'
+import { Upload, FileText, X, Loader2, CheckCircle } from 'lucide-react'
 import { authenticatedFetch } from '@/lib/api'
 
 interface DocumentUploadProps {
@@ -9,9 +9,16 @@ interface DocumentUploadProps {
   onUploaded: (document: any) => void
 }
 
+interface UploadProgress {
+  filename: string
+  status: 'pending' | 'uploading' | 'success' | 'error'
+  error?: string
+}
+
 export default function DocumentUpload({ initiativeId, onUploaded }: DocumentUploadProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([])
   const [error, setError] = useState<string | null>(null)
   const [pasteMode, setPasteMode] = useState(false)
   const [pasteFilename, setPasteFilename] = useState('')
@@ -35,14 +42,14 @@ export default function DocumentUpload({ initiativeId, onUploaded }: DocumentUpl
 
     const files = Array.from(e.dataTransfer.files)
     if (files.length > 0) {
-      await uploadFile(files[0])
+      await uploadFiles(files)
     }
   }
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (files && files.length > 0) {
-      await uploadFile(files[0])
+      await uploadFiles(Array.from(files))
     }
     // Reset input
     if (fileInputRef.current) {
@@ -50,36 +57,68 @@ export default function DocumentUpload({ initiativeId, onUploaded }: DocumentUpl
     }
   }
 
-  const uploadFile = async (file: File) => {
+  const uploadFiles = async (files: File[]) => {
     setUploading(true)
     setError(null)
 
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
+    // Initialize progress for all files
+    const progress: UploadProgress[] = files.map(f => ({
+      filename: f.name,
+      status: 'pending'
+    }))
+    setUploadProgress(progress)
 
-      const response = await authenticatedFetch(
-        `/api/purdy/initiatives/${initiativeId}/documents`,
-        {
-          method: 'POST',
-          body: formData,
+    // Upload files sequentially to avoid overwhelming the server
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+
+      // Update status to uploading
+      setUploadProgress(prev => prev.map((p, idx) =>
+        idx === i ? { ...p, status: 'uploading' } : p
+      ))
+
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const response = await authenticatedFetch(
+          `/api/purdy/initiatives/${initiativeId}/documents`,
+          {
+            method: 'POST',
+            body: formData,
+          }
+        )
+
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.detail || 'Upload failed')
         }
-      )
 
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.detail || 'Upload failed')
+        const result = await response.json()
+
+        if (result.success && result.document) {
+          onUploaded(result.document)
+        }
+
+        // Update status to success
+        setUploadProgress(prev => prev.map((p, idx) =>
+          idx === i ? { ...p, status: 'success' } : p
+        ))
+      } catch (err) {
+        // Update status to error
+        const errorMsg = err instanceof Error ? err.message : 'Upload failed'
+        setUploadProgress(prev => prev.map((p, idx) =>
+          idx === i ? { ...p, status: 'error', error: errorMsg } : p
+        ))
       }
+    }
 
-      const result = await response.json()
+    setUploading(false)
 
-      if (result.success && result.document) {
-        onUploaded(result.document)
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
-    } finally {
-      setUploading(false)
+    // Clear progress after a delay if all succeeded
+    const allSucceeded = uploadProgress.every(p => p.status === 'success')
+    if (allSucceeded) {
+      setTimeout(() => setUploadProgress([]), 2000)
     }
   }
 
@@ -169,19 +208,41 @@ export default function DocumentUpload({ initiativeId, onUploaded }: DocumentUpl
             type="file"
             onChange={handleFileSelect}
             accept=".pdf,.docx,.txt,.md,.xlsx,.pptx"
+            multiple
             className="hidden"
           />
 
-          {uploading ? (
-            <div className="flex flex-col items-center gap-2 text-slate-500">
-              <Loader2 className="w-8 h-8 animate-spin" />
-              <p>Uploading and processing...</p>
+          {uploading || uploadProgress.length > 0 ? (
+            <div className="flex flex-col items-center gap-3 text-slate-500">
+              {uploadProgress.length > 1 ? (
+                // Multi-file progress
+                <div className="w-full space-y-2">
+                  {uploadProgress.map((p, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-sm">
+                      {p.status === 'uploading' && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
+                      {p.status === 'success' && <CheckCircle className="w-4 h-4 text-green-500" />}
+                      {p.status === 'error' && <X className="w-4 h-4 text-red-500" />}
+                      {p.status === 'pending' && <div className="w-4 h-4 rounded-full border-2 border-slate-300" />}
+                      <span className={p.status === 'error' ? 'text-red-500' : ''}>
+                        {p.filename}
+                      </span>
+                      {p.error && <span className="text-xs text-red-400">({p.error})</span>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                // Single file progress
+                <>
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                  <p>Uploading {uploadProgress[0]?.filename || 'file'}...</p>
+                </>
+              )}
             </div>
           ) : (
             <>
               <Upload className="w-10 h-10 text-slate-400 mx-auto mb-3" />
               <p className="text-slate-600 dark:text-slate-400 mb-2">
-                Drag and drop a file here, or{' '}
+                Drag and drop files here, or{' '}
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="text-indigo-600 dark:text-indigo-400 hover:underline"
@@ -190,7 +251,7 @@ export default function DocumentUpload({ initiativeId, onUploaded }: DocumentUpl
                 </button>
               </p>
               <p className="text-xs text-slate-400">
-                Supported: PDF, DOCX, TXT, Markdown, Excel, PowerPoint
+                Supported: PDF, DOCX, TXT, Markdown, Excel, PowerPoint (multiple files OK)
               </p>
             </>
           )}
