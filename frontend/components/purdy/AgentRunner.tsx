@@ -290,6 +290,10 @@ export default function AgentRunner({
     setCurrentPassLabel('')
 
     try {
+      // Multi-pass synthesis runs 4 Claude calls and needs much longer timeout
+      const isMultiPass = selectedAgent === 'synthesizer' && multiPass
+      const timeoutMs = isMultiPass ? 600000 : 300000 // 10 min for multi-pass, 5 min for single
+
       const response = await authenticatedFetch(
         `/api/purdy/initiatives/${initiativeId}/runs`,
         {
@@ -298,8 +302,9 @@ export default function AgentRunner({
           body: JSON.stringify({
             agent_type: selectedAgent,
             output_format: outputFormat,
-            multi_pass: selectedAgent === 'synthesizer' && multiPass
+            multi_pass: isMultiPass
           }),
+          timeout: timeoutMs,
         }
       )
 
