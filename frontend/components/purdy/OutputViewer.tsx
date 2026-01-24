@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, useId } from 'react'
 import {
   FileText,
   Download,
@@ -18,9 +18,61 @@ import {
   Cpu,
   Trash2
 } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { apiDelete } from '@/lib/api'
+
+// Mermaid diagram component for rendering diagrams
+function MermaidDiagram({ chart }: { chart: string }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const uniqueId = useId().replace(/:/g, '-')
+  const [error, setError] = useState<string | null>(null)
+  const [rendered, setRendered] = useState(false)
+
+  useEffect(() => {
+    const renderDiagram = async () => {
+      if (!containerRef.current || rendered) return
+
+      try {
+        // Dynamic import to avoid SSR issues
+        const mermaid = (await import('mermaid')).default
+
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: 'neutral',
+          securityLevel: 'loose',
+        })
+
+        const { svg } = await mermaid.render(`mermaid-${uniqueId}`, chart)
+        if (containerRef.current) {
+          containerRef.current.innerHTML = svg
+          setRendered(true)
+        }
+      } catch (err) {
+        console.error('Mermaid rendering failed:', err)
+        setError(err instanceof Error ? err.message : 'Failed to render diagram')
+      }
+    }
+
+    renderDiagram()
+  }, [chart, uniqueId, rendered])
+
+  if (error) {
+    return (
+      <div className="my-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+        <p className="text-sm text-red-600 dark:text-red-400">Diagram error: {error}</p>
+        <pre className="mt-2 text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">{chart}</pre>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="my-4 flex justify-center overflow-x-auto"
+    />
+  )
+}
 
 interface Output {
   id: string
@@ -35,6 +87,10 @@ interface Output {
   content_markdown: string
   content_structured: Record<string, any>
   created_at: string
+  output_format?: string
+  synthesis_mode?: string
+  synthesis_notes?: string | null
+  source_outputs?: Array<{ agent_type: string; version: number; id: string }>
 }
 
 interface OutputViewerProps {
@@ -104,6 +160,20 @@ function OutputListItem({
               {output.recommendation}
             </span>
           )}
+          {output.output_format && output.output_format !== 'comprehensive' && (
+            <span className={`px-1.5 py-0.5 text-xs rounded ${
+              output.output_format === 'executive'
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+            }`}>
+              {output.output_format === 'executive' ? 'Exec' : 'Brief'}
+            </span>
+          )}
+          {output.synthesis_mode === 'multi_pass' && (
+            <span className="px-1.5 py-0.5 text-xs rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              Multi-Pass
+            </span>
+          )}
           {output.confidence_level && (
             <span className="text-xs text-slate-500">
               {output.confidence_level}
@@ -129,8 +199,10 @@ function OutputDetail({
 }) {
   const [copied, setCopied] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [activeTab, setActiveTab] = useState<'output' | 'notes'>('output')
   const config = AGENT_CONFIG[output.agent_type] || { name: output.agent_type, icon: FileText, color: 'text-slate-600 bg-slate-100' }
   const Icon = config.icon
+  const hasNotes = output.synthesis_mode === 'multi_pass' && output.synthesis_notes
 
   const handleDelete = async () => {
     if (!onDelete) return
@@ -225,7 +297,7 @@ function OutputDetail({
       </div>
 
       {/* Summary badges */}
-      {(output.recommendation || output.tier_routing || output.confidence_level) && (
+      {(output.recommendation || output.tier_routing || output.confidence_level || (output.output_format && output.output_format !== 'comprehensive')) && (
         <div className="flex flex-wrap gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
           {output.recommendation && (
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -248,11 +320,20 @@ function OutputDetail({
               {output.confidence_level} Confidence
             </span>
           )}
+          {output.output_format && output.output_format !== 'comprehensive' && (
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+              output.output_format === 'executive'
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+            }`}>
+              {output.output_format === 'executive' ? 'Executive Summary' : 'Brief'}
+            </span>
+          )}
         </div>
       )}
 
       {/* Executive Summary */}
-      {output.executive_summary && (
+      {output.executive_summary && activeTab === 'output' && (
         <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
           <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
             Executive Summary
@@ -263,11 +344,119 @@ function OutputDetail({
         </div>
       )}
 
+      {/* Source Outputs - show what previous outputs were used */}
+      {output.source_outputs && output.source_outputs.length > 0 && activeTab === 'output' && (
+        <div className="px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            Built on:{' '}
+            {output.source_outputs.map((src, i) => (
+              <span key={src.id}>
+                {i > 0 && ', '}
+                <span className="font-medium">{AGENT_CONFIG[src.agent_type]?.name || src.agent_type}</span>
+                <span className="text-slate-400"> v{src.version}</span>
+              </span>
+            ))}
+          </span>
+        </div>
+      )}
+
+      {/* Tabs for multi-pass outputs */}
+      {hasNotes && (
+        <div className="flex border-b border-slate-200 dark:border-slate-700">
+          <button
+            onClick={() => setActiveTab('output')}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === 'output'
+                ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 -mb-px'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            Output
+          </button>
+          <button
+            onClick={() => setActiveTab('notes')}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors flex items-center gap-2 ${
+              activeTab === 'notes'
+                ? 'text-amber-600 dark:text-amber-400 border-b-2 border-amber-600 dark:border-amber-400 -mb-px'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            Synthesis Notes
+            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+              Multi-Pass
+            </span>
+          </button>
+        </div>
+      )}
+
       {/* Full Content */}
       <div className="p-4 max-h-[600px] overflow-y-auto">
-        <div className="prose prose-sm dark:prose-invert max-w-none prose-table:border-collapse prose-table:w-full prose-th:border prose-th:border-slate-300 prose-th:dark:border-slate-600 prose-th:bg-slate-100 prose-th:dark:bg-slate-700 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-td:border prose-td:border-slate-300 prose-td:dark:border-slate-600 prose-td:px-3 prose-td:py-2">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{output.content_markdown}</ReactMarkdown>
-        </div>
+        {activeTab === 'output' ? (
+          <div className="prose prose-sm dark:prose-invert max-w-none prose-table:border-collapse prose-table:w-full prose-th:border prose-th:border-slate-300 prose-th:dark:border-slate-600 prose-th:bg-slate-100 prose-th:dark:bg-slate-700 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-td:border prose-td:border-slate-300 prose-td:dark:border-slate-600 prose-td:px-3 prose-td:py-2">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({ className, children, ...props }) {
+                  const match = /language-(\w+)/.exec(className || '')
+                  const language = match ? match[1] : ''
+                  const content = String(children).replace(/\n$/, '')
+
+                  // Handle mermaid diagrams
+                  if (language === 'mermaid') {
+                    return <MermaidDiagram chart={content} />
+                  }
+
+                  // Regular code block
+                  const isInline = !className
+                  return isInline ? (
+                    <code className={className} {...props}>{children}</code>
+                  ) : (
+                    <pre className="bg-slate-100 dark:bg-slate-800 p-4 rounded overflow-x-auto">
+                      <code className={className} {...props}>{children}</code>
+                    </pre>
+                  )
+                }
+              } as Components}
+            >
+              {output.content_markdown}
+            </ReactMarkdown>
+          </div>
+        ) : (
+          <div className="prose prose-sm dark:prose-invert max-w-none prose-table:border-collapse prose-table:w-full prose-th:border prose-th:border-slate-300 prose-th:dark:border-slate-600 prose-th:bg-slate-100 prose-th:dark:bg-slate-700 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-td:border prose-td:border-slate-300 prose-td:dark:border-slate-600 prose-td:px-3 prose-td:py-2">
+            <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                <strong>About this report:</strong> This synthesis was created using multi-pass analysis
+                (3 Sonnet passes at different temperatures + Opus meta-synthesis). The notes below explain
+                which pass contributed what insights and why.
+              </p>
+            </div>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({ className, children, ...props }) {
+                  const match = /language-(\w+)/.exec(className || '')
+                  const language = match ? match[1] : ''
+                  const content = String(children).replace(/\n$/, '')
+
+                  if (language === 'mermaid') {
+                    return <MermaidDiagram chart={content} />
+                  }
+
+                  const isInline = !className
+                  return isInline ? (
+                    <code className={className} {...props}>{children}</code>
+                  ) : (
+                    <pre className="bg-slate-100 dark:bg-slate-800 p-4 rounded overflow-x-auto">
+                      <code className={className} {...props}>{children}</code>
+                    </pre>
+                  )
+                }
+              } as Components}
+            >
+              {output.synthesis_notes || ''}
+            </ReactMarkdown>
+          </div>
+        )}
       </div>
     </div>
   )
