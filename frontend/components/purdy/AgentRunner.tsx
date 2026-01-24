@@ -147,6 +147,8 @@ const FUN_STATUS_MESSAGES = [
   "Hold my beer...",
   "Stroking my beautiful Fu Manchu beard...",
   "Why is there a platypus in here?",
+  "Technically, we're all just stardust procrastinating.",
+  "I forgot what I was doing but I'm doing it harder now.",
 ]
 
 // Workflow guidance for each agent
