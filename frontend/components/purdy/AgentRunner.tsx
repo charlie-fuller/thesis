@@ -146,6 +146,7 @@ export default function AgentRunner({
                   const result = JSON.parse(data)
                   setCompleted(true)
                   setStatus('Complete!')
+                  // Signal completion - parent will reload full outputs list
                   onComplete(result)
                 } catch (e) {
                   console.error('Failed to parse complete event:', e)

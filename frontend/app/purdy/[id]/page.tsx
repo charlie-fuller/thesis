@@ -189,9 +189,21 @@ export default function InitiativeDetailPage() {
     }
   }
 
-  const handleAgentComplete = (output: Output) => {
-    setOutputs([output, ...outputs])
-    setSelectedOutput(output)
+  const handleAgentComplete = async () => {
+    // Reload full outputs list to get complete data
+    try {
+      const result = await apiGet<{ success: boolean; outputs: Output[] }>(
+        `/api/purdy/initiatives/${initiativeId}/outputs`
+      )
+      const newOutputs = result.outputs || []
+      setOutputs(newOutputs)
+      // Select the newest output (first in list since sorted by created_at desc)
+      if (newOutputs.length > 0) {
+        setSelectedOutput(newOutputs[0])
+      }
+    } catch (err) {
+      console.error('Failed to reload outputs:', err)
+    }
     setActiveTab('outputs')
     loadInitiative() // Refresh status
   }

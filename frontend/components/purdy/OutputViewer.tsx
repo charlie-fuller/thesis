@@ -50,6 +50,13 @@ const AGENT_CONFIG: Record<string, { name: string; icon: typeof Target; color: s
   tech_evaluation: { name: 'Tech Evaluation', icon: Cpu, color: 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400' },
 }
 
+function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return 'Unknown date'
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return 'Unknown date'
+  return date.toLocaleString()
+}
+
 function OutputListItem({
   output,
   selected,
@@ -100,7 +107,7 @@ function OutputListItem({
           )}
         </div>
         <div className="text-xs text-slate-400 mt-1">
-          {new Date(output.created_at).toLocaleString()}
+          {formatDate(output.created_at)}
         </div>
       </div>
     </button>
@@ -153,7 +160,7 @@ function OutputDetail({
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <span>Version {output.version}</span>
               <span>•</span>
-              <span>{new Date(output.created_at).toLocaleString()}</span>
+              <span>{formatDate(output.created_at)}</span>
             </div>
           </div>
         </div>
