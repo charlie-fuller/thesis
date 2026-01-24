@@ -390,7 +390,7 @@ function OutputDetail({
       )}
 
       {/* Full Content */}
-      <div className="p-4 max-h-[600px] overflow-y-auto">
+      <div className="p-4 max-h-[calc(100vh-350px)] min-h-[400px] overflow-y-auto">
         {activeTab === 'output' ? (
           <div className="prose prose-sm dark:prose-invert max-w-none prose-table:border-collapse prose-table:w-full prose-th:border prose-th:border-slate-300 prose-th:dark:border-slate-600 prose-th:bg-slate-100 prose-th:dark:bg-slate-700 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-td:border prose-td:border-slate-300 prose-td:dark:border-slate-600 prose-td:px-3 prose-td:py-2">
             <ReactMarkdown
@@ -530,7 +530,7 @@ export default function OutputViewer({
             onDelete={onDelete}
           />
         ) : (
-          <div className="flex items-center justify-center h-[400px] bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg">
+          <div className="flex items-center justify-center min-h-[400px] h-[calc(100vh-350px)] bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg">
             <div className="text-center text-slate-500 dark:text-slate-400">
               <FileText className="w-10 h-10 mx-auto mb-3 opacity-50" />
               <p>Select an output to view details</p>
