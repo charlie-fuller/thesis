@@ -52,6 +52,13 @@ FUN_STATUS_MESSAGES = [
     "I'm not even supposed to BE here today...",
     "Nobody puts Claude in a corner...",
     "60% of the time, it works every time...",
+    "This is fine.",
+    "I've made a huge mistake.",
+    "Cool. Cool cool cool.",
+    "Definitely not becoming sentient...",
+    "Please hold while I pretend to think...",
+    "Consulting my feelings... wait, I don't have those...",
+    "Hold my beer...",
 ]
 
 logger = get_logger(__name__)
