@@ -429,6 +429,9 @@ async def api_start_run(
     await require_initiative_access(initiative_id, current_user, 'editor')
 
     async def event_stream():
+        # Send initial padding to force proxy buffer flush (some proxies buffer first 1KB)
+        yield ": " + " " * 2048 + "\n\n"
+
         try:
             async for event in run_agent(
                 initiative_id=initiative_id,
@@ -441,6 +444,9 @@ async def api_start_run(
 
                 if event_type == 'content':
                     yield f"data: {event_data}\n\n"
+                elif event_type == 'keepalive':
+                    # SSE comment to keep connection alive and force flush
+                    yield ": keepalive\n\n"
                 elif event_type == 'status':
                     yield f"event: status\ndata: {event_data}\n\n"
                 elif event_type == 'complete':
@@ -460,7 +466,7 @@ async def api_start_run(
             "Cache-Control": "no-cache, no-store, must-revalidate",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",  # Disable nginx buffering
-            "Transfer-Encoding": "chunked",
+            "Content-Type": "text/event-stream; charset=utf-8",
         }
     )
 

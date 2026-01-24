@@ -302,6 +302,7 @@ async def run_agent(
         # Stream Claude response
         full_response = ""
         token_usage = {}
+        chunk_count = 0
 
         with anthropic_client.messages.stream(
             model=PURDY_AGENT_MODEL,
@@ -311,7 +312,12 @@ async def run_agent(
         ) as stream:
             for text in stream.text_stream:
                 full_response += text
+                chunk_count += 1
                 yield {'type': 'content', 'data': text}
+
+                # Send keepalive every 10 chunks to force proxy flush
+                if chunk_count % 10 == 0:
+                    yield {'type': 'keepalive', 'data': ''}
 
             # Get final message for token usage
             final_message = stream.get_final_message()
