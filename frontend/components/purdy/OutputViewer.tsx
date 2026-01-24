@@ -248,12 +248,13 @@ export default function OutputViewer({
   onSelectOutput,
   onRefresh
 }: OutputViewerProps) {
-  // Group outputs by agent type
+  // Group outputs by agent type (handle null/undefined agent_type)
   const outputsByType = outputs.reduce((acc, output) => {
-    if (!acc[output.agent_type]) {
-      acc[output.agent_type] = []
+    const agentType = output.agent_type || 'unknown'
+    if (!acc[agentType]) {
+      acc[agentType] = []
     }
-    acc[output.agent_type].push(output)
+    acc[agentType].push(output)
     return acc
   }, {} as Record<string, Output[]>)
 
