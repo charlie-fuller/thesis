@@ -131,14 +131,29 @@ export default function AgentRunner({
         const lines = buffer.split('\n')
         buffer = lines.pop() || ''
 
-        for (const line of lines) {
+        // Track indices of data lines that belong to typed events (to skip them)
+        const skipIndices = new Set<number>()
+
+        // First pass: find all event: lines and mark their data lines
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].startsWith('event: ')) {
+            // The next line should be the data for this event
+            if (i + 1 < lines.length && lines[i + 1].startsWith('data: ')) {
+              skipIndices.add(i + 1)
+            }
+          }
+        }
+
+        // Second pass: process all lines
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i]
+
           if (line.startsWith('event: ')) {
             const eventType = line.slice(7).trim()
 
-            // Find the next data line
-            const dataIndex = lines.indexOf(line) + 1
-            if (dataIndex < lines.length && lines[dataIndex].startsWith('data: ')) {
-              const data = lines[dataIndex].slice(6)
+            // Get the next data line
+            if (i + 1 < lines.length && lines[i + 1].startsWith('data: ')) {
+              const data = lines[i + 1].slice(6)
 
               if (eventType === 'status') {
                 flushSync(() => setStatus(data))
@@ -158,8 +173,8 @@ export default function AgentRunner({
                 flushSync(() => setError(data))
               }
             }
-          } else if (line.startsWith('data: ')) {
-            // Regular content - use flushSync for immediate rendering
+          } else if (line.startsWith('data: ') && !skipIndices.has(i)) {
+            // Regular content (not part of a typed event) - use flushSync for immediate rendering
             const content = line.slice(6)
             flushSync(() => setStreamContent(prev => prev + content))
           }
