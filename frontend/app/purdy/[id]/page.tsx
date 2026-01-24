@@ -115,6 +115,11 @@ export default function InitiativeDetailPage() {
   const [selectedOutput, setSelectedOutput] = useState<Output | null>(null)
   const [shareModalOpen, setShareModalOpen] = useState(false)
 
+  // Edit mode for initiative details
+  const [editingDescription, setEditingDescription] = useState(false)
+  const [editedDescription, setEditedDescription] = useState('')
+  const [savingDescription, setSavingDescription] = useState(false)
+
   const canEdit = initiative?.user_role === 'owner' || initiative?.user_role === 'editor'
 
   // Load initiative data
@@ -187,6 +192,36 @@ export default function InitiativeDetailPage() {
         document_count: Math.max(0, initiative.document_count - 1)
       })
     }
+  }
+
+  const handleEditDescription = () => {
+    setEditedDescription(initiative?.description || '')
+    setEditingDescription(true)
+  }
+
+  const handleSaveDescription = async () => {
+    if (!initiative) return
+
+    setSavingDescription(true)
+    try {
+      const result = await apiPost<{ success: boolean; initiative: Initiative }>(
+        `/api/purdy/initiatives/${initiativeId}`,
+        { description: editedDescription }
+      )
+      if (result.success && result.initiative) {
+        setInitiative(result.initiative)
+      }
+      setEditingDescription(false)
+    } catch (err) {
+      console.error('Failed to save description:', err)
+    } finally {
+      setSavingDescription(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingDescription(false)
+    setEditedDescription('')
   }
 
   const handleAgentComplete = async () => {
@@ -274,10 +309,54 @@ export default function InitiativeDetailPage() {
                 {statusConfig.label}
               </span>
             </div>
-            {initiative.description && (
-              <p className="text-slate-500 dark:text-slate-400 max-w-2xl">
-                {initiative.description}
-              </p>
+            {editingDescription ? (
+              <div className="flex items-start gap-2 max-w-2xl">
+                <textarea
+                  value={editedDescription}
+                  onChange={(e) => setEditedDescription(e.target.value)}
+                  placeholder="Add a description for this initiative..."
+                  rows={3}
+                  className="flex-1 px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  autoFocus
+                />
+                <div className="flex flex-col gap-1">
+                  <button
+                    onClick={handleSaveDescription}
+                    disabled={savingDescription}
+                    className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {savingDescription ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={savingDescription}
+                    className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 group">
+                {initiative.description ? (
+                  <p className="text-slate-500 dark:text-slate-400 max-w-2xl">
+                    {initiative.description}
+                  </p>
+                ) : canEdit ? (
+                  <p className="text-slate-400 dark:text-slate-500 italic">
+                    No description
+                  </p>
+                ) : null}
+                {canEdit && (
+                  <button
+                    onClick={handleEditDescription}
+                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Edit description"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             )}
             <div className="flex items-center gap-4 mt-2 text-sm text-slate-500 dark:text-slate-400">
               <span className="flex items-center gap-1">

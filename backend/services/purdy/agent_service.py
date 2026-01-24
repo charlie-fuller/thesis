@@ -6,6 +6,7 @@ Handles loading agent prompts, building context, and executing agent runs.
 
 import asyncio
 import os
+import random
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,6 +16,33 @@ from uuid import uuid4
 import anthropic
 from database import get_supabase
 from logger_config import get_logger
+
+# Fun status messages to show while waiting for Claude
+FUN_STATUS_MESSAGES = [
+    "Cooking up insights...",
+    "Flibbergibberting the data...",
+    "Consulting the oracle...",
+    "Percolating ideas...",
+    "Wrangling requirements...",
+    "Synthesizing brilliance...",
+    "Channeling product wisdom...",
+    "Contemplating the universe...",
+    "Herding stakeholder cats...",
+    "Brewing analysis...",
+    "Crunching the numbers...",
+    "Pondering deeply...",
+    "Summoning insights...",
+    "Marinating thoughts...",
+    "Distilling knowledge...",
+    "Calibrating genius...",
+    "Making coffee...",
+    "Cracking knuckles...",
+    "Sighing deeply...",
+    "Gazing out the window at the mountains...",
+    "Getting a snack...",
+    "Popping a wheelie...",
+    "Looking casually over my shoulder...",
+]
 
 logger = get_logger(__name__)
 supabase = get_supabase()
@@ -299,7 +327,12 @@ async def run_agent(
         # Build the full prompt
         full_prompt = build_full_prompt(agent_type, context)
 
-        yield {'type': 'status', 'data': 'Running agent...'}
+        # Indicate which model is being used and set expectations
+        model = get_model_for_agent(agent_type)
+        if agent_type in SONNET_AGENTS:
+            yield {'type': 'status', 'data': 'Starting analysis...'}
+        else:
+            yield {'type': 'status', 'data': random.choice(FUN_STATUS_MESSAGES)}
 
         # Track document IDs used
         if document_ids:
@@ -321,7 +354,7 @@ async def run_agent(
         prompt_chars = len(full_prompt)
         logger.info(f"[PURDY] Context size - system: {system_chars} chars, user: {prompt_chars} chars, total: {system_chars + prompt_chars} chars")
         logger.info(f"[PURDY] Estimated tokens: ~{(system_chars + prompt_chars) // 4}")
-        model = get_model_for_agent(agent_type)
+        # model already set above
         logger.info(f"[PURDY] Calling Claude API with model: {model}")
 
         try:

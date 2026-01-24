@@ -19,6 +19,7 @@ import {
 import { apiGet } from '@/lib/api'
 import { authenticatedFetch } from '@/lib/api'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface Document {
   id: string
@@ -49,6 +50,33 @@ const AGENT_ICONS: Record<string, typeof Target> = {
   synthesizer: FileText,
   tech_evaluation: Cpu,
 }
+
+// Fun status messages to show while waiting
+const FUN_STATUS_MESSAGES = [
+  "Cooking up insights...",
+  "Flibbergibberting the data...",
+  "Consulting the oracle...",
+  "Percolating ideas...",
+  "Wrangling requirements...",
+  "Synthesizing brilliance...",
+  "Channeling product wisdom...",
+  "Contemplating the universe...",
+  "Herding stakeholder cats...",
+  "Brewing analysis...",
+  "Crunching the numbers...",
+  "Pondering deeply...",
+  "Summoning insights...",
+  "Marinating thoughts...",
+  "Distilling knowledge...",
+  "Calibrating genius...",
+  "Making coffee...",
+  "Cracking knuckles...",
+  "Sighing deeply...",
+  "Gazing out the window at the mountains...",
+  "Getting a snack...",
+  "Popping a wheelie...",
+  "Looking casually over my shoulder...",
+]
 
 // Workflow guidance for each agent
 const AGENT_WORKFLOW: Record<string, {
@@ -119,6 +147,9 @@ export default function AgentRunner({
   const [status, setStatus] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [completed, setCompleted] = useState(false)
+  const [elapsedTime, setElapsedTime] = useState(0)
+  const [startTime, setStartTime] = useState<number | null>(null)
+  const [funMessageIndex, setFunMessageIndex] = useState(0)
 
   const contentRef = useRef<HTMLDivElement>(null)
 
@@ -142,6 +173,34 @@ export default function AgentRunner({
     }
   }, [streamContent, running])
 
+  // Elapsed time timer
+  useEffect(() => {
+    if (!running || !startTime) return
+
+    const interval = setInterval(() => {
+      setElapsedTime(Math.floor((Date.now() - startTime) / 1000))
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [running, startTime])
+
+  // Rotate fun messages while waiting for content
+  useEffect(() => {
+    if (!running || streamContent) return
+
+    const interval = setInterval(() => {
+      setFunMessageIndex(prev => (prev + 1) % FUN_STATUS_MESSAGES.length)
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [running, streamContent])
+
+  const formatElapsedTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`
+  }
+
   const runAgent = async () => {
     if (!selectedAgent) return
 
@@ -150,6 +209,9 @@ export default function AgentRunner({
     setStatus('Starting...')
     setError(null)
     setCompleted(false)
+    setElapsedTime(0)
+    setStartTime(Date.now())
+    setFunMessageIndex(Math.floor(Math.random() * FUN_STATUS_MESSAGES.length))
 
     try {
       const response = await authenticatedFetch(
@@ -240,6 +302,7 @@ export default function AgentRunner({
       setError(err instanceof Error ? err.message : 'Run failed')
     } finally {
       setRunning(false)
+      setStartTime(null)
     }
   }
 
@@ -253,101 +316,107 @@ export default function AgentRunner({
           Select Agent
         </h3>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-2">
           {agents.map((agent) => {
             const Icon = AGENT_ICONS[agent.type] || Zap
             const isSelected = selectedAgent === agent.type
+            const workflow = AGENT_WORKFLOW[agent.type]
 
             return (
-              <button
-                key={agent.type}
-                onClick={() => setSelectedAgent(agent.type)}
-                disabled={running}
-                className={`flex items-start gap-3 p-4 rounded-lg border text-left transition-all ${
-                  isSelected
-                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                } ${running ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <div className={`p-2 rounded-lg ${
-                  isSelected
-                    ? 'bg-indigo-100 dark:bg-indigo-900/40'
-                    : 'bg-slate-100 dark:bg-slate-700'
-                }`}>
-                  <Icon className={`w-5 h-5 ${
+              <div key={agent.type} className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                {/* Agent Header - Clickable */}
+                <button
+                  onClick={() => setSelectedAgent(isSelected ? null : agent.type)}
+                  disabled={running}
+                  className={`w-full flex items-center gap-3 p-4 text-left transition-all ${
                     isSelected
-                      ? 'text-indigo-600 dark:text-indigo-400'
-                      : 'text-slate-500 dark:text-slate-400'
-                  }`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`font-medium ${
+                      ? 'bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-200 dark:border-indigo-800'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                  } ${running ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className={`p-2 rounded-lg flex-shrink-0 ${
+                    isSelected
+                      ? 'bg-indigo-100 dark:bg-indigo-900/40'
+                      : 'bg-slate-100 dark:bg-slate-700'
+                  }`}>
+                    <Icon className={`w-5 h-5 ${
                       isSelected
-                        ? 'text-indigo-900 dark:text-indigo-100'
-                        : 'text-slate-900 dark:text-white'
-                    }`}>
-                      {agent.name}
-                    </span>
-                    <span className="text-xs text-slate-400">{agent.version}</span>
+                        ? 'text-indigo-600 dark:text-indigo-400'
+                        : 'text-slate-500 dark:text-slate-400'
+                    }`} />
                   </div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
-                    {agent.description}
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Est. {agent.estimated_time}
-                  </p>
-                </div>
-              </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-medium ${
+                        isSelected
+                          ? 'text-indigo-900 dark:text-indigo-100'
+                          : 'text-slate-900 dark:text-white'
+                      }`}>
+                        {agent.name}
+                      </span>
+                      <span className="text-xs text-slate-400">{agent.version}</span>
+                      <span className="text-xs text-slate-400 ml-auto">
+                        Est. {agent.estimated_time}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                      {agent.description}
+                    </p>
+                  </div>
+                  <ChevronDown className={`w-5 h-5 text-slate-400 flex-shrink-0 transition-transform ${
+                    isSelected ? 'rotate-180' : ''
+                  }`} />
+                </button>
+
+                {/* Expanded Workflow Details */}
+                {isSelected && workflow && (
+                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                          When to Run
+                        </h4>
+                        <p className="text-sm text-slate-700 dark:text-slate-300">
+                          {workflow.when}
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                          Output
+                        </h4>
+                        <p className="text-sm text-slate-700 dark:text-slate-300">
+                          {workflow.outputs}
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                          Required Inputs
+                        </h4>
+                        <ul className="text-sm text-slate-700 dark:text-slate-300 list-disc list-inside space-y-0.5">
+                          {workflow.inputs.map((input, i) => (
+                            <li key={i}>{input}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      {workflow.prerequisites.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                            Prerequisites
+                          </h4>
+                          <ul className="text-sm text-slate-700 dark:text-slate-300 list-disc list-inside space-y-0.5">
+                            {workflow.prerequisites.map((prereq, i) => (
+                              <li key={i}>{prereq}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             )
           })}
         </div>
-
-        {/* Workflow Guidance - Shows when agent is selected */}
-        {selectedAgent && AGENT_WORKFLOW[selectedAgent] && (
-          <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                  When to Run
-                </h4>
-                <p className="text-sm text-slate-700 dark:text-slate-300">
-                  {AGENT_WORKFLOW[selectedAgent].when}
-                </p>
-              </div>
-              <div>
-                <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                  Output
-                </h4>
-                <p className="text-sm text-slate-700 dark:text-slate-300">
-                  {AGENT_WORKFLOW[selectedAgent].outputs}
-                </p>
-              </div>
-              <div>
-                <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                  Required Inputs
-                </h4>
-                <ul className="text-sm text-slate-700 dark:text-slate-300 list-disc list-inside space-y-0.5">
-                  {AGENT_WORKFLOW[selectedAgent].inputs.map((input, i) => (
-                    <li key={i}>{input}</li>
-                  ))}
-                </ul>
-              </div>
-              {AGENT_WORKFLOW[selectedAgent].prerequisites.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                    Prerequisites
-                  </h4>
-                  <ul className="text-sm text-slate-700 dark:text-slate-300 list-disc list-inside space-y-0.5">
-                    {AGENT_WORKFLOW[selectedAgent].prerequisites.map((prereq, i) => (
-                      <li key={i}>{prereq}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Run Button */}
         <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
@@ -408,11 +477,17 @@ export default function AgentRunner({
               <span className="text-sm text-slate-500 dark:text-slate-400">
                 {status}
               </span>
+
+              {running && elapsedTime > 0 && (
+                <span className="text-sm text-slate-400 dark:text-slate-500 font-mono">
+                  {formatElapsedTime(elapsedTime)}
+                </span>
+              )}
             </div>
 
             {running && (
-              <span className="text-xs bg-indigo-100 dark:bg-indigo-800 text-indigo-600 dark:text-indigo-300 px-2 py-1 rounded-full animate-pulse">
-                Generating in real-time...
+              <span className="text-xs bg-indigo-100 dark:bg-indigo-800 text-indigo-600 dark:text-indigo-300 px-3 py-1 rounded-full">
+                {streamContent ? 'Streaming...' : FUN_STATUS_MESSAGES[funMessageIndex]}
               </span>
             )}
           </div>
@@ -430,12 +505,20 @@ export default function AgentRunner({
             className="p-4 max-h-[600px] overflow-y-auto bg-slate-50 dark:bg-slate-900/50"
           >
             {streamContent ? (
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                <ReactMarkdown>{streamContent}</ReactMarkdown>
+              <div className="prose prose-sm dark:prose-invert max-w-none prose-table:border-collapse prose-table:w-full prose-th:border prose-th:border-slate-300 prose-th:dark:border-slate-600 prose-th:bg-slate-100 prose-th:dark:bg-slate-700 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-td:border prose-td:border-slate-300 prose-td:dark:border-slate-600 prose-td:px-3 prose-td:py-2">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamContent}</ReactMarkdown>
               </div>
             ) : running ? (
-              <div className="text-slate-400 dark:text-slate-500 italic">
-                Waiting for agent response...
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Loader2 className="w-10 h-10 text-indigo-400 animate-spin mb-4" />
+                <p className="text-lg text-slate-600 dark:text-slate-300 font-medium transition-all duration-300">
+                  {FUN_STATUS_MESSAGES[funMessageIndex]}
+                </p>
+                {elapsedTime > 20 && (
+                  <p className="text-sm text-slate-400 dark:text-slate-500 mt-3 max-w-md">
+                    Deep analysis takes time - Opus is reading all your documents carefully
+                  </p>
+                )}
               </div>
             ) : null}
           </div>

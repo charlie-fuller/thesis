@@ -19,6 +19,7 @@ import {
   Trash2
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { apiDelete } from '@/lib/api'
 
 interface Output {
@@ -264,8 +265,8 @@ function OutputDetail({
 
       {/* Full Content */}
       <div className="p-4 max-h-[600px] overflow-y-auto">
-        <div className="prose prose-sm dark:prose-invert max-w-none">
-          <ReactMarkdown>{output.content_markdown}</ReactMarkdown>
+        <div className="prose prose-sm dark:prose-invert max-w-none prose-table:border-collapse prose-table:w-full prose-th:border prose-th:border-slate-300 prose-th:dark:border-slate-600 prose-th:bg-slate-100 prose-th:dark:bg-slate-700 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-td:border prose-td:border-slate-300 prose-td:dark:border-slate-600 prose-td:px-3 prose-td:py-2">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{output.content_markdown}</ReactMarkdown>
         </div>
       </div>
     </div>
