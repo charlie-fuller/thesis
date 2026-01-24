@@ -239,11 +239,14 @@ async def build_agent_context(
     # Get previous outputs (latest of each type)
     outputs_result = await asyncio.to_thread(
         lambda: supabase.table('purdy_outputs')
-            .select('agent_type, version, content_markdown, recommendation, confidence_level')
+            .select('id, agent_type, version, content_markdown, recommendation, confidence_level')
             .eq('initiative_id', initiative_id)
             .order('created_at', desc=True)
             .execute()
     )
+
+    # Track source outputs for traceability
+    source_outputs = []
 
     if outputs_result.data:
         # Group by agent_type, keep only latest
@@ -257,6 +260,12 @@ async def build_agent_context(
         if previous_outputs:
             output_parts = []
             for output in previous_outputs:
+                # Track this output as a source
+                source_outputs.append({
+                    'agent_type': output['agent_type'],
+                    'version': output['version'],
+                    'id': output.get('id')
+                })
                 output_parts.append(f"\n\n=== Previous {output['agent_type']} Output (v{output['version']}) ===\n")
                 if output.get('recommendation'):
                     output_parts.append(f"Recommendation: {output['recommendation']}\n")
@@ -264,6 +273,8 @@ async def build_agent_context(
                     output_parts.append(f"Confidence: {output['confidence_level']}\n")
                 output_parts.append(output['content_markdown'])
             context['previous_outputs'] = '\n'.join(output_parts)
+
+    context['source_outputs'] = source_outputs
 
     # Include system KB context
     if include_system_kb:
@@ -434,7 +445,8 @@ async def run_agent(
             'executive_summary': parsed_output.get('executive_summary'),
             'content_markdown': full_response,
             'content_structured': parsed_output,
-            'output_format': output_format
+            'output_format': output_format,
+            'source_outputs': context.get('source_outputs', [])
         }
 
         # Log the data being stored
@@ -929,6 +941,7 @@ Create a unified synthesis that combines the best of all three passes. Follow th
             'content_markdown': full_response,
             'content_structured': parsed_output,
             'output_format': output_format,
+            'source_outputs': context.get('source_outputs', []),
             'synthesis_mode': 'multi_pass',
             'intermediate_outputs': intermediate_for_storage
         }
