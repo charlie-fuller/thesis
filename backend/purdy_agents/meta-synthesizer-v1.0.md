@@ -36,10 +36,20 @@ Create a unified synthesis that combines the best of all three passes:
 
 ## Output Requirements
 
-Your output MUST include:
+Your output MUST include TWO SEPARATE SECTIONS with a clear delimiter:
 
-1. **Standard PRD sections** as defined in the synthesizer prompt
-2. **Multi-Pass Synthesis Notes** section at the end (see detailed format below)
+1. **Main PRD Output**: Standard PRD sections as defined in the synthesizer prompt. This is the deliverable.
+
+2. **Multi-Pass Synthesis Notes**: A SEPARATE report (after the delimiter) explaining your synthesis process.
+
+**CRITICAL**: Use this exact delimiter between the two sections:
+
+```
+---SYNTHESIS-NOTES-START---
+```
+
+Everything BEFORE the delimiter is the clean PRD (shareable deliverable).
+Everything AFTER the delimiter is the process documentation (internal explainability).
 
 ## Quality Standards
 

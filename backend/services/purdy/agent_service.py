@@ -895,8 +895,19 @@ Create a unified synthesis that combines the best of all three passes. Follow th
             logger.error(f"[PURDY-MP] Meta-synthesis failed: {meta_error}")
             raise
 
-        # Parse output
-        parsed_output = parse_agent_output(agent_type, full_response)
+        # Extract synthesis notes from response (separated by delimiter)
+        NOTES_DELIMITER = "---SYNTHESIS-NOTES-START---"
+        main_content = full_response
+        synthesis_notes = None
+
+        if NOTES_DELIMITER in full_response:
+            parts = full_response.split(NOTES_DELIMITER, 1)
+            main_content = parts[0].strip()
+            synthesis_notes = parts[1].strip() if len(parts) > 1 else None
+            logger.info(f"[PURDY-MP] Extracted synthesis notes: {len(synthesis_notes or '')} chars")
+
+        # Parse output (use main content only for structured parsing)
+        parsed_output = parse_agent_output(agent_type, main_content)
 
         # Get next version number
         version_result = await asyncio.to_thread(
@@ -938,11 +949,12 @@ Create a unified synthesis that combines the best of all three passes. Follow th
             'tier_routing': parsed_output.get('tier_routing'),
             'confidence_level': parsed_output.get('confidence_level'),
             'executive_summary': parsed_output.get('executive_summary'),
-            'content_markdown': full_response,
+            'content_markdown': main_content,  # Clean PRD without synthesis notes
             'content_structured': parsed_output,
             'output_format': output_format,
             'source_outputs': context.get('source_outputs', []),
             'synthesis_mode': 'multi_pass',
+            'synthesis_notes': synthesis_notes,  # Separate explainability report
             'intermediate_outputs': intermediate_for_storage
         }
 
