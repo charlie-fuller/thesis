@@ -23,19 +23,25 @@ supabase = get_supabase()
 anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 # Configuration
-PURDY_REPO_PATH = os.environ.get("PURDY_REPO_PATH", "/Users/charlie.fuller/vaults/Contentful/GitHub/purdy-cf")
+# For production: use bundled agents in backend/purdy_agents/
+# For local dev: can override with PURDY_REPO_PATH env var
+_BACKEND_DIR = Path(__file__).parent.parent.parent  # backend/
+_BUNDLED_AGENTS_PATH = _BACKEND_DIR / "purdy_agents"
+PURDY_REPO_PATH = os.environ.get("PURDY_REPO_PATH", "")
 PURDY_AGENT_MODEL = os.environ.get("PURDY_AGENT_MODEL", "claude-sonnet-4-20250514")
 
 # Agent file mappings (v2.8 for discovery planner, v2.7 for others)
+# Note: paths are relative - "agents/" prefix used when PURDY_REPO_PATH is set,
+# otherwise loads directly from bundled purdy_agents/ folder
 AGENT_FILES = {
-    "triage": "agents/triage-v2.6.md",
-    "discovery_planner": "agents/discovery-planner-v2.8.md",
-    "coverage_tracker": "agents/coverage-tracker-v2.7.md",
-    "synthesizer": "agents/synthesizer-v2.7.md",
-    "tech_evaluation": "agents/tech-evaluation-v2.6.md"
+    "triage": "triage-v2.6.md",
+    "discovery_planner": "discovery-planner-v2.8.md",
+    "coverage_tracker": "coverage-tracker-v2.7.md",
+    "synthesizer": "synthesizer-v2.7.md",
+    "tech_evaluation": "tech-evaluation-v2.6.md"
 }
 
-# Methodology overview file
+# Methodology overview file (optional - may not exist in bundled version)
 METHODOLOGY_FILE = "PuRDy-Instructions-v2.7.md"
 
 # Agent descriptions for UI
@@ -90,6 +96,9 @@ def load_agent_prompt(agent_type: str) -> str:
     """
     Load agent prompt from filesystem.
 
+    Tries external PURDY_REPO_PATH first (for local dev), then falls back
+    to bundled agents in backend/purdy_agents/ (for production).
+
     Args:
         agent_type: Type of agent (triage, discovery_planner, etc.)
 
@@ -99,11 +108,26 @@ def load_agent_prompt(agent_type: str) -> str:
     if agent_type not in AGENT_FILES:
         raise ValueError(f"Unknown agent type: {agent_type}")
 
-    filepath = Path(PURDY_REPO_PATH) / AGENT_FILES[agent_type]
+    filename = AGENT_FILES[agent_type]
+    filepath = None
 
-    if not filepath.exists():
-        logger.error(f"Agent file not found: {filepath}")
-        raise FileNotFoundError(f"Agent prompt file not found: {filepath}")
+    # Try external repo path first (local dev)
+    if PURDY_REPO_PATH:
+        external_path = Path(PURDY_REPO_PATH) / "agents" / filename
+        if external_path.exists():
+            filepath = external_path
+            logger.info(f"Loading agent from external repo: {filepath}")
+
+    # Fall back to bundled agents (production)
+    if filepath is None:
+        bundled_path = _BUNDLED_AGENTS_PATH / filename
+        if bundled_path.exists():
+            filepath = bundled_path
+            logger.info(f"Loading agent from bundled path: {filepath}")
+
+    if filepath is None:
+        logger.error(f"Agent file not found: {filename}")
+        raise FileNotFoundError(f"Agent prompt file not found: {filename}")
 
     content = filepath.read_text()
     logger.info(f"Loaded agent prompt: {agent_type} ({len(content)} chars)")
@@ -112,13 +136,15 @@ def load_agent_prompt(agent_type: str) -> str:
 
 def load_methodology_overview() -> str:
     """Load the PuRDy methodology overview document."""
-    filepath = Path(PURDY_REPO_PATH) / METHODOLOGY_FILE
+    # Try external repo first
+    if PURDY_REPO_PATH:
+        filepath = Path(PURDY_REPO_PATH) / METHODOLOGY_FILE
+        if filepath.exists():
+            return filepath.read_text()
 
-    if not filepath.exists():
-        logger.warning(f"Methodology file not found: {filepath}")
-        return ""
-
-    return filepath.read_text()
+    # Methodology file not bundled - return empty
+    logger.warning(f"Methodology file not found: {METHODOLOGY_FILE}")
+    return ""
 
 
 async def build_agent_context(
