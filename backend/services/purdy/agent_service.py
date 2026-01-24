@@ -250,9 +250,11 @@ async def run_agent(
     Yields:
         Dict with type (status, content, complete) and data
     """
-    logger.info(f"Starting {agent_type} agent run for initiative {initiative_id}")
+    logger.info(f"[PURDY] ========== Starting agent run ==========")
+    logger.info(f"[PURDY] Agent type: {agent_type}, Initiative: {initiative_id}, User: {user_id}")
 
     run_id = str(uuid4())
+    logger.info(f"[PURDY] Generated run_id: {run_id}")
 
     try:
         # Create run record
@@ -332,22 +334,31 @@ async def run_agent(
 
         # Store output
         output_id = str(uuid4())
-        await asyncio.to_thread(
-            lambda: supabase.table('purdy_outputs').insert({
-                'id': output_id,
-                'run_id': run_id,
-                'initiative_id': initiative_id,
-                'agent_type': agent_type,
-                'version': next_version,
-                'title': parsed_output.get('title'),
-                'recommendation': parsed_output.get('recommendation'),
-                'tier_routing': parsed_output.get('tier_routing'),
-                'confidence_level': parsed_output.get('confidence_level'),
-                'executive_summary': parsed_output.get('executive_summary'),
-                'content_markdown': full_response,
-                'content_structured': parsed_output
-            }).execute()
+        output_data = {
+            'id': output_id,
+            'run_id': run_id,
+            'initiative_id': initiative_id,
+            'agent_type': agent_type,
+            'version': next_version,
+            'title': parsed_output.get('title'),
+            'recommendation': parsed_output.get('recommendation'),
+            'tier_routing': parsed_output.get('tier_routing'),
+            'confidence_level': parsed_output.get('confidence_level'),
+            'executive_summary': parsed_output.get('executive_summary'),
+            'content_markdown': full_response,
+            'content_structured': parsed_output
+        }
+
+        # Log the data being stored
+        logger.info(f"[PURDY] Storing output - id: {output_id}, agent_type: {agent_type}, version: {next_version}")
+        logger.info(f"[PURDY] Output data keys: {list(output_data.keys())}")
+        logger.info(f"[PURDY] Parsed title: {parsed_output.get('title')}, recommendation: {parsed_output.get('recommendation')}")
+
+        insert_result = await asyncio.to_thread(
+            lambda data=output_data: supabase.table('purdy_outputs').insert(data).execute()
         )
+
+        logger.info(f"[PURDY] Insert result: {insert_result.data}")
 
         # Update run status
         await asyncio.to_thread(

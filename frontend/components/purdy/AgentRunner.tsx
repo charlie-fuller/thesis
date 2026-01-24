@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { flushSync } from 'react-dom'
 import {
   Play,
   Clock,
@@ -140,25 +141,27 @@ export default function AgentRunner({
               const data = lines[dataIndex].slice(6)
 
               if (eventType === 'status') {
-                setStatus(data)
+                flushSync(() => setStatus(data))
               } else if (eventType === 'complete') {
                 try {
                   const result = JSON.parse(data)
-                  setCompleted(true)
-                  setStatus('Complete!')
+                  flushSync(() => {
+                    setCompleted(true)
+                    setStatus('Complete!')
+                  })
                   // Signal completion - parent will reload full outputs list
                   onComplete(result)
                 } catch (e) {
                   console.error('Failed to parse complete event:', e)
                 }
               } else if (eventType === 'error') {
-                setError(data)
+                flushSync(() => setError(data))
               }
             }
           } else if (line.startsWith('data: ')) {
-            // Regular content
+            // Regular content - use flushSync for immediate rendering
             const content = line.slice(6)
-            setStreamContent(prev => prev + content)
+            flushSync(() => setStreamContent(prev => prev + content))
           }
         }
       }
@@ -267,26 +270,34 @@ export default function AgentRunner({
         )}
       </div>
 
-      {/* Output Stream */}
+      {/* Output Stream - Shows during and after agent run */}
       {(running || streamContent || error) && (
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 border-2 border-indigo-200 dark:border-indigo-800 rounded-lg overflow-hidden shadow-lg">
           {/* Status Header */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-700">
-            {running ? (
-              <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
-            ) : completed ? (
-              <CheckCircle className="w-5 h-5 text-green-500" />
-            ) : error ? (
-              <AlertCircle className="w-5 h-5 text-red-500" />
-            ) : null}
+          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-200 dark:border-indigo-800">
+            <div className="flex items-center gap-3">
+              {running ? (
+                <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+              ) : completed ? (
+                <CheckCircle className="w-5 h-5 text-green-500" />
+              ) : error ? (
+                <AlertCircle className="w-5 h-5 text-red-500" />
+              ) : null}
 
-            <span className="font-medium text-slate-900 dark:text-white">
-              {selectedAgentInfo?.name || 'Agent'}
-            </span>
+              <span className="font-medium text-slate-900 dark:text-white">
+                {selectedAgentInfo?.name || 'Agent'} Output
+              </span>
 
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {status}
-            </span>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {status}
+              </span>
+            </div>
+
+            {running && (
+              <span className="text-xs bg-indigo-100 dark:bg-indigo-800 text-indigo-600 dark:text-indigo-300 px-2 py-1 rounded-full animate-pulse">
+                Generating in real-time...
+              </span>
+            )}
           </div>
 
           {/* Error */}
@@ -296,15 +307,28 @@ export default function AgentRunner({
             </div>
           )}
 
-          {/* Content */}
+          {/* Content - Real-time streaming output */}
           <div
             ref={contentRef}
-            className="p-4 max-h-[600px] overflow-y-auto"
+            className="p-4 max-h-[600px] overflow-y-auto bg-slate-50 dark:bg-slate-900/50"
           >
-            <div className="prose prose-sm dark:prose-invert max-w-none">
-              <ReactMarkdown>{streamContent}</ReactMarkdown>
-            </div>
+            {streamContent ? (
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <ReactMarkdown>{streamContent}</ReactMarkdown>
+              </div>
+            ) : running ? (
+              <div className="text-slate-400 dark:text-slate-500 italic">
+                Waiting for agent response...
+              </div>
+            ) : null}
           </div>
+
+          {/* Character count for debugging */}
+          {streamContent && (
+            <div className="px-4 py-2 text-xs text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-700">
+              {streamContent.length.toLocaleString()} characters generated
+            </div>
+          )}
         </div>
       )}
     </div>

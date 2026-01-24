@@ -15,9 +15,11 @@ import {
   Target,
   Search,
   BarChart,
-  Cpu
+  Cpu,
+  Trash2
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
+import { apiDelete } from '@/lib/api'
 
 interface Output {
   id: string
@@ -40,6 +42,7 @@ interface OutputViewerProps {
   selectedOutput: Output | null
   onSelectOutput: (output: Output | null) => void
   onRefresh: () => void
+  onDelete?: (outputId: string) => Promise<void>
 }
 
 const AGENT_CONFIG: Record<string, { name: string; icon: typeof Target; color: string }> = {
@@ -116,14 +119,32 @@ function OutputListItem({
 
 function OutputDetail({
   output,
-  onClose
+  onClose,
+  onDelete
 }: {
   output: Output
   onClose: () => void
+  onDelete?: (outputId: string) => Promise<void>
 }) {
   const [copied, setCopied] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const config = AGENT_CONFIG[output.agent_type] || { name: output.agent_type, icon: FileText, color: 'text-slate-600 bg-slate-100' }
   const Icon = config.icon
+
+  const handleDelete = async () => {
+    if (!onDelete) return
+    if (!confirm(`Delete this ${config.name} output (v${output.version})? This cannot be undone.`)) return
+
+    setDeleting(true)
+    try {
+      await onDelete(output.id)
+    } catch (err) {
+      console.error('Failed to delete output:', err)
+      alert('Failed to delete output')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const handleCopy = async () => {
     try {
@@ -189,6 +210,16 @@ function OutputDetail({
             <Download className="w-4 h-4" />
             Export
           </button>
+          {onDelete && (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              {deleting ? 'Deleting...' : 'Delete'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -246,7 +277,8 @@ export default function OutputViewer({
   outputs,
   selectedOutput,
   onSelectOutput,
-  onRefresh
+  onRefresh,
+  onDelete
 }: OutputViewerProps) {
   // Group outputs by agent type (handle null/undefined agent_type)
   const outputsByType = outputs.reduce((acc, output) => {
@@ -305,6 +337,7 @@ export default function OutputViewer({
           <OutputDetail
             output={selectedOutput}
             onClose={() => onSelectOutput(null)}
+            onDelete={onDelete}
           />
         ) : (
           <div className="flex items-center justify-center h-[400px] bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg">

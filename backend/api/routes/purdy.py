@@ -644,6 +644,50 @@ async def api_promote_output(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.delete("/initiatives/{initiative_id}/outputs/{output_id}")
+async def api_delete_output(
+    initiative_id: str,
+    output_id: str,
+    current_user: dict = Depends(require_purdy_access)
+):
+    """Delete an output."""
+    await require_initiative_access(initiative_id, current_user, 'editor')
+
+    try:
+        # Verify output belongs to initiative
+        output_result = await asyncio.to_thread(
+            lambda: supabase.table('purdy_outputs')
+                .select('id, agent_type, version')
+                .eq('id', output_id)
+                .eq('initiative_id', initiative_id)
+                .single()
+                .execute()
+        )
+
+        if not output_result.data:
+            raise HTTPException(status_code=404, detail="Output not found")
+
+        # Delete the output
+        await asyncio.to_thread(
+            lambda: supabase.table('purdy_outputs')
+                .delete()
+                .eq('id', output_id)
+                .execute()
+        )
+
+        logger.info(f"[PURDY] Deleted output {output_id} ({output_result.data['agent_type']} v{output_result.data['version']})")
+
+        return {
+            'success': True,
+            'deleted_output_id': output_id
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting output: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============================================================================
 # SHARING
 # ============================================================================

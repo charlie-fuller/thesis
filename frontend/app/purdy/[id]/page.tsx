@@ -208,6 +208,17 @@ export default function InitiativeDetailPage() {
     loadInitiative() // Refresh status
   }
 
+  const handleDeleteOutput = async (outputId: string) => {
+    await apiDelete(`/api/purdy/initiatives/${initiativeId}/outputs/${outputId}`)
+    // Remove from local state
+    setOutputs(outputs.filter(o => o.id !== outputId))
+    // Clear selection if deleted
+    if (selectedOutput?.id === outputId) {
+      const remaining = outputs.filter(o => o.id !== outputId)
+      setSelectedOutput(remaining.length > 0 ? remaining[0] : null)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -369,6 +380,7 @@ export default function InitiativeDetailPage() {
             selectedOutput={selectedOutput}
             onSelectOutput={setSelectedOutput}
             onRefresh={loadOutputs}
+            onDelete={canEdit ? handleDeleteOutput : undefined}
           />
         )}
 
