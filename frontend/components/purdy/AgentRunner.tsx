@@ -50,6 +50,62 @@ const AGENT_ICONS: Record<string, typeof Target> = {
   tech_evaluation: Cpu,
 }
 
+// Workflow guidance for each agent
+const AGENT_WORKFLOW: Record<string, {
+  when: string
+  inputs: string[]
+  outputs: string
+  prerequisites: string[]
+}> = {
+  triage: {
+    when: "First step - run this when you have initial request details",
+    inputs: [
+      "Request description or intake document",
+      "Any context about the requester or business area"
+    ],
+    outputs: "GO/NO-GO recommendation with tier routing (ELT/Solutions/Self-Serve) and confidence-tagged ROI",
+    prerequisites: []
+  },
+  discovery_planner: {
+    when: "After Triage returns GO - before conducting discovery meetings",
+    inputs: [
+      "Triage output (auto-included)",
+      "Any pre-existing documentation about the initiative"
+    ],
+    outputs: "Structured discovery plan with type-specific questions, quantification gates, and meeting agenda",
+    prerequisites: ["Triage (GO recommendation)"]
+  },
+  coverage_tracker: {
+    when: "After discovery meetings - before synthesis",
+    inputs: [
+      "Discovery Planner output (auto-included)",
+      "Meeting transcripts and notes (upload to Documents)",
+      "Interview summaries, stakeholder feedback"
+    ],
+    outputs: "Gap analysis with RED/YELLOW/GREEN flags, contradiction map, and 3M waste diagnosis",
+    prerequisites: ["Triage", "Discovery Planner", "Discovery meeting notes uploaded"]
+  },
+  synthesizer: {
+    when: "After Coverage Tracker shows GREEN (no blocking red flags)",
+    inputs: [
+      "All previous outputs (auto-included)",
+      "All discovery documents"
+    ],
+    outputs: "Complete PRD with persona-specific briefs (Finance, Engineering, Sales, Executive)",
+    prerequisites: ["Triage", "Discovery Planner", "Coverage Tracker (GREEN status)"]
+  },
+  tech_evaluation: {
+    when: "After synthesis - when evaluating implementation options",
+    inputs: [
+      "Synthesizer output (auto-included)",
+      "Technical constraints documentation",
+      "Vendor/platform information if available"
+    ],
+    outputs: "Platform recommendations with confidence-tagged effort estimates and build vs. buy analysis",
+    prerequisites: ["Synthesizer output"]
+  }
+}
+
 export default function AgentRunner({
   initiativeId,
   canRun,
@@ -246,6 +302,52 @@ export default function AgentRunner({
             )
           })}
         </div>
+
+        {/* Workflow Guidance - Shows when agent is selected */}
+        {selectedAgent && AGENT_WORKFLOW[selectedAgent] && (
+          <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                  When to Run
+                </h4>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  {AGENT_WORKFLOW[selectedAgent].when}
+                </p>
+              </div>
+              <div>
+                <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                  Output
+                </h4>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  {AGENT_WORKFLOW[selectedAgent].outputs}
+                </p>
+              </div>
+              <div>
+                <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                  Required Inputs
+                </h4>
+                <ul className="text-sm text-slate-700 dark:text-slate-300 list-disc list-inside space-y-0.5">
+                  {AGENT_WORKFLOW[selectedAgent].inputs.map((input, i) => (
+                    <li key={i}>{input}</li>
+                  ))}
+                </ul>
+              </div>
+              {AGENT_WORKFLOW[selectedAgent].prerequisites.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                    Prerequisites
+                  </h4>
+                  <ul className="text-sm text-slate-700 dark:text-slate-300 list-disc list-inside space-y-0.5">
+                    {AGENT_WORKFLOW[selectedAgent].prerequisites.map((prereq, i) => (
+                      <li key={i}>{prereq}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Run Button */}
         <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
