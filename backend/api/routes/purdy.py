@@ -304,22 +304,30 @@ async def api_upload_document_file(
     """Upload a file document."""
     await require_initiative_access(initiative_id, current_user, 'editor')
 
+    logger.info(f"[PURDY-DOC] Upload started: {file.filename}, content_type: {file.content_type}")
+
     try:
         file_data = await file.read()
+        logger.info(f"[PURDY-DOC] File read complete: {len(file_data)} bytes")
+
         document = await upload_document_file(
             initiative_id=initiative_id,
             file_data=file_data,
             filename=file.filename,
             user_id=current_user['id']
         )
+        logger.info(f"[PURDY-DOC] Upload successful: {document.get('id')}")
         return {
             'success': True,
             'document': document
         }
     except ValueError as e:
+        logger.warning(f"[PURDY-DOC] Upload validation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error uploading document: {e}")
+        logger.error(f"[PURDY-DOC] Upload failed: {type(e).__name__}: {e}")
+        import traceback
+        logger.error(f"[PURDY-DOC] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
