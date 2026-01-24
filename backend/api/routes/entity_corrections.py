@@ -12,7 +12,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from api.dependencies import get_supabase_client, get_current_user
+from auth import get_current_user
+from database import get_supabase
 from services.entity_registry_manager import EntityRegistryManager
 
 logger = logging.getLogger(__name__)
@@ -59,7 +60,7 @@ class CorrectionHistoryResponse(BaseModel):
 async def record_correction(
     request: RecordCorrectionRequest,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase_client)
+    supabase=Depends(get_supabase)
 ):
     """
     Record a correction and learn from it.
@@ -105,7 +106,7 @@ async def get_correction_history(
     entity_type: Optional[str] = None,
     limit: int = 50,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase_client)
+    supabase=Depends(get_supabase)
 ):
     """Get recent correction history."""
     client_id = current_user.get("client_id")
@@ -148,7 +149,7 @@ async def batch_apply_corrections(
     original_value: str,
     corrected_value: str,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase_client)
+    supabase=Depends(get_supabase)
 ):
     """
     Apply a correction to all historical instances.

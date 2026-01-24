@@ -12,7 +12,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from api.dependencies import get_supabase_client, get_current_user
+from auth import get_current_user
+from database import get_supabase
 from services.entity_registry_manager import EntityRegistryManager
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,7 @@ async def list_organizations(
     limit: int = 100,
     offset: int = 0,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase_client)
+    supabase=Depends(get_supabase)
 ):
     """List organizations in the registry."""
     client_id = current_user.get("client_id")
@@ -99,7 +100,7 @@ async def list_organizations(
 async def create_organization(
     request: CreateOrganizationRequest,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase_client)
+    supabase=Depends(get_supabase)
 ):
     """Add an organization to the registry."""
     client_id = current_user.get("client_id")
@@ -129,7 +130,7 @@ async def create_organization(
 async def get_organization(
     org_id: str,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase_client)
+    supabase=Depends(get_supabase)
 ):
     """Get a specific organization."""
     client_id = current_user.get("client_id")
@@ -159,7 +160,7 @@ async def add_organization_alias(
     org_id: str,
     request: AddAliasRequest,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase_client)
+    supabase=Depends(get_supabase)
 ):
     """Add an alias to an organization."""
     client_id = current_user.get("client_id")
@@ -190,7 +191,7 @@ async def list_persons(
     limit: int = 100,
     offset: int = 0,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase_client)
+    supabase=Depends(get_supabase)
 ):
     """List persons in the registry."""
     client_id = current_user.get("client_id")
@@ -223,7 +224,7 @@ async def list_persons(
 async def create_person(
     request: CreatePersonRequest,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase_client)
+    supabase=Depends(get_supabase)
 ):
     """Add a person to the registry."""
     client_id = current_user.get("client_id")
@@ -252,7 +253,7 @@ async def create_person(
 async def get_person(
     person_id: str,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase_client)
+    supabase=Depends(get_supabase)
 ):
     """Get a specific person."""
     client_id = current_user.get("client_id")
@@ -283,7 +284,7 @@ async def add_person_alias(
     person_id: str,
     request: AddAliasRequest,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase_client)
+    supabase=Depends(get_supabase)
 ):
     """Add an alias to a person."""
     client_id = current_user.get("client_id")
@@ -312,7 +313,7 @@ async def add_person_alias(
 @router.post("/bootstrap", response_model=BootstrapResponse)
 async def bootstrap_registry(
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase_client)
+    supabase=Depends(get_supabase)
 ):
     """
     Populate registries from existing stakeholder data.
