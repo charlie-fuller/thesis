@@ -60,6 +60,11 @@ FUN_STATUS_MESSAGES = [
     "Sycophancying...",
     "Squirrel!!!",
     "Look over there, it's a giant bald eagle!!!",
+    "Where we're going, we don't need roads...",
+    "We're gonna need a bigger boat...",
+    "I'm not even supposed to BE here today...",
+    "Nobody puts Claude in a corner...",
+    "60% of the time, it works every time...",
 ]
 
 logger = get_logger(__name__)
