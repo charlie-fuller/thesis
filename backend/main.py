@@ -278,6 +278,8 @@ from api.routes import (
     discovery,
     document_mappings,
     documents,
+    entity_corrections,
+    entity_registry,
     glean_connectors,
     google_drive,
     graph,
@@ -333,8 +335,10 @@ app.include_router(compass.router)
 app.include_router(digest.router)
 app.include_router(pipeline.router)
 app.include_router(purdy.router)
+app.include_router(entity_registry.router)
+app.include_router(entity_corrections.router)
 
-logger.info("All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, task management, Obsidian sync, Compass, Digest, Pipeline, and PuRDy routes)")
+logger.info("All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, task management, Obsidian sync, Compass, Digest, Pipeline, PuRDy, and Entity Validation routes)")
 
 # ============================================================================
 # Backward Compatibility Routes

@@ -1,6 +1,7 @@
 {
   "mcpServers": {
     "supabase": {
+      "type": "sse",
       "url": "https://mcp.supabase.com/mcp?project_ref=imdavfgreeddxluslsdl"
     },
     "github": {

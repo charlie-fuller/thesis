@@ -3,14 +3,19 @@
 /**
  * OpportunityDetailModal Component
  *
- * Full-featured detail modal for opportunities showing:
- * - Score justification with visual breakdown
- * - Full opportunity details (description, current/desired state, etc.)
- * - Related documents from knowledge base (sorted by relevance to scoring)
- * - Q&A chat interface with conversation history
- * - Taskmaster chat for breaking projects into tasks
- * - Edit mode for modifying scores and details
- * - Convert to Project workflow
+ * Full-featured detail modal for opportunities with tabbed interface:
+ *
+ * Tabs:
+ * - Scores: Score breakdown with inline editing, AI-generated justifications
+ * - Confidence: Scoring confidence meter and questions to raise confidence
+ * - Details: Description, current/desired state, next step (all inline-editable)
+ * - Related: Linked stakeholders and related documents from KB
+ * - Chat: Q&A about the opportunity + Taskmaster for task breakdown
+ *
+ * Features:
+ * - Individual inline edit icons for each section (hover to reveal)
+ * - Convert to Project workflow with project naming
+ * - AI-generated justifications for scores
  */
 
 import { useState, useEffect, useRef } from 'react'
@@ -41,6 +46,7 @@ import ScoreJustification from './ScoreJustification'
 import DocumentViewerModal from './DocumentViewerModal'
 import ProjectNameModal from './ProjectNameModal'
 import TaskmasterChatSection from './TaskmasterChatSection'
+import GoalAlignmentSection from './GoalAlignmentSection'
 
 // ============================================================================
 // TYPES
@@ -81,6 +87,19 @@ interface Opportunity {
   // Scoring confidence fields
   scoring_confidence?: number | null  // 0-100 percentage
   confidence_questions?: string[]  // Questions that would raise confidence
+  // Goal alignment fields
+  goal_alignment_score?: number | null  // 0-100 alignment with IS strategic goals
+  goal_alignment_details?: {
+    pillar_scores: {
+      customer_prospect_journey: { score: number; rationale: string }
+      maximize_value: { score: number; rationale: string }
+      data_first_digital_workforce: { score: number; rationale: string }
+      high_trust_culture: { score: number; rationale: string }
+    }
+    kpi_impacts: string[]
+    summary: string
+    analyzed_at: string
+  } | null
 }
 
 // Edit form state type
@@ -230,8 +249,7 @@ export default function OpportunityDetailModal({
     document_name: string
   } | null>(null)
 
-  // Edit mode state
-  const [isEditMode, setIsEditMode] = useState(false)
+  // Edit form state (used by individual section editing)
   const [editForm, setEditForm] = useState<EditFormState>({
     title: '',
     description: '',
@@ -256,21 +274,30 @@ export default function OpportunityDetailModal({
   const [showProjectNameModal, setShowProjectNameModal] = useState(false)
   const [pendingStatus, setPendingStatus] = useState<'scoping' | 'pilot' | null>(null)
 
+  // Auto-generate tasks state (triggers after project creation)
+  const [shouldAutoGenerateTasks, setShouldAutoGenerateTasks] = useState(false)
+
   // Tab state
-  const [activeTab, setActiveTab] = useState<'scores' | 'details' | 'related' | 'chat'>('scores')
+  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'related' | 'chat'>('scores')
+
+  // Individual section editing state (replaces global edit mode)
+  const [editingSection, setEditingSection] = useState<
+    'header' | 'scores' | 'justifications' | 'description' | 'states' | 'next_step' | null
+  >(null)
 
   const questionInputRef = useRef<HTMLTextAreaElement>(null)
 
   // Update local opportunity when prop changes
   useEffect(() => {
     setOpportunity(initialOpportunity)
-    // Reset edit mode when opportunity changes
-    setIsEditMode(false)
+    // Reset editing section and auto-generate flag when opportunity changes
+    setEditingSection(null)
+    setShouldAutoGenerateTasks(false)
   }, [initialOpportunity])
 
-  // Initialize edit form when entering edit mode
+  // Initialize edit form when entering any section's edit mode
   useEffect(() => {
-    if (isEditMode && opportunity) {
+    if (editingSection && opportunity) {
       setEditForm({
         title: opportunity.title || '',
         description: opportunity.description || '',
@@ -291,7 +318,7 @@ export default function OpportunityDetailModal({
         readiness_justification: opportunity.readiness_justification || '',
       })
     }
-  }, [isEditMode, opportunity])
+  }, [editingSection, opportunity])
 
   // Fetch related documents and stakeholders on open
   useEffect(() => {
@@ -398,36 +425,6 @@ export default function OpportunityDetailModal({
     return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
   }
 
-  const getEngagementBadge = (level: string) => {
-    switch (level) {
-      case 'champion':
-        return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-      case 'supporter':
-        return 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300'
-      case 'neutral':
-        return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-      case 'skeptic':
-        return 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
-      case 'blocker':
-        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-      default:
-        return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-    }
-  }
-
-  const getSupportLevelBadge = (level: string | null) => {
-    switch (level) {
-      case 'strong_support':
-        return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-      case 'support':
-        return 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300'
-      case 'opposed':
-        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-      default:
-        return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-    }
-  }
-
   const handleGenerateJustifications = async () => {
     if (generating) return
 
@@ -446,60 +443,83 @@ export default function OpportunityDetailModal({
     }
   }
 
-  const handleCancelEdit = () => {
-    setIsEditMode(false)
+  const handleAnalyzeGoalAlignment = async () => {
+    try {
+      await apiPost(`/api/opportunities/${opportunity.id}/analyze-goal-alignment`, {})
+
+      // Refetch opportunity to get updated goal alignment data
+      const updated = await apiGet<Opportunity>(`/api/opportunities/${opportunity.id}`)
+      setOpportunity(updated)
+    } catch (error) {
+      console.error('Failed to analyze goal alignment:', error)
+      alert('Failed to analyze goal alignment. Please try again.')
+      throw error // Re-throw so the component can handle loading state
+    }
   }
 
-  const handleSaveEdit = async () => {
-    if (isSaving) return
+  // Save individual section
+  const handleSaveSection = async (section: typeof editingSection) => {
+    if (isSaving || !section) return
 
     setIsSaving(true)
     try {
-      // Build update payload - only include changed fields
       const updateData: Record<string, unknown> = {}
 
-      if (editForm.title !== opportunity.title) updateData.title = editForm.title
-      if (editForm.description !== (opportunity.description || '')) updateData.description = editForm.description || null
-      if (editForm.department !== (opportunity.department || '')) updateData.department = editForm.department || null
-      if (editForm.current_state !== (opportunity.current_state || '')) updateData.current_state = editForm.current_state || null
-      if (editForm.desired_state !== (opportunity.desired_state || '')) updateData.desired_state = editForm.desired_state || null
-      if (editForm.next_step !== (opportunity.next_step || '')) updateData.next_step = editForm.next_step || null
-      if (editForm.roi_potential !== opportunity.roi_potential) updateData.roi_potential = editForm.roi_potential
-      if (editForm.implementation_effort !== opportunity.implementation_effort) updateData.implementation_effort = editForm.implementation_effort
-      if (editForm.strategic_alignment !== opportunity.strategic_alignment) updateData.strategic_alignment = editForm.strategic_alignment
-      if (editForm.stakeholder_readiness !== opportunity.stakeholder_readiness) updateData.stakeholder_readiness = editForm.stakeholder_readiness
-      // Justification fields
-      if (editForm.opportunity_summary !== (opportunity.opportunity_summary || '')) updateData.opportunity_summary = editForm.opportunity_summary || null
-      if (editForm.roi_justification !== (opportunity.roi_justification || '')) updateData.roi_justification = editForm.roi_justification || null
-      if (editForm.effort_justification !== (opportunity.effort_justification || '')) updateData.effort_justification = editForm.effort_justification || null
-      if (editForm.alignment_justification !== (opportunity.alignment_justification || '')) updateData.alignment_justification = editForm.alignment_justification || null
-      if (editForm.readiness_justification !== (opportunity.readiness_justification || '')) updateData.readiness_justification = editForm.readiness_justification || null
+      switch (section) {
+        case 'header':
+          if (editForm.title !== opportunity.title) updateData.title = editForm.title
+          if (editForm.status !== opportunity.status) {
+            const requiresProjectName = ['scoping', 'pilot'].includes(editForm.status)
+            const hasProjectName = !!opportunity.project_name
+            if (requiresProjectName && !hasProjectName) {
+              setPendingStatus(editForm.status as 'scoping' | 'pilot')
+              setShowProjectNameModal(true)
+              setIsSaving(false)
+              return
+            }
+            updateData.status = editForm.status
+          }
+          break
 
-      // Handle status changes separately (may require project name)
-      if (editForm.status !== opportunity.status) {
-        const requiresProjectName = ['scoping', 'pilot'].includes(editForm.status)
-        const hasProjectName = !!opportunity.project_name
+        case 'scores':
+          if (editForm.roi_potential !== opportunity.roi_potential) updateData.roi_potential = editForm.roi_potential
+          if (editForm.implementation_effort !== opportunity.implementation_effort) updateData.implementation_effort = editForm.implementation_effort
+          if (editForm.strategic_alignment !== opportunity.strategic_alignment) updateData.strategic_alignment = editForm.strategic_alignment
+          if (editForm.stakeholder_readiness !== opportunity.stakeholder_readiness) updateData.stakeholder_readiness = editForm.stakeholder_readiness
+          break
 
-        if (requiresProjectName && !hasProjectName) {
-          // Show project name modal
-          setPendingStatus(editForm.status as 'scoping' | 'pilot')
-          setShowProjectNameModal(true)
-          setIsSaving(false)
-          return
-        }
+        case 'justifications':
+          if (editForm.opportunity_summary !== (opportunity.opportunity_summary || '')) updateData.opportunity_summary = editForm.opportunity_summary || null
+          if (editForm.roi_justification !== (opportunity.roi_justification || '')) updateData.roi_justification = editForm.roi_justification || null
+          if (editForm.effort_justification !== (opportunity.effort_justification || '')) updateData.effort_justification = editForm.effort_justification || null
+          if (editForm.alignment_justification !== (opportunity.alignment_justification || '')) updateData.alignment_justification = editForm.alignment_justification || null
+          if (editForm.readiness_justification !== (opportunity.readiness_justification || '')) updateData.readiness_justification = editForm.readiness_justification || null
+          break
 
-        updateData.status = editForm.status
+        case 'description':
+          if (editForm.description !== (opportunity.description || '')) updateData.description = editForm.description || null
+          if (editForm.department !== (opportunity.department || '')) updateData.department = editForm.department || null
+          break
+
+        case 'states':
+          if (editForm.current_state !== (opportunity.current_state || '')) updateData.current_state = editForm.current_state || null
+          if (editForm.desired_state !== (opportunity.desired_state || '')) updateData.desired_state = editForm.desired_state || null
+          break
+
+        case 'next_step':
+          if (editForm.next_step !== (opportunity.next_step || '')) updateData.next_step = editForm.next_step || null
+          break
       }
 
       if (Object.keys(updateData).length === 0) {
-        setIsEditMode(false)
+        setEditingSection(null)
         setIsSaving(false)
         return
       }
 
       const updated = await apiPatch<Opportunity>(`/api/opportunities/${opportunity.id}`, updateData)
       setOpportunity(updated)
-      setIsEditMode(false)
+      setEditingSection(null)
     } catch (error) {
       console.error('Failed to save opportunity:', error)
       alert('Failed to save changes. Please try again.')
@@ -521,7 +541,11 @@ export default function OpportunityDetailModal({
       setOpportunity(updated)
       setShowProjectNameModal(false)
       setPendingStatus(null)
-      setIsEditMode(false)
+      setEditingSection(null)
+
+      // Switch to Chat tab and trigger Taskmaster auto-generation
+      setActiveTab('chat')
+      setShouldAutoGenerateTasks(true)
     } catch (error) {
       console.error('Failed to update status:', error)
       alert('Failed to update status. Please try again.')
@@ -563,7 +587,7 @@ export default function OpportunityDetailModal({
       {/* Modal - Fixed large size */}
       <div className="relative bg-card border border-default rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col mx-4">
         {/* Header */}
-        <div className="flex items-start justify-between p-6 border-b border-default">
+        <div className="flex items-start justify-between p-6 border-b border-default group">
           <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm font-mono font-bold text-muted">
@@ -572,7 +596,7 @@ export default function OpportunityDetailModal({
               <span className={`px-2 py-0.5 rounded text-xs font-medium ${tierConfig.color}`}>
                 Tier {opportunity.tier}
               </span>
-              {isEditMode ? (
+              {editingSection === 'header' ? (
                 <select
                   value={editForm.status}
                   onChange={(e) => handleEditFormChange('status', e.target.value)}
@@ -593,20 +617,49 @@ export default function OpportunityDetailModal({
                 </span>
               )}
             </div>
-            {isEditMode ? (
-              <input
-                type="text"
-                value={editForm.title}
-                onChange={(e) => handleEditFormChange('title', e.target.value)}
-                className="text-xl font-semibold text-primary bg-transparent border-b border-blue-500 focus:outline-none w-full"
-                placeholder="Opportunity title"
-              />
-            ) : (
-              <h2 className="text-xl font-semibold text-primary truncate">
-                {opportunity.title}
-              </h2>
-            )}
-            {opportunity.owner_name && !isEditMode && (
+            <div className="flex items-center gap-2">
+              {editingSection === 'header' ? (
+                <input
+                  type="text"
+                  value={editForm.title}
+                  onChange={(e) => handleEditFormChange('title', e.target.value)}
+                  className="text-xl font-semibold text-primary bg-transparent border-b border-blue-500 focus:outline-none flex-1"
+                  placeholder="Opportunity title"
+                />
+              ) : (
+                <h2 className="text-xl font-semibold text-primary truncate flex-1">
+                  {opportunity.title}
+                </h2>
+              )}
+              {editingSection === 'header' ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleSaveSection('header')}
+                    disabled={isSaving}
+                    className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                    title="Save"
+                  >
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  </button>
+                  <button
+                    onClick={() => setEditingSection(null)}
+                    className="p-1 text-muted hover:bg-hover rounded"
+                    title="Cancel"
+                  >
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditingSection('header')}
+                  className="p-1 text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Edit title and status"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            {opportunity.owner_name && editingSection !== 'header' && (
               <p className="text-sm text-muted flex items-center gap-1 mt-1">
                 <User className="w-3 h-3" />
                 {opportunity.owner_name}
@@ -621,15 +674,6 @@ export default function OpportunityDetailModal({
             )}
           </div>
           <div className="flex items-center gap-2">
-            {!isEditMode && (
-              <button
-                onClick={() => setIsEditMode(true)}
-                className="p-2 text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                title="Edit scores and details"
-              >
-                <Pencil className="w-5 h-5" />
-              </button>
-            )}
             <button
               onClick={onClose}
               className="p-2 text-muted hover:text-primary hover:bg-hover rounded-lg transition-colors"
@@ -643,6 +687,8 @@ export default function OpportunityDetailModal({
         <div className="flex border-b border-default px-6 bg-hover/30">
           {[
             { id: 'scores' as const, label: 'Scores', icon: Target },
+            { id: 'confidence' as const, label: 'Confidence', icon: Gauge },
+            { id: 'alignment' as const, label: 'Alignment', icon: Target },
             { id: 'details' as const, label: 'Details', icon: FileText },
             { id: 'related' as const, label: 'Related', icon: ExternalLink },
             { id: 'chat' as const, label: 'Chat', icon: MessageSquare },
@@ -662,305 +708,51 @@ export default function OpportunityDetailModal({
           ))}
         </div>
 
-        {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Content - Scrollable with min height to prevent shrinking */}
+        <div className="flex-1 overflow-y-auto p-6 min-h-0">
           {/* SCORES TAB */}
           {activeTab === 'scores' && (
             <div className="space-y-8">
-          {/* Score Justification */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
-                <Target className="w-4 h-4" />
-                Score Justification {isEditMode && <span className="text-blue-500 normal-case">(Editing)</span>}
-              </h3>
-              {!isEditMode && (
-                <button
-                  onClick={handleGenerateJustifications}
-                  disabled={generating}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {generating ? (
-                    <>
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Generating...
-                    </>
+              {/* Score Values Section */}
+              <section className="group">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
+                    <Target className="w-4 h-4" />
+                    Scores (1-5)
+                  </h3>
+                  {editingSection === 'scores' ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleSaveSection('scores')}
+                        disabled={isSaving}
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                        title="Save"
+                      >
+                        {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingSection(null)}
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:bg-hover rounded"
+                        title="Cancel"
+                      >
+                        <XCircle className="w-3 h-3" />
+                        Cancel
+                      </button>
+                    </div>
                   ) : (
-                    <>
-                      {hasJustifications ? 'Regenerate' : 'Generate'} Analysis
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-
-            {isEditMode ? (
-              /* Editable Justifications */
-              <div className="space-y-4">
-                {/* Opportunity Summary */}
-                <div>
-                  <label className="text-xs font-medium text-muted uppercase block mb-1">
-                    Opportunity Summary
-                  </label>
-                  <textarea
-                    value={editForm.opportunity_summary}
-                    onChange={(e) => handleEditFormChange('opportunity_summary', e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                    placeholder="Summary of the opportunity and its potential business impact..."
-                  />
-                </div>
-
-                {/* Dimension Justifications */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-medium text-muted uppercase block mb-1">
-                      ROI Potential Justification (Score: {editForm.roi_potential || '-'})
-                    </label>
-                    <textarea
-                      value={editForm.roi_justification}
-                      onChange={(e) => handleEditFormChange('roi_justification', e.target.value)}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      placeholder="Why this ROI score? What value does this opportunity provide?"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted uppercase block mb-1">
-                      Implementation Effort Justification (Score: {editForm.implementation_effort || '-'})
-                    </label>
-                    <textarea
-                      value={editForm.effort_justification}
-                      onChange={(e) => handleEditFormChange('effort_justification', e.target.value)}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      placeholder="Why this effort score? What resources/time are needed?"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted uppercase block mb-1">
-                      Strategic Alignment Justification (Score: {editForm.strategic_alignment || '-'})
-                    </label>
-                    <textarea
-                      value={editForm.alignment_justification}
-                      onChange={(e) => handleEditFormChange('alignment_justification', e.target.value)}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      placeholder="Why this alignment score? How does it fit business strategy?"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted uppercase block mb-1">
-                      Stakeholder Readiness Justification (Score: {editForm.stakeholder_readiness || '-'})
-                    </label>
-                    <textarea
-                      value={editForm.readiness_justification}
-                      onChange={(e) => handleEditFormChange('readiness_justification', e.target.value)}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      placeholder="Why this readiness score? Are stakeholders prepared for change?"
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <ScoreJustification
-                roiPotential={opportunity.roi_potential}
-                implementationEffort={opportunity.implementation_effort}
-                strategicAlignment={opportunity.strategic_alignment}
-                stakeholderReadiness={opportunity.stakeholder_readiness}
-                totalScore={opportunity.total_score}
-                tier={opportunity.tier}
-                opportunityDescription={opportunity.opportunity_summary || undefined}
-                dimensionJustifications={{
-                  roi_potential: opportunity.roi_justification || undefined,
-                  implementation_effort: opportunity.effort_justification || undefined,
-                  strategic_alignment: opportunity.alignment_justification || undefined,
-                  stakeholder_readiness: opportunity.readiness_justification || undefined,
-                }}
-              />
-            )}
-          </section>
-
-          {/* Scoring Confidence */}
-          {(opportunity.scoring_confidence !== null && opportunity.scoring_confidence !== undefined) && (
-            <section>
-              <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4 flex items-center gap-2">
-                <Gauge className="w-4 h-4" />
-                Scoring Confidence
-              </h3>
-              <div className="bg-card border border-default rounded-lg p-4 space-y-4">
-                {/* Confidence Meter */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-secondary">Confidence Level</span>
-                    <span className={`text-lg font-bold ${
-                      opportunity.scoring_confidence >= 80 ? 'text-green-600 dark:text-green-400' :
-                      opportunity.scoring_confidence >= 60 ? 'text-blue-600 dark:text-blue-400' :
-                      opportunity.scoring_confidence >= 40 ? 'text-amber-600 dark:text-amber-400' :
-                      'text-red-600 dark:text-red-400'
-                    }`}>
-                      {opportunity.scoring_confidence}%
-                    </span>
-                  </div>
-                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        opportunity.scoring_confidence >= 80 ? 'bg-green-500' :
-                        opportunity.scoring_confidence >= 60 ? 'bg-blue-500' :
-                        opportunity.scoring_confidence >= 40 ? 'bg-amber-500' :
-                        'bg-red-500'
-                      }`}
-                      style={{ width: `${opportunity.scoring_confidence}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-muted mt-1">
-                    {opportunity.scoring_confidence >= 80 ? 'High confidence - scores are well-supported' :
-                     opportunity.scoring_confidence >= 60 ? 'Moderate confidence - some assumptions made' :
-                     opportunity.scoring_confidence >= 40 ? 'Low confidence - significant unknowns' :
-                     'Very low confidence - mostly speculative'}
-                  </p>
-                </div>
-
-                {/* Questions to Raise Confidence */}
-                {opportunity.confidence_questions && opportunity.confidence_questions.length > 0 && (
-                  <div>
-                    <h4 className="text-xs font-medium text-muted uppercase mb-2 flex items-center gap-1">
-                      <HelpCircle className="w-3 h-3" />
-                      Questions to Raise Confidence
-                    </h4>
-                    <ul className="space-y-2">
-                      {opportunity.confidence_questions.map((question, i) => (
-                        <li
-                          key={i}
-                          className="flex items-start gap-2 text-sm text-secondary bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2"
-                        >
-                          <span className="flex-shrink-0 w-5 h-5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full flex items-center justify-center text-xs font-medium">
-                            {i + 1}
-                          </span>
-                          <span>{question}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="text-xs text-muted mt-2">
-                      Answering these questions would help refine the scoring accuracy.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
-            </div>
-          )}
-
-          {/* DETAILS TAB */}
-          {activeTab === 'details' && (
-            <div className="space-y-8">
-          {/* Opportunity Details */}
-          <section>
-            <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4">
-              Opportunity Details {isEditMode && <span className="text-blue-500 normal-case">(Editing)</span>}
-            </h3>
-            <div className="space-y-4">
-              {/* Department (edit mode only or if has value) */}
-              {(isEditMode || opportunity.department) && (
-                <div>
-                  <h4 className="text-xs font-medium text-muted uppercase mb-1">Department</h4>
-                  {isEditMode ? (
-                    <select
-                      value={editForm.department}
-                      onChange={(e) => handleEditFormChange('department', e.target.value)}
-                      className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    <button
+                      onClick={() => setEditingSection('scores')}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Edit scores"
                     >
-                      <option value="">Select department...</option>
-                      {DEPARTMENT_OPTIONS.map(dept => (
-                        <option key={dept} value={dept}>{dept}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <p className="text-sm text-secondary">{opportunity.department}</p>
+                      <Pencil className="w-3 h-3" />
+                      Edit
+                    </button>
                   )}
                 </div>
-              )}
 
-              {/* Description */}
-              {(isEditMode || opportunity.description) && (
-                <div>
-                  <h4 className="text-xs font-medium text-muted uppercase mb-1">Description</h4>
-                  {isEditMode ? (
-                    <textarea
-                      value={editForm.description}
-                      onChange={(e) => handleEditFormChange('description', e.target.value)}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      placeholder="Describe the opportunity..."
-                    />
-                  ) : (
-                    <p className="text-sm text-secondary whitespace-pre-wrap">{opportunity.description}</p>
-                  )}
-                </div>
-              )}
-
-              {/* Current/Desired State */}
-              {(isEditMode || opportunity.current_state || opportunity.desired_state) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className={`p-3 ${isEditMode ? 'border border-default' : 'bg-red-50 dark:bg-red-900/10'} rounded-lg`}>
-                    <h4 className={`text-xs font-medium ${isEditMode ? 'text-muted' : 'text-red-600 dark:text-red-400'} uppercase mb-1`}>
-                      Current State
-                    </h4>
-                    {isEditMode ? (
-                      <textarea
-                        value={editForm.current_state}
-                        onChange={(e) => handleEditFormChange('current_state', e.target.value)}
-                        rows={3}
-                        className="w-full px-2 py-1 border border-default rounded bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                        placeholder="Describe current state..."
-                      />
-                    ) : (
-                      <p className="text-sm text-secondary">{opportunity.current_state}</p>
-                    )}
-                  </div>
-                  <div className={`p-3 ${isEditMode ? 'border border-default' : 'bg-green-50 dark:bg-green-900/10'} rounded-lg`}>
-                    <h4 className={`text-xs font-medium ${isEditMode ? 'text-muted' : 'text-green-600 dark:text-green-400'} uppercase mb-1`}>
-                      Desired State
-                    </h4>
-                    {isEditMode ? (
-                      <textarea
-                        value={editForm.desired_state}
-                        onChange={(e) => handleEditFormChange('desired_state', e.target.value)}
-                        rows={3}
-                        className="w-full px-2 py-1 border border-default rounded bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                        placeholder="Describe desired state..."
-                      />
-                    ) : (
-                      <p className="text-sm text-secondary">{opportunity.desired_state}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Next Step */}
-              {(isEditMode || opportunity.next_step) && (
-                <div>
-                  <h4 className="text-xs font-medium text-muted uppercase mb-1">Next Step</h4>
-                  {isEditMode ? (
-                    <textarea
-                      value={editForm.next_step}
-                      onChange={(e) => handleEditFormChange('next_step', e.target.value)}
-                      rows={2}
-                      className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      placeholder="What's the next step?"
-                    />
-                  ) : (
-                    <p className="text-sm text-secondary">{opportunity.next_step}</p>
-                  )}
-                </div>
-              )}
-
-              {/* Scores (Edit Mode) */}
-              {isEditMode && (
-                <div>
-                  <h4 className="text-xs font-medium text-muted uppercase mb-2">Scores (1-5)</h4>
+                {editingSection === 'scores' ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <label className="text-xs text-muted block mb-1">ROI Potential</label>
@@ -1011,26 +803,500 @@ export default function OpportunityDetailModal({
                       />
                     </div>
                   </div>
+                ) : (
+                  <ScoreJustification
+                    roiPotential={opportunity.roi_potential}
+                    implementationEffort={opportunity.implementation_effort}
+                    strategicAlignment={opportunity.strategic_alignment}
+                    stakeholderReadiness={opportunity.stakeholder_readiness}
+                    totalScore={opportunity.total_score}
+                    tier={opportunity.tier}
+                    opportunityDescription={opportunity.opportunity_summary || undefined}
+                    dimensionJustifications={{
+                      roi_potential: opportunity.roi_justification || undefined,
+                      implementation_effort: opportunity.effort_justification || undefined,
+                      strategic_alignment: opportunity.alignment_justification || undefined,
+                      stakeholder_readiness: opportunity.readiness_justification || undefined,
+                    }}
+                  />
+                )}
+              </section>
+
+              {/* Justifications Section */}
+              <section className="group">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Score Justifications
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    {editingSection === 'justifications' ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleSaveSection('justifications')}
+                          disabled={isSaving}
+                          className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                        >
+                          {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingSection(null)}
+                          className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:bg-hover rounded"
+                        >
+                          <XCircle className="w-3 h-3" />
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={handleGenerateJustifications}
+                          disabled={generating}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {generating ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              {hasJustifications ? 'Regenerate' : 'Generate'} AI Analysis
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setEditingSection('justifications')}
+                          className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Edit justifications"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          Edit
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {editingSection === 'justifications' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-medium text-muted uppercase block mb-1">
+                        Opportunity Summary
+                      </label>
+                      <textarea
+                        value={editForm.opportunity_summary}
+                        onChange={(e) => handleEditFormChange('opportunity_summary', e.target.value)}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        placeholder="Summary of the opportunity and its potential business impact..."
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-medium text-muted uppercase block mb-1">
+                          ROI Potential Justification
+                        </label>
+                        <textarea
+                          value={editForm.roi_justification}
+                          onChange={(e) => handleEditFormChange('roi_justification', e.target.value)}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          placeholder="Why this ROI score?"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted uppercase block mb-1">
+                          Effort Justification
+                        </label>
+                        <textarea
+                          value={editForm.effort_justification}
+                          onChange={(e) => handleEditFormChange('effort_justification', e.target.value)}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          placeholder="Why this effort score?"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted uppercase block mb-1">
+                          Strategic Alignment Justification
+                        </label>
+                        <textarea
+                          value={editForm.alignment_justification}
+                          onChange={(e) => handleEditFormChange('alignment_justification', e.target.value)}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          placeholder="Why this alignment score?"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted uppercase block mb-1">
+                          Stakeholder Readiness Justification
+                        </label>
+                        <textarea
+                          value={editForm.readiness_justification}
+                          onChange={(e) => handleEditFormChange('readiness_justification', e.target.value)}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          placeholder="Why this readiness score?"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : !hasJustifications ? (
+                  <div className="text-center py-8 border border-dashed border-default rounded-lg">
+                    <FileText className="w-8 h-8 mx-auto text-muted mb-2" />
+                    <p className="text-sm text-muted">No justifications yet.</p>
+                    <p className="text-xs text-muted mt-1">Click &quot;Generate AI Analysis&quot; to auto-generate, or &quot;Edit&quot; to write your own.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {opportunity.opportunity_summary && (
+                      <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                        <p className="text-sm text-secondary">{opportunity.opportunity_summary}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
+
+          {/* CONFIDENCE TAB */}
+          {activeTab === 'confidence' && (
+            <div className="space-y-6">
+              {(opportunity.scoring_confidence !== null && opportunity.scoring_confidence !== undefined) ? (
+                <>
+                  {/* Confidence Meter */}
+                  <section>
+                    <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4 flex items-center gap-2">
+                      <Gauge className="w-4 h-4" />
+                      Scoring Confidence
+                    </h3>
+                    <div className="bg-card border border-default rounded-lg p-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-lg text-secondary">Confidence Level</span>
+                        <span className={`text-3xl font-bold ${
+                          opportunity.scoring_confidence >= 80 ? 'text-green-600 dark:text-green-400' :
+                          opportunity.scoring_confidence >= 60 ? 'text-blue-600 dark:text-blue-400' :
+                          opportunity.scoring_confidence >= 40 ? 'text-amber-600 dark:text-amber-400' :
+                          'text-red-600 dark:text-red-400'
+                        }`}>
+                          {opportunity.scoring_confidence}%
+                        </span>
+                      </div>
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            opportunity.scoring_confidence >= 80 ? 'bg-green-500' :
+                            opportunity.scoring_confidence >= 60 ? 'bg-blue-500' :
+                            opportunity.scoring_confidence >= 40 ? 'bg-amber-500' :
+                            'bg-red-500'
+                          }`}
+                          style={{ width: `${opportunity.scoring_confidence}%` }}
+                        />
+                      </div>
+                      <p className="text-sm text-muted mt-3">
+                        {opportunity.scoring_confidence >= 80 ? 'High confidence - scores are well-supported by available information' :
+                         opportunity.scoring_confidence >= 60 ? 'Moderate confidence - some assumptions were made based on limited data' :
+                         opportunity.scoring_confidence >= 40 ? 'Low confidence - significant unknowns remain in the scoring' :
+                         'Very low confidence - scores are mostly speculative due to lack of information'}
+                      </p>
+                    </div>
+                  </section>
+
+                  {/* Questions to Raise Confidence */}
+                  {opportunity.confidence_questions && opportunity.confidence_questions.length > 0 && (
+                    <section>
+                      <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4 flex items-center gap-2">
+                        <HelpCircle className="w-4 h-4" />
+                        Questions to Raise Confidence
+                      </h3>
+                      <div className="space-y-3">
+                        {opportunity.confidence_questions.map((question, i) => (
+                          <div
+                            key={i}
+                            className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg"
+                          >
+                            <span className="flex-shrink-0 w-6 h-6 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full flex items-center justify-center text-sm font-medium">
+                              {i + 1}
+                            </span>
+                            <span className="text-sm text-secondary">{question}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted mt-4">
+                        Answering these questions through research, stakeholder interviews, or discovery sessions would help refine the scoring accuracy.
+                      </p>
+                    </section>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12 border border-dashed border-default rounded-lg">
+                  <Gauge className="w-12 h-12 mx-auto text-muted mb-3" />
+                  <h3 className="text-lg font-medium text-primary mb-2">No Confidence Data</h3>
+                  <p className="text-sm text-muted max-w-md mx-auto">
+                    Confidence scoring has not been generated for this opportunity yet.
+                    Generate AI analysis on the Scores tab to evaluate confidence levels.
+                  </p>
                 </div>
               )}
+            </div>
+          )}
 
-              {opportunity.blockers.length > 0 && !isEditMode && (
-                <div>
-                  <h4 className="text-xs font-medium text-red-500 uppercase mb-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
+          {/* ALIGNMENT TAB */}
+          {activeTab === 'alignment' && (
+            <GoalAlignmentSection
+              opportunityId={opportunity.id}
+              goalAlignmentScore={opportunity.goal_alignment_score ?? null}
+              goalAlignmentDetails={opportunity.goal_alignment_details ?? null}
+              onAnalyze={handleAnalyzeGoalAlignment}
+            />
+          )}
+
+          {/* DETAILS TAB */}
+          {activeTab === 'details' && (
+            <div className="space-y-6">
+              {/* Description & Department Section */}
+              <section className="group">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Description
+                  </h3>
+                  {editingSection === 'description' ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleSaveSection('description')}
+                        disabled={isSaving}
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                      >
+                        {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingSection(null)}
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:bg-hover rounded"
+                      >
+                        <XCircle className="w-3 h-3" />
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditingSection('description')}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Edit description"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      Edit
+                    </button>
+                  )}
+                </div>
+
+                {editingSection === 'description' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-medium text-muted uppercase block mb-1">Department</label>
+                      <select
+                        value={editForm.department}
+                        onChange={(e) => handleEditFormChange('department', e.target.value)}
+                        className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select department...</option>
+                        {DEPARTMENT_OPTIONS.map(dept => (
+                          <option key={dept} value={dept}>{dept}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted uppercase block mb-1">Description</label>
+                      <textarea
+                        value={editForm.description}
+                        onChange={(e) => handleEditFormChange('description', e.target.value)}
+                        rows={4}
+                        className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        placeholder="Describe the opportunity..."
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {opportunity.department && (
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-muted" />
+                        <span className="text-sm text-secondary">{opportunity.department}</span>
+                      </div>
+                    )}
+                    {opportunity.description ? (
+                      <p className="text-sm text-secondary whitespace-pre-wrap">{opportunity.description}</p>
+                    ) : (
+                      <p className="text-sm text-muted italic">No description provided. Click Edit to add one.</p>
+                    )}
+                  </div>
+                )}
+              </section>
+
+              {/* Current/Desired State Section */}
+              <section className="group">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
+                    <Target className="w-4 h-4" />
+                    Current vs. Desired State
+                  </h3>
+                  {editingSection === 'states' ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleSaveSection('states')}
+                        disabled={isSaving}
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                      >
+                        {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingSection(null)}
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:bg-hover rounded"
+                      >
+                        <XCircle className="w-3 h-3" />
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditingSection('states')}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Edit states"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      Edit
+                    </button>
+                  )}
+                </div>
+
+                {editingSection === 'states' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-medium text-muted uppercase block mb-1">Current State</label>
+                      <textarea
+                        value={editForm.current_state}
+                        onChange={(e) => handleEditFormChange('current_state', e.target.value)}
+                        rows={4}
+                        className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        placeholder="Describe the current state..."
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted uppercase block mb-1">Desired State</label>
+                      <textarea
+                        value={editForm.desired_state}
+                        onChange={(e) => handleEditFormChange('desired_state', e.target.value)}
+                        rows={4}
+                        className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        placeholder="Describe the desired state..."
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-3 bg-red-50 dark:bg-red-900/10 rounded-lg">
+                      <h4 className="text-xs font-medium text-red-600 dark:text-red-400 uppercase mb-1">
+                        Current State
+                      </h4>
+                      {opportunity.current_state ? (
+                        <p className="text-sm text-secondary">{opportunity.current_state}</p>
+                      ) : (
+                        <p className="text-sm text-muted italic">Not defined</p>
+                      )}
+                    </div>
+                    <div className="p-3 bg-green-50 dark:bg-green-900/10 rounded-lg">
+                      <h4 className="text-xs font-medium text-green-600 dark:text-green-400 uppercase mb-1">
+                        Desired State
+                      </h4>
+                      {opportunity.desired_state ? (
+                        <p className="text-sm text-secondary">{opportunity.desired_state}</p>
+                      ) : (
+                        <p className="text-sm text-muted italic">Not defined</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* Next Step Section */}
+              <section className="group">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
+                    <ChevronRight className="w-4 h-4" />
+                    Next Step
+                  </h3>
+                  {editingSection === 'next_step' ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleSaveSection('next_step')}
+                        disabled={isSaving}
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                      >
+                        {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingSection(null)}
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:bg-hover rounded"
+                      >
+                        <XCircle className="w-3 h-3" />
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditingSection('next_step')}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Edit next step"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      Edit
+                    </button>
+                  )}
+                </div>
+
+                {editingSection === 'next_step' ? (
+                  <textarea
+                    value={editForm.next_step}
+                    onChange={(e) => handleEditFormChange('next_step', e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    placeholder="What's the next step?"
+                  />
+                ) : opportunity.next_step ? (
+                  <p className="text-sm text-secondary">{opportunity.next_step}</p>
+                ) : (
+                  <p className="text-sm text-muted italic">No next step defined. Click Edit to add one.</p>
+                )}
+              </section>
+
+              {/* Blockers Section (read-only) */}
+              {opportunity.blockers.length > 0 && (
+                <section>
+                  <h3 className="text-sm font-medium text-red-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
                     Blockers
-                  </h4>
+                  </h3>
                   <ul className="text-sm text-secondary list-disc list-inside space-y-1">
                     {opportunity.blockers.map((blocker, i) => (
                       <li key={i}>{blocker}</li>
                     ))}
                   </ul>
-                </div>
+                </section>
               )}
 
-              {Object.keys(opportunity.roi_indicators).length > 0 && !isEditMode && (
-                <div>
-                  <h4 className="text-xs font-medium text-muted uppercase mb-1">ROI Indicators</h4>
+              {/* ROI Indicators Section (read-only) */}
+              {Object.keys(opportunity.roi_indicators).length > 0 && (
+                <section>
+                  <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-3">
+                    ROI Indicators
+                  </h3>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(opportunity.roi_indicators).map(([key, value]) => (
                       <span
@@ -1041,34 +1307,32 @@ export default function OpportunityDetailModal({
                       </span>
                     ))}
                   </div>
-                </div>
+                </section>
               )}
-            </div>
-          </section>
 
-          {/* Convert to Project CTA - Only show when status is "identified" and no project_name */}
-          {!isEditMode && opportunity.status === 'identified' && !opportunity.project_name && (
-            <section className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
-                    <Rocket className="w-4 h-4" />
-                    Ready to move forward?
-                  </h3>
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
-                    Convert this opportunity into an active project to start scoping and task planning.
-                  </p>
-                </div>
-                <button
-                  onClick={handleConvertToProject}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2 text-sm font-medium"
-                >
-                  <Rocket className="w-4 h-4" />
-                  Start as Project
-                </button>
-              </div>
-            </section>
-          )}
+              {/* Convert to Project CTA */}
+              {opportunity.status === 'identified' && !opportunity.project_name && (
+                <section className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                        <Rocket className="w-4 h-4" />
+                        Ready to move forward?
+                      </h3>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                        Convert this opportunity into an active project to start scoping and task planning.
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleConvertToProject}
+                      className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2 text-sm font-medium"
+                    >
+                      <Rocket className="w-4 h-4" />
+                      Start as Project
+                    </button>
+                  </div>
+                </section>
+              )}
             </div>
           )}
 
@@ -1318,16 +1582,18 @@ export default function OpportunityDetailModal({
           </section>
 
           {/* Taskmaster Section */}
-          {!isEditMode && (
-            opportunity.project_name ? (
-              <TaskmasterChatSection
-                opportunityId={opportunity.id}
-                projectName={opportunity.project_name}
-                opportunityTitle={opportunity.title}
-              />
-            ) : (
-              /* Prompt to convert to project first */
-              <section className="border border-dashed border-amber-300 dark:border-amber-700 rounded-lg p-4 bg-amber-50/50 dark:bg-amber-900/10">
+          {opportunity.project_name ? (
+            <TaskmasterChatSection
+              opportunityId={opportunity.id}
+              projectName={opportunity.project_name}
+              opportunityTitle={opportunity.title}
+              autoGenerate={shouldAutoGenerateTasks}
+              onAutoGenerateComplete={() => setShouldAutoGenerateTasks(false)}
+            />
+          ) : (
+            /* Prompt to convert to project first */
+            <section className="border border-dashed border-amber-300 dark:border-amber-700 rounded-lg p-4 bg-amber-50/50 dark:bg-amber-900/10">
+              <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
                   <ListTodo className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                   <div>
@@ -1335,13 +1601,19 @@ export default function OpportunityDetailModal({
                       Break Down Tasks with Taskmaster
                     </h3>
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      Convert this opportunity to a project first to unlock Taskmaster.
-                      Click &quot;Start as Project&quot; above or change the status to Scoping/Pilot to begin.
+                      Convert this opportunity to a project to unlock Taskmaster and start breaking down tasks.
                     </p>
                   </div>
                 </div>
-              </section>
-            )
+                <button
+                  onClick={handleConvertToProject}
+                  className="px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex items-center gap-2 text-sm font-medium whitespace-nowrap"
+                >
+                  <Rocket className="w-4 h-4" />
+                  Start as Project
+                </button>
+              </div>
+            </section>
           )}
             </div>
           )}
@@ -1349,45 +1621,17 @@ export default function OpportunityDetailModal({
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 p-4 border-t border-default">
-          {isEditMode ? (
-            <>
-              <p className="text-xs text-muted">
-                Tip: Changing status to Scoping or Pilot will prompt you to name the project.
-              </p>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleCancelEdit}
-                  disabled={isSaving}
-                  className="px-4 py-2 text-secondary hover:text-primary hover:bg-hover rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <XCircle className="w-4 h-4" />
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveEdit}
-                  disabled={isSaving}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
-                >
-                  {isSaving ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4" />
-                  )}
-                  Save Changes
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div />
-              <button
-                onClick={onClose}
-                className="px-4 py-2 text-secondary hover:text-primary hover:bg-hover rounded-lg transition-colors"
-              >
-                Close
-              </button>
-            </>
-          )}
+          <p className="text-xs text-muted">
+            {editingSection
+              ? 'Tip: Save or cancel your changes before switching tabs.'
+              : 'Hover over sections to reveal edit buttons.'}
+          </p>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-secondary hover:text-primary hover:bg-hover rounded-lg transition-colors"
+          >
+            Close
+          </button>
         </div>
       </div>
 

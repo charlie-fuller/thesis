@@ -251,7 +251,13 @@ async def run_agent(
         Dict with type (status, content, complete) and data
     """
     logger.info(f"[PURDY] ========== Starting agent run ==========")
-    logger.info(f"[PURDY] Agent type: {agent_type}, Initiative: {initiative_id}, User: {user_id}")
+    logger.info(f"[PURDY] Agent type: '{agent_type}' (type: {type(agent_type).__name__})")
+    logger.info(f"[PURDY] Initiative: {initiative_id}, User: {user_id}")
+
+    # Validate agent_type immediately
+    if not agent_type or agent_type not in AGENT_FILES:
+        logger.error(f"[PURDY] Invalid agent_type: '{agent_type}'")
+        raise ValueError(f"Invalid agent type: {agent_type}")
 
     run_id = str(uuid4())
     logger.info(f"[PURDY] Generated run_id: {run_id}")
@@ -352,13 +358,26 @@ async def run_agent(
         # Log the data being stored
         logger.info(f"[PURDY] Storing output - id: {output_id}, agent_type: {agent_type}, version: {next_version}")
         logger.info(f"[PURDY] Output data keys: {list(output_data.keys())}")
+        logger.info(f"[PURDY] content_markdown length: {len(full_response)}")
         logger.info(f"[PURDY] Parsed title: {parsed_output.get('title')}, recommendation: {parsed_output.get('recommendation')}")
 
-        insert_result = await asyncio.to_thread(
-            lambda data=output_data: supabase.table('purdy_outputs').insert(data).execute()
-        )
+        # Use explicit copy to avoid any closure issues
+        data_to_insert = dict(output_data)
+        logger.info(f"[PURDY] Data to insert: agent_type={data_to_insert.get('agent_type')}, version={data_to_insert.get('version')}")
 
-        logger.info(f"[PURDY] Insert result: {insert_result.data}")
+        try:
+            insert_result = await asyncio.to_thread(
+                lambda: supabase.table('purdy_outputs').insert(data_to_insert).execute()
+            )
+
+            if not insert_result.data:
+                logger.error(f"[PURDY] Insert returned no data! Result: {insert_result}")
+                raise Exception("Failed to insert output - no data returned")
+
+            logger.info(f"[PURDY] Insert SUCCESS: {insert_result.data[0].get('id') if insert_result.data else 'no id'}")
+        except Exception as insert_err:
+            logger.error(f"[PURDY] Insert FAILED: {insert_err}")
+            raise
 
         # Update run status
         await asyncio.to_thread(

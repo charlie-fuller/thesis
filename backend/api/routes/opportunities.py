@@ -24,6 +24,10 @@ from services.opportunity_justification import (
     regenerate_if_scores_changed,
 )
 from services.opportunity_taskmaster import chat_with_taskmaster
+from services.goal_alignment_analyzer import (
+    analyze_goal_alignment,
+    batch_analyze_all,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +132,9 @@ class OpportunityResponse(BaseModel):
     # Scoring confidence fields
     scoring_confidence: Optional[int] = None  # 0-100 percentage
     confidence_questions: List[str] = []  # Questions that would raise confidence
+    # Goal alignment fields
+    goal_alignment_score: Optional[int] = None  # 0-100 alignment with IS strategic goals
+    goal_alignment_details: Optional[dict] = None  # Pillar scores, KPI impacts, summary
 
 
 class StakeholderLinkCreate(BaseModel):
@@ -235,6 +242,9 @@ def _format_opportunity(opp: dict, owner_name: Optional[str] = None) -> dict:
         # Scoring confidence fields
         "scoring_confidence": opp.get("scoring_confidence"),
         "confidence_questions": opp.get("confidence_questions") or [],
+        # Goal alignment fields
+        "goal_alignment_score": opp.get("goal_alignment_score"),
+        "goal_alignment_details": opp.get("goal_alignment_details"),
     }
 
 
@@ -760,6 +770,88 @@ async def generate_all_opportunity_justifications(
     except Exception as e:
         logger.error(f"Failed to generate all justifications: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate justifications")
+
+
+# ============================================================================
+# GOAL ALIGNMENT ANALYSIS ENDPOINTS
+# ============================================================================
+
+@router.post("/analyze-goal-alignment/all")
+async def analyze_all_goal_alignment(
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Analyze goal alignment for all opportunities belonging to the current client.
+
+    Evaluates each opportunity against IS team FY27 strategic goals:
+    - Decision-Ready Customer Journey (0-25 pts)
+    - Maximize Business Systems & AI Value (0-25 pts)
+    - Data-First Digital Workforce (0-25 pts)
+    - High-Trust IS Culture (0-25 pts)
+
+    Returns counts, average score, and distribution across alignment levels.
+    """
+    try:
+        result = await batch_analyze_all(client_id=current_user["client_id"])
+        return result
+    except Exception as e:
+        logger.error(f"Failed to analyze goal alignment: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze goal alignment")
+
+
+@router.post("/{opportunity_id}/analyze-goal-alignment")
+async def analyze_opportunity_goal_alignment(
+    opportunity_id: str,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Analyze a single opportunity's alignment with IS team strategic goals.
+
+    Produces:
+    - Total alignment score (0-100)
+    - Individual pillar scores (0-25 each) with rationale
+    - Impacted KPIs
+    - Summary of strategic alignment
+
+    Alignment levels:
+    - 80-100: High alignment - directly advances strategic goals
+    - 60-79: Moderate alignment - strong indirect support
+    - 40-59: Low alignment - tangential connection
+    - 0-39: Minimal alignment - limited strategic value
+    """
+    # Verify opportunity exists and belongs to client
+    opp = supabase.table("ai_opportunities") \
+        .select("id") \
+        .eq("id", opportunity_id) \
+        .eq("client_id", current_user["client_id"]) \
+        .single() \
+        .execute()
+
+    if not opp.data:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    try:
+        score, details = await analyze_goal_alignment(
+            opportunity_id=opportunity_id,
+            client_id=current_user["client_id"]
+        )
+        return {
+            "opportunity_id": opportunity_id,
+            "goal_alignment_score": score,
+            "goal_alignment_details": details,
+            "level": (
+                "high" if score >= 80 else
+                "moderate" if score >= 60 else
+                "low" if score >= 40 else
+                "minimal"
+            ),
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to analyze goal alignment: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze goal alignment")
 
 
 # ============================================================================

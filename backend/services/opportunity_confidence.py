@@ -90,6 +90,54 @@ MAX_CONFIDENCE = sum(item["points"] for item in RUBRIC.values())
 # SCORING FUNCTIONS
 # ============================================================================
 
+def _make_specific_question(template: str, opportunity: dict) -> str:
+    """
+    Make a question specific to the opportunity by including context.
+
+    Args:
+        template: Generic question template
+        opportunity: Opportunity dict with title and other fields
+
+    Returns:
+        Context-specific question string
+    """
+    title = opportunity.get("title", "this opportunity")
+    department = opportunity.get("department")
+
+    # Add opportunity context to questions
+    context_prefix = f"For \"{title}\""
+    if department:
+        context_prefix += f" ({department})"
+    context_prefix += ": "
+
+    # Make questions specific based on their type
+    if "scores would you assign" in template:
+        return f"{context_prefix}What specific evidence supports the current scores for ROI potential ({opportunity.get('roi_potential', 'unset')}), effort ({opportunity.get('implementation_effort', 'unset')}), alignment ({opportunity.get('strategic_alignment', 'unset')}), and readiness ({opportunity.get('stakeholder_readiness', 'unset')})?"
+    elif "problem or opportunity" in template:
+        return f"{context_prefix}What specific business problem does this solve, and how does it impact day-to-day operations?"
+    elif "current process" in template or "baseline state" in template:
+        return f"{context_prefix}How are things done today without this solution? What workarounds exist?"
+    elif "success look like" in template or "target end state" in template:
+        return f"{context_prefix}What measurable outcomes would indicate this was successful (e.g., 30% time reduction, $50K savings)?"
+    elif "business owner" in template or "champion" in template:
+        return f"{context_prefix}Who has budget authority and will drive adoption of this initiative?"
+    elif "department or business unit" in template:
+        return f"Which team or department would be the primary beneficiary and owner of \"{title}\"?"
+    elif "quantifiable benefits" in template:
+        return f"{context_prefix}What are the estimated hours saved per week, cost reduction, or revenue impact?"
+    elif "rationale" in template:
+        return f"{context_prefix}What specific factors led to scoring ROI as {opportunity.get('roi_potential', 'N/A')} and effort as {opportunity.get('implementation_effort', 'N/A')}?"
+    elif "source of this opportunity" in template:
+        return f"Where did \"{title}\" originate? (e.g., specific meeting, stakeholder request, pain point observation)"
+    elif "immediate next action" in template:
+        return f"{context_prefix}What is the single most important next step to validate or advance this?"
+    elif "constraints" in template:
+        return f"{context_prefix}Are there any known blockers like budget limits, technical dependencies, or competing priorities?"
+
+    # Default: just prepend context
+    return f"{context_prefix}{template}"
+
+
 def evaluate_opportunity_confidence(opportunity: dict) -> Tuple[int, List[str]]:
     """
     Evaluate confidence in an opportunity's scores.
@@ -113,44 +161,58 @@ def evaluate_opportunity_confidence(opportunity: dict) -> Tuple[int, List[str]]:
     if all(s is not None for s in scores):
         points += RUBRIC["scores_complete"]["points"]
     else:
-        questions.append(RUBRIC["scores_complete"]["question"])
+        questions.append(_make_specific_question(
+            RUBRIC["scores_complete"]["question"], opportunity
+        ))
 
     # Check description
     if opportunity.get("description"):
         points += RUBRIC["description"]["points"]
     else:
-        questions.append(RUBRIC["description"]["question"])
+        questions.append(_make_specific_question(
+            RUBRIC["description"]["question"], opportunity
+        ))
 
     # Check current_state
     if opportunity.get("current_state"):
         points += RUBRIC["current_state"]["points"]
     else:
-        questions.append(RUBRIC["current_state"]["question"])
+        questions.append(_make_specific_question(
+            RUBRIC["current_state"]["question"], opportunity
+        ))
 
     # Check desired_state
     if opportunity.get("desired_state"):
         points += RUBRIC["desired_state"]["points"]
     else:
-        questions.append(RUBRIC["desired_state"]["question"])
+        questions.append(_make_specific_question(
+            RUBRIC["desired_state"]["question"], opportunity
+        ))
 
     # Check owner
     if opportunity.get("owner_stakeholder_id"):
         points += RUBRIC["owner_stakeholder_id"]["points"]
     else:
-        questions.append(RUBRIC["owner_stakeholder_id"]["question"])
+        questions.append(_make_specific_question(
+            RUBRIC["owner_stakeholder_id"]["question"], opportunity
+        ))
 
     # Check department
     if opportunity.get("department"):
         points += RUBRIC["department"]["points"]
     else:
-        questions.append(RUBRIC["department"]["question"])
+        questions.append(_make_specific_question(
+            RUBRIC["department"]["question"], opportunity
+        ))
 
     # Check ROI indicators (must have at least one)
     roi_indicators = opportunity.get("roi_indicators") or {}
     if roi_indicators and len(roi_indicators) > 0:
         points += RUBRIC["roi_indicators"]["points"]
     else:
-        questions.append(RUBRIC["roi_indicators"]["question"])
+        questions.append(_make_specific_question(
+            RUBRIC["roi_indicators"]["question"], opportunity
+        ))
 
     # Check justifications generated
     has_justifications = any([
@@ -163,26 +225,34 @@ def evaluate_opportunity_confidence(opportunity: dict) -> Tuple[int, List[str]]:
     if has_justifications:
         points += RUBRIC["has_justifications"]["points"]
     else:
-        questions.append(RUBRIC["has_justifications"]["question"])
+        questions.append(_make_specific_question(
+            RUBRIC["has_justifications"]["question"], opportunity
+        ))
 
     # Check source documentation
     if opportunity.get("source_type") or opportunity.get("source_notes"):
         points += RUBRIC["source_type"]["points"]
     else:
-        questions.append(RUBRIC["source_type"]["question"])
+        questions.append(_make_specific_question(
+            RUBRIC["source_type"]["question"], opportunity
+        ))
 
     # Check next_step
     if opportunity.get("next_step"):
         points += RUBRIC["next_step"]["points"]
     else:
-        questions.append(RUBRIC["next_step"]["question"])
+        questions.append(_make_specific_question(
+            RUBRIC["next_step"]["question"], opportunity
+        ))
 
     # Check blockers documented (get points if blockers array exists, even if empty)
     blockers = opportunity.get("blockers")
     if blockers is not None:  # Array exists (could be empty, meaning "reviewed, none found")
         points += RUBRIC["blockers_documented"]["points"]
     else:
-        questions.append(RUBRIC["blockers_documented"]["question"])
+        questions.append(_make_specific_question(
+            RUBRIC["blockers_documented"]["question"], opportunity
+        ))
 
     # Calculate percentage (0-100)
     confidence = round((points / MAX_CONFIDENCE) * 100)

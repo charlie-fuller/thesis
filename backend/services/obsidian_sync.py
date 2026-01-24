@@ -22,6 +22,8 @@ import re
 import uuid
 from datetime import datetime, timezone, date
 from pathlib import Path
+import threading
+import time as time_module
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 import yaml
@@ -1499,10 +1501,12 @@ class ObsidianVaultWatcher:
         self.on_sync_complete = on_sync_complete
 
         self._observer = None
-        self._debounce_timers: Dict[str, asyncio.TimerHandle] = {}
-        self._pending_changes: Set[str] = set()
+        self._debounce_timers: Dict[str, float] = {}  # file_path -> scheduled_time
+        self._pending_changes: Dict[str, Tuple[str, Path]] = {}  # file_path -> (event_type, file_path)
         self._lock = asyncio.Lock()
         self._running = False
+        self._event_loop: Optional[asyncio.AbstractEventLoop] = None
+        self._process_task: Optional[asyncio.Task] = None
 
     def _should_process(self, file_path: Path) -> bool:
         """Check if a file should be processed based on patterns."""
@@ -1516,6 +1520,9 @@ class ObsidianVaultWatcher:
     def _handle_file_event(self, event_type: str, src_path: str) -> None:
         """
         Handle a file system event with debouncing.
+
+        This is called from the watchdog thread, so we need to be thread-safe.
+        We queue events and let the async processor handle them.
 
         Args:
             event_type: Type of event (created, modified, deleted, moved)
@@ -1531,18 +1538,46 @@ class ObsidianVaultWatcher:
 
         relative_path = str(file_path.relative_to(self.vault_path))
         debounce_ms = self.sync_options.get('debounce_ms', 500)
+        debounce_secs = debounce_ms / 1000.0
 
-        # Cancel existing timer for this file
-        if relative_path in self._debounce_timers:
-            self._debounce_timers[relative_path].cancel()
+        # Schedule this event to be processed after debounce period
+        # Store the time when it should be processed
+        process_time = time_module.time() + debounce_secs
+        self._debounce_timers[relative_path] = process_time
+        self._pending_changes[relative_path] = (event_type, file_path)
 
-        # Schedule debounced sync
-        loop = asyncio.get_event_loop()
-        timer = loop.call_later(
-            debounce_ms / 1000.0,
-            lambda: asyncio.create_task(self._process_file_change(event_type, file_path))
-        )
-        self._debounce_timers[relative_path] = timer
+        logger.debug(f"[Watcher] Queued {event_type}: {relative_path}")
+
+    async def _process_pending_changes(self) -> None:
+        """
+        Background task that processes pending file changes.
+
+        Runs continuously while the watcher is active, checking for
+        debounced events that are ready to be processed.
+        """
+        while self._running:
+            try:
+                # Find events that are ready to process (debounce time has passed)
+                current_time = time_module.time()
+                ready_to_process = []
+
+                for relative_path, process_time in list(self._debounce_timers.items()):
+                    if current_time >= process_time:
+                        if relative_path in self._pending_changes:
+                            event_type, file_path = self._pending_changes.pop(relative_path)
+                            ready_to_process.append((event_type, file_path, relative_path))
+                        del self._debounce_timers[relative_path]
+
+                # Process ready events
+                for event_type, file_path, relative_path in ready_to_process:
+                    await self._process_file_change(event_type, file_path)
+
+                # Small sleep to avoid busy-waiting
+                await asyncio.sleep(0.1)
+
+            except Exception as e:
+                logger.error(f"[Watcher] Error in change processor: {e}")
+                await asyncio.sleep(1)  # Back off on error
 
     async def _process_file_change(self, event_type: str, file_path: Path) -> None:
         """
@@ -1631,6 +1666,12 @@ class ObsidianVaultWatcher:
         if self._running:
             return
 
+        # Store reference to the event loop for thread-safe scheduling
+        try:
+            self._event_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._event_loop = asyncio.get_event_loop()
+
         class EventHandler(FileSystemEventHandler):
             def __init__(handler_self, watcher):
                 handler_self.watcher = watcher
@@ -1661,19 +1702,31 @@ class ObsidianVaultWatcher:
         self._observer.start()
         self._running = True
 
+        # Start the background task for processing pending changes
+        self._process_task = asyncio.create_task(self._process_pending_changes())
+
         logger.info(f"[Watcher] Started watching: {self.vault_path}")
 
     def stop(self) -> None:
         """Stop the file watcher."""
         if self._observer and self._running:
-            self._observer.stop()
-            self._observer.join()
             self._running = False
 
-            # Cancel any pending debounce timers
-            for timer in self._debounce_timers.values():
-                timer.cancel()
+            # Cancel the background processing task
+            if self._process_task and not self._process_task.done():
+                self._process_task.cancel()
+                try:
+                    # Give it a moment to cancel
+                    pass
+                except Exception:
+                    pass
+
+            self._observer.stop()
+            self._observer.join()
+
+            # Clear pending changes
             self._debounce_timers.clear()
+            self._pending_changes.clear()
 
             logger.info("[Watcher] Stopped")
 

@@ -691,6 +691,54 @@ async def api_delete_output(
 
 
 # ============================================================================
+# DEBUG
+# ============================================================================
+
+@router.get("/initiatives/{initiative_id}/debug/outputs")
+async def api_debug_outputs(
+    initiative_id: str,
+    current_user: dict = Depends(require_purdy_access)
+):
+    """Debug endpoint to check raw output data."""
+    await require_initiative_access(initiative_id, current_user, 'viewer')
+
+    try:
+        result = await asyncio.to_thread(
+            lambda: supabase.table('purdy_outputs')
+                .select('id, agent_type, version, title, content_markdown, created_at')
+                .eq('initiative_id', initiative_id)
+                .order('created_at', desc=True)
+                .limit(5)
+                .execute()
+        )
+
+        outputs = []
+        for o in (result.data or []):
+            outputs.append({
+                'id': o.get('id'),
+                'agent_type': o.get('agent_type'),
+                'agent_type_type': type(o.get('agent_type')).__name__,
+                'version': o.get('version'),
+                'title': o.get('title'),
+                'content_length': len(o.get('content_markdown', '') or ''),
+                'content_preview': (o.get('content_markdown', '') or '')[:200],
+                'created_at': o.get('created_at')
+            })
+
+        return {
+            'success': True,
+            'count': len(result.data or []),
+            'outputs': outputs
+        }
+    except Exception as e:
+        logger.error(f"Debug outputs error: {e}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+# ============================================================================
 # SHARING
 # ============================================================================
 
