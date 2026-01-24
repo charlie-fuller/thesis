@@ -28,7 +28,8 @@ anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY
 _BACKEND_DIR = Path(__file__).parent.parent.parent  # backend/
 _BUNDLED_AGENTS_PATH = _BACKEND_DIR / "purdy_agents"
 PURDY_REPO_PATH = os.environ.get("PURDY_REPO_PATH", "")
-PURDY_AGENT_MODEL = os.environ.get("PURDY_AGENT_MODEL", "claude-sonnet-4-20250514")
+# Opus for high-quality PuRDy agent runs (may take longer but produces better analysis)
+PURDY_AGENT_MODEL = os.environ.get("PURDY_AGENT_MODEL", "claude-opus-4-5-20251101")
 
 # Agent file mappings (v2.8 for discovery planner, v2.7 for others)
 # Note: paths are relative - "agents/" prefix used when PURDY_REPO_PATH is set,
@@ -304,28 +305,40 @@ async def run_agent(
         token_usage = {}
         chunk_count = 0
 
-        with anthropic_client.messages.stream(
-            model=PURDY_AGENT_MODEL,
-            max_tokens=16000,
-            system=agent_prompt,
-            messages=[{"role": "user", "content": full_prompt}]
-        ) as stream:
-            for text in stream.text_stream:
-                full_response += text
-                chunk_count += 1
-                yield {'type': 'content', 'data': text}
+        # Log context size before calling Claude
+        system_chars = len(agent_prompt)
+        prompt_chars = len(full_prompt)
+        logger.info(f"[PURDY] Context size - system: {system_chars} chars, user: {prompt_chars} chars, total: {system_chars + prompt_chars} chars")
+        logger.info(f"[PURDY] Estimated tokens: ~{(system_chars + prompt_chars) // 4}")
+        logger.info(f"[PURDY] Calling Claude API with model: {PURDY_AGENT_MODEL}")
 
-                # Send keepalive every 10 chunks to force proxy flush
-                if chunk_count % 10 == 0:
-                    yield {'type': 'keepalive', 'data': ''}
+        try:
+            with anthropic_client.messages.stream(
+                model=PURDY_AGENT_MODEL,
+                max_tokens=16000,
+                system=agent_prompt,
+                messages=[{"role": "user", "content": full_prompt}]
+            ) as stream:
+                for text in stream.text_stream:
+                    full_response += text
+                    chunk_count += 1
+                    yield {'type': 'content', 'data': text}
 
-            # Get final message for token usage
-            final_message = stream.get_final_message()
-            if final_message.usage:
-                token_usage = {
-                    'input_tokens': final_message.usage.input_tokens,
-                    'output_tokens': final_message.usage.output_tokens
-                }
+                    # Send keepalive every 10 chunks to force proxy flush
+                    if chunk_count % 10 == 0:
+                        yield {'type': 'keepalive', 'data': ''}
+
+                # Get final message for token usage
+                final_message = stream.get_final_message()
+                if final_message.usage:
+                    token_usage = {
+                        'input_tokens': final_message.usage.input_tokens,
+                        'output_tokens': final_message.usage.output_tokens
+                    }
+                logger.info(f"[PURDY] Claude API completed. Tokens: {token_usage}")
+        except Exception as claude_error:
+            logger.error(f"[PURDY] Claude API error: {type(claude_error).__name__}: {claude_error}")
+            raise
 
         # Parse output
         parsed_output = parse_agent_output(agent_type, full_response)
