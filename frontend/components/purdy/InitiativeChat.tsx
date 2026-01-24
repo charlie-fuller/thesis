@@ -138,7 +138,7 @@ export default function InitiativeChat({ initiativeId }: InitiativeChatProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[400px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
+      <div className="flex items-center justify-center h-[calc(100vh-280px)] min-h-[400px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
         <div className="flex items-center gap-2 text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
           Loading conversation...
@@ -148,7 +148,7 @@ export default function InitiativeChat({ initiativeId }: InitiativeChatProps) {
   }
 
   return (
-    <div className="flex flex-col h-[600px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-280px)] min-h-[400px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
