@@ -28,8 +28,19 @@ anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY
 _BACKEND_DIR = Path(__file__).parent.parent.parent  # backend/
 _BUNDLED_AGENTS_PATH = _BACKEND_DIR / "purdy_agents"
 PURDY_REPO_PATH = os.environ.get("PURDY_REPO_PATH", "")
-# Opus for high-quality PuRDy agent runs (may take longer but produces better analysis)
-PURDY_AGENT_MODEL = os.environ.get("PURDY_AGENT_MODEL", "claude-opus-4-5-20251101")
+# Default models - can be overridden by env var
+PURDY_MODEL_SONNET = os.environ.get("PURDY_MODEL_SONNET", "claude-sonnet-4-20250514")
+PURDY_MODEL_OPUS = os.environ.get("PURDY_MODEL_OPUS", "claude-opus-4-5-20251101")
+
+# Agents that require Opus for high-quality synthesis (slower but better)
+OPUS_AGENTS = {"coverage_tracker", "synthesizer", "tech_evaluation"}
+
+
+def get_model_for_agent(agent_type: str) -> str:
+    """Get the appropriate Claude model for an agent type."""
+    if agent_type in OPUS_AGENTS:
+        return PURDY_MODEL_OPUS
+    return PURDY_MODEL_SONNET
 
 # Agent file mappings (v2.8 for discovery planner, v2.7 for others)
 # Note: paths are relative - "agents/" prefix used when PURDY_REPO_PATH is set,
@@ -310,11 +321,12 @@ async def run_agent(
         prompt_chars = len(full_prompt)
         logger.info(f"[PURDY] Context size - system: {system_chars} chars, user: {prompt_chars} chars, total: {system_chars + prompt_chars} chars")
         logger.info(f"[PURDY] Estimated tokens: ~{(system_chars + prompt_chars) // 4}")
-        logger.info(f"[PURDY] Calling Claude API with model: {PURDY_AGENT_MODEL}")
+        model = get_model_for_agent(agent_type)
+        logger.info(f"[PURDY] Calling Claude API with model: {model}")
 
         try:
             with anthropic_client.messages.stream(
-                model=PURDY_AGENT_MODEL,
+                model=model,
                 max_tokens=16000,
                 system=agent_prompt,
                 messages=[{"role": "user", "content": full_prompt}]
