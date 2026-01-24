@@ -32,15 +32,15 @@ PURDY_REPO_PATH = os.environ.get("PURDY_REPO_PATH", "")
 PURDY_MODEL_SONNET = os.environ.get("PURDY_MODEL_SONNET", "claude-sonnet-4-20250514")
 PURDY_MODEL_OPUS = os.environ.get("PURDY_MODEL_OPUS", "claude-opus-4-5-20251101")
 
-# Agents that require Opus for high-quality synthesis (slower but better)
-OPUS_AGENTS = {"coverage_tracker", "synthesizer", "tech_evaluation"}
+# Triage uses Sonnet for speed, all others use Opus for quality
+SONNET_AGENTS = {"triage"}
 
 
 def get_model_for_agent(agent_type: str) -> str:
     """Get the appropriate Claude model for an agent type."""
-    if agent_type in OPUS_AGENTS:
-        return PURDY_MODEL_OPUS
-    return PURDY_MODEL_SONNET
+    if agent_type in SONNET_AGENTS:
+        return PURDY_MODEL_SONNET
+    return PURDY_MODEL_OPUS
 
 # Agent file mappings (v2.8 for discovery planner, v2.7 for others)
 # Note: paths are relative - "agents/" prefix used when PURDY_REPO_PATH is set,
