@@ -258,10 +258,11 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - **Per-initiative document repository**: Upload documents that grow over time
     - **Five specialized agents** (loaded from purdy-cf repo):
       - **Triage (v2.6)**: Quick GO/NO-GO assessment with tier routing and confidence-tagged ROI
-      - **Discovery Planner (v2.7)**: Type-specific discovery plan with quantification gates
+      - **Discovery Planner (v2.8)**: Outcome-driven discovery with pre-meeting knowledge framework, quantification gates, and type-specific planning
       - **Coverage Tracker (v2.7)**: Track coverage, red flags, and 3M diagnosis
       - **Synthesizer (v2.7)**: 112%+ synthesis with persona outputs (Finance/Engineering/Sales/Executive briefs)
       - **Tech Evaluation (v2.6)**: Platform recommendation with confidence-tagged estimates
+    - **Discovery Templates**: Type-specific templates in system KB (Process Automation, Data Analytics, Tool Selection, Cross-Functional)
     - **Versioned outputs**: Each agent run produces versioned output stored in DB with markdown export
     - **Previous outputs feed forward**: Subsequent runs automatically include earlier agent outputs as context
     - **Global System KB**: 19 markdown files pre-loaded for all initiatives (methodology, frameworks, risk patterns)

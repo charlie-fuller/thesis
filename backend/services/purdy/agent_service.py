@@ -26,10 +26,10 @@ anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY
 PURDY_REPO_PATH = os.environ.get("PURDY_REPO_PATH", "/Users/charlie.fuller/vaults/Contentful/GitHub/purdy-cf")
 PURDY_AGENT_MODEL = os.environ.get("PURDY_AGENT_MODEL", "claude-sonnet-4-20250514")
 
-# Agent file mappings (v2.7 versions where available)
+# Agent file mappings (v2.8 for discovery planner, v2.7 for others)
 AGENT_FILES = {
     "triage": "agents/triage-v2.6.md",
-    "discovery_planner": "agents/discovery-planner-v2.7.md",
+    "discovery_planner": "agents/discovery-planner-v2.8.md",
     "coverage_tracker": "agents/coverage-tracker-v2.7.md",
     "synthesizer": "agents/synthesizer-v2.7.md",
     "tech_evaluation": "agents/tech-evaluation-v2.6.md"
@@ -49,8 +49,8 @@ AGENT_DESCRIPTIONS = {
     },
     "discovery_planner": {
         "name": "Discovery Planner",
-        "version": "v2.7",
-        "description": "Type-specific discovery plan with quantification gates and failure patterns",
+        "version": "v2.8",
+        "description": "Outcome-driven discovery with pre-meeting knowledge framework, quantification gates, and type-specific planning",
         "estimated_time": "10-15 minutes",
         "output_type": "discovery_output"
     },
@@ -392,7 +392,21 @@ def build_full_prompt(agent_type: str, context: Dict) -> str:
     # Agent-specific instructions
     agent_instructions = {
         'triage': "Please perform a triage analysis of this initiative. Provide a GO/NO-GO recommendation, tier routing, and confidence-tagged ROI assessment.",
-        'discovery_planner': "Please create a discovery plan for this initiative. Include type-specific activities, quantification gates, and potential failure patterns to watch for.",
+        'discovery_planner': """Please create an outcome-driven discovery plan for this initiative.
+
+FIRST, complete the Pre-Meeting Knowledge Framework:
+1. PARTICIPANT KNOWLEDGE - Document what you know vs. need to discover about participants
+2. PROBLEM/OPPORTUNITY CONTEXT - Document what you know vs. need to discover about the problem
+3. DESIRED OUTCOMES - Define specific artifacts, decisions, and information needed from discovery
+4. STRATEGIC CONTEXT - Document alignment, dependencies, and constraints
+
+THEN, verify pre-work completeness (flag any BLOCKING gaps before proceeding).
+
+FINALLY, create the discovery plan with:
+- Type-specific activities and questions
+- Quantification gates
+- Failure patterns to watch for
+- Clear success criteria tied to desired outcomes""",
         'coverage_tracker': "Please analyze the current discovery coverage. Identify gaps, assess readiness for synthesis, and perform 3M waste diagnosis if applicable.",
         'synthesizer': "Please synthesize all discovery findings into a comprehensive PRD. Include persona-specific briefs for Finance, Engineering, Sales, and Executive audiences.",
         'tech_evaluation': "Please evaluate technical platform options for this initiative. Provide recommendations with confidence-tagged effort estimates."
