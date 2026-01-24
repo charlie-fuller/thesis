@@ -63,6 +63,20 @@ PURDY_MODEL_OPUS = os.environ.get("PURDY_MODEL_OPUS", "claude-opus-4-5-20251101"
 # Triage uses Sonnet for speed, all others use Opus for quality
 SONNET_AGENTS = {"triage"}
 
+# Multi-pass synthesis configuration
+MULTI_PASS_CONFIG = {
+    "passes": [
+        {"model": PURDY_MODEL_SONNET, "temperature": 0.5, "label": "Conservative"},
+        {"model": PURDY_MODEL_SONNET, "temperature": 0.7, "label": "Balanced"},
+        {"model": PURDY_MODEL_SONNET, "temperature": 0.85, "label": "Exploratory"},
+    ],
+    "meta_synthesis": {
+        "model": PURDY_MODEL_OPUS,
+        "temperature": 0.6,
+    },
+    "supported_agents": ["synthesizer"]
+}
+
 
 def get_model_for_agent(agent_type: str) -> str:
     """Get the appropriate Claude model for an agent type."""
@@ -70,15 +84,16 @@ def get_model_for_agent(agent_type: str) -> str:
         return PURDY_MODEL_SONNET
     return PURDY_MODEL_OPUS
 
-# Agent file mappings (v2.8 for discovery planner, v2.7 for others)
+# Agent file mappings (v2.9 for discovery planner, v2.8 for synthesizer, v2.7 for tech)
 # Note: paths are relative - "agents/" prefix used when PURDY_REPO_PATH is set,
 # otherwise loads directly from bundled purdy_agents/ folder
 AGENT_FILES = {
     "triage": "triage-v2.6.md",
-    "discovery_planner": "discovery-planner-v2.8.md",
+    "discovery_planner": "discovery-planner-v2.9.md",
     "coverage_tracker": "coverage-tracker-v2.7.md",
-    "synthesizer": "synthesizer-v2.7.md",
-    "tech_evaluation": "tech-evaluation-v2.6.md"
+    "synthesizer": "synthesizer-v2.8.md",
+    "tech_evaluation": "tech-evaluation-v2.7.md",
+    "meta_synthesizer": "meta-synthesizer-v1.0.md"  # Internal use for multi-pass
 }
 
 # Methodology overview file (optional - may not exist in bundled version)
@@ -95,8 +110,8 @@ AGENT_DESCRIPTIONS = {
     },
     "discovery_planner": {
         "name": "Discovery Planner",
-        "version": "v2.8",
-        "description": "Outcome-driven discovery with pre-meeting knowledge framework, quantification gates, and type-specific planning",
+        "version": "v2.9",
+        "description": "Outcome-driven discovery with visual session flow diagrams, pre-meeting knowledge framework, and type-specific planning",
         "estimated_time": "10-15 minutes",
         "output_type": "discovery_output"
     },
@@ -109,15 +124,15 @@ AGENT_DESCRIPTIONS = {
     },
     "synthesizer": {
         "name": "Synthesizer",
-        "version": "v2.7",
-        "description": "112%+ synthesis with persona-specific outputs (Finance/Engineering/Sales/Executive)",
+        "version": "v2.8",
+        "description": "115%+ synthesis with narrative insight generation, dots-connected analysis, and persona-specific outputs",
         "estimated_time": "15-25 minutes",
         "output_type": "prd_output"
     },
     "tech_evaluation": {
         "name": "Tech Evaluation",
-        "version": "v2.6",
-        "description": "Platform recommendation with confidence-tagged estimates",
+        "version": "v2.7",
+        "description": "Platform recommendation with visual architecture diagrams and confidence-tagged estimates",
         "estimated_time": "10-15 minutes",
         "output_type": "tech_eval_output"
     }
@@ -276,7 +291,8 @@ async def run_agent(
     initiative_id: str,
     agent_type: str,
     user_id: str,
-    document_ids: Optional[List[str]] = None
+    document_ids: Optional[List[str]] = None,
+    output_format: str = "comprehensive"
 ) -> AsyncGenerator[Dict, None]:
     """
     Execute an agent run with streaming response.
@@ -303,14 +319,15 @@ async def run_agent(
     logger.info(f"[PURDY] Generated run_id: {run_id}")
 
     try:
-        # Create run record
+        # Create run record with output format metadata
         await asyncio.to_thread(
             lambda: supabase.table('purdy_runs').insert({
                 'id': run_id,
                 'initiative_id': initiative_id,
                 'agent_type': agent_type,
                 'run_by': user_id,
-                'status': 'running'
+                'status': 'running',
+                'metadata': {'output_format': output_format}
             }).execute()
         )
 
@@ -324,8 +341,8 @@ async def run_agent(
         # Build context
         context = await build_agent_context(initiative_id, agent_type)
 
-        # Build the full prompt
-        full_prompt = build_full_prompt(agent_type, context)
+        # Build the full prompt with format guidance
+        full_prompt = build_full_prompt(agent_type, context, output_format)
 
         # Indicate which model is being used and set expectations
         model = get_model_for_agent(agent_type)
@@ -416,7 +433,8 @@ async def run_agent(
             'confidence_level': parsed_output.get('confidence_level'),
             'executive_summary': parsed_output.get('executive_summary'),
             'content_markdown': full_response,
-            'content_structured': parsed_output
+            'content_structured': parsed_output,
+            'output_format': output_format
         }
 
         # Log the data being stored
@@ -488,9 +506,48 @@ async def run_agent(
         yield {'type': 'error', 'data': str(e)}
 
 
-def build_full_prompt(agent_type: str, context: Dict) -> str:
+def get_format_guidance(agent_type: str, output_format: str) -> str:
+    """Return format-specific instructions for the agent."""
+    if output_format == "comprehensive":
+        return ""  # No additional guidance, use full prompt
+
+    elif output_format == "executive":
+        return """## OUTPUT FORMAT: EXECUTIVE SUMMARY
+
+Provide a condensed executive summary (500-800 words max):
+- Lead with the key decision/recommendation
+- Include only the most critical 3-5 findings
+- One table maximum for quantitative data
+- Skip detailed analysis, methodology, and appendices
+- End with clear next steps (3 max)
+
+Use headers: Decision, Key Findings, Critical Risks, Next Steps
+"""
+
+    elif output_format == "brief":
+        return """## OUTPUT FORMAT: BRIEF
+
+Provide only the essential decision points (200-300 words max):
+- Recommendation: [GO/NO-GO/CONDITIONAL] with one-line rationale
+- Confidence: [HIGH/MEDIUM/LOW]
+- Top 3 risks (one line each)
+- Immediate next step
+
+No tables, no analysis, no background. Just the decision.
+"""
+
+    return ""
+
+
+def build_full_prompt(agent_type: str, context: Dict, output_format: str = "comprehensive") -> str:
     """Build the full user prompt for the agent."""
     parts = []
+
+    # Add format guidance FIRST if not comprehensive
+    format_guidance = get_format_guidance(agent_type, output_format)
+    if format_guidance:
+        parts.append(format_guidance)
+        parts.append("\n")
 
     parts.append("# Initiative Context\n")
 
@@ -632,6 +689,307 @@ def get_status_for_agent(agent_type: str) -> Optional[str]:
         'tech_evaluation': 'evaluated'
     }
     return status_map.get(agent_type)
+
+
+async def run_agent_multi_pass(
+    initiative_id: str,
+    agent_type: str,
+    user_id: str,
+    document_ids: Optional[List[str]] = None,
+    output_format: str = "comprehensive"
+) -> AsyncGenerator[Dict, None]:
+    """
+    Execute a multi-pass agent run with meta-synthesis.
+
+    Runs 3 Sonnet passes with varying temperatures, then feeds all outputs
+    to Opus for meta-synthesis to produce a best-of-all unified output.
+
+    Args:
+        initiative_id: Initiative UUID
+        agent_type: Type of agent to run (must be in MULTI_PASS_CONFIG["supported_agents"])
+        user_id: User running the agent
+        document_ids: Optional list of specific document IDs to use
+        output_format: Output format (comprehensive, executive, brief)
+
+    Yields:
+        Dict with type (status, content, pass_complete, complete) and data
+    """
+    logger.info(f"[PURDY-MP] ========== Starting multi-pass synthesis ==========")
+    logger.info(f"[PURDY-MP] Agent type: '{agent_type}', Initiative: {initiative_id}")
+
+    if agent_type not in MULTI_PASS_CONFIG["supported_agents"]:
+        raise ValueError(f"Multi-pass not supported for agent type: {agent_type}")
+
+    run_id = str(uuid4())
+    passes_config = MULTI_PASS_CONFIG["passes"]
+    meta_config = MULTI_PASS_CONFIG["meta_synthesis"]
+
+    try:
+        # Create run record with multi-pass metadata
+        await asyncio.to_thread(
+            lambda: supabase.table('purdy_runs').insert({
+                'id': run_id,
+                'initiative_id': initiative_id,
+                'agent_type': agent_type,
+                'run_by': user_id,
+                'status': 'running',
+                'metadata': {
+                    'output_format': output_format,
+                    'synthesis_mode': 'multi_pass',
+                    'passes': len(passes_config)
+                }
+            }).execute()
+        )
+
+        yield {'type': 'status', 'data': 'Loading agent prompt...'}
+
+        # Load agent prompt (same for all passes)
+        agent_prompt = load_agent_prompt(agent_type)
+        meta_prompt = load_agent_prompt("meta_synthesizer")
+
+        yield {'type': 'status', 'data': 'Building context...'}
+
+        # Build context ONCE (shared across all passes)
+        context = await build_agent_context(initiative_id, agent_type)
+        full_prompt = build_full_prompt(agent_type, context, output_format)
+
+        # Track document IDs used
+        if document_ids:
+            for doc_id in document_ids:
+                await asyncio.to_thread(
+                    lambda d=doc_id: supabase.table('purdy_run_documents').insert({
+                        'run_id': run_id,
+                        'document_id': d
+                    }).execute()
+                )
+
+        # Store intermediate outputs
+        intermediate_outputs = []
+        total_tokens = {'input_tokens': 0, 'output_tokens': 0}
+
+        # ===== Run 3 Sonnet passes =====
+        for i, pass_config in enumerate(passes_config, 1):
+            pass_label = pass_config["label"]
+            pass_temp = pass_config["temperature"]
+            pass_model = pass_config["model"]
+
+            yield {'type': 'status', 'data': f'Pass {i}/3: {pass_label} (temp={pass_temp})...'}
+            logger.info(f"[PURDY-MP] Starting Pass {i}: {pass_label} (temp={pass_temp}, model={pass_model})")
+
+            pass_response = ""
+
+            try:
+                with anthropic_client.messages.stream(
+                    model=pass_model,
+                    max_tokens=16000,
+                    temperature=pass_temp,
+                    system=agent_prompt,
+                    messages=[{"role": "user", "content": full_prompt}]
+                ) as stream:
+                    for text in stream.text_stream:
+                        pass_response += text
+                        # Don't stream individual pass content to frontend
+
+                    final_message = stream.get_final_message()
+                    if final_message.usage:
+                        total_tokens['input_tokens'] += final_message.usage.input_tokens
+                        total_tokens['output_tokens'] += final_message.usage.output_tokens
+
+                logger.info(f"[PURDY-MP] Pass {i} complete: {len(pass_response)} chars")
+
+            except Exception as pass_error:
+                logger.error(f"[PURDY-MP] Pass {i} failed: {pass_error}")
+                raise
+
+            intermediate_outputs.append({
+                'pass_number': i,
+                'label': pass_label,
+                'temperature': pass_temp,
+                'model': pass_model,
+                'content': pass_response,
+                'char_count': len(pass_response)
+            })
+
+            yield {
+                'type': 'pass_complete',
+                'data': {
+                    'pass_number': i,
+                    'label': pass_label,
+                    'char_count': len(pass_response)
+                }
+            }
+
+        # ===== Meta-synthesis with Opus =====
+        yield {'type': 'status', 'data': 'Meta-synthesis: combining best insights...'}
+        logger.info(f"[PURDY-MP] Starting meta-synthesis with Opus")
+
+        # Build meta-synthesis prompt with all 3 outputs
+        meta_user_prompt = f"""# Multi-Pass Synthesis Task
+
+You are performing meta-synthesis on three independent synthesis passes of the same initiative.
+
+## Pass A (Conservative, temp=0.5)
+{intermediate_outputs[0]['content']}
+
+---
+
+## Pass B (Balanced, temp=0.7)
+{intermediate_outputs[1]['content']}
+
+---
+
+## Pass C (Exploratory, temp=0.85)
+{intermediate_outputs[2]['content']}
+
+---
+
+## Your Task
+
+Create a unified synthesis that combines the best of all three passes. Follow the meta-synthesizer instructions to:
+1. Lead with high-confidence findings (where all passes agree)
+2. Resolve conflicts using the trust hierarchy (A > B > C for facts, C for insights)
+3. Incorporate unique valuable insights from each pass
+4. Include the Multi-Pass Synthesis Notes section at the end
+"""
+
+        # Stream the meta-synthesis output
+        full_response = ""
+        chunk_count = 0
+
+        try:
+            with anthropic_client.messages.stream(
+                model=meta_config["model"],
+                max_tokens=20000,
+                temperature=meta_config["temperature"],
+                system=meta_prompt,
+                messages=[{"role": "user", "content": meta_user_prompt}]
+            ) as stream:
+                for text in stream.text_stream:
+                    full_response += text
+                    chunk_count += 1
+                    yield {'type': 'content', 'data': text}
+
+                    if chunk_count % 10 == 0:
+                        yield {'type': 'keepalive', 'data': ''}
+
+                final_message = stream.get_final_message()
+                if final_message.usage:
+                    total_tokens['input_tokens'] += final_message.usage.input_tokens
+                    total_tokens['output_tokens'] += final_message.usage.output_tokens
+
+            logger.info(f"[PURDY-MP] Meta-synthesis complete: {len(full_response)} chars")
+
+        except Exception as meta_error:
+            logger.error(f"[PURDY-MP] Meta-synthesis failed: {meta_error}")
+            raise
+
+        # Parse output
+        parsed_output = parse_agent_output(agent_type, full_response)
+
+        # Get next version number
+        version_result = await asyncio.to_thread(
+            lambda: supabase.table('purdy_outputs')
+                .select('version')
+                .eq('initiative_id', initiative_id)
+                .eq('agent_type', agent_type)
+                .order('version', desc=True)
+                .limit(1)
+                .execute()
+        )
+        next_version = 1
+        if version_result.data:
+            next_version = version_result.data[0]['version'] + 1
+
+        # Store output with multi-pass metadata
+        output_id = str(uuid4())
+
+        # Prepare intermediate outputs for storage (truncate content for DB)
+        intermediate_for_storage = []
+        for io in intermediate_outputs:
+            intermediate_for_storage.append({
+                'pass_number': io['pass_number'],
+                'label': io['label'],
+                'temperature': io['temperature'],
+                'model': io['model'],
+                'char_count': io['char_count'],
+                'content': io['content']  # Full content stored
+            })
+
+        output_data = {
+            'id': output_id,
+            'run_id': run_id,
+            'initiative_id': initiative_id,
+            'agent_type': agent_type,
+            'version': next_version,
+            'title': parsed_output.get('title'),
+            'recommendation': parsed_output.get('recommendation'),
+            'tier_routing': parsed_output.get('tier_routing'),
+            'confidence_level': parsed_output.get('confidence_level'),
+            'executive_summary': parsed_output.get('executive_summary'),
+            'content_markdown': full_response,
+            'content_structured': parsed_output,
+            'output_format': output_format,
+            'synthesis_mode': 'multi_pass',
+            'intermediate_outputs': intermediate_for_storage
+        }
+
+        logger.info(f"[PURDY-MP] Storing output - id: {output_id}, version: {next_version}")
+
+        data_to_insert = dict(output_data)
+        insert_result = await asyncio.to_thread(
+            lambda: supabase.table('purdy_outputs').insert(data_to_insert).execute()
+        )
+
+        if not insert_result.data:
+            logger.error(f"[PURDY-MP] Insert returned no data!")
+            raise Exception("Failed to insert output - no data returned")
+
+        logger.info(f"[PURDY-MP] Insert SUCCESS")
+
+        # Update run status
+        await asyncio.to_thread(
+            lambda: supabase.table('purdy_runs').update({
+                'status': 'completed',
+                'completed_at': datetime.now(timezone.utc).isoformat(),
+                'token_usage': total_tokens
+            }).eq('id', run_id).execute()
+        )
+
+        # Update initiative status
+        new_status = get_status_for_agent(agent_type)
+        if new_status:
+            await asyncio.to_thread(
+                lambda: supabase.table('purdy_initiatives')
+                    .update({'status': new_status})
+                    .eq('id', initiative_id)
+                    .execute()
+            )
+
+        yield {
+            'type': 'complete',
+            'data': {
+                'run_id': run_id,
+                'output_id': output_id,
+                'version': next_version,
+                'parsed': parsed_output,
+                'token_usage': total_tokens,
+                'synthesis_mode': 'multi_pass',
+                'passes_completed': len(intermediate_outputs)
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"[PURDY-MP] Multi-pass run failed: {e}")
+
+        await asyncio.to_thread(
+            lambda: supabase.table('purdy_runs').update({
+                'status': 'failed',
+                'completed_at': datetime.now(timezone.utc).isoformat(),
+                'error_message': str(e)
+            }).eq('id', run_id).execute()
+        )
+
+        yield {'type': 'error', 'data': str(e)}
 
 
 async def get_run(run_id: str) -> Optional[Dict]:

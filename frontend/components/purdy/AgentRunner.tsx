@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useId } from 'react'
 import { flushSync } from 'react-dom'
 import {
   Play,
@@ -18,8 +18,60 @@ import {
 } from 'lucide-react'
 import { apiGet } from '@/lib/api'
 import { authenticatedFetch } from '@/lib/api'
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+
+// Mermaid diagram component for rendering diagrams
+function MermaidDiagram({ chart }: { chart: string }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const uniqueId = useId().replace(/:/g, '-')
+  const [error, setError] = useState<string | null>(null)
+  const [rendered, setRendered] = useState(false)
+
+  useEffect(() => {
+    const renderDiagram = async () => {
+      if (!containerRef.current || rendered) return
+
+      try {
+        // Dynamic import to avoid SSR issues
+        const mermaid = (await import('mermaid')).default
+
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: 'neutral',
+          securityLevel: 'loose',
+        })
+
+        const { svg } = await mermaid.render(`mermaid-${uniqueId}`, chart)
+        if (containerRef.current) {
+          containerRef.current.innerHTML = svg
+          setRendered(true)
+        }
+      } catch (err) {
+        console.error('Mermaid rendering failed:', err)
+        setError(err instanceof Error ? err.message : 'Failed to render diagram')
+      }
+    }
+
+    renderDiagram()
+  }, [chart, uniqueId, rendered])
+
+  if (error) {
+    return (
+      <div className="my-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+        <p className="text-sm text-red-600 dark:text-red-400">Diagram error: {error}</p>
+        <pre className="mt-2 text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">{chart}</pre>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="my-4 flex justify-center overflow-x-auto"
+    />
+  )
+}
 
 interface Document {
   id: string
@@ -150,6 +202,10 @@ export default function AgentRunner({
   const [elapsedTime, setElapsedTime] = useState(0)
   const [startTime, setStartTime] = useState<number | null>(null)
   const [funMessageIndex, setFunMessageIndex] = useState(0)
+  const [outputFormat, setOutputFormat] = useState<'comprehensive' | 'executive' | 'brief'>('comprehensive')
+  const [multiPass, setMultiPass] = useState(true)  // Default ON for synthesizer
+  const [passesCompleted, setPassesCompleted] = useState(0)
+  const [currentPassLabel, setCurrentPassLabel] = useState('')
 
   const contentRef = useRef<HTMLDivElement>(null)
 
@@ -212,6 +268,8 @@ export default function AgentRunner({
     setElapsedTime(0)
     setStartTime(Date.now())
     setFunMessageIndex(Math.floor(Math.random() * FUN_STATUS_MESSAGES.length))
+    setPassesCompleted(0)
+    setCurrentPassLabel('')
 
     try {
       const response = await authenticatedFetch(
@@ -220,7 +278,9 @@ export default function AgentRunner({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            agent_type: selectedAgent
+            agent_type: selectedAgent,
+            output_format: outputFormat,
+            multi_pass: selectedAgent === 'synthesizer' && multiPass
           }),
         }
       )
@@ -275,6 +335,17 @@ export default function AgentRunner({
 
               if (eventType === 'status') {
                 flushSync(() => setStatus(data))
+              } else if (eventType === 'pass_complete') {
+                // Multi-pass: a synthesis pass completed
+                try {
+                  const passData = JSON.parse(data)
+                  flushSync(() => {
+                    setPassesCompleted(passData.pass_number)
+                    setCurrentPassLabel(passData.label)
+                  })
+                } catch (e) {
+                  console.error('Failed to parse pass_complete event:', e)
+                }
               } else if (eventType === 'complete') {
                 try {
                   const result = JSON.parse(data)
@@ -418,6 +489,99 @@ export default function AgentRunner({
           })}
         </div>
 
+        {/* Output Format Selection */}
+        {selectedAgent && (
+          <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+            <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+              Output Format
+            </h4>
+            <div className="space-y-2">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="outputFormat"
+                  value="comprehensive"
+                  checked={outputFormat === 'comprehensive'}
+                  onChange={() => setOutputFormat('comprehensive')}
+                  disabled={running}
+                  className="mt-1"
+                />
+                <div>
+                  <div className="font-medium text-slate-900 dark:text-white">Comprehensive</div>
+                  <div className="text-xs text-slate-500">Full detailed analysis with all sections</div>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="outputFormat"
+                  value="executive"
+                  checked={outputFormat === 'executive'}
+                  onChange={() => setOutputFormat('executive')}
+                  disabled={running}
+                  className="mt-1"
+                />
+                <div>
+                  <div className="font-medium text-slate-900 dark:text-white">Executive Summary</div>
+                  <div className="text-xs text-slate-500">Key findings and recommendations only (~50% shorter)</div>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="outputFormat"
+                  value="brief"
+                  checked={outputFormat === 'brief'}
+                  onChange={() => setOutputFormat('brief')}
+                  disabled={running}
+                  className="mt-1"
+                />
+                <div>
+                  <div className="font-medium text-slate-900 dark:text-white">Brief</div>
+                  <div className="text-xs text-slate-500">Decision and next steps only (~80% shorter)</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* Multi-Pass Toggle (Synthesizer only) */}
+        {selectedAgent === 'synthesizer' && (
+          <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={multiPass}
+                onChange={(e) => setMultiPass(e.target.checked)}
+                disabled={running}
+                className="mt-1 w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+              />
+              <div className="flex-1">
+                <div className="font-medium text-amber-900 dark:text-amber-100">
+                  Multi-Pass Synthesis (Recommended)
+                </div>
+                <div className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                  <strong>How it works:</strong> Runs 3 independent synthesis passes with varying
+                  analysis styles (Conservative → Balanced → Exploratory), then uses a senior
+                  analyst model to combine the best insights from all three into a unified output.
+                </div>
+                <div className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                  <strong>Why it&apos;s better:</strong> Conservative pass anchors facts precisely.
+                  Balanced pass provides standard framing. Exploratory pass surfaces &quot;elephants&quot;
+                  and bolder connections. The meta-synthesis validates and combines them all.
+                </div>
+                <div className="text-xs text-amber-500 dark:text-amber-500 mt-2 flex items-center gap-2 flex-wrap">
+                  <span>~4x runtime</span>
+                  <span className="text-amber-400">|</span>
+                  <span>~$6-7 cost</span>
+                  <span className="text-amber-400">|</span>
+                  <span>Higher quality insights</span>
+                </div>
+              </div>
+            </label>
+          </div>
+        )}
+
         {/* Run Button */}
         <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
           <div className="text-sm text-slate-500 dark:text-slate-400">
@@ -486,9 +650,34 @@ export default function AgentRunner({
             </div>
 
             {running && (
-              <span className="text-xs bg-indigo-100 dark:bg-indigo-800 text-indigo-600 dark:text-indigo-300 px-3 py-1 rounded-full">
-                {streamContent ? 'Streaming...' : FUN_STATUS_MESSAGES[funMessageIndex]}
-              </span>
+              <div className="flex items-center gap-3">
+                {/* Multi-pass progress dots */}
+                {selectedAgent === 'synthesizer' && multiPass && (
+                  <div className="flex items-center gap-1.5">
+                    {[1, 2, 3, 4].map((step) => (
+                      <div
+                        key={step}
+                        className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                          step <= passesCompleted
+                            ? 'bg-green-500'
+                            : step === passesCompleted + 1 && !streamContent
+                            ? 'bg-amber-400 animate-pulse'
+                            : step === 4 && streamContent
+                            ? 'bg-indigo-500 animate-pulse'
+                            : 'bg-slate-300 dark:bg-slate-600'
+                        }`}
+                        title={step <= 3 ? `Pass ${step}` : 'Meta-synthesis'}
+                      />
+                    ))}
+                    <span className="text-xs text-slate-500 ml-1">
+                      {passesCompleted < 3 ? `Pass ${passesCompleted + 1}/3` : 'Meta-synthesis'}
+                    </span>
+                  </div>
+                )}
+                <span className="text-xs bg-indigo-100 dark:bg-indigo-800 text-indigo-600 dark:text-indigo-300 px-3 py-1 rounded-full">
+                  {streamContent ? 'Streaming...' : FUN_STATUS_MESSAGES[funMessageIndex]}
+                </span>
+              </div>
             )}
           </div>
 
@@ -506,7 +695,33 @@ export default function AgentRunner({
           >
             {streamContent ? (
               <div className="prose prose-sm dark:prose-invert max-w-none prose-table:border-collapse prose-table:w-full prose-th:border prose-th:border-slate-300 prose-th:dark:border-slate-600 prose-th:bg-slate-100 prose-th:dark:bg-slate-700 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-td:border prose-td:border-slate-300 prose-td:dark:border-slate-600 prose-td:px-3 prose-td:py-2">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamContent}</ReactMarkdown>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    code({ className, children, ...props }) {
+                      const match = /language-(\w+)/.exec(className || '')
+                      const language = match ? match[1] : ''
+                      const content = String(children).replace(/\n$/, '')
+
+                      // Handle mermaid diagrams
+                      if (language === 'mermaid') {
+                        return <MermaidDiagram chart={content} />
+                      }
+
+                      // Regular code block
+                      const isInline = !className
+                      return isInline ? (
+                        <code className={className} {...props}>{children}</code>
+                      ) : (
+                        <pre className="bg-slate-100 dark:bg-slate-800 p-4 rounded overflow-x-auto">
+                          <code className={className} {...props}>{children}</code>
+                        </pre>
+                      )
+                    }
+                  } as Components}
+                >
+                  {streamContent}
+                </ReactMarkdown>
               </div>
             ) : running ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -514,19 +729,39 @@ export default function AgentRunner({
                 <p className="text-lg text-slate-600 dark:text-slate-300 font-medium transition-all duration-300">
                   {FUN_STATUS_MESSAGES[funMessageIndex]}
                 </p>
-                {elapsedTime > 20 && (
+                {selectedAgent === 'synthesizer' && multiPass && passesCompleted > 0 && passesCompleted < 3 && (
+                  <p className="text-sm text-green-600 dark:text-green-400 mt-3">
+                    Completed: {passesCompleted}/3 passes ({currentPassLabel})
+                  </p>
+                )}
+                {selectedAgent === 'synthesizer' && multiPass && passesCompleted === 3 && (
+                  <p className="text-sm text-amber-600 dark:text-amber-400 mt-3">
+                    Running meta-synthesis with Opus...
+                  </p>
+                )}
+                {elapsedTime > 20 && !(selectedAgent === 'synthesizer' && multiPass) && (
                   <p className="text-sm text-slate-400 dark:text-slate-500 mt-3 max-w-md">
                     Deep analysis takes time - Opus is reading all your documents carefully
+                  </p>
+                )}
+                {elapsedTime > 60 && selectedAgent === 'synthesizer' && multiPass && (
+                  <p className="text-sm text-slate-400 dark:text-slate-500 mt-3 max-w-md">
+                    Multi-pass synthesis runs 4 separate analyses for higher quality results
                   </p>
                 )}
               </div>
             ) : null}
           </div>
 
-          {/* Character count for debugging */}
+          {/* Character count and synthesis mode */}
           {streamContent && (
-            <div className="px-4 py-2 text-xs text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-700">
-              {streamContent.length.toLocaleString()} characters generated
+            <div className="px-4 py-2 text-xs text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+              <span>{streamContent.length.toLocaleString()} characters generated</span>
+              {selectedAgent === 'synthesizer' && multiPass && completed && (
+                <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded text-xs">
+                  Multi-Pass Synthesis
+                </span>
+              )}
             </div>
           )}
         </div>

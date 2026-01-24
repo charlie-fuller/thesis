@@ -48,7 +48,7 @@ from services.purdy import (
     search_system_kb,
     get_kb_files,
 )
-from services.purdy.agent_service import list_runs, get_run
+from services.purdy.agent_service import list_runs, get_run, run_agent_multi_pass, MULTI_PASS_CONFIG
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/purdy", tags=["purdy"])
@@ -93,6 +93,8 @@ class ChatQuestion(BaseModel):
 class AgentRunRequest(BaseModel):
     agent_type: str
     document_ids: Optional[List[str]] = None
+    output_format: Optional[str] = "comprehensive"  # comprehensive, executive, brief
+    multi_pass: Optional[bool] = False  # Enable multi-pass synthesis (synthesizer only)
 
 
 # ============================================================================
@@ -436,17 +438,36 @@ async def api_start_run(
     """Start a new agent run with streaming response."""
     await require_initiative_access(initiative_id, current_user, 'editor')
 
+    # Check if multi-pass is requested and valid
+    use_multi_pass = (
+        data.multi_pass and
+        data.agent_type in MULTI_PASS_CONFIG.get("supported_agents", [])
+    )
+
     async def event_stream():
         # Send initial padding to force proxy buffer flush (some proxies buffer first 1KB)
         yield ": " + " " * 2048 + "\n\n"
 
         try:
-            async for event in run_agent(
-                initiative_id=initiative_id,
-                agent_type=data.agent_type,
-                user_id=current_user['id'],
-                document_ids=data.document_ids
-            ):
+            # Choose single or multi-pass based on request
+            if use_multi_pass:
+                agent_gen = run_agent_multi_pass(
+                    initiative_id=initiative_id,
+                    agent_type=data.agent_type,
+                    user_id=current_user['id'],
+                    document_ids=data.document_ids,
+                    output_format=data.output_format or "comprehensive"
+                )
+            else:
+                agent_gen = run_agent(
+                    initiative_id=initiative_id,
+                    agent_type=data.agent_type,
+                    user_id=current_user['id'],
+                    document_ids=data.document_ids,
+                    output_format=data.output_format or "comprehensive"
+                )
+
+            async for event in agent_gen:
                 event_type = event.get('type', 'unknown')
                 event_data = event.get('data', '')
 
@@ -457,6 +478,10 @@ async def api_start_run(
                     yield ": keepalive\n\n"
                 elif event_type == 'status':
                     yield f"event: status\ndata: {event_data}\n\n"
+                elif event_type == 'pass_complete':
+                    # Multi-pass specific: indicates a pass completed
+                    import json
+                    yield f"event: pass_complete\ndata: {json.dumps(event_data)}\n\n"
                 elif event_type == 'complete':
                     import json
                     yield f"event: complete\ndata: {json.dumps(event_data)}\n\n"
