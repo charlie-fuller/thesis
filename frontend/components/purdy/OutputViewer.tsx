@@ -23,6 +23,7 @@ import {
 import ReactMarkdown, { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { apiDelete } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
 
 // Mermaid diagram component for rendering diagrams
 function MermaidDiagram({ chart }: { chart: string }) {
@@ -215,6 +216,7 @@ function OutputDetail({
   initiativeId: string
   onRefresh: () => void
 }) {
+  const { session } = useAuth()
   const [copied, setCopied] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [generatingSummary, setGeneratingSummary] = useState(false)
@@ -270,7 +272,7 @@ function OutputDetail({
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            'Authorization': `Bearer ${session?.access_token}`,
           },
         }
       )
