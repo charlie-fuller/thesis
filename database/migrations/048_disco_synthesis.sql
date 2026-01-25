@@ -138,7 +138,7 @@ ALTER TABLE disco_prds ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "disco_bundles_select_policy" ON disco_bundles
     FOR SELECT USING (
         initiative_id IN (
-            SELECT initiative_id FROM purdy_members WHERE user_id = auth.uid()
+            SELECT initiative_id FROM purdy_initiative_members WHERE user_id = auth.uid()
         )
         OR initiative_id IN (
             SELECT id FROM purdy_initiatives WHERE created_by = auth.uid()
@@ -148,7 +148,7 @@ CREATE POLICY "disco_bundles_select_policy" ON disco_bundles
 CREATE POLICY "disco_bundles_insert_policy" ON disco_bundles
     FOR INSERT WITH CHECK (
         initiative_id IN (
-            SELECT initiative_id FROM purdy_members
+            SELECT initiative_id FROM purdy_initiative_members
             WHERE user_id = auth.uid() AND role IN ('owner', 'editor')
         )
         OR initiative_id IN (
@@ -159,7 +159,7 @@ CREATE POLICY "disco_bundles_insert_policy" ON disco_bundles
 CREATE POLICY "disco_bundles_update_policy" ON disco_bundles
     FOR UPDATE USING (
         initiative_id IN (
-            SELECT initiative_id FROM purdy_members
+            SELECT initiative_id FROM purdy_initiative_members
             WHERE user_id = auth.uid() AND role IN ('owner', 'editor')
         )
         OR initiative_id IN (
@@ -170,7 +170,7 @@ CREATE POLICY "disco_bundles_update_policy" ON disco_bundles
 CREATE POLICY "disco_bundles_delete_policy" ON disco_bundles
     FOR DELETE USING (
         initiative_id IN (
-            SELECT initiative_id FROM purdy_members
+            SELECT initiative_id FROM purdy_initiative_members
             WHERE user_id = auth.uid() AND role = 'owner'
         )
         OR initiative_id IN (
@@ -183,7 +183,7 @@ CREATE POLICY "disco_bundle_feedback_select_policy" ON disco_bundle_feedback
     FOR SELECT USING (
         bundle_id IN (
             SELECT b.id FROM disco_bundles b
-            JOIN purdy_members m ON b.initiative_id = m.initiative_id
+            JOIN purdy_initiative_members m ON b.initiative_id = m.initiative_id
             WHERE m.user_id = auth.uid()
         )
         OR bundle_id IN (
@@ -200,7 +200,7 @@ CREATE POLICY "disco_bundle_feedback_insert_policy" ON disco_bundle_feedback
 CREATE POLICY "disco_prds_select_policy" ON disco_prds
     FOR SELECT USING (
         initiative_id IN (
-            SELECT initiative_id FROM purdy_members WHERE user_id = auth.uid()
+            SELECT initiative_id FROM purdy_initiative_members WHERE user_id = auth.uid()
         )
         OR initiative_id IN (
             SELECT id FROM purdy_initiatives WHERE created_by = auth.uid()
@@ -210,7 +210,7 @@ CREATE POLICY "disco_prds_select_policy" ON disco_prds
 CREATE POLICY "disco_prds_insert_policy" ON disco_prds
     FOR INSERT WITH CHECK (
         initiative_id IN (
-            SELECT initiative_id FROM purdy_members
+            SELECT initiative_id FROM purdy_initiative_members
             WHERE user_id = auth.uid() AND role IN ('owner', 'editor')
         )
         OR initiative_id IN (
@@ -221,7 +221,7 @@ CREATE POLICY "disco_prds_insert_policy" ON disco_prds
 CREATE POLICY "disco_prds_update_policy" ON disco_prds
     FOR UPDATE USING (
         initiative_id IN (
-            SELECT initiative_id FROM purdy_members
+            SELECT initiative_id FROM purdy_initiative_members
             WHERE user_id = auth.uid() AND role IN ('owner', 'editor')
         )
         OR initiative_id IN (
