@@ -6,11 +6,13 @@ Handles loading agent prompts, building context, and executing agent runs.
 
 import asyncio
 import os
+import queue
 import random
 import re
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import AsyncGenerator, Dict, List, Optional
+from typing import AsyncGenerator, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 import anthropic
@@ -167,6 +169,206 @@ def get_agent_types() -> List[Dict]:
         {"type": agent_type, **info}
         for agent_type, info in AGENT_DESCRIPTIONS.items()
     ]
+
+
+def _stream_claude_to_queue(
+    result_queue: queue.Queue,
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    max_tokens: int = 16000
+) -> None:
+    """
+    Run Claude streaming in a thread and put results in a queue.
+
+    Puts tuples of (type, data) where type is 'content', 'usage', or 'error'.
+    Puts None as sentinel when complete.
+    """
+    try:
+        with anthropic_client.messages.stream(
+            model=model,
+            max_tokens=max_tokens,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}]
+        ) as stream:
+            for text in stream.text_stream:
+                result_queue.put(('content', text))
+
+            # Get final message for token usage
+            final_message = stream.get_final_message()
+            if final_message.usage:
+                result_queue.put(('usage', {
+                    'input_tokens': final_message.usage.input_tokens,
+                    'output_tokens': final_message.usage.output_tokens
+                }))
+    except Exception as e:
+        result_queue.put(('error', str(e)))
+    finally:
+        result_queue.put(None)  # Sentinel
+
+
+async def stream_with_status_messages(
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    status_messages: List[str],
+    status_interval: float = 4.0,
+    max_tokens: int = 16000
+) -> AsyncGenerator[Dict, None]:
+    """
+    Stream Claude response while sending periodic status messages.
+
+    Yields dicts with 'type' (status, content, keepalive) and 'data'.
+    Returns token_usage dict when complete.
+    """
+    result_queue: queue.Queue = queue.Queue()
+
+    # Start Claude streaming in background thread
+    thread = threading.Thread(
+        target=_stream_claude_to_queue,
+        args=(result_queue, model, system_prompt, user_prompt, max_tokens),
+        daemon=True
+    )
+    thread.start()
+
+    full_response = ""
+    token_usage = {}
+    chunk_count = 0
+    first_content_received = False
+    status_index = 0
+
+    while True:
+        try:
+            # Wait for content with timeout for status messages
+            item = result_queue.get(timeout=status_interval)
+
+            if item is None:
+                # Sentinel - streaming complete
+                break
+
+            msg_type, data = item
+
+            if msg_type == 'content':
+                first_content_received = True
+                full_response += data
+                chunk_count += 1
+                yield {'type': 'content', 'data': data}
+
+                # Send keepalive every 10 chunks
+                if chunk_count % 10 == 0:
+                    yield {'type': 'keepalive', 'data': ''}
+
+            elif msg_type == 'usage':
+                token_usage = data
+
+            elif msg_type == 'error':
+                raise Exception(data)
+
+        except queue.Empty:
+            # Timeout - send a status message if we haven't received content yet
+            if not first_content_received and status_messages:
+                yield {'type': 'status', 'data': status_messages[status_index % len(status_messages)]}
+                status_index += 1
+
+    # Wait for thread to finish
+    thread.join(timeout=1.0)
+
+    # Return the results (caller accesses via the generator's return value mechanism isn't standard,
+    # so we yield a special complete message)
+    yield {'type': 'stream_complete', 'data': {'full_response': full_response, 'token_usage': token_usage}}
+
+
+def _collect_claude_response(
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    temperature: float = 1.0,
+    max_tokens: int = 16000
+) -> Tuple[str, Dict]:
+    """
+    Collect Claude response synchronously (for use in thread).
+    Returns (full_response, token_usage).
+    """
+    full_response = ""
+    token_usage = {}
+
+    with anthropic_client.messages.stream(
+        model=model,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_prompt}]
+    ) as stream:
+        for text in stream.text_stream:
+            full_response += text
+
+        final_message = stream.get_final_message()
+        if final_message.usage:
+            token_usage = {
+                'input_tokens': final_message.usage.input_tokens,
+                'output_tokens': final_message.usage.output_tokens
+            }
+
+    return full_response, token_usage
+
+
+async def collect_with_status_messages(
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    status_messages: List[str],
+    status_interval: float = 4.0,
+    temperature: float = 1.0,
+    max_tokens: int = 16000
+) -> AsyncGenerator[Dict, None]:
+    """
+    Collect Claude response (no streaming) while sending periodic status messages.
+
+    Yields status events while waiting, then yields collect_complete with results.
+    """
+    result_holder = {'response': '', 'usage': {}, 'error': None}
+    done_event = threading.Event()
+
+    def run_collection():
+        try:
+            response, usage = _collect_claude_response(
+                model, system_prompt, user_prompt, temperature, max_tokens
+            )
+            result_holder['response'] = response
+            result_holder['usage'] = usage
+        except Exception as e:
+            result_holder['error'] = str(e)
+        finally:
+            done_event.set()
+
+    # Start collection in background thread
+    thread = threading.Thread(target=run_collection, daemon=True)
+    thread.start()
+
+    status_index = 0
+
+    # Send status messages while waiting
+    while not done_event.is_set():
+        # Wait with timeout
+        if done_event.wait(timeout=status_interval):
+            break
+        # Still waiting - send status message
+        if status_messages:
+            yield {'type': 'status', 'data': status_messages[status_index % len(status_messages)]}
+            status_index += 1
+
+    thread.join(timeout=1.0)
+
+    if result_holder['error']:
+        raise Exception(result_holder['error'])
+
+    yield {
+        'type': 'collect_complete',
+        'data': {
+            'full_response': result_holder['response'],
+            'token_usage': result_holder['usage']
+        }
+    }
 
 
 def load_agent_prompt(agent_type: str) -> str:
@@ -377,13 +579,6 @@ async def run_agent(
         # Build the full prompt with format guidance
         full_prompt = build_full_prompt(agent_type, context, output_format)
 
-        # Indicate which model is being used and set expectations
-        model = get_model_for_agent(agent_type)
-        if agent_type in SONNET_AGENTS:
-            yield {'type': 'status', 'data': 'Starting analysis...'}
-        else:
-            yield {'type': 'status', 'data': random.choice(FUN_STATUS_MESSAGES)}
-
         # Track document IDs used
         if document_ids:
             for doc_id in document_ids:
@@ -394,43 +589,38 @@ async def run_agent(
                     }).execute()
                 )
 
-        # Stream Claude response
-        full_response = ""
-        token_usage = {}
-        chunk_count = 0
-
-        # Log context size before calling Claude
+        # Get model and log context size
+        model = get_model_for_agent(agent_type)
         system_chars = len(agent_prompt)
         prompt_chars = len(full_prompt)
         logger.info(f"[PURDY] Context size - system: {system_chars} chars, user: {prompt_chars} chars, total: {system_chars + prompt_chars} chars")
         logger.info(f"[PURDY] Estimated tokens: ~{(system_chars + prompt_chars) // 4}")
-        # model already set above
         logger.info(f"[PURDY] Calling Claude API with model: {model}")
 
+        # Send initial status message
+        yield {'type': 'status', 'data': random.choice(FUN_STATUS_MESSAGES)}
+
+        # Stream Claude response with periodic status messages
+        full_response = ""
+        token_usage = {}
+
         try:
-            with anthropic_client.messages.stream(
+            async for item in stream_with_status_messages(
                 model=model,
-                max_tokens=16000,
-                system=agent_prompt,
-                messages=[{"role": "user", "content": full_prompt}]
-            ) as stream:
-                for text in stream.text_stream:
-                    full_response += text
-                    chunk_count += 1
-                    yield {'type': 'content', 'data': text}
-
-                    # Send keepalive every 10 chunks to force proxy flush
-                    if chunk_count % 10 == 0:
-                        yield {'type': 'keepalive', 'data': ''}
-
-                # Get final message for token usage
-                final_message = stream.get_final_message()
-                if final_message.usage:
-                    token_usage = {
-                        'input_tokens': final_message.usage.input_tokens,
-                        'output_tokens': final_message.usage.output_tokens
-                    }
-                logger.info(f"[PURDY] Claude API completed. Tokens: {token_usage}")
+                system_prompt=agent_prompt,
+                user_prompt=full_prompt,
+                status_messages=FUN_STATUS_MESSAGES,
+                status_interval=4.0,
+                max_tokens=16000
+            ):
+                if item['type'] == 'stream_complete':
+                    # Extract final results
+                    full_response = item['data']['full_response']
+                    token_usage = item['data']['token_usage']
+                    logger.info(f"[PURDY] Claude API completed. Tokens: {token_usage}")
+                else:
+                    # Pass through status, content, keepalive events
+                    yield item
         except Exception as claude_error:
             logger.error(f"[PURDY] Claude API error: {type(claude_error).__name__}: {claude_error}")
             raise
@@ -811,25 +1001,27 @@ async def run_agent_multi_pass(
             logger.info(f"[PURDY-MP] Starting Pass {i}: {pass_label} (temp={pass_temp}, model={pass_model})")
 
             pass_response = ""
+            pass_status_messages = [f"Pass {i}/3: {random.choice(FUN_STATUS_MESSAGES)}" for _ in range(20)]
 
             try:
-                with anthropic_client.messages.stream(
+                async for item in collect_with_status_messages(
                     model=pass_model,
-                    max_tokens=16000,
+                    system_prompt=agent_prompt,
+                    user_prompt=full_prompt,
+                    status_messages=pass_status_messages,
+                    status_interval=4.0,
                     temperature=pass_temp,
-                    system=agent_prompt,
-                    messages=[{"role": "user", "content": full_prompt}]
-                ) as stream:
-                    for text in stream.text_stream:
-                        pass_response += text
-                        # Don't stream individual pass content to frontend
-
-                    final_message = stream.get_final_message()
-                    if final_message.usage:
-                        total_tokens['input_tokens'] += final_message.usage.input_tokens
-                        total_tokens['output_tokens'] += final_message.usage.output_tokens
-
-                logger.info(f"[PURDY-MP] Pass {i} complete: {len(pass_response)} chars")
+                    max_tokens=16000
+                ):
+                    if item['type'] == 'collect_complete':
+                        pass_response = item['data']['full_response']
+                        pass_usage = item['data']['token_usage']
+                        if pass_usage:
+                            total_tokens['input_tokens'] += pass_usage.get('input_tokens', 0)
+                            total_tokens['output_tokens'] += pass_usage.get('output_tokens', 0)
+                        logger.info(f"[PURDY-MP] Pass {i} complete: {len(pass_response)} chars")
+                    else:
+                        yield item
 
             except Exception as pass_error:
                 logger.error(f"[PURDY-MP] Pass {i} failed: {pass_error}")
@@ -891,27 +1083,23 @@ Create a unified synthesis that combines the best of all three passes. Follow th
         chunk_count = 0
 
         try:
-            with anthropic_client.messages.stream(
+            async for item in stream_with_status_messages(
                 model=meta_config["model"],
-                max_tokens=20000,
-                temperature=meta_config["temperature"],
-                system=meta_prompt,
-                messages=[{"role": "user", "content": meta_user_prompt}]
-            ) as stream:
-                for text in stream.text_stream:
-                    full_response += text
-                    chunk_count += 1
-                    yield {'type': 'content', 'data': text}
-
-                    if chunk_count % 10 == 0:
-                        yield {'type': 'keepalive', 'data': ''}
-
-                final_message = stream.get_final_message()
-                if final_message.usage:
-                    total_tokens['input_tokens'] += final_message.usage.input_tokens
-                    total_tokens['output_tokens'] += final_message.usage.output_tokens
-
-            logger.info(f"[PURDY-MP] Meta-synthesis complete: {len(full_response)} chars")
+                system_prompt=meta_prompt,
+                user_prompt=meta_user_prompt,
+                status_messages=FUN_STATUS_MESSAGES,
+                status_interval=4.0,
+                max_tokens=20000
+            ):
+                if item['type'] == 'stream_complete':
+                    full_response = item['data']['full_response']
+                    meta_tokens = item['data']['token_usage']
+                    if meta_tokens:
+                        total_tokens['input_tokens'] += meta_tokens.get('input_tokens', 0)
+                        total_tokens['output_tokens'] += meta_tokens.get('output_tokens', 0)
+                    logger.info(f"[PURDY-MP] Meta-synthesis complete: {len(full_response)} chars")
+                else:
+                    yield item
 
         except Exception as meta_error:
             logger.error(f"[PURDY-MP] Meta-synthesis failed: {meta_error}")
