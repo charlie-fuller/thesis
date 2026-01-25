@@ -237,38 +237,45 @@ async def stream_with_status_messages(
     first_content_received = False
     status_index = 0
 
-    while True:
+    def get_from_queue(timeout: float):
+        """Blocking queue get - will be run in thread."""
         try:
-            # Wait for content with timeout for status messages
-            item = result_queue.get(timeout=status_interval)
-
-            if item is None:
-                # Sentinel - streaming complete
-                break
-
-            msg_type, data = item
-
-            if msg_type == 'content':
-                first_content_received = True
-                full_response += data
-                chunk_count += 1
-                yield {'type': 'content', 'data': data}
-
-                # Send keepalive every 10 chunks
-                if chunk_count % 10 == 0:
-                    yield {'type': 'keepalive', 'data': ''}
-
-            elif msg_type == 'usage':
-                token_usage = data
-
-            elif msg_type == 'error':
-                raise Exception(data)
-
+            return result_queue.get(timeout=timeout)
         except queue.Empty:
+            return "TIMEOUT"
+
+    while True:
+        # Use asyncio.to_thread to avoid blocking the event loop
+        item = await asyncio.to_thread(get_from_queue, status_interval)
+
+        if item == "TIMEOUT":
             # Timeout - send a status message if we haven't received content yet
             if not first_content_received and status_messages:
                 yield {'type': 'status', 'data': status_messages[status_index % len(status_messages)]}
                 status_index += 1
+            continue
+
+        if item is None:
+            # Sentinel - streaming complete
+            break
+
+        msg_type, data = item
+
+        if msg_type == 'content':
+            first_content_received = True
+            full_response += data
+            chunk_count += 1
+            yield {'type': 'content', 'data': data}
+
+            # Send keepalive every 10 chunks
+            if chunk_count % 10 == 0:
+                yield {'type': 'keepalive', 'data': ''}
+
+        elif msg_type == 'usage':
+            token_usage = data
+
+        elif msg_type == 'error':
+            raise Exception(data)
 
     # Wait for thread to finish
     thread.join(timeout=1.0)
@@ -347,10 +354,15 @@ async def collect_with_status_messages(
 
     status_index = 0
 
+    def wait_for_done(timeout: float) -> bool:
+        """Blocking wait - will be run in thread."""
+        return done_event.wait(timeout=timeout)
+
     # Send status messages while waiting
-    while not done_event.is_set():
-        # Wait with timeout
-        if done_event.wait(timeout=status_interval):
+    while True:
+        # Use asyncio.to_thread to avoid blocking the event loop
+        is_done = await asyncio.to_thread(wait_for_done, status_interval)
+        if is_done:
             break
         # Still waiting - send status message
         if status_messages:
