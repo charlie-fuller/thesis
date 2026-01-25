@@ -575,6 +575,16 @@ export default function OutputViewer({
   onRefresh,
   onDelete
 }: OutputViewerProps) {
+  // Track which agent sections are expanded (default: all collapsed)
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
+
+  const toggleSection = (agentType: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [agentType]: !prev[agentType]
+    }))
+  }
+
   // Group outputs by agent type (handle null/undefined agent_type)
   const outputsByType = outputs.reduce((acc, output) => {
     const agentType = output.agent_type || 'unknown'
@@ -601,25 +611,57 @@ export default function OutputViewer({
     <div className="flex gap-6">
       {/* Output List */}
       <div className="w-80 flex-shrink-0">
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 space-y-4">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 space-y-1">
           {Object.entries(outputsByType).map(([agentType, typeOutputs]) => {
-            const config = AGENT_CONFIG[agentType] || { name: agentType }
+            const config = AGENT_CONFIG[agentType] || { name: agentType, icon: FileText, color: 'text-slate-600 bg-slate-100' }
+            const Icon = config.icon
+            const isExpanded = expandedSections[agentType] || false
+            const latestOutput = typeOutputs[0] // Most recent (already sorted by created_at desc)
 
             return (
-              <div key={agentType}>
-                <h4 className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 px-2">
-                  {config.name}
-                </h4>
-                <div className="space-y-1">
-                  {typeOutputs.map((output) => (
-                    <OutputListItem
-                      key={output.id}
-                      output={output}
-                      selected={selectedOutput?.id === output.id}
-                      onClick={() => onSelectOutput(output)}
-                    />
-                  ))}
-                </div>
+              <div key={agentType} className="border-b border-slate-100 dark:border-slate-700 last:border-b-0 pb-1 last:pb-0">
+                <button
+                  onClick={() => toggleSection(agentType)}
+                  className="w-full flex items-center gap-2 px-2 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-md transition-colors"
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  )}
+                  <div className={`p-1 rounded ${config.color}`}>
+                    <Icon className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300 flex-1 text-left">
+                    {config.name}
+                  </span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">
+                    {typeOutputs.length} {typeOutputs.length === 1 ? 'output' : 'outputs'}
+                  </span>
+                  {latestOutput?.recommendation && (
+                    <span className={`px-1.5 py-0.5 text-xs rounded ${
+                      latestOutput.recommendation === 'GO'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : latestOutput.recommendation === 'NO-GO'
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                    }`}>
+                      {latestOutput.recommendation}
+                    </span>
+                  )}
+                </button>
+                {isExpanded && (
+                  <div className="ml-6 space-y-1 mt-1">
+                    {typeOutputs.map((output) => (
+                      <OutputListItem
+                        key={output.id}
+                        output={output}
+                        selected={selectedOutput?.id === output.id}
+                        onClick={() => onSelectOutput(output)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })}

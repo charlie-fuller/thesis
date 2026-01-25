@@ -162,16 +162,16 @@ def get_model_for_agent(agent_type: str) -> str:
         return PURDY_MODEL_SONNET
     return PURDY_MODEL_OPUS
 
-# Agent file mappings (v4.1 - evaluation gap fixes)
+# Agent file mappings (v4.2 - persona-aligned features)
 # Note: paths are relative - "agents/" prefix used when PURDY_REPO_PATH is set,
 # otherwise loads directly from bundled purdy_agents/ folder
-# Old versions retained: v3.0 and v4.0 files for rollback
+# Old versions retained: v3.0, v4.0, v4.1 files for rollback
 AGENT_FILES = {
-    "triage": "triage-v4.1.md",
+    "triage": "triage-v4.2.md",
     "discovery_planner": "discovery-planner-v4.1.md",
     "coverage_tracker": "coverage-tracker-v4.1.md",
-    "insight_extractor": "insight-extractor-v4.1.md",
-    "synthesizer": "synthesizer-v4.1.md",
+    "insight_extractor": "insight-extractor-v4.2.md",
+    "synthesizer": "synthesizer-v4.2.md",
     "tech_evaluation": "tech-evaluation-v4.1.md",
     "meta_synthesizer": "meta-synthesizer-v1.0.md"  # Internal use for multi-pass
 }
@@ -179,12 +179,12 @@ AGENT_FILES = {
 # Methodology overview file (optional - may not exist in bundled version)
 METHODOLOGY_FILE = "PuRDy-Instructions-v2.7.md"
 
-# Agent descriptions for UI (v4.1 - evaluation gap fixes)
+# Agent descriptions for UI (v4.2 - persona-aligned features)
 AGENT_DESCRIPTIONS = {
     "triage": {
         "name": "Triage",
-        "version": "v4.1",
-        "description": "5-minute GO/NO-GO with conviction - explicit tier routing and next agent",
+        "version": "v4.2",
+        "description": "5-minute GO/NO-GO with Problem Worth Solving gate - validates problem before proceeding",
         "estimated_time": "3-5 minutes",
         "output_type": "triage_output"
     },
@@ -204,15 +204,15 @@ AGENT_DESCRIPTIONS = {
     },
     "insight_extractor": {
         "name": "Insight Extractor",
-        "version": "v4.1",
-        "description": "Distill transcripts into insights - patterns, contradictions, surprises with mermaid diagrams",
+        "version": "v4.2",
+        "description": "Distill transcripts into insights - Pattern Library templates and Handoff Protocol",
         "estimated_time": "5-10 minutes",
         "output_type": "insight_output"
     },
     "synthesizer": {
         "name": "Synthesizer",
-        "version": "v4.1",
-        "description": "800-word decision document - decision as first word, real names, Done When criteria",
+        "version": "v4.2",
+        "description": "900-word decision document - Metrics Dashboard, intervention reasoning, role blocklist",
         "estimated_time": "10-15 minutes",
         "output_type": "prd_output"
     },
