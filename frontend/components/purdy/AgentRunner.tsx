@@ -15,7 +15,8 @@ import {
   Search,
   BarChart,
   Cpu,
-  Lightbulb
+  Lightbulb,
+  Boxes
 } from 'lucide-react'
 import { apiGet } from '@/lib/api'
 import { authenticatedFetch } from '@/lib/api'
@@ -101,7 +102,9 @@ const AGENT_ICONS: Record<string, typeof Target> = {
   discovery_planner: Search,
   coverage_tracker: BarChart,
   insight_extractor: Lightbulb,
+  consolidator: FileText,
   synthesizer: FileText,
+  synthesis: Boxes,  // DISCo: Synthesis stage
   tech_evaluation: Cpu,
 }
 
@@ -149,14 +152,32 @@ const AGENT_WORKFLOW: Record<string, {
     outputs: "Structured insights with evidence quotes, patterns, and surprises - 500 words max",
     prerequisites: ["Coverage Tracker (READY status)", "Discovery transcripts uploaded"]
   },
-  synthesizer: {
+  consolidator: {
     when: "After Insight Extractor - creates the decision document",
+    inputs: [
+      "Insight Extractor output (auto-included)",
+      "All previous outputs"
+    ],
+    outputs: "Decision document with leverage point, evidence, blockers, first action - 900 words max",
+    prerequisites: ["Insight Extractor output"]
+  },
+  synthesizer: {
+    when: "After Insight Extractor - creates the decision document (legacy name)",
     inputs: [
       "Insight Extractor output (auto-included)",
       "All previous outputs"
     ],
     outputs: "Decision document with leverage point, evidence, blockers, first action - 500 words max",
     prerequisites: ["Insight Extractor output"]
+  },
+  synthesis: {
+    when: "After Consolidator - transforms insights into initiative bundles",
+    inputs: [
+      "Consolidator output (auto-included)",
+      "All discovery insights and context"
+    ],
+    outputs: "Scored initiative bundles with clustering, dependencies, and recommendations",
+    prerequisites: ["Consolidator output"]
   },
   tech_evaluation: {
     when: "After Synthesizer - when evaluating implementation options",
@@ -243,8 +264,8 @@ export default function AgentRunner({
     setCurrentPassLabel('')
 
     try {
-      // Multi-pass synthesis runs 4 Claude calls and needs much longer timeout
-      const isMultiPass = selectedAgent === 'synthesizer' && multiPass
+      // Multi-pass consolidation/synthesis runs 4 Claude calls and needs much longer timeout
+      const isMultiPass = (selectedAgent === 'consolidator' || selectedAgent === 'synthesizer') && multiPass
       const timeoutMs = isMultiPass ? 600000 : 300000 // 10 min for multi-pass, 5 min for single
 
       const response = await authenticatedFetch(
@@ -533,8 +554,8 @@ export default function AgentRunner({
           </div>
         )}
 
-        {/* Multi-Pass Toggle (Synthesizer only) */}
-        {selectedAgent === 'synthesizer' && (
+        {/* Multi-Pass Toggle (Consolidator/Synthesizer) */}
+        {(selectedAgent === 'consolidator' || selectedAgent === 'synthesizer') && (
           <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
             <label className="flex items-start gap-3 cursor-pointer">
               <input
@@ -636,7 +657,7 @@ export default function AgentRunner({
             {running && (
               <div className="flex items-center gap-3">
                 {/* Multi-pass progress dots */}
-                {selectedAgent === 'synthesizer' && multiPass && (
+                {(selectedAgent === 'consolidator' || selectedAgent === 'synthesizer') && multiPass && (
                   <div className="flex items-center gap-1.5">
                     {[1, 2, 3, 4].map((step) => (
                       <div
@@ -710,22 +731,22 @@ export default function AgentRunner({
                 <p className="text-lg text-slate-600 dark:text-slate-300 font-medium transition-all duration-300">
                   {status}
                 </p>
-                {selectedAgent === 'synthesizer' && multiPass && passesCompleted > 0 && passesCompleted < 3 && (
+                {(selectedAgent === 'consolidator' || selectedAgent === 'synthesizer') && multiPass && passesCompleted > 0 && passesCompleted < 3 && (
                   <p className="text-sm text-green-600 dark:text-green-400 mt-3">
                     Completed: {passesCompleted}/3 passes ({currentPassLabel})
                   </p>
                 )}
-                {selectedAgent === 'synthesizer' && multiPass && passesCompleted === 3 && (
+                {(selectedAgent === 'consolidator' || selectedAgent === 'synthesizer') && multiPass && passesCompleted === 3 && (
                   <p className="text-sm text-amber-600 dark:text-amber-400 mt-3">
                     Running meta-synthesis with Opus...
                   </p>
                 )}
-                {elapsedTime > 20 && !(selectedAgent === 'synthesizer' && multiPass) && (
+                {elapsedTime > 20 && !((selectedAgent === 'consolidator' || selectedAgent === 'synthesizer') && multiPass) && (
                   <p className="text-sm text-slate-400 dark:text-slate-500 mt-3 max-w-md">
                     Deep analysis takes time - Opus is reading all your documents carefully
                   </p>
                 )}
-                {elapsedTime > 60 && selectedAgent === 'synthesizer' && multiPass && (
+                {elapsedTime > 60 && (selectedAgent === 'consolidator' || selectedAgent === 'synthesizer') && multiPass && (
                   <p className="text-sm text-slate-400 dark:text-slate-500 mt-3 max-w-md">
                     Multi-pass synthesis runs 4 separate analyses for higher quality results
                   </p>
@@ -738,7 +759,7 @@ export default function AgentRunner({
           {streamContent && (
             <div className="px-4 py-2 text-xs text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
               <span>{streamContent.length.toLocaleString()} characters generated</span>
-              {selectedAgent === 'synthesizer' && multiPass && completed && (
+              {(selectedAgent === 'consolidator' || selectedAgent === 'synthesizer') && multiPass && completed && (
                 <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded text-xs">
                   Multi-Pass Synthesis
                 </span>

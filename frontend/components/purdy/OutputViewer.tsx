@@ -109,18 +109,22 @@ const AGENT_CONFIG: Record<string, { name: string; icon: typeof Target; color: s
   triage: { name: 'Triage', icon: Target, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400' },
   discovery_planner: { name: 'Discovery Planner', icon: Search, color: 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400' },
   coverage_tracker: { name: 'Coverage Tracker', icon: BarChart, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400' },
+  consolidator: { name: 'Consolidator', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
   synthesizer: { name: 'Synthesizer', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
+  synthesis: { name: 'Synthesis', icon: Target, color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400' },
   tech_evaluation: { name: 'Tech Evaluation', icon: Cpu, color: 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400' },
   // Executive Summary variants (v3.0 - extracts decision-forcing elements)
   triage_executive: { name: 'Triage (Executive)', icon: Minimize2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
   discovery_planner_executive: { name: 'Discovery (Executive)', icon: Minimize2, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400' },
   coverage_tracker_executive: { name: 'Coverage (Executive)', icon: Minimize2, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400' },
+  consolidator_executive: { name: 'Consolidator (Executive)', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
   synthesizer_executive: { name: 'Synthesizer (Executive)', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
   tech_evaluation_executive: { name: 'Tech Eval (Executive)', icon: Minimize2, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-400' },
   // Legacy condensed variants (for backwards compatibility)
   triage_condensed: { name: 'Triage (Condensed)', icon: Minimize2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
   discovery_planner_condensed: { name: 'Discovery (Condensed)', icon: Minimize2, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400' },
   coverage_tracker_condensed: { name: 'Coverage (Condensed)', icon: Minimize2, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400' },
+  consolidator_condensed: { name: 'Consolidator (Condensed)', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
   synthesizer_condensed: { name: 'Synthesizer (Condensed)', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
   tech_evaluation_condensed: { name: 'Tech Eval (Condensed)', icon: Minimize2, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-400' },
 }

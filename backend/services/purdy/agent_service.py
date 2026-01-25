@@ -152,7 +152,8 @@ MULTI_PASS_CONFIG = {
         "model": PURDY_MODEL_OPUS,
         "temperature": 0.6,
     },
-    "supported_agents": ["synthesizer"]
+    # "consolidator" is the new name (DISCo framework), "synthesizer" kept for backwards compatibility
+    "supported_agents": ["consolidator", "synthesizer"]
 }
 
 
@@ -162,24 +163,29 @@ def get_model_for_agent(agent_type: str) -> str:
         return PURDY_MODEL_SONNET
     return PURDY_MODEL_OPUS
 
-# Agent file mappings (v4.2 - persona-aligned features)
+# Agent file mappings (v4.2 - persona-aligned features, DISCo framework)
 # Note: paths are relative - "agents/" prefix used when PURDY_REPO_PATH is set,
 # otherwise loads directly from bundled purdy_agents/ folder
 # Old versions retained: v3.0, v4.0, v4.1 files for rollback
+# DISCo: "consolidator" replaces "synthesizer" (synthesizer kept for backwards compatibility)
 AGENT_FILES = {
     "triage": "triage-v4.2.md",
     "discovery_planner": "discovery-planner-v4.1.md",
     "coverage_tracker": "coverage-tracker-v4.1.md",
     "insight_extractor": "insight-extractor-v4.2.md",
-    "synthesizer": "synthesizer-v4.2.md",
+    "consolidator": "consolidator-v4.2.md",  # DISCo: Insights stage - consolidate findings
+    "synthesizer": "synthesizer-v4.2.md",  # Backwards compatibility
+    "synthesis": "synthesis-agent-v1.0.md",  # DISCo: Synthesis stage - bundle into initiatives
+    "prd_generator": "prd-generator-v1.0.md",  # DISCo: Capabilities stage - generate PRDs
     "tech_evaluation": "tech-evaluation-v4.1.md",
-    "meta_synthesizer": "meta-synthesizer-v1.0.md"  # Internal use for multi-pass
+    "meta_consolidator": "meta-consolidator-v1.0.md",  # DISCo: multi-pass consolidation
+    "meta_synthesizer": "meta-synthesizer-v1.0.md"  # Backwards compatibility
 }
 
 # Methodology overview file (optional - may not exist in bundled version)
 METHODOLOGY_FILE = "PuRDy-Instructions-v2.7.md"
 
-# Agent descriptions for UI (v4.2 - persona-aligned features)
+# Agent descriptions for UI (v4.2 - persona-aligned features, DISCo framework)
 AGENT_DESCRIPTIONS = {
     "triage": {
         "name": "Triage",
@@ -209,11 +215,33 @@ AGENT_DESCRIPTIONS = {
         "estimated_time": "5-10 minutes",
         "output_type": "insight_output"
     },
+    "consolidator": {
+        "name": "Consolidator",
+        "version": "v4.2",
+        "description": "900-word decision document - Metrics Dashboard, intervention reasoning, role blocklist",
+        "estimated_time": "10-15 minutes",
+        "output_type": "prd_output"
+    },
+    # Backwards compatibility: synthesizer maps to same output
     "synthesizer": {
         "name": "Synthesizer",
         "version": "v4.2",
         "description": "900-word decision document - Metrics Dashboard, intervention reasoning, role blocklist",
         "estimated_time": "10-15 minutes",
+        "output_type": "prd_output"
+    },
+    "synthesis": {
+        "name": "Synthesis",
+        "version": "v1.0",
+        "description": "DISCo: Cluster insights, score, and propose initiative bundles for human review",
+        "estimated_time": "10-15 minutes",
+        "output_type": "synthesis_output"
+    },
+    "prd_generator": {
+        "name": "PRD Generator",
+        "version": "v1.0",
+        "description": "DISCo: Generate complete PRD from an approved initiative bundle",
+        "estimated_time": "5-10 minutes",
         "output_type": "prd_output"
     },
     "tech_evaluation": {
@@ -884,7 +912,10 @@ FINALLY, create the discovery plan with:
 - Failure patterns to watch for
 - Clear success criteria tied to desired outcomes""",
         'coverage_tracker': "Please analyze the current discovery coverage. Identify gaps, assess readiness for synthesis, and perform 3M waste diagnosis if applicable.",
+        'consolidator': "Please consolidate all discovery findings into a comprehensive decision document. Include persona-specific briefs for Finance, Engineering, Sales, and Executive audiences.",
         'synthesizer': "Please synthesize all discovery findings into a comprehensive PRD. Include persona-specific briefs for Finance, Engineering, Sales, and Executive audiences.",
+        'synthesis': "Please analyze all consolidated insights and propose initiative bundles. Cluster related items, score each cluster on impact/feasibility/urgency, and create actionable bundle definitions for human review.",
+        'prd_generator': "Please generate a complete PRD (Product Requirements Document) for the given initiative bundle. Include all required sections: executive summary, problem statement, goals, stakeholders, requirements, technical considerations, risks, and timeline.",
         'tech_evaluation': "Please evaluate technical platform options for this initiative. Provide recommendations with confidence-tagged effort estimates."
     }
 
@@ -998,7 +1029,10 @@ def get_status_for_agent(agent_type: str) -> Optional[str]:
         'discovery_planner': 'in_discovery',
         'coverage_tracker': 'in_discovery',
         'insight_extractor': 'in_discovery',  # Still in discovery phase
-        'synthesizer': 'synthesized',
+        'consolidator': 'consolidated',  # DISCo: Insights stage complete
+        'synthesizer': 'synthesized',  # Backwards compatibility
+        'synthesis': 'synthesized',  # DISCo: Synthesis stage - bundles proposed
+        'prd_generator': 'documented',  # DISCo: Capabilities stage - PRD generated
         'tech_evaluation': 'evaluated'
     }
     return status_map.get(agent_type)
@@ -1058,7 +1092,9 @@ async def run_agent_multi_pass(
 
         # Load agent prompt (same for all passes)
         agent_prompt = load_agent_prompt(agent_type)
-        meta_prompt = load_agent_prompt("meta_synthesizer")
+        # Use matching meta agent: meta_consolidator for consolidator, meta_synthesizer for synthesizer
+        meta_agent = "meta_consolidator" if agent_type == "consolidator" else "meta_synthesizer"
+        meta_prompt = load_agent_prompt(meta_agent)
 
         yield {'type': 'status', 'data': 'Building context...'}
 

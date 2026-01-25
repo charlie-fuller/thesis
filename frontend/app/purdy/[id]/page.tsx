@@ -19,7 +19,9 @@ import {
   Settings,
   Eye,
   Edit3,
-  History
+  History,
+  Boxes,
+  FileCheck
 } from 'lucide-react'
 import { apiGet, apiPost, apiDelete } from '@/lib/api'
 import DocumentUpload from '@/components/purdy/DocumentUpload'
@@ -28,6 +30,8 @@ import AgentRunner from '@/components/purdy/AgentRunner'
 import OutputViewer from '@/components/purdy/OutputViewer'
 import InitiativeChat from '@/components/purdy/InitiativeChat'
 import ShareModal from '@/components/purdy/ShareModal'
+import SynthesisView from '@/components/purdy/SynthesisView'
+import PRDViewer from '@/components/purdy/PRDViewer'
 
 // ============================================================================
 // TYPES
@@ -89,12 +93,14 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: str
   draft: { label: 'Draft', color: 'text-slate-600', bgColor: 'bg-slate-100 dark:bg-slate-800' },
   triaged: { label: 'Triaged', color: 'text-blue-600', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
   in_discovery: { label: 'In Discovery', color: 'text-amber-600', bgColor: 'bg-amber-100 dark:bg-amber-900/30' },
+  consolidated: { label: 'Consolidated', color: 'text-teal-600', bgColor: 'bg-teal-100 dark:bg-teal-900/30' },
   synthesized: { label: 'Synthesized', color: 'text-green-600', bgColor: 'bg-green-100 dark:bg-green-900/30' },
+  documented: { label: 'PRD Generated', color: 'text-indigo-600', bgColor: 'bg-indigo-100 dark:bg-indigo-900/30' },
   evaluated: { label: 'Evaluated', color: 'text-purple-600', bgColor: 'bg-purple-100 dark:bg-purple-900/30' },
   archived: { label: 'Archived', color: 'text-slate-500', bgColor: 'bg-slate-100 dark:bg-slate-800' },
 }
 
-type TabType = 'documents' | 'agents' | 'outputs' | 'chat'
+type TabType = 'documents' | 'agents' | 'outputs' | 'synthesis' | 'prds' | 'chat'
 
 // ============================================================================
 // MAIN PAGE
@@ -389,17 +395,19 @@ export default function InitiativeDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 dark:border-slate-700 mb-6">
+      <div className="flex border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
         {[
           { id: 'documents' as const, label: 'Documents', icon: FileText },
           { id: 'agents' as const, label: 'Run Agent', icon: Play },
           { id: 'outputs' as const, label: 'Outputs', icon: CheckCircle },
+          { id: 'synthesis' as const, label: 'Synthesis', icon: Boxes },
+          { id: 'prds' as const, label: 'PRDs', icon: FileCheck },
           { id: 'chat' as const, label: 'Chat', icon: MessageSquare },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab.id
                 ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -460,6 +468,24 @@ export default function InitiativeDetailPage() {
             onSelectOutput={setSelectedOutput}
             onRefresh={loadOutputs}
             onDelete={canEdit ? handleDeleteOutput : undefined}
+          />
+        )}
+
+        {/* Synthesis Tab - DISCo Bundles */}
+        {activeTab === 'synthesis' && (
+          <SynthesisView
+            initiativeId={initiativeId}
+            canEdit={canEdit}
+            onRefresh={loadInitiative}
+          />
+        )}
+
+        {/* PRDs Tab - DISCo Capabilities */}
+        {activeTab === 'prds' && (
+          <PRDViewer
+            initiativeId={initiativeId}
+            canEdit={canEdit}
+            onRefresh={loadInitiative}
           />
         )}
 

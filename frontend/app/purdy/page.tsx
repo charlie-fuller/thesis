@@ -72,7 +72,8 @@ function InitiativeCard({ initiative, onClick }: { initiative: Initiative; onCli
   const StatusIcon = statusConfig.icon
 
   const triageOutput = initiative.latest_outputs?.triage
-  const prdOutput = initiative.latest_outputs?.synthesizer
+  // Check for consolidator (new) or synthesizer (backwards compatibility)
+  const prdOutput = initiative.latest_outputs?.consolidator || initiative.latest_outputs?.synthesizer
 
   return (
     <div
