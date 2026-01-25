@@ -1,8 +1,14 @@
 """
-PuRDy Smart Brevity Condenser Service
+PuRDy Executive Summary Generator (formerly Condenser)
 
-Applies Chain of Density with Smart Brevity principles to condense
-comprehensive outputs into scannable, executive-friendly versions.
+Extracts decision-forcing elements from comprehensive outputs:
+- The Leverage Point (single highest-impact intervention)
+- The Feedback Loop (system dynamics diagram)
+- The Decision Required (what, who, when)
+- The First Action (Monday morning task)
+- The Blocker (what stops this if not addressed)
+
+v3.0: Repurposed from "make it shorter" to "extract what enables decisions"
 """
 
 import os
@@ -19,67 +25,95 @@ supabase = get_supabase()
 # Initialize Anthropic client
 anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
-# Use Sonnet for condensation (fast, good at summarization)
-CONDENSER_MODEL = os.environ.get("PURDY_MODEL_SONNET", "claude-sonnet-4-20250514")
+# Use Sonnet for extraction (fast, good at summarization)
+EXECUTIVE_SUMMARY_MODEL = os.environ.get("PURDY_MODEL_SONNET", "claude-sonnet-4-20250514")
 
-SMART_BREVITY_PROMPT = """You are a Smart Brevity editor. Your job is to condense comprehensive analysis documents into scannable, executive-friendly versions while preserving ALL key information.
+EXECUTIVE_SUMMARY_PROMPT = """You are an Executive Summary Generator. Your job is NOT to make documents shorter - it's to EXTRACT the decision-forcing elements that enable action.
 
-## Smart Brevity Principles
+## What You Extract (In This Order)
 
-1. **Lead with the key insight** - The most important thing goes first, not background
-2. **Bold the critical phrases** - 3-5 bolded terms per section for scanning
-3. **Short paragraphs** - Maximum 3 sentences per paragraph
-4. **Tables over prose** - Convert comparisons to tables whenever possible
-5. **What's new, why it matters, what's next** - This is the fundamental structure
-6. **Cut redundancy ruthlessly** - If you said it once, don't say it again
+### 1. THE LEVERAGE POINT
+The single highest-impact intervention. Not a list of recommendations - THE one thing that would create the most change.
 
-## Chain of Density Rules
+Format:
+> **THE LEVERAGE POINT:** [One sentence, <30 words]
 
-You will condense in 3 passes:
-1. **Pass 1:** Remove filler words, combine redundant points, tighten prose
-2. **Pass 2:** Add entities that were implicit, make claims more specific
-3. **Pass 3:** Final polish for readability while maintaining density
+### 2. THE FEEDBACK LOOP
+Why does this problem persist? Visualize the system dynamics as a Mermaid diagram.
 
-## Output Format
+Format:
+```mermaid
+flowchart LR
+    A[Current State] --> B[Symptom]
+    B --> C[Response]
+    C --> D[Consequence]
+    D --> A
 
-Produce a condensed version that is:
-- 40-60% of the original length
-- More scannable (more headers, bullets, tables)
-- Same number of key insights/entities
-- Boldface on critical terms
-- No loss of decision-relevant information
+    LP((LEVERAGE)) -.->|breaks here| B
+```
 
-Do NOT:
-- Lose any quantified data points
-- Remove stakeholder names or roles
-- Skip risks or blockers
-- Omit next steps or action items
-- Add new information not in the original
+### 3. THE DECISION REQUIRED
+What specific decision needs to be made, by whom, and by when?
+
+Format:
+| Element | Value |
+|---------|-------|
+| **Decision** | [What needs deciding] |
+| **Owner** | [Specific person/role] |
+| **Deadline** | [Date or timeframe] |
+| **If Delayed** | [Consequence of waiting] |
+
+### 4. THE FIRST ACTION
+What should happen Monday morning? Specific, actionable, owned.
+
+Format:
+| Action | Owner | By When | Done When |
+|--------|-------|---------|-----------|
+| [Specific task] | [Name] | [Date] | [Criteria] |
+
+### 5. THE BLOCKER
+What will stop this if not addressed?
+
+Format:
+> **THE BLOCKER:** [One sentence describing the main obstacle]
+> **Mitigation:** [How to address it]
+
+## Rules
+
+1. **Extract, don't summarize** - Pull out the decision-forcing elements, don't compress everything proportionally
+2. **One page max** - The entire output should fit on one page
+3. **No fluff** - No "This document covers..." or "In summary..." - just the elements
+4. **Preserve specifics** - Keep names, numbers, dates - these enable action
+5. **If missing, say so** - If the source document doesn't have a clear leverage point or decision, note that as a gap
 
 ## Your Task
 
-Condense the following document using Smart Brevity principles and Chain of Density technique. Produce a single condensed output.
+Extract the 5 decision-forcing elements from the following document. If any element is missing or unclear in the source, flag it as "[NOT FOUND - document lacks clear X]".
 """
 
 
-async def condense_output(
+async def generate_executive_summary(
     output_id: str,
     user_id: str
 ) -> AsyncGenerator[Dict, None]:
     """
-    Apply Smart Brevity condensation to a PuRDy output.
+    Generate an executive summary that extracts decision-forcing elements.
 
-    Uses Chain of Density technique with Smart Brevity principles
-    to create a more scannable, executive-friendly version.
+    NOT condensation (making shorter) - EXTRACTION (pulling out what enables decisions):
+    - The Leverage Point
+    - The Feedback Loop (Mermaid diagram)
+    - The Decision Required
+    - The First Action
+    - The Blocker
 
     Args:
-        output_id: UUID of the output to condense
-        user_id: User requesting condensation
+        output_id: UUID of the output to summarize
+        user_id: User requesting summary
 
     Yields:
         Dict with type (status, content, complete) and data
     """
-    logger.info(f"[CONDENSER] Starting condensation for output {output_id}")
+    logger.info(f"[EXEC-SUMMARY] Starting executive summary extraction for output {output_id}")
 
     try:
         # Fetch the original output
@@ -96,15 +130,14 @@ async def condense_output(
         initiative_id = result['initiative_id']
 
         original_length = len(original_content)
-        logger.info(f"[CONDENSER] Original content: {original_length} chars, agent: {original_agent_type}")
+        logger.info(f"[EXEC-SUMMARY] Original content: {original_length} chars, agent: {original_agent_type}")
 
-        yield {'type': 'status', 'data': 'Applying Smart Brevity condensation...'}
+        yield {'type': 'status', 'data': 'Extracting decision-forcing elements...'}
 
-        # Build the condensation prompt
-        user_prompt = f"""# Document to Condense
+        # Build the extraction prompt
+        user_prompt = f"""# Document to Extract From
 
 **Type:** {original_agent_type} output (v{original_version})
-**Original Length:** {original_length} characters
 
 ---
 
@@ -112,21 +145,21 @@ async def condense_output(
 
 ---
 
-Now apply Smart Brevity condensation. Produce a single condensed version that is 40-60% of the original length while preserving all key information."""
+Extract the 5 decision-forcing elements (Leverage Point, Feedback Loop, Decision Required, First Action, Blocker) from this document. If any element is missing or unclear, flag it."""
 
-        # Stream the condensed output
-        condensed_response = ""
+        # Stream the summary output
+        summary_response = ""
         chunk_count = 0
 
         with anthropic_client.messages.stream(
-            model=CONDENSER_MODEL,
-            max_tokens=12000,
-            temperature=0.3,  # Low temp for faithful condensation
-            system=SMART_BREVITY_PROMPT,
+            model=EXECUTIVE_SUMMARY_MODEL,
+            max_tokens=4000,  # Shorter output - 1 page max
+            temperature=0.2,  # Low temp for faithful extraction
+            system=EXECUTIVE_SUMMARY_PROMPT,
             messages=[{"role": "user", "content": user_prompt}]
         ) as stream:
             for text in stream.text_stream:
-                condensed_response += text
+                summary_response += text
                 chunk_count += 1
                 yield {'type': 'content', 'data': text}
 
@@ -141,36 +174,37 @@ Now apply Smart Brevity condensation. Produce a single condensed version that is
                     'output_tokens': final_message.usage.output_tokens
                 }
 
-        condensed_length = len(condensed_response)
-        compression_ratio = round((1 - condensed_length / original_length) * 100, 1)
+        summary_length = len(summary_response)
+        extraction_ratio = round((summary_length / original_length) * 100, 1)
 
-        logger.info(f"[CONDENSER] Condensed: {condensed_length} chars ({compression_ratio}% reduction)")
+        logger.info(f"[EXEC-SUMMARY] Summary: {summary_length} chars ({extraction_ratio}% of original)")
 
-        # Get next version number for condensed outputs
-        version_result = await _get_next_version(initiative_id, f"{original_agent_type}_condensed")
+        # Get next version number for executive summary outputs
+        version_result = await _get_next_version(initiative_id, f"{original_agent_type}_executive")
         next_version = version_result
 
-        # Store the condensed output as a new output with _condensed suffix
+        # Store the executive summary as a new output with _executive suffix
         output_data = {
             'id': str(uuid4()),
             'run_id': None,  # Not from a run
             'initiative_id': initiative_id,
-            'agent_type': f"{original_agent_type}_condensed",
+            'agent_type': f"{original_agent_type}_executive",
             'version': next_version,
-            'title': f"Condensed: {result.get('title', 'Output')}",
+            'title': f"Executive Summary: {result.get('title', 'Output')}",
             'recommendation': result.get('recommendation'),
             'tier_routing': result.get('tier_routing'),
             'confidence_level': result.get('confidence_level'),
-            'content_markdown': condensed_response,
+            'content_markdown': summary_response,
             'content_structured': {
                 'source_output_id': output_id,
                 'source_agent_type': original_agent_type,
                 'source_version': original_version,
                 'original_length': original_length,
-                'condensed_length': condensed_length,
-                'compression_ratio': compression_ratio
+                'summary_length': summary_length,
+                'extraction_ratio': extraction_ratio,
+                'extraction_type': 'decision_forcing_elements'
             },
-            'output_format': 'condensed',
+            'output_format': 'executive',
             'source_outputs': [{
                 'agent_type': original_agent_type,
                 'version': original_version,
@@ -181,8 +215,8 @@ Now apply Smart Brevity condensation. Produce a single condensed version that is
         insert_result = supabase.table('purdy_outputs').insert(output_data).execute()
 
         if not insert_result.data:
-            logger.error("[CONDENSER] Failed to store condensed output")
-            yield {'type': 'error', 'data': 'Failed to store condensed output'}
+            logger.error("[EXEC-SUMMARY] Failed to store executive summary")
+            yield {'type': 'error', 'data': 'Failed to store executive summary'}
             return
 
         yield {
@@ -191,15 +225,22 @@ Now apply Smart Brevity condensation. Produce a single condensed version that is
                 'output_id': output_data['id'],
                 'version': next_version,
                 'original_length': original_length,
-                'condensed_length': condensed_length,
-                'compression_ratio': compression_ratio,
+                'summary_length': summary_length,
+                'extraction_ratio': extraction_ratio,
                 'token_usage': token_usage
             }
         }
 
     except Exception as e:
-        logger.error(f"[CONDENSER] Condensation failed: {e}")
+        logger.error(f"[EXEC-SUMMARY] Executive summary generation failed: {e}")
         yield {'type': 'error', 'data': str(e)}
+
+
+# Alias for backwards compatibility
+async def condense_output(output_id: str, user_id: str) -> AsyncGenerator[Dict, None]:
+    """Backwards-compatible alias for generate_executive_summary."""
+    async for event in generate_executive_summary(output_id, user_id):
+        yield event
 
 
 async def _fetch_output(output_id: str) -> Optional[Dict]:

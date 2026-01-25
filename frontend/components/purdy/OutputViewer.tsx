@@ -110,7 +110,13 @@ const AGENT_CONFIG: Record<string, { name: string; icon: typeof Target; color: s
   coverage_tracker: { name: 'Coverage Tracker', icon: BarChart, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400' },
   synthesizer: { name: 'Synthesizer', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
   tech_evaluation: { name: 'Tech Evaluation', icon: Cpu, color: 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400' },
-  // Condensed variants
+  // Executive Summary variants (v3.0 - extracts decision-forcing elements)
+  triage_executive: { name: 'Triage (Executive)', icon: Minimize2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
+  discovery_planner_executive: { name: 'Discovery (Executive)', icon: Minimize2, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400' },
+  coverage_tracker_executive: { name: 'Coverage (Executive)', icon: Minimize2, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400' },
+  synthesizer_executive: { name: 'Synthesizer (Executive)', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
+  tech_evaluation_executive: { name: 'Tech Eval (Executive)', icon: Minimize2, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-400' },
+  // Legacy condensed variants (for backwards compatibility)
   triage_condensed: { name: 'Triage (Condensed)', icon: Minimize2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
   discovery_planner_condensed: { name: 'Discovery (Condensed)', icon: Minimize2, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400' },
   coverage_tracker_condensed: { name: 'Coverage (Condensed)', icon: Minimize2, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400' },
@@ -211,13 +217,13 @@ function OutputDetail({
 }) {
   const [copied, setCopied] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [condensing, setCondensing] = useState(false)
-  const [condenseStatus, setCondenseStatus] = useState<string | null>(null)
+  const [generatingSummary, setGeneratingSummary] = useState(false)
+  const [summaryStatus, setSummaryStatus] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'output' | 'notes'>('output')
   const config = AGENT_CONFIG[output.agent_type] || { name: output.agent_type, icon: FileText, color: 'text-slate-600 bg-slate-100' }
   const Icon = config.icon
   const hasNotes = output.synthesis_mode === 'multi_pass' && output.synthesis_notes
-  const isCondensed = output.agent_type?.endsWith('_condensed')
+  const isExecutiveSummary = output.agent_type?.endsWith('_executive') || output.agent_type?.endsWith('_condensed')
 
   const handleDelete = async () => {
     if (!onDelete) return
@@ -254,9 +260,9 @@ function OutputDetail({
     URL.revokeObjectURL(url)
   }
 
-  const handleCondense = async () => {
-    setCondensing(true)
-    setCondenseStatus('Starting condensation...')
+  const handleExecutiveSummary = async () => {
+    setGeneratingSummary(true)
+    setSummaryStatus('Extracting decision-forcing elements...')
 
     try {
       const response = await fetch(
@@ -270,7 +276,7 @@ function OutputDetail({
       )
 
       if (!response.ok) {
-        throw new Error(`Condensation failed: ${response.statusText}`)
+        throw new Error(`Executive summary generation failed: ${response.statusText}`)
       }
 
       const reader = response.body?.getReader()
@@ -291,13 +297,13 @@ function OutputDetail({
           if (line.startsWith('event: status')) {
             const dataLine = lines[lines.indexOf(line) + 1]
             if (dataLine?.startsWith('data: ')) {
-              setCondenseStatus(dataLine.slice(6))
+              setSummaryStatus(dataLine.slice(6))
             }
           } else if (line.startsWith('event: complete')) {
-            setCondenseStatus('Condensation complete!')
+            setSummaryStatus('Executive summary complete!')
             setTimeout(() => {
-              setCondensing(false)
-              setCondenseStatus(null)
+              setGeneratingSummary(false)
+              setSummaryStatus(null)
               onRefresh()
             }, 1000)
           } else if (line.startsWith('event: error')) {
@@ -307,11 +313,11 @@ function OutputDetail({
         }
       }
     } catch (err) {
-      console.error('Condensation failed:', err)
-      setCondenseStatus(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      console.error('Executive summary failed:', err)
+      setSummaryStatus(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
       setTimeout(() => {
-        setCondensing(false)
-        setCondenseStatus(null)
+        setGeneratingSummary(false)
+        setSummaryStatus(null)
       }, 3000)
     }
   }
@@ -360,22 +366,22 @@ function OutputDetail({
             <Download className="w-4 h-4" />
             Export
           </button>
-          {!isCondensed && (
+          {!isExecutiveSummary && (
             <button
-              onClick={handleCondense}
-              disabled={condensing}
+              onClick={handleExecutiveSummary}
+              disabled={generatingSummary}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-md transition-colors disabled:opacity-50"
-              title="Apply Smart Brevity condensation for executive consumption"
+              title="Extract decision-forcing elements: leverage point, feedback loop, decision, first action, blocker"
             >
-              {condensing ? (
+              {generatingSummary ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  {condenseStatus || 'Condensing...'}
+                  {summaryStatus || 'Generating...'}
                 </>
               ) : (
                 <>
                   <Minimize2 className="w-4 h-4" />
-                  Condense
+                  Executive Summary
                 </>
               )}
             </button>

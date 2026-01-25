@@ -256,12 +256,16 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - **User access**: Controlled via `app_access` column in users table (values: 'thesis', 'purdy', 'all')
     - **Initiative-based workflow**: Each initiative contains documents, agent runs, and outputs
     - **Per-initiative document repository**: Upload documents that grow over time
-    - **Five specialized agents** (loaded from purdy-cf repo):
-      - **Triage (v2.6)**: Quick GO/NO-GO assessment with tier routing and confidence-tagged ROI
-      - **Discovery Planner (v2.8)**: Outcome-driven discovery with pre-meeting knowledge framework, quantification gates, and type-specific planning
-      - **Coverage Tracker (v2.7)**: Track coverage, red flags, and 3M diagnosis
-      - **Synthesizer (v2.7)**: 112%+ synthesis with persona outputs (Finance/Engineering/Sales/Executive briefs)
-      - **Tech Evaluation (v2.6)**: Platform recommendation with confidence-tagged estimates
+    - **Output format selection**: Choose Comprehensive, Executive Summary, or Brief formats before running agents
+    - **Mermaid diagram support**: Architecture and flow diagrams render visually in output viewer
+    - **Five specialized agents** (v3.0 - decision enablement redesign):
+      - **Triage (v3.0)**: 5-minute GO/NO-GO with change readiness assessment and leverage point preview
+      - **Discovery Planner (v3.0)**: Focused discovery - one question to answer, max 5 sessions, clear done criteria
+      - **Coverage Tracker (v3.0)**: Blocker-focused tracking with prioritized gaps and clear next steps
+      - **Synthesizer (v3.0)**: Decision-enabling synthesis with leverage point, feedback loop diagram, action sequence
+      - **Tech Evaluation (v2.7)**: Platform recommendation with visual architecture diagrams and confidence-tagged estimates
+    - **Executive Summary Generator**: Extracts decision-forcing elements (leverage point, feedback loop, decision, first action, blocker) from any output
+    - **v3.0 Scoring Rubric** (`RUBRIC-v3.0.md`): Outcome-based measurement with 3 tiers - Action Enablement (50%), Insight Quality (30%), Efficiency (20%)
     - **Discovery Templates**: Type-specific templates in system KB (Process Automation, Data Analytics, Tool Selection, Cross-Functional)
     - **Versioned outputs**: Each agent run produces versioned output stored in DB with markdown export
     - **Previous outputs feed forward**: Subsequent runs automatically include earlier agent outputs as context
@@ -532,6 +536,7 @@ Run migrations in order from `/database/migrations/`:
 | 035 | opportunity_scoring_confidence | scoring_confidence (0-100) and confidence_questions array for opportunities |
 | 036 | task_candidates_opportunity_link | linked_opportunity_id and source_opportunity_id for task_candidates |
 | 038 | purdy_schema | PuRDy tables (initiatives, documents, chunks, runs, outputs, conversations, system KB) |
+| 047 | purdy_outcome_tracking | Outcome tracking: decided_at, launched_at, completed_at, stakeholder_rating, decision_velocity_days |
 
 ## Environment Variables
 

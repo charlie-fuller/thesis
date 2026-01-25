@@ -105,14 +105,15 @@ def get_model_for_agent(agent_type: str) -> str:
         return PURDY_MODEL_SONNET
     return PURDY_MODEL_OPUS
 
-# Agent file mappings (v2.9 for discovery planner, v2.8 for synthesizer, v2.7 for tech)
+# Agent file mappings (v3.0 for core agents - decision enablement redesign)
 # Note: paths are relative - "agents/" prefix used when PURDY_REPO_PATH is set,
 # otherwise loads directly from bundled purdy_agents/ folder
+# Old versions retained: triage-v2.6.md, discovery-planner-v2.9.md, coverage-tracker-v2.7.md, synthesizer-v2.8.md
 AGENT_FILES = {
-    "triage": "triage-v2.6.md",
-    "discovery_planner": "discovery-planner-v2.9.md",
-    "coverage_tracker": "coverage-tracker-v2.7.md",
-    "synthesizer": "synthesizer-v2.8.md",
+    "triage": "triage-v3.0.md",
+    "discovery_planner": "discovery-planner-v3.0.md",
+    "coverage_tracker": "coverage-tracker-v3.0.md",
+    "synthesizer": "synthesizer-v3.0.md",
     "tech_evaluation": "tech-evaluation-v2.7.md",
     "meta_synthesizer": "meta-synthesizer-v1.0.md"  # Internal use for multi-pass
 }
@@ -124,30 +125,30 @@ METHODOLOGY_FILE = "PuRDy-Instructions-v2.7.md"
 AGENT_DESCRIPTIONS = {
     "triage": {
         "name": "Triage",
-        "version": "v2.6",
-        "description": "Quick GO/NO-GO assessment with tier routing and confidence-tagged ROI",
-        "estimated_time": "5-10 minutes",
+        "version": "v3.0",
+        "description": "5-minute GO/NO-GO with change readiness assessment and leverage point preview",
+        "estimated_time": "3-5 minutes",
         "output_type": "triage_output"
     },
     "discovery_planner": {
         "name": "Discovery Planner",
-        "version": "v2.9",
-        "description": "Outcome-driven discovery with visual session flow diagrams, pre-meeting knowledge framework, and type-specific planning",
-        "estimated_time": "10-15 minutes",
+        "version": "v3.0",
+        "description": "Focused discovery: one question to answer, max 5 sessions, clear done criteria",
+        "estimated_time": "5-10 minutes",
         "output_type": "discovery_output"
     },
     "coverage_tracker": {
         "name": "Coverage Tracker",
-        "version": "v2.7",
-        "description": "Track discovery coverage, flag gaps, and perform 3M waste diagnosis",
-        "estimated_time": "10-15 minutes",
+        "version": "v3.0",
+        "description": "Blocker-focused tracking with prioritized gaps and clear next steps",
+        "estimated_time": "5-10 minutes",
         "output_type": "coverage_output"
     },
     "synthesizer": {
         "name": "Synthesizer",
-        "version": "v2.8",
-        "description": "115%+ synthesis with narrative insight generation, dots-connected analysis, and persona-specific outputs",
-        "estimated_time": "15-25 minutes",
+        "version": "v3.0",
+        "description": "Decision-enabling synthesis: leverage point, feedback loop, action sequence",
+        "estimated_time": "10-15 minutes",
         "output_type": "prd_output"
     },
     "tech_evaluation": {
