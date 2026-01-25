@@ -49,6 +49,7 @@ from services.purdy import (
     get_kb_files,
 )
 from services.purdy.agent_service import list_runs, get_run, run_agent_multi_pass, MULTI_PASS_CONFIG
+from services.purdy.condenser_service import condense_output
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/purdy", tags=["purdy"])
@@ -727,6 +728,52 @@ async def api_delete_output(
     except Exception as e:
         logger.error(f"Error deleting output: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/initiatives/{initiative_id}/outputs/{output_id}/condense")
+async def api_condense_output(
+    initiative_id: str,
+    output_id: str,
+    current_user: dict = Depends(require_purdy_access)
+):
+    """Apply Smart Brevity condensation to an output."""
+    await require_initiative_access(initiative_id, current_user, 'editor')
+
+    async def event_stream():
+        # Send initial padding to force proxy buffer flush
+        yield ": " + " " * 2048 + "\n\n"
+
+        try:
+            async for event in condense_output(output_id, current_user['id']):
+                event_type = event.get('type', 'unknown')
+                event_data = event.get('data', '')
+
+                if event_type == 'content':
+                    yield f"data: {event_data}\n\n"
+                elif event_type == 'keepalive':
+                    yield ": keepalive\n\n"
+                elif event_type == 'status':
+                    yield f"event: status\ndata: {event_data}\n\n"
+                elif event_type == 'complete':
+                    import json
+                    yield f"event: complete\ndata: {json.dumps(event_data)}\n\n"
+                elif event_type == 'error':
+                    yield f"event: error\ndata: {event_data}\n\n"
+
+        except Exception as e:
+            logger.error(f"Condense stream error: {e}")
+            yield f"event: error\ndata: {str(e)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Content-Type": "text/event-stream; charset=utf-8",
+        }
+    )
 
 
 # ============================================================================

@@ -16,7 +16,9 @@ import {
   Search,
   BarChart,
   Cpu,
-  Trash2
+  Trash2,
+  Minimize2,
+  Loader2
 } from 'lucide-react'
 import ReactMarkdown, { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -108,6 +110,12 @@ const AGENT_CONFIG: Record<string, { name: string; icon: typeof Target; color: s
   coverage_tracker: { name: 'Coverage Tracker', icon: BarChart, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400' },
   synthesizer: { name: 'Synthesizer', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
   tech_evaluation: { name: 'Tech Evaluation', icon: Cpu, color: 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400' },
+  // Condensed variants
+  triage_condensed: { name: 'Triage (Condensed)', icon: Minimize2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
+  discovery_planner_condensed: { name: 'Discovery (Condensed)', icon: Minimize2, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400' },
+  coverage_tracker_condensed: { name: 'Coverage (Condensed)', icon: Minimize2, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400' },
+  synthesizer_condensed: { name: 'Synthesizer (Condensed)', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
+  tech_evaluation_condensed: { name: 'Tech Eval (Condensed)', icon: Minimize2, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-400' },
 }
 
 function formatDate(dateString: string | null | undefined): string {
@@ -191,18 +199,25 @@ function OutputListItem({
 function OutputDetail({
   output,
   onClose,
-  onDelete
+  onDelete,
+  initiativeId,
+  onRefresh
 }: {
   output: Output
   onClose: () => void
   onDelete?: (outputId: string) => Promise<void>
+  initiativeId: string
+  onRefresh: () => void
 }) {
   const [copied, setCopied] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [condensing, setCondensing] = useState(false)
+  const [condenseStatus, setCondenseStatus] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'output' | 'notes'>('output')
   const config = AGENT_CONFIG[output.agent_type] || { name: output.agent_type, icon: FileText, color: 'text-slate-600 bg-slate-100' }
   const Icon = config.icon
   const hasNotes = output.synthesis_mode === 'multi_pass' && output.synthesis_notes
+  const isCondensed = output.agent_type?.endsWith('_condensed')
 
   const handleDelete = async () => {
     if (!onDelete) return
@@ -237,6 +252,68 @@ function OutputDetail({
     a.download = `${output.agent_type}_v${output.version}.md`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleCondense = async () => {
+    setCondensing(true)
+    setCondenseStatus('Starting condensation...')
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/purdy/initiatives/${initiativeId}/outputs/${output.id}/condense`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(`Condensation failed: ${response.statusText}`)
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('No response stream')
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('event: status')) {
+            const dataLine = lines[lines.indexOf(line) + 1]
+            if (dataLine?.startsWith('data: ')) {
+              setCondenseStatus(dataLine.slice(6))
+            }
+          } else if (line.startsWith('event: complete')) {
+            setCondenseStatus('Condensation complete!')
+            setTimeout(() => {
+              setCondensing(false)
+              setCondenseStatus(null)
+              onRefresh()
+            }, 1000)
+          } else if (line.startsWith('event: error')) {
+            const dataLine = lines[lines.indexOf(line) + 1]
+            throw new Error(dataLine?.slice(6) || 'Unknown error')
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Condensation failed:', err)
+      setCondenseStatus(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setTimeout(() => {
+        setCondensing(false)
+        setCondenseStatus(null)
+      }, 3000)
+    }
   }
 
   return (
@@ -283,6 +360,26 @@ function OutputDetail({
             <Download className="w-4 h-4" />
             Export
           </button>
+          {!isCondensed && (
+            <button
+              onClick={handleCondense}
+              disabled={condensing}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-md transition-colors disabled:opacity-50"
+              title="Apply Smart Brevity condensation for executive consumption"
+            >
+              {condensing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {condenseStatus || 'Condensing...'}
+                </>
+              ) : (
+                <>
+                  <Minimize2 className="w-4 h-4" />
+                  Condense
+                </>
+              )}
+            </button>
+          )}
           {onDelete && (
             <button
               onClick={handleDelete}
@@ -528,6 +625,8 @@ export default function OutputViewer({
             output={selectedOutput}
             onClose={() => onSelectOutput(null)}
             onDelete={onDelete}
+            initiativeId={initiativeId}
+            onRefresh={onRefresh}
           />
         ) : (
           <div className="flex items-center justify-center min-h-[400px] h-[calc(100vh-350px)] bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg">

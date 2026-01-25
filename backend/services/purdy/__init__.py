@@ -56,6 +56,10 @@ from .system_kb_service import (
     get_kb_files,
 )
 
+from .condenser_service import (
+    condense_output,
+)
+
 __all__ = [
     # Initiative
     'create_initiative',
@@ -91,4 +95,6 @@ __all__ = [
     'sync_kb_from_filesystem',
     'search_system_kb',
     'get_kb_files',
+    # Condenser
+    'condense_output',
 ]
