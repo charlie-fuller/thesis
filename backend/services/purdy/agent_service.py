@@ -107,63 +107,63 @@ def get_model_for_agent(agent_type: str) -> str:
         return PURDY_MODEL_SONNET
     return PURDY_MODEL_OPUS
 
-# Agent file mappings (v4.0 - consulting quality bar + insight extractor)
+# Agent file mappings (v4.1 - evaluation gap fixes)
 # Note: paths are relative - "agents/" prefix used when PURDY_REPO_PATH is set,
 # otherwise loads directly from bundled purdy_agents/ folder
-# Old versions retained: triage-v3.0.md, discovery-planner-v3.0.md, coverage-tracker-v3.0.md, synthesizer-v3.0.md
+# Old versions retained: v3.0 and v4.0 files for rollback
 AGENT_FILES = {
-    "triage": "triage-v4.0.md",
-    "discovery_planner": "discovery-planner-v4.0.md",
-    "coverage_tracker": "coverage-tracker-v4.0.md",
-    "insight_extractor": "insight-extractor-v4.0.md",  # NEW in v4.0
-    "synthesizer": "synthesizer-v4.0.md",
-    "tech_evaluation": "tech-evaluation-v4.0.md",
+    "triage": "triage-v4.1.md",
+    "discovery_planner": "discovery-planner-v4.1.md",
+    "coverage_tracker": "coverage-tracker-v4.1.md",
+    "insight_extractor": "insight-extractor-v4.1.md",
+    "synthesizer": "synthesizer-v4.1.md",
+    "tech_evaluation": "tech-evaluation-v4.1.md",
     "meta_synthesizer": "meta-synthesizer-v1.0.md"  # Internal use for multi-pass
 }
 
 # Methodology overview file (optional - may not exist in bundled version)
 METHODOLOGY_FILE = "PuRDy-Instructions-v2.7.md"
 
-# Agent descriptions for UI (v4.0 - consulting quality bar)
+# Agent descriptions for UI (v4.1 - evaluation gap fixes)
 AGENT_DESCRIPTIONS = {
     "triage": {
         "name": "Triage",
-        "version": "v4.0",
-        "description": "5-minute GO/NO-GO with conviction - decision in first sentence",
+        "version": "v4.1",
+        "description": "5-minute GO/NO-GO with conviction - explicit tier routing and next agent",
         "estimated_time": "3-5 minutes",
         "output_type": "triage_output"
     },
     "discovery_planner": {
         "name": "Discovery Planner",
-        "version": "v4.0",
-        "description": "Design discovery that humans execute - workshops, interviews, research plans",
+        "version": "v4.1",
+        "description": "Design discovery that humans execute - 800-1000 words with cut priority guidance",
         "estimated_time": "5-10 minutes",
         "output_type": "discovery_output"
     },
     "coverage_tracker": {
         "name": "Coverage Tracker",
-        "version": "v4.0",
-        "description": "Run iteratively during discovery - identifies gaps and guides next session",
+        "version": "v4.1",
+        "description": "Run iteratively during discovery - standardized status codes and next agent routing",
         "estimated_time": "3-5 minutes",
         "output_type": "coverage_output"
     },
     "insight_extractor": {
         "name": "Insight Extractor",
-        "version": "v4.0",
-        "description": "Distill raw transcripts into structured insights with evidence quotes",
+        "version": "v4.1",
+        "description": "Distill transcripts into insights - patterns, contradictions, surprises with mermaid diagrams",
         "estimated_time": "5-10 minutes",
         "output_type": "insight_output"
     },
     "synthesizer": {
         "name": "Synthesizer",
-        "version": "v4.0",
-        "description": "500-word decision document - leverage point, evidence, first action with real names",
+        "version": "v4.1",
+        "description": "800-word decision document - decision as first word, real names, Done When criteria",
         "estimated_time": "10-15 minutes",
         "output_type": "prd_output"
     },
     "tech_evaluation": {
         "name": "Tech Evaluation",
-        "version": "v4.0",
+        "version": "v4.1",
         "description": "Platform recommendation with architecture diagrams and confidence-tagged estimates",
         "estimated_time": "10-15 minutes",
         "output_type": "tech_eval_output"

@@ -1,114 +1,167 @@
 # PuRDy v4.1 Revision Notes
 
 **Created:** 2026-01-25
-**Status:** PENDING - awaiting full analysis after testing
+**Status:** IMPLEMENTED - awaiting testing
 
 ---
 
-## Context
+## Summary
 
-During v4.0 deployment, user observed that Insight Extractor and Discovery Planner ran faster than expected, raising concerns about analysis depth.
-
-**Investigation found:** Outputs are actually exceeding word limits (1000+ words vs 350-500 targets) and quality appears solid. Speed was due to familiar context and Opus efficiency, not shallow analysis.
+v4.1 addresses gaps identified in the v4.0 evaluation (78.5/100 score). Two agents needed iteration (Synthesizer, Insight Extractor), four agents received minor improvements.
 
 ---
 
-## Chain-of-Thought Enhancement (Consider for v4.1)
+## Changes by Agent
 
-If future testing reveals shallow analysis, add explicit reasoning steps to agent instructions:
+### Synthesizer (P0 - ITERATE) - Score: 12/20 -> Target: 16/20+
 
-### Proposed Addition (for any agent)
+**Issues Addressed:**
+1. Decision in first paragraph, not FIRST SENTENCE
+2. Uses role titles ("Discovery Lead") not real names
+3. Missing "Done When" criteria
+4. 2-4x over word limit (500 -> actual 1000+)
 
-```markdown
-## ANALYSIS PROCESS (Do This First, Thoroughly)
+**Changes Made:**
+- Decision position: First word must be GO/NO-GO/CONDITIONAL (not just first paragraph)
+- Real names: Expanded section with fallback "[Requester to identify owner]"
+- Done When: Added to First Action section with examples
+- Word count: Increased from 500 to 800 (realistic based on actual outputs)
+- Anti-patterns: Updated to catch "Decision Needed:" prefix
 
-**Before writing any output, complete this analysis internally:**
+### Insight Extractor (P0 - ITERATE) - Score: 12/20 -> Target: 16/20+
 
-### Step 1: Read Everything
-- Read every document completely - do not skim
-- Note every stakeholder mentioned and their role
-- Flag every number, metric, or quantification
+**Issues Addressed:**
+1. Missing "Patterns Detected" section with reinforcing loop
+2. Missing "Contradictions" table
+3. Missing "What They Don't Realize" table
+4. Incomplete Information Quality table
+5. 2x over word limit
 
-### Step 2: Extract All Potential Insights
-- List every finding, observation, or claim made
-- For each, note who said it and the exact quote
-- Identify which findings are supported by multiple sources
+**Changes Made:**
+- Patterns Detected: Added with mermaid diagram template
+- Contradictions: Added table template with implication column
+- What They Don't Realize: Added with surprise value identification
+- Information Quality: All 4 rows required, added Gap column
+- For Synthesizer: New handoff section with recommended leverage point
+- Word count: Increased from 500 to 700
+- Pattern Detection Guide: Added to help identify loops/contradictions
+- Completeness Test: Added to self-check
 
-### Step 3: Identify Patterns
-- Look for reinforcing loops (A causes B causes A)
-- Look for contradictions between stakeholders
-- Look for gaps between what people say and what they do
-- Look for implicit assumptions that may be wrong
+### Triage (P2 - Minor)
 
-### Step 4: Assess Surprise Value
-- What would stakeholders be surprised to learn?
-- What do they believe that the evidence contradicts?
-- What are they not seeing that the data shows?
+**Changes Made:**
+- Tier routing: Added explicit field on second line
+- Next Agent: Added to Next Step section
+- Parsing Test: Added to self-check
+- Status codes clarified for downstream parsing
 
-### Step 5: Prioritize Ruthlessly
-- From all insights found, select the most decision-relevant
-- Discard insights that are obvious or don't affect the decision
-- Keep only insights backed by direct evidence
+### Discovery Planner (P2 - Minor)
 
-### Step 6: Write the Output
-- Now write the structured output
-- Every insight must have evidence
-- The output is the distillation, not the analysis
+**Changes Made:**
+- Word count: Increased from 350 to 800-1000
+- What We Already Know: Added section
+- Cut priority: "Cut from What We Already Know first"
+- Word Count Test: Added to self-check
 
-**The output is short because the thinking was thorough, not because the thinking was skipped.**
+### Coverage Tracker (P2 - Minor)
+
+**Changes Made:**
+- Status codes standardized:
+  - `READY FOR SYNTHESIS`
+  - `GAPS REMAIN - CRITICAL`
+  - `GAPS REMAIN - MINOR`
+  - `BLOCKED - [reason]`
+- Next Agent: Added mandatory field with routing logic
+- Status Test: Added to self-check
+
+### Tech Evaluation (P2 - No Changes)
+
+- Version bump only for consistency
+- Agent performing well in evaluation
+
+---
+
+## Files Modified
+
+| File | Change Type |
+|------|-------------|
+| `synthesizer-v4.1.md` | NEW - major revision |
+| `insight-extractor-v4.1.md` | NEW - major revision |
+| `triage-v4.1.md` | NEW - minor updates |
+| `discovery-planner-v4.1.md` | NEW - minor updates |
+| `coverage-tracker-v4.1.md` | NEW - minor updates |
+| `tech-evaluation-v4.1.md` | NEW - version bump only |
+| `agent_service.py` | MODIFIED - AGENT_FILES and AGENT_DESCRIPTIONS |
+
+---
+
+## Testing Checklist
+
+### Manual Testing
+- [ ] Run Synthesizer on "Strategic Account Planning" initiative
+  - [ ] Decision in first word (GO/NO-GO/CONDITIONAL)?
+  - [ ] Real names present (not role titles)?
+  - [ ] "Done When" criteria in First Action?
+  - [ ] Word count under 800?
+
+- [ ] Run Insight Extractor on "Strategic Account Planning" initiative
+  - [ ] Patterns Detected section with mermaid diagram?
+  - [ ] Contradictions table present?
+  - [ ] What They Don't Realize table present?
+  - [ ] Information Quality all 4 rows filled?
+  - [ ] For Synthesizer section present?
+  - [ ] Word count under 700?
+
+- [ ] Run Triage
+  - [ ] Tier routing on second line?
+  - [ ] Next Agent specified?
+
+- [ ] Run Coverage Tracker
+  - [ ] Status is one of the 4 standard codes?
+  - [ ] Next Agent specified?
+
+- [ ] Run Discovery Planner
+  - [ ] Word count between 800-1000?
+  - [ ] What We Already Know section present?
+
+### Automated Checks
+- [ ] Run `scripts/query_purdy_outputs.py` after test runs
+- [ ] Compare v4.0 vs v4.1 outputs
+- [ ] Re-score using RUBRIC-v3.0.md
+
+### Success Criteria
+- Synthesizer score: 12/20 -> 16/20+
+- Insight Extractor score: 12/20 -> 16/20+
+- Overall score: 78.5 -> 85+
+
+---
+
+## Rollback Plan
+
+If v4.1 agents produce worse outputs:
+
+1. Revert AGENT_FILES in `agent_service.py` to point to v4.0 files
+2. Keep v4.1 files for debugging
+3. Document issues in this file
+
+```python
+# Rollback to v4.0
+AGENT_FILES = {
+    "triage": "triage-v4.0.md",
+    "discovery_planner": "discovery-planner-v4.0.md",
+    "coverage_tracker": "coverage-tracker-v4.0.md",
+    "insight_extractor": "insight-extractor-v4.0.md",
+    "synthesizer": "synthesizer-v4.0.md",
+    "tech_evaluation": "tech-evaluation-v4.0.md",
+    "meta_synthesizer": "meta-synthesizer-v1.0.md"
+}
 ```
 
-### Why This Might Help
-
-1. **Forces sequential processing** - Agent must complete steps before writing
-2. **Creates accountability** - Each step has specific requirements
-3. **Separates analysis from output** - Thinking can be deep even if output is concise
-4. **Addresses the Claude behavior** - Output length correlates with reasoning depth; this decouples them
-
-### Why It Might Not Be Needed
-
-1. **Current outputs are thorough** - 1000+ words with structured evidence
-2. **Word limits aren't being enforced** - Agents are self-regulating to appropriate length
-3. **Opus is already methodical** - May be redundant instruction
-
 ---
 
-## Other v4.1 Candidates
+## Version History
 
-### 1. Word Limit Enforcement
-- Current: Agents ignore limits, output 800-1200 words
-- Decision needed: Enforce strictly or let agents self-regulate?
-
-### 2. Discovery Loop UX
-- Coverage Tracker is designed for iterative use (during breaks, after sessions)
-- Frontend doesn't currently surface this workflow prominently
-- Consider: Visual workflow indicator showing the loop
-
-### 3. Real Names Requirement
-- Synthesizer requires real names, not role titles
-- Agents may not have access to names if not in documents
-- Consider: Fallback language like "[Requester to identify owner]"
-
----
-
-## Testing Checklist (Before v4.1)
-
-- [ ] Run each agent on Strategic Account Planning initiative
-- [ ] Compare v3.0 vs v4.0 outputs side-by-side
-- [ ] Score using SCORING-METHODOLOGY-v3.0.md
-- [ ] Identify specific quality gaps (if any)
-- [ ] Get user feedback on consulting quality bar
-- [ ] Decide on word limit enforcement
-
----
-
-## Files Modified in v4.0
-
-- `insight-extractor-v4.0.md` - NEW agent (has partial chain-of-thought edit)
-- `synthesizer-v4.0.md` - 500 words, decision first
-- `discovery-planner-v4.0.md` - Human execution clarity
-- `coverage-tracker-v4.0.md` - Iterative use
-- `triage-v4.0.md` - Conviction language
-- `tech-evaluation-v4.0.md` - Partner quality bar
-- `agent_service.py` - Added insight_extractor
-- `AgentRunner.tsx` - Added icon and workflow
+| Version | Date | Changes |
+|---------|------|---------|
+| v4.0 | 2026-01-24 | Consulting quality bar, Insight Extractor agent added |
+| **v4.1** | **2026-01-25** | Evaluation gap fixes based on RUBRIC-v3.0 scoring |
