@@ -1,4 +1,4 @@
-# Agent: Synthesis Agent
+# Agent: Strategist
 
 **Version:** 1.0
 **Last Updated:** 2026-01-25

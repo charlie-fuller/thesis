@@ -175,7 +175,7 @@ AGENT_FILES = {
     "insight_extractor": "insight-extractor-v4.2.md",
     "consolidator": "consolidator-v4.2.md",  # DISCo: Insights stage - consolidate findings
     "synthesizer": "synthesizer-v4.2.md",  # Backwards compatibility
-    "synthesis": "synthesis-agent-v1.0.md",  # DISCo: Synthesis stage - bundle into initiatives
+    "strategist": "strategist-v1.0.md",  # DISCo: Synthesis stage - bundle into initiatives
     "prd_generator": "prd-generator-v1.0.md",  # DISCo: Capabilities stage - generate PRDs
     "tech_evaluation": "tech-evaluation-v4.1.md",
     "meta_consolidator": "meta-consolidator-v1.0.md",  # DISCo: multi-pass consolidation
@@ -230,12 +230,12 @@ AGENT_DESCRIPTIONS = {
         "estimated_time": "10-15 minutes",
         "output_type": "prd_output"
     },
-    "synthesis": {
-        "name": "Synthesis",
+    "strategist": {
+        "name": "Strategist",
         "version": "v1.0",
         "description": "DISCo: Cluster insights, score, and propose initiative bundles for human review",
         "estimated_time": "10-15 minutes",
-        "output_type": "synthesis_output"
+        "output_type": "strategist_output"
     },
     "prd_generator": {
         "name": "PRD Generator",

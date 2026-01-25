@@ -104,7 +104,7 @@ const AGENT_ICONS: Record<string, typeof Target> = {
   insight_extractor: Lightbulb,
   consolidator: FileText,
   synthesizer: FileText,
-  synthesis: Boxes,  // DISCo: Synthesis stage
+  strategist: Boxes,  // DISCo: Synthesis stage
   tech_evaluation: Cpu,
 }
 
@@ -170,7 +170,7 @@ const AGENT_WORKFLOW: Record<string, {
     outputs: "Decision document with leverage point, evidence, blockers, first action - 500 words max",
     prerequisites: ["Insight Extractor output"]
   },
-  synthesis: {
+  strategist: {
     when: "After Consolidator - transforms insights into initiative bundles",
     inputs: [
       "Consolidator output (auto-included)",

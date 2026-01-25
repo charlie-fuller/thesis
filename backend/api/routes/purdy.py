@@ -1486,14 +1486,14 @@ async def api_run_synthesis(
         if not can_edit:
             raise HTTPException(status_code=403, detail="No edit access to this initiative")
 
-        # Run synthesis agent
+        # Run strategist agent
         async def stream_and_create_bundles():
             output_id = None
             full_content = ""
 
             async for event in run_agent(
                 initiative_id=initiative_id,
-                agent_type='synthesis',
+                agent_type='strategist',
                 user_id=current_user['id'],
                 output_format='comprehensive'
             ):

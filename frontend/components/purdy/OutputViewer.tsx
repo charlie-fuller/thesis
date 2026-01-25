@@ -111,7 +111,7 @@ const AGENT_CONFIG: Record<string, { name: string; icon: typeof Target; color: s
   coverage_tracker: { name: 'Coverage Tracker', icon: BarChart, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400' },
   consolidator: { name: 'Consolidator', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
   synthesizer: { name: 'Synthesizer', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
-  synthesis: { name: 'Synthesis', icon: Target, color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  strategist: { name: 'Strategist', icon: Target, color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400' },
   tech_evaluation: { name: 'Tech Evaluation', icon: Cpu, color: 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400' },
   // Executive Summary variants (v3.0 - extracts decision-forcing elements)
   triage_executive: { name: 'Triage (Executive)', icon: Minimize2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
