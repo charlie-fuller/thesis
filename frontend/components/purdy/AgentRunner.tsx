@@ -14,7 +14,8 @@ import {
   Target,
   Search,
   BarChart,
-  Cpu
+  Cpu,
+  Lightbulb
 } from 'lucide-react'
 import { apiGet } from '@/lib/api'
 import { authenticatedFetch } from '@/lib/api'
@@ -99,11 +100,12 @@ const AGENT_ICONS: Record<string, typeof Target> = {
   triage: Target,
   discovery_planner: Search,
   coverage_tracker: BarChart,
+  insight_extractor: Lightbulb,
   synthesizer: FileText,
   tech_evaluation: Cpu,
 }
 
-// Workflow guidance for each agent
+// Workflow guidance for each agent (v4.0 - consulting quality bar)
 const AGENT_WORKFLOW: Record<string, {
   when: string
   inputs: string[]
@@ -111,50 +113,59 @@ const AGENT_WORKFLOW: Record<string, {
   prerequisites: string[]
 }> = {
   triage: {
-    when: "First step - run this when you have initial request details",
+    when: "First step - run when you have initial request details",
     inputs: [
       "Request description or intake document",
       "Any context about the requester or business area"
     ],
-    outputs: "GO/NO-GO recommendation with tier routing (ELT/Solutions/Self-Serve) and confidence-tagged ROI",
+    outputs: "GO/NO-GO/INVESTIGATE decision with conviction - 250 words max",
     prerequisites: []
   },
   discovery_planner: {
-    when: "After Triage returns GO - before conducting discovery meetings",
+    when: "After Triage returns GO - designs discovery humans will execute",
     inputs: [
       "Triage output (auto-included)",
       "Any pre-existing documentation about the initiative"
     ],
-    outputs: "Structured discovery plan with type-specific questions, quantification gates, and meeting agenda",
+    outputs: "Session plans with agendas, key questions, and quantification gates - 350 words max",
     prerequisites: ["Triage (GO recommendation)"]
   },
   coverage_tracker: {
-    when: "After discovery meetings - before synthesis",
+    when: "Run iteratively - during workshop breaks, after each session, before synthesis",
     inputs: [
       "Discovery Planner output (auto-included)",
-      "Meeting transcripts and notes (upload to Documents)",
-      "Interview summaries, stakeholder feedback"
+      "Meeting transcripts (partial or complete)",
+      "Any discovery artifacts uploaded"
     ],
-    outputs: "Gap analysis with RED/YELLOW/GREEN flags, contradiction map, and 3M waste diagnosis",
-    prerequisites: ["Triage", "Discovery Planner", "Discovery meeting notes uploaded"]
+    outputs: "READY/GAPS/CRITICAL verdict with specific gaps and next steps - 280 words max",
+    prerequisites: ["Discovery Planner", "At least one discovery session transcript"]
+  },
+  insight_extractor: {
+    when: "After Coverage Tracker shows READY - before Synthesizer",
+    inputs: [
+      "All discovery transcripts and documents",
+      "Coverage Tracker output (auto-included)"
+    ],
+    outputs: "Structured insights with evidence quotes, patterns, and surprises - 500 words max",
+    prerequisites: ["Coverage Tracker (READY status)", "Discovery transcripts uploaded"]
   },
   synthesizer: {
-    when: "After Coverage Tracker shows GREEN (no blocking red flags)",
+    when: "After Insight Extractor - creates the decision document",
     inputs: [
-      "All previous outputs (auto-included)",
-      "All discovery documents"
+      "Insight Extractor output (auto-included)",
+      "All previous outputs"
     ],
-    outputs: "Complete PRD with persona-specific briefs (Finance, Engineering, Sales, Executive)",
-    prerequisites: ["Triage", "Discovery Planner", "Coverage Tracker (GREEN status)"]
+    outputs: "Decision document with leverage point, evidence, blockers, first action - 500 words max",
+    prerequisites: ["Insight Extractor output"]
   },
   tech_evaluation: {
-    when: "After synthesis - when evaluating implementation options",
+    when: "After Synthesizer - when evaluating implementation options",
     inputs: [
       "Synthesizer output (auto-included)",
       "Technical constraints documentation",
       "Vendor/platform information if available"
     ],
-    outputs: "Platform recommendations with confidence-tagged effort estimates and build vs. buy analysis",
+    outputs: "Platform recommendation with architecture diagram and confidence-tagged estimates",
     prerequisites: ["Synthesizer output"]
   }
 }

@@ -107,56 +107,64 @@ def get_model_for_agent(agent_type: str) -> str:
         return PURDY_MODEL_SONNET
     return PURDY_MODEL_OPUS
 
-# Agent file mappings (v3.0 for core agents - decision enablement redesign)
+# Agent file mappings (v4.0 - consulting quality bar + insight extractor)
 # Note: paths are relative - "agents/" prefix used when PURDY_REPO_PATH is set,
 # otherwise loads directly from bundled purdy_agents/ folder
-# Old versions retained: triage-v2.6.md, discovery-planner-v2.9.md, coverage-tracker-v2.7.md, synthesizer-v2.8.md
+# Old versions retained: triage-v3.0.md, discovery-planner-v3.0.md, coverage-tracker-v3.0.md, synthesizer-v3.0.md
 AGENT_FILES = {
-    "triage": "triage-v3.0.md",
-    "discovery_planner": "discovery-planner-v3.0.md",
-    "coverage_tracker": "coverage-tracker-v3.0.md",
-    "synthesizer": "synthesizer-v3.0.md",
-    "tech_evaluation": "tech-evaluation-v2.7.md",
+    "triage": "triage-v4.0.md",
+    "discovery_planner": "discovery-planner-v4.0.md",
+    "coverage_tracker": "coverage-tracker-v4.0.md",
+    "insight_extractor": "insight-extractor-v4.0.md",  # NEW in v4.0
+    "synthesizer": "synthesizer-v4.0.md",
+    "tech_evaluation": "tech-evaluation-v4.0.md",
     "meta_synthesizer": "meta-synthesizer-v1.0.md"  # Internal use for multi-pass
 }
 
 # Methodology overview file (optional - may not exist in bundled version)
 METHODOLOGY_FILE = "PuRDy-Instructions-v2.7.md"
 
-# Agent descriptions for UI
+# Agent descriptions for UI (v4.0 - consulting quality bar)
 AGENT_DESCRIPTIONS = {
     "triage": {
         "name": "Triage",
-        "version": "v3.0",
-        "description": "5-minute GO/NO-GO with change readiness assessment and leverage point preview",
+        "version": "v4.0",
+        "description": "5-minute GO/NO-GO with conviction - decision in first sentence",
         "estimated_time": "3-5 minutes",
         "output_type": "triage_output"
     },
     "discovery_planner": {
         "name": "Discovery Planner",
-        "version": "v3.0",
-        "description": "Focused discovery: one question to answer, max 5 sessions, clear done criteria",
+        "version": "v4.0",
+        "description": "Design discovery that humans execute - workshops, interviews, research plans",
         "estimated_time": "5-10 minutes",
         "output_type": "discovery_output"
     },
     "coverage_tracker": {
         "name": "Coverage Tracker",
-        "version": "v3.0",
-        "description": "Blocker-focused tracking with prioritized gaps and clear next steps",
-        "estimated_time": "5-10 minutes",
+        "version": "v4.0",
+        "description": "Run iteratively during discovery - identifies gaps and guides next session",
+        "estimated_time": "3-5 minutes",
         "output_type": "coverage_output"
+    },
+    "insight_extractor": {
+        "name": "Insight Extractor",
+        "version": "v4.0",
+        "description": "Distill raw transcripts into structured insights with evidence quotes",
+        "estimated_time": "5-10 minutes",
+        "output_type": "insight_output"
     },
     "synthesizer": {
         "name": "Synthesizer",
-        "version": "v3.0",
-        "description": "Decision-enabling synthesis: leverage point, feedback loop, action sequence",
+        "version": "v4.0",
+        "description": "500-word decision document - leverage point, evidence, first action with real names",
         "estimated_time": "10-15 minutes",
         "output_type": "prd_output"
     },
     "tech_evaluation": {
         "name": "Tech Evaluation",
-        "version": "v2.7",
-        "description": "Platform recommendation with visual architecture diagrams and confidence-tagged estimates",
+        "version": "v4.0",
+        "description": "Platform recommendation with architecture diagrams and confidence-tagged estimates",
         "estimated_time": "10-15 minutes",
         "output_type": "tech_eval_output"
     }
@@ -921,6 +929,7 @@ def get_status_for_agent(agent_type: str) -> Optional[str]:
         'triage': 'triaged',
         'discovery_planner': 'in_discovery',
         'coverage_tracker': 'in_discovery',
+        'insight_extractor': 'in_discovery',  # Still in discovery phase
         'synthesizer': 'synthesized',
         'tech_evaluation': 'evaluated'
     }

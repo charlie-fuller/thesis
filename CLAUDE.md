@@ -258,12 +258,14 @@ Thesis is a multi-agent platform for enterprise GenAI strategy implementation. I
     - **Per-initiative document repository**: Upload documents that grow over time
     - **Output format selection**: Choose Comprehensive, Executive Summary, or Brief formats before running agents
     - **Mermaid diagram support**: Architecture and flow diagrams render visually in output viewer
-    - **Five specialized agents** (v3.0 - decision enablement redesign):
-      - **Triage (v3.0)**: 5-minute GO/NO-GO with change readiness assessment and leverage point preview
-      - **Discovery Planner (v3.0)**: Focused discovery - one question to answer, max 5 sessions, clear done criteria
-      - **Coverage Tracker (v3.0)**: Blocker-focused tracking with prioritized gaps and clear next steps
-      - **Synthesizer (v3.0)**: Decision-enabling synthesis with leverage point, feedback loop diagram, action sequence
-      - **Tech Evaluation (v2.7)**: Platform recommendation with visual architecture diagrams and confidence-tagged estimates
+    - **Six specialized agents** (v4.0 - consulting quality bar):
+      - **Triage (v4.0)**: 5-minute GO/NO-GO with conviction - decision in first sentence, 250 words max
+      - **Discovery Planner (v4.0)**: Design discovery humans execute - session plans, agendas, quantification gates, 350 words max
+      - **Coverage Tracker (v4.0)**: Run iteratively during discovery - READY/GAPS/CRITICAL verdict, 280 words max
+      - **Insight Extractor (v4.0)**: NEW - Distill raw transcripts into structured insights with evidence quotes, 500 words max
+      - **Synthesizer (v4.0)**: 500-word decision document - decision in first sentence, leverage point, real names for accountability
+      - **Tech Evaluation (v4.0)**: Platform recommendation with architecture diagrams and confidence-tagged estimates
+    - **Discovery Loop**: Discovery Planner and Coverage Tracker work iteratively - run Coverage after each session, return to Planner if gaps
     - **Executive Summary Generator**: Extracts decision-forcing elements (leverage point, feedback loop, decision, first action, blocker) from any output
     - **v3.0 Scoring Rubric** (`RUBRIC-v3.0.md`): Outcome-based measurement with 3 tiers - Action Enablement (50%), Insight Quality (30%), Efficiency (20%)
     - **Discovery Templates**: Type-specific templates in system KB (Process Automation, Data Analytics, Tool Selection, Cross-Functional)
