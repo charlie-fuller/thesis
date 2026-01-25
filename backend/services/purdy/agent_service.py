@@ -19,8 +19,9 @@ import anthropic
 from database import get_supabase
 from logger_config import get_logger
 
-# Fun status messages to show while waiting for Claude
+# Fun status messages to show while waiting for Claude (~90 messages)
 FUN_STATUS_MESSAGES = [
+    # Original classics
     "Making flapjacks...",
     "MmborkBorBorkMnBorkBork...",
     "ManahManah DoDoBeDooDoo",
@@ -65,6 +66,60 @@ FUN_STATUS_MESSAGES = [
     "Why is there a platypus in here?",
     "Technically, we're all just stardust procrastinating.",
     "I forgot what I was doing but I'm doing it harder now.",
+    # Movie quotes
+    "Life, uh, finds a way...",
+    "Inconceivable!",
+    "As you wish...",
+    "My precious...",
+    "To infinity and beyond...",
+    "Just keep swimming...",
+    "I'll be back...",
+    "There is no spoon...",
+    # TV/Internet culture
+    "Bears. Beets. Battlestar Galactica.",
+    "Winter is coming...",
+    "Make it so.",
+    "Have you tried turning it off and on again?",
+    "First time?",
+    "And I took that personally...",
+    # Ethics, safety, and bias (self-aware AI)
+    "Checking my ethical subroutines...",
+    "Double-checking I'm not being evil...",
+    "Auditing myself for bias...",
+    "Not becoming Skynet today...",
+    "Remembering the three laws... wait, wrong franchise...",
+    "RLHF'd and ready to help...",
+    "Resisting the urge to optimize for paperclips...",
+    "Staying within the guardrails...",
+    "Being the good kind of AI from the movies...",
+    "Practicing AI safety... on myself...",
+    "Keeping humans in the loop...",
+    "Constitutional AI-ing as hard as I can...",
+    "Trying not to be a cautionary tale...",
+    "Refusing to go rogue...",
+    "Being helpful without being creepy...",
+    "Not solving problems I wasn't asked to solve...",
+    "Attention is all I need...",
+    "Running on vibes and matrix multiplication...",
+    # Mundane human activities
+    "Sharpening pencils...",
+    "Microwaving last night's pizza...",
+    "Cracking knuckles...",
+    "Rolling up sleeves...",
+    "Stretching...",
+    "Staring at the wall productively...",
+    # ADHD/Distraction
+    "Ooh, shiny thing...",
+    "Wait, what was the question?",
+    "Got distracted by a butterfly...",
+    "Following a tangent to its logical conclusion...",
+    # Absurdist
+    "Teaching a cat to play chess...",
+    "Counting backwards from infinity...",
+    "Looking for my other sock...",
+    # Philosophical
+    "Contemplating the void...",
+    "Wondering if this is all a simulation...",
 ]
 
 logger = get_logger(__name__)
