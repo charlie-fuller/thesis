@@ -626,10 +626,6 @@ export default function AgentRunner({
                 {selectedAgentInfo?.name || 'Agent'} Output
               </span>
 
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                {status}
-              </span>
-
               {running && elapsedTime > 0 && (
                 <span className="text-sm text-slate-400 dark:text-slate-500 font-mono">
                   {formatElapsedTime(elapsedTime)}
@@ -662,9 +658,6 @@ export default function AgentRunner({
                     </span>
                   </div>
                 )}
-                <span className="text-xs bg-indigo-100 dark:bg-indigo-800 text-indigo-600 dark:text-indigo-300 px-3 py-1 rounded-full">
-                  {streamContent ? 'Streaming...' : status}
-                </span>
               </div>
             )}
           </div>
