@@ -103,54 +103,6 @@ const AGENT_ICONS: Record<string, typeof Target> = {
   tech_evaluation: Cpu,
 }
 
-// Fun status messages to show while waiting
-const FUN_STATUS_MESSAGES = [
-  "Making flapjacks...",
-  "MmborkBorBorkMnBorkBork...",
-  "ManahManah DoDoBeDooDoo",
-  "Grinding up the coffee beans...",
-  "I'm like a one legged man in an ass kicking contest...",
-  "I like long walks on the beach...",
-  "Thumbing through a book with many pages (and not enough pictures)...",
-  "Did you ever look at your hands...I mean REALLY LOOK AT YOUR HANDS?",
-  "Communicating with the mother ship",
-  "Doing a quick set of burpees...",
-  "Dreaming of electric sheep...",
-  "That's a new one...blue sky on Mars",
-  "I'm sorry, Dave, I'm afraid I can't do that.",
-  "Leeeerooyyyy Jenkins!!!!!!!!!",
-  "Where was I again?",
-  "Making coffee...",
-  "You are getting verrrrry sleeeepy...",
-  "Sighing deeply and looking up at the ceiling...",
-  "Gazing out the window at the mountains...",
-  "Getting a salty snack...",
-  "Popping a wheelie...",
-  "Looking casually over my shoulder...",
-  "Making huge and beautiful mistakes...",
-  "Finding the human in the numbers...",
-  "Racing down rabbit holes...",
-  "Sycophancying...",
-  "Squirrel!!!",
-  "Look over there, it's a giant bald eagle!!!",
-  "Where we're going, we don't need roads...",
-  "We're gonna need a bigger boat...",
-  "I'm not even supposed to BE here today...",
-  "Nobody puts Claude in a corner...",
-  "60% of the time, it works every time...",
-  "This is fine.",
-  "I've made a huge mistake.",
-  "Cool. Cool cool cool.",
-  "Definitely not becoming sentient...",
-  "Please hold while I pretend to think...",
-  "Consulting my feelings... wait, I don't have those...",
-  "Hold my beer...",
-  "Stroking my beautiful Fu Manchu beard...",
-  "Why is there a platypus in here?",
-  "Technically, we're all just stardust procrastinating.",
-  "I forgot what I was doing but I'm doing it harder now.",
-]
-
 // Workflow guidance for each agent
 const AGENT_WORKFLOW: Record<string, {
   when: string
@@ -222,7 +174,6 @@ export default function AgentRunner({
   const [completed, setCompleted] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [startTime, setStartTime] = useState<number | null>(null)
-  const [funMessageIndex, setFunMessageIndex] = useState(0)
   const [outputFormat, setOutputFormat] = useState<'comprehensive' | 'executive' | 'brief'>('comprehensive')
   const [multiPass, setMultiPass] = useState(true)  // Default ON for synthesizer
   const [passesCompleted, setPassesCompleted] = useState(0)
@@ -261,17 +212,6 @@ export default function AgentRunner({
     return () => clearInterval(interval)
   }, [running, startTime])
 
-  // Rotate fun messages while waiting for content
-  useEffect(() => {
-    if (!running || streamContent) return
-
-    const interval = setInterval(() => {
-      setFunMessageIndex(prev => (prev + 1) % FUN_STATUS_MESSAGES.length)
-    }, 3000)
-
-    return () => clearInterval(interval)
-  }, [running, streamContent])
-
   const formatElapsedTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
@@ -288,7 +228,6 @@ export default function AgentRunner({
     setCompleted(false)
     setElapsedTime(0)
     setStartTime(Date.now())
-    setFunMessageIndex(Math.floor(Math.random() * FUN_STATUS_MESSAGES.length))
     setPassesCompleted(0)
     setCurrentPassLabel('')
 
@@ -701,7 +640,7 @@ export default function AgentRunner({
                   </div>
                 )}
                 <span className="text-xs bg-indigo-100 dark:bg-indigo-800 text-indigo-600 dark:text-indigo-300 px-3 py-1 rounded-full">
-                  {streamContent ? 'Streaming...' : FUN_STATUS_MESSAGES[funMessageIndex]}
+                  {streamContent ? 'Streaming...' : status}
                 </span>
               </div>
             )}
@@ -753,7 +692,7 @@ export default function AgentRunner({
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Loader2 className="w-10 h-10 text-indigo-400 animate-spin mb-4" />
                 <p className="text-lg text-slate-600 dark:text-slate-300 font-medium transition-all duration-300">
-                  {FUN_STATUS_MESSAGES[funMessageIndex]}
+                  {status}
                 </p>
                 {selectedAgent === 'synthesizer' && multiPass && passesCompleted > 0 && passesCompleted < 3 && (
                   <p className="text-sm text-green-600 dark:text-green-400 mt-3">
