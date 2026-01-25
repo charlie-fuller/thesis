@@ -12,6 +12,26 @@ v4.1 addresses gaps identified in the v4.0 evaluation which scored 78.5/100. Two
 
 ---
 
+## Post-Release Fixes (2026-01-25)
+
+### fix: Parse v4.1 decision line as executive summary (`e0a63142`)
+
+The v4.1 Synthesizer format removed the "Executive Summary" heading and replaced it with decision-first format (`**GO:** ...`). The parser now falls back to extracting the decision line when no Executive Summary heading is found.
+
+### fix: Use session token for condense endpoint auth (`ee194448`)
+
+The condense endpoint was returning 401 because `OutputViewer.tsx` was using `localStorage.getItem('access_token')` (null) instead of `session?.access_token` from the `useAuth` hook.
+
+### feat: Double status messages with ethics/safety humor (`4028ebeb`)
+
+Expanded from 44 to 91 status messages. New categories include:
+- Ethics/Safety/Bias (18): RLHF, Constitutional AI, paperclip maximizer, Skynet, alignment humor
+- Movie quotes (8): Jurassic Park, Princess Bride, Matrix
+- TV/Internet (6): The Office, GoT, IT Crowd
+- Mundane activities, ADHD/distraction, absurdist, philosophical
+
+---
+
 ## Breaking Changes
 
 None. v4.0 agent files retained for rollback.
