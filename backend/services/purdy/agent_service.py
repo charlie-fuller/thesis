@@ -898,7 +898,8 @@ def parse_agent_output(agent_type: str, raw_output: str) -> Dict:
             parsed['confidence_level'] = conf_match.group(1).upper()
             break
 
-    # Extract executive summary (first paragraph after "Executive Summary" heading)
+    # Extract executive summary
+    # First try: "Executive Summary" heading (v4.0 and earlier)
     summary_match = re.search(
         r'##?\s*Executive\s+Summary\s*\n+(.+?)(?=\n##|\n#|\Z)',
         raw_output,
@@ -909,6 +910,18 @@ def parse_agent_output(agent_type: str, raw_output: str) -> Dict:
         # Take first paragraph
         first_para = summary.split('\n\n')[0]
         parsed['executive_summary'] = first_para[:1000]  # Limit length
+    else:
+        # Fallback: v4.1 decision-first format - use the opening decision line
+        # Matches: **GO:** ..., **NO-GO:** ..., **CONDITIONAL:** ...
+        decision_line_match = re.search(
+            r'^\*\*(GO|NO-GO|CONDITIONAL):\*\*\s*(.+?)(?=\n\n|\n---|\n##|\Z)',
+            raw_output,
+            re.MULTILINE | re.DOTALL
+        )
+        if decision_line_match:
+            decision_type = decision_line_match.group(1)
+            decision_text = decision_line_match.group(2).strip()
+            parsed['executive_summary'] = f"{decision_type}: {decision_text}"[:1000]
 
     # Extract section headers
     section_matches = re.findall(r'^(#{1,3})\s+(.+)$', raw_output, re.MULTILINE)
