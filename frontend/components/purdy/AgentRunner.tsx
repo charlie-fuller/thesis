@@ -461,7 +461,11 @@ export default function AgentRunner({
               Output Format
             </h4>
             <div className="space-y-2">
-              <label className="flex items-start gap-3 cursor-pointer">
+              <label className={`flex items-start gap-3 cursor-pointer p-2 rounded-lg border transition-colors ${
+                outputFormat === 'comprehensive'
+                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
+                  : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-700/50'
+              }`}>
                 <input
                   type="radio"
                   name="outputFormat"
@@ -469,14 +473,18 @@ export default function AgentRunner({
                   checked={outputFormat === 'comprehensive'}
                   onChange={() => setOutputFormat('comprehensive')}
                   disabled={running}
-                  className="mt-1"
+                  className="mt-1 w-4 h-4 text-indigo-600 bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-600"
                 />
                 <div>
                   <div className="font-medium text-slate-900 dark:text-white">Comprehensive</div>
                   <div className="text-xs text-slate-500">Full detailed analysis with all sections</div>
                 </div>
               </label>
-              <label className="flex items-start gap-3 cursor-pointer">
+              <label className={`flex items-start gap-3 cursor-pointer p-2 rounded-lg border transition-colors ${
+                outputFormat === 'executive'
+                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
+                  : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-700/50'
+              }`}>
                 <input
                   type="radio"
                   name="outputFormat"
@@ -484,14 +492,18 @@ export default function AgentRunner({
                   checked={outputFormat === 'executive'}
                   onChange={() => setOutputFormat('executive')}
                   disabled={running}
-                  className="mt-1"
+                  className="mt-1 w-4 h-4 text-indigo-600 bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-600"
                 />
                 <div>
                   <div className="font-medium text-slate-900 dark:text-white">Executive Summary</div>
                   <div className="text-xs text-slate-500">Key findings and recommendations only (~50% shorter)</div>
                 </div>
               </label>
-              <label className="flex items-start gap-3 cursor-pointer">
+              <label className={`flex items-start gap-3 cursor-pointer p-2 rounded-lg border transition-colors ${
+                outputFormat === 'brief'
+                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
+                  : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-700/50'
+              }`}>
                 <input
                   type="radio"
                   name="outputFormat"
@@ -499,7 +511,7 @@ export default function AgentRunner({
                   checked={outputFormat === 'brief'}
                   onChange={() => setOutputFormat('brief')}
                   disabled={running}
-                  className="mt-1"
+                  className="mt-1 w-4 h-4 text-indigo-600 bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-600"
                 />
                 <div>
                   <div className="font-medium text-slate-900 dark:text-white">Brief</div>
