@@ -183,7 +183,8 @@ Admin page for managing registries:
 
 ### Unit Tests
 ```bash
-cd /Users/charlie.fuller/vaults/Contentful/thesis/backend
+# From the repo root:
+cd backend
 uv run pytest tests/test_entity_validator.py -v
 ```
 

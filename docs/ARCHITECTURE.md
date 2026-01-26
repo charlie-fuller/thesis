@@ -298,7 +298,8 @@ See `/docs/AGENT_GUARDRAILS.md` for complete rules.
 
 ### Running Tests
 ```bash
-cd /Users/charlie.fuller/vaults/Contentful/thesis/backend
+# From the repo root:
+cd backend
 
 # Run all isolated tests
 uv run pytest tests/test_document_classifier.py tests/test_tasks.py \
