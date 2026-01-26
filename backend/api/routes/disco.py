@@ -1816,9 +1816,9 @@ async def api_disco_usage_analytics(
         # Fetch all runs in the date range
         result = await asyncio.to_thread(
             lambda: supabase.table('disco_runs')
-                .select('id, agent_type, status, created_at')
-                .gte('created_at', start_date.isoformat())
-                .order('created_at', desc=False)
+                .select('id, agent_type, status, started_at')
+                .gte('started_at', start_date.isoformat())
+                .order('started_at', desc=False)
                 .execute()
         )
 
@@ -1832,10 +1832,10 @@ async def api_disco_usage_analytics(
         for run in runs:
             agent_type = run['agent_type']
             # Parse date and truncate to day
-            created_at = run['created_at']
-            if created_at:
+            started_at = run['started_at']
+            if started_at:
                 # Handle ISO format with timezone
-                date_str = created_at.split('T')[0]
+                date_str = started_at.split('T')[0]
                 daily_counts[date_str][agent_type] += 1
                 agent_totals[agent_type] += 1
                 all_agents.add(agent_type)
