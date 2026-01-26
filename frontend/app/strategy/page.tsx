@@ -650,14 +650,17 @@ function ObjectiveIcon({ name, className }: { name: string; className?: string }
 
 function StatusBadge({ status }: { status: CompanyObjective['status'] }) {
   const config = {
-    on_track: { label: 'On Track', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-    at_risk: { label: 'At Risk', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-    behind: { label: 'Behind', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-    achieved: { label: 'Achieved', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+    on_track: { label: 'On Track', bgColor: 'var(--color-success-bg)', textColor: 'var(--color-success)' },
+    at_risk: { label: 'At Risk', bgColor: 'var(--color-warning-bg)', textColor: 'var(--color-warning)' },
+    behind: { label: 'Behind', bgColor: 'var(--color-error-bg)', textColor: 'var(--color-error)' },
+    achieved: { label: 'Achieved', bgColor: 'var(--color-info-bg)', textColor: 'var(--color-info)' },
   }
-  const { label, color } = config[status]
+  const { label, bgColor, textColor } = config[status]
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${color}`}>
+    <span
+      className="px-2 py-0.5 rounded-full text-xs font-medium"
+      style={{ backgroundColor: bgColor, color: textColor }}
+    >
       {label}
     </span>
   )
@@ -665,9 +668,9 @@ function StatusBadge({ status }: { status: CompanyObjective['status'] }) {
 
 function KPIStatusDot({ status }: { status: DepartmentKPI['status'] }) {
   const colors = {
-    green: 'bg-green-500',
-    yellow: 'bg-amber-500',
-    red: 'bg-red-500',
+    green: 'bg-success',
+    yellow: 'bg-warning',
+    red: 'bg-error',
   }
   return <span className={`w-2.5 h-2.5 rounded-full ${colors[status]}`} />
 }
@@ -675,7 +678,7 @@ function KPIStatusDot({ status }: { status: DepartmentKPI['status'] }) {
 function TrendIndicator({ trend, percentage }: { trend: DepartmentKPI['trend']; percentage: number }) {
   if (trend === 'up') {
     return (
-      <span className="flex items-center gap-0.5 text-green-600 dark:text-green-400 text-xs">
+      <span className="flex items-center gap-0.5 text-xs" style={{ color: 'var(--color-success)' }}>
         <TrendingUp className="w-3 h-3" />
         {percentage}%
       </span>
@@ -683,7 +686,7 @@ function TrendIndicator({ trend, percentage }: { trend: DepartmentKPI['trend']; 
   }
   if (trend === 'down') {
     return (
-      <span className="flex items-center gap-0.5 text-red-600 dark:text-red-400 text-xs">
+      <span className="flex items-center gap-0.5 text-xs" style={{ color: 'var(--color-error)' }}>
         <TrendingDown className="w-3 h-3" />
         {percentage}%
       </span>
@@ -699,13 +702,13 @@ function TrendIndicator({ trend, percentage }: { trend: DepartmentKPI['trend']; 
 
 function ProgressBar({ percentage, status }: { percentage: number; status: CompanyObjective['status'] }) {
   const colors = {
-    on_track: 'bg-green-500',
-    at_risk: 'bg-amber-500',
-    behind: 'bg-red-500',
-    achieved: 'bg-blue-500',
+    on_track: 'bg-success',
+    at_risk: 'bg-warning',
+    behind: 'bg-error',
+    achieved: 'bg-info',
   }
   return (
-    <div className="h-2 bg-surface rounded-full overflow-hidden">
+    <div className="h-2 bg-hover rounded-full overflow-hidden">
       <div
         className={`h-full rounded-full transition-all ${colors[status]}`}
         style={{ width: `${Math.min(percentage, 100)}%` }}
@@ -816,9 +819,9 @@ export default function StrategyPage() {
               <div className="mt-2 flex gap-2 text-xs">
                 {activeTab === 'fy26' ? (
                   <>
-                    <span className="text-green-600">{objectiveSummary.onTrack} on track</span>
-                    <span className="text-amber-600">{objectiveSummary.atRisk} at risk</span>
-                    <span className="text-red-600">{objectiveSummary.behind} behind</span>
+                    <span style={{ color: 'var(--color-success)' }}>{objectiveSummary.onTrack} on track</span>
+                    <span style={{ color: 'var(--color-warning)' }}>{objectiveSummary.atRisk} at risk</span>
+                    <span style={{ color: 'var(--color-error)' }}>{objectiveSummary.behind} behind</span>
                   </>
                 ) : (
                   <span className="text-secondary">Planning targets for next fiscal year</span>
@@ -837,15 +840,15 @@ export default function StrategyPage() {
               </div>
               <div className="mt-2 flex gap-2 text-xs">
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                  <span className="w-2 h-2 rounded-full bg-success" />
                   {kpiSummary.green} green
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="w-2 h-2 rounded-full bg-warning" />
                   {kpiSummary.yellow} yellow
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-red-500" />
+                  <span className="w-2 h-2 rounded-full bg-error" />
                   {kpiSummary.red} red
                 </span>
               </div>
@@ -919,7 +922,10 @@ export default function StrategyPage() {
                 <span className="ml-1.5 text-xs opacity-75">(Notional)</span>
               </button>
               {activeTab === 'fy27' && (
-                <span className="ml-2 text-xs text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded">
+                <span
+                  className="ml-2 text-xs px-2 py-1 rounded"
+                  style={{ backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning)' }}
+                >
                   Forward-looking targets - measure progress against FY26
                 </span>
               )}
@@ -935,8 +941,8 @@ export default function StrategyPage() {
                   >
                     <div className="flex items-start gap-4">
                       {/* Icon */}
-                      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-surface flex items-center justify-center">
-                        <ObjectiveIcon name={objective.icon} className="w-6 h-6 text-accent" />
+                      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-hover flex items-center justify-center">
+                        <ObjectiveIcon name={objective.icon} className="w-6 h-6 icon-primary" />
                       </div>
 
                       {/* Content */}
@@ -951,7 +957,7 @@ export default function StrategyPage() {
                           {activeTab === 'fy26' ? (
                             <StatusBadge status={objective.status} />
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-surface text-secondary">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-hover text-secondary">
                               Planning
                             </span>
                           )}
@@ -982,8 +988,8 @@ export default function StrategyPage() {
                               </div>
                             </>
                           ) : (
-                            <div className="h-2 bg-surface rounded-full overflow-hidden">
-                              <div className="h-full w-0 rounded-full bg-border" />
+                            <div className="h-2 bg-hover rounded-full overflow-hidden">
+                              <div className="h-full w-0 rounded-full border-default" />
                             </div>
                           )}
                         </div>
@@ -1033,20 +1039,20 @@ export default function StrategyPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         {deptHealth.green > 0 && (
-                          <span className="flex items-center gap-1 text-xs text-green-600">
-                            <span className="w-2 h-2 rounded-full bg-green-500" />
+                          <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-success)' }}>
+                            <span className="w-2 h-2 rounded-full bg-success" />
                             {deptHealth.green}
                           </span>
                         )}
                         {deptHealth.yellow > 0 && (
-                          <span className="flex items-center gap-1 text-xs text-amber-600">
-                            <span className="w-2 h-2 rounded-full bg-amber-500" />
+                          <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-warning)' }}>
+                            <span className="w-2 h-2 rounded-full bg-warning" />
                             {deptHealth.yellow}
                           </span>
                         )}
                         {deptHealth.red > 0 && (
-                          <span className="flex items-center gap-1 text-xs text-red-600">
-                            <span className="w-2 h-2 rounded-full bg-red-500" />
+                          <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-error)' }}>
+                            <span className="w-2 h-2 rounded-full bg-error" />
                             {deptHealth.red}
                           </span>
                         )}
@@ -1106,9 +1112,9 @@ export default function StrategyPage() {
           </section>
 
           {/* Info Banner */}
-          <div className="mt-8 p-4 bg-surface border border-default rounded-lg">
+          <div className="mt-8 p-4 bg-hover border border-default rounded-lg">
             <div className="flex items-start gap-3">
-              <Target className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
+              <Target className="w-5 h-5 icon-primary flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="text-sm font-medium text-primary">
                   Aligning Opportunities with Strategy
