@@ -723,13 +723,14 @@ function ProgressBar({ percentage, status }: { percentage: number; status: Compa
 
 export default function StrategyPage() {
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState<'fy26' | 'fy27'>('fy26')
+  const [mainTab, setMainTab] = useState<'company' | 'department'>('company')
+  const [fiscalYearTab, setFiscalYearTab] = useState<'fy26' | 'fy27'>('fy26')
   const [kpis, setKpis] = useState<DepartmentKPI[]>(MOCK_KPIS)
   const [loading, setLoading] = useState(false)
   const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set())
 
-  // Select objectives based on active tab
-  const objectives = activeTab === 'fy26' ? FY26_OBJECTIVES : FY27_OBJECTIVES
+  // Select objectives based on fiscal year tab
+  const objectives = fiscalYearTab === 'fy26' ? FY26_OBJECTIVES : FY27_OBJECTIVES
 
   // Group KPIs by department
   const kpisByDepartment = kpis.reduce((acc, kpi) => {
@@ -786,7 +787,7 @@ export default function StrategyPage() {
       <main className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto px-6 py-8">
           {/* Page Title */}
-          <div className="mb-8">
+          <div className="mb-6">
             <h1 className="heading-1">Strategic Alignment</h1>
             <p className="text-muted mt-1">
               Company objectives and G&A department KPIs. Use these to align AI opportunities with
@@ -794,115 +795,105 @@ export default function StrategyPage() {
             </p>
           </div>
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-card border border-default rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">
-                  {activeTab === 'fy26' ? 'FY26 Progress' : 'FY27 Targets'}
-                </span>
-                <Target className="w-5 h-5 text-blue-500" />
-              </div>
-              <div className="mt-2">
-                {activeTab === 'fy26' ? (
-                  <>
-                    <span className="text-2xl font-bold text-primary">{objectiveSummary.avgProgress}%</span>
-                    <span className="text-sm text-muted ml-2">avg completion</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-2xl font-bold text-primary">{objectives.length}</span>
-                    <span className="text-sm text-muted ml-2">strategic goals</span>
-                  </>
-                )}
-              </div>
-              <div className="mt-2 flex gap-2 text-xs">
-                {activeTab === 'fy26' ? (
-                  <>
-                    <span style={{ color: 'var(--color-success)' }}>{objectiveSummary.onTrack} on track</span>
-                    <span style={{ color: 'var(--color-warning)' }}>{objectiveSummary.atRisk} at risk</span>
-                    <span style={{ color: 'var(--color-error)' }}>{objectiveSummary.behind} behind</span>
-                  </>
-                ) : (
-                  <span className="text-secondary">Planning targets for next fiscal year</span>
-                )}
-              </div>
-            </div>
-
-            <div className="bg-card border border-default rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">KPI Health</span>
-                <BarChart3 className="w-5 h-5 text-green-500" />
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-bold text-primary">{kpiSummary.total}</span>
-                <span className="text-sm text-muted ml-2">tracked KPIs</span>
-              </div>
-              <div className="mt-2 flex gap-2 text-xs">
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-success)' }} />
-                  {kpiSummary.green} green
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-warning)' }} />
-                  {kpiSummary.yellow} yellow
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-error)' }} />
-                  {kpiSummary.red} red
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-card border border-default rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">Departments</span>
-                <Building2 className="w-5 h-5 text-purple-500" />
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-bold text-primary">{departments.length}</span>
-                <span className="text-sm text-muted ml-2">with AI KPIs</span>
-              </div>
-              <div className="mt-2 text-xs text-muted">
-                {departments.slice(0, 3).join(', ')}{departments.length > 3 ? ` +${departments.length - 3} more` : ''}
-              </div>
-            </div>
-
-            <div className="bg-card border border-default rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">AI Initiatives</span>
-                <Sparkles className="w-5 h-5 text-amber-500" />
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-bold text-primary">
-                  {objectives.find(o => o.id === '1')?.current_value || 0}
-                </span>
-                <span className="text-sm text-muted ml-2">
-                  / {objectives.find(o => o.id === '1')?.target_value || 0} processes
-                </span>
-              </div>
-              <div className="mt-2 text-xs text-muted">
-                AI-powered process target
-              </div>
-            </div>
+          {/* Main Tabs */}
+          <div className="flex items-center gap-2 mb-6 border-b border-default">
+            <button
+              onClick={() => setMainTab('company')}
+              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                mainTab === 'company'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted hover:text-secondary'
+              }`}
+            >
+              <Target className="w-4 h-4 inline-block mr-2" />
+              Company Objectives
+            </button>
+            <button
+              onClick={() => setMainTab('department')}
+              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                mainTab === 'department'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted hover:text-secondary'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4 inline-block mr-2" />
+              Department KPIs
+            </button>
           </div>
 
-          {/* Company Objectives Section */}
-          <section className="mb-10">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="heading-3 flex items-center gap-2">
-                <Target className="w-5 h-5 text-blue-500" />
-                Company Objectives
-              </h2>
-              <span className="text-sm text-muted">{objectives.length} strategic goals</span>
-            </div>
+          {/* Company Objectives Tab */}
+          {mainTab === 'company' && (
+            <>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-card border border-default rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted">
+                      {fiscalYearTab === 'fy26' ? 'FY26 Progress' : 'FY27 Targets'}
+                    </span>
+                    <Target className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div className="mt-2">
+                    {fiscalYearTab === 'fy26' ? (
+                      <>
+                        <span className="text-2xl font-bold text-primary">{objectiveSummary.avgProgress}%</span>
+                        <span className="text-sm text-muted ml-2">avg completion</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-2xl font-bold text-primary">{objectives.length}</span>
+                        <span className="text-sm text-muted ml-2">strategic goals</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="mt-2 flex gap-2 text-xs">
+                    {fiscalYearTab === 'fy26' ? (
+                      <>
+                        <span style={{ color: 'var(--color-success)' }}>{objectiveSummary.onTrack} on track</span>
+                        <span style={{ color: 'var(--color-warning)' }}>{objectiveSummary.atRisk} at risk</span>
+                        <span style={{ color: 'var(--color-error)' }}>{objectiveSummary.behind} behind</span>
+                      </>
+                    ) : (
+                      <span className="text-secondary">Planning targets for next fiscal year</span>
+                    )}
+                  </div>
+                </div>
 
-            {/* Fiscal Year Tabs */}
-            <div className="flex items-center gap-2 mb-4">
+                <div className="bg-card border border-default rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted">Strategic Goals</span>
+                    <Sparkles className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <div className="mt-2">
+                    <span className="text-2xl font-bold text-primary">{objectives.length}</span>
+                    <span className="text-sm text-muted ml-2">objectives</span>
+                  </div>
+                  <div className="mt-2 text-xs text-muted">
+                    {fiscalYearTab === 'fy26' ? 'Current fiscal year' : 'Next fiscal year planning'}
+                  </div>
+                </div>
+
+                <div className="bg-card border border-default rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted">Achieved</span>
+                    <TrendingUp className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div className="mt-2">
+                    <span className="text-2xl font-bold text-primary">{objectiveSummary.achieved}</span>
+                    <span className="text-sm text-muted ml-2">/ {objectives.length}</span>
+                  </div>
+                  <div className="mt-2 text-xs text-muted">
+                    Goals completed
+                  </div>
+                </div>
+              </div>
+
+              {/* Fiscal Year Tabs */}
+              <div className="flex items-center gap-2 mb-4">
               <button
-                onClick={() => setActiveTab('fy26')}
+                onClick={() => setFiscalYearTab('fy26')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeTab === 'fy26'
+                  fiscalYearTab === 'fy26'
                     ? 'bg-primary text-white'
                     : 'bg-card border border-default text-secondary hover:bg-hover'
                 }`}
@@ -911,9 +902,9 @@ export default function StrategyPage() {
                 <span className="ml-1.5 text-xs opacity-75">(Current)</span>
               </button>
               <button
-                onClick={() => setActiveTab('fy27')}
+                onClick={() => setFiscalYearTab('fy27')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeTab === 'fy27'
+                  fiscalYearTab === 'fy27'
                     ? 'bg-primary text-white'
                     : 'bg-card border border-default text-secondary hover:bg-hover'
                 }`}
@@ -921,7 +912,7 @@ export default function StrategyPage() {
                 FY27 Goals
                 <span className="ml-1.5 text-xs opacity-75">(Notional)</span>
               </button>
-              {activeTab === 'fy27' && (
+              {fiscalYearTab === 'fy27' && (
                 <span
                   className="ml-2 text-xs px-2 py-1 rounded border"
                   style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}
@@ -954,7 +945,7 @@ export default function StrategyPage() {
                             </h3>
                             <p className="text-sm text-muted mt-1">{objective.description}</p>
                           </div>
-                          {activeTab === 'fy26' ? (
+                          {fiscalYearTab === 'fy26' ? (
                             <StatusBadge status={objective.status} />
                           ) : (
                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-hover text-secondary">
@@ -968,7 +959,7 @@ export default function StrategyPage() {
                           <div className="flex items-center justify-between text-sm mb-1">
                             <span className="text-muted">{objective.target_metric}</span>
                             <span className="font-medium text-primary">
-                              {activeTab === 'fy26' ? (
+                              {fiscalYearTab === 'fy26' ? (
                                 <>
                                   {objective.current_value !== null ? objective.current_value : '—'}{objective.unit} / {objective.target_value}{objective.unit}
                                 </>
@@ -977,7 +968,7 @@ export default function StrategyPage() {
                               )}
                             </span>
                           </div>
-                          {activeTab === 'fy26' ? (
+                          {fiscalYearTab === 'fy26' ? (
                             <>
                               <ProgressBar percentage={objective.progress_percentage} status={objective.status} />
                               <div className="flex items-center justify-between mt-1">
@@ -998,19 +989,69 @@ export default function StrategyPage() {
                   </div>
                 ))}
             </div>
-          </section>
+            </>
+          )}
 
-          {/* Department KPIs Section */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="heading-3 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-green-500" />
-                Department KPIs
-              </h2>
-              <span className="text-sm text-muted">{kpis.length} metrics across {departments.length} departments</span>
-            </div>
+          {/* Department KPIs Tab */}
+          {mainTab === 'department' && (
+            <>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-card border border-default rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted">KPI Health</span>
+                    <BarChart3 className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div className="mt-2">
+                    <span className="text-2xl font-bold text-primary">{kpiSummary.total}</span>
+                    <span className="text-sm text-muted ml-2">tracked KPIs</span>
+                  </div>
+                  <div className="mt-2 flex gap-2 text-xs">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-success)' }} />
+                      {kpiSummary.green} green
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-warning)' }} />
+                      {kpiSummary.yellow} yellow
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-error)' }} />
+                      {kpiSummary.red} red
+                    </span>
+                  </div>
+                </div>
 
-            <div className="space-y-3">
+                <div className="bg-card border border-default rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted">Departments</span>
+                    <Building2 className="w-5 h-5 text-purple-500" />
+                  </div>
+                  <div className="mt-2">
+                    <span className="text-2xl font-bold text-primary">{departments.length}</span>
+                    <span className="text-sm text-muted ml-2">with AI KPIs</span>
+                  </div>
+                  <div className="mt-2 text-xs text-muted">
+                    {departments.slice(0, 3).join(', ')}{departments.length > 3 ? ` +${departments.length - 3} more` : ''}
+                  </div>
+                </div>
+
+                <div className="bg-card border border-default rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted">At Risk</span>
+                    <TrendingDown className="w-5 h-5 text-red-500" />
+                  </div>
+                  <div className="mt-2">
+                    <span className="text-2xl font-bold text-primary">{kpiSummary.red}</span>
+                    <span className="text-sm text-muted ml-2">KPIs need attention</span>
+                  </div>
+                  <div className="mt-2 text-xs text-muted">
+                    Below target metrics
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
               {departments.map((department) => {
                 const deptKpis = kpisByDepartment[department]
                 const isExpanded = expandedDepartments.has(department)
@@ -1109,7 +1150,8 @@ export default function StrategyPage() {
                 )
               })}
             </div>
-          </section>
+            </>
+          )}
 
           {/* Info Banner */}
           <div className="mt-8 p-4 bg-hover border border-default rounded-lg">
