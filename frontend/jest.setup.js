@@ -1,5 +1,9 @@
 import '@testing-library/jest-dom'
 
+// Set up environment variables for Supabase before any imports
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
+
 // Mock react-markdown which uses ESM
 jest.mock('react-markdown', () => {
   return function MockReactMarkdown({ children }) {
