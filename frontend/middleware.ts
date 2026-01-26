@@ -5,8 +5,8 @@ import type { NextRequest } from 'next/server';
 // Routes that require thesis access (not available to purdy-only users)
 const thesisRoutes = ['/chat', '/admin', '/profile'];
 
-// Routes that require purdy access
-const purdyRoutes = ['/purdy'];
+// Routes that require purdy/disco access
+const discoRoutes = ['/disco'];
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
@@ -53,7 +53,7 @@ export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
   // Protected routes that require authentication
-  const protectedRoutes = [...thesisRoutes, ...purdyRoutes];
+  const protectedRoutes = [...thesisRoutes, ...discoRoutes];
   const isProtectedRoute = protectedRoutes.some((route) =>
     pathname.startsWith(route)
   );
@@ -61,7 +61,7 @@ export async function middleware(req: NextRequest) {
   // Check route types
   const isAdminRoute = pathname.startsWith('/admin');
   const isThesisRoute = thesisRoutes.some((route) => pathname.startsWith(route));
-  const isPurdyRoute = pathname.startsWith('/purdy');
+  const isDiscoRoute = pathname.startsWith('/disco');
 
   // Auth routes that should redirect if already logged in
   const authRoutes = ['/auth/login'];
@@ -94,19 +94,19 @@ export async function middleware(req: NextRequest) {
     // If trying to access admin route without admin role
     if (isAdminRoute && !isAdmin) {
       // Redirect based on what access they have
-      const redirectPath = hasPurdyAccess && !hasThesisAccess ? '/purdy' : '/chat';
+      const redirectPath = hasPurdyAccess && !hasThesisAccess ? '/disco' : '/chat';
       return NextResponse.redirect(new URL(redirectPath, req.url));
     }
 
     // If trying to access thesis routes without thesis access
     if (isThesisRoute && !hasThesisAccess) {
-      // PuRDy-only user trying to access thesis routes
-      return NextResponse.redirect(new URL('/purdy', req.url));
+      // DISCo-only user trying to access thesis routes
+      return NextResponse.redirect(new URL('/disco', req.url));
     }
 
-    // If trying to access purdy routes without purdy access
-    if (isPurdyRoute && !hasPurdyAccess) {
-      // Thesis-only user trying to access purdy routes
+    // If trying to access disco routes without purdy access
+    if (isDiscoRoute && !hasPurdyAccess) {
+      // Thesis-only user trying to access disco routes
       return NextResponse.redirect(new URL('/chat', req.url));
     }
 
@@ -116,7 +116,7 @@ export async function middleware(req: NextRequest) {
       if (isAdmin) {
         redirectPath = '/admin';
       } else if (hasPurdyAccess && !hasThesisAccess) {
-        redirectPath = '/purdy';
+        redirectPath = '/disco';
       }
       return NextResponse.redirect(new URL(redirectPath, req.url));
     }
@@ -131,6 +131,6 @@ export const config = {
     '/chat/:path*',
     '/profile/:path*',
     '/auth/:path*',
-    '/purdy/:path*',
+    '/disco/:path*',
   ],
 };

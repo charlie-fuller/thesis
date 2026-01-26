@@ -6,15 +6,15 @@ import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/PageHeader'
 import LoadingSpinner from '@/components/LoadingSpinner'
 
-interface PurdyLayoutProps {
+interface DiscoLayoutProps {
   children: React.ReactNode
 }
 
-export default function PurdyLayout({ children }: PurdyLayoutProps) {
+export default function DiscoLayout({ children }: DiscoLayoutProps) {
   const { user, profile, loading, hasPurdyAccess } = useAuth()
   const router = useRouter()
 
-  // Check PuRDy access
+  // Check DISCo access (uses hasPurdyAccess from auth context)
   useEffect(() => {
     if (!loading) {
       // Not logged in - redirect to login
@@ -23,7 +23,7 @@ export default function PurdyLayout({ children }: PurdyLayoutProps) {
         return
       }
 
-      // No PuRDy access - redirect to home
+      // No DISCo access - redirect to home
       if (profile && !hasPurdyAccess) {
         router.push('/')
         return

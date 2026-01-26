@@ -250,7 +250,7 @@ function CreateInitiativeModal({
 // MAIN PAGE
 // ============================================================================
 
-export default function PurdyInitiativesPage() {
+export default function DiscoInitiativesPage() {
   const router = useRouter()
   const [initiatives, setInitiatives] = useState<Initiative[]>([])
   const [loading, setLoading] = useState(true)
@@ -284,7 +284,7 @@ export default function PurdyInitiativesPage() {
 
   const handleInitiativeCreated = (initiative: Initiative) => {
     setInitiatives([initiative, ...initiatives])
-    router.push(`/purdy/${initiative.id}`)
+    router.push(`/disco/${initiative.id}`)
   }
 
   // Filter by search query
@@ -436,7 +436,7 @@ export default function PurdyInitiativesPage() {
             <InitiativeCard
               key={initiative.id}
               initiative={initiative}
-              onClick={() => router.push(`/purdy/${initiative.id}`)}
+              onClick={() => router.push(`/disco/${initiative.id}`)}
             />
           ))}
         </div>

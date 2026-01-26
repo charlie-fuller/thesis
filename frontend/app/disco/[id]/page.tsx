@@ -276,7 +276,7 @@ export default function InitiativeDetailPage() {
             {error || 'Initiative not found'}
           </h2>
           <button
-            onClick={() => router.push('/purdy')}
+            onClick={() => router.push('/disco')}
             className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm text-indigo-600 hover:underline"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -294,7 +294,7 @@ export default function InitiativeDetailPage() {
       {/* Header */}
       <div className="mb-6">
         <button
-          onClick={() => router.push('/purdy')}
+          onClick={() => router.push('/disco')}
           className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 mb-4"
         >
           <ArrowLeft className="w-4 h-4" />

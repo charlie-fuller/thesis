@@ -36,7 +36,7 @@ export default function PageHeader({
     { href: '/intelligence', label: 'Intelligence' },
     { href: '/kb', label: 'KB' },
     // Conditionally add PuRDy link for users with access
-    ...(hasPurdyAccess ? [{ href: '/purdy', label: 'DISCo' }] : []),
+    ...(hasPurdyAccess ? [{ href: '/disco', label: 'DISCo' }] : []),
   ]
 
   const isActive = (href: string) => {
@@ -44,8 +44,8 @@ export default function PageHeader({
     if (href === '/') {
       return pathname === '/'
     }
-    // For /admin and /purdy, match both exact and sub-paths
-    if (href === '/admin' || href === '/purdy') {
+    // For /admin and /disco, match both exact and sub-paths
+    if (href === '/admin' || href === '/disco') {
       return pathname === href || pathname?.startsWith(href + '/')
     }
     // For other routes, match exact or sub-paths
