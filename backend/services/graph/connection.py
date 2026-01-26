@@ -16,7 +16,7 @@ from typing import Any, Optional
 from contextlib import asynccontextmanager
 
 from neo4j import AsyncGraphDatabase, AsyncDriver
-from neo4j.exceptions import ServiceUnavailable, AuthError
+from neo4j.exceptions import ServiceUnavailable, AuthError, SessionExpired
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,12 @@ class Neo4jConnection:
             self._driver = AsyncGraphDatabase.driver(
                 self.uri,
                 auth=(self.username, self.password),
-                max_connection_pool_size=self._max_pool_size
+                max_connection_pool_size=self._max_pool_size,
+                # Connection lifecycle settings to prevent stale connections
+                max_connection_lifetime=60 * 30,  # 30 minutes max lifetime
+                connection_acquisition_timeout=60,  # 60 seconds to acquire from pool
+                connection_timeout=30,  # 30 seconds to establish new connection
+                liveness_check_timeout=5,  # 5 seconds liveness check
             )
             # Verify connectivity
             await self._driver.verify_connectivity()
@@ -118,14 +123,34 @@ class Neo4jConnection:
         db = database or self.database
         params = params or {}
 
-        try:
-            async with self._driver.session(database=db) as session:
-                result = await session.run(cypher, params)
-                records = await result.data()
-                return records
-        except Exception as e:
-            logger.error(f"Query execution failed: {e}\nQuery: {cypher}")
-            raise
+        # Retry once on defunct connection (stale connection from pool)
+        for attempt in range(2):
+            try:
+                async with self._driver.session(database=db) as session:
+                    result = await session.run(cypher, params)
+                    records = await result.data()
+                    return records
+            except (ServiceUnavailable, SessionExpired) as e:
+                if attempt == 0:
+                    logger.warning(f"Connection error (attempt {attempt + 1}), reconnecting: {e}")
+                    # Force reconnect
+                    await self.close()
+                    await self.connect()
+                else:
+                    logger.error(f"Query execution failed after retry: {e}\nQuery: {cypher}")
+                    raise
+            except Exception as e:
+                # Check for defunct connection error in message
+                if attempt == 0 and "defunct" in str(e).lower():
+                    logger.warning(f"Defunct connection detected, reconnecting: {e}")
+                    await self.close()
+                    await self.connect()
+                else:
+                    logger.error(f"Query execution failed: {e}\nQuery: {cypher}")
+                    raise
+
+        # Should not reach here
+        raise RuntimeError("Query execution failed after all retries")
 
     async def execute_write(
         self,
@@ -154,13 +179,30 @@ class Neo4jConnection:
             result = await tx.run(cypher, params)
             return await result.data()
 
-        try:
-            async with self._driver.session(database=db) as session:
-                records = await session.execute_write(_write_tx)
-                return records
-        except Exception as e:
-            logger.error(f"Write transaction failed: {e}\nQuery: {cypher}")
-            raise
+        # Retry once on defunct connection
+        for attempt in range(2):
+            try:
+                async with self._driver.session(database=db) as session:
+                    records = await session.execute_write(_write_tx)
+                    return records
+            except (ServiceUnavailable, SessionExpired) as e:
+                if attempt == 0:
+                    logger.warning(f"Connection error on write (attempt {attempt + 1}), reconnecting: {e}")
+                    await self.close()
+                    await self.connect()
+                else:
+                    logger.error(f"Write transaction failed after retry: {e}\nQuery: {cypher}")
+                    raise
+            except Exception as e:
+                if attempt == 0 and "defunct" in str(e).lower():
+                    logger.warning(f"Defunct connection on write, reconnecting: {e}")
+                    await self.close()
+                    await self.connect()
+                else:
+                    logger.error(f"Write transaction failed: {e}\nQuery: {cypher}")
+                    raise
+
+        raise RuntimeError("Write transaction failed after all retries")
 
     @asynccontextmanager
     async def session(self, database: Optional[str] = None):
