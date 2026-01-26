@@ -772,6 +772,49 @@ COMMENT ON COLUMN disco_system_kb.category IS 'KB category: methodology, analysi
 COMMENT ON TABLE disco_system_kb_chunks IS 'DISCo system KB chunks with embeddings for RAG';
 
 -- ============================================================================
+-- PHASE 13: RENAME CONSTRAINTS (Primary Keys, Foreign Keys, Check Constraints)
+-- ============================================================================
+
+-- Primary key constraints
+ALTER TABLE disco_initiatives RENAME CONSTRAINT purdy_initiatives_pkey TO disco_initiatives_pkey;
+ALTER TABLE disco_initiative_members RENAME CONSTRAINT purdy_initiative_members_pkey TO disco_initiative_members_pkey;
+ALTER TABLE disco_initiative_members RENAME CONSTRAINT purdy_initiative_members_initiative_id_user_id_key TO disco_initiative_members_initiative_id_user_id_key;
+ALTER TABLE disco_documents RENAME CONSTRAINT purdy_documents_pkey TO disco_documents_pkey;
+ALTER TABLE disco_document_chunks RENAME CONSTRAINT purdy_document_chunks_pkey TO disco_document_chunks_pkey;
+ALTER TABLE disco_runs RENAME CONSTRAINT purdy_runs_pkey TO disco_runs_pkey;
+ALTER TABLE disco_run_documents RENAME CONSTRAINT purdy_run_documents_pkey TO disco_run_documents_pkey;
+ALTER TABLE disco_outputs RENAME CONSTRAINT purdy_outputs_pkey TO disco_outputs_pkey;
+ALTER TABLE disco_conversations RENAME CONSTRAINT purdy_conversations_pkey TO disco_conversations_pkey;
+ALTER TABLE disco_messages RENAME CONSTRAINT purdy_messages_pkey TO disco_messages_pkey;
+ALTER TABLE disco_system_kb RENAME CONSTRAINT purdy_system_kb_pkey TO disco_system_kb_pkey;
+ALTER TABLE disco_system_kb RENAME CONSTRAINT purdy_system_kb_filename_key TO disco_system_kb_filename_key;
+ALTER TABLE disco_system_kb_chunks RENAME CONSTRAINT purdy_system_kb_chunks_pkey TO disco_system_kb_chunks_pkey;
+
+-- Foreign key constraints
+ALTER TABLE disco_initiatives RENAME CONSTRAINT purdy_initiatives_created_by_fkey TO disco_initiatives_created_by_fkey;
+ALTER TABLE disco_initiative_members RENAME CONSTRAINT purdy_initiative_members_initiative_id_fkey TO disco_initiative_members_initiative_id_fkey;
+ALTER TABLE disco_initiative_members RENAME CONSTRAINT purdy_initiative_members_user_id_fkey TO disco_initiative_members_user_id_fkey;
+ALTER TABLE disco_documents RENAME CONSTRAINT purdy_documents_initiative_id_fkey TO disco_documents_initiative_id_fkey;
+ALTER TABLE disco_document_chunks RENAME CONSTRAINT purdy_document_chunks_document_id_fkey TO disco_document_chunks_document_id_fkey;
+ALTER TABLE disco_runs RENAME CONSTRAINT purdy_runs_initiative_id_fkey TO disco_runs_initiative_id_fkey;
+ALTER TABLE disco_runs RENAME CONSTRAINT purdy_runs_run_by_fkey TO disco_runs_run_by_fkey;
+ALTER TABLE disco_run_documents RENAME CONSTRAINT purdy_run_documents_run_id_fkey TO disco_run_documents_run_id_fkey;
+ALTER TABLE disco_run_documents RENAME CONSTRAINT purdy_run_documents_document_id_fkey TO disco_run_documents_document_id_fkey;
+ALTER TABLE disco_outputs RENAME CONSTRAINT purdy_outputs_run_id_fkey TO disco_outputs_run_id_fkey;
+ALTER TABLE disco_outputs RENAME CONSTRAINT purdy_outputs_stakeholder_rating_check TO disco_outputs_stakeholder_rating_check;
+ALTER TABLE disco_conversations RENAME CONSTRAINT purdy_conversations_initiative_id_fkey TO disco_conversations_initiative_id_fkey;
+ALTER TABLE disco_conversations RENAME CONSTRAINT purdy_conversations_user_id_fkey TO disco_conversations_user_id_fkey;
+ALTER TABLE disco_messages RENAME CONSTRAINT purdy_messages_conversation_id_fkey TO disco_messages_conversation_id_fkey;
+ALTER TABLE disco_system_kb_chunks RENAME CONSTRAINT purdy_system_kb_chunks_kb_id_fkey TO disco_system_kb_chunks_kb_id_fkey;
+
+-- Additional indexes that may have been missed
+ALTER INDEX IF EXISTS idx_purdy_outputs_synthesis_mode RENAME TO idx_disco_outputs_synthesis_mode;
+ALTER INDEX IF EXISTS idx_purdy_outputs_format RENAME TO idx_disco_outputs_format;
+
+-- Trigger PostgREST schema reload
+NOTIFY pgrst, 'reload schema';
+
+-- ============================================================================
 -- VERIFICATION QUERIES (Run these after migration to confirm success)
 -- ============================================================================
 
@@ -782,3 +825,4 @@ COMMENT ON TABLE disco_system_kb_chunks IS 'DISCo system KB chunks with embeddin
 -- SELECT count(*) FROM disco_initiatives;
 -- SELECT count(*) FROM disco_documents;
 -- SELECT count(*) FROM disco_outputs;
+-- SELECT conname FROM pg_constraint WHERE conname LIKE 'purdy%';  -- Should return 0 rows
