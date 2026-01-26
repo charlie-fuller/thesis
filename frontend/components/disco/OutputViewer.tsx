@@ -112,12 +112,11 @@ const AGENT_ORDER = [
   'discovery_planner',
   'coverage_tracker',
   'insight_extractor',
-  'synthesizer',
-  'tech_evaluation',
+  'consolidator',
+  'synthesizer',  // Backwards compat alias for consolidator
   'strategist',
   'prd_generator',
-  // Legacy agents at end
-  'consolidator',
+  'tech_evaluation',
 ]
 
 // Helper to get base agent type (strips _executive, _condensed suffixes)
