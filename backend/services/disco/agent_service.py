@@ -228,14 +228,14 @@ AGENT_DESCRIPTIONS = {
     "strategist": {
         "name": "Strategist",
         "version": "v1.0",
-        "description": "DISCo: Cluster insights, score, and propose initiative bundles for human review",
+        "description": "Cluster insights, score, and propose initiative bundles for human review",
         "estimated_time": "10-15 minutes",
         "output_type": "strategist_output"
     },
     "prd_generator": {
         "name": "PRD Generator",
         "version": "v1.0",
-        "description": "DISCo: Generate complete PRD from an approved initiative bundle",
+        "description": "Generate complete PRD from an approved initiative bundle",
         "estimated_time": "5-10 minutes",
         "output_type": "prd_output"
     },
