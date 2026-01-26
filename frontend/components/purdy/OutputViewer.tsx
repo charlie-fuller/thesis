@@ -105,10 +105,37 @@ interface OutputViewerProps {
   onDelete?: (outputId: string) => Promise<void>
 }
 
+// Define the PuRDy workflow order for sidebar display
+const AGENT_ORDER = [
+  'triage',
+  'discovery_planner',
+  'coverage_tracker',
+  'insight_extractor',
+  'synthesizer',
+  'tech_evaluation',
+  // Executive/condensed variants follow their parent
+  'triage_executive',
+  'discovery_planner_executive',
+  'coverage_tracker_executive',
+  'insight_extractor_executive',
+  'synthesizer_executive',
+  'tech_evaluation_executive',
+  'triage_condensed',
+  'discovery_planner_condensed',
+  'coverage_tracker_condensed',
+  'insight_extractor_condensed',
+  'synthesizer_condensed',
+  'tech_evaluation_condensed',
+  // Legacy agents at end
+  'consolidator',
+  'strategist',
+]
+
 const AGENT_CONFIG: Record<string, { name: string; icon: typeof Target; color: string }> = {
   triage: { name: 'Triage', icon: Target, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400' },
   discovery_planner: { name: 'Discovery Planner', icon: Search, color: 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400' },
   coverage_tracker: { name: 'Coverage Tracker', icon: BarChart, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400' },
+  insight_extractor: { name: 'Insight Extractor', icon: Target, color: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30 dark:text-cyan-400' },
   consolidator: { name: 'Consolidator', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
   synthesizer: { name: 'Synthesizer', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
   strategist: { name: 'Strategist', icon: Target, color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400' },
@@ -117,6 +144,7 @@ const AGENT_CONFIG: Record<string, { name: string; icon: typeof Target; color: s
   triage_executive: { name: 'Triage (Executive)', icon: Minimize2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
   discovery_planner_executive: { name: 'Discovery (Executive)', icon: Minimize2, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400' },
   coverage_tracker_executive: { name: 'Coverage (Executive)', icon: Minimize2, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400' },
+  insight_extractor_executive: { name: 'Insight (Executive)', icon: Minimize2, color: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20 dark:text-cyan-400' },
   consolidator_executive: { name: 'Consolidator (Executive)', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
   synthesizer_executive: { name: 'Synthesizer (Executive)', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
   tech_evaluation_executive: { name: 'Tech Eval (Executive)', icon: Minimize2, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-400' },
@@ -124,6 +152,7 @@ const AGENT_CONFIG: Record<string, { name: string; icon: typeof Target; color: s
   triage_condensed: { name: 'Triage (Condensed)', icon: Minimize2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
   discovery_planner_condensed: { name: 'Discovery (Condensed)', icon: Minimize2, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400' },
   coverage_tracker_condensed: { name: 'Coverage (Condensed)', icon: Minimize2, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400' },
+  insight_extractor_condensed: { name: 'Insight (Condensed)', icon: Minimize2, color: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20 dark:text-cyan-400' },
   consolidator_condensed: { name: 'Consolidator (Condensed)', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
   synthesizer_condensed: { name: 'Synthesizer (Condensed)', icon: Minimize2, color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
   tech_evaluation_condensed: { name: 'Tech Eval (Condensed)', icon: Minimize2, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-400' },
@@ -599,6 +628,17 @@ export default function OutputViewer({
     return acc
   }, {} as Record<string, Output[]>)
 
+  // Sort agent types by workflow order
+  const sortedAgentTypes = Object.keys(outputsByType).sort((a, b) => {
+    const indexA = AGENT_ORDER.indexOf(a)
+    const indexB = AGENT_ORDER.indexOf(b)
+    // Unknown agents go to the end
+    if (indexA === -1 && indexB === -1) return a.localeCompare(b)
+    if (indexA === -1) return 1
+    if (indexB === -1) return -1
+    return indexA - indexB
+  })
+
   if (outputs.length === 0) {
     return (
       <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg">
@@ -616,7 +656,8 @@ export default function OutputViewer({
       {/* Output List */}
       <div className="w-80 flex-shrink-0">
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 space-y-1">
-          {Object.entries(outputsByType).map(([agentType, typeOutputs]) => {
+          {sortedAgentTypes.map((agentType) => {
+            const typeOutputs = outputsByType[agentType]
             const config = AGENT_CONFIG[agentType] || { name: agentType, icon: FileText, color: 'text-slate-600 bg-slate-100' }
             const Icon = config.icon
             const isExpanded = expandedSections[agentType] || false
