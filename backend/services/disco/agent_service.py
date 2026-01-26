@@ -303,7 +303,7 @@ async def stream_with_status_messages(
     system_prompt: str,
     user_prompt: str,
     status_messages: List[str],
-    status_interval: float = 4.0,
+    status_interval: float = 8.0,
     max_tokens: int = 16000
 ) -> AsyncGenerator[Dict, None]:
     """
@@ -415,7 +415,7 @@ async def collect_with_status_messages(
     system_prompt: str,
     user_prompt: str,
     status_messages: List[str],
-    status_interval: float = 4.0,
+    status_interval: float = 8.0,
     temperature: float = 1.0,
     max_tokens: int = 16000
 ) -> AsyncGenerator[Dict, None]:
@@ -713,7 +713,7 @@ async def run_agent(
                 system_prompt=agent_prompt,
                 user_prompt=full_prompt,
                 status_messages=FUN_STATUS_MESSAGES,
-                status_interval=4.0,
+                status_interval=8.0,
                 max_tokens=16000
             ):
                 if item['type'] == 'stream_complete':
@@ -1142,7 +1142,7 @@ async def run_agent_multi_pass(
                     system_prompt=agent_prompt,
                     user_prompt=full_prompt,
                     status_messages=pass_status_messages,
-                    status_interval=4.0,
+                    status_interval=8.0,
                     temperature=pass_temp,
                     max_tokens=16000
                 ):
@@ -1221,7 +1221,7 @@ Create a unified synthesis that combines the best of all three passes. Follow th
                 system_prompt=meta_prompt,
                 user_prompt=meta_user_prompt,
                 status_messages=FUN_STATUS_MESSAGES,
-                status_interval=4.0,
+                status_interval=8.0,
                 max_tokens=20000
             ):
                 if item['type'] == 'stream_complete':
