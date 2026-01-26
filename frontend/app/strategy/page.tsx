@@ -668,11 +668,11 @@ function StatusBadge({ status }: { status: CompanyObjective['status'] }) {
 
 function KPIStatusDot({ status }: { status: DepartmentKPI['status'] }) {
   const colors = {
-    green: 'bg-success',
-    yellow: 'bg-warning',
-    red: 'bg-error',
+    green: 'var(--color-success)',
+    yellow: 'var(--color-warning)',
+    red: 'var(--color-error)',
   }
-  return <span className={`w-2.5 h-2.5 rounded-full ${colors[status]}`} />
+  return <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors[status] }} />
 }
 
 function TrendIndicator({ trend, percentage }: { trend: DepartmentKPI['trend']; percentage: number }) {
@@ -702,16 +702,16 @@ function TrendIndicator({ trend, percentage }: { trend: DepartmentKPI['trend']; 
 
 function ProgressBar({ percentage, status }: { percentage: number; status: CompanyObjective['status'] }) {
   const colors = {
-    on_track: 'bg-success',
-    at_risk: 'bg-warning',
-    behind: 'bg-error',
-    achieved: 'bg-info',
+    on_track: 'var(--color-success)',
+    at_risk: 'var(--color-warning)',
+    behind: 'var(--color-error)',
+    achieved: 'var(--color-primary)',
   }
   return (
-    <div className="h-2 bg-hover rounded-full overflow-hidden">
+    <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-bg-hover)' }}>
       <div
-        className={`h-full rounded-full transition-all ${colors[status]}`}
-        style={{ width: `${Math.min(percentage, 100)}%` }}
+        className="h-full rounded-full transition-all"
+        style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: colors[status] }}
       />
     </div>
   )
@@ -840,15 +840,15 @@ export default function StrategyPage() {
               </div>
               <div className="mt-2 flex gap-2 text-xs">
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-success" />
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-success)' }} />
                   {kpiSummary.green} green
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-warning" />
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-warning)' }} />
                   {kpiSummary.yellow} yellow
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-error" />
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-error)' }} />
                   {kpiSummary.red} red
                 </span>
               </div>
@@ -1040,19 +1040,19 @@ export default function StrategyPage() {
                       <div className="flex items-center gap-3">
                         {deptHealth.green > 0 && (
                           <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-success)' }}>
-                            <span className="w-2 h-2 rounded-full bg-success" />
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-success)' }} />
                             {deptHealth.green}
                           </span>
                         )}
                         {deptHealth.yellow > 0 && (
                           <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-warning)' }}>
-                            <span className="w-2 h-2 rounded-full bg-warning" />
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-warning)' }} />
                             {deptHealth.yellow}
                           </span>
                         )}
                         {deptHealth.red > 0 && (
                           <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-error)' }}>
-                            <span className="w-2 h-2 rounded-full bg-error" />
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-error)' }} />
                             {deptHealth.red}
                           </span>
                         )}
