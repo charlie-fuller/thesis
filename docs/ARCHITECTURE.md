@@ -85,8 +85,8 @@ This document contains detailed architecture documentation. For essential Claude
 23. **DISCo Pipeline** - AI-assisted product discovery with 8 specialized agents across 4 stages:
     - **Discovery Stage**: Triage (GO/NO-GO with Problem Worth Solving gate), Discovery Planner
     - **Insights Stage**: Coverage Tracker, Insight Extractor (pattern library), Consolidator (decision doc)
-    - **Synthesis Stage**: Strategist (cluster insights into initiative bundles) [NEW]
-    - **Capabilities Stage**: PRD Generator (engineering-ready PRDs from bundles) [NEW], Tech Evaluation
+    - **Synthesis Stage**: Strategist (cluster insights into initiative bundles)
+    - **Capabilities Stage**: PRD Generator (engineering-ready PRDs from bundles), Tech Evaluation
 
 **UI Sidebar Order (workflow sequence):**
 | # | Agent | Color | v4.2 Persona Feature |
@@ -95,8 +95,12 @@ This document contains detailed architecture documentation. For essential Claude
 | 2 | Discovery Planner | Amber | Session templates with agendas |
 | 3 | Coverage Tracker | Purple | Gap analysis with session routing |
 | 4 | Insight Extractor | Cyan | Pattern Library - 5 enterprise loops (Tyler) |
-| 5 | Synthesizer | Green | Metrics Dashboard + diagram reasoning (Chris) |
-| 6 | Tech Evaluation | Indigo | Build vs. buy with architecture diagrams |
+| 5 | Consolidator | Green | Metrics Dashboard + diagram reasoning (Chris) |
+| 6 | Strategist | Emerald | Cluster insights into initiative bundles |
+| 7 | PRD Generator | Rose | Engineering-ready PRDs from bundles |
+| 8 | Tech Evaluation | Indigo | Build vs. buy with architecture diagrams |
+
+**Note:** Synthesizer was merged into Consolidator (v4.2). Legacy outputs created by Synthesizer display under Consolidator.
 
 **Prompt Version:** v4.2 (2026-01-25) - See `/backend/disco_agents/` (formerly `purdy_agents`, path alias still supported)
 **Evaluation:** `/backend/disco_agents/EVALUATION-v4.2-RESULTS.md`

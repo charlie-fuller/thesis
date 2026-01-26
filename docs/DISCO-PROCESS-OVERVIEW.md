@@ -32,7 +32,7 @@ DISCo is a multi-agent system that transforms raw product discovery into actiona
 │        │ NO-GO                 ▼                           │                 │
 │        │ stops          ┌──────────────┐                   ▼                 │
 │        ▼                │ LIVE         │           ┌───────────────────┐    │
-│   [Declined]            │ DISCOVERY    │           │ SYNTHESIZER       │    │
+│   [Declined]            │ DISCOVERY    │           │ CONSOLIDATOR      │    │
 │                         │ SESSIONS     │           │ (AI)              │    │
 │                         │ (HUMANS)     │           └───────────────────┘    │
 │                         └──────┬───────┘                   │                 │
@@ -205,7 +205,7 @@ Discovery Planner → [Human runs Session 1] → Coverage Tracker
    - The Scope Creep Doom Loop
 4. Surfaces contradictions between stakeholders
 5. Identifies "What They Don't Realize" - surprises with high impact
-6. Prepares structured handoff for Synthesizer via **Handoff Protocol** (v4.2)
+6. Prepares structured handoff for Consolidator via **Handoff Protocol** (v4.2)
 
 ### Key Principle
 > "Reduce 10,000 words of transcripts to 800 words of meaning."
@@ -214,16 +214,16 @@ The output is dense because the thinking was thorough.
 
 ---
 
-## Phase 6: Synthesis (Final Decision Document)
+## Phase 6: Consolidation (Final Decision Document)
 
-**Agent:** Synthesizer v4.2
+**Agent:** Consolidator v4.2
 **Time:** 10-15 minutes
 **Input:** Insight Extractor output, all prior context
 **Output:** 900-word decision document with GO/NO-GO/CONDITIONAL recommendation
 
 ### What Happens
 
-1. Synthesizer produces the final decision document
+1. Consolidator produces the final decision document
 2. Structure (v4.2):
    - **Decision (FIRST WORDS):** GO/NO-GO/CONDITIONAL with owner and deadline
    - **Leverage Point:** Single intervention that creates the most change
@@ -287,8 +287,10 @@ Run Tech Evaluation when the initiative requires:
 | Coverage → GAPS CRITICAL | Discovery Planner | Plan follow-up session |
 | Coverage → GAPS MINOR | Insight Extractor | Proceed with caveats |
 | Coverage → BLOCKED | None | External action needed |
-| Insight Extractor | Synthesizer | Insights extracted |
-| Synthesizer | (Optional) Tech Evaluation | If technical decisions needed |
+| Insight Extractor | Consolidator | Insights extracted |
+| Consolidator | Strategist | Decision doc complete |
+| Strategist | PRD Generator | Initiative bundles approved |
+| PRD Generator | (Optional) Tech Evaluation | If technical decisions needed |
 
 ---
 

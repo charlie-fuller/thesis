@@ -1,6 +1,6 @@
 # Thesis - Frontend
 
-Multi-agent GenAI strategy platform built with Next.js 16, featuring 20 specialized agents, meeting rooms, task management, and stakeholder tracking.
+Multi-agent GenAI strategy platform built with Next.js 16, featuring 21 specialized agents, meeting rooms, task management, and stakeholder tracking.
 
 ## Tech Stack
 
@@ -55,8 +55,10 @@ npm start
 
 ```
 /app
-  /admin              # Admin dashboard and agent management
+  /admin              # Admin dashboard and management
     /agents           # Agent instruction management
+    /users            # User management (admin only)
+    /theme            # Theme settings (admin only)
   /auth               # Authentication pages
   /chat               # Main chat interface with agent selection
   /meeting-room       # Multi-agent meeting rooms
@@ -65,6 +67,8 @@ npm start
   /meeting-prep       # Stakeholder briefing pages
   /intelligence       # Analytics and engagement trends
   /kb                 # Knowledge Base (documents + conversations)
+  /disco              # DISCo product discovery pipeline
+  /strategy           # Strategic alignment (company objectives, KPIs)
   /profile            # User profile
   globals.css         # Global styles with theme support
   layout.tsx          # Root layout with providers
@@ -74,9 +78,11 @@ npm start
   /tasks              # Kanban board components
   /kb                 # Knowledge Base components
   /opportunities      # Opportunities components
+  /disco              # DISCo pipeline components (7 files)
   ChatInterface.tsx   # Main chat with agent selection
   AgentSelector.tsx   # Agent dropdown selector
   AgentIcon.tsx       # Agent icons and colors (single source of truth)
+  UserMenu.tsx        # Hamburger menu with profile, theme, users links
 
 /contexts
   /AuthContext.tsx    # Authentication state
@@ -90,7 +96,7 @@ npm start
 ## Features
 
 ### Multi-Agent System
-- 20 specialized agents for enterprise GenAI strategy
+- 21 specialized agents for enterprise GenAI strategy
 - Agent selector UI for choosing up to 3 agents
 - @mention syntax for inline agent invocation
 - Agent badges on responses showing attribution
@@ -120,6 +126,13 @@ npm start
 - Agent-filtered RAG retrieval
 - Google Drive and Notion integration
 - Obsidian vault sync
+
+### DISCo Pipeline
+- 8 specialized agents for product discovery
+- Workflow: Triage → Discovery Planner → Coverage Tracker → Insight Extractor → Consolidator → Strategist → PRD Generator → Tech Evaluation
+- Initiative management with document upload
+- Agent outputs with versioning and human-in-the-loop guidance
+- Initiative bundles and PRD generation
 
 ### Stakeholder Intelligence
 - CRM-style tracking with engagement analytics
