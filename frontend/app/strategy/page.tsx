@@ -784,7 +784,7 @@ export default function StrategyPage() {
         <div className="max-w-7xl mx-auto px-6 py-8">
           {/* Page Title */}
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-primary">Strategic Alignment</h1>
+            <h1 className="heading-1">Strategic Alignment</h1>
             <p className="text-muted mt-1">
               Company objectives and G&A department KPIs. Use these to align AI opportunities with
               strategic priorities and demonstrate impact in career reviews with Compass.
@@ -887,7 +887,7 @@ export default function StrategyPage() {
           {/* Company Objectives Section */}
           <section className="mb-10">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-primary flex items-center gap-2">
+              <h2 className="heading-3 flex items-center gap-2">
                 <Target className="w-5 h-5 text-blue-500" />
                 Company Objectives
               </h2>
@@ -997,7 +997,7 @@ export default function StrategyPage() {
           {/* Department KPIs Section */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-primary flex items-center gap-2">
+              <h2 className="heading-3 flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-green-500" />
                 Department KPIs
               </h2>
