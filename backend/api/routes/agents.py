@@ -17,6 +17,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from auth import get_current_user
 from database import get_supabase
 from supabase import Client
 from services.instruction_loader import (
@@ -120,6 +121,7 @@ class AgentInstructionVersion(BaseModel):
 @router.get("")
 async def list_agents(
     include_inactive: bool = False,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """List all agents with summary stats."""
@@ -175,7 +177,7 @@ async def list_agents(
 
     except Exception as e:
         logger.error(f"Failed to list agents: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/{agent_id}/conversations")
@@ -183,6 +185,7 @@ async def get_agent_conversations(
     agent_id: str,
     limit: int = 50,
     include_archived: bool = False,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Get conversations for a specific agent."""
@@ -237,12 +240,13 @@ async def get_agent_conversations(
         raise
     except Exception as e:
         logger.error(f"Failed to get conversations for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/{agent_id}")
 async def get_agent(
     agent_id: str,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Get full agent details including current instructions."""
@@ -315,12 +319,13 @@ async def get_agent(
         raise
     except Exception as e:
         logger.error(f"Failed to get agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("")
 async def create_agent(
     agent: AgentCreate,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Create a new agent."""
@@ -349,13 +354,14 @@ async def create_agent(
         raise
     except Exception as e:
         logger.error(f"Failed to create agent: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.patch("/{agent_id}")
 async def update_agent(
     agent_id: str,
     updates: AgentUpdate,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Update agent metadata (not instructions - use instruction versioning for that)."""
@@ -377,7 +383,7 @@ async def update_agent(
         raise
     except Exception as e:
         logger.error(f"Failed to update agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -387,6 +393,7 @@ async def update_agent(
 @router.get("/{agent_id}/instructions")
 async def get_agent_instructions(
     agent_id: str,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Get all instruction versions for an agent."""
@@ -401,14 +408,14 @@ async def get_agent_instructions(
 
     except Exception as e:
         logger.error(f"Failed to get instructions for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/{agent_id}/instructions")
 async def create_instruction_version(
     agent_id: str,
     instruction: AgentInstructionUpdate,
-    user_id: Optional[str] = None,  # TODO: Get from auth
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Create a new instruction version for an agent."""
@@ -439,20 +446,21 @@ async def create_instruction_version(
             "instructions": instruction.instructions,
             "description": instruction.description,
             "is_active": False,  # Don't auto-activate
-            "created_by": user_id,
+            "created_by": current_user['id'],
         }).execute()
 
         return {"version": result.data[0]}
 
     except Exception as e:
         logger.error(f"Failed to create instruction version for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/{agent_id}/instructions/{version_id}/activate")
 async def activate_instruction_version(
     agent_id: str,
     version_id: str,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """
@@ -499,7 +507,7 @@ async def activate_instruction_version(
         raise
     except Exception as e:
         logger.error(f"Failed to activate version {version_id} for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 class VersionCompareRequest(BaseModel):
@@ -512,6 +520,7 @@ class VersionCompareRequest(BaseModel):
 async def get_instruction_version(
     agent_id: str,
     version_id: str,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Get a specific instruction version."""
@@ -532,13 +541,14 @@ async def get_instruction_version(
         raise
     except Exception as e:
         logger.error(f"Failed to get version {version_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/{agent_id}/instructions/{version_id}")
 async def delete_instruction_version(
     agent_id: str,
     version_id: str,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Delete an instruction version (cannot delete active version)."""
@@ -571,7 +581,7 @@ async def delete_instruction_version(
         raise
     except Exception as e:
         logger.error(f"Failed to delete version {version_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/{agent_id}/instructions/compare")
@@ -579,6 +589,7 @@ async def compare_instruction_versions(
     agent_id: str,
     v1: str,
     v2: str,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Compare two instruction versions (GET for simple comparison)."""
@@ -607,13 +618,14 @@ async def compare_instruction_versions(
         raise
     except Exception as e:
         logger.error(f"Failed to compare versions: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/{agent_id}/instructions/compare")
 async def compare_versions_detailed(
     agent_id: str,
     request: VersionCompareRequest,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Compare two instruction versions with detailed diff."""
@@ -677,13 +689,14 @@ async def compare_versions_detailed(
         raise
     except Exception as e:
         logger.error(f"Failed to compare versions: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/{agent_id}/instructions/compare/summary")
 async def generate_comparison_summary(
     agent_id: str,
     request: VersionCompareRequest,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Generate an AI summary of changes between two instruction versions."""
@@ -792,7 +805,7 @@ Provide a clear, bulleted summary of the changes (3-7 bullet points)."""
         raise
     except Exception as e:
         logger.error(f"Failed to generate comparison summary: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -806,6 +819,7 @@ Provide a clear, bulleted summary of the changes (3-7 bullet points)."""
 @router.get("/documents/available")
 async def get_available_documents(
     agent_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Get all documents available for linking. If agent_id provided, excludes already linked docs."""
@@ -832,12 +846,13 @@ async def get_available_documents(
 
     except Exception as e:
         logger.error(f"Failed to get available documents: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/{agent_id}/documents")
 async def get_agent_documents(
     agent_id: str,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Get documents linked to an agent's knowledge base."""
@@ -863,14 +878,14 @@ async def get_agent_documents(
 
     except Exception as e:
         logger.error(f"Failed to get documents for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/{agent_id}/documents")
 async def link_document_to_agent(
     agent_id: str,
     doc_link: AgentKBDocLink,
-    user_id: Optional[str] = None,  # TODO: Get from auth
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Link a document to an agent's knowledge base."""
@@ -901,7 +916,7 @@ async def link_document_to_agent(
             "document_id": doc_link.document_id,
             "notes": doc_link.notes,
             "priority": doc_link.priority,
-            "added_by": user_id,
+            "added_by": current_user['id'],
         }).execute()
 
         return {
@@ -914,7 +929,7 @@ async def link_document_to_agent(
         raise
     except Exception as e:
         logger.error(f"Failed to link document to agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.patch("/{agent_id}/documents/{link_id}")
@@ -922,6 +937,7 @@ async def update_document_link(
     agent_id: str,
     link_id: str,
     updates: AgentKBDocUpdate,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Update a KB document link (notes, priority)."""
@@ -944,13 +960,14 @@ async def update_document_link(
         raise
     except Exception as e:
         logger.error(f"Failed to update document link {link_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/{agent_id}/documents/{link_id}")
 async def unlink_document_from_agent(
     agent_id: str,
     link_id: str,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Remove a document from an agent's knowledge base."""
@@ -970,7 +987,7 @@ async def unlink_document_from_agent(
         raise
     except Exception as e:
         logger.error(f"Failed to unlink document from agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -980,6 +997,7 @@ async def unlink_document_from_agent(
 @router.get("/{agent_id}/xml-instructions")
 async def get_xml_instructions(
     agent_id: str,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """
@@ -1029,14 +1047,14 @@ async def get_xml_instructions(
         raise
     except Exception as e:
         logger.error(f"Failed to get XML instructions for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/{agent_id}/sync-from-xml")
 async def sync_instructions_from_xml(
     agent_id: str,
     description: Optional[str] = None,
-    user_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """
@@ -1104,7 +1122,7 @@ async def sync_instructions_from_xml(
             "description": description or f"Synced from XML file",
             "is_active": True,
             "activated_at": datetime.now(timezone.utc).isoformat(),
-            "created_by": user_id,
+            "created_by": current_user['id'],
         }).execute()
 
         # Update agent timestamp
@@ -1127,12 +1145,13 @@ async def sync_instructions_from_xml(
         raise
     except Exception as e:
         logger.error(f"Failed to sync XML for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/{agent_id}/sync-to-xml")
 async def sync_instructions_to_xml(
     agent_id: str,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """
@@ -1193,11 +1212,13 @@ async def sync_instructions_to_xml(
         raise
     except Exception as e:
         logger.error(f"Failed to sync to XML for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/xml-files")
-async def list_xml_instruction_files():
+async def list_xml_instruction_files(
+    current_user: dict = Depends(get_current_user)
+):
     """
     List all available XML instruction files.
 
@@ -1212,7 +1233,7 @@ async def list_xml_instruction_files():
         }
     except Exception as e:
         logger.error(f"Failed to list XML files: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -1222,6 +1243,7 @@ async def list_xml_instruction_files():
 @router.get("/{agent_id}/default-instructions")
 async def get_agent_default_instructions(
     agent_id: str,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """
@@ -1298,12 +1320,13 @@ async def get_agent_default_instructions(
         raise
     except Exception as e:
         logger.error(f"Failed to get default instructions for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/{agent_id}/stats")
 async def get_agent_stats(
     agent_id: str,
+    current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
     """Get usage statistics for an agent."""
@@ -1329,4 +1352,4 @@ async def get_agent_stats(
 
     except Exception as e:
         logger.error(f"Failed to get stats for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
