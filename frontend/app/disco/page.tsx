@@ -347,26 +347,28 @@ export default function DiscoInitiativesPage() {
         )}
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
-        {Object.entries(STATUS_CONFIG).map(([status, config]) => {
-          const count = statusCounts[status] || 0
-          const StatusIcon = config.icon
-          return (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(statusFilter === status ? '' : status)}
-              className={`p-3 rounded-lg border transition-all ${
-                statusFilter === status
-                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
-                  : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-              }`}
-            >
-              <div className={`text-2xl font-bold ${config.color}`}>{count}</div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">{config.label}</div>
-            </button>
-          )
-        })}
+      {/* Summary Cards - exclude draft and archived */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-6">
+        {Object.entries(STATUS_CONFIG)
+          .filter(([status]) => status !== 'draft' && status !== 'archived')
+          .map(([status, config]) => {
+            const count = statusCounts[status] || 0
+            const StatusIcon = config.icon
+            return (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(statusFilter === status ? '' : status)}
+                className={`p-3 rounded-lg border transition-all ${
+                  statusFilter === status
+                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
+                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                }`}
+              >
+                <div className={`text-2xl font-bold ${config.color}`}>{count}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">{config.label}</div>
+              </button>
+            )
+          })}
       </div>
 
       {/* Filters */}
