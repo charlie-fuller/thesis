@@ -8,6 +8,7 @@ import {
   CheckCircle,
   AlertCircle,
   ChevronDown,
+  ChevronRight,
   Loader2,
   Zap,
   FileText,
@@ -16,7 +17,11 @@ import {
   BarChart,
   Cpu,
   Lightbulb,
-  Boxes
+  Boxes,
+  Users,
+  MessageSquare,
+  ClipboardCheck,
+  ThumbsUp
 } from 'lucide-react'
 import { apiGet } from '@/lib/api'
 import { authenticatedFetch } from '@/lib/api'
@@ -201,6 +206,80 @@ const AGENT_WORKFLOW: Record<string, {
   }
 }
 
+// Human-in-the-Loop configuration for each agent
+// Defines what human action is expected AFTER running each agent
+const HITL_CONFIG: Record<string, {
+  stage: string
+  stageColor: string
+  action: string
+  details: string
+  icon: typeof Users
+}> = {
+  triage: {
+    stage: 'Discovery',
+    stageColor: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30',
+    action: 'Review GO/NO-GO decision',
+    details: 'After Triage, review the recommendation. If GO, proceed to Discovery Planner. If NO-GO or INVESTIGATE, address the concerns before continuing. This is your first gate to avoid wasting effort on non-viable initiatives.',
+    icon: ThumbsUp
+  },
+  discovery_planner: {
+    stage: 'Discovery',
+    stageColor: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30',
+    action: 'Execute the discovery sessions',
+    details: 'The Discovery Planner outputs interview guides and session agendas. YOU must conduct these sessions with stakeholders, record them, and upload the transcripts. The agents cannot do discovery - only humans can gather the ground truth.',
+    icon: MessageSquare
+  },
+  coverage_tracker: {
+    stage: 'Discovery',
+    stageColor: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30',
+    action: 'Address gaps or proceed when READY',
+    details: 'Coverage Tracker tells you if discovery is complete. If GAPS, conduct more sessions targeting the missing areas. If CRITICAL, you may need to revisit assumptions. Only proceed to Insight Extractor when status is READY.',
+    icon: ClipboardCheck
+  },
+  insight_extractor: {
+    stage: 'Intelligence',
+    stageColor: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30',
+    action: 'Verify insights match your understanding',
+    details: 'Review the extracted insights. Do they capture what you heard in discovery? Are any key points missing? You can add documents or re-run if critical insights are missing before proceeding to Consolidator.',
+    icon: ClipboardCheck
+  },
+  consolidator: {
+    stage: 'Intelligence',
+    stageColor: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30',
+    action: 'Validate the decision document',
+    details: 'The Consolidator produces a 900-word decision document. Review the GO/NO-GO recommendation, leverage point, metrics, and first action. This document should be ready to share with stakeholders. Edit if needed before proceeding.',
+    icon: ClipboardCheck
+  },
+  synthesizer: {
+    stage: 'Intelligence',
+    stageColor: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30',
+    action: 'Validate the decision document',
+    details: 'The Synthesizer produces a decision document. Review the recommendation, leverage point, and first action. This document should be ready to share with stakeholders.',
+    icon: ClipboardCheck
+  },
+  strategist: {
+    stage: 'Synthesis',
+    stageColor: 'text-green-600 bg-green-100 dark:bg-green-900/30',
+    action: 'Approve or reject initiative bundles',
+    details: 'The Strategist clusters insights into initiative bundles with scores. YOU must review each bundle and decide: Approve (proceed to PRD), Reject (remove from consideration), or Merge/Split bundles. This is a critical human decision point.',
+    icon: ThumbsUp
+  },
+  prd_generator: {
+    stage: 'Capabilities',
+    stageColor: 'text-rose-600 bg-rose-100 dark:bg-rose-900/30',
+    action: 'Review PRD with engineering',
+    details: 'The PRD Generator creates an engineering-ready document. Share with your technical team for feasibility review. They may identify constraints or alternatives that require iteration before Tech Evaluation.',
+    icon: Users
+  },
+  tech_evaluation: {
+    stage: 'Capabilities',
+    stageColor: 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/30',
+    action: 'Make build/buy/partner decision',
+    details: 'Tech Evaluation provides platform recommendations with confidence-tagged estimates. YOU must decide the implementation approach and secure commitments from engineering and vendors. This is the final gate before execution.',
+    icon: ThumbsUp
+  }
+}
+
 export default function AgentRunner({
   initiativeId,
   canRun,
@@ -220,6 +299,7 @@ export default function AgentRunner({
   const [multiPass, setMultiPass] = useState(true)  // Default ON for synthesizer
   const [passesCompleted, setPassesCompleted] = useState(0)
   const [currentPassLabel, setCurrentPassLabel] = useState('')
+  const [hitlExpanded, setHitlExpanded] = useState(false)
 
   const contentRef = useRef<HTMLDivElement>(null)
 
@@ -388,6 +468,70 @@ export default function AgentRunner({
 
   return (
     <div className="space-y-6">
+      {/* HITL Guidance Panel */}
+      {selectedAgent && HITL_CONFIG[selectedAgent] && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg overflow-hidden">
+          <button
+            onClick={() => setHitlExpanded(!hitlExpanded)}
+            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-amber-100/50 dark:hover:bg-amber-900/30 transition-colors"
+          >
+            <div className="p-1.5 rounded-md bg-amber-200 dark:bg-amber-800">
+              <Users className="w-4 h-4 text-amber-700 dark:text-amber-300" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                  Human-in-the-Loop Required
+                </span>
+                <span className={`text-xs px-1.5 py-0.5 rounded ${HITL_CONFIG[selectedAgent].stageColor}`}>
+                  {HITL_CONFIG[selectedAgent].stage}
+                </span>
+              </div>
+              <p className="text-sm text-amber-700 dark:text-amber-300 mt-0.5">
+                After running: {HITL_CONFIG[selectedAgent].action}
+              </p>
+            </div>
+            {hitlExpanded ? (
+              <ChevronDown className="w-5 h-5 text-amber-500 flex-shrink-0" />
+            ) : (
+              <ChevronRight className="w-5 h-5 text-amber-500 flex-shrink-0" />
+            )}
+          </button>
+
+          {hitlExpanded && (
+            <div className="px-4 pb-4 pt-2 border-t border-amber-200 dark:border-amber-800">
+              <div className="flex items-start gap-3">
+                {(() => {
+                  const HITLIcon = HITL_CONFIG[selectedAgent].icon
+                  return <HITLIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                })()}
+                <div>
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    {HITL_CONFIG[selectedAgent].details}
+                  </p>
+                  <div className="mt-3 p-3 bg-white dark:bg-slate-800 rounded-md border border-amber-200 dark:border-amber-700">
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">
+                      DISCo Workflow
+                    </p>
+                    <div className="flex items-center gap-1 text-xs">
+                      <span className={selectedAgent === 'triage' || selectedAgent === 'discovery_planner' || selectedAgent === 'coverage_tracker' ? 'font-bold text-blue-600' : 'text-slate-400'}>Discovery</span>
+                      <span className="text-slate-300">→</span>
+                      <span className={selectedAgent === 'insight_extractor' || selectedAgent === 'consolidator' || selectedAgent === 'synthesizer' ? 'font-bold text-cyan-600' : 'text-slate-400'}>Intelligence</span>
+                      <span className="text-slate-300">→</span>
+                      <span className={selectedAgent === 'strategist' ? 'font-bold text-green-600' : 'text-slate-400'}>Synthesis</span>
+                      <span className="text-slate-300">→</span>
+                      <span className={selectedAgent === 'prd_generator' || selectedAgent === 'tech_evaluation' ? 'font-bold text-rose-600' : 'text-slate-400'}>Capabilities</span>
+                      <span className="text-slate-300">→</span>
+                      <span className="text-slate-400">Operationalize</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Agent Selection */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
