@@ -322,7 +322,7 @@ export default function DiscoInitiativesPage() {
           DISCo
         </h1>
         <p className="text-slate-500 dark:text-slate-400 mt-1">
-          Discovery, Intelligence, Synthesis, Capabilities
+          Discovery, Intelligence, Synthesis, Capabilities, Operationalize
         </p>
       </div>
 
