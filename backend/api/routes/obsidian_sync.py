@@ -110,7 +110,7 @@ async def configure_obsidian_vault(
         raise
     except Exception as e:
         logger.error(f"Configure vault error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/status")
@@ -131,7 +131,7 @@ async def get_obsidian_status(
 
     except Exception as e:
         logger.error(f"Status check error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.patch("/settings")
@@ -175,7 +175,7 @@ async def update_obsidian_settings(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Update settings error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -230,7 +230,7 @@ async def trigger_obsidian_sync(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Sync error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/sync/full")
@@ -280,7 +280,7 @@ async def trigger_full_sync(
         raise
     except Exception as e:
         logger.error(f"Full sync error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -331,7 +331,7 @@ async def disconnect_obsidian(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Disconnect error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -375,7 +375,7 @@ async def get_sync_history(
 
     except Exception as e:
         logger.error(f"Sync history error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -430,7 +430,7 @@ async def get_synced_files(
 
     except Exception as e:
         logger.error(f"Get files error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/files/pending")
@@ -475,7 +475,7 @@ async def get_pending_files(
 
     except Exception as e:
         logger.error(f"Get pending files error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/files/{file_path:path}/retry")
@@ -539,4 +539,4 @@ async def retry_failed_file(
         raise
     except Exception as e:
         logger.error(f"Retry file error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")

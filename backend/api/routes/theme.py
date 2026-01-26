@@ -169,7 +169,7 @@ async def update_theme_settings(
         raise
     except Exception as e:
         logger.error(f"Error updating theme settings: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/api/theme/reset")
@@ -206,7 +206,7 @@ async def reset_theme_settings(current_user: dict = Depends(get_current_user)):
         raise
     except Exception as e:
         logger.error(f"Error resetting theme settings: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -292,7 +292,7 @@ async def upload_logo(
         raise
     except Exception as e:
         logger.error(f"Error uploading logo: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/api/theme/logo")
@@ -323,7 +323,7 @@ async def delete_logo(current_user: dict = Depends(get_current_user)):
         raise
     except Exception as e:
         logger.error(f"Error removing logo: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 def get_default_theme() -> dict:

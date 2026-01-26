@@ -64,7 +64,7 @@ async def get_admin_stats(
         }
     except Exception as e:
         logger.error(f"❌ Stats error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/analytics/usage-trends")
@@ -222,7 +222,7 @@ async def get_usage_trends(
         }
     except Exception as e:
         logger.error(f"❌ Analytics error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/analytics/active-users")
@@ -280,7 +280,7 @@ async def get_active_users(
         }
     except Exception as e:
         logger.error(f"❌ Active users error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/analytics/recent-activity")
@@ -352,7 +352,7 @@ async def get_recent_activity(
         }
     except Exception as e:
         logger.error(f"❌ Recent activity error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/users")
@@ -376,7 +376,7 @@ async def get_all_users(
         }
     except Exception as e:
         logger.error(f"❌ Error fetching users: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/clients")
@@ -400,7 +400,7 @@ async def get_all_clients(
         }
     except Exception as e:
         logger.error(f"❌ Error fetching clients: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/conversations")
@@ -452,7 +452,7 @@ async def get_all_conversations(
         }
     except Exception as e:
         logger.error(f"❌ Error fetching conversations: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/health")
@@ -626,7 +626,7 @@ async def get_system_health(
         }
     except Exception as e:
         logger.error(f"❌ Health check error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/clear-system-instructions-cache")
@@ -651,7 +651,7 @@ async def clear_system_instructions_cache(
         }
     except Exception as e:
         logger.error(f"❌ Cache clear error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/clear-search-cache")
@@ -676,7 +676,7 @@ async def clear_search_cache(
         }
     except Exception as e:
         logger.error(f"Search cache clear error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/analytics/upload-health")
@@ -887,7 +887,7 @@ async def clear_upload_issues(
         }
     except Exception as e:
         logger.error(f"❌ Clear upload issues error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/analytics/interface-health")
@@ -1084,7 +1084,7 @@ async def get_help_document(
         raise
     except Exception as e:
         logger.error(f"❌ Get help document error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/help-documents")
@@ -1130,7 +1130,7 @@ async def get_help_documents(
         }
     except Exception as e:
         logger.error(f"❌ Help documents error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/help-documents/{document_id}/reindex")
@@ -1298,7 +1298,7 @@ async def reindex_help_document(
         raise
     except Exception as e:
         logger.error(f"❌ Reindex document error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.put("/help-documents/{document_id}")
@@ -1478,7 +1478,7 @@ async def update_help_document(
         raise
     except Exception as e:
         logger.error(f"❌ Update help document error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/help-analytics")
@@ -1610,7 +1610,7 @@ async def get_help_analytics(
         }
     except Exception as e:
         logger.error(f"❌ Help analytics error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/help-conversations/export")
@@ -1707,7 +1707,7 @@ async def export_help_conversations(
 
     except Exception as e:
         logger.error(f"❌ Help conversations export error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/analytics/keyword-trends")
@@ -1886,7 +1886,7 @@ async def get_keyword_trends(
 
     except Exception as e:
         logger.error(f"❌ Keyword trends error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/conversations/export")
@@ -2048,4 +2048,4 @@ async def export_conversations(
         raise
     except Exception as e:
         logger.error(f"❌ Export conversations error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")

@@ -81,7 +81,7 @@ async def get_document_mappings(
         raise
     except Exception as e:
         logger.error(f"❌ Get document mappings error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/api/clients/{client_id}/documents")
@@ -111,7 +111,7 @@ async def get_client_documents(
         raise
     except Exception as e:
         logger.error(f"❌ Get client documents error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/api/clients/{client_id}/document-mappings")
@@ -168,7 +168,7 @@ async def update_document_mappings(
         raise
     except Exception as e:
         logger.error(f"❌ Update document mappings error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/api/clients/{client_id}/regenerate-instructions")
@@ -225,4 +225,4 @@ async def regenerate_instructions(
         raise
     except Exception as e:
         logger.error(f"❌ Regenerate instructions error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")

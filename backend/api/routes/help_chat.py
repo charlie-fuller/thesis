@@ -302,7 +302,7 @@ async def get_help_conversations(
 
     except Exception as e:
         logger.error(f"Error fetching help conversations: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/conversations/{conversation_id}")
@@ -340,7 +340,7 @@ async def get_help_conversation(
         raise
     except Exception as e:
         logger.error(f"Error fetching help conversation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/conversations/{conversation_id}")
@@ -373,7 +373,7 @@ async def delete_help_conversation(
         raise
     except Exception as e:
         logger.error(f"Error deleting help conversation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/feedback/{message_id}")
@@ -433,7 +433,7 @@ async def submit_help_feedback(
         raise
     except Exception as e:
         logger.error(f"Error recording feedback: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/search")
@@ -482,7 +482,7 @@ async def search_help_docs(
 
     except Exception as e:
         logger.error(f"Error searching help docs: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/stats")
@@ -536,7 +536,7 @@ async def get_help_stats(
 
     except Exception as e:
         logger.error(f"Error fetching help stats: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/status")

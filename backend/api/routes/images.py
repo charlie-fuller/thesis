@@ -68,7 +68,7 @@ async def generate_image(
 
     except Exception as e:
         logger.error(f"Image generation failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/generate-batch", response_model=BatchImageGenerationResponse)
@@ -100,7 +100,7 @@ async def generate_images_batch(
 
     except Exception as e:
         logger.error(f"Batch image generation failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/models")
@@ -262,7 +262,7 @@ async def generate_image_in_conversation(
         raise
     except Exception as e:
         logger.error(f"Conversation image generation failed: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/conversations/{conversation_id}")
@@ -306,7 +306,7 @@ async def get_conversation_images(
         raise
     except Exception as e:
         logger.error(f"Failed to get conversation images: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/{image_id}")
@@ -353,7 +353,7 @@ async def delete_conversation_image(
         raise
     except Exception as e:
         logger.error(f"Failed to delete image: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -487,4 +487,4 @@ Your response:"""
         raise
     except Exception as e:
         logger.error(f"Failed to generate visual suggestion: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")

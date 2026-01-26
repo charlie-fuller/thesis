@@ -157,7 +157,7 @@ async def create_meeting_room(
         raise
     except Exception as e:
         logger.error(f"Error creating meeting room: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("")
@@ -233,7 +233,7 @@ async def list_meeting_rooms(
 
     except Exception as e:
         logger.error(f"Error listing meeting rooms: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/{meeting_id}")
@@ -307,7 +307,7 @@ async def get_meeting_room(
         raise
     except Exception as e:
         logger.error(f"Error getting meeting room: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.patch("/{meeting_id}")
@@ -355,7 +355,7 @@ async def update_meeting_room(
         raise
     except Exception as e:
         logger.error(f"Error updating meeting room: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/{meeting_id}")
@@ -399,7 +399,7 @@ async def delete_meeting_room(
         raise
     except Exception as e:
         logger.error(f"Error deleting meeting room: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -480,7 +480,7 @@ async def add_participant(
         raise
     except Exception as e:
         logger.error(f"Error adding participant: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.patch("/{meeting_id}/participants/{participant_id}")
@@ -538,7 +538,7 @@ async def update_participant(
         raise
     except Exception as e:
         logger.error(f"Error updating participant: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/{meeting_id}/participants/{participant_id}")
@@ -600,7 +600,7 @@ async def remove_participant(
         raise
     except Exception as e:
         logger.error(f"Error removing participant: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -668,7 +668,7 @@ async def get_meeting_messages(
         raise
     except Exception as e:
         logger.error(f"Error getting meeting messages: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -990,7 +990,7 @@ async def stream_meeting_chat(
     except Exception as e:
         import traceback
         logger.error(f"Error in meeting chat stream: {str(e)}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -1260,7 +1260,7 @@ async def start_autonomous_discussion(
         raise
     except Exception as e:
         logger.error(f"Error starting autonomous discussion: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/{meeting_id}/autonomous/stop")
@@ -1299,7 +1299,7 @@ async def stop_autonomous_discussion(
         raise
     except Exception as e:
         logger.error(f"Error stopping autonomous discussion: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/{meeting_id}/autonomous/status")
@@ -1338,7 +1338,7 @@ async def get_autonomous_status(
         raise
     except Exception as e:
         logger.error(f"Error getting autonomous status: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/{meeting_id}/chat/interject")
@@ -1392,4 +1392,4 @@ async def interject_in_discussion(
         raise
     except Exception as e:
         logger.error(f"Error sending interjection: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")

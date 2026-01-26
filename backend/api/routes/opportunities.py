@@ -926,7 +926,7 @@ async def create_opportunity(
                 status_code=409,
                 detail=f"Opportunity code {opportunity.opportunity_code} already exists"
             )
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
     created_opp = result.data[0]
 
@@ -1232,7 +1232,7 @@ async def link_stakeholder_to_opportunity(
                 status_code=409,
                 detail="Stakeholder already linked to this opportunity"
             )
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
     return {
         "id": result.data[0]["id"],
@@ -1523,7 +1523,7 @@ async def accept_opportunity_candidate(
     except Exception as e:
         if "duplicate" in str(e).lower():
             raise HTTPException(status_code=409, detail="Opportunity code already exists")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/candidates/{candidate_id}/reject")
@@ -1594,7 +1594,7 @@ async def evaluate_all_confidence(
         return result
     except Exception as e:
         logger.error(f"Failed to evaluate confidence: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/{opportunity_id}/evaluate-confidence")

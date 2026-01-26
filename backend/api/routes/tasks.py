@@ -323,7 +323,7 @@ async def get_kanban_board(
         raise
     except Exception as e:
         logger.error(f"Error fetching kanban board: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/reorder")
@@ -372,7 +372,7 @@ async def reorder_tasks(
 
     except Exception as e:
         logger.error(f"Error reordering tasks: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/extract/transcript/{transcript_id}")
@@ -491,7 +491,7 @@ async def extract_tasks_from_transcript(
         raise
     except Exception as e:
         logger.error(f"Error extracting tasks from transcript: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -603,7 +603,7 @@ async def list_tasks(
         raise
     except Exception as e:
         logger.error(f"Error listing tasks: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -685,7 +685,7 @@ async def create_task(
         raise
     except Exception as e:
         logger.error(f"Error creating task: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -765,7 +765,7 @@ async def get_task_candidates(
 
     except Exception as e:
         logger.error(f"Error fetching task candidates: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/candidates/count")
@@ -789,7 +789,7 @@ async def get_candidate_count(current_user=Depends(get_current_user)):
 
     except Exception as e:
         logger.error(f"Error fetching candidate count: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/candidates/clear")
@@ -820,7 +820,7 @@ async def clear_task_candidates(
 
     except Exception as e:
         logger.error(f"Error clearing task candidates: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/candidates/{candidate_id}/accept")
@@ -859,7 +859,7 @@ async def accept_task_candidate(
         raise
     except Exception as e:
         logger.error(f"Error accepting task candidate: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/candidates/{candidate_id}/reject")
@@ -890,7 +890,7 @@ async def reject_task_candidate(
         raise
     except Exception as e:
         logger.error(f"Error rejecting task candidate: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/candidates/bulk")
@@ -923,7 +923,7 @@ async def bulk_action_candidates(
         raise
     except Exception as e:
         logger.error(f"Error in bulk candidate action: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -982,7 +982,7 @@ async def get_scan_stats(
 
     except Exception as e:
         logger.error(f"Error getting scan stats: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # Meeting summaries folder path - only scan these for tasks
@@ -1121,7 +1121,7 @@ async def scan_documents_for_tasks(
         raise
     except Exception as e:
         logger.error(f"Error scanning documents for tasks: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/scan-document/{document_id}")
@@ -1197,7 +1197,7 @@ async def scan_single_document_for_tasks(
         raise
     except Exception as e:
         logger.error(f"Error scanning document {document_id} for tasks: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -1236,7 +1236,7 @@ async def get_task(
         raise
     except Exception as e:
         logger.error(f"Error fetching task: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.patch("/{task_id}")
@@ -1324,7 +1324,7 @@ async def update_task(
         raise
     except Exception as e:
         logger.error(f"Error updating task: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/{task_id}")
@@ -1369,7 +1369,7 @@ async def delete_task(
         raise
     except Exception as e:
         logger.error(f"Error deleting task: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.patch("/{task_id}/status")
@@ -1437,7 +1437,7 @@ async def update_task_status(
         raise
     except Exception as e:
         logger.error(f"Error updating task status: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -1498,7 +1498,7 @@ async def list_task_comments(
         raise
     except Exception as e:
         logger.error(f"Error listing task comments: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/{task_id}/comments")
@@ -1556,7 +1556,7 @@ async def create_task_comment(
         raise
     except Exception as e:
         logger.error(f"Error creating task comment: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -1620,4 +1620,4 @@ async def get_task_history(
         raise
     except Exception as e:
         logger.error(f"Error fetching task history: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")

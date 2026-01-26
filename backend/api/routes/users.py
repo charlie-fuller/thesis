@@ -58,7 +58,7 @@ async def list_users(
 
     except Exception as e:
         logger.error(f"❌ Error listing users: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("")
@@ -152,7 +152,7 @@ async def update_user(
         raise
     except Exception as e:
         logger.error(f"❌ Error updating user: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/{user_id}/avatar")
@@ -217,7 +217,7 @@ async def upload_avatar(
         raise
     except Exception as e:
         logger.error(f"❌ Error uploading avatar: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/{user_id}/avatar")
@@ -273,7 +273,7 @@ async def delete_avatar(
         raise
     except Exception as e:
         logger.error(f"❌ Error deleting avatar: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/{user_id}/resend-invitation")
@@ -315,7 +315,7 @@ async def resend_invitation(
         raise
     except Exception as e:
         logger.error(f"❌ Error resending invitation: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -403,7 +403,7 @@ async def list_user_documents(
 
     except Exception as e:
         logger.error(f"❌ Error listing documents: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/me/storage")
@@ -453,4 +453,4 @@ async def get_storage_info(
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching storage info: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")

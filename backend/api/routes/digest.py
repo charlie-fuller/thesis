@@ -75,7 +75,7 @@ async def preview_digest(user=Depends(get_current_user)):
 
     except Exception as e:
         logger.error(f"Error generating digest preview: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/save", response_model=DigestSaveResponse)
@@ -117,4 +117,4 @@ async def save_digest_to_kb(user=Depends(get_current_user)):
         raise
     except Exception as e:
         logger.error(f"Error saving digest to KB: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")

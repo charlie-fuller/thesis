@@ -286,7 +286,7 @@ async def create_metric(
                 status_code=409,
                 detail=f"Metric '{metric.metric_name}' already exists for this stakeholder"
             )
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
     return _format_metric(result.data[0])
 
@@ -478,7 +478,7 @@ async def create_metrics_bulk(
     try:
         result = supabase.table("stakeholder_metrics").insert(data).execute()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
     return {
         "created": len(result.data),

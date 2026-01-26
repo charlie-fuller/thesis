@@ -586,7 +586,7 @@ async def scan_granola_vault(
 
     except Exception as e:
         logger.error(f"Granola scan failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/granola/scan/job/{job_id}")

@@ -417,7 +417,7 @@ async def process_document_endpoint(
 
     except Exception as e:
         logger.error(f"❌ Processing error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -459,7 +459,7 @@ async def get_document_metadata(
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching document: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/{document_id}/content")
@@ -525,7 +525,7 @@ async def get_document_content(
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching document content: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -558,7 +558,7 @@ async def list_all_documents(
 
     except Exception as e:
         logger.error(f"❌ Error listing documents: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/{document_id}/details")
@@ -602,7 +602,7 @@ async def get_document_details(
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching document details: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -672,7 +672,7 @@ async def delete_document(
         raise
     except Exception as e:
         logger.error(f"❌ Error deleting document: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/bulk")
@@ -718,7 +718,7 @@ async def bulk_delete_documents(
 
     except Exception as e:
         logger.error(f"❌ Bulk delete error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -770,7 +770,7 @@ async def download_document(
         raise
     except Exception as e:
         logger.error(f"❌ Error generating download URL: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -836,7 +836,7 @@ async def get_document_agents(
         raise
     except Exception as e:
         logger.error(f"Error getting document agents: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 class UpdateDocumentAgentsRequest(BaseModel):
@@ -941,7 +941,7 @@ async def update_document_agents(
         raise
     except Exception as e:
         logger.error(f"Error updating document agents: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -1033,7 +1033,7 @@ async def get_document_classification(
         raise
     except Exception as e:
         logger.error(f"Error getting document classification: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 class ConfirmClassificationRequest(BaseModel):
@@ -1156,7 +1156,7 @@ async def confirm_classification(
         raise
     except Exception as e:
         logger.error(f"Error confirming document classification: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -1212,7 +1212,7 @@ async def get_document_tags(
         raise
     except Exception as e:
         logger.error(f"Error getting document tags: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 class AddTagRequest(BaseModel):
@@ -1284,7 +1284,7 @@ async def add_document_tag(
         raise
     except Exception as e:
         logger.error(f"Error adding document tag: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/{document_id}/tags/{tag}")
@@ -1366,7 +1366,7 @@ async def remove_document_tag(
         raise
     except Exception as e:
         logger.error(f"Error removing document tag: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -1445,7 +1445,7 @@ async def update_document_original_date(
         raise
     except Exception as e:
         logger.error(f"Error updating document original_date: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.patch("/{document_id}/sync-cadence")
@@ -1507,4 +1507,4 @@ async def update_document_sync_cadence(
         raise
     except Exception as e:
         logger.error(f"Error updating document sync_cadence: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")

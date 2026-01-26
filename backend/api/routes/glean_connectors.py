@@ -106,7 +106,7 @@ async def list_connectors(
         return result.data
     except Exception as e:
         logger.error(f"Error listing connectors: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/categories")
@@ -118,7 +118,7 @@ async def list_categories(supabase: Client = Depends(get_supabase)):
         return sorted(list(categories))
     except Exception as e:
         logger.error(f"Error listing categories: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/check", response_model=list[ConnectorCheckResult])
@@ -161,7 +161,7 @@ async def check_connectors(
         return results
     except Exception as e:
         logger.error(f"Error checking connectors: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/request")
@@ -194,7 +194,7 @@ async def log_connector_request(
         }
     except Exception as e:
         logger.error(f"Error logging connector request: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/gaps", response_model=list[ConnectorGap])
@@ -217,7 +217,7 @@ async def get_connector_gaps(
         return result.data
     except Exception as e:
         logger.error(f"Error getting connector gaps: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/search/{query}")
@@ -237,4 +237,4 @@ async def search_connectors(
         return result.data
     except Exception as e:
         logger.error(f"Error searching connectors: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")

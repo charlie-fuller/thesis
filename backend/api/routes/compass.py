@@ -152,7 +152,7 @@ async def get_latest(current_user: dict = Depends(get_current_user)):
         return report
     except Exception as e:
         logger.error(f"Failed to get latest report: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/status-reports", response_model=list[ReportSummary])
@@ -176,7 +176,7 @@ async def list_all_reports(
         return reports
     except Exception as e:
         logger.error(f"Failed to list reports: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/status-reports/{report_id}", response_model=ReportResponse)
@@ -202,7 +202,7 @@ async def get_report(
         raise
     except Exception as e:
         logger.error(f"Failed to get report {report_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/rubric")

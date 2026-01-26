@@ -62,7 +62,7 @@ async def notion_auth(
         }
     except Exception as e:
         logger.error(f"❌ Notion OAuth init error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/callback")
@@ -122,7 +122,7 @@ async def notion_callback(
 
     except Exception as e:
         logger.error(f"❌ Notion callback error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/status")
@@ -135,7 +135,7 @@ async def get_notion_status_endpoint(
         return {'success': True, **status}
     except Exception as e:
         logger.error(f"❌ Status check error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/pages")
@@ -153,7 +153,7 @@ async def list_notion_pages(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"❌ List pages error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/sync")
@@ -178,7 +178,7 @@ async def sync_notion_pages(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"❌ Sync error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/disconnect")
@@ -194,7 +194,7 @@ async def disconnect_notion_endpoint(
         }
     except Exception as e:
         logger.error(f"❌ Disconnect error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/sync-history")
@@ -219,7 +219,7 @@ async def get_notion_sync_history(
         }
     except Exception as e:
         logger.error(f"❌ Sync history error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/sync-settings")
@@ -247,7 +247,7 @@ async def get_notion_sync_settings(
         raise
     except Exception as e:
         logger.error(f"❌ Get settings error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.patch("/sync-settings")
@@ -276,4 +276,4 @@ async def update_notion_sync_settings(
         }
     except Exception as e:
         logger.error(f"❌ Update settings error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")

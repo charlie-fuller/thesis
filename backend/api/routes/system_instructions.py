@@ -295,7 +295,7 @@ async def list_versions(
 
     except Exception as e:
         logger.error(f"❌ Error listing versions: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/versions/active")
@@ -327,7 +327,7 @@ async def get_active_version(
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching active version: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/versions/{version_id}")
@@ -368,7 +368,7 @@ async def get_version(
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching version: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -448,7 +448,7 @@ async def activate_version(
         raise
     except Exception as e:
         logger.error(f"❌ Activation error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -509,7 +509,7 @@ async def compare_versions(
         raise
     except Exception as e:
         logger.error(f"❌ Comparison error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/versions/compare/summary")
@@ -629,7 +629,7 @@ Keep your response professional and focused on actionable insights for the admin
         raise HTTPException(status_code=500, detail=f"AI summary generation failed: {str(e)}")
     except Exception as e:
         logger.error(f"❌ Summary generation error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/versions/{version_id}/changelog")
@@ -688,7 +688,7 @@ async def get_version_changelog(
         raise
     except Exception as e:
         logger.error(f"❌ Changelog fetch error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 # ============================================================================
@@ -732,7 +732,7 @@ async def update_version_notes(
         raise
     except Exception as e:
         logger.error(f"❌ Update error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/versions/{version_id}")
@@ -787,7 +787,7 @@ async def delete_version(
         raise
     except Exception as e:
         logger.error(f"❌ Delete error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/versions/{version_id}/archive")
@@ -835,4 +835,4 @@ async def archive_version(
         raise
     except Exception as e:
         logger.error(f"❌ Archive error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")

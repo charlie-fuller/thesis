@@ -369,7 +369,7 @@ async def trigger_engagement_recalculation(
         }
     except Exception as e:
         logger.error(f"Engagement recalculation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/dashboard")

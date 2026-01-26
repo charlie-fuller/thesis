@@ -113,7 +113,7 @@ async def analyze_transcript(
 
     except Exception as e:
         logger.error(f"Transcript analysis failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/upload")
