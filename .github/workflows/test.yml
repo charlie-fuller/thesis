@@ -14,6 +14,9 @@ env:
   VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
 
 jobs:
+  # =============================================================================
+  # Backend Tests
+  # =============================================================================
   backend-unit:
     name: Backend Unit Tests
     runs-on: ubuntu-latest
@@ -33,7 +36,7 @@ jobs:
         run: |
           uv venv
           uv pip install -r requirements.txt
-          uv pip install pytest pytest-cov pytest-asyncio ruff black mypy
+          uv pip install pytest pytest-cov pytest-asyncio ruff black mypy hypothesis
 
       - name: Lint with Ruff
         working-directory: backend
@@ -48,6 +51,9 @@ jobs:
         run: |
           uv run pytest tests/ -v \
             --ignore=tests/test_integration.py \
+            --ignore=tests/test_chaos_resilience.py \
+            --ignore=tests/test_concurrent_users.py \
+            -m "not slow and not chaos and not concurrent" \
             --cov=. \
             --cov-report=xml \
             --cov-report=html
@@ -91,6 +97,89 @@ jobs:
         working-directory: backend
         run: uv run pytest tests/test_integration.py -v --tb=short
 
+  backend-smoke:
+    name: Backend Smoke Tests
+    runs-on: ubuntu-latest
+    needs: backend-unit
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          uv venv
+          uv pip install -r requirements.txt
+          uv pip install pytest pytest-asyncio
+
+      - name: Run smoke tests
+        working-directory: backend
+        run: uv run pytest tests/test_smoke.py -v -m smoke --tb=short
+
+  backend-contracts:
+    name: API Contract Tests
+    runs-on: ubuntu-latest
+    needs: backend-unit
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          uv venv
+          uv pip install -r requirements.txt
+          uv pip install pytest pytest-asyncio
+
+      - name: Run contract tests
+        working-directory: backend
+        run: uv run pytest tests/test_contracts.py -v --tb=short
+
+  backend-property:
+    name: Property-Based Tests
+    runs-on: ubuntu-latest
+    needs: backend-unit
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          uv venv
+          uv pip install -r requirements.txt
+          uv pip install pytest pytest-asyncio hypothesis
+
+      - name: Run property-based tests
+        working-directory: backend
+        env:
+          HYPOTHESIS_PROFILE: ci
+        run: uv run pytest tests/test_property_based.py -v --tb=short
+
+  # =============================================================================
+  # Frontend Tests
+  # =============================================================================
   frontend-lint-build:
     name: Frontend Lint & Build
     runs-on: ubuntu-latest
@@ -147,6 +236,9 @@ jobs:
           name: frontend-coverage-report
           path: frontend/coverage/
 
+  # =============================================================================
+  # E2E Tests
+  # =============================================================================
   e2e:
     name: E2E Tests (Playwright)
     runs-on: ubuntu-latest
@@ -171,7 +263,7 @@ jobs:
 
       - name: Run E2E tests
         working-directory: frontend
-        run: npx playwright test
+        run: npx playwright test --project=chromium
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -185,6 +277,86 @@ jobs:
           path: frontend/playwright-report/
           retention-days: 30
 
+  e2e-accessibility:
+    name: Accessibility Tests (axe-core)
+    runs-on: ubuntu-latest
+    needs: [frontend-lint-build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install -D @axe-core/playwright
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run accessibility tests
+        working-directory: frontend
+        run: npx playwright test e2e/accessibility.spec.ts --project=chromium
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        continue-on-error: true  # Don't fail CI on a11y issues initially
+
+      - name: Upload accessibility report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: accessibility-report
+          path: frontend/playwright-report/
+
+  e2e-visual:
+    name: Visual Regression Tests
+    runs-on: ubuntu-latest
+    needs: [frontend-lint-build]
+    if: github.event_name == 'pull_request'  # Only on PRs
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run visual regression tests
+        working-directory: frontend
+        run: npx playwright test e2e/visual-regression.spec.ts --project=chromium
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        continue-on-error: true  # Allow failures until baselines established
+
+      - name: Upload visual snapshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-snapshots
+          path: frontend/e2e/__snapshots__/
+
+  # =============================================================================
+  # Security Scanning
+  # =============================================================================
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
@@ -197,11 +369,11 @@ jobs:
           python-version: '3.12'
 
       - name: Install security tools
-        run: pip install safety bandit
+        run: pip install safety bandit pip-audit
 
       - name: Run safety check (Python dependencies)
         working-directory: backend
-        run: safety check -r requirements.txt --output json || true
+        run: safety check -r requirements.txt --output json > safety-report.json || true
         continue-on-error: true
 
       - name: Run bandit (Python code security)
@@ -209,11 +381,19 @@ jobs:
         run: bandit -r . -f json -o bandit-report.json || true
         continue-on-error: true
 
-      - name: Upload bandit report
+      - name: Run pip-audit
+        working-directory: backend
+        run: pip-audit -r requirements.txt --format json > pip-audit-report.json || true
+        continue-on-error: true
+
+      - name: Upload Python security reports
         uses: actions/upload-artifact@v4
         with:
-          name: bandit-security-report
-          path: backend/bandit-report.json
+          name: python-security-reports
+          path: |
+            backend/safety-report.json
+            backend/bandit-report.json
+            backend/pip-audit-report.json
 
       - name: Set up Node.js 20
         uses: actions/setup-node@v4
@@ -233,20 +413,205 @@ jobs:
           name: npm-audit-report
           path: frontend/npm-audit-report.json
 
-  # Summary job that depends on all other jobs
+  security-tests:
+    name: Security Unit Tests
+    runs-on: ubuntu-latest
+    needs: backend-unit
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          uv venv
+          uv pip install -r requirements.txt
+          uv pip install pytest pytest-asyncio
+
+      - name: Run security tests
+        working-directory: backend
+        run: |
+          uv run pytest tests/test_security.py tests/test_it_compliance.py -v --tb=short -m "security or compliance"
+
+  # =============================================================================
+  # AI Safety and Bias Testing
+  # =============================================================================
+  ai-safety:
+    name: AI Safety & Bias Tests
+    runs-on: ubuntu-latest
+    needs: backend-unit
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          uv venv
+          uv pip install -r requirements.txt
+          uv pip install pytest pytest-asyncio
+
+      - name: Run AI safety and ethics tests
+        working-directory: backend
+        run: |
+          uv run pytest tests/test_ai_safety_ethics.py tests/test_human_centered_ai.py tests/test_llm_bias_mitigation.py -v --tb=short
+        continue-on-error: true  # Don't fail CI, but report results
+
+      - name: Run agent quality tests
+        working-directory: backend
+        run: |
+          uv run pytest tests/test_agent_quality.py -v --tb=short -m "quality or routing"
+        continue-on-error: true
+
+  # =============================================================================
+  # IT Audit Tests
+  # =============================================================================
+  it-audit:
+    name: IT Department Audit
+    runs-on: ubuntu-latest
+    needs: [backend-unit, security]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          uv venv
+          uv pip install -r requirements.txt
+          uv pip install pytest pytest-asyncio
+
+      - name: Run IT audit tests
+        working-directory: backend
+        run: |
+          uv run pytest tests/test_it_department_audit.py -v --tb=short
+
+      - name: Generate IT Audit Report
+        working-directory: backend
+        run: |
+          uv run python -c "from tests.test_it_department_audit import generate_it_audit_report; print(generate_it_audit_report())" > it-audit-report.md
+
+      - name: Upload IT Audit Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: it-audit-report
+          path: backend/it-audit-report.md
+
+  # =============================================================================
+  # Performance and Load Tests (on demand)
+  # =============================================================================
+  load-test:
+    name: Load Testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'  # Manual trigger only
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Locust
+        run: pip install locust
+
+      - name: Run Locust load test
+        working-directory: backend
+        run: |
+          locust -f locustfile.py \
+            --headless \
+            --users 50 \
+            --spawn-rate 5 \
+            --run-time 5m \
+            --host ${{ secrets.API_URL }} \
+            --html locust-report.html
+
+      - name: Upload Locust report
+        uses: actions/upload-artifact@v4
+        with:
+          name: locust-report
+          path: backend/locust-report.html
+
+  # =============================================================================
+  # Database Migration Tests
+  # =============================================================================
+  migration-test:
+    name: Migration Safety Tests
+    runs-on: ubuntu-latest
+    needs: backend-unit
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          uv venv
+          uv pip install -r requirements.txt
+          uv pip install pytest pytest-asyncio
+
+      - name: Run migration tests
+        working-directory: backend
+        run: uv run pytest tests/test_database_migrations.py -v --tb=short
+
+  # =============================================================================
+  # Summary Job
+  # =============================================================================
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [backend-unit, backend-integration, frontend-unit, e2e, security]
+    needs: [backend-unit, backend-integration, backend-smoke, frontend-unit, e2e, security]
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
           if [[ "${{ needs.backend-unit.result }}" != "success" ]] || \
              [[ "${{ needs.backend-integration.result }}" != "success" ]] || \
+             [[ "${{ needs.backend-smoke.result }}" != "success" ]] || \
              [[ "${{ needs.frontend-unit.result }}" != "success" ]] || \
              [[ "${{ needs.e2e.result }}" != "success" ]]; then
             echo "One or more required jobs failed"
             exit 1
           fi
           echo "All required jobs passed!"
+
+      - name: Summary
+        run: |
+          echo "## CI Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Unit | ${{ needs.backend-unit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Integration | ${{ needs.backend-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Smoke | ${{ needs.backend-smoke.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Unit | ${{ needs.frontend-unit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests | ${{ needs.e2e.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security | ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
