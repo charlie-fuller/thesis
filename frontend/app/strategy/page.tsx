@@ -726,7 +726,7 @@ export default function StrategyPage() {
   const [activeTab, setActiveTab] = useState<'fy26' | 'fy27'>('fy26')
   const [kpis, setKpis] = useState<DepartmentKPI[]>(MOCK_KPIS)
   const [loading, setLoading] = useState(false)
-  const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set(['Legal', 'Finance', 'HR/People']))
+  const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set())
 
   // Select objectives based on active tab
   const objectives = activeTab === 'fy26' ? FY26_OBJECTIVES : FY27_OBJECTIVES
