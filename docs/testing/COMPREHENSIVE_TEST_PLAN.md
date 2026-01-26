@@ -1,868 +1,788 @@
-# Thesis Platform - Comprehensive Test Plan
+# Thesis Application - Comprehensive Test Plan & Code Review
 
-**Version:** 1.0
-**Created:** 2025-12-27
-**Purpose:** Complete code review, quality assessment, and testing framework
-
----
-
-## Table of Contents
-
-1. [Overview](#overview)
-2. [Code Quality Indicators](#code-quality-indicators)
-3. [Backend Testing](#backend-testing)
-4. [Frontend Testing](#frontend-testing)
-5. [Database Testing](#database-testing)
-6. [Integration Testing](#integration-testing)
-7. [Performance Testing](#performance-testing)
-8. [Security Testing](#security-testing)
-9. [Code Smell Detection](#code-smell-detection)
-10. [Automated Test Checklist](#automated-test-checklist)
+> **Version**: 2.0
+> **Created**: January 25, 2026
+> **Permanent Location**: `/docs/testing/COMPREHENSIVE_TEST_PLAN.md`
+> **Purpose**: Production-ready validation plan for full-stack developer review
+> **Application**: Multi-agent AI platform (21 agents, Next.js 16 + FastAPI)
+> **Current State**: 445+ backend tests, 3 frontend tests, no CI/CD, no e2e tests
 
 ---
 
-## Overview
+## Executive Summary
 
-### Platform Architecture
-
-```
-Frontend (Next.js 16 + React 19)
-    ↓ HTTPS/SSE
-Backend (FastAPI + Python 3.11)
-    ├── 13 Specialized Agents
-    ├── 22 API Route Modules
-    ├── RAG Document Pipeline
-    └── Neo4j Graph Integration
-         ↓
-Database Layer
-    ├── Supabase (PostgreSQL + pgvector)
-    └── Neo4j (Graph DB)
-```
-
-### Test Coverage Goals
-
-| Layer | Current | Target |
-|-------|---------|--------|
-| Backend Unit Tests | ~55 tests | 200+ tests |
-| Frontend Unit Tests | 0 tests | 100+ tests |
-| Integration Tests | 0 tests | 50+ tests |
-| E2E Tests | 0 tests | 20+ tests |
+This plan transforms Thesis from a functional prototype to production-grade software through:
+1. **Code Review Checklist** - Professional engineering standards validation
+2. **Test Coverage Expansion** - 483 tests → 940+ tests target
+3. **CI/CD Pipeline** - Automated quality gates
+4. **E2E Testing** - Critical user journey validation
+5. **Performance & Security Testing** - Production hardening
 
 ---
 
-## Code Quality Indicators
+## Part 1: Code Review Checklist
 
-### "Vibe Coding" Detection Patterns
+### 1.1 Backend Code Quality (Python/FastAPI)
 
-These patterns indicate code that may have been written without full understanding:
+**Files to Review**: `/backend/api/routes/*.py` (36 files), `/backend/agents/*.py` (21 agents)
 
-1. **Copy-Paste Duplication**
-   - Same logic repeated across files
-   - Inconsistent naming for same operations
-   - Magic numbers without constants
+| Check | Standard | How to Verify |
+|-------|----------|---------------|
+| Type hints | All functions typed | `mypy backend/ --strict` |
+| No bare `except:` | Specific exceptions only | `grep -r "except\s*:" backend/` |
+| No `print()` in prod | Use logger | `grep -r "\bprint\s*(" backend/api/` |
+| Async consistency | No blocking I/O in async | Manual review of `await` usage |
+| Pydantic models | All API requests/responses | Check each route file |
+| Docstrings | All public functions | `pydocstyle backend/` |
 
-2. **Unclear Error Handling**
-   - Bare `except Exception` blocks
-   - Errors silently swallowed
-   - Inconsistent error response formats
-
-3. **Oversized Components/Modules**
-   - Files over 500 lines without clear separation
-   - Components doing multiple unrelated tasks
-   - God classes/functions
-
-4. **Missing Type Safety**
-   - `any` types in TypeScript
-   - No Pydantic validation on inputs
-   - Implicit type coercion
-
-5. **Inconsistent Patterns**
-   - Different auth approaches in same codebase
-   - Mixed async/sync without clear reason
-   - Multiple ways to accomplish same task
-
-6. **Dead Code**
-   - Unused imports
-   - Commented-out code blocks
-   - Unreachable code paths
-
-7. **Poor Naming**
-   - Single-letter variables (except loops)
-   - Cryptic abbreviations
-   - Names that don't match behavior
-
----
-
-## Backend Testing
-
-### 1. Agent System Tests
-
-#### 1.1 Base Agent Tests
-```python
-# tests/agents/test_base_agent.py
-
-class TestBaseAgent:
-    """Test BaseAgent functionality."""
-
-    async def test_agent_initialization(self):
-        """Agent should initialize with correct name and display_name."""
-
-    async def test_system_instruction_loading(self):
-        """Agent should load system instruction from DB or fallback."""
-
-    async def test_message_building(self):
-        """_build_messages should correctly format conversation history."""
-
-    async def test_streaming_response(self):
-        """stream() should yield text chunks from Claude API."""
-
-    async def test_memory_integration(self):
-        """Agent should incorporate memories into context when available."""
+**Commands**:
+```bash
+cd backend
+uv run ruff check . --select=E,F,W,B,I
+uv run black --check .
+uv run mypy . --ignore-missing-imports
 ```
 
-#### 1.2 Coordinator Tests
-```python
-# tests/agents/test_coordinator.py
+### 1.2 Frontend Code Quality (TypeScript/React)
 
-class TestCoordinatorAgent:
-    """Test Coordinator routing and synthesis."""
+**Files to Review**: `/frontend/components/*.tsx` (40+ components), `/frontend/app/**/*.tsx`
 
-    async def test_greeting_detection(self):
-        """Greetings should be handled directly without specialist routing."""
+| Check | Standard | How to Verify |
+|-------|----------|---------------|
+| No `any` types | Explicit types always | `grep -r ": any" frontend/` |
+| useEffect deps | Complete dependency arrays | ESLint react-hooks/exhaustive-deps |
+| Error boundaries | All async operations | Manual review |
+| Loading states | All fetch operations | Manual review |
+| Key props | All list renders | ESLint |
 
-    async def test_single_domain_routing(self):
-        """Single-domain queries should route to one specialist."""
-        queries = [
-            ("What's the ROI of this project?", ["capital"]),
-            ("Is this compliant with GDPR?", ["guardian"]),
-            ("Review this contract clause", ["counselor"]),
-        ]
-
-    async def test_multi_domain_routing(self):
-        """Complex queries should route to multiple specialists."""
-        queries = [
-            ("What's the ROI and legal risk?", ["capital", "counselor"]),
-            ("Security and compliance concerns", ["guardian", "counselor"]),
-        ]
-
-    async def test_llm_classification_fallback(self):
-        """When keyword matching fails, LLM should classify."""
-
-    async def test_response_synthesis(self):
-        """Multiple specialist responses should be synthesized coherently."""
-
-    async def test_graph_context_enrichment(self):
-        """When Neo4j available, responses should include graph insights."""
+**Commands**:
+```bash
+cd frontend
+npm run lint
+npm run build  # TypeScript check
 ```
 
-#### 1.3 Specialist Agent Tests
-```python
-# tests/agents/test_specialists.py
-
-class TestSpecialistAgents:
-    """Test each specialist agent's domain expertise."""
-
-    # Atlas (Research)
-    async def test_atlas_research_synthesis(self):
-        """Atlas should provide evidence-based recommendations."""
-
-    async def test_atlas_lean_orientation(self):
-        """Atlas should apply Toyota/Lean thinking."""
-
-    # Capital (Finance)
-    async def test_capital_roi_calculation(self):
-        """Capital should provide ROI metrics and business cases."""
-
-    async def test_capital_sox_awareness(self):
-        """Capital should address SOX compliance concerns."""
-
-    # Guardian (Governance)
-    async def test_guardian_security_assessment(self):
-        """Guardian should identify security concerns."""
-
-    async def test_guardian_shadow_it_detection(self):
-        """Guardian should flag shadow IT risks."""
-
-    # Counselor (Legal)
-    async def test_counselor_contract_review(self):
-        """Counselor should identify contract issues."""
-
-    async def test_counselor_ai_risk_awareness(self):
-        """Counselor should address hallucination, bias, liability."""
-
-    # Sage (People)
-    async def test_sage_change_management(self):
-        """Sage should provide people-first recommendations."""
-
-    async def test_sage_burnout_prevention(self):
-        """Sage should flag champion burnout risks."""
-
-    # Oracle (Transcripts)
-    async def test_oracle_sentiment_extraction(self):
-        """Oracle should extract stakeholder sentiment from transcripts."""
-
-    async def test_oracle_attendee_identification(self):
-        """Oracle should identify and classify meeting attendees."""
-
-    # Nexus (Systems Thinking)
-    async def test_nexus_feedback_loop_identification(self):
-        """Nexus should identify reinforcing and balancing loops."""
-
-    async def test_nexus_leverage_point_analysis(self):
-        """Nexus should apply Meadows' leverage points framework."""
-
-    # Strategist (Executive)
-    async def test_strategist_executive_engagement(self):
-        """Strategist should address C-suite concerns."""
-
-    # Architect (Technical)
-    async def test_architect_pattern_recommendations(self):
-        """Architect should recommend enterprise AI patterns."""
-
-    # Operator (Operations)
-    async def test_operator_process_analysis(self):
-        """Operator should analyze processes for automation."""
-
-    # Pioneer (Innovation)
-    async def test_pioneer_hype_filtering(self):
-        """Pioneer should distinguish hype from reality."""
-
-    # Catalyst (Communications)
-    async def test_catalyst_messaging_strategy(self):
-        """Catalyst should craft internal AI messaging."""
-
-    # Scholar (L&D)
-    async def test_scholar_training_design(self):
-        """Scholar should design effective training programs."""
-```
-
-### 2. API Route Tests
-
-#### 2.1 Chat Endpoint Tests
-```python
-# tests/api/test_chat.py
-
-class TestChatEndpoint:
-    """Test /api/chat/* endpoints."""
-
-    async def test_chat_requires_authentication(self):
-        """Unauthenticated requests should return 401."""
-
-    async def test_chat_validates_message_length(self):
-        """Messages over limit should return 400."""
-
-    async def test_chat_requires_conversation_id(self):
-        """Requests without conversation_id should return 400."""
-
-    async def test_chat_streaming_format(self):
-        """Response should be SSE with correct event types."""
-
-    async def test_chat_rag_context_inclusion(self):
-        """When documents exist, RAG context should be included."""
-
-    async def test_chat_rate_limiting(self):
-        """Excessive requests should return 429."""
-
-    async def test_chat_error_handling(self):
-        """API errors should return structured error response."""
-```
-
-#### 2.2 Document Endpoint Tests
-```python
-# tests/api/test_documents.py
-
-class TestDocumentEndpoints:
-    """Test /api/documents/* endpoints."""
-
-    async def test_upload_pdf(self):
-        """PDF upload should succeed and create chunks."""
-
-    async def test_upload_txt(self):
-        """TXT upload should succeed and create chunks."""
-
-    async def test_upload_unsupported_type(self):
-        """Unsupported file types should return 400."""
-
-    async def test_upload_size_limit(self):
-        """Files over size limit should return 413."""
-
-    async def test_storage_quota_enforcement(self):
-        """Uploads exceeding quota should return 403."""
-
-    async def test_document_deletion(self):
-        """Delete should remove document and chunks."""
-
-    async def test_document_search(self):
-        """Semantic search should return relevant chunks."""
-```
-
-#### 2.3 Agent Management Tests
-```python
-# tests/api/test_agents.py
-
-class TestAgentEndpoints:
-    """Test /api/agents/* endpoints."""
-
-    async def test_list_agents(self):
-        """Should return all registered agents."""
-
-    async def test_get_agent_detail(self):
-        """Should return agent with current system instruction."""
-
-    async def test_update_system_instruction(self):
-        """Should create new version and activate."""
-
-    async def test_instruction_version_history(self):
-        """Should return version history with diffs."""
-
-    async def test_activate_previous_version(self):
-        """Should be able to rollback to previous version."""
-```
-
-#### 2.4 Stakeholder Tests
-```python
-# tests/api/test_stakeholders.py
-
-class TestStakeholderEndpoints:
-    """Test /api/stakeholders/* endpoints."""
-
-    async def test_create_stakeholder(self):
-        """Should create stakeholder with required fields."""
-
-    async def test_update_sentiment(self):
-        """Should update sentiment score and track history."""
-
-    async def test_add_insight(self):
-        """Should add insight linked to stakeholder."""
-
-    async def test_stakeholder_search(self):
-        """Should search by name, role, organization."""
-```
-
-### 3. Service Tests
-
-#### 3.1 Document Processor Tests
-```python
-# tests/services/test_document_processor.py
-
-class TestDocumentProcessor:
-    """Test RAG pipeline."""
-
-    def test_chunk_size_limits(self):
-        """Chunks should respect size limits."""
-
-    def test_chunk_overlap(self):
-        """Adjacent chunks should have overlap for context."""
-
-    def test_embedding_generation(self):
-        """Voyage AI should generate 1024-dim embeddings."""
-
-    def test_similarity_search_accuracy(self):
-        """Similar content should score higher than dissimilar."""
-```
-
-#### 3.2 Graph Service Tests
-```python
-# tests/services/test_graph.py
-
-class TestGraphService:
-    """Test Neo4j integration."""
-
-    async def test_connection_handling(self):
-        """Should gracefully handle connection failures."""
-
-    async def test_stakeholder_node_creation(self):
-        """Should create stakeholder nodes correctly."""
-
-    async def test_relationship_extraction(self):
-        """LLM should extract relationships from text."""
-
-    async def test_sync_consistency(self):
-        """Graph should stay consistent with PostgreSQL."""
-```
-
----
-
-## Frontend Testing
-
-### 1. Component Tests
-
-#### 1.1 ChatInterface Tests
-```typescript
-// __tests__/components/ChatInterface.test.tsx
-
-describe('ChatInterface', () => {
-  it('should render empty state correctly', () => {});
-  it('should display loading state during streaming', () => {});
-  it('should render markdown in messages', () => {});
-  it('should handle send button click', () => {});
-  it('should disable input while streaming', () => {});
-  it('should scroll to bottom on new message', () => {});
-  it('should display error state on API failure', () => {});
-  it('should support keyboard submit (Enter)', () => {});
-});
-```
-
-#### 1.2 DocumentUpload Tests
-```typescript
-// __tests__/components/DocumentUpload.test.tsx
-
-describe('DocumentUpload', () => {
-  it('should accept valid file types', () => {});
-  it('should reject invalid file types', () => {});
-  it('should display upload progress', () => {});
-  it('should handle upload errors gracefully', () => {});
-  it('should enforce file size limits', () => {});
-});
-```
-
-#### 1.3 AuthContext Tests
-```typescript
-// __tests__/contexts/AuthContext.test.tsx
-
-describe('AuthContext', () => {
-  it('should provide user state to children', () => {});
-  it('should handle sign in correctly', () => {});
-  it('should handle sign out correctly', () => {});
-  it('should refresh profile on demand', () => {});
-  it('should persist session across reloads', () => {});
-});
-```
-
-### 2. Page Tests
-
-```typescript
-// __tests__/pages/HomePage.test.tsx
-
-describe('Home Page', () => {
-  it('should render stakeholder metrics', () => {});
-  it('should display recent activity', () => {});
-  it('should handle loading state', () => {});
-  it('should show empty state when no data', () => {});
-});
-```
-
-### 3. API Client Tests
-
-```typescript
-// __tests__/api/client.test.ts
-
-describe('API Client', () => {
-  it('should include auth token in requests', () => {});
-  it('should handle 401 by redirecting to login', () => {});
-  it('should retry on network errors', () => {});
-  it('should parse JSON responses correctly', () => {});
-});
-```
-
----
-
-## Database Testing
-
-### 1. Schema Validation
-
-```sql
--- tests/database/test_schema.sql
-
--- Verify all required tables exist
-SELECT table_name FROM information_schema.tables
-WHERE table_schema = 'public'
-AND table_name IN (
-    'users', 'clients', 'conversations', 'messages',
-    'documents', 'document_chunks', 'agents',
-    'agent_instruction_versions', 'stakeholders',
-    'stakeholder_insights', 'meeting_rooms',
-    'meeting_room_participants', 'meeting_room_messages'
-);
-
--- Verify foreign key constraints
-SELECT tc.constraint_name, tc.table_name, kcu.column_name,
-       ccu.table_name AS referenced_table
-FROM information_schema.table_constraints tc
-JOIN information_schema.key_column_usage kcu
-    ON tc.constraint_name = kcu.constraint_name
-JOIN information_schema.constraint_column_usage ccu
-    ON ccu.constraint_name = tc.constraint_name
-WHERE tc.constraint_type = 'FOREIGN KEY';
-
--- Verify indexes exist for performance
-SELECT indexname, indexdef
-FROM pg_indexes
-WHERE schemaname = 'public';
-
--- Verify RLS policies
-SELECT schemaname, tablename, policyname, cmd, qual
-FROM pg_policies
-WHERE schemaname = 'public';
-```
-
-### 2. Migration Tests
-
-```python
-# tests/database/test_migrations.py
-
-class TestMigrations:
-    """Test database migrations."""
-
-    def test_migrations_are_ordered(self):
-        """Migration files should have sequential numbers."""
-
-    def test_migrations_are_idempotent(self):
-        """Running migrations twice should not error."""
-
-    def test_rollback_capability(self):
-        """Each migration should have a rollback path."""
-```
-
-### 3. Data Integrity Tests
-
-```python
-# tests/database/test_integrity.py
-
-class TestDataIntegrity:
-    """Test data integrity constraints."""
-
-    async def test_cascade_delete_conversations(self):
-        """Deleting user should cascade to conversations."""
-
-    async def test_cascade_delete_documents(self):
-        """Deleting document should cascade to chunks."""
-
-    async def test_agent_instruction_uniqueness(self):
-        """Active instruction version should be unique per agent."""
-```
-
----
-
-## Integration Testing
-
-### 1. End-to-End Chat Flow
-
-```python
-# tests/integration/test_chat_flow.py
-
-class TestChatFlow:
-    """Test complete chat flow."""
-
-    async def test_new_conversation_flow(self):
-        """
-        1. Create conversation
-        2. Send message
-        3. Receive streamed response
-        4. Verify message saved
-        5. Verify agent attribution
-        """
-
-    async def test_rag_augmented_chat(self):
-        """
-        1. Upload document
-        2. Wait for processing
-        3. Ask question about document
-        4. Verify document context in response
-        """
-
-    async def test_multi_agent_consultation(self):
-        """
-        1. Send cross-domain query
-        2. Verify multiple agents consulted
-        3. Verify synthesized response
-        """
-```
-
-### 2. Document Processing Flow
-
-```python
-# tests/integration/test_document_flow.py
-
-class TestDocumentFlow:
-    """Test document upload to search flow."""
-
-    async def test_pdf_to_search(self):
-        """
-        1. Upload PDF
-        2. Verify chunks created
-        3. Verify embeddings generated
-        4. Search for content
-        5. Verify results
-        """
-```
-
-### 3. Stakeholder Tracking Flow
-
-```python
-# tests/integration/test_stakeholder_flow.py
-
-class TestStakeholderFlow:
-    """Test stakeholder lifecycle."""
-
-    async def test_transcript_to_stakeholder(self):
-        """
-        1. Upload transcript
-        2. Extract attendees
-        3. Create/update stakeholders
-        4. Verify sentiment scores
-        5. Verify graph relationships
-        """
-```
-
----
-
-## Performance Testing
-
-### 1. Response Time Benchmarks
-
-| Endpoint | Target P50 | Target P99 |
-|----------|------------|------------|
-| `POST /chat/send` (first token) | < 500ms | < 2000ms |
-| `POST /documents/upload` (small) | < 1000ms | < 3000ms |
-| `GET /conversations` | < 100ms | < 500ms |
-| `GET /stakeholders` | < 100ms | < 500ms |
-
-### 2. Load Testing Scenarios
-
-```python
-# tests/performance/test_load.py
-
-class TestLoad:
-    """Load testing scenarios."""
-
-    async def test_concurrent_chats(self):
-        """10 concurrent chat sessions should maintain response times."""
-
-    async def test_document_upload_under_load(self):
-        """5 concurrent uploads should complete without timeout."""
-
-    async def test_rag_search_at_scale(self):
-        """Search with 10000+ chunks should complete in < 500ms."""
-```
-
-### 3. Memory and Resource Tests
-
-```python
-# tests/performance/test_resources.py
-
-class TestResources:
-    """Test resource consumption."""
-
-    def test_streaming_memory_usage(self):
-        """Streaming should not accumulate memory."""
-
-    def test_connection_pool_limits(self):
-        """Database connections should be pooled and limited."""
-
-    def test_embedding_batch_efficiency(self):
-        """Large documents should batch embedding calls."""
-```
-
----
-
-## Security Testing
-
-### 1. Authentication Tests
-
-```python
-# tests/security/test_auth.py
-
-class TestAuthSecurity:
-    """Test authentication security."""
-
-    def test_jwt_expiration_enforced(self):
-        """Expired tokens should be rejected."""
-
-    def test_jwt_signature_verified(self):
-        """Tampered tokens should be rejected."""
-
-    def test_password_not_logged(self):
-        """Passwords should never appear in logs."""
-
-    def test_rate_limiting_on_login(self):
-        """Failed logins should be rate limited."""
-```
-
-### 2. Authorization Tests
-
-```python
-# tests/security/test_authz.py
-
-class TestAuthorizationSecurity:
-    """Test authorization rules."""
-
-    def test_user_cannot_access_other_users_data(self):
-        """RLS should prevent cross-user access."""
-
-    def test_admin_can_access_all_data(self):
-        """Admin role should have elevated access."""
-
-    def test_client_isolation(self):
-        """Users should only see their client's data."""
-```
-
-### 3. Input Validation Tests
-
-```python
-# tests/security/test_input.py
-
-class TestInputSecurity:
-    """Test input validation."""
-
-    def test_sql_injection_prevention(self):
-        """SQL injection attempts should be blocked."""
-
-    def test_xss_prevention(self):
-        """XSS payloads should be sanitized."""
-
-    def test_path_traversal_prevention(self):
-        """Path traversal in file uploads should be blocked."""
-
-    def test_file_type_validation(self):
-        """Only allowed file types should be accepted."""
-```
-
----
-
-## Code Smell Detection
-
-### Backend Code Smells to Check
-
-```python
-# scripts/code_quality/check_smells.py
-
-SMELL_PATTERNS = {
-    "bare_except": r"except\s*:",
-    "todo_fixme": r"#\s*(TODO|FIXME|XXX|HACK)",
-    "magic_numbers": r"(?<![\w.])\d{2,}(?![\w.])",
-    "long_functions": "functions > 50 lines",
-    "deep_nesting": "indentation > 4 levels",
-    "god_classes": "classes > 500 lines",
-    "unused_imports": "import not used",
-    "duplicate_code": "similar blocks > 10 lines",
-    "hardcoded_secrets": r"(password|secret|key)\s*=\s*['\"]",
-    "print_statements": r"print\(",
+### 1.3 Security Review Checklist
+
+| Area | Check | File(s) |
+|------|-------|---------|
+| JWT validation | Algorithm pinned (HS256/ES256) | `/backend/auth.py` |
+| CORS | Explicit origins, no `*` | `/backend/main.py` |
+| Rate limiting | Chat: 20/min, Upload: 10/min | `/backend/api/routes/chat.py` |
+| Input validation | UUID validation, length limits | `/backend/validation.py` |
+| SQL injection | No string interpolation | All routes using Supabase |
+| XSS | No `dangerouslySetInnerHTML` | All React components |
+| Secrets | No hardcoded keys | `grep -r "sk-" . --include="*.py"` |
+
+### 1.4 API Contract Review
+
+**Verify for each endpoint**:
+- [ ] Request model with validation
+- [ ] Response model documented
+- [ ] Error responses use standard format
+- [ ] OpenAPI docs accurate (`/docs` endpoint)
+
+**Standard Error Format**:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Human-readable message",
+    "details": {}
+  }
 }
 ```
 
-### Frontend Code Smells to Check
+---
 
+## Part 2: Unit Test Expansion
+
+### 2.1 Frontend Tests Needed (Current: 3 → Target: 100+)
+
+**Priority 1 - Core Components** (40 tests):
+
+| Component | File | Tests Needed | Test Cases |
+|-----------|------|--------------|------------|
+| ChatInterface | `components/ChatInterface.tsx` | 15 | Message send, streaming, agent routing, file attach, error states |
+| AgentSelector | `components/AgentSelector.tsx` | 10 | @mention parsing, multi-select, keyboard nav |
+| ConversationSidebar | `components/ConversationSidebar.tsx` | 8 | Search, select, delete, archive |
+| TaskReviewPanel | `components/TaskReviewPanel.tsx` | 7 | Status change, drag-drop, edit |
+
+**Test File Template** (`frontend/__tests__/ChatInterface.test.tsx`):
 ```typescript
-// scripts/code_quality/check_frontend_smells.ts
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import ChatInterface from '@/components/ChatInterface'
 
-const SMELL_PATTERNS = {
-  anyType: /:\s*any\b/,
-  consoleLog: /console\.(log|debug|info)/,
-  inlineStyles: /style=\{\{/,
-  largeComponent: 'components > 300 lines',
-  propDrilling: 'props passed > 3 levels',
-  missingKeys: 'map without key prop',
-  useEffectDeps: 'useEffect with missing deps',
-  hardcodedStrings: 'strings not in constants',
-};
+// Mock Supabase
+jest.mock('@/lib/supabase', () => ({
+  supabase: { from: jest.fn() }
+}))
+
+describe('ChatInterface', () => {
+  describe('Message Sending', () => {
+    it('sends message and displays optimistically', async () => {})
+    it('handles streaming responses', async () => {})
+    it('prevents double-submit during loading', async () => {})
+    it('retries failed messages', async () => {})
+  })
+
+  describe('Agent Selection', () => {
+    it('routes to @mentioned agent', async () => {})
+    it('locks to specific agent when lockedAgentId provided', async () => {})
+  })
+
+  describe('Error Handling', () => {
+    it('displays user-friendly error on API failure', async () => {})
+    it('shows retry button on network error', async () => {})
+  })
+})
 ```
 
-### Automated Smell Detection Script
+**Priority 2 - Feature Components** (35 tests):
+- Opportunities: `OpportunityCard`, `PipelineView`, `TierBadge` (15 tests)
+- Tasks: `KanbanBoard`, `TaskCard`, `TaskForm` (12 tests)
+- DISCo: `InitiativeCard`, `CoverageChart` (8 tests)
 
-```bash
-#!/bin/bash
-# scripts/check_code_quality.sh
+**Priority 3 - Contexts & Hooks** (25 tests):
+- `AuthContext`: Session management, refresh, logout (10 tests)
+- `ThemeContext`: Toggle, persistence (5 tests)
+- `useDebounce`, `useAsync`: Edge cases (10 tests)
 
-echo "=== Backend Code Quality ==="
+### 2.2 Backend Tests Needed (Current: 445 → Target: 600)
 
-# Bare except blocks
-echo "Bare except blocks:"
-grep -rn "except:" backend/ --include="*.py" | grep -v "except Exception"
+**Uncovered Services**:
 
-# TODO/FIXME comments
-echo "TODO/FIXME comments:"
-grep -rn "TODO\|FIXME\|XXX\|HACK" backend/ --include="*.py"
+| Service | File | Tests Needed |
+|---------|------|--------------|
+| Meeting Orchestrator | `services/meeting_orchestrator.py` | 25 |
+| Google Drive Sync | `services/google_drive_sync.py` | 20 |
+| Granola Scanner | `services/granola_scanner.py` | 15 |
+| DISCo Services | `services/disco/*.py` | 40 |
+| Graph Services | `services/graph/*.py` | 15 |
 
-# Long files
-echo "Files over 500 lines:"
-find backend/ -name "*.py" -exec wc -l {} \; | awk '$1 > 500'
+**Test File**: `backend/tests/test_meeting_orchestrator.py`
+```python
+"""Tests for multi-agent meeting orchestration."""
+import pytest
+from unittest.mock import MagicMock, AsyncMock, patch
 
-# Unused imports (requires pylint)
-echo "Running pylint for unused imports..."
-pylint backend/ --disable=all --enable=W0611
+class TestMeetingOrchestrator:
+    """Meeting orchestration tests."""
 
-echo "=== Frontend Code Quality ==="
+    def test_agent_selection_for_topic(self):
+        """Correct agents selected based on topic keywords."""
 
-# Any types
-echo "any types:"
-grep -rn ": any" frontend/ --include="*.ts" --include="*.tsx"
+    def test_turn_taking_respects_priority(self):
+        """Agents speak in priority order."""
 
-# Console logs
-echo "console.log statements:"
-grep -rn "console.log" frontend/ --include="*.ts" --include="*.tsx"
+    def test_autonomous_mode_word_limits(self):
+        """Enforce 50-100 word limit per turn."""
 
-# Large components
-echo "Files over 500 lines:"
-find frontend/ -name "*.tsx" -exec wc -l {} \; | awk '$1 > 500'
+    def test_facilitator_redirects_off_topic(self):
+        """Facilitator intervenes when discussion drifts."""
+
+    def test_reporter_generates_synthesis(self):
+        """Reporter produces unified summary."""
 ```
 
 ---
 
-## Automated Test Checklist
+## Part 3: Integration Testing
 
-### Pre-Commit Checks
+### 3.1 API Endpoint Coverage (Current: 35 → Target: 100)
 
-- [ ] All Python files pass `black` formatting
-- [ ] All Python files pass `ruff` linting
-- [ ] All TypeScript files pass `eslint`
-- [ ] No `any` types in new code
-- [ ] No bare `except:` blocks
-- [ ] No hardcoded secrets
-- [ ] No console.log statements
+**Priority Endpoints**:
 
-### CI/CD Pipeline Tests
+| Endpoint Group | Tests Needed | Focus Areas |
+|----------------|--------------|-------------|
+| `/api/chat` | 15 | Streaming, RAG context, agent routing |
+| `/api/meeting-rooms` | 20 | CRUD, autonomous mode, interjection |
+| `/api/disco` | 25 | Full pipeline, stage transitions |
+| `/api/documents` | 15 | Upload, chunking, embedding, search |
+| `/api/stakeholders` | 10 | CRUD, engagement calculation |
 
-- [ ] Backend unit tests pass (pytest)
-- [ ] Frontend unit tests pass (jest)
-- [ ] Integration tests pass
-- [ ] Database migrations run cleanly
-- [ ] Type checking passes (mypy, tsc)
-- [ ] Security scan passes (bandit, npm audit)
-- [ ] Performance benchmarks within limits
+**Test Pattern** (`backend/tests/test_integration_chat.py`):
+```python
+@pytest.mark.integration
+class TestChatEndpoints:
+    """Integration tests for chat API."""
 
-### Release Checklist
+    def test_send_message_creates_conversation(self, authenticated_client):
+        """First message creates new conversation."""
+        response = authenticated_client.post("/api/chat", json={
+            "message": "Hello",
+            "conversation_id": None
+        })
+        assert response.status_code == 200
+        assert "conversation_id" in response.json()
 
-- [ ] All tests pass
-- [ ] Code coverage > 80%
-- [ ] No critical security issues
-- [ ] No breaking API changes (or versioned)
-- [ ] Documentation updated
-- [ ] Changelog updated
+    def test_agent_routing_with_mention(self, authenticated_client):
+        """@atlas routes to Atlas agent."""
+        response = authenticated_client.post("/api/chat", json={
+            "message": "@atlas What are the trends?",
+            "conversation_id": "test-conv"
+        })
+        assert response.json()["agent"] == "atlas"
+
+    def test_rate_limiting_enforced(self, authenticated_client):
+        """Rate limiter returns 429 after threshold."""
+        for i in range(25):  # Exceed 20/min limit
+            authenticated_client.post("/api/chat", json={"message": f"Test {i}"})
+
+        response = authenticated_client.post("/api/chat", json={"message": "Over limit"})
+        assert response.status_code == 429
+```
+
+### 3.2 Database Transaction Tests
+
+```python
+class TestDatabaseTransactions:
+    """Database integrity tests."""
+
+    def test_opportunity_create_rollback_on_failure(self):
+        """Failed stakeholder link rolls back opportunity creation."""
+
+    def test_kanban_position_atomic_update(self):
+        """Position updates are atomic (no gaps)."""
+
+    def test_document_cascade_delete(self):
+        """Deleting document removes chunks and embeddings."""
+```
 
 ---
 
-## Running the Full Test Suite
+## Part 4: End-to-End Testing
+
+### 4.1 Setup: Playwright
+
+**Install**:
+```bash
+cd frontend
+npm install -D @playwright/test
+npx playwright install
+```
+
+**Config** (`playwright.config.ts`):
+```typescript
+import { defineConfig, devices } from '@playwright/test'
+
+export default defineConfig({
+  testDir: './e2e',
+  fullyParallel: true,
+  retries: process.env.CI ? 2 : 0,
+  reporter: 'html',
+  use: {
+    baseURL: 'http://localhost:3000',
+    trace: 'on-first-retry',
+  },
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+  ],
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:3000',
+    reuseExistingServer: !process.env.CI,
+  },
+})
+```
+
+### 4.2 Critical User Journeys (50 tests)
+
+**Journey 1: Authentication Flow** (8 tests)
+```typescript
+// e2e/auth.spec.ts
+test.describe('Authentication', () => {
+  test('login with valid credentials redirects to chat', async ({ page }) => {
+    await page.goto('/auth/login')
+    await page.fill('[data-testid="email"]', 'test@example.com')
+    await page.fill('[data-testid="password"]', 'password123')
+    await page.click('[data-testid="login-button"]')
+    await expect(page).toHaveURL('/chat')
+  })
+
+  test('invalid credentials shows error', async ({ page }) => {})
+  test('password reset flow completes', async ({ page }) => {})
+  test('logout clears session', async ({ page }) => {})
+})
+```
+
+**Journey 2: Chat with Agent** (12 tests)
+```typescript
+// e2e/chat.spec.ts
+test.describe('Agent Chat', () => {
+  test('send message and receive streaming response', async ({ page }) => {
+    await page.goto('/chat')
+    await page.fill('[data-testid="message-input"]', 'What are AI trends?')
+    await page.click('[data-testid="send-button"]')
+
+    // Wait for streaming to start
+    await expect(page.locator('[data-testid="assistant-message"]')).toBeVisible()
+
+    // Wait for completion
+    await expect(page.locator('[data-testid="loading-indicator"]')).toBeHidden({ timeout: 30000 })
+  })
+
+  test('@mention routes to specific agent', async ({ page }) => {})
+  test('conversation persists on refresh', async ({ page }) => {})
+  test('dig deeper expands response', async ({ page }) => {})
+})
+```
+
+**Journey 3: Meeting Room** (10 tests)
+- Create room with agents
+- Start autonomous discussion
+- User interjection pauses discussion
+- Generate synthesis report
+
+**Journey 4: Knowledge Base** (10 tests)
+- Upload document
+- Document appears in list
+- Search returns uploaded document
+- Agent cites KB content
+
+**Journey 5: Opportunities Pipeline** (10 tests)
+- Create opportunity with scores
+- Tier calculated correctly
+- Status progression works
+- Link stakeholders
+
+### 4.3 Test Data Management
+
+**Seed Script** (`e2e/fixtures/seed.ts`):
+```typescript
+export async function seedTestData(supabase: SupabaseClient) {
+  await supabase.from('clients').insert({
+    id: 'e2e-test-client',
+    name: 'E2E Test Client'
+  })
+
+  await supabase.from('kb_documents').insert([
+    { title: 'Test Doc 1', client_id: 'e2e-test-client' },
+    { title: 'Test Doc 2', client_id: 'e2e-test-client' }
+  ])
+}
+
+export async function cleanupTestData(supabase: SupabaseClient) {
+  await supabase.from('kb_documents').delete().eq('client_id', 'e2e-test-client')
+  await supabase.from('clients').delete().eq('id', 'e2e-test-client')
+}
+```
+
+---
+
+## Part 5: Agent Testing
+
+### 5.1 Response Quality Validation
+
+**Test File**: `backend/tests/test_agent_quality.py`
+
+```python
+"""Agent response quality tests."""
+import pytest
+
+class TestAgentResponseQuality:
+    """Validate agent outputs meet quality standards."""
+
+    @pytest.mark.parametrize("agent,query,expected_traits", [
+        ("atlas", "Gartner AI trends", ["research", "citations"]),
+        ("capital", "Calculate ROI", ["numbers", "financial"]),
+        ("guardian", "Security risks", ["compliance", "risks"]),
+        ("counselor", "IP concerns", ["legal", "liability"]),
+        ("sage", "Employee anxiety", ["empathy", "change"]),
+    ])
+    async def test_agent_domain_relevance(self, agent, query, expected_traits):
+        """Agent produces domain-appropriate response."""
+
+    def test_smart_brevity_word_limit(self, agent_response):
+        """Response <= 150 words in chat mode."""
+        word_count = len(agent_response.split())
+        assert word_count <= 200
+
+    def test_no_banned_phrases(self, agent_response):
+        """Response avoids phrases like 'Great question!'."""
+        banned = ["Great question", "Absolutely", "I'd be happy to"]
+        for phrase in banned:
+            assert phrase.lower() not in agent_response.lower()
+```
+
+### 5.2 Routing Accuracy Tests
+
+```python
+class TestAgentRouting:
+    """Agent routing decision tests."""
+
+    @pytest.mark.parametrize("query,expected_agent", [
+        ("What does McKinsey say?", "atlas"),
+        ("Calculate NPV", "capital"),
+        ("SOC2 compliance?", "guardian"),
+        ("Contract terms?", "counselor"),
+        ("Reduce employee fear", "sage"),
+        ("Analyze transcript", "oracle"),
+        ("RAG architecture?", "architect"),
+    ])
+    async def test_query_routes_correctly(self, query, expected_agent):
+        """Coordinator routes to correct specialist."""
+```
+
+### 5.3 Prompt Regression Tests
+
+```python
+class TestPromptRegression:
+    """Golden response tests to catch prompt regressions."""
+
+    def test_atlas_research_format(self):
+        """Atlas response follows expected structure."""
+
+    def test_coordinator_multi_agent_synthesis(self):
+        """Coordinator properly synthesizes multi-agent responses."""
+```
+
+---
+
+## Part 6: Performance & Load Testing
+
+### 6.1 Setup: Locust
+
+**Install**: `pip install locust`
+
+**Config** (`locustfile.py`):
+```python
+from locust import HttpUser, task, between
+
+class ThesisUser(HttpUser):
+    wait_time = between(1, 3)
+
+    def on_start(self):
+        response = self.client.post("/api/auth/login", json={
+            "email": "loadtest@thesis.ai",
+            "password": "loadtest-password"
+        })
+        self.token = response.json().get("access_token")
+        self.headers = {"Authorization": f"Bearer {self.token}"}
+
+    @task(10)
+    def list_conversations(self):
+        self.client.get("/api/conversations", headers=self.headers)
+
+    @task(5)
+    def send_chat(self):
+        self.client.post("/api/chat",
+            json={"message": "Test", "stream": False},
+            headers=self.headers
+        )
+
+    @task(3)
+    def search_kb(self):
+        self.client.get("/api/documents/search?q=test", headers=self.headers)
+```
+
+### 6.2 Performance Targets
+
+| Endpoint | P50 | P95 | P99 | Max RPS |
+|----------|-----|-----|-----|---------|
+| GET /api/conversations | 100ms | 300ms | 500ms | 500 |
+| POST /api/chat (non-stream) | 2s | 5s | 10s | 50 |
+| GET /api/documents/search | 200ms | 500ms | 1s | 100 |
+| POST /api/documents/upload | 3s | 8s | 15s | 20 |
+
+### 6.3 Test Scenarios
 
 ```bash
-# Backend tests
-cd backend
-source venv/bin/activate
-python -m pytest tests/ -v --cov=. --cov-report=html
+# Normal load (50 users)
+locust -f locustfile.py --users 50 --spawn-rate 5 --run-time 10m
+
+# Stress test (200 users)
+locust -f locustfile.py --users 200 --spawn-rate 20 --run-time 10m
+
+# Soak test (1 hour)
+locust -f locustfile.py --users 30 --spawn-rate 5 --run-time 1h
+```
+
+---
+
+## Part 7: Security Testing
+
+### 7.1 Authentication Tests
+
+```python
+class TestAuthSecurity:
+    """Authentication security tests."""
+
+    def test_missing_auth_returns_401(self, client):
+        """Unauthenticated requests rejected."""
+        response = client.get("/api/tasks")
+        assert response.status_code in [401, 403]
+
+    def test_invalid_jwt_rejected(self, client):
+        """Invalid tokens rejected."""
+        headers = {"Authorization": "Bearer invalid.jwt.token"}
+        response = client.get("/api/tasks", headers=headers)
+        assert response.status_code == 401
+
+    def test_expired_jwt_rejected(self, client, expired_token):
+        """Expired tokens rejected."""
+        headers = {"Authorization": f"Bearer {expired_token}"}
+        response = client.get("/api/tasks", headers=headers)
+        assert response.status_code == 401
+```
+
+### 7.2 Authorization Boundary Tests
+
+```python
+class TestAuthorizationBoundaries:
+    """Authorization isolation tests."""
+
+    def test_user_cannot_access_other_user_data(self, user_a_client, user_b_task):
+        """User A cannot access User B's tasks."""
+        response = user_a_client.get(f"/api/tasks/{user_b_task['id']}")
+        assert response.status_code in [403, 404]
+
+    def test_non_admin_blocked_from_admin_routes(self, regular_client):
+        """Regular users cannot access admin endpoints."""
+        response = regular_client.get("/api/admin/users")
+        assert response.status_code in [401, 403]
+```
+
+### 7.3 Input Fuzzing
+
+```python
+@pytest.mark.parametrize("malicious", [
+    "'; DROP TABLE users; --",
+    "<script>alert('xss')</script>",
+    "../../../etc/passwd",
+    "{{7*7}}",
+    "A" * 100000,
+])
+def test_malicious_input_handled(self, client, auth_headers, malicious):
+    """Malicious input doesn't cause 500 errors."""
+    response = client.post("/api/chat",
+        json={"message": malicious},
+        headers=auth_headers
+    )
+    assert response.status_code in [200, 400, 422]  # Not 500
+```
+
+### 7.4 Dependency Scanning
+
+```bash
+# Python
+pip install safety bandit pip-audit
+safety check -r requirements.txt
+bandit -r backend/ -f json
+pip-audit -r requirements.txt
+
+# JavaScript
+cd frontend
+npm audit
+```
+
+---
+
+## Part 8: CI/CD Pipeline
+
+### 8.1 GitHub Actions Workflow
+
+**File**: `.github/workflows/test.yml`
+
+```yaml
+name: Test Suite
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
+
+jobs:
+  backend-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        working-directory: backend
+        run: pip install uv && uv pip install -r requirements.txt -r requirements-dev.txt
+      - name: Lint
+        working-directory: backend
+        run: uv run ruff check . && uv run black --check .
+      - name: Unit tests
+        working-directory: backend
+        run: uv run pytest tests/ -v --ignore=tests/test_integration.py --cov=. --cov-report=xml
+      - uses: codecov/codecov-action@v4
+
+  backend-integration:
+    runs-on: ubuntu-latest
+    needs: backend-unit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        working-directory: backend
+        run: pip install uv && uv pip install -r requirements.txt
+      - name: Integration tests
+        working-directory: backend
+        run: uv run pytest tests/test_integration.py -v
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install deps
+        working-directory: frontend
+        run: npm ci
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+      - name: Type check
+        working-directory: frontend
+        run: npm run build
+      - name: Unit tests
+        working-directory: frontend
+        run: npm test -- --coverage
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend-unit, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+      - name: Run E2E
+        run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python security
+        run: |
+          pip install safety bandit
+          safety check -r backend/requirements.txt || true
+          bandit -r backend/ -f json || true
+      - name: JS security
+        working-directory: frontend
+        run: npm audit || true
+```
+
+---
+
+## Part 9: Implementation Roadmap
+
+### Phase 1: Foundation (Week 1-2)
+- [ ] Set up CI/CD pipeline with existing tests
+- [ ] Add 20 frontend component tests (ChatInterface, AgentSelector)
+- [ ] Add 25 backend service tests (meeting_orchestrator, chat routes)
+- [ ] Configure code coverage reporting
+
+### Phase 2: Critical Paths (Week 3-4)
+- [ ] Implement 30 E2E tests for top 5 journeys
+- [ ] Add 15 agent routing accuracy tests
+- [ ] Add 20 authentication/authorization security tests
+- [ ] Document all API contracts
+
+### Phase 3: Quality & Performance (Week 5-6)
+- [ ] Add 20 agent response quality tests
+- [ ] Implement Locust load testing
+- [ ] Add visual regression tests (optional)
+- [ ] Run stress tests and document limits
+
+### Phase 4: Hardening (Week 7-8)
+- [ ] Add prompt regression (golden) tests
+- [ ] Implement input fuzzing
+- [ ] Add dependency vulnerability scanning to CI
+- [ ] Complete code review checklist
+
+---
+
+## Part 10: Verification Commands
+
+### Run All Tests
+
+```bash
+# Backend unit tests
+cd backend && uv run pytest tests/ -v --ignore=tests/test_integration.py
+
+# Backend integration tests
+cd backend && uv run pytest tests/test_integration.py -v
 
 # Frontend tests
-cd frontend
-npm test -- --coverage
+cd frontend && npm test
 
-# Integration tests
-cd backend
-python -m pytest tests/integration/ -v
+# E2E tests
+cd frontend && npx playwright test
 
-# Performance tests
-cd backend
-python -m pytest tests/performance/ -v --benchmark
-
-# Code quality
-./scripts/check_code_quality.sh
+# Load tests
+locust -f locustfile.py --headless --users 50 --spawn-rate 5 --run-time 5m
 ```
+
+### Coverage Report
+
+```bash
+# Backend
+cd backend && uv run pytest tests/ --cov=. --cov-report=html
+open htmlcov/index.html
+
+# Frontend
+cd frontend && npm test -- --coverage
+```
+
+### Quality Gates
+
+| Gate | Threshold | Command |
+|------|-----------|---------|
+| Backend unit tests | 100% pass | `pytest tests/ --ignore=test_integration.py` |
+| Backend coverage | 80%+ | `pytest --cov --cov-fail-under=80` |
+| Frontend lint | 0 errors | `npm run lint` |
+| Frontend build | Success | `npm run build` |
+| E2E tests | 95%+ pass | `npx playwright test` |
 
 ---
 
-## Next Steps
+## Summary: Test Count Targets
 
-1. **Immediate**: Run existing tests, identify gaps
-2. **Week 1**: Add missing unit tests for agents
-3. **Week 2**: Add API route tests
-4. **Week 3**: Add frontend component tests
-5. **Week 4**: Add integration and E2E tests
-6. **Ongoing**: Maintain test coverage in CI/CD
+| Category | Current | Target | Gap |
+|----------|---------|--------|-----|
+| Backend Unit | 445 | 600 | +155 |
+| Backend Integration | 35 | 100 | +65 |
+| Frontend Unit | 3 | 100 | +97 |
+| E2E Tests | 0 | 50 | +50 |
+| Agent Quality | 0 | 30 | +30 |
+| Performance | 0 | 20 | +20 |
+| Security | 0 | 40 | +40 |
+| **Total** | **483** | **940** | **+457** |
+
+---
+
+## Critical Files for Implementation
+
+1. `/backend/tests/conftest.py` - Extend fixtures for new test types
+2. `/frontend/jest.config.js` - Configure coverage thresholds
+3. `/frontend/__tests__/` - Add component test files
+4. `/e2e/` - Create Playwright test directory
+5. `.github/workflows/test.yml` - CI/CD pipeline
+6. `/locustfile.py` - Load testing configuration

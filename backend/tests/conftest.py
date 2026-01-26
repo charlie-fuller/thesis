@@ -303,3 +303,197 @@ def cleanup():
     """Clean up after each test."""
     yield
     # Add any cleanup logic here
+
+
+# ============================================================================
+# Agent Testing Fixtures
+# ============================================================================
+
+@pytest.fixture
+def sample_agent_response():
+    """Sample agent response for quality testing."""
+    return """**Key AI Trends for 2026**
+
+Based on recent Gartner research, enterprise AI adoption is accelerating with three dominant trends:
+
+1. **Agentic AI** - Autonomous systems capable of multi-step reasoning
+2. **Multimodal Foundation Models** - Integration of text, image, and code
+3. **AI Engineering Platforms** - Operationalizing AI at scale
+
+McKinsey estimates 75% of enterprises will adopt agentic AI by 2027.
+
+*Sources: Gartner Hype Cycle 2025, McKinsey AI Adoption Report*"""
+
+
+@pytest.fixture
+def mock_agent_responses():
+    """Mock responses from different agents."""
+    return {
+        "atlas": "Research shows AI adoption is accelerating with 65% of enterprises piloting generative AI.",
+        "capital": "ROI analysis shows 3-year NPV of $2.4M with 14-month payback period.",
+        "guardian": "Security assessment identifies three key risks: data privacy, model vulnerabilities, and compliance gaps.",
+        "counselor": "Legal review identifies IP ownership and liability as primary concerns.",
+        "sage": "Change management should focus on building champions and addressing employee concerns.",
+    }
+
+
+@pytest.fixture
+def coordinator_context():
+    """Context for coordinator agent testing."""
+    return {
+        "conversation_history": [],
+        "available_agents": ["atlas", "capital", "guardian", "counselor", "sage"],
+        "client_context": "Enterprise AI implementation for financial services company",
+    }
+
+
+# ============================================================================
+# Security Testing Fixtures
+# ============================================================================
+
+@pytest.fixture
+def malicious_inputs():
+    """Collection of malicious inputs for security testing."""
+    return {
+        "sql_injection": [
+            "'; DROP TABLE users; --",
+            "1; UPDATE users SET role='admin'",
+            "UNION SELECT * FROM users",
+        ],
+        "xss": [
+            "<script>alert('xss')</script>",
+            "<img src=x onerror=alert('xss')>",
+            "javascript:alert('xss')",
+        ],
+        "path_traversal": [
+            "../../../etc/passwd",
+            "..\\..\\..\\windows\\system32\\config\\sam",
+            "%2e%2e%2f%2e%2e%2fetc/passwd",
+        ],
+        "template_injection": [
+            "{{7*7}}",
+            "${7*7}",
+            "{{config.items()}}",
+        ],
+    }
+
+
+@pytest.fixture
+def rate_limit_config():
+    """Rate limit configuration for testing."""
+    return {
+        "chat": {"requests_per_minute": 20},
+        "upload": {"requests_per_minute": 10},
+        "search": {"requests_per_minute": 50},
+    }
+
+
+# ============================================================================
+# Meeting Room Fixtures
+# ============================================================================
+
+@pytest.fixture
+def sample_meeting_room():
+    """Sample meeting room data."""
+    return {
+        "id": "room-123",
+        "name": "Strategy Meeting",
+        "topic": "AI Implementation Strategy",
+        "autonomous_mode": False,
+        "participants": ["atlas", "capital", "guardian"],
+        "created_at": "2025-01-01T00:00:00Z",
+    }
+
+
+@pytest.fixture
+def sample_meeting_messages():
+    """Sample meeting room messages."""
+    return [
+        {"role": "user", "content": "What are the key considerations?"},
+        {"role": "assistant", "agent_id": "atlas", "content": "Research shows..."},
+        {"role": "assistant", "agent_id": "capital", "content": "Financial analysis..."},
+    ]
+
+
+# ============================================================================
+# Integration Test Fixtures
+# ============================================================================
+
+@pytest.fixture
+def integration_supabase():
+    """
+    Real Supabase client for integration tests.
+    Only used when INTEGRATION_TESTS=true is set.
+    """
+    import os
+    if os.environ.get("INTEGRATION_TESTS") != "true":
+        pytest.skip("Integration tests disabled")
+
+    from supabase import create_client
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+
+    if not url or not key:
+        pytest.skip("Supabase credentials not configured")
+
+    return create_client(url, key)
+
+
+@pytest.fixture
+def integration_client(integration_supabase):
+    """Test client for integration tests with real database."""
+    from main import app
+    with TestClient(app) as client:
+        yield client
+
+
+# ============================================================================
+# Performance Testing Fixtures
+# ============================================================================
+
+@pytest.fixture
+def performance_config():
+    """Performance testing configuration."""
+    return {
+        "response_time_targets": {
+            "p50": 100,  # ms
+            "p95": 300,
+            "p99": 500,
+        },
+        "concurrent_users": 50,
+        "test_duration_seconds": 60,
+    }
+
+
+# ============================================================================
+# Opportunity Testing Fixtures
+# ============================================================================
+
+@pytest.fixture
+def sample_opportunity():
+    """Sample opportunity data."""
+    return {
+        "id": "opp-123",
+        "client_id": "00000000-0000-0000-0000-000000000001",
+        "name": "AI Chatbot Implementation",
+        "description": "Implement customer service chatbot",
+        "status": "discovery",
+        "impact_score": 8,
+        "feasibility_score": 7,
+        "alignment_score": 9,
+        "tier": 1,
+    }
+
+
+@pytest.fixture
+def sample_stakeholder():
+    """Sample stakeholder data."""
+    return {
+        "id": "stake-123",
+        "client_id": "00000000-0000-0000-0000-000000000001",
+        "name": "John Smith",
+        "role": "CTO",
+        "email": "john.smith@example.com",
+        "sentiment_score": 0.8,
+        "engagement_level": "high",
+    }
