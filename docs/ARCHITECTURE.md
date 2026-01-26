@@ -315,6 +315,68 @@ uv run pytest tests/test_opportunities.py -v
 
 See `/docs/testing/TESTING_PLAN.md` for comprehensive testing guide.
 
+## Security & Credentials Management
+
+### Credential Storage
+
+Credentials are managed through a layered approach with multiple fallback options:
+
+| Priority | Method | Description |
+|----------|--------|-------------|
+| 1 | 1Password CLI | Secure vault storage with Touch ID authentication |
+| 2 | Environment Variables | Standard env vars (for CI/CD) |
+| 3 | dotenvx | Encrypted `.env.vault` with key-based decryption |
+
+### 1Password Integration
+
+All Thesis credentials are stored in 1Password:
+- **Vault**: Employee
+- **Item**: Thesis Backend
+- **Item ID**: `bqvwidzwtlswzndi5wjq33gon4`
+
+**Retrieve a credential:**
+```bash
+op item get bqvwidzwtlswzndi5wjq33gon4 --field SUPABASE_URL --reveal
+```
+
+**Run scripts with 1Password:**
+```bash
+USE_1PASSWORD=1 python scripts/your_script.py
+```
+
+### Credentials Module
+
+All scripts use the centralized credentials module (`/backend/scripts/lib/credentials.py`):
+
+```python
+from scripts.lib.credentials import get_credentials, get_supabase_client
+
+# Get all credentials
+creds = get_credentials()
+
+# Get a configured Supabase client
+supabase = get_supabase_client()
+```
+
+### Available Credentials
+
+| Key | Description |
+|-----|-------------|
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase admin service key |
+| `SUPABASE_JWT_SECRET` | JWT signing secret for auth |
+| `ANTHROPIC_API_KEY` | Claude API key |
+| `VOYAGE_API_KEY` | Voyage AI embeddings API |
+| `NEO4J_URI` | Neo4j Aura connection string |
+| `NEO4J_USERNAME` | Neo4j username |
+| `NEO4J_PASSWORD` | Neo4j password |
+| `MEM0_API_KEY` | Mem0 memory API key |
+
+### Security Documentation
+
+- **Security Assessment**: `/docs/security/SECURITY_ASSESSMENT_REPORT.md`
+- **1Password Command**: `/backend/.claude/commands/1password.md`
+
 ## Removed Features (December 2025)
 
 - **Quick Prompts** - Removed in favor of agent commands
