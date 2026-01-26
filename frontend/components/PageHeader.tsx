@@ -36,7 +36,7 @@ export default function PageHeader({
     { href: '/intelligence', label: 'Intelligence' },
     { href: '/kb', label: 'KB' },
     // Conditionally add PuRDy link for users with access
-    ...(hasPurdyAccess ? [{ href: '/purdy', label: 'PuRDy' }] : []),
+    ...(hasPurdyAccess ? [{ href: '/purdy', label: 'DISCo' }] : []),
   ]
 
   const isActive = (href: string) => {

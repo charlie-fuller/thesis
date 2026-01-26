@@ -57,9 +57,10 @@ interface InitiativesResponse {
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string; icon: typeof Clock }> = {
   draft: { label: 'Draft', color: 'text-slate-600', bgColor: 'bg-slate-100 dark:bg-slate-800', icon: FileText },
   triaged: { label: 'Triaged', color: 'text-blue-600', bgColor: 'bg-blue-100 dark:bg-blue-900/30', icon: CheckCircle },
-  in_discovery: { label: 'In Discovery', color: 'text-amber-600', bgColor: 'bg-amber-100 dark:bg-amber-900/30', icon: Clock },
-  synthesized: { label: 'Synthesized', color: 'text-green-600', bgColor: 'bg-green-100 dark:bg-green-900/30', icon: CheckCircle },
-  evaluated: { label: 'Evaluated', color: 'text-purple-600', bgColor: 'bg-purple-100 dark:bg-purple-900/30', icon: CheckCircle },
+  in_discovery: { label: 'Discovery', color: 'text-amber-600', bgColor: 'bg-amber-100 dark:bg-amber-900/30', icon: Clock },
+  consolidated: { label: 'Intelligence', color: 'text-teal-600', bgColor: 'bg-teal-100 dark:bg-teal-900/30', icon: CheckCircle },
+  synthesized: { label: 'Synthesis', color: 'text-green-600', bgColor: 'bg-green-100 dark:bg-green-900/30', icon: CheckCircle },
+  documented: { label: 'Capabilities', color: 'text-indigo-600', bgColor: 'bg-indigo-100 dark:bg-indigo-900/30', icon: CheckCircle },
   archived: { label: 'Archived', color: 'text-slate-500', bgColor: 'bg-slate-100 dark:bg-slate-800', icon: AlertCircle },
 }
 
@@ -318,10 +319,10 @@ export default function PurdyInitiativesPage() {
       {/* Page Title - Centered */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-          PuRDy
+          DISCo
         </h1>
         <p className="text-slate-500 dark:text-slate-400 mt-1">
-          Product Requirements Document
+          Discovery, Intelligence, Synthesis, Capabilities
         </p>
       </div>
 
@@ -417,7 +418,7 @@ export default function PurdyInitiativesPage() {
           <p className="text-slate-500 dark:text-slate-400 mb-4">
             {searchQuery || statusFilter
               ? 'Try adjusting your search or filter'
-              : 'Create your first initiative to get started with PuRDy'}
+              : 'Create your first initiative to get started with DISCo'}
           </p>
           {!searchQuery && !statusFilter && (
             <button

@@ -19,9 +19,7 @@ import {
   Settings,
   Eye,
   Edit3,
-  History,
-  Boxes,
-  FileCheck
+  History
 } from 'lucide-react'
 import { apiGet, apiPost, apiDelete } from '@/lib/api'
 import DocumentUpload from '@/components/purdy/DocumentUpload'
@@ -30,8 +28,6 @@ import AgentRunner from '@/components/purdy/AgentRunner'
 import OutputViewer from '@/components/purdy/OutputViewer'
 import InitiativeChat from '@/components/purdy/InitiativeChat'
 import ShareModal from '@/components/purdy/ShareModal'
-import SynthesisView from '@/components/purdy/SynthesisView'
-import PRDViewer from '@/components/purdy/PRDViewer'
 
 // ============================================================================
 // TYPES
@@ -100,7 +96,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: str
   archived: { label: 'Archived', color: 'text-slate-500', bgColor: 'bg-slate-100 dark:bg-slate-800' },
 }
 
-type TabType = 'documents' | 'agents' | 'outputs' | 'synthesis' | 'prds' | 'chat'
+type TabType = 'documents' | 'agents' | 'outputs' | 'chat'
 
 // ============================================================================
 // MAIN PAGE
@@ -400,8 +396,6 @@ export default function InitiativeDetailPage() {
           { id: 'documents' as const, label: 'Documents', icon: FileText },
           { id: 'agents' as const, label: 'Run Agent', icon: Play },
           { id: 'outputs' as const, label: 'Outputs', icon: CheckCircle },
-          { id: 'synthesis' as const, label: 'Synthesis', icon: Boxes },
-          { id: 'prds' as const, label: 'PRDs', icon: FileCheck },
           { id: 'chat' as const, label: 'Chat', icon: MessageSquare },
         ].map((tab) => (
           <button
@@ -468,24 +462,6 @@ export default function InitiativeDetailPage() {
             onSelectOutput={setSelectedOutput}
             onRefresh={loadOutputs}
             onDelete={canEdit ? handleDeleteOutput : undefined}
-          />
-        )}
-
-        {/* Synthesis Tab - DISCo Bundles */}
-        {activeTab === 'synthesis' && (
-          <SynthesisView
-            initiativeId={initiativeId}
-            canEdit={canEdit}
-            onRefresh={loadInitiative}
-          />
-        )}
-
-        {/* PRDs Tab - DISCo Capabilities */}
-        {activeTab === 'prds' && (
-          <PRDViewer
-            initiativeId={initiativeId}
-            canEdit={canEdit}
-            onRefresh={loadInitiative}
           />
         )}
 
