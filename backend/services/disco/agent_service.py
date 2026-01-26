@@ -1023,17 +1023,25 @@ def parse_agent_output(agent_type: str, raw_output: str) -> Dict:
 
 
 def get_status_for_agent(agent_type: str) -> Optional[str]:
-    """Get the initiative status to set after an agent completes."""
+    """Get the initiative status to set after an agent completes.
+
+    DISCo workflow stages:
+    - D (Discovery): triage → triaged, then discovery_planner/coverage_tracker → in_discovery
+    - I (Intelligence): insight_extractor/consolidator → consolidated
+    - S (Synthesis): synthesizer/strategist → synthesized
+    - C (Capabilities): prd_generator → documented
+    - O (Operationalize): future stage
+    """
     status_map = {
         'triage': 'triaged',
         'discovery_planner': 'in_discovery',
         'coverage_tracker': 'in_discovery',
-        'insight_extractor': 'in_discovery',  # Still in discovery phase
-        'consolidator': 'consolidated',  # DISCo: Insights stage complete
-        'synthesizer': 'synthesized',  # Backwards compatibility
-        'synthesis': 'synthesized',  # DISCo: Synthesis stage - bundles proposed
-        'prd_generator': 'documented',  # DISCo: Capabilities stage - PRD generated
-        'tech_evaluation': 'evaluated'
+        'insight_extractor': 'consolidated',  # DISCo: Intelligence stage complete
+        'consolidator': 'consolidated',  # DISCo: Intelligence stage complete
+        'synthesizer': 'synthesized',  # DISCo: Synthesis stage complete
+        'strategist': 'synthesized',  # DISCo: Synthesis stage complete
+        'prd_generator': 'documented',  # DISCo: Capabilities stage complete
+        'tech_evaluation': 'documented',  # Stays in Capabilities
     }
     return status_map.get(agent_type)
 
