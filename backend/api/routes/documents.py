@@ -8,18 +8,21 @@ import os
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from auth import get_current_user, require_admin
 from config import get_default_client_id
 from database import get_supabase
 from document_processor import process_document, process_document_with_classification
 from logger_config import get_logger
-from validation import validate_file_size, validate_file_upload, validate_uuid
+from validation import validate_file_magic, validate_file_size, validate_file_upload, validate_uuid
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/documents", tags=["documents"])
+limiter = Limiter(key_func=get_remote_address)
 supabase = get_supabase()
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 
@@ -29,7 +32,9 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 # ============================================================================
 
 @router.post("/upload")
+@limiter.limit("30/minute")
 async def upload_document(
+    request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     agent_ids: Optional[str] = Form(None),  # JSON array of agent IDs, or empty for global
@@ -55,6 +60,9 @@ async def upload_document(
         # Read file content
         file_content = await file.read()
         validate_file_size(file_content)
+
+        # Validate file signature (magic numbers) to prevent disguised files
+        validate_file_magic(file_content, file.content_type)
 
         # Parse agent_ids if provided
         parsed_agent_ids: List[str] = []
@@ -212,8 +220,10 @@ class SaveFromChatRequest(BaseModel):
 
 
 @router.post("/save-from-chat")
+@limiter.limit("30/minute")
 async def save_from_chat(
-    request: SaveFromChatRequest,
+    request: Request,
+    save_data: SaveFromChatRequest,
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user)
 ):
@@ -233,26 +243,26 @@ async def save_from_chat(
     """
     try:
         # Validate content
-        if not request.content or not request.content.strip():
+        if not save_data.content or not save_data.content.strip():
             raise HTTPException(status_code=400, detail="Content cannot be empty")
 
-        if not request.title or not request.title.strip():
+        if not save_data.title or not save_data.title.strip():
             raise HTTPException(status_code=400, detail="Title cannot be empty")
 
         client_id = current_user.get('client_id') or get_default_client_id()
         user_id = current_user['id']
 
         # Create markdown content with metadata header
-        markdown_content = f"""# {request.title}
+        markdown_content = f"""# {save_data.title}
 
-{request.content}
+{save_data.content}
 
 ---
 *Saved from chat on {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M')}*
 """
 
         # Generate unique filename
-        safe_title = "".join(c if c.isalnum() or c in ' -_' else '_' for c in request.title)[:50]
+        safe_title = "".join(c if c.isalnum() or c in ' -_' else '_' for c in save_data.title)[:50]
         unique_filename = f"{safe_title}_{uuid.uuid4().hex[:8]}.md"
         storage_path = f"{client_id}/{unique_filename}"
 
@@ -277,7 +287,7 @@ async def save_from_chat(
         doc_record = {
             'client_id': client_id,
             'uploaded_by': user_id,
-            'title': request.title.strip(),  # Store original title for display
+            'title': save_data.title.strip(),  # Store original title for display
             'filename': unique_filename,
             'storage_path': storage_path,
             'storage_url': storage_url,
@@ -297,7 +307,7 @@ async def save_from_chat(
 
         # Link to specific agents if provided
         linked_agents = []
-        parsed_agent_ids = request.agent_ids or []
+        parsed_agent_ids = save_data.agent_ids or []
 
         if parsed_agent_ids:
             for agent_id in parsed_agent_ids:
@@ -610,7 +620,9 @@ async def get_document_details(
 # ============================================================================
 
 @router.delete("/{document_id}")
+@limiter.limit("30/minute")
 async def delete_document(
+    request: Request,
     document_id: str,
     current_user: dict = Depends(get_current_user)
 ):
@@ -676,7 +688,9 @@ async def delete_document(
 
 
 @router.delete("/bulk")
+@limiter.limit("10/minute")
 async def bulk_delete_documents(
+    request: Request,
     document_ids: List[str],
     current_user: dict = Depends(require_admin)
 ):

@@ -5,17 +5,20 @@ Handles user CRUD, prompts, and profile operations
 import asyncio
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, EmailStr
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from auth import get_current_user, require_admin
 from config import get_default_client_id
 from database import get_supabase
 from logger_config import get_logger
-from validation import generate_secure_password, validate_uuid
+from validation import generate_secure_password, validate_image_magic, validate_uuid
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/users", tags=["users"])
+limiter = Limiter(key_func=get_remote_address)
 supabase = get_supabase()
 
 
@@ -39,7 +42,9 @@ class UserUpdateRequest(BaseModel):
 # ============================================================================
 
 @router.get("")
+@limiter.limit("60/minute")
 async def list_users(
+    request: Request,
     current_user: dict = Depends(require_admin)
 ):
     """List all users (admin only)"""
@@ -62,8 +67,10 @@ async def list_users(
 
 
 @router.post("")
+@limiter.limit("10/minute")
 async def create_user(
-    request: UserCreateRequest,
+    request: Request,
+    user_data: UserCreateRequest,
     current_user: dict = Depends(require_admin)
 ):
     """Create a new user (admin only)"""
@@ -77,7 +84,7 @@ async def create_user(
         # Create user in Supabase Auth
         auth_result = await asyncio.to_thread(
             lambda: supabase.auth.admin.create_user({
-                "email": request.email,
+                "email": user_data.email,
                 "password": temp_password,
                 "email_confirm": True
             })
@@ -89,9 +96,9 @@ async def create_user(
         # Use upsert because the on_auth_user_created trigger may have already created the row
         profile_data = {
             'id': user_id,
-            'email': request.email,
-            'name': request.name,
-            'role': request.role,
+            'email': user_data.email,
+            'name': user_data.name,
+            'role': user_data.role,
             'client_id': client_id
         }
 
@@ -99,12 +106,12 @@ async def create_user(
             lambda: supabase.table('users').upsert(profile_data).execute()
         )
 
-        logger.info(f"✅ User created: {request.email}")
+        logger.info(f"✅ User created: {user_data.email}")
 
         return {
             'success': True,
             'user_id': user_id,
-            'email': request.email,
+            'email': user_data.email,
             'temporary_password': temp_password,
             'message': 'User created successfully. Send password via secure channel.'
         }
@@ -115,9 +122,11 @@ async def create_user(
 
 
 @router.put("/{user_id}")
+@limiter.limit("30/minute")
 async def update_user(
+    request: Request,
     user_id: str,
-    request: UserUpdateRequest,
+    user_update: UserUpdateRequest,
     current_user: dict = Depends(require_admin)
 ):
     """Update user profile (admin only)"""
@@ -125,10 +134,10 @@ async def update_user(
         validate_uuid(user_id, "user_id")
 
         update_data = {}
-        if request.name is not None:
-            update_data['name'] = request.name
-        if request.role is not None:
-            update_data['role'] = request.role
+        if user_update.name is not None:
+            update_data['name'] = user_update.name
+        if user_update.role is not None:
+            update_data['role'] = user_update.role
 
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")
@@ -156,7 +165,9 @@ async def update_user(
 
 
 @router.post("/{user_id}/avatar")
+@limiter.limit("10/minute")
 async def upload_avatar(
+    request: Request,
     user_id: str,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user)
@@ -181,6 +192,9 @@ async def upload_avatar(
         contents = await file.read()
         if len(contents) > 5 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="File too large. Max 5MB allowed.")
+
+        # Validate file signature (magic numbers) to ensure it's actually an image
+        validate_image_magic(contents, file.content_type)
 
         # Generate unique filename
         file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
@@ -221,7 +235,9 @@ async def upload_avatar(
 
 
 @router.delete("/{user_id}/avatar")
+@limiter.limit("30/minute")
 async def delete_avatar(
+    request: Request,
     user_id: str,
     current_user: dict = Depends(get_current_user)
 ):
@@ -277,7 +293,9 @@ async def delete_avatar(
 
 
 @router.post("/{user_id}/resend-invitation")
+@limiter.limit("5/minute")
 async def resend_invitation(
+    request: Request,
     user_id: str,
     current_user: dict = Depends(require_admin)
 ):

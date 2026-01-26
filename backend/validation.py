@@ -10,6 +10,18 @@ from typing import Optional
 from fastapi import HTTPException, UploadFile
 
 from config import MAX_UPLOAD_SIZE_MB
+from logger_config import get_logger
+
+logger = get_logger(__name__)
+
+# Try to import python-magic for file signature validation
+# Falls back gracefully if not installed
+try:
+    import magic
+    MAGIC_AVAILABLE = True
+except ImportError:
+    MAGIC_AVAILABLE = False
+    logger.warning("python-magic not installed. File signature validation disabled.")
 
 # File upload constraints (imported from config for consistency)
 MAX_FILE_SIZE = MAX_UPLOAD_SIZE_MB * 1024 * 1024  # Convert MB to bytes
@@ -38,6 +50,29 @@ ALLOWED_IMAGE_TYPES = {
 }
 
 ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp'}
+
+# Magic number (file signature) to expected MIME type mappings
+# These are validated against the actual file content bytes
+MAGIC_MIME_MAPPINGS = {
+    # Documents
+    'application/pdf': {'application/pdf'},
+    'text/plain': {'text/plain', 'text/x-c', 'text/x-c++'},  # text files can have various subtypes
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': {
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/zip',  # DOCX is a ZIP container
+    },
+    'application/json': {'application/json', 'text/plain'},  # JSON often detected as text
+    'application/xml': {'application/xml', 'text/xml', 'text/plain'},
+    'text/xml': {'application/xml', 'text/xml', 'text/plain'},
+    'text/csv': {'text/csv', 'text/plain', 'application/csv'},
+    'text/markdown': {'text/plain', 'text/markdown'},  # Markdown often detected as plain text
+    'text/x-markdown': {'text/plain', 'text/markdown'},
+    # Images
+    'image/jpeg': {'image/jpeg'},
+    'image/jpg': {'image/jpeg'},
+    'image/png': {'image/png'},
+    'image/webp': {'image/webp'},
+}
 
 
 def validate_uuid(value: str, field_name: str = "id") -> str:
@@ -131,6 +166,72 @@ def validate_file_size(file_content: bytes) -> None:
             status_code=400,
             detail="File is empty"
         )
+
+
+def validate_file_magic(file_content: bytes, claimed_content_type: Optional[str] = None) -> str:
+    """
+    Validate file content using magic numbers (file signatures).
+
+    This prevents attackers from uploading malicious files with spoofed extensions.
+    For example, uploading a .exe renamed to .pdf would be caught here.
+
+    Args:
+        file_content: The file content bytes
+        claimed_content_type: The content type claimed by the upload (optional)
+
+    Returns:
+        str: The detected MIME type
+
+    Raises:
+        HTTPException: If file signature doesn't match allowed types or claimed type
+    """
+    if not MAGIC_AVAILABLE:
+        # If python-magic is not installed, log warning and skip validation
+        logger.debug("Magic validation skipped: python-magic not available")
+        return claimed_content_type or 'application/octet-stream'
+
+    try:
+        # Detect actual MIME type from file content
+        detected_mime = magic.from_buffer(file_content, mime=True)
+        logger.debug(f"Magic detected MIME type: {detected_mime}, claimed: {claimed_content_type}")
+
+        # Check if detected type is in our allowed list
+        all_allowed_mimes = set()
+        for mime_set in MAGIC_MIME_MAPPINGS.values():
+            all_allowed_mimes.update(mime_set)
+
+        # Also add the main allowed types
+        all_allowed_mimes.update(ALLOWED_FILE_TYPES)
+        all_allowed_mimes.update(ALLOWED_IMAGE_TYPES)
+
+        if detected_mime not in all_allowed_mimes:
+            logger.warning(f"File magic validation failed: detected '{detected_mime}' not in allowed types")
+            raise HTTPException(
+                status_code=400,
+                detail=f"File content type '{detected_mime}' not allowed. File may be disguised."
+            )
+
+        # If a content type was claimed, verify it matches (with some flexibility)
+        if claimed_content_type and claimed_content_type in MAGIC_MIME_MAPPINGS:
+            expected_mimes = MAGIC_MIME_MAPPINGS[claimed_content_type]
+            if detected_mime not in expected_mimes:
+                logger.warning(
+                    f"File magic mismatch: claimed '{claimed_content_type}' "
+                    f"but detected '{detected_mime}'"
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail="File content doesn't match declared type. File may be disguised."
+                )
+
+        return detected_mime
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error during magic validation: {e}")
+        # On error, be permissive but log it
+        return claimed_content_type or 'application/octet-stream'
 
 
 def validate_pagination(limit: int, offset: int) -> tuple[int, int]:
@@ -292,3 +393,45 @@ def validate_image_size(file_content: bytes) -> None:
             status_code=400,
             detail="Image file is empty"
         )
+
+
+def validate_image_magic(file_content: bytes, claimed_content_type: Optional[str] = None) -> str:
+    """
+    Validate image file content using magic numbers.
+
+    This prevents uploading non-image files with image extensions.
+
+    Args:
+        file_content: The image file content bytes
+        claimed_content_type: The content type claimed by the upload (optional)
+
+    Returns:
+        str: The detected MIME type
+
+    Raises:
+        HTTPException: If file is not actually an image
+    """
+    if not MAGIC_AVAILABLE:
+        logger.debug("Image magic validation skipped: python-magic not available")
+        return claimed_content_type or 'application/octet-stream'
+
+    try:
+        detected_mime = magic.from_buffer(file_content, mime=True)
+        logger.debug(f"Image magic detected: {detected_mime}, claimed: {claimed_content_type}")
+
+        # Must be an actual image type
+        valid_image_mimes = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
+        if detected_mime not in valid_image_mimes:
+            logger.warning(f"Image magic validation failed: '{detected_mime}' is not an image")
+            raise HTTPException(
+                status_code=400,
+                detail=f"File is not a valid image. Detected type: {detected_mime}"
+            )
+
+        return detected_mime
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error during image magic validation: {e}")
+        return claimed_content_type or 'application/octet-stream'
