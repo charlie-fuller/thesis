@@ -87,7 +87,7 @@ async def google_drive_auth(
 
     except Exception as e:
         logger.error(f"❌ OAuth init error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/callback")
@@ -108,6 +108,18 @@ async def google_drive_callback(
 
         if not state_result.data:
             raise HTTPException(status_code=400, detail="Invalid state")
+
+        # Check if state has expired
+        from datetime import datetime, timezone
+        expires_at_str = state_result.data.get('expires_at')
+        if expires_at_str:
+            expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
+            if datetime.now(timezone.utc) > expires_at:
+                # Delete expired state
+                await asyncio.to_thread(
+                    lambda: supabase.table('oauth_states').delete().eq('state', state).execute()
+                )
+                raise HTTPException(status_code=400, detail="OAuth state has expired. Please try again.")
 
         user_id = state_result.data['user_id']
 
@@ -168,7 +180,7 @@ async def google_drive_callback(
 
     except Exception as e:
         logger.error(f"❌ OAuth callback error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/status")
@@ -181,7 +193,7 @@ async def get_google_drive_status(
         return {'success': True, **status}
     except Exception as e:
         logger.error(f"❌ Status check error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/picker-token")
@@ -203,7 +215,7 @@ async def get_picker_token(
         }
     except Exception as e:
         logger.error(f"❌ Picker token error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/files/{folder_id}")
@@ -222,7 +234,7 @@ async def get_folder_files(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"❌ List files error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/sync")
@@ -265,7 +277,7 @@ async def sync_google_drive(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"❌ Sync error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.post("/sync-document/{document_id}")
@@ -291,7 +303,7 @@ async def sync_single_document(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"❌ Document sync error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.delete("/disconnect")
@@ -307,7 +319,7 @@ async def disconnect_google_drive(
         }
     except Exception as e:
         logger.error(f"❌ Disconnect error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/sync-history")
@@ -332,7 +344,7 @@ async def get_sync_history(
         }
     except Exception as e:
         logger.error(f"❌ Sync history error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.get("/sync-settings")
@@ -360,7 +372,7 @@ async def get_sync_settings(
         raise
     except Exception as e:
         logger.error(f"❌ Get settings error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @router.patch("/sync-settings")
@@ -389,4 +401,4 @@ async def update_sync_settings(
         }
     except Exception as e:
         logger.error(f"❌ Update settings error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
