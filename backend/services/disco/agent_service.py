@@ -170,6 +170,7 @@ def get_model_for_agent(agent_type: str) -> str:
 # DISCo: "consolidator" replaces "synthesizer" (synthesizer kept for backwards compatibility)
 AGENT_FILES = {
     "triage": "triage-v4.2.md",
+    "discovery_prep": "discovery-prep-v1.0.md",
     "discovery_planner": "discovery-planner-v4.1.md",
     "coverage_tracker": "coverage-tracker-v4.1.md",
     "insight_extractor": "insight-extractor-v4.2.md",
@@ -187,6 +188,13 @@ METHODOLOGY_FILE = "PuRDy-Instructions-v2.7.md"
 
 # Agent descriptions for UI (v4.2 - persona-aligned features, DISCo framework)
 AGENT_DESCRIPTIONS = {
+    "discovery_prep": {
+        "name": "Discovery Prep",
+        "version": "v1.0",
+        "description": "Synthesizes stakeholder documents into structured meeting preparation guides with scored project candidates, assumption maps, and confirmation questions. Use before Triage when you have raw stakeholder materials.",
+        "estimated_time": "5-10 minutes",
+        "output_type": "discovery_prep_output"
+    },
     "triage": {
         "name": "Triage",
         "version": "v4.2",
@@ -1021,13 +1029,14 @@ def get_status_for_agent(agent_type: str) -> Optional[str]:
     """Get the initiative status to set after an agent completes.
 
     DISCo workflow stages:
-    - D (Discovery): triage → triaged, then discovery_planner/coverage_tracker → in_discovery
+    - D (Discovery): discovery_prep → prep_complete, triage → triaged, then discovery_planner/coverage_tracker → in_discovery
     - I (Intelligence): insight_extractor/consolidator → consolidated
     - S (Synthesis): synthesizer/strategist → synthesized
     - C (Capabilities): prd_generator → documented
     - O (Operationalize): future stage
     """
     status_map = {
+        'discovery_prep': 'prep_complete',
         'triage': 'triaged',
         'discovery_planner': 'in_discovery',
         'coverage_tracker': 'in_discovery',

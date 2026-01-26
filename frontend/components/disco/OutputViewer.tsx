@@ -109,6 +109,7 @@ interface OutputViewerProps {
 // Executive/condensed variants are grouped with their parent agent
 // NOTE: synthesizer removed - outputs grouped under consolidator
 const AGENT_ORDER = [
+  'discovery_prep',
   'triage',
   'discovery_planner',
   'coverage_tracker',
@@ -145,6 +146,7 @@ function isVariant(agentType: string): boolean {
 }
 
 const AGENT_CONFIG: Record<string, { name: string; icon: typeof Target; color: string }> = {
+  discovery_prep: { name: 'Discovery Prep', icon: FileText, color: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400' },
   triage: { name: 'Triage', icon: Target, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400' },
   discovery_planner: { name: 'Discovery Planner', icon: Search, color: 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400' },
   coverage_tracker: { name: 'Coverage Tracker', icon: BarChart, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400' },

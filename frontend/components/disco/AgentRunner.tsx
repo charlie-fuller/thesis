@@ -104,6 +104,7 @@ interface AgentRunnerProps {
 
 // Agent config with icons and colors (matches OutputViewer for consistency)
 const AGENT_CONFIG: Record<string, { icon: typeof Target; color: string }> = {
+  discovery_prep: { icon: FileText, color: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400' },
   triage: { icon: Target, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400' },
   discovery_planner: { icon: Search, color: 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400' },
   coverage_tracker: { icon: BarChart, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400' },
@@ -121,6 +122,16 @@ const AGENT_WORKFLOW: Record<string, {
   outputs: string
   prerequisites: string[]
 }> = {
+  discovery_prep: {
+    when: "Pre-Triage - run when you have raw stakeholder documents (interviews, spreadsheets, meeting notes)",
+    inputs: [
+      "Interview transcripts or notes",
+      "Spreadsheets (project lists, prioritization matrices)",
+      "Meeting notes, strategy documents, email threads"
+    ],
+    outputs: "Meeting Prep Guide with scored project cards, assumptions, and confirmation questions - OR Context Request if insufficient input",
+    prerequisites: []
+  },
   triage: {
     when: "First step - run when you have initial request details",
     inputs: [
@@ -207,6 +218,13 @@ const HITL_CONFIG: Record<string, {
   details: string
   icon: typeof Users
 }> = {
+  discovery_prep: {
+    stage: 'Pre-Discovery',
+    stageColor: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30',
+    action: 'Review prep guide or provide more context',
+    details: 'If you received a Meeting Prep Guide, review the scored project cards and assumptions before your planning session. Use the confirmation questions to validate assumptions with stakeholders. If you received a Context Request, gather the requested materials and re-run.',
+    icon: ClipboardCheck
+  },
   triage: {
     stage: 'Discovery',
     stageColor: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30',
