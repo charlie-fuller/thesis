@@ -947,8 +947,8 @@ async def get_scan_stats(
         total_docs = docs_result.count or 0
 
         # Get documents with original_date (scannable)
-        from datetime import datetime, timedelta
-        thirty_days_ago = (datetime.utcnow() - timedelta(days=30)).date().isoformat()
+        from datetime import datetime, timedelta, timezone
+        thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).date().isoformat()
         recent_docs_result = supabase.table('documents').select(
             'id', count='exact'
         ).eq('client_id', client_id).gte('original_date', thirty_days_ago).execute()
@@ -1034,8 +1034,8 @@ async def scan_documents_for_tasks(
             query = query.is_('tasks_scanned_at', 'null')
 
         # Filter by original_date (defaults to last 7 days)
-        from datetime import datetime, timedelta
-        cutoff = (datetime.utcnow() - timedelta(days=since_days)).date().isoformat()
+        from datetime import datetime, timedelta, timezone
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=since_days)).date().isoformat()
         query = query.gte('original_date', cutoff)
 
         # Order by original_date (falls back to uploaded_at for docs without original_date)

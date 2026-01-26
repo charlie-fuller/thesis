@@ -15,7 +15,7 @@ import pytest
 
 # Mark failing tests as expected failures until compliance controls are implemented
 pytestmark = pytest.mark.xfail(reason="IT compliance controls not yet fully implemented")
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
 import hashlib
 import secrets
@@ -430,7 +430,7 @@ class TestAuditLogging:
     def _create_audit_log(self, event_type: str, **kwargs) -> dict:
         return {
             "id": f"log-{secrets.token_hex(8)}",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
             "event_type": event_type,
             "user_id": kwargs.get("user_id", "system"),
             "ip_address": "192.168.1.1",

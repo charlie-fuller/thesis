@@ -7,7 +7,7 @@ Creates a markdown summary of task status, overdue items, and focus recommendati
 
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 import uuid
 
@@ -86,7 +86,7 @@ class TaskDigestService:
 
         return DigestContent(
             user_id=user_id,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
             title=title,
             summary=summary,
             markdown_content=markdown,
@@ -126,7 +126,7 @@ class TaskDigestService:
                 doc_id = existing.data[0]['id']
                 self.supabase.table('documents').update({
                     'content': digest.markdown_content,
-                    'updated_at': datetime.utcnow().isoformat()
+                    'updated_at': datetime.now(timezone.utc).isoformat()
                 }).eq('id', doc_id).execute()
 
                 # Delete old chunks for re-embedding

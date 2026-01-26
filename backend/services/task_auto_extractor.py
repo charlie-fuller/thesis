@@ -6,7 +6,7 @@ Stores candidates for user review before creating actual tasks.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 import uuid
 
@@ -109,7 +109,7 @@ async def extract_tasks_from_document(
         # Mark document as scanned (regardless of whether tasks found)
         try:
             supabase.table('documents').update({
-                'tasks_scanned_at': datetime.utcnow().isoformat()
+                'tasks_scanned_at': datetime.now(timezone.utc).isoformat()
             }).eq('id', document_id).execute()
         except Exception as e:
             logger.warning(f"Failed to mark document as scanned: {e}")

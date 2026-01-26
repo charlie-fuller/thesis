@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from fastapi.testclient import TestClient
 import jwt
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 # Mock JWT secret for testing
@@ -20,7 +20,7 @@ TEST_OTHER_USER_ID = "other-user-00000000-0000-0000-0000-000000000002"
 
 def create_test_token(user_id: str, expired: bool = False, invalid_signature: bool = False) -> str:
     """Create a JWT token for testing."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if expired:
         exp = now - timedelta(hours=1)
     else:
@@ -114,7 +114,7 @@ class TestAuthSecurity:
         # Create a token with alg:none (attack vector)
         payload = {
             "sub": TEST_USER_ID,
-            "exp": datetime.utcnow() + timedelta(hours=1),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         }
 
         # This would create an unsigned token
