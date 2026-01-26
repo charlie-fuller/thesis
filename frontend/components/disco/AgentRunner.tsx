@@ -102,16 +102,16 @@ interface AgentRunnerProps {
   onComplete: (output: any) => void
 }
 
-const AGENT_ICONS: Record<string, typeof Target> = {
-  triage: Target,
-  discovery_planner: Search,
-  coverage_tracker: BarChart,
-  insight_extractor: Lightbulb,
-  consolidator: FileText,
-  synthesizer: FileText,
-  strategist: Boxes,  // DISCo: Synthesis stage
-  prd_generator: FileText,  // DISCo: Capabilities stage
-  tech_evaluation: Cpu,
+// Agent config with icons and colors (matches OutputViewer for consistency)
+const AGENT_CONFIG: Record<string, { icon: typeof Target; color: string }> = {
+  triage: { icon: Target, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400' },
+  discovery_planner: { icon: Search, color: 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400' },
+  coverage_tracker: { icon: BarChart, color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400' },
+  insight_extractor: { icon: Lightbulb, color: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30 dark:text-cyan-400' },
+  consolidator: { icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
+  strategist: { icon: Boxes, color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  prd_generator: { icon: FileText, color: 'text-rose-600 bg-rose-100 dark:bg-rose-900/30 dark:text-rose-400' },
+  tech_evaluation: { icon: Cpu, color: 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400' },
 }
 
 // Workflow guidance for each agent (v4.0 - consulting quality bar)
@@ -526,7 +526,8 @@ export default function AgentRunner({
 
         <div className="space-y-2">
           {agents.map((agent) => {
-            const Icon = AGENT_ICONS[agent.type] || Zap
+            const config = AGENT_CONFIG[agent.type] || { icon: Zap, color: 'text-slate-600 bg-slate-100 dark:bg-slate-700 dark:text-slate-400' }
+            const Icon = config.icon
             const isSelected = selectedAgent === agent.type
             const workflow = AGENT_WORKFLOW[agent.type]
 
@@ -538,28 +539,16 @@ export default function AgentRunner({
                   disabled={running}
                   className={`w-full flex items-center gap-3 p-4 text-left transition-all ${
                     isSelected
-                      ? 'bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-200 dark:border-indigo-800'
+                      ? 'bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700'
                       : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
                   } ${running ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  <div className={`p-2 rounded-lg flex-shrink-0 ${
-                    isSelected
-                      ? 'bg-indigo-100 dark:bg-indigo-900/40'
-                      : 'bg-slate-100 dark:bg-slate-700'
-                  }`}>
-                    <Icon className={`w-5 h-5 ${
-                      isSelected
-                        ? 'text-indigo-600 dark:text-indigo-400'
-                        : 'text-slate-500 dark:text-slate-400'
-                    }`} />
+                  <div className={`p-2 rounded-lg flex-shrink-0 ${config.color}`}>
+                    <Icon className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className={`font-medium ${
-                        isSelected
-                          ? 'text-indigo-900 dark:text-indigo-100'
-                          : 'text-slate-900 dark:text-white'
-                      }`}>
+                      <span className="font-medium text-slate-900 dark:text-white">
                         {agent.name}
                       </span>
                       <span className="text-xs text-slate-400">{agent.version}</span>
