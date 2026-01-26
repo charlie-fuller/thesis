@@ -191,11 +191,11 @@ async def generate_prd_for_bundle(
     - complete: Final PRD record
     - error: Error message
     """
-    from services.purdy.synthesis_service import get_bundle
-    from services.purdy.agent_service import (
+    from services.disco.synthesis_service import get_bundle
+    from services.disco.agent_service import (
         load_agent_prompt,
         build_agent_context,
-        PURDY_MODEL_OPUS
+        DISCO_MODEL_OPUS
     )
     import anthropic
 
@@ -281,7 +281,7 @@ Please generate a complete PRD following the structure defined in your instructi
 
     try:
         with client.messages.stream(
-            model=PURDY_MODEL_OPUS,
+            model=DISCO_MODEL_OPUS,
             max_tokens=8000,
             temperature=0.6,
             messages=[{"role": "user", "content": full_prompt}]
@@ -308,7 +308,7 @@ Please generate a complete PRD following the structure defined in your instructi
         # Create output record first
         output_id = str(uuid4())
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_outputs').insert({
+            lambda: supabase.table('disco_outputs').insert({
                 'id': output_id,
                 'run_id': str(uuid4()),  # Standalone PRD generation
                 'initiative_id': initiative_id,
@@ -415,15 +415,15 @@ async def generate_executive_summary(
 
     This creates a high-level overview suitable for leadership review.
     """
-    from services.purdy.synthesis_service import list_bundles
-    from services.purdy.agent_service import PURDY_MODEL_OPUS
+    from services.disco.synthesis_service import list_bundles
+    from services.disco.agent_service import DISCO_MODEL_OPUS
     import anthropic
 
     yield {'type': 'status', 'data': 'Loading initiative data...'}
 
     # Get initiative
     result = await asyncio.to_thread(
-        lambda: supabase.table('purdy_initiatives')
+        lambda: supabase.table('disco_initiatives')
             .select('*')
             .eq('id', initiative_id)
             .single()
@@ -525,7 +525,7 @@ Keep it to 500-750 words. Focus on business value and strategic implications.
 
     try:
         with client.messages.stream(
-            model=PURDY_MODEL_OPUS,
+            model=DISCO_MODEL_OPUS,
             max_tokens=4000,
             temperature=0.5,
             messages=[{"role": "user", "content": context}]

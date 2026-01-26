@@ -22,12 +22,12 @@ import {
   History
 } from 'lucide-react'
 import { apiGet, apiPost, apiDelete } from '@/lib/api'
-import DocumentUpload from '@/components/purdy/DocumentUpload'
-import DocumentList from '@/components/purdy/DocumentList'
-import AgentRunner from '@/components/purdy/AgentRunner'
-import OutputViewer from '@/components/purdy/OutputViewer'
-import InitiativeChat from '@/components/purdy/InitiativeChat'
-import ShareModal from '@/components/purdy/ShareModal'
+import DocumentUpload from '@/components/disco/DocumentUpload'
+import DocumentList from '@/components/disco/DocumentList'
+import AgentRunner from '@/components/disco/AgentRunner'
+import OutputViewer from '@/components/disco/OutputViewer'
+import InitiativeChat from '@/components/disco/InitiativeChat'
+import ShareModal from '@/components/disco/ShareModal'
 
 // ============================================================================
 // TYPES
@@ -131,7 +131,7 @@ export default function InitiativeDetailPage() {
       setError(null)
 
       const result = await apiGet<{ success: boolean; initiative: Initiative }>(
-        `/api/purdy/initiatives/${initiativeId}`
+        `/api/disco/initiatives/${initiativeId}`
       )
 
       if (result.success && result.initiative) {
@@ -150,7 +150,7 @@ export default function InitiativeDetailPage() {
   const loadDocuments = useCallback(async () => {
     try {
       const result = await apiGet<{ success: boolean; documents: Document[] }>(
-        `/api/purdy/initiatives/${initiativeId}/documents`
+        `/api/disco/initiatives/${initiativeId}/documents`
       )
       setDocuments(result.documents || [])
     } catch (err) {
@@ -162,7 +162,7 @@ export default function InitiativeDetailPage() {
   const loadOutputs = useCallback(async () => {
     try {
       const result = await apiGet<{ success: boolean; outputs: Output[] }>(
-        `/api/purdy/initiatives/${initiativeId}/outputs`
+        `/api/disco/initiatives/${initiativeId}/outputs`
       )
       setOutputs(result.outputs || [])
     } catch (err) {
@@ -207,7 +207,7 @@ export default function InitiativeDetailPage() {
     setSavingDescription(true)
     try {
       const result = await apiPost<{ success: boolean; initiative: Initiative }>(
-        `/api/purdy/initiatives/${initiativeId}`,
+        `/api/disco/initiatives/${initiativeId}`,
         { description: editedDescription }
       )
       if (result.success && result.initiative) {
@@ -230,7 +230,7 @@ export default function InitiativeDetailPage() {
     // Reload full outputs list to get complete data
     try {
       const result = await apiGet<{ success: boolean; outputs: Output[] }>(
-        `/api/purdy/initiatives/${initiativeId}/outputs`
+        `/api/disco/initiatives/${initiativeId}/outputs`
       )
       const newOutputs = result.outputs || []
       setOutputs(newOutputs)
@@ -246,7 +246,7 @@ export default function InitiativeDetailPage() {
   }
 
   const handleDeleteOutput = async (outputId: string) => {
-    await apiDelete(`/api/purdy/initiatives/${initiativeId}/outputs/${outputId}`)
+    await apiDelete(`/api/disco/initiatives/${initiativeId}/outputs/${outputId}`)
     // Remove from local state
     setOutputs(outputs.filter(o => o.id !== outputId))
     // Clear selection if deleted

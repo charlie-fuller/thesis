@@ -52,7 +52,7 @@ See `/docs/ARCHITECTURE.md` for full agent roster, capabilities, and database sc
   /api/routes    - FastAPI endpoints
   /agents        - Agent implementations (21 agents)
   /services      - Business logic
-    /purdy       - DISCo services (API routes still use /api/purdy)
+    /disco       - DISCo services (Discovery-Insights-Synthesis-Capabilities)
   /system_instructions - Agent prompts (XML)
 
 /database
@@ -101,7 +101,7 @@ Agents use **Gigawatt v4.0 RCCI Framework** with XML structure. All include `sha
 
 See `/frontend/.env.example` and `/backend/.env.example`.
 
-Key: `SUPABASE_*`, `NEO4J_*`, `ANTHROPIC_API_KEY`, `VOYAGE_API_KEY`, `MEM0_API_KEY`, `PURDY_REPO_PATH`
+Key: `SUPABASE_*`, `NEO4J_*`, `ANTHROPIC_API_KEY`, `VOYAGE_API_KEY`, `MEM0_API_KEY`, `DISCO_REPO_PATH`
 
 ## Known Issues & Fixes
 
@@ -153,14 +153,15 @@ psql "postgresql://postgres:[DB_PASSWORD]@db.imdavfgreeddxluslsdl.supabase.co:54
 ```
 
 Notes:
-- Members table is `purdy_initiative_members` (not `purdy_members`)
-- Use `\dt purdy_*` and `\dt disco_*` to list tables
+- Members table is `disco_initiative_members` (not `disco_members`)
+- Use `\dt disco_*` to list tables
 - RLS policies reference `auth.uid()` for row-level security
 
 ## Testing
 
 ```bash
-cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
+# From the repo root:
+cd backend
 uv run pytest tests/test_document_classifier.py tests/test_tasks.py \
   tests/test_opportunities.py tests/test_engagement.py tests/test_agents_new.py -v
 ```

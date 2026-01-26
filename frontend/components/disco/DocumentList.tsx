@@ -66,7 +66,7 @@ function DocumentItem({
     setError(null)
 
     try {
-      await apiDelete(`/api/purdy/initiatives/${initiativeId}/documents/${doc.id}`)
+      await apiDelete(`/api/disco/initiatives/${initiativeId}/documents/${doc.id}`)
       onDeleted(doc.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete')

@@ -145,7 +145,7 @@ Thesis will fork/adapt from the **Thesis** platform, which provides:
 ## Key References
 
 - **Thesis Repository**: `/Users/motorthings/Documents/GitHub/thesis/`
-- **PuRDy System Instructions**: Planning methodology reference at `/Users/motorthings/Documents/GitHub/purdy/`
+- **DISCo System Instructions**: Planning methodology reference at `/Users/motorthings/Documents/GitHub/disco/` (formerly PuRDy at `purdy/`)
 - **Deployment**: Railway (backend) + Vercel (frontend) + Supabase (database)
 
 ## Planning Session Date

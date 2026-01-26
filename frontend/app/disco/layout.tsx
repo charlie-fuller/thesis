@@ -11,10 +11,10 @@ interface DiscoLayoutProps {
 }
 
 export default function DiscoLayout({ children }: DiscoLayoutProps) {
-  const { user, profile, loading, hasPurdyAccess } = useAuth()
+  const { user, profile, loading, hasDiscoAccess } = useAuth()
   const router = useRouter()
 
-  // Check DISCo access (uses hasPurdyAccess from auth context)
+  // Check DISCo access
   useEffect(() => {
     if (!loading) {
       // Not logged in - redirect to login
@@ -24,12 +24,12 @@ export default function DiscoLayout({ children }: DiscoLayoutProps) {
       }
 
       // No DISCo access - redirect to home
-      if (profile && !hasPurdyAccess) {
+      if (profile && !hasDiscoAccess) {
         router.push('/')
         return
       }
     }
-  }, [loading, user, profile, router, hasPurdyAccess])
+  }, [loading, user, profile, router, hasDiscoAccess])
 
   // Show loading state while checking auth
   if (loading) {
@@ -44,7 +44,7 @@ export default function DiscoLayout({ children }: DiscoLayoutProps) {
   }
 
   // Show loading state while redirecting users without access
-  if (!user || !hasPurdyAccess) {
+  if (!user || !hasDiscoAccess) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-page">
         <div className="text-center">

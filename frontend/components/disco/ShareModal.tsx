@@ -66,7 +66,7 @@ export default function ShareModal({
       try {
         setLoading(true)
         const result = await apiGet<{ success: boolean; members: Member[] }>(
-          `/api/purdy/initiatives/${initiativeId}/members`
+          `/api/disco/initiatives/${initiativeId}/members`
         )
         setMembers(result.members || [])
       } catch (err) {
@@ -88,7 +88,7 @@ export default function ShareModal({
 
     try {
       const result = await apiPost<{ success: boolean; member: Member }>(
-        `/api/purdy/initiatives/${initiativeId}/members`,
+        `/api/disco/initiatives/${initiativeId}/members`,
         { email: email.trim(), role }
       )
 
@@ -105,7 +105,7 @@ export default function ShareModal({
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
-      await apiPatch(`/api/purdy/initiatives/${initiativeId}/members/${userId}`, {
+      await apiPatch(`/api/disco/initiatives/${initiativeId}/members/${userId}`, {
         role: newRole
       })
 
@@ -123,7 +123,7 @@ export default function ShareModal({
     if (!confirm('Are you sure you want to remove this member?')) return
 
     try {
-      await apiDelete(`/api/purdy/initiatives/${initiativeId}/members/${userId}`)
+      await apiDelete(`/api/disco/initiatives/${initiativeId}/members/${userId}`)
       setMembers(prev => prev.filter(m => m.user_id !== userId))
     } catch (err) {
       console.error('Failed to remove member:', err)

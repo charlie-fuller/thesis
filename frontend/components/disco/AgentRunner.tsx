@@ -217,7 +217,7 @@ export default function AgentRunner({
   useEffect(() => {
     const loadAgents = async () => {
       try {
-        const result = await apiGet<{ success: boolean; agents: AgentType[] }>('/api/purdy/agents')
+        const result = await apiGet<{ success: boolean; agents: AgentType[] }>('/api/disco/agents')
         setAgents(result.agents || [])
       } catch (err) {
         console.error('Failed to load agents:', err)
@@ -269,7 +269,7 @@ export default function AgentRunner({
       const timeoutMs = isMultiPass ? 600000 : 300000 // 10 min for multi-pass, 5 min for single
 
       const response = await authenticatedFetch(
-        `/api/purdy/initiatives/${initiativeId}/runs`,
+        `/api/disco/initiatives/${initiativeId}/runs`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

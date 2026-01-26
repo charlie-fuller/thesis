@@ -2,10 +2,10 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Routes that require thesis access (not available to purdy-only users)
+// Routes that require thesis access (not available to disco-only users)
 const thesisRoutes = ['/chat', '/admin', '/profile'];
 
-// Routes that require purdy/disco access
+// Routes that require disco access
 const discoRoutes = ['/disco'];
 
 export async function middleware(req: NextRequest) {
@@ -89,12 +89,12 @@ export async function middleware(req: NextRequest) {
     const isAdmin = profile.role === 'admin';
     const appAccess = profile.app_access || ['thesis']; // Default to thesis access
     const hasThesisAccess = isAdmin || appAccess.includes('thesis') || appAccess.includes('all');
-    const hasPurdyAccess = isAdmin || appAccess.includes('purdy') || appAccess.includes('all');
+    const hasDiscoAccess = isAdmin || appAccess.includes('disco') || appAccess.includes('purdy') || appAccess.includes('all');
 
     // If trying to access admin route without admin role
     if (isAdminRoute && !isAdmin) {
       // Redirect based on what access they have
-      const redirectPath = hasPurdyAccess && !hasThesisAccess ? '/disco' : '/chat';
+      const redirectPath = hasDiscoAccess && !hasThesisAccess ? '/disco' : '/chat';
       return NextResponse.redirect(new URL(redirectPath, req.url));
     }
 
@@ -104,8 +104,8 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL('/disco', req.url));
     }
 
-    // If trying to access disco routes without purdy access
-    if (isDiscoRoute && !hasPurdyAccess) {
+    // If trying to access disco routes without disco access
+    if (isDiscoRoute && !hasDiscoAccess) {
       // Thesis-only user trying to access disco routes
       return NextResponse.redirect(new URL('/chat', req.url));
     }
@@ -115,7 +115,7 @@ export async function middleware(req: NextRequest) {
       let redirectPath = '/chat';
       if (isAdmin) {
         redirectPath = '/admin';
-      } else if (hasPurdyAccess && !hasThesisAccess) {
+      } else if (hasDiscoAccess && !hasThesisAccess) {
         redirectPath = '/disco';
       }
       return NextResponse.redirect(new URL(redirectPath, req.url));

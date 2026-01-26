@@ -205,7 +205,8 @@ The local development environment is running Python 3.9.6, which is:
 ## Test Execution Instructions
 
 ```bash
-cd /Users/charlie.fuller/vaults/Contentful/thesis/backend
+# From the repo root:
+cd backend
 
 # Run all new isolated tests (227 tests, works on Python 3.9)
 uv run pytest tests/test_document_classifier.py tests/test_tasks.py \

@@ -54,7 +54,7 @@ export default function InitiativeChat({ initiativeId }: InitiativeChatProps) {
       try {
         setLoading(true)
         const result = await apiGet<{ success: boolean; conversation: Conversation }>(
-          `/api/purdy/initiatives/${initiativeId}/chat`
+          `/api/disco/initiatives/${initiativeId}/chat`
         )
         if (result.success && result.conversation) {
           setConversation(result.conversation)
@@ -99,7 +99,7 @@ export default function InitiativeChat({ initiativeId }: InitiativeChatProps) {
         response: string
         sources: Source[]
         conversation_id: string
-      }>(`/api/purdy/initiatives/${initiativeId}/chat`, {
+      }>(`/api/disco/initiatives/${initiativeId}/chat`, {
         question,
         conversation_id: conversation?.id
       })

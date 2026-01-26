@@ -13,12 +13,15 @@ import argparse
 import sys
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 
-# Add backend to path
-sys.path.insert(0, '/Users/charlie.fuller/vaults/Contentful/thesis/backend')
+# Add backend to path dynamically
+SCRIPT_DIR = Path(__file__).parent.resolve()
+BACKEND_DIR = SCRIPT_DIR.parent
+sys.path.insert(0, str(BACKEND_DIR))
 
 from dotenv import load_dotenv
-load_dotenv('/Users/charlie.fuller/vaults/Contentful/thesis/backend/.env')
+load_dotenv(BACKEND_DIR / '.env')
 
 from database import get_supabase
 from logger_config import get_logger

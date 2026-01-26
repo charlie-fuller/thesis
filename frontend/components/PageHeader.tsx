@@ -21,7 +21,7 @@ export default function PageHeader({
   onToggleLeftPanel,
   onToggleRightPanel,
 }: PageHeaderProps) {
-  const { isAdmin, hasPurdyAccess } = useAuth()
+  const { isAdmin, hasDiscoAccess } = useAuth()
   const { theme } = useTheme()
   const pathname = usePathname()
 
@@ -36,7 +36,7 @@ export default function PageHeader({
     { href: '/intelligence', label: 'Intelligence' },
     { href: '/kb', label: 'KB' },
     // Conditionally add PuRDy link for users with access
-    ...(hasPurdyAccess ? [{ href: '/disco', label: 'DISCo' }] : []),
+    ...(hasDiscoAccess ? [{ href: '/disco', label: 'DISCo' }] : []),
   ]
 
   const isActive = (href: string) => {

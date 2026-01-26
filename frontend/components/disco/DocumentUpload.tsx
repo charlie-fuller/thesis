@@ -82,7 +82,7 @@ export default function DocumentUpload({ initiativeId, onUploaded }: DocumentUpl
         formData.append('file', file)
 
         const response = await authenticatedFetch(
-          `/api/purdy/initiatives/${initiativeId}/documents`,
+          `/api/disco/initiatives/${initiativeId}/documents`,
           {
             method: 'POST',
             body: formData,
@@ -133,7 +133,7 @@ export default function DocumentUpload({ initiativeId, onUploaded }: DocumentUpl
 
     try {
       const response = await authenticatedFetch(
-        `/api/purdy/initiatives/${initiativeId}/documents/text`,
+        `/api/disco/initiatives/${initiativeId}/documents/text`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

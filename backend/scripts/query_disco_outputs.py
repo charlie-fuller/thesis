@@ -22,7 +22,7 @@ def main():
     since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
 
     # Query outputs from last 24 hours
-    result = supabase.table('purdy_outputs').select(
+    result = supabase.table('disco_outputs').select(
         'id, agent_type, version, created_at, content_markdown, recommendation, confidence_level, tier_routing, initiative_id'
     ).gte('created_at', since).order('agent_type').order('created_at', desc=True).execute()
 
@@ -31,7 +31,7 @@ def main():
         print("\nLet me check recent outputs without time filter...")
 
         # Get recent outputs without time filter
-        result = supabase.table('purdy_outputs').select(
+        result = supabase.table('disco_outputs').select(
             'id, agent_type, version, created_at, content_markdown, recommendation, confidence_level, tier_routing, initiative_id'
         ).order('created_at', desc=True).limit(20).execute()
 
@@ -39,7 +39,7 @@ def main():
     initiative_ids = list(set(o.get('initiative_id') for o in result.data if o.get('initiative_id')))
     initiatives = {}
     if initiative_ids:
-        init_result = supabase.table('purdy_initiatives').select('id, name').in_('id', initiative_ids).execute()
+        init_result = supabase.table('disco_initiatives').select('id, name').in_('id', initiative_ids).execute()
         initiatives = {i['id']: i['name'] for i in (init_result.data or [])}
 
     print(f"\n{'='*80}")

@@ -2,8 +2,8 @@
 """
 One-time script to generate justifications for all existing opportunities.
 
-Usage:
-    cd /Users/charlie.fuller/vaults/Contentful/thesis/backend
+Usage (from repo root):
+    cd backend
     python -m scripts.generate_all_justifications [--client-id <uuid>]
 
 If no client-id provided, generates for ALL opportunities across all clients.

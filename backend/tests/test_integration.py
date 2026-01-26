@@ -4,8 +4,8 @@ Integration Tests - Real Backend Testing
 These tests hit the REAL backend with actual database connections.
 They are slower than unit tests but validate real system behavior.
 
-Running:
-    cd /Users/charlie.fuller/vaults/Contentful/thesis/backend
+Running (from repo root):
+    cd backend
 
     # Run all integration tests (uses real .env credentials)
     uv run pytest tests/test_integration.py -v

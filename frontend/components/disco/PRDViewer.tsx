@@ -247,7 +247,7 @@ export default function PRDViewer({ initiativeId, canEdit, onRefresh }: PRDViewe
       setLoading(true)
       setError(null)
       const result = await apiGet<{ success: boolean; prds: PRD[] }>(
-        `/api/purdy/initiatives/${initiativeId}/prds`
+        `/api/disco/initiatives/${initiativeId}/prds`
       )
       setPrds(result.prds || [])
       // Select first PRD if available
@@ -263,7 +263,7 @@ export default function PRDViewer({ initiativeId, canEdit, onRefresh }: PRDViewe
 
   async function handleApprove(prdId: string) {
     try {
-      await apiPost(`/api/purdy/initiatives/${initiativeId}/prds/${prdId}/approve`, {})
+      await apiPost(`/api/disco/initiatives/${initiativeId}/prds/${prdId}/approve`, {})
       await loadPRDs()
       onRefresh()
     } catch (err) {
@@ -277,7 +277,7 @@ export default function PRDViewer({ initiativeId, canEdit, onRefresh }: PRDViewe
 
     try {
       const response = await authenticatedFetch(
-        `/api/purdy/initiatives/${initiativeId}/generate-summary`,
+        `/api/disco/initiatives/${initiativeId}/generate-summary`,
         { method: 'POST' }
       )
 

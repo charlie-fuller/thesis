@@ -46,7 +46,7 @@ async def upload_document(
     try:
         # Create document record
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_documents').insert({
+            lambda: supabase.table('disco_documents').insert({
                 'id': document_id,
                 'initiative_id': initiative_id,
                 'filename': filename,
@@ -99,7 +99,7 @@ async def upload_document(
             for batch_start in range(0, len(chunks_to_insert), batch_size):
                 batch = chunks_to_insert[batch_start:batch_start + batch_size]
                 await asyncio.to_thread(
-                    lambda b=batch: supabase.table('purdy_document_chunks').insert(b).execute()
+                    lambda b=batch: supabase.table('disco_document_chunks').insert(b).execute()
                 )
 
             logger.info(f"Stored {len(chunks_to_insert)} chunks for document {document_id}")
@@ -112,7 +112,7 @@ async def upload_document(
         # Cleanup on failure
         try:
             await asyncio.to_thread(
-                lambda: supabase.table('purdy_documents').delete().eq('id', document_id).execute()
+                lambda: supabase.table('disco_documents').delete().eq('id', document_id).execute()
             )
         except Exception:
             pass
@@ -174,7 +174,7 @@ async def get_documents(
     logger.info(f"Fetching documents for initiative {initiative_id}")
 
     try:
-        query = supabase.table('purdy_documents')\
+        query = supabase.table('disco_documents')\
             .select('*', count='exact')\
             .eq('initiative_id', initiative_id)
 
@@ -208,7 +208,7 @@ async def get_document(document_id: str, initiative_id: str) -> Optional[Dict]:
     """
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_documents')
+            lambda: supabase.table('disco_documents')
                 .select('*')
                 .eq('id', document_id)
                 .eq('initiative_id', initiative_id)
@@ -242,7 +242,7 @@ async def delete_document(document_id: str, initiative_id: str) -> bool:
 
         # Delete document (cascades to chunks)
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_documents')
+            lambda: supabase.table('disco_documents')
                 .delete()
                 .eq('id', document_id)
                 .execute()
@@ -285,7 +285,7 @@ async def search_initiative_docs(
         # Call vector search function
         result = await asyncio.to_thread(
             lambda: supabase.rpc(
-                'match_purdy_document_chunks',
+                'match_disco_document_chunks',
                 {
                     'query_embedding': query_embedding,
                     'match_count': limit,
@@ -302,7 +302,7 @@ async def search_initiative_docs(
         if chunks:
             doc_ids = list(set(c['document_id'] for c in chunks))
             docs_result = await asyncio.to_thread(
-                lambda: supabase.table('purdy_documents')
+                lambda: supabase.table('disco_documents')
                     .select('id, filename')
                     .in_('id', doc_ids)
                     .execute()
@@ -338,7 +338,7 @@ async def promote_output_to_document(
     try:
         # Fetch the output
         output_result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_outputs')
+            lambda: supabase.table('disco_outputs')
                 .select('*')
                 .eq('id', output_id)
                 .eq('initiative_id', initiative_id)
@@ -373,7 +373,7 @@ async def promote_output_to_document(
 
         # Update document with source_run_id
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_documents')
+            lambda: supabase.table('disco_documents')
                 .update({'source_run_id': output['run_id']})
                 .eq('id', document['id'])
                 .execute()
@@ -400,7 +400,7 @@ async def get_all_initiative_content(initiative_id: str) -> str:
     """
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_documents')
+            lambda: supabase.table('disco_documents')
                 .select('filename, content, document_type')
                 .eq('initiative_id', initiative_id)
                 .order('uploaded_at')

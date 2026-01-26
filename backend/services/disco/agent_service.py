@@ -129,14 +129,14 @@ supabase = get_supabase()
 anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 # Configuration
-# For production: use bundled agents in backend/purdy_agents/
-# For local dev: can override with PURDY_REPO_PATH env var
+# For production: use bundled agents in backend/disco_agents/
+# For local dev: can override with DISCO_REPO_PATH env var (DISCO_REPO_PATH for legacy)
 _BACKEND_DIR = Path(__file__).parent.parent.parent  # backend/
-_BUNDLED_AGENTS_PATH = _BACKEND_DIR / "purdy_agents"
-PURDY_REPO_PATH = os.environ.get("PURDY_REPO_PATH", "")
-# Default models - can be overridden by env var
-PURDY_MODEL_SONNET = os.environ.get("PURDY_MODEL_SONNET", "claude-sonnet-4-20250514")
-PURDY_MODEL_OPUS = os.environ.get("PURDY_MODEL_OPUS", "claude-opus-4-5-20251101")
+_BUNDLED_AGENTS_PATH = _BACKEND_DIR / "disco_agents"
+DISCO_REPO_PATH = os.environ.get("DISCO_REPO_PATH") or os.environ.get("DISCO_REPO_PATH", "")
+# Default models - can be overridden by env var (legacy PURDY_ vars also supported)
+DISCO_MODEL_SONNET = os.environ.get("DISCO_MODEL_SONNET") or os.environ.get("DISCO_MODEL_SONNET", "claude-sonnet-4-20250514")
+DISCO_MODEL_OPUS = os.environ.get("DISCO_MODEL_OPUS") or os.environ.get("PURDY_MODEL_OPUS", "claude-opus-4-5-20251101")
 
 # Triage uses Sonnet for speed, all others use Opus for quality
 SONNET_AGENTS = {"triage"}
@@ -144,12 +144,12 @@ SONNET_AGENTS = {"triage"}
 # Multi-pass synthesis configuration
 MULTI_PASS_CONFIG = {
     "passes": [
-        {"model": PURDY_MODEL_SONNET, "temperature": 0.5, "label": "Conservative"},
-        {"model": PURDY_MODEL_SONNET, "temperature": 0.7, "label": "Balanced"},
-        {"model": PURDY_MODEL_SONNET, "temperature": 0.85, "label": "Exploratory"},
+        {"model": DISCO_MODEL_SONNET, "temperature": 0.5, "label": "Conservative"},
+        {"model": DISCO_MODEL_SONNET, "temperature": 0.7, "label": "Balanced"},
+        {"model": DISCO_MODEL_SONNET, "temperature": 0.85, "label": "Exploratory"},
     ],
     "meta_synthesis": {
-        "model": PURDY_MODEL_OPUS,
+        "model": DISCO_MODEL_OPUS,
         "temperature": 0.6,
     },
     # "consolidator" is the new name (DISCo framework), "synthesizer" kept for backwards compatibility
@@ -160,12 +160,12 @@ MULTI_PASS_CONFIG = {
 def get_model_for_agent(agent_type: str) -> str:
     """Get the appropriate Claude model for an agent type."""
     if agent_type in SONNET_AGENTS:
-        return PURDY_MODEL_SONNET
-    return PURDY_MODEL_OPUS
+        return DISCO_MODEL_SONNET
+    return DISCO_MODEL_OPUS
 
 # Agent file mappings (v4.2 - persona-aligned features, DISCo framework)
-# Note: paths are relative - "agents/" prefix used when PURDY_REPO_PATH is set,
-# otherwise loads directly from bundled purdy_agents/ folder
+# Note: paths are relative - "agents/" prefix used when DISCO_REPO_PATH is set,
+# otherwise loads directly from bundled disco_agents/ folder
 # Old versions retained: v3.0, v4.0, v4.1 files for rollback
 # DISCo: "consolidator" replaces "synthesizer" (synthesizer kept for backwards compatibility)
 AGENT_FILES = {
@@ -478,8 +478,8 @@ def load_agent_prompt(agent_type: str) -> str:
     """
     Load agent prompt from filesystem.
 
-    Tries external PURDY_REPO_PATH first (for local dev), then falls back
-    to bundled agents in backend/purdy_agents/ (for production).
+    Tries external DISCO_REPO_PATH first (for local dev), then falls back
+    to bundled agents in backend/disco_agents/ (for production).
 
     Args:
         agent_type: Type of agent (triage, discovery_planner, etc.)
@@ -494,8 +494,8 @@ def load_agent_prompt(agent_type: str) -> str:
     filepath = None
 
     # Try external repo path first (local dev)
-    if PURDY_REPO_PATH:
-        external_path = Path(PURDY_REPO_PATH) / "agents" / filename
+    if DISCO_REPO_PATH:
+        external_path = Path(DISCO_REPO_PATH) / "agents" / filename
         if external_path.exists():
             filepath = external_path
             logger.info(f"Loading agent from external repo: {filepath}")
@@ -519,8 +519,8 @@ def load_agent_prompt(agent_type: str) -> str:
 def load_methodology_overview() -> str:
     """Load the PuRDy methodology overview document."""
     # Try external repo first
-    if PURDY_REPO_PATH:
-        filepath = Path(PURDY_REPO_PATH) / METHODOLOGY_FILE
+    if DISCO_REPO_PATH:
+        filepath = Path(DISCO_REPO_PATH) / METHODOLOGY_FILE
         if filepath.exists():
             return filepath.read_text()
 
@@ -565,7 +565,7 @@ async def build_agent_context(
 
     # Get previous outputs (latest of each type)
     outputs_result = await asyncio.to_thread(
-        lambda: supabase.table('purdy_outputs')
+        lambda: supabase.table('disco_outputs')
             .select('id, agent_type, version, content_markdown, recommendation, confidence_level')
             .eq('initiative_id', initiative_id)
             .order('created_at', desc=True)
@@ -659,7 +659,7 @@ async def run_agent(
     try:
         # Create run record with output format metadata
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_runs').insert({
+            lambda: supabase.table('disco_runs').insert({
                 'id': run_id,
                 'initiative_id': initiative_id,
                 'agent_type': agent_type,
@@ -686,7 +686,7 @@ async def run_agent(
         if document_ids:
             for doc_id in document_ids:
                 await asyncio.to_thread(
-                    lambda d=doc_id: supabase.table('purdy_run_documents').insert({
+                    lambda d=doc_id: supabase.table('disco_run_documents').insert({
                         'run_id': run_id,
                         'document_id': d
                     }).execute()
@@ -733,7 +733,7 @@ async def run_agent(
 
         # Get next version number
         version_result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_outputs')
+            lambda: supabase.table('disco_outputs')
                 .select('version')
                 .eq('initiative_id', initiative_id)
                 .eq('agent_type', agent_type)
@@ -776,7 +776,7 @@ async def run_agent(
 
         try:
             insert_result = await asyncio.to_thread(
-                lambda: supabase.table('purdy_outputs').insert(data_to_insert).execute()
+                lambda: supabase.table('disco_outputs').insert(data_to_insert).execute()
             )
 
             if not insert_result.data:
@@ -790,7 +790,7 @@ async def run_agent(
 
         # Update run status
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_runs').update({
+            lambda: supabase.table('disco_runs').update({
                 'status': 'completed',
                 'completed_at': datetime.now(timezone.utc).isoformat(),
                 'token_usage': token_usage
@@ -801,7 +801,7 @@ async def run_agent(
         new_status = get_status_for_agent(agent_type)
         if new_status:
             await asyncio.to_thread(
-                lambda: supabase.table('purdy_initiatives')
+                lambda: supabase.table('disco_initiatives')
                     .update({'status': new_status})
                     .eq('id', initiative_id)
                     .execute()
@@ -823,7 +823,7 @@ async def run_agent(
 
         # Update run status to failed
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_runs').update({
+            lambda: supabase.table('disco_runs').update({
                 'status': 'failed',
                 'completed_at': datetime.now(timezone.utc).isoformat(),
                 'error_message': str(e)
@@ -1074,7 +1074,7 @@ async def run_agent_multi_pass(
     try:
         # Create run record with multi-pass metadata
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_runs').insert({
+            lambda: supabase.table('disco_runs').insert({
                 'id': run_id,
                 'initiative_id': initiative_id,
                 'agent_type': agent_type,
@@ -1106,7 +1106,7 @@ async def run_agent_multi_pass(
         if document_ids:
             for doc_id in document_ids:
                 await asyncio.to_thread(
-                    lambda d=doc_id: supabase.table('purdy_run_documents').insert({
+                    lambda d=doc_id: supabase.table('disco_run_documents').insert({
                         'run_id': run_id,
                         'document_id': d
                     }).execute()
@@ -1246,7 +1246,7 @@ Create a unified synthesis that combines the best of all three passes. Follow th
 
         # Get next version number
         version_result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_outputs')
+            lambda: supabase.table('disco_outputs')
                 .select('version')
                 .eq('initiative_id', initiative_id)
                 .eq('agent_type', agent_type)
@@ -1297,7 +1297,7 @@ Create a unified synthesis that combines the best of all three passes. Follow th
 
         data_to_insert = dict(output_data)
         insert_result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_outputs').insert(data_to_insert).execute()
+            lambda: supabase.table('disco_outputs').insert(data_to_insert).execute()
         )
 
         if not insert_result.data:
@@ -1308,7 +1308,7 @@ Create a unified synthesis that combines the best of all three passes. Follow th
 
         # Update run status
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_runs').update({
+            lambda: supabase.table('disco_runs').update({
                 'status': 'completed',
                 'completed_at': datetime.now(timezone.utc).isoformat(),
                 'token_usage': total_tokens
@@ -1319,7 +1319,7 @@ Create a unified synthesis that combines the best of all three passes. Follow th
         new_status = get_status_for_agent(agent_type)
         if new_status:
             await asyncio.to_thread(
-                lambda: supabase.table('purdy_initiatives')
+                lambda: supabase.table('disco_initiatives')
                     .update({'status': new_status})
                     .eq('id', initiative_id)
                     .execute()
@@ -1342,7 +1342,7 @@ Create a unified synthesis that combines the best of all three passes. Follow th
         logger.error(f"[PURDY-MP] Multi-pass run failed: {e}")
 
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_runs').update({
+            lambda: supabase.table('disco_runs').update({
                 'status': 'failed',
                 'completed_at': datetime.now(timezone.utc).isoformat(),
                 'error_message': str(e)
@@ -1356,8 +1356,8 @@ async def get_run(run_id: str) -> Optional[Dict]:
     """Get a run record by ID."""
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_runs')
-                .select('*, purdy_outputs(*)')
+            lambda: supabase.table('disco_runs')
+                .select('*, disco_outputs(*)')
                 .eq('id', run_id)
                 .single()
                 .execute()
@@ -1372,7 +1372,7 @@ async def list_runs(initiative_id: str, limit: int = 20) -> List[Dict]:
     """List runs for an initiative."""
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_runs')
+            lambda: supabase.table('disco_runs')
                 .select('*')
                 .eq('initiative_id', initiative_id)
                 .order('started_at', desc=True)

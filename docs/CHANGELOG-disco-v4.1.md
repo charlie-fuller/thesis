@@ -1,4 +1,4 @@
-# PuRDy v4.1 Changelog
+# DISCo v4.1 Changelog (formerly PuRDy)
 
 **Date:** 2026-01-25
 **Author:** Claude Code session
@@ -115,25 +115,27 @@ Version bump only for consistency. Agent performing well in evaluation.
 
 ### New Files
 ```
-backend/purdy_agents/synthesizer-v4.1.md
-backend/purdy_agents/insight-extractor-v4.1.md
-backend/purdy_agents/triage-v4.1.md
-backend/purdy_agents/discovery-planner-v4.1.md
-backend/purdy_agents/coverage-tracker-v4.1.md
-backend/purdy_agents/tech-evaluation-v4.1.md
+backend/disco_agents/synthesizer-v4.1.md
+backend/disco_agents/insight-extractor-v4.1.md
+backend/disco_agents/triage-v4.1.md
+backend/disco_agents/discovery-planner-v4.1.md
+backend/disco_agents/coverage-tracker-v4.1.md
+backend/disco_agents/tech-evaluation-v4.1.md
 ```
+(Note: `purdy_agents/` path alias still supported for backwards compatibility)
 
 ### Modified Files
 ```
-backend/services/purdy/agent_service.py
+backend/services/disco/agent_service.py
   - AGENT_FILES dict updated to v4.1 filenames
   - AGENT_DESCRIPTIONS dict updated with v4.1 versions and descriptions
 
-backend/purdy_agents/REVISION-NOTES-v4.1.md
+backend/disco_agents/REVISION-NOTES-v4.1.md
   - Updated with implementation details
   - Added testing checklist
   - Added rollback instructions
 ```
+(Note: `services/purdy/` path alias still supported for backwards compatibility)
 
 ---
 
@@ -229,6 +231,8 @@ AGENT_FILES = {
 
 ## Related Documents
 
-- `backend/purdy_agents/REVISION-NOTES-v4.1.md` - Implementation details
-- `backend/purdy_agents/EVALUATION-v4.0-RESULTS.md` - Evaluation that drove these changes
-- `backend/purdy_agents/RUBRIC-v3.0.md` - Scoring methodology
+- `backend/disco_agents/REVISION-NOTES-v4.1.md` - Implementation details
+- `backend/disco_agents/EVALUATION-v4.0-RESULTS.md` - Evaluation that drove these changes
+- `backend/disco_agents/RUBRIC-v3.0.md` - Scoring methodology
+
+(Note: `purdy_agents/` path alias still supported for backwards compatibility)

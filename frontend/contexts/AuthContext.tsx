@@ -16,7 +16,7 @@ interface UserProfile {
     notifications_enabled?: boolean;
     email_digest?: boolean;
   };
-  app_access?: string[];  // Apps user can access: 'thesis', 'purdy', 'all'
+  app_access?: string[];  // Apps user can access: 'thesis', 'disco', 'all'
 }
 
 interface AuthContextType {
@@ -33,7 +33,7 @@ interface AuthContextType {
   isAdmin: boolean;
   // App access helpers
   hasThesisAccess: boolean;
-  hasPurdyAccess: boolean;
+  hasDiscoAccess: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // App access helpers
   const appAccess = profile?.app_access || ['thesis']; // Default to thesis
   const hasThesisAccess = isAdmin || appAccess.includes('thesis') || appAccess.includes('all');
-  const hasPurdyAccess = isAdmin || appAccess.includes('purdy') || appAccess.includes('all');
+  const hasDiscoAccess = isAdmin || appAccess.includes('disco') || appAccess.includes('purdy') || appAccess.includes('all');
 
   useEffect(() => {
     // Get initial session
@@ -179,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshProfile,
     isAdmin,
     hasThesisAccess,
-    hasPurdyAccess,
+    hasDiscoAccess,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

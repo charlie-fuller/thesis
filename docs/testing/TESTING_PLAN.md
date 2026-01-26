@@ -7,7 +7,8 @@
 ## Quick Start
 
 ```bash
-cd /Users/charlie.fuller/vaults/Contentful/thesis/backend
+# From the repo root:
+cd backend
 
 # Run all unit tests (fast, ~1 second, mocked dependencies)
 uv run pytest tests/test_document_classifier.py tests/test_tasks.py \
@@ -530,7 +531,8 @@ uv run pytest tests/test_integration.py::TestTaskEndpoints -v
 
 Run tests from the backend directory:
 ```bash
-cd /Users/charlie.fuller/vaults/Contentful/thesis/backend
+# From the repo root:
+cd backend
 uv run pytest tests/test_file.py -v
 ```
 

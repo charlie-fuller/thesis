@@ -212,7 +212,7 @@ Extract the 5 decision-forcing elements (Leverage Point, Feedback Loop, Decision
             }]
         }
 
-        insert_result = supabase.table('purdy_outputs').insert(output_data).execute()
+        insert_result = supabase.table('disco_outputs').insert(output_data).execute()
 
         if not insert_result.data:
             logger.error("[EXEC-SUMMARY] Failed to store executive summary")
@@ -246,7 +246,7 @@ async def condense_output(output_id: str, user_id: str) -> AsyncGenerator[Dict, 
 async def _fetch_output(output_id: str) -> Optional[Dict]:
     """Fetch an output by ID."""
     try:
-        result = supabase.table('purdy_outputs').select('*').eq('id', output_id).single().execute()
+        result = supabase.table('disco_outputs').select('*').eq('id', output_id).single().execute()
         return result.data
     except Exception as e:
         logger.error(f"Error fetching output {output_id}: {e}")
@@ -256,7 +256,7 @@ async def _fetch_output(output_id: str) -> Optional[Dict]:
 async def _get_next_version(initiative_id: str, agent_type: str) -> int:
     """Get the next version number for an agent type."""
     try:
-        result = supabase.table('purdy_outputs').select('version').eq('initiative_id', initiative_id).eq('agent_type', agent_type).order('version', desc=True).limit(1).execute()
+        result = supabase.table('disco_outputs').select('version').eq('initiative_id', initiative_id).eq('agent_type', agent_type).order('version', desc=True).limit(1).execute()
         if result.data:
             return result.data[0]['version'] + 1
         return 1

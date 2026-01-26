@@ -1,4 +1,4 @@
-# PuRDy Status Messages
+# DISCo Status Messages
 
 Fun status messages displayed while agents are processing. These rotate every 3 seconds during agent runs.
 

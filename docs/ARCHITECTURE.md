@@ -98,8 +98,8 @@ This document contains detailed architecture documentation. For essential Claude
 | 5 | Synthesizer | Green | Metrics Dashboard + diagram reasoning (Chris) |
 | 6 | Tech Evaluation | Indigo | Build vs. buy with architecture diagrams |
 
-**Prompt Version:** v4.2 (2026-01-25) - See `/backend/purdy_agents/`
-**Evaluation:** `/backend/purdy_agents/EVALUATION-v4.2-RESULTS.md`
+**Prompt Version:** v4.2 (2026-01-25) - See `/backend/disco_agents/` (formerly `purdy_agents`, path alias still supported)
+**Evaluation:** `/backend/disco_agents/EVALUATION-v4.2-RESULTS.md`
 - Triage: 85/100 ADOPT - Problem gate working well
 - Synthesizer: 78/100 REVIEW - Blocked term enforcement needed
 - Insight Extractor: 82/100 ADOPT - Pattern Library adds value
@@ -154,18 +154,18 @@ This document contains detailed architecture documentation. For essential Claude
 ### Career Intelligence
 - `compass_status_reports` - Career status reports with rubric scores
 
-### DISCo Tables (formerly PuRDy)
-- `purdy_initiatives` - Initiative container
-- `purdy_initiative_members` - Multi-user sharing
-- `purdy_documents` - Per-initiative documents
-- `purdy_document_chunks` - Chunked + embedded for RAG
-- `purdy_runs` - Agent run metadata
-- `purdy_run_documents` - Documents used per run
-- `purdy_outputs` - Versioned agent outputs (all agents)
-- `purdy_conversations` - Chat sessions
-- `purdy_messages` - Chat messages
-- `purdy_system_kb` - Global methodology KB
-- `purdy_system_kb_chunks` - KB chunks for RAG
+### DISCo Tables (formerly PuRDy - `purdy_*` table names still accepted for backwards compatibility)
+- `disco_initiatives` - Initiative container
+- `disco_initiative_members` - Multi-user sharing
+- `disco_documents` - Per-initiative documents
+- `disco_document_chunks` - Chunked + embedded for RAG
+- `disco_runs` - Agent run metadata
+- `disco_run_documents` - Documents used per run
+- `disco_outputs` - Versioned agent outputs (all agents)
+- `disco_conversations` - Chat sessions
+- `disco_messages` - Chat messages
+- `disco_system_kb` - Global methodology KB
+- `disco_system_kb_chunks` - KB chunks for RAG
 - `disco_bundles` - Initiative bundles from Strategist (scores, rationale, dependencies)
 - `disco_prds` - PRD documents from PRD Generator (structured + markdown)
 
@@ -195,9 +195,9 @@ Run migrations in order from `/database/migrations/`:
 | 021-023 | obsidian_sync, opportunity_conversations, add_manual_agent | Obsidian, Opportunities, Manual |
 | 025-028 | opportunity_justifications through document_task_scan_tracking | Opportunity features |
 | 030-036 | stakeholder_candidates through task_candidates_opportunity_link | Discovery pipeline |
-| 038 | purdy_schema | PuRDy tables |
+| 038 | disco_schema | DISCo tables (formerly purdy_schema) |
 | 040 | add_compass_agent | Compass agent |
-| 047 | purdy_outcome_tracking | Outcome tracking |
+| 047 | disco_outcome_tracking | Outcome tracking (formerly purdy_outcome_tracking) |
 | 048 | disco_synthesis | DISCo bundles + PRDs tables |
 
 ## Important Files Reference
@@ -218,7 +218,7 @@ Run migrations in order from `/database/migrations/`:
 - `/backend/services/opportunity_*.py` - Opportunity services (context, chat, justification, confidence)
 - `/backend/services/stakeholder_*.py` - Stakeholder services (extractor, scanner, deduplicator, linker)
 - `/backend/services/task_*.py` - Task services (auto_extractor, extractor)
-- `/backend/services/purdy/` - DISCo/PuRDy services (8 agents)
+- `/backend/services/disco/` - DISCo services (8 agents) (formerly `purdy/`, path alias still supported)
 - `/backend/services/graph/` - Neo4j services
 
 ### Backend API Routes
@@ -228,7 +228,7 @@ Run migrations in order from `/database/migrations/`:
 - `/backend/api/routes/documents.py` - Document CRUD
 - `/backend/api/routes/tasks.py` - Task management
 - `/backend/api/routes/opportunities.py` - Opportunity pipeline
-- `/backend/api/routes/purdy.py` - DISCo/PuRDy endpoints
+- `/backend/api/routes/disco.py` - DISCo endpoints (formerly `purdy.py`, route `/api/purdy/*` still accepted)
 
 ### Frontend Core
 - `/frontend/app/layout.tsx` - Root layout
@@ -239,11 +239,11 @@ Run migrations in order from `/database/migrations/`:
 - `/frontend/app/meeting-room/` - Meeting rooms
 - `/frontend/app/tasks/` - Kanban board
 - `/frontend/app/opportunities/` - Opportunity pipeline
-- `/frontend/app/purdy/` - DISCo/PuRDy feature
-- `/frontend/components/purdy/` - DISCo/PuRDy components (7 files)
+- `/frontend/app/disco/` - DISCo feature (formerly `purdy/`, route `/purdy` still redirects)
+- `/frontend/components/disco/` - DISCo components (7 files) (formerly `purdy/`)
 
 ### DISCo Agent Prompts
-- `/backend/purdy_agents/` - Agent prompt definitions (versioned markdown)
+- `/backend/disco_agents/` - Agent prompt definitions (versioned markdown) (formerly `purdy_agents/`, path alias still supported)
   - `triage-v4.2.md`, `discovery-planner-v4.1.md`, `coverage-tracker-v4.1.md`
   - `insight-extractor-v4.2.md`, `consolidator-v4.2.md`, `tech-evaluation-v4.0.md`
   - `strategist-v1.0.md`, `prd-generator-v1.0.md`

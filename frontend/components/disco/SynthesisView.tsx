@@ -248,7 +248,7 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
       setLoading(true)
       setError(null)
       const result = await apiGet<{ success: boolean; bundles: Bundle[] }>(
-        `/api/purdy/initiatives/${initiativeId}/bundles`
+        `/api/disco/initiatives/${initiativeId}/bundles`
       )
       setBundles(result.bundles || [])
     } catch (err) {
@@ -261,7 +261,7 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
   async function handleApprove(bundleId: string) {
     try {
       setActionLoading(bundleId)
-      await apiPost(`/api/purdy/initiatives/${initiativeId}/bundles/${bundleId}/approve`, {})
+      await apiPost(`/api/disco/initiatives/${initiativeId}/bundles/${bundleId}/approve`, {})
       await loadBundles()
       onRefresh()
     } catch (err) {
@@ -274,7 +274,7 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
   async function handleReject(bundleId: string, feedback: string) {
     try {
       setActionLoading(bundleId)
-      await apiPost(`/api/purdy/initiatives/${initiativeId}/bundles/${bundleId}/reject`, { feedback })
+      await apiPost(`/api/disco/initiatives/${initiativeId}/bundles/${bundleId}/reject`, { feedback })
       setRejectingBundle(null)
       setRejectFeedback('')
       await loadBundles()

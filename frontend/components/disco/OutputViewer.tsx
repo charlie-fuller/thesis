@@ -301,7 +301,7 @@ function OutputDetail({
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/purdy/initiatives/${initiativeId}/outputs/${output.id}/condense`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/disco/initiatives/${initiativeId}/outputs/${output.id}/condense`,
         {
           method: 'POST',
           headers: {

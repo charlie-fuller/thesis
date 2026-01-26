@@ -1,12 +1,12 @@
-# PuRDy Process Flow (Graphic Reference)
+# DISCo Process Flow (Graphic Reference)
 
-## Why PuRDy?
+## Why DISCo?
 
 **The Problem:** Product discovery generates mountains of transcripts, notes, and research that never become actionable. Weeks of workshops produce 50-page decks that executives don't read. Decisions stall. Good ideas die in the gap between "we talked about it" and "here's what we're doing."
 
-**The Solution:** PuRDy transforms discovery chaos into decision clarity in days, not months.
+**The Solution:** DISCo transforms discovery chaos into decision clarity in days, not months.
 
-| Without PuRDy | With PuRDy |
+| Without DISCo | With DISCo |
 |---------------|------------|
 | 50-page discovery docs nobody reads | 900-word decision doc, decision in first sentence |
 | Weeks to synthesize findings | Hours from transcript to recommendation |

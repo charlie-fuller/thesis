@@ -38,7 +38,7 @@ async def create_initiative(
     try:
         # Create the initiative
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiatives').insert({
+            lambda: supabase.table('disco_initiatives').insert({
                 'id': initiative_id,
                 'name': name,
                 'description': description,
@@ -54,7 +54,7 @@ async def create_initiative(
 
         # Add creator as owner in members table
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiative_members').insert({
+            lambda: supabase.table('disco_initiative_members').insert({
                 'initiative_id': initiative_id,
                 'user_id': user_id,
                 'role': 'owner'
@@ -85,8 +85,8 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
     try:
         # Fetch initiative with creator info
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiatives')
-                .select('*, users!purdy_initiatives_created_by_fkey(id, name, email)')
+            lambda: supabase.table('disco_initiatives')
+                .select('*, users!disco_initiatives_created_by_fkey(id, name, email)')
                 .eq('id', initiative_id)
                 .single()
                 .execute()
@@ -105,7 +105,7 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
 
         # Get user's role in this initiative
         member_result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiative_members')
+            lambda: supabase.table('disco_initiative_members')
                 .select('role')
                 .eq('initiative_id', initiative_id)
                 .eq('user_id', user_id)
@@ -117,7 +117,7 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
 
         # Get document count
         doc_count = await asyncio.to_thread(
-            lambda: supabase.table('purdy_documents')
+            lambda: supabase.table('disco_documents')
                 .select('id', count='exact')
                 .eq('initiative_id', initiative_id)
                 .execute()
@@ -126,7 +126,7 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
 
         # Get latest output for each agent type
         outputs_result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_outputs')
+            lambda: supabase.table('disco_outputs')
                 .select('agent_type, version, created_at, recommendation, confidence_level')
                 .eq('initiative_id', initiative_id)
                 .order('created_at', desc=True)
@@ -172,7 +172,7 @@ async def list_initiatives(
     try:
         # Get initiative IDs where user is a member
         member_result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiative_members')
+            lambda: supabase.table('disco_initiative_members')
                 .select('initiative_id, role')
                 .eq('user_id', user_id)
                 .execute()
@@ -185,8 +185,8 @@ async def list_initiatives(
         roles_map = {m['initiative_id']: m['role'] for m in member_result.data}
 
         # Build query
-        query = supabase.table('purdy_initiatives')\
-            .select('*, users!purdy_initiatives_created_by_fkey(id, name, email)', count='exact')\
+        query = supabase.table('disco_initiatives')\
+            .select('*, users!disco_initiatives_created_by_fkey(id, name, email)', count='exact')\
             .in_('id', initiative_ids)
 
         if status_filter:
@@ -204,7 +204,7 @@ async def list_initiatives(
 
         # Get document counts for all initiatives
         doc_counts = await asyncio.to_thread(
-            lambda: supabase.table('purdy_documents')
+            lambda: supabase.table('disco_documents')
                 .select('initiative_id')
                 .in_('initiative_id', initiative_ids)
                 .execute()
@@ -261,7 +261,7 @@ async def update_initiative(
 
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiatives')
+            lambda: supabase.table('disco_initiatives')
                 .update(filtered_updates)
                 .eq('id', initiative_id)
                 .execute()
@@ -293,7 +293,7 @@ async def delete_initiative(initiative_id: str, user_id: str) -> bool:
 
     # Check permission (must be owner)
     member_result = await asyncio.to_thread(
-        lambda: supabase.table('purdy_initiative_members')
+        lambda: supabase.table('disco_initiative_members')
             .select('role')
             .eq('initiative_id', initiative_id)
             .eq('user_id', user_id)
@@ -307,7 +307,7 @@ async def delete_initiative(initiative_id: str, user_id: str) -> bool:
     try:
         # Delete initiative (cascades to all related tables)
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiatives')
+            lambda: supabase.table('disco_initiatives')
                 .delete()
                 .eq('id', initiative_id)
                 .execute()
@@ -325,7 +325,7 @@ async def check_user_access(initiative_id: str, user_id: str) -> bool:
     """Check if user has any access to initiative."""
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiative_members')
+            lambda: supabase.table('disco_initiative_members')
                 .select('id')
                 .eq('initiative_id', initiative_id)
                 .eq('user_id', user_id)
@@ -340,7 +340,7 @@ async def check_edit_permission(initiative_id: str, user_id: str) -> bool:
     """Check if user can edit initiative (owner or editor)."""
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiative_members')
+            lambda: supabase.table('disco_initiative_members')
                 .select('role')
                 .eq('initiative_id', initiative_id)
                 .eq('user_id', user_id)

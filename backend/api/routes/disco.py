@@ -1,7 +1,7 @@
 """
-PuRDy API Routes
+DISCo API Routes
 
-Product Requirements Document (PuRDy) API endpoints.
+Discovery-Insights-Synthesis-Capabilities (DISCo) API endpoints.
 """
 
 import asyncio
@@ -15,7 +15,7 @@ from pydantic import BaseModel, EmailStr
 from auth import get_current_user, require_admin
 from database import get_supabase
 from logger_config import get_logger
-from services.purdy import (
+from services.disco import (
     # Initiative
     create_initiative,
     get_initiative,
@@ -48,7 +48,7 @@ from services.purdy import (
     search_system_kb,
     get_kb_files,
 )
-from services.purdy.synthesis_service import (
+from services.disco.synthesis_service import (
     # DISCo Synthesis stage
     create_bundle,
     get_bundle,
@@ -62,7 +62,7 @@ from services.purdy.synthesis_service import (
     get_bundle_feedback,
     parse_synthesis_output,
 )
-from services.purdy.prd_service import (
+from services.disco.prd_service import (
     # DISCo Capabilities stage
     create_prd,
     get_prd,
@@ -72,11 +72,11 @@ from services.purdy.prd_service import (
     generate_prd_for_bundle,
     generate_executive_summary,
 )
-from services.purdy.agent_service import list_runs, get_run, run_agent_multi_pass, MULTI_PASS_CONFIG
-from services.purdy.condenser_service import condense_output
+from services.disco.agent_service import list_runs, get_run, run_agent_multi_pass, MULTI_PASS_CONFIG
+from services.disco.condenser_service import condense_output
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/api/purdy", tags=["purdy"])
+router = APIRouter(prefix="/api/disco", tags=["disco"])
 supabase = get_supabase()
 
 
@@ -126,8 +126,8 @@ class AgentRunRequest(BaseModel):
 # AUTH HELPERS
 # ============================================================================
 
-async def check_purdy_access(user: dict) -> bool:
-    """Check if user has PuRDy access."""
+async def check_disco_access(user: dict) -> bool:
+    """Check if user has DISCo access."""
     user_id = user.get('id')
     if not user_id:
         return False
@@ -146,15 +146,15 @@ async def check_purdy_access(user: dict) -> bool:
 
     app_access = result.data.get('app_access', ['thesis'])
 
-    # Check for purdy or all access
-    return 'purdy' in app_access or 'all' in app_access
+    # Check for disco, purdy (legacy), or all access
+    return 'disco' in app_access or 'purdy' in app_access or 'all' in app_access
 
 
-async def require_purdy_access(current_user: dict = Depends(get_current_user)) -> dict:
-    """Dependency to require PuRDy access."""
-    has_access = await check_purdy_access(current_user)
+async def require_disco_access(current_user: dict = Depends(get_current_user)) -> dict:
+    """Dependency to require DISCo access."""
+    has_access = await check_disco_access(current_user)
     if not has_access:
-        raise HTTPException(status_code=403, detail="PuRDy access required")
+        raise HTTPException(status_code=403, detail="DISCo access required")
     return current_user
 
 
@@ -182,7 +182,7 @@ async def api_list_initiatives(
     status: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """List all initiatives accessible to the user."""
     try:
@@ -204,7 +204,7 @@ async def api_list_initiatives(
 @router.post("/initiatives")
 async def api_create_initiative(
     data: InitiativeCreate,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Create a new initiative."""
     try:
@@ -225,7 +225,7 @@ async def api_create_initiative(
 @router.get("/initiatives/{initiative_id}")
 async def api_get_initiative(
     initiative_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Get initiative details."""
     try:
@@ -247,7 +247,7 @@ async def api_get_initiative(
 async def api_update_initiative(
     initiative_id: str,
     data: InitiativeUpdate,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Update initiative details."""
     await require_initiative_access(initiative_id, current_user, 'editor')
@@ -275,7 +275,7 @@ async def api_update_initiative(
 @router.delete("/initiatives/{initiative_id}")
 async def api_delete_initiative(
     initiative_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Delete an initiative (owner only)."""
     try:
@@ -301,7 +301,7 @@ async def api_list_documents(
     document_type: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """List documents in an initiative."""
     await require_initiative_access(initiative_id, current_user, 'viewer')
@@ -326,16 +326,16 @@ async def api_list_documents(
 async def api_upload_document_file(
     initiative_id: str,
     file: UploadFile = File(...),
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Upload a file document."""
     await require_initiative_access(initiative_id, current_user, 'editor')
 
-    logger.info(f"[PURDY-DOC] Upload started: {file.filename}, content_type: {file.content_type}")
+    logger.info(f"[DISCO-DOC] Upload started: {file.filename}, content_type: {file.content_type}")
 
     try:
         file_data = await file.read()
-        logger.info(f"[PURDY-DOC] File read complete: {len(file_data)} bytes")
+        logger.info(f"[DISCO-DOC] File read complete: {len(file_data)} bytes")
 
         document = await upload_document_file(
             initiative_id=initiative_id,
@@ -343,18 +343,18 @@ async def api_upload_document_file(
             filename=file.filename,
             user_id=current_user['id']
         )
-        logger.info(f"[PURDY-DOC] Upload successful: {document.get('id')}")
+        logger.info(f"[DISCO-DOC] Upload successful: {document.get('id')}")
         return {
             'success': True,
             'document': document
         }
     except ValueError as e:
-        logger.warning(f"[PURDY-DOC] Upload validation error: {e}")
+        logger.warning(f"[DISCO-DOC] Upload validation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"[PURDY-DOC] Upload failed: {type(e).__name__}: {e}")
+        logger.error(f"[DISCO-DOC] Upload failed: {type(e).__name__}: {e}")
         import traceback
-        logger.error(f"[PURDY-DOC] Traceback: {traceback.format_exc()}")
+        logger.error(f"[DISCO-DOC] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -362,7 +362,7 @@ async def api_upload_document_file(
 async def api_upload_document_text(
     initiative_id: str,
     data: DocumentUploadText,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Upload a text document (for pasting content)."""
     await require_initiative_access(initiative_id, current_user, 'editor')
@@ -388,7 +388,7 @@ async def api_upload_document_text(
 async def api_get_document(
     initiative_id: str,
     document_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Get a document by ID."""
     await require_initiative_access(initiative_id, current_user, 'viewer')
@@ -412,7 +412,7 @@ async def api_get_document(
 async def api_delete_document(
     initiative_id: str,
     document_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Delete a document."""
     await require_initiative_access(initiative_id, current_user, 'editor')
@@ -438,7 +438,7 @@ async def api_delete_document(
 async def api_list_runs(
     initiative_id: str,
     limit: int = 20,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """List agent runs for an initiative."""
     await require_initiative_access(initiative_id, current_user, 'viewer')
@@ -458,7 +458,7 @@ async def api_list_runs(
 async def api_start_run(
     initiative_id: str,
     data: AgentRunRequest,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Start a new agent run with streaming response."""
     await require_initiative_access(initiative_id, current_user, 'editor')
@@ -533,7 +533,7 @@ async def api_start_run(
 async def api_get_run(
     initiative_id: str,
     run_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Get a run by ID."""
     await require_initiative_access(initiative_id, current_user, 'viewer')
@@ -561,13 +561,13 @@ async def api_get_run(
 async def api_list_outputs(
     initiative_id: str,
     agent_type: Optional[str] = None,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """List outputs for an initiative."""
     await require_initiative_access(initiative_id, current_user, 'viewer')
 
     try:
-        query = supabase.table('purdy_outputs')\
+        query = supabase.table('disco_outputs')\
             .select('*')\
             .eq('initiative_id', initiative_id)
 
@@ -591,14 +591,14 @@ async def api_list_outputs(
 async def api_get_latest_output(
     initiative_id: str,
     agent_type: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Get the latest output of a specific type."""
     await require_initiative_access(initiative_id, current_user, 'viewer')
 
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_outputs')
+            lambda: supabase.table('disco_outputs')
                 .select('*')
                 .eq('initiative_id', initiative_id)
                 .eq('agent_type', agent_type)
@@ -625,14 +625,14 @@ async def api_get_latest_output(
 async def api_list_output_versions(
     initiative_id: str,
     agent_type: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """List all versions of an output type."""
     await require_initiative_access(initiative_id, current_user, 'viewer')
 
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_outputs')
+            lambda: supabase.table('disco_outputs')
                 .select('id, version, created_at, title, recommendation, confidence_level')
                 .eq('initiative_id', initiative_id)
                 .eq('agent_type', agent_type)
@@ -653,14 +653,14 @@ async def api_list_output_versions(
 async def api_export_output(
     initiative_id: str,
     output_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Export an output as markdown."""
     await require_initiative_access(initiative_id, current_user, 'viewer')
 
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_outputs')
+            lambda: supabase.table('disco_outputs')
                 .select('agent_type, version, content_markdown')
                 .eq('id', output_id)
                 .eq('initiative_id', initiative_id)
@@ -692,7 +692,7 @@ async def api_export_output(
 async def api_promote_output(
     initiative_id: str,
     output_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Promote an output to a document."""
     await require_initiative_access(initiative_id, current_user, 'editor')
@@ -714,7 +714,7 @@ async def api_promote_output(
 async def api_delete_output(
     initiative_id: str,
     output_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Delete an output."""
     await require_initiative_access(initiative_id, current_user, 'editor')
@@ -722,7 +722,7 @@ async def api_delete_output(
     try:
         # Verify output belongs to initiative
         output_result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_outputs')
+            lambda: supabase.table('disco_outputs')
                 .select('id, agent_type, version')
                 .eq('id', output_id)
                 .eq('initiative_id', initiative_id)
@@ -735,13 +735,13 @@ async def api_delete_output(
 
         # Delete the output
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_outputs')
+            lambda: supabase.table('disco_outputs')
                 .delete()
                 .eq('id', output_id)
                 .execute()
         )
 
-        logger.info(f"[PURDY] Deleted output {output_id} ({output_result.data['agent_type']} v{output_result.data['version']})")
+        logger.info(f"[DISCO] Deleted output {output_id} ({output_result.data['agent_type']} v{output_result.data['version']})")
 
         return {
             'success': True,
@@ -758,7 +758,7 @@ async def api_delete_output(
 async def api_condense_output(
     initiative_id: str,
     output_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Apply Smart Brevity condensation to an output."""
     await require_initiative_access(initiative_id, current_user, 'editor')
@@ -807,14 +807,14 @@ async def api_condense_output(
 @router.get("/initiatives/{initiative_id}/debug/outputs")
 async def api_debug_outputs(
     initiative_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Debug endpoint to check raw output data."""
     await require_initiative_access(initiative_id, current_user, 'viewer')
 
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_outputs')
+            lambda: supabase.table('disco_outputs')
                 .select('id, agent_type, version, title, content_markdown, created_at')
                 .eq('initiative_id', initiative_id)
                 .order('created_at', desc=True)
@@ -855,7 +855,7 @@ async def api_debug_outputs(
 @router.get("/initiatives/{initiative_id}/members")
 async def api_list_members(
     initiative_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """List initiative members."""
     await require_initiative_access(initiative_id, current_user, 'viewer')
@@ -875,7 +875,7 @@ async def api_list_members(
 async def api_add_member(
     initiative_id: str,
     data: MemberInvite,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Invite a member to an initiative."""
     await require_initiative_access(initiative_id, current_user, 'editor')
@@ -905,7 +905,7 @@ async def api_update_member_role(
     initiative_id: str,
     user_id: str,
     data: MemberRoleUpdate,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Update a member's role."""
     try:
@@ -932,7 +932,7 @@ async def api_update_member_role(
 async def api_remove_member(
     initiative_id: str,
     user_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Remove a member from an initiative."""
     try:
@@ -961,7 +961,7 @@ async def api_remove_member(
 @router.get("/initiatives/{initiative_id}/chat")
 async def api_get_chat(
     initiative_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Get or create chat conversation."""
     await require_initiative_access(initiative_id, current_user, 'viewer')
@@ -981,7 +981,7 @@ async def api_get_chat(
 async def api_ask_question(
     initiative_id: str,
     data: ChatQuestion,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Ask a question about the initiative."""
     await require_initiative_access(initiative_id, current_user, 'viewer')
@@ -1008,7 +1008,7 @@ async def api_ask_question(
 
 @router.get("/agents")
 async def api_list_agents(
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """List available agent types."""
     return {
@@ -1090,7 +1090,7 @@ async def api_search_kb(
     q: str,
     limit: int = 10,
     category: Optional[str] = None,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Search system KB."""
     try:
@@ -1168,7 +1168,7 @@ class BundleSplit(BaseModel):
 async def api_list_bundles(
     initiative_id: str,
     status: Optional[str] = None,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """List bundles for an initiative."""
     try:
@@ -1197,7 +1197,7 @@ async def api_list_bundles(
 async def api_create_bundle(
     initiative_id: str,
     body: BundleCreate,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Create a new bundle for an initiative."""
     try:
@@ -1238,7 +1238,7 @@ async def api_create_bundle(
 async def api_get_bundle(
     initiative_id: str,
     bundle_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Get a specific bundle."""
     try:
@@ -1271,7 +1271,7 @@ async def api_update_bundle(
     initiative_id: str,
     bundle_id: str,
     body: BundleUpdate,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Update a bundle."""
     try:
@@ -1316,7 +1316,7 @@ async def api_approve_bundle(
     initiative_id: str,
     bundle_id: str,
     body: BundleApproval,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Approve a bundle for PRD generation."""
     try:
@@ -1354,7 +1354,7 @@ async def api_reject_bundle(
     initiative_id: str,
     bundle_id: str,
     body: BundleApproval,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Reject a bundle."""
     try:
@@ -1394,7 +1394,7 @@ async def api_reject_bundle(
 async def api_merge_bundles(
     initiative_id: str,
     body: BundleMerge,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Merge multiple bundles into one."""
     try:
@@ -1434,7 +1434,7 @@ async def api_split_bundle(
     initiative_id: str,
     bundle_id: str,
     body: BundleSplit,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Split a bundle into multiple bundles."""
     try:
@@ -1470,7 +1470,7 @@ async def api_split_bundle(
 @router.post("/initiatives/{initiative_id}/synthesize")
 async def api_run_synthesis(
     initiative_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """
     Run the Synthesis agent and create bundles from its output.
@@ -1575,7 +1575,7 @@ async def api_list_prds(
     initiative_id: str,
     bundle_id: Optional[str] = None,
     status: Optional[str] = None,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """List PRDs for an initiative."""
     try:
@@ -1600,7 +1600,7 @@ async def api_list_prds(
 async def api_get_prd(
     initiative_id: str,
     prd_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Get a specific PRD."""
     try:
@@ -1629,7 +1629,7 @@ async def api_update_prd(
     initiative_id: str,
     prd_id: str,
     body: PRDUpdate,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Update a PRD."""
     try:
@@ -1663,7 +1663,7 @@ async def api_update_prd(
 async def api_approve_prd(
     initiative_id: str,
     prd_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Approve a PRD."""
     try:
@@ -1693,7 +1693,7 @@ async def api_approve_prd(
 async def api_generate_prd(
     initiative_id: str,
     bundle_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Generate a PRD for an approved bundle."""
     try:
@@ -1748,7 +1748,7 @@ async def api_generate_prd(
 @router.post("/initiatives/{initiative_id}/generate-summary")
 async def api_generate_executive_summary(
     initiative_id: str,
-    current_user: dict = Depends(require_purdy_access)
+    current_user: dict = Depends(require_disco_access)
 ):
     """Generate an executive summary across all approved bundles."""
     try:

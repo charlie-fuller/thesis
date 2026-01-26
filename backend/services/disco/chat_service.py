@@ -58,7 +58,7 @@ async def create_conversation(
 
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_conversations').insert({
+            lambda: supabase.table('disco_conversations').insert({
                 'id': conversation_id,
                 'initiative_id': initiative_id,
                 'user_id': user_id
@@ -90,8 +90,8 @@ async def get_conversation(
     try:
         # Try to find existing conversation
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_conversations')
-                .select('*, purdy_messages(*)')
+            lambda: supabase.table('disco_conversations')
+                .select('*, disco_messages(*)')
                 .eq('initiative_id', initiative_id)
                 .eq('user_id', user_id)
                 .order('created_at', desc=True)
@@ -102,12 +102,12 @@ async def get_conversation(
         if result.data:
             conversation = result.data[0]
             # Sort messages by created_at
-            if conversation.get('purdy_messages'):
+            if conversation.get('disco_messages'):
                 conversation['messages'] = sorted(
-                    conversation['purdy_messages'],
+                    conversation['disco_messages'],
                     key=lambda m: m['created_at']
                 )
-                del conversation['purdy_messages']
+                del conversation['disco_messages']
             else:
                 conversation['messages'] = []
             return conversation
@@ -148,7 +148,7 @@ async def ask_question(
 
         # Store user message
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_messages').insert({
+            lambda: supabase.table('disco_messages').insert({
                 'conversation_id': conversation_id,
                 'role': 'user',
                 'content': question,
@@ -187,7 +187,7 @@ async def ask_question(
 
         # Get conversation history (last 10 messages)
         history_result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_messages')
+            lambda: supabase.table('disco_messages')
                 .select('role, content')
                 .eq('conversation_id', conversation_id)
                 .order('created_at', desc=True)
@@ -257,7 +257,7 @@ Please answer based on the context provided. Cite sources when referencing speci
 
         # Store assistant message
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_messages').insert({
+            lambda: supabase.table('disco_messages').insert({
                 'conversation_id': conversation_id,
                 'role': 'assistant',
                 'content': answer,
@@ -294,7 +294,7 @@ async def get_conversation_history(
     """
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_messages')
+            lambda: supabase.table('disco_messages')
                 .select('*')
                 .eq('conversation_id', conversation_id)
                 .order('created_at')
@@ -321,7 +321,7 @@ async def clear_conversation(conversation_id: str) -> bool:
     """
     try:
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_messages')
+            lambda: supabase.table('disco_messages')
                 .delete()
                 .eq('conversation_id', conversation_id)
                 .execute()

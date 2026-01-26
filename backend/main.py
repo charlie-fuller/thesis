@@ -292,7 +292,7 @@ from api.routes import (
     opportunities,
     pipeline,
     projects,
-    purdy,
+    disco,
     research,
     stakeholder_metrics,
     stakeholders,
@@ -334,11 +334,11 @@ app.include_router(obsidian_sync.router)
 app.include_router(compass.router)
 app.include_router(digest.router)
 app.include_router(pipeline.router)
-app.include_router(purdy.router)
+app.include_router(disco.router)
 app.include_router(entity_registry.router)
 app.include_router(entity_corrections.router)
 
-logger.info("All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, task management, Obsidian sync, Compass, Digest, Pipeline, PuRDy, and Entity Validation routes)")
+logger.info("All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, task management, Obsidian sync, Compass, Digest, Pipeline, DISCo, and Entity Validation routes)")
 
 # ============================================================================
 # Backward Compatibility Routes

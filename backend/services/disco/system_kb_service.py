@@ -18,8 +18,8 @@ from logger_config import get_logger
 logger = get_logger(__name__)
 supabase = get_supabase()
 
-# Configuration
-PURDY_REPO_PATH = os.environ.get("PURDY_REPO_PATH", "/Users/charlie.fuller/vaults/Contentful/GitHub/purdy-cf")
+# Configuration (DISCO_REPO_PATH preferred, DISCO_REPO_PATH for legacy)
+DISCO_REPO_PATH = os.environ.get("DISCO_REPO_PATH") or os.environ.get("DISCO_REPO_PATH", "")
 KB_FOLDER = "KB"
 
 # KB file categories
@@ -67,7 +67,7 @@ async def sync_kb_from_filesystem() -> Dict:
     """
     logger.info("Syncing KB from filesystem...")
 
-    kb_path = Path(PURDY_REPO_PATH) / KB_FOLDER
+    kb_path = Path(DISCO_REPO_PATH) / KB_FOLDER
 
     if not kb_path.exists():
         logger.error(f"KB folder not found: {kb_path}")
@@ -94,7 +94,7 @@ async def sync_kb_from_filesystem() -> Dict:
 
             # Check if file exists in DB
             existing = await asyncio.to_thread(
-                lambda fn=filename: supabase.table('purdy_system_kb')
+                lambda fn=filename: supabase.table('disco_system_kb')
                     .select('id, content')
                     .eq('filename', fn)
                     .execute()
@@ -109,7 +109,7 @@ async def sync_kb_from_filesystem() -> Dict:
 
                 # Update content
                 await asyncio.to_thread(
-                    lambda fn=filename, c=content, cat=category: supabase.table('purdy_system_kb')
+                    lambda fn=filename, c=content, cat=category: supabase.table('disco_system_kb')
                         .update({
                             'content': c,
                             'category': cat,
@@ -121,7 +121,7 @@ async def sync_kb_from_filesystem() -> Dict:
 
                 # Delete old chunks
                 await asyncio.to_thread(
-                    lambda kb_id=kb_record['id']: supabase.table('purdy_system_kb_chunks')
+                    lambda kb_id=kb_record['id']: supabase.table('disco_system_kb_chunks')
                         .delete()
                         .eq('kb_id', kb_id)
                         .execute()
@@ -136,7 +136,7 @@ async def sync_kb_from_filesystem() -> Dict:
                 description = extract_description(content)
 
                 await asyncio.to_thread(
-                    lambda: supabase.table('purdy_system_kb').insert({
+                    lambda: supabase.table('disco_system_kb').insert({
                         'id': kb_id,
                         'filename': filename,
                         'content': content,
@@ -175,7 +175,7 @@ async def sync_kb_from_filesystem() -> Dict:
                 for batch_start in range(0, len(chunks_to_insert), batch_size):
                     batch = chunks_to_insert[batch_start:batch_start + batch_size]
                     await asyncio.to_thread(
-                        lambda b=batch: supabase.table('purdy_system_kb_chunks').insert(b).execute()
+                        lambda b=batch: supabase.table('disco_system_kb_chunks').insert(b).execute()
                     )
 
             stats['files_processed'].append(filename)
@@ -218,7 +218,7 @@ async def search_system_kb(
         # Call vector search function
         result = await asyncio.to_thread(
             lambda: supabase.rpc(
-                'match_purdy_system_kb_chunks',
+                'match_disco_system_kb_chunks',
                 {
                     'query_embedding': query_embedding,
                     'match_count': limit,
@@ -250,7 +250,7 @@ async def get_kb_files() -> List[Dict]:
     """
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_system_kb')
+            lambda: supabase.table('disco_system_kb')
                 .select('id, filename, category, description, created_at, updated_at')
                 .order('filename')
                 .execute()
@@ -275,7 +275,7 @@ async def get_kb_file(kb_id: str) -> Optional[Dict]:
     """
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_system_kb')
+            lambda: supabase.table('disco_system_kb')
                 .select('*')
                 .eq('id', kb_id)
                 .single()
@@ -301,7 +301,7 @@ async def get_kb_by_category(category: str) -> List[Dict]:
     """
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_system_kb')
+            lambda: supabase.table('disco_system_kb')
                 .select('id, filename, description')
                 .eq('category', category)
                 .order('filename')
@@ -346,21 +346,21 @@ async def get_kb_stats() -> Dict:
     try:
         # Count files
         files_result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_system_kb')
+            lambda: supabase.table('disco_system_kb')
                 .select('id', count='exact')
                 .execute()
         )
 
         # Count chunks
         chunks_result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_system_kb_chunks')
+            lambda: supabase.table('disco_system_kb_chunks')
                 .select('id', count='exact')
                 .execute()
         )
 
         # Count by category
         categories_result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_system_kb')
+            lambda: supabase.table('disco_system_kb')
                 .select('category')
                 .execute()
         )

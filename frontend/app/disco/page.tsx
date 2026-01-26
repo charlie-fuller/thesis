@@ -165,7 +165,7 @@ function CreateInitiativeModal({
 
     try {
       const result = await apiPost<{ success: boolean; initiative: Initiative }>(
-        '/api/purdy/initiatives',
+        '/api/disco/initiatives',
         { name: name.trim(), description: description.trim() || undefined }
       )
 
@@ -264,7 +264,7 @@ export default function DiscoInitiativesPage() {
       setLoading(true)
       setError(null)
 
-      let endpoint = '/api/purdy/initiatives'
+      let endpoint = '/api/disco/initiatives'
       if (statusFilter) {
         endpoint += `?status=${statusFilter}`
       }

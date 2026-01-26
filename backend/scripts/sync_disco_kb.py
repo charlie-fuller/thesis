@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script to sync PuRDy System KB from filesystem to database.
-Run from backend directory: python scripts/sync_purdy_kb.py
+Run from backend directory: python scripts/sync_disco_kb.py
 """
 
 import asyncio
@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 load_dotenv()
 
-from services.purdy.system_kb_service import sync_kb_from_filesystem, get_kb_stats
+from services.disco.system_kb_service import sync_kb_from_filesystem, get_kb_stats
 
 async def main():
     print("=" * 60)

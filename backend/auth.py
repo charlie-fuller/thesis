@@ -258,7 +258,7 @@ def require_app_access(required_apps: list):
     Dependency factory to require access to specific apps
 
     Args:
-        required_apps: List of required app names (e.g., ['purdy', 'thesis'])
+        required_apps: List of required app names (e.g., ['disco', 'thesis'])
 
     Returns:
         Function that checks if user has required app access
@@ -289,5 +289,5 @@ def require_app_access(required_apps: list):
 
 
 # Convenience dependencies for common app access checks
-require_purdy_access = require_app_access(['purdy'])
+require_disco_access = require_app_access(['disco', 'purdy'])  # purdy for legacy compatibility
 require_thesis_access = require_app_access(['thesis'])

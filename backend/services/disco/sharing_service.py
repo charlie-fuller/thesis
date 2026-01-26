@@ -64,7 +64,7 @@ async def add_member(
 
         # Check if already a member
         existing = await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiative_members')
+            lambda: supabase.table('disco_initiative_members')
                 .select('id, role')
                 .eq('initiative_id', initiative_id)
                 .eq('user_id', user_id)
@@ -74,7 +74,7 @@ async def add_member(
         if existing.data:
             # Update existing membership
             result = await asyncio.to_thread(
-                lambda: supabase.table('purdy_initiative_members')
+                lambda: supabase.table('disco_initiative_members')
                     .update({'role': role})
                     .eq('initiative_id', initiative_id)
                     .eq('user_id', user_id)
@@ -88,7 +88,7 @@ async def add_member(
         # Add new member
         member_id = str(uuid4())
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiative_members').insert({
+            lambda: supabase.table('disco_initiative_members').insert({
                 'id': member_id,
                 'initiative_id': initiative_id,
                 'user_id': user_id,
@@ -139,7 +139,7 @@ async def remove_member(
 
     try:
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiative_members')
+            lambda: supabase.table('disco_initiative_members')
                 .delete()
                 .eq('initiative_id', initiative_id)
                 .eq('user_id', user_id)
@@ -168,8 +168,8 @@ async def list_members(initiative_id: str) -> List[Dict]:
 
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiative_members')
-                .select('*, users!purdy_initiative_members_user_id_fkey(id, email, name)')
+            lambda: supabase.table('disco_initiative_members')
+                .select('*, users!disco_initiative_members_user_id_fkey(id, email, name)')
                 .eq('initiative_id', initiative_id)
                 .order('invited_at')
                 .execute()
@@ -229,7 +229,7 @@ async def update_member_role(
 
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiative_members')
+            lambda: supabase.table('disco_initiative_members')
                 .update({'role': new_role})
                 .eq('initiative_id', initiative_id)
                 .eq('user_id', user_id)
@@ -257,7 +257,7 @@ async def get_member_role(initiative_id: str, user_id: str) -> Optional[str]:
     """
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiative_members')
+            lambda: supabase.table('disco_initiative_members')
                 .select('role')
                 .eq('initiative_id', initiative_id)
                 .eq('user_id', user_id)
@@ -330,7 +330,7 @@ async def transfer_ownership(
     try:
         # Update new owner
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiative_members')
+            lambda: supabase.table('disco_initiative_members')
                 .update({'role': 'owner'})
                 .eq('initiative_id', initiative_id)
                 .eq('user_id', new_owner_id)
@@ -339,7 +339,7 @@ async def transfer_ownership(
 
         # Demote current owner to editor
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiative_members')
+            lambda: supabase.table('disco_initiative_members')
                 .update({'role': 'editor'})
                 .eq('initiative_id', initiative_id)
                 .eq('user_id', current_owner_id)
@@ -348,7 +348,7 @@ async def transfer_ownership(
 
         # Update initiative created_by
         await asyncio.to_thread(
-            lambda: supabase.table('purdy_initiatives')
+            lambda: supabase.table('disco_initiatives')
                 .update({'created_by': new_owner_id})
                 .eq('id', initiative_id)
                 .execute()

@@ -1,7 +1,7 @@
 """
-PuRDy Services Module
+DISCo Services Module
 
-Product Requirements Document (PuRDy) services for:
+Discovery-Insights-Synthesis-Capabilities (DISCo) services for:
 - Initiative management
 - Document processing and RAG
 - Agent execution
