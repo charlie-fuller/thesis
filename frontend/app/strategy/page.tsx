@@ -690,7 +690,7 @@ function TrendIndicator({ trend, percentage }: { trend: DepartmentKPI['trend']; 
     )
   }
   return (
-    <span className="flex items-center gap-0.5 text-gray-500 text-xs">
+    <span className="flex items-center gap-0.5 text-muted text-xs">
       <Minus className="w-3 h-3" />
       {percentage}%
     </span>
@@ -705,7 +705,7 @@ function ProgressBar({ percentage, status }: { percentage: number; status: Compa
     achieved: 'bg-blue-500',
   }
   return (
-    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+    <div className="h-2 bg-surface rounded-full overflow-hidden">
       <div
         className={`h-full rounded-full transition-all ${colors[status]}`}
         style={{ width: `${Math.min(percentage, 100)}%` }}
@@ -821,7 +821,7 @@ export default function StrategyPage() {
                     <span className="text-red-600">{objectiveSummary.behind} behind</span>
                   </>
                 ) : (
-                  <span className="text-blue-600">Planning targets for next fiscal year</span>
+                  <span className="text-secondary">Planning targets for next fiscal year</span>
                 )}
               </div>
             </div>
@@ -900,7 +900,7 @@ export default function StrategyPage() {
                 onClick={() => setActiveTab('fy26')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === 'fy26'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-primary text-white'
                     : 'bg-card border border-default text-secondary hover:bg-hover'
                 }`}
               >
@@ -911,7 +911,7 @@ export default function StrategyPage() {
                 onClick={() => setActiveTab('fy27')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === 'fy27'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-primary text-white'
                     : 'bg-card border border-default text-secondary hover:bg-hover'
                 }`}
               >
@@ -919,7 +919,7 @@ export default function StrategyPage() {
                 <span className="ml-1.5 text-xs opacity-75">(Notional)</span>
               </button>
               {activeTab === 'fy27' && (
-                <span className="ml-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
+                <span className="ml-2 text-xs text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded">
                   Forward-looking targets - measure progress against FY26
                 </span>
               )}
@@ -935,8 +935,8 @@ export default function StrategyPage() {
                   >
                     <div className="flex items-start gap-4">
                       {/* Icon */}
-                      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                        <ObjectiveIcon name={objective.icon} className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-surface flex items-center justify-center">
+                        <ObjectiveIcon name={objective.icon} className="w-6 h-6 text-accent" />
                       </div>
 
                       {/* Content */}
@@ -951,7 +951,7 @@ export default function StrategyPage() {
                           {activeTab === 'fy26' ? (
                             <StatusBadge status={objective.status} />
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-surface text-secondary">
                               Planning
                             </span>
                           )}
@@ -982,8 +982,8 @@ export default function StrategyPage() {
                               </div>
                             </>
                           ) : (
-                            <div className="h-2 bg-blue-100 dark:bg-blue-900/30 rounded-full overflow-hidden">
-                              <div className="h-full w-0 rounded-full bg-blue-300 dark:bg-blue-700" />
+                            <div className="h-2 bg-surface rounded-full overflow-hidden">
+                              <div className="h-full w-0 rounded-full bg-border" />
                             </div>
                           )}
                         </div>
@@ -1106,14 +1106,14 @@ export default function StrategyPage() {
           </section>
 
           {/* Info Banner */}
-          <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="mt-8 p-4 bg-surface border border-default rounded-lg">
             <div className="flex items-start gap-3">
-              <Target className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+              <Target className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                <h3 className="text-sm font-medium text-primary">
                   Aligning Opportunities with Strategy
                 </h3>
-                <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+                <p className="text-sm text-secondary mt-1">
                   When evaluating AI opportunities, consider how they contribute to these company objectives
                   and department KPIs. Opportunities that directly impact multiple strategic goals should
                   receive higher priority scores.
