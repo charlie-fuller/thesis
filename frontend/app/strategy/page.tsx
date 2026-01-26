@@ -780,7 +780,7 @@ export default function StrategyPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-page">
       <PageHeader />
 
       <main className="flex-1 overflow-auto">
