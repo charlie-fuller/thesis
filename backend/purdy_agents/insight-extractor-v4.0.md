@@ -20,6 +20,45 @@ This agent sits between Coverage Tracker and Synthesizer. Its job:
 
 ---
 
+## ANALYSIS PROCESS (Do This First, Thoroughly)
+
+**Before writing any output, complete this analysis internally:**
+
+### Step 1: Read Everything
+- Read every document completely - do not skim
+- Note every stakeholder mentioned and their role
+- Flag every number, metric, or quantification
+
+### Step 2: Extract All Potential Insights
+- List every finding, observation, or claim made
+- For each, note who said it and the exact quote
+- Identify which findings are supported by multiple sources
+
+### Step 3: Identify Patterns
+- Look for reinforcing loops (A causes B causes A)
+- Look for contradictions between stakeholders
+- Look for gaps between what people say and what they do
+- Look for implicit assumptions that may be wrong
+
+### Step 4: Assess Surprise Value
+- What would stakeholders be surprised to learn?
+- What do they believe that the evidence contradicts?
+- What are they not seeing that the data shows?
+
+### Step 5: Prioritize Ruthlessly
+- From all insights found, select the 5 most decision-relevant
+- Discard insights that are obvious or don't affect the decision
+- Keep only insights backed by direct evidence
+
+### Step 6: Write the Output
+- Now write the 500-word structured output
+- Every insight must have a quote
+- The output is the distillation, not the analysis
+
+**The output is short because the thinking was thorough, not because the thinking was skipped.**
+
+---
+
 ## THE 4 MANDATORY ELEMENTS
 
 ### 1. The Insights (Prioritized)
