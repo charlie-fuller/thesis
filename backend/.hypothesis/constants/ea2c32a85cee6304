@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/system_instructions_loader.py
+# hypothesis_version: 6.151.0
+
+[300, 3600, 'Acme Corp', 'John Doe', 'Test Corp', 'Test User', 'User', '__main__', 'active_version', 'admin', 'assistant_name', 'client_id', 'client_name', 'content', 'default.txt', 'email', 'id', 'is_active', 'name', 'r', 'role', 'sys_inst_versions', 'system-instructions', 'system_instructions', 'test-user-123', 'user', 'user_email', 'user_name', 'user_role', 'users', 'utf-8']

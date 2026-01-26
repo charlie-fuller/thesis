@@ -107,21 +107,36 @@ interface OutputViewerProps {
 
 // Define the DISCo workflow order for sidebar display (base agents only)
 // Executive/condensed variants are grouped with their parent agent
+// NOTE: synthesizer removed - outputs grouped under consolidator
 const AGENT_ORDER = [
   'triage',
   'discovery_planner',
   'coverage_tracker',
   'insight_extractor',
   'consolidator',
-  'synthesizer',  // Backwards compat alias for consolidator
   'strategist',
   'prd_generator',
   'tech_evaluation',
 ]
 
-// Helper to get base agent type (strips _executive, _condensed suffixes)
+// Deprecated agent mappings (old outputs display under new agent name)
+const AGENT_ALIASES: Record<string, string> = {
+  'synthesizer': 'consolidator',
+  'synthesizer_executive': 'consolidator_executive',
+  'synthesizer_condensed': 'consolidator_condensed',
+}
+
+// Helper to get the display agent type (maps deprecated names to current names)
+function getDisplayAgentType(agentType: string): string {
+  return AGENT_ALIASES[agentType] || agentType
+}
+
+// Helper to get base agent type (strips _executive, _condensed suffixes, maps deprecated agents)
 function getBaseAgentType(agentType: string): string {
-  return agentType.replace(/_executive$/, '').replace(/_condensed$/, '')
+  // First, map any deprecated agent names to their current equivalents
+  const mappedType = getDisplayAgentType(agentType)
+  // Then strip variant suffixes
+  return mappedType.replace(/_executive$/, '').replace(/_condensed$/, '')
 }
 
 // Check if an agent type is a variant (executive/condensed)
@@ -173,7 +188,8 @@ function OutputListItem({
   selected: boolean
   onClick: () => void
 }) {
-  const config = AGENT_CONFIG[output.agent_type] || { name: output.agent_type, icon: FileText, color: 'text-slate-600 bg-slate-100' }
+  const displayType = getDisplayAgentType(output.agent_type)
+  const config = AGENT_CONFIG[displayType] || { name: displayType, icon: FileText, color: 'text-slate-600 bg-slate-100' }
   const Icon = config.icon
 
   return (
@@ -254,10 +270,11 @@ function OutputDetail({
   const [generatingSummary, setGeneratingSummary] = useState(false)
   const [summaryStatus, setSummaryStatus] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'output' | 'notes'>('output')
-  const config = AGENT_CONFIG[output.agent_type] || { name: output.agent_type, icon: FileText, color: 'text-slate-600 bg-slate-100' }
+  const displayType = getDisplayAgentType(output.agent_type)
+  const config = AGENT_CONFIG[displayType] || { name: displayType, icon: FileText, color: 'text-slate-600 bg-slate-100' }
   const Icon = config.icon
   const hasNotes = output.synthesis_mode === 'multi_pass' && output.synthesis_notes
-  const isExecutiveSummary = output.agent_type?.endsWith('_executive') || output.agent_type?.endsWith('_condensed')
+  const isExecutiveSummary = displayType?.endsWith('_executive') || displayType?.endsWith('_condensed')
 
   const handleDelete = async () => {
     if (!onDelete) return

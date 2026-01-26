@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/__init__.py
+# hypothesis_version: 6.151.0
+
+['start_scheduler', 'stop_scheduler']

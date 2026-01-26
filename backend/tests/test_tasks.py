@@ -11,15 +11,14 @@ from unittest.mock import Mock, patch, MagicMock, AsyncMock
 from datetime import date, datetime, timezone
 from enum import Enum
 
-# Mock modules before importing
+# Mock only specific modules that are safe to mock (not config - it's a real package!)
 mock_database = Mock()
 mock_supabase_client = Mock()
 mock_database.get_supabase = Mock(return_value=mock_supabase_client)
 sys.modules['database'] = mock_database
 
-mock_config = Mock()
-mock_config.get_default_client_id = Mock(return_value="test-client-id")
-sys.modules['config'] = mock_config
+# Note: Do NOT mock 'config' - it's a real package and mocking it breaks other tests
+# If you need to mock config.get_default_client_id, use patch() in individual tests
 
 mock_auth = Mock()
 sys.modules['auth'] = mock_auth

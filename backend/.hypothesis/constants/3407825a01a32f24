@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/operator_tools.py
+# hypothesis_version: 6.151.0
+
+['*', 'Status Breakdown:', 'Unknown', 'ai_opportunities', 'ai_priorities', 'blocked', 'blockers', 'by_stakeholder', 'by_status', 'by_tier', 'client_id', 'code', 'communication_style', 'count', 'current', 'current_value', 'department', 'engagement_level', 'error', 'id', 'identified', 'involved', 'metric', 'metric_name', 'metrics', 'name', 'next_step', 'open_questions', 'opportunities', 'opportunity_code', 'owner', 'owner_stakeholder_id', 'pain_points', 'priority_level', 'questions', 'questions_to_confirm', 'red', 'red_count', 'relationship_status', 'role', 'score', 'stakeholder', 'stakeholder_id', 'stakeholder_metrics', 'stakeholders', 'status', 'target', 'target_value', 'tier', 'title', 'top_opportunities', 'total', 'total_score', 'total_unvalidated', 'unit', 'validation_status', 'win_conditions', 'yellow', 'yellow_count']

@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/digest.py
+# hypothesis_version: 6.151.0
+
+[400, 500, '/digest', '/preview', '/save', 'Task Digest', 'User not found', 'client_id', 'error', 'id', 'message', 'status', 'success', 'users']

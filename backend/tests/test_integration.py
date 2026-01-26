@@ -58,12 +58,45 @@ pytestmark = pytest.mark.skipif(
 
 
 # ============================================================================
+# Module Restoration - Fix mock pollution from other test files
+# ============================================================================
+
+def _restore_real_modules():
+    """Restore real modules that may have been mocked by other tests."""
+    import importlib
+
+    # Remove any mocked versions of critical modules
+    mocked_modules = ['database', 'config', 'auth', 'anthropic']
+    for mod_name in mocked_modules:
+        if mod_name in sys.modules:
+            mod = sys.modules[mod_name]
+            # Check if it's a Mock
+            if hasattr(mod, '_mock_name') or type(mod).__name__ in ('MagicMock', 'Mock'):
+                del sys.modules[mod_name]
+
+    # Also remove submodules that might be mocked
+    to_remove = [k for k in sys.modules.keys()
+                 if any(k.startswith(f'{m}.') for m in mocked_modules)]
+    for k in to_remove:
+        if hasattr(sys.modules[k], '_mock_name') or type(sys.modules[k]).__name__ in ('MagicMock', 'Mock'):
+            del sys.modules[k]
+
+
+# ============================================================================
 # Test Fixtures
 # ============================================================================
 
 @pytest.fixture(scope="module")
 def real_supabase():
     """Get real Supabase client with fresh connection."""
+    # First, restore any mocked modules
+    _restore_real_modules()
+
+    # Now import the real database module
+    import importlib
+    import database as db_module
+    importlib.reload(db_module)
+
     from database import DatabaseService, get_supabase
 
     # Reset the singleton to pick up real credentials

@@ -225,7 +225,7 @@ class TestAgentRouting:
         """Verify queries contain keywords that should route to expected agent."""
         # Define keyword mappings
         agent_keywords = {
-            "atlas": ["mcksey", "gartner", "research", "analyst", "trend", "study"],
+            "atlas": ["mckinsey", "gartner", "research", "analyst", "trend", "study"],
             "capital": ["roi", "npv", "business case", "financial", "investment", "cost"],
             "guardian": ["security", "compliance", "soc2", "gdpr", "risk", "audit"],
             "counselor": ["contract", "legal", "ip", "liability", "attorney", "law"],

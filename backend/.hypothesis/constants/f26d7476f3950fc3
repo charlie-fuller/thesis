@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/utils/retry.py
+# hypothesis_version: 6.151.0
+
+[1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 300.0, 'CLOSED', 'CircuitBreaker', 'HALF_OPEN', 'OPEN', 'T', 'attempt', 'attempts', 'delay', 'error', 'failure_count', 'function', 'retry_on_rate_limit', 'retry_with_backoff', 'state']

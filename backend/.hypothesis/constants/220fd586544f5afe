@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/engagement_scheduler.py
+# hypothesis_version: 6.151.0
+
+[3600, '=', 'UTC', 'changes', 'client_results', 'id', 'jobs', 'manual', 'name', 'next_run_time', 'running', 'sun']

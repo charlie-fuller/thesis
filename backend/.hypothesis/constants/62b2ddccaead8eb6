@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/sync_scheduler.py
+# hypothesis_version: 6.151.0
+
+[300, 'My Drive', 'UTC', 'daily', 'default_folder_id', 'default_folder_name', 'google_drive_tokens', 'id', 'is_active', 'jobs', 'last_auto_sync', 'manual', 'monthly', 'name', 'next_run_time', 'next_sync_scheduled', 'running', 'sync_frequency', 'user_id', 'weekly']

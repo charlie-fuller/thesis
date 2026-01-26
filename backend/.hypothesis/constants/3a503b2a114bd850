@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/glean_connectors.py
+# hypothesis_version: 6.151.0
+
+[500, '*', '-', '/', '/categories', '/check', '/gaps', '/glean-connectors', '/request', '/search/{query}', 'Glean Connectors', '_', 'category', 'connector_type', 'custom', 'display_name', 'glean_connector_gaps', 'glean_connectors', 'medium', 'message', 'oob', 'p_connector_name', 'p_priority', 'p_request_source', 'p_requested_by', 'p_use_case', 'priority', 'request_id', 'setup_complexity', 'status', 'success']

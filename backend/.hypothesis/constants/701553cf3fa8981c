@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/stakeholder_metrics.py
+# hypothesis_version: 6.151.0
+
+[200, 255, 400, 404, 409, 500, '*', '/needs-validation', '/validation-summary', '/{metric_id}', 'Metric deleted', 'Metric not found', 'No fields to update', '^(red|yellow)$', '^(red|yellow|green)$', 'by_status', 'client_id', 'created', 'created_at', 'current_value', 'department', 'duplicate', 'green', 'id', 'message', 'metric_category', 'metric_name', 'metrics', 'name', 'needs_validation', 'notes', 'primary', 'questions_to_confirm', 'red', 'source', 'source_date', 'stakeholder-metrics', 'stakeholder_id', 'stakeholder_metrics', 'stakeholder_name', 'stakeholders', 'target_value', 'total', 'unit', 'updated_at', 'validation_rate', 'validation_status', 'yellow']

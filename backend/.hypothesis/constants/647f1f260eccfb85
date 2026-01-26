@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/opportunity_confidence.py
+# hypothesis_version: 6.151.0
+
+[100, '*', ': ', 'Unknown', 'ai_opportunities', 'average_confidence', 'baseline state', 'blockers', 'blockers_documented', 'business owner', 'champion', 'client_id', 'confidence_questions', 'constraints', 'current process', 'current_state', 'department', 'description', 'desired_state', 'distribution', 'effort_justification', 'error', 'errors', 'failed', 'has_justifications', 'high', 'id', 'low', 'moderate', 'next_step', 'opportunity_summary', 'owner_stakeholder_id', 'points', 'question', 'rationale', 'roi_indicators', 'roi_justification', 'roi_potential', 'scores_complete', 'scoring_confidence', 'source_notes', 'source_type', 'strategic_alignment', 'success look like', 'target end state', 'this opportunity', 'title', 'total', 'updated', 'very_low']

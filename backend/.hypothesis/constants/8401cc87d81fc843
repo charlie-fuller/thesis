@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/entity_validator.py
+# hypothesis_version: 6.151.0
+
+[0.0, 0.5, 0.7, 0.85, 0.95, 1.0, 'Empty name', 'Exact match found', 'alias', 'alias_match', 'canonical_name', 'client_id', 'confidence', 'entity_type', 'exact', 'exact_match', 'fuzzy', 'fuzzy_match', 'id', 'match_reason', 'match_type', 'new', 'new_entity', 'original_value', 'p_client_id', 'p_limit', 'p_metaphone_first', 'p_metaphone_last', 'p_search_term', 'phonetic', 'phonetic_match', 'potential_error', 'registry_entry_id', 'similarity', 'source_document_id', 'suggested_correction', 'suggested_value', 'validated', 'validation_status']

@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/config/__init__.py
+# hypothesis_version: 6.151.0
+
+['10/minute', '100/minute', '20/minute', '50', 'ANTHROPIC_API_KEY', 'ASSISTANT_NAME', 'CHAT_RATE_LIMIT', 'CLIENT_NAME', 'DEFAULT_CLIENT_ID', 'DEFAULT_RATE_LIMIT', 'ELEVENLABS_API_KEY', 'MAX_UPLOAD_SIZE_MB', 'MULTI_TENANT_MODE', 'SUPABASE_JWT_SECRET', 'SUPABASE_KEY', 'SUPABASE_URL', 'Thesis', 'Thesis API', 'UPLOAD_RATE_LIMIT', 'VOLUME_PATH', 'VOYAGE_API_KEY', 'Your Organization', 'application/pdf', 'false', 'text/csv', 'text/plain', 'true', 'v1']

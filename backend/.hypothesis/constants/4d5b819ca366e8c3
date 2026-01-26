@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/models/meeting_rooms.py
+# hypothesis_version: 6.151.0
+
+[500, 5000, 10000, 'active', 'agent_token', 'agent_turn_end', 'agent_turn_start', 'archived', 'collaboration', 'completed', 'discussion_complete', 'discussion_paused', 'discussion_round_end', 'error', 'manual_stop', 'meeting_prep', 'message', 'priority', 'round_complete', 'round_robin', 'title', 'topic', 'user_interjection']

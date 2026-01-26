@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/utils/error_handler.py
+# hypothesis_version: 6.151.0
+
+[',', 'AnthropicAPIError', 'AuthenticationError', 'AuthorizationError', 'DatabaseError', 'EmbeddingError', 'ErrorContext', 'ExternalServiceError', 'FRONTEND_URL', 'FileSizeLimitError', 'GoogleDriveError', 'HTTPException', 'InternalServerError', 'InvalidInputError', 'NotionError', 'QueryExecutionError', 'RateLimitError', 'TextExtractionError', 'ThesisError', 'TokenExpiredError', 'Unexpected error', 'ValidationError', 'VectorSearchError', 'VoyageAPIError', 'anthropic', 'code', 'detail', 'details', 'drive', 'error', 'error_code', 'error_type', 'google', 'http://', 'https://', 'message', 'method', 'notion', 'operation', 'origin', 'path', 'service', 'status_code', 'thesis_error_handler', 'timestamp', 'true', 'type', 'voyage']

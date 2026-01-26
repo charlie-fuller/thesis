@@ -295,6 +295,42 @@ This concludes the sample document."""
 
 
 # ============================================================================
+# Module State Management
+# ============================================================================
+
+import sys
+
+# Store original modules that might get mocked
+_PROTECTED_MODULES = ['config', 'database', 'services', 'auth', 'anthropic']
+_original_modules = {}
+
+def _save_original_modules():
+    """Save original modules before tests run."""
+    for name in _PROTECTED_MODULES:
+        if name in sys.modules:
+            _original_modules[name] = sys.modules[name]
+
+def _restore_modules():
+    """Restore original modules if they were replaced with mocks."""
+    for name, module in _original_modules.items():
+        if name in sys.modules:
+            current = sys.modules[name]
+            # If current module is a Mock, restore original
+            if hasattr(current, '_mock_name') or type(current).__name__ == 'MagicMock':
+                sys.modules[name] = module
+
+# Save modules at import time
+_save_original_modules()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def restore_modules_session():
+    """Restore any mocked modules at the start of the test session."""
+    _restore_modules()
+    yield
+
+
+# ============================================================================
 # Cleanup
 # ============================================================================
 
@@ -302,7 +338,8 @@ This concludes the sample document."""
 def cleanup():
     """Clean up after each test."""
     yield
-    # Add any cleanup logic here
+    # Restore modules that may have been mocked
+    _restore_modules()
 
 
 # ============================================================================

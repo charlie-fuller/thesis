@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/document_mappings.py
+# hypothesis_version: 6.151.0
+
+[404, 500, 'approved', 'client_id', 'created_at', 'deployed', 'display_order', 'document_id', 'document_mappings', 'documents', 'error', 'extraction_complete', 'failed', 'file_size', 'filename', 'generation_metadata', 'id', 'instructions_length', 'mapping_id', 'mappings', 'message', 'processed', 'status', 'success', 'template_slot', 'uploaded_at']

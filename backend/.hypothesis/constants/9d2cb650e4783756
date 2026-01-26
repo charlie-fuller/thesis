@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/disco/condenser_service.py
+# hypothesis_version: 6.151.0
+
+[0.2, 100, 4000, '*', 'ANTHROPIC_API_KEY', 'Output not found', 'PURDY_MODEL_SONNET', 'agent_type', 'complete', 'confidence_level', 'content', 'content_markdown', 'content_structured', 'data', 'disco_outputs', 'error', 'executive', 'extraction_ratio', 'extraction_type', 'id', 'initiative_id', 'input_tokens', 'keepalive', 'original_length', 'output_format', 'output_id', 'output_tokens', 'recommendation', 'role', 'run_id', 'source_agent_type', 'source_output_id', 'source_outputs', 'source_version', 'status', 'summary_length', 'tier_routing', 'title', 'token_usage', 'type', 'user', 'version']

@@ -167,15 +167,7 @@ const AGENT_WORKFLOW: Record<string, {
     outputs: "Decision document with leverage point, evidence, blockers, first action - 900 words max",
     prerequisites: ["Insight Extractor output"]
   },
-  synthesizer: {
-    when: "After Insight Extractor - creates the decision document (legacy name)",
-    inputs: [
-      "Insight Extractor output (auto-included)",
-      "All previous outputs"
-    ],
-    outputs: "Decision document with leverage point, evidence, blockers, first action - 500 words max",
-    prerequisites: ["Insight Extractor output"]
-  },
+  // NOTE: synthesizer removed (soft deprecated) - use consolidator instead
   strategist: {
     when: "After Consolidator - transforms insights into initiative bundles",
     inputs: [
@@ -250,13 +242,7 @@ const HITL_CONFIG: Record<string, {
     details: 'The Consolidator produces a 900-word decision document. Review the GO/NO-GO recommendation, leverage point, metrics, and first action. This document should be ready to share with stakeholders. Edit if needed before proceeding.',
     icon: ClipboardCheck
   },
-  synthesizer: {
-    stage: 'Intelligence',
-    stageColor: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30',
-    action: 'Validate the decision document',
-    details: 'The Synthesizer produces a decision document. Review the recommendation, leverage point, and first action. This document should be ready to share with stakeholders.',
-    icon: ClipboardCheck
-  },
+  // NOTE: synthesizer removed (soft deprecated) - use consolidator instead
   strategist: {
     stage: 'Synthesis',
     stageColor: 'text-green-600 bg-green-100 dark:bg-green-900/30',

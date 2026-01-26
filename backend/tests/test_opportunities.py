@@ -30,12 +30,8 @@ mock_supabase = Mock()
 mock_database.get_supabase = Mock(return_value=mock_supabase)
 sys.modules['database'] = mock_database
 
-# Create mock config module
-mock_config = Mock()
-mock_config.settings = Mock()
-mock_config.settings.ANTHROPIC_API_KEY = "test-key"
-mock_config.settings.VOYAGE_API_KEY = "test-voyage-key"
-sys.modules['config'] = mock_config
+# Note: Do NOT mock 'config' - it's a real package and mocking it breaks other tests
+# If you need to mock config settings, use patch() in individual tests
 
 # Create mock auth module
 mock_auth = Mock()
@@ -46,7 +42,7 @@ sys.modules['auth'] = mock_auth
 mock_anthropic_module = Mock()
 sys.modules['anthropic'] = mock_anthropic_module
 
-# Mock opportunity services
+# Mock opportunity services (specific submodules only)
 mock_opportunity_context = Mock()
 mock_opportunity_context.get_scoring_related_documents = Mock(return_value=[])
 sys.modules['services.opportunity_context'] = mock_opportunity_context

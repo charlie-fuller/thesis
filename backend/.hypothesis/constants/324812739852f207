@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/errors.py
+# hypothesis_version: 6.151.0
+
+[400, 401, 403, 404, 409, 429, 500, ',', 'AUTHENTICATION_ERROR', 'AUTHORIZATION_ERROR', 'CONFLICT', 'FRONTEND_URL', 'NOT_FOUND', 'RATE_LIMIT_EXCEEDED', 'SERVER_ERROR', 'VALIDATION_ERROR', 'code', 'data', 'details', 'error', 'http://', 'https://', 'id', 'message', 'origin', 'resource', 'success', 'true', 'type']

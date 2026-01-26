@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/disco/initiative_service.py
+# hypothesis_version: 6.151.0
+
+['agent_type', 'created_at', 'created_by', 'description', 'disco_documents', 'disco_initiatives', 'disco_outputs', 'document_count', 'draft', 'editor', 'exact', 'id', 'initiative_id', 'initiative_id, role', 'initiatives', 'latest_outputs', 'name', 'owner', 'role', 'status', 'total', 'updated_at', 'user_id', 'user_role', 'viewer']

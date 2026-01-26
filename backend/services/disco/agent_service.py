@@ -222,14 +222,9 @@ AGENT_DESCRIPTIONS = {
         "estimated_time": "10-15 minutes",
         "output_type": "prd_output"
     },
-    # Backwards compatibility: synthesizer maps to same output
-    "synthesizer": {
-        "name": "Synthesizer",
-        "version": "v4.2",
-        "description": "900-word decision document - Metrics Dashboard, intervention reasoning, role blocklist",
-        "estimated_time": "10-15 minutes",
-        "output_type": "prd_output"
-    },
+    # NOTE: "synthesizer" removed from UI (soft deprecated)
+    # Old synthesizer runs still work via AGENT_FILES mapping
+    # Outputs display under "Consolidator" in frontend
     "strategist": {
         "name": "Strategist",
         "version": "v1.0",

@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/entity_registry.py
+# hypothesis_version: 6.151.0
+
+[100, 400, 404, 409, 500, '/bootstrap', '/entity-registry', '/organizations', '/persons', '/persons/{person_id}', 'Client ID required', 'Entity Registry', 'Failed to add alias', 'Person not found', 'alias', 'aliases', 'canonical_name', 'client_id', 'count', 'created_at', 'domain', 'first_name', 'id', 'industry', 'last_name', 'notes', 'organizations', 'persons', 'stakeholder_id', 'success', 'updated_at']

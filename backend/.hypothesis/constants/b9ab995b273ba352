@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/agents/taskmaster.py
+# hypothesis_version: 6.151.0
+
+[500, 4096, '%Y-%m-%d', '1:1 prep', 'Critical', 'High', 'Low', 'Lowest', 'Medium', 'No reason specified', 'Taskmaster', 'Unknown source', 'analyze transcript', 'assignee_name', 'assignee_user_id', 'blocked', 'blocker_reason', 'business metrics', 'career goal', 'client_id', 'compass', 'completed', 'content', 'due_date', 'filename', 'full_name', 'id', 'manager conversation', 'meeting notes', 'metadata', 'name', 'operator', 'opportunity pipeline', 'oracle', 'performance review', 'priority', 'project triage', 'project_tasks', 'status', 'taskmaster', 'users', 'what was discussed']

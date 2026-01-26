@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/entity_registry_manager.py
+# hypothesis_version: 6.151.0
+
+[100, '*', 'add_person_alias', 'aliases', 'canonical_name', 'client_id', 'corrected_by', 'corrected_value', 'correction_context', 'created_at', 'domain', 'duplicate key', 'entity_corrections', 'entity_type', 'first_name', 'id', 'industry', 'last_name', 'metaphone_first', 'metaphone_last', 'name', 'notes', 'organization', 'original_value', 'p_alias', 'p_org_id', 'p_person_id', 'person', 'person_name_registry', 'persons_created', 'persons_skipped', 'source_candidate_id', 'source_document_id', 'stakeholder_id', 'stakeholders']

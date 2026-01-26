@@ -271,10 +271,13 @@ class TestValidation:
 
     @given(email=email_strategy)
     def test_valid_email_format(self, email: str):
-        """Generated emails should match email pattern."""
-        # Basic email pattern
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        assert re.match(pattern, email) is not None
+        """Generated emails should have @ symbol and domain."""
+        # Hypothesis generates RFC 5322-compliant emails which may contain
+        # characters like = that are valid but uncommon. Basic structural check:
+        assert "@" in email, "Email must contain @"
+        local, domain = email.rsplit("@", 1)
+        assert len(local) > 0, "Local part must not be empty"
+        assert "." in domain, "Domain must contain a dot"
 
     @given(uuid=uuid_strategy)
     def test_uuid_format(self, uuid: str):
