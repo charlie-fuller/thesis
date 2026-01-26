@@ -24,7 +24,7 @@ Save to Mem0 when:
 
 Multi-agent platform for enterprise GenAI strategy. 21 specialized agents for research, finance, IT/governance, legal, meeting analysis, and more.
 
-**Key features**: Agent chat with @mentions, Knowledge Base with auto-classification, Meeting Rooms with autonomous discussion, Kanban tasks, Opportunities pipeline, Stakeholder tracking, Obsidian sync, PuRDy product discovery.
+**Key features**: Agent chat with @mentions, Knowledge Base with auto-classification, Meeting Rooms with autonomous discussion, Kanban tasks, Opportunities pipeline, Stakeholder tracking, Obsidian sync, DISCo product discovery.
 
 See `/docs/ARCHITECTURE.md` for full agent roster, capabilities, and database schema.
 
@@ -44,7 +44,7 @@ See `/docs/ARCHITECTURE.md` for full agent roster, capabilities, and database sc
 
 ```
 /frontend
-  /app           - Next.js pages (kb, chat, meeting-room, tasks, opportunities, purdy)
+  /app           - Next.js pages (kb, chat, meeting-room, tasks, opportunities, disco)
   /components    - React components
   /contexts      - AuthContext, ThemeContext
 
@@ -52,7 +52,7 @@ See `/docs/ARCHITECTURE.md` for full agent roster, capabilities, and database sc
   /api/routes    - FastAPI endpoints
   /agents        - Agent implementations (21 agents)
   /services      - Business logic
-    /purdy       - PuRDy services
+    /purdy       - DISCo services (API routes still use /api/purdy)
   /system_instructions - Agent prompts (XML)
 
 /database
@@ -160,7 +160,7 @@ Notes:
 ## Testing
 
 ```bash
-cd /Users/charlie.fuller/vaults/Contentful/thesis/backend
+cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
 uv run pytest tests/test_document_classifier.py tests/test_tasks.py \
   tests/test_opportunities.py tests/test_engagement.py tests/test_agents_new.py -v
 ```
