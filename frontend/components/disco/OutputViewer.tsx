@@ -105,7 +105,8 @@ interface OutputViewerProps {
   onDelete?: (outputId: string) => Promise<void>
 }
 
-// Define the PuRDy workflow order for sidebar display
+// Define the DISCo workflow order for sidebar display (base agents only)
+// Executive/condensed variants are grouped with their parent agent
 const AGENT_ORDER = [
   'triage',
   'discovery_planner',
@@ -113,23 +114,21 @@ const AGENT_ORDER = [
   'insight_extractor',
   'synthesizer',
   'tech_evaluation',
-  // Executive/condensed variants follow their parent
-  'triage_executive',
-  'discovery_planner_executive',
-  'coverage_tracker_executive',
-  'insight_extractor_executive',
-  'synthesizer_executive',
-  'tech_evaluation_executive',
-  'triage_condensed',
-  'discovery_planner_condensed',
-  'coverage_tracker_condensed',
-  'insight_extractor_condensed',
-  'synthesizer_condensed',
-  'tech_evaluation_condensed',
+  'strategist',
+  'prd_generator',
   // Legacy agents at end
   'consolidator',
-  'strategist',
 ]
+
+// Helper to get base agent type (strips _executive, _condensed suffixes)
+function getBaseAgentType(agentType: string): string {
+  return agentType.replace(/_executive$/, '').replace(/_condensed$/, '')
+}
+
+// Check if an agent type is a variant (executive/condensed)
+function isVariant(agentType: string): boolean {
+  return agentType.endsWith('_executive') || agentType.endsWith('_condensed')
+}
 
 const AGENT_CONFIG: Record<string, { name: string; icon: typeof Target; color: string }> = {
   triage: { name: 'Triage', icon: Target, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400' },
@@ -139,6 +138,7 @@ const AGENT_CONFIG: Record<string, { name: string; icon: typeof Target; color: s
   consolidator: { name: 'Consolidator', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
   synthesizer: { name: 'Synthesizer', icon: FileText, color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' },
   strategist: { name: 'Strategist', icon: Target, color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  prd_generator: { name: 'PRD Generator', icon: FileText, color: 'text-rose-600 bg-rose-100 dark:bg-rose-900/30 dark:text-rose-400' },
   tech_evaluation: { name: 'Tech Evaluation', icon: Cpu, color: 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400' },
   // Executive Summary variants (v3.0 - extracts decision-forcing elements)
   triage_executive: { name: 'Triage (Executive)', icon: Minimize2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
@@ -618,13 +618,14 @@ export default function OutputViewer({
     }))
   }
 
-  // Group outputs by agent type (handle null/undefined agent_type)
+  // Group outputs by BASE agent type (executive/condensed variants grouped with parent)
   const outputsByType = outputs.reduce((acc, output) => {
     const agentType = output.agent_type || 'unknown'
-    if (!acc[agentType]) {
-      acc[agentType] = []
+    const baseType = getBaseAgentType(agentType)
+    if (!acc[baseType]) {
+      acc[baseType] = []
     }
-    acc[agentType].push(output)
+    acc[baseType].push(output)
     return acc
   }, {} as Record<string, Output[]>)
 

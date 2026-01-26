@@ -105,6 +105,7 @@ const AGENT_ICONS: Record<string, typeof Target> = {
   consolidator: FileText,
   synthesizer: FileText,
   strategist: Boxes,  // DISCo: Synthesis stage
+  prd_generator: FileText,  // DISCo: Capabilities stage
   tech_evaluation: Cpu,
 }
 
@@ -188,6 +189,15 @@ const AGENT_WORKFLOW: Record<string, {
     ],
     outputs: "Platform recommendation with architecture diagram and confidence-tagged estimates",
     prerequisites: ["Synthesizer output"]
+  },
+  prd_generator: {
+    when: "After Strategist - transforms bundles into engineering-ready PRDs",
+    inputs: [
+      "Strategist bundle output (auto-included)",
+      "All discovery insights and context"
+    ],
+    outputs: "Structured PRD with user stories, acceptance criteria, and technical requirements",
+    prerequisites: ["Strategist output"]
   }
 }
 
