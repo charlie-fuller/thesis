@@ -650,16 +650,16 @@ function ObjectiveIcon({ name, className }: { name: string; className?: string }
 
 function StatusBadge({ status }: { status: CompanyObjective['status'] }) {
   const config = {
-    on_track: { label: 'On Track', bgColor: 'var(--color-success-bg)', textColor: 'var(--color-success)' },
-    at_risk: { label: 'At Risk', bgColor: 'var(--color-warning-bg)', textColor: 'var(--color-warning)' },
-    behind: { label: 'Behind', bgColor: 'var(--color-error-bg)', textColor: 'var(--color-error)' },
-    achieved: { label: 'Achieved', bgColor: 'var(--color-info-bg)', textColor: 'var(--color-info)' },
+    on_track: { label: 'On Track', color: 'var(--color-success)' },
+    at_risk: { label: 'At Risk', color: 'var(--color-warning)' },
+    behind: { label: 'Behind', color: 'var(--color-error)' },
+    achieved: { label: 'Achieved', color: 'var(--color-primary)' },
   }
-  const { label, bgColor, textColor } = config[status]
+  const { label, color } = config[status]
   return (
     <span
-      className="px-2 py-0.5 rounded-full text-xs font-medium"
-      style={{ backgroundColor: bgColor, color: textColor }}
+      className="px-2 py-0.5 rounded-full text-xs font-medium border"
+      style={{ borderColor: color, color: color }}
     >
       {label}
     </span>
@@ -923,8 +923,8 @@ export default function StrategyPage() {
               </button>
               {activeTab === 'fy27' && (
                 <span
-                  className="ml-2 text-xs px-2 py-1 rounded"
-                  style={{ backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning)' }}
+                  className="ml-2 text-xs px-2 py-1 rounded border"
+                  style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}
                 >
                   Forward-looking targets - measure progress against FY26
                 </span>
