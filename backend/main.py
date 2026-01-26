@@ -133,7 +133,7 @@ app.add_exception_handler(Exception, generic_error_handler)
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
-# Local development origins (always allowed in dev)
+# Local development origins (only allowed in non-production environments)
 LOCAL_DEV_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
@@ -142,6 +142,9 @@ LOCAL_DEV_ORIGINS = [
     "http://127.0.0.1:3001",
     "http://127.0.0.1:3002",
 ]
+
+# Check if running in production
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "development").lower()
 
 # Parse and normalize origins (ensure all have https:// prefix)
 def normalize_origin(origin: str) -> str:
@@ -163,10 +166,13 @@ for origin in production_origins:
     if origin not in allowed_origins:
         allowed_origins.append(origin)
 
-# Always include local dev origins
-for origin in LOCAL_DEV_ORIGINS:
-    if origin not in allowed_origins:
-        allowed_origins.append(origin)
+# Only include local dev origins in non-production environments
+if ENVIRONMENT != "production":
+    for origin in LOCAL_DEV_ORIGINS:
+        if origin not in allowed_origins:
+            allowed_origins.append(origin)
+else:
+    logger.info("Production environment: localhost origins disabled")
 
 # Log configured origins for debugging
 logger.info(f"CORS allowed origins: {allowed_origins}")
@@ -380,7 +386,7 @@ async def list_client_conversations(
 
     except Exception as e:
         logger.error(f"❌ Error listing client conversations: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @app.get("/api/users/me/storage")
@@ -416,7 +422,7 @@ async def get_user_storage(
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching storage data: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
 @app.get("/api/users/me/documents")
@@ -442,7 +448,7 @@ async def get_user_documents(
 
     except Exception as e:
         logger.error(f"❌ Error fetching user documents: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 # ============================================================================
 # Core Health Endpoints
