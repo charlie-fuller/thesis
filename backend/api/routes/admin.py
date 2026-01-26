@@ -5,14 +5,15 @@ Handles statistics, analytics, and administrative operations
 import asyncio
 import io
 import json
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
-
-import os
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from auth import require_admin
 from database import get_supabase
@@ -20,11 +21,14 @@ from logger_config import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+limiter = Limiter(key_func=get_remote_address)
 supabase = get_supabase()
 
 
 @router.get("/stats")
+@limiter.limit("60/minute")
 async def get_admin_stats(
+    request: Request,
     current_user: dict = Depends(require_admin)
 ):
     """Get overall platform statistics"""
@@ -630,7 +634,9 @@ async def get_system_health(
 
 
 @router.post("/clear-system-instructions-cache")
+@limiter.limit("10/minute")
 async def clear_system_instructions_cache(
+    request: Request,
     current_user: dict = Depends(require_admin)
 ):
     """
@@ -655,7 +661,9 @@ async def clear_system_instructions_cache(
 
 
 @router.post("/clear-search-cache")
+@limiter.limit("10/minute")
 async def clear_search_cache(
+    request: Request,
     current_user: dict = Depends(require_admin)
 ):
     """
@@ -817,7 +825,9 @@ async def get_upload_health(
 
 
 @router.post("/analytics/upload-health/clear-issues")
+@limiter.limit("10/minute")
 async def clear_upload_issues(
+    request: Request,
     current_user: dict = Depends(require_admin)
 ):
     """
@@ -1134,7 +1144,9 @@ async def get_help_documents(
 
 
 @router.post("/help-documents/{document_id}/reindex")
+@limiter.limit("10/minute")
 async def reindex_help_document(
+    request: Request,
     document_id: str,
     current_user: dict = Depends(require_admin)
 ):
