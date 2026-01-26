@@ -1789,3 +1789,82 @@ async def api_generate_executive_summary(
     except Exception as e:
         logger.error(f"Error generating executive summary: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# ANALYTICS
+# ============================================================================
+
+@router.get("/analytics/usage")
+async def api_disco_usage_analytics(
+    days: int = 30,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get DISCo usage analytics - agent runs over time.
+
+    Returns usage trends with each DISCo agent broken out separately.
+    """
+    from datetime import datetime, timedelta
+    from collections import defaultdict
+
+    try:
+        # Calculate date range
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+
+        # Fetch all runs in the date range
+        result = await asyncio.to_thread(
+            lambda: supabase.table('disco_runs')
+                .select('id, agent_type, status, created_at')
+                .gte('created_at', start_date.isoformat())
+                .order('created_at', desc=False)
+                .execute()
+        )
+
+        runs = result.data or []
+
+        # Build daily counts per agent
+        daily_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        agent_totals: dict[str, int] = defaultdict(int)
+        all_agents: set[str] = set()
+
+        for run in runs:
+            agent_type = run['agent_type']
+            # Parse date and truncate to day
+            created_at = run['created_at']
+            if created_at:
+                # Handle ISO format with timezone
+                date_str = created_at.split('T')[0]
+                daily_counts[date_str][agent_type] += 1
+                agent_totals[agent_type] += 1
+                all_agents.add(agent_type)
+
+        # Generate all dates in range
+        date_cursor = start_date
+        all_dates = []
+        while date_cursor <= end_date:
+            all_dates.append(date_cursor.strftime('%Y-%m-%d'))
+            date_cursor += timedelta(days=1)
+
+        # Sort agents by total usage (descending)
+        sorted_agents = sorted(all_agents, key=lambda a: agent_totals[a], reverse=True)
+
+        # Build trends data
+        trends = []
+        for date_str in all_dates:
+            data_point = {'date': date_str}
+            for agent in sorted_agents:
+                data_point[agent] = daily_counts[date_str].get(agent, 0)
+            trends.append(data_point)
+
+        return {
+            'trends': trends,
+            'agents': sorted_agents,
+            'agent_totals': dict(agent_totals),
+            'total_runs': len(runs),
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching DISCo analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
