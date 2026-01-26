@@ -219,7 +219,7 @@ class TestDateTimeHandling:
         assert parsed == dt
 
     @given(
-        start=st.datetimes(min_value=datetime(2020, 1, 1)),
+        start=st.datetimes(min_value=datetime(2020, 1, 1), max_value=datetime(9999, 1, 1)),
         days=st.integers(min_value=0, max_value=365)
     )
     def test_due_date_always_after_created(self, start: datetime, days: int):

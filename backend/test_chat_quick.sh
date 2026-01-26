@@ -1,6 +1,42 @@
 #!/bin/bash
+# Quick chat endpoint test
+# Usage: ./test_chat_quick.sh
+# Or with dotenvx: dotenvx run -- ./test_chat_quick.sh
 
-ADMIN_TOKEN='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMTNkNWZkMi03ZTBkLTRjMmUtOWMzOS1lNjQyM2Q1MTNmZjYiLCJlbWFpbCI6ImlkYnlwYWlnZUBnbWFpbC5jb20iLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJ1c2VyX21ldGFkYXRhIjp7InJvbGUiOiJhZG1pbiJ9LCJpYXQiOjE3NjM0MjI1MzEsImV4cCI6MTc2MzUwODkzMX0.LLNommWGUByVVyRKFxt2143R-vCzW_cF9g5JjzkxWS8'
+# Generate a token using the JWT secret from environment
+generate_token() {
+    python3 -c "
+import os
+import sys
+sys.path.insert(0, '.')
+from dotenv import load_dotenv
+load_dotenv()
+
+import jwt
+from datetime import datetime, timezone, timedelta
+
+secret = os.getenv('SUPABASE_JWT_SECRET')
+if not secret:
+    print('ERROR: SUPABASE_JWT_SECRET not set', file=sys.stderr)
+    sys.exit(1)
+
+payload = {
+    'sub': 'test-user',
+    'role': 'authenticated',
+    'user_metadata': {'role': 'admin'},
+    'iat': datetime.now(timezone.utc),
+    'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+}
+print(jwt.encode(payload, secret, algorithm='HS256'))
+"
+}
+
+ADMIN_TOKEN=$(generate_token)
+
+if [ -z "$ADMIN_TOKEN" ]; then
+    echo "Failed to generate token. Make sure .env is configured."
+    exit 1
+fi
 
 echo "=== Testing Chat Endpoint ==="
 echo ""

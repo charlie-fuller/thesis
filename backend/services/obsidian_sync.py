@@ -294,6 +294,44 @@ def compute_file_hash(file_path: Path) -> str:
 # File Discovery
 # ============================================================================
 
+def _match_glob_pattern(path_str: str, pattern: str) -> bool:
+    """
+    Match a path against a glob pattern, supporting ** for recursive matching.
+
+    Args:
+        path_str: Relative file path as string
+        pattern: Glob pattern (supports **, *, ?)
+
+    Returns:
+        True if path matches pattern
+    """
+    # Handle ** patterns by converting to regex-like matching
+    if "**" in pattern:
+        # **/*.md should match both "file.md" and "dir/file.md"
+        if pattern.startswith("**/"):
+            # Match either at root or in any subdirectory
+            suffix_pattern = pattern[3:]  # Remove **/
+            if fnmatch.fnmatch(path_str, suffix_pattern):
+                return True
+            if fnmatch.fnmatch(path_str, "*/" + suffix_pattern):
+                return True
+            # Check each path component
+            if "/" in path_str:
+                filename = path_str.rsplit("/", 1)[-1]
+                if fnmatch.fnmatch(filename, suffix_pattern):
+                    return True
+        # For other ** patterns, convert to more permissive matching
+        parts = pattern.split("**")
+        if len(parts) == 2:
+            # Simple case: prefix**suffix
+            prefix, suffix = parts
+            if path_str.startswith(prefix.rstrip("/")) and path_str.endswith(suffix.lstrip("/")):
+                return True
+
+    # Standard fnmatch for non-** patterns
+    return fnmatch.fnmatch(path_str, pattern)
+
+
 def should_include_file(
     file_path: Path,
     vault_path: Path,
@@ -322,12 +360,12 @@ def should_include_file(
 
     # Check exclusions first (higher priority)
     for pattern in exclude_patterns:
-        if fnmatch.fnmatch(relative_str, pattern):
+        if _match_glob_pattern(relative_str, pattern):
             return False
 
     # Check inclusions
     for pattern in include_patterns:
-        if fnmatch.fnmatch(relative_str, pattern):
+        if _match_glob_pattern(relative_str, pattern):
             return True
 
     return False

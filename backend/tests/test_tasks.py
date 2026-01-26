@@ -11,25 +11,16 @@ from unittest.mock import Mock, patch, MagicMock, AsyncMock
 from datetime import date, datetime, timezone
 from enum import Enum
 
-# Mock only specific modules that are safe to mock (not config - it's a real package!)
-mock_database = Mock()
-mock_supabase_client = Mock()
-mock_database.get_supabase = Mock(return_value=mock_supabase_client)
-sys.modules['database'] = mock_database
-
-# Note: Do NOT mock 'config' - it's a real package and mocking it breaks other tests
-# If you need to mock config.get_default_client_id, use patch() in individual tests
-
-mock_auth = Mock()
-sys.modules['auth'] = mock_auth
-
-mock_logger = Mock()
-mock_logger.get_logger = Mock(return_value=Mock())
-sys.modules['logger_config'] = mock_logger
-
-mock_validation = Mock()
-mock_validation.validate_uuid = Mock()
-sys.modules['validation'] = mock_validation
+# ============================================================================
+# Note: This test file uses self-contained models and service classes for testing.
+# No sys.modules modifications needed - all test classes are defined locally.
+# This prevents test pollution when running with other test files.
+#
+# If you need to mock external services in individual tests, use:
+#   from unittest.mock import patch
+#   with patch('module.function', return_value=...):
+#       # test code
+# ============================================================================
 
 
 # ============================================================================

@@ -3,25 +3,19 @@
 Apply Migration 022: Add metadata column to messages table
 """
 
-import os
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
 from supabase import Client, create_client
 
-# Load environment variables
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from scripts.lib.credentials import get_credentials
+
+creds = get_credentials()
+SUPABASE_URL = creds['supabase_url']
+SUPABASE_SERVICE_ROLE_KEY = creds['supabase_key']
+
 backend_dir = Path(__file__).parent
-env_path = backend_dir / '.env'
-load_dotenv(env_path)
-
-# Supabase connection
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-
-if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-    print("❌ ERROR: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env file")
-    sys.exit(1)
 
 # Initialize Supabase client with service role key (has admin privileges)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)

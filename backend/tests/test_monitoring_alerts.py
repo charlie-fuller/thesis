@@ -107,6 +107,9 @@ class TestMetricsCollection:
         return {"status_code": 200}
 
     def _get_recent_metrics(self, name: str) -> List[dict]:
+        if name == "agent_invocations":
+            return [{"agent_id": "atlas", "duration_ms": 150, "success": True,
+                     "timestamp": datetime.now().isoformat()}]
         return [{"method": "GET", "path": "/api/health", "status_code": 200,
                  "duration_ms": 50, "timestamp": datetime.now().isoformat()}]
 
@@ -207,16 +210,22 @@ class TestLogFormatting:
 
     # Helper methods
     def _get_recent_log(self, **filters) -> str:
-        return json.dumps({
+        level = filters.get("level", "INFO")
+        log_data = {
             "timestamp": datetime.now().isoformat(),
-            "level": "INFO",
+            "level": level,
             "message": "Test log message",
             "service": "thesis-api",
             "request_id": "req-123",
             "user_id": "user-456",
             "path": "/api/test",
             "method": "GET"
-        })
+        }
+        # Include stack_trace for ERROR level logs
+        if level == "ERROR":
+            log_data["stack_trace"] = "Traceback (most recent call last):\n  File \"test.py\", line 1\nError: Test error"
+            log_data["exception"] = "TestException"
+        return json.dumps(log_data)
 
     def _make_request(self, path: str, **kwargs) -> dict:
         return {"status_code": 200}

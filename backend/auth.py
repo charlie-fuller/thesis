@@ -18,13 +18,10 @@ from jwt import PyJWTError
 # Security scheme for Bearer token
 security = HTTPBearer()
 
-# Supabase JWT secret (from environment)
-# For HS256: Use the JWT secret directly
-# For ES256: Use the JWT public key (PEM or JWK format)
-SUPABASE_JWT_SECRET = os.getenv('SUPABASE_JWT_SECRET', '')
 
-if not SUPABASE_JWT_SECRET:
-    logger.warning("SUPABASE_JWT_SECRET not set in environment variables")
+def _get_jwt_secret() -> str:
+    """Get JWT secret fresh from environment (allows dynamic override)."""
+    return os.getenv('SUPABASE_JWT_SECRET', '')
 
 
 def _parse_jwt_key(key_data: str):
@@ -55,8 +52,25 @@ def _parse_jwt_key(key_data: str):
     return key_data, False, 'HS'
 
 
-# Parse the configured key
-JWT_KEY, IS_PUBLIC_KEY, KEY_ALG_FAMILY = _parse_jwt_key(SUPABASE_JWT_SECRET)
+# Cache for parsed key (lazy initialization)
+_jwt_key_cache = {}
+
+
+def _get_parsed_jwt_key():
+    """Get parsed JWT key with lazy initialization and cache invalidation on secret change."""
+    secret = _get_jwt_secret()
+    if not secret:
+        return None, False, 'HS'
+
+    # Check if cached key is still valid
+    if _jwt_key_cache.get('secret') != secret:
+        key, is_public, alg_family = _parse_jwt_key(secret)
+        _jwt_key_cache['secret'] = secret
+        _jwt_key_cache['key'] = key
+        _jwt_key_cache['is_public'] = is_public
+        _jwt_key_cache['alg_family'] = alg_family
+
+    return _jwt_key_cache['key'], _jwt_key_cache['is_public'], _jwt_key_cache['alg_family']
 
 
 def decode_jwt(token: str) -> Optional[dict]:
@@ -69,9 +83,13 @@ def decode_jwt(token: str) -> Optional[dict]:
     Returns:
         dict: Decoded token payload if valid, None otherwise
     """
-    if not SUPABASE_JWT_SECRET:
+    jwt_secret = _get_jwt_secret()
+    if not jwt_secret:
         logger.error("JWT validation failed: SUPABASE_JWT_SECRET is not set")
         return None
+
+    # Get parsed key (with caching)
+    jwt_key, is_public_key, key_alg_family = _get_parsed_jwt_key()
 
     try:
         # First, peek at the token header to see what algorithm is used
@@ -80,18 +98,18 @@ def decode_jwt(token: str) -> Optional[dict]:
         logger.info(f"JWT token algorithm: {token_alg}")
 
         # Determine allowed algorithms based on what key type we have
-        if KEY_ALG_FAMILY == 'ES':
+        if key_alg_family == 'ES':
             allowed_algorithms = ['ES256', 'ES384', 'ES512']
         else:
             allowed_algorithms = ['HS256', 'HS384', 'HS512']
 
         if token_alg not in allowed_algorithms:
-            if token_alg.startswith('ES') and KEY_ALG_FAMILY != 'ES':
+            if token_alg.startswith('ES') and key_alg_family != 'ES':
                 logger.error(
                     f"JWT uses {token_alg} but SUPABASE_JWT_SECRET is not a public key. "
                     "For ES256, use the JWT Signing Key (JWK format) from Supabase Dashboard -> Settings -> API -> JWT Settings."
                 )
-            elif token_alg.startswith('HS') and KEY_ALG_FAMILY == 'ES':
+            elif token_alg.startswith('HS') and key_alg_family == 'ES':
                 logger.error(
                     f"JWT uses {token_alg} but SUPABASE_JWT_SECRET is a public key. "
                     "For HS256, use the JWT secret from Supabase Dashboard -> Settings -> API."
@@ -103,7 +121,7 @@ def decode_jwt(token: str) -> Optional[dict]:
         # Decode the JWT token using the parsed key
         payload = jwt.decode(
             token,
-            JWT_KEY,
+            jwt_key,
             algorithms=allowed_algorithms,
             audience='authenticated'  # Supabase default audience
         )

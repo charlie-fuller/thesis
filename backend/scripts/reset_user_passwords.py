@@ -3,23 +3,17 @@
 One-time script to reset user passwords and set roles to admin.
 Run with: python scripts/reset_user_passwords.py
 """
-import os
 import sys
+from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from scripts.lib.credentials import get_credentials
 
-from dotenv import load_dotenv
 from supabase import create_client
 
-load_dotenv()
-
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-
-if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-    print("❌ Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
-    sys.exit(1)
+creds = get_credentials()
+SUPABASE_URL = creds['supabase_url']
+SUPABASE_SERVICE_ROLE_KEY = creds['supabase_key']
 
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 

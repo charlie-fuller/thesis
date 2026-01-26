@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
 """Apply migration 024: System Instruction Document Mappings"""
-import os
+import sys
+from pathlib import Path
 
-from dotenv import load_dotenv
 from supabase import create_client
 
-load_dotenv()
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from scripts.lib.credentials import get_credentials
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-
-if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-    print("❌ Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
-    print("Please set these environment variables")
-    exit(1)
+creds = get_credentials()
+SUPABASE_URL = creds['supabase_url']
+SUPABASE_SERVICE_ROLE_KEY = creds['supabase_key']
 
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 

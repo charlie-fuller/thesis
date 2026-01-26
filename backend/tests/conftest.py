@@ -5,18 +5,36 @@ This file contains shared fixtures and configuration used across all test module
 """
 
 import os
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+
+# Load real .env file first (before setting any test defaults)
+# This ensures integration tests have access to real credentials
+from dotenv import load_dotenv
+_env_path = Path(__file__).parent.parent / ".env"
+if _env_path.exists():
+    load_dotenv(_env_path)
 
 import pytest
 from fastapi.testclient import TestClient
 
 # Set test environment variables before importing app
+# BUT preserve real values for integration tests if they exist
 os.environ["TESTING"] = "true"
-os.environ["SUPABASE_JWT_SECRET"] = "test-jwt-secret-key-for-testing-only"
-os.environ["SUPABASE_URL"] = "https://test.supabase.co"
-os.environ["SUPABASE_SERVICE_ROLE_KEY"] = "test-service-role-key"
-os.environ["ANTHROPIC_API_KEY"] = "test-anthropic-key"
-os.environ["VOYAGE_API_KEY"] = "test-voyage-key"
+
+# Only set fallback test values if no real credentials are present
+# This allows integration tests to run with real .env values
+def _set_if_not_real(key: str, test_value: str, min_real_length: int = 30):
+    """Set environment variable only if current value looks like a placeholder."""
+    current = os.environ.get(key, "")
+    if not current or len(current) < min_real_length or "test" in current.lower():
+        os.environ[key] = test_value
+
+_set_if_not_real("SUPABASE_JWT_SECRET", "test-jwt-secret-key-for-testing-only", 50)
+_set_if_not_real("SUPABASE_URL", "https://test.supabase.co", 20)
+_set_if_not_real("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key", 50)
+_set_if_not_real("ANTHROPIC_API_KEY", "test-anthropic-key", 20)
+_set_if_not_real("VOYAGE_API_KEY", "test-voyage-key", 20)
 
 
 # ============================================================================

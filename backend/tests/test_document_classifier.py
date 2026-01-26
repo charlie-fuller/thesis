@@ -18,18 +18,21 @@ import time
 
 
 # ============================================================================
-# Mock Module Setup - Avoid import chain issues
+# Note: This test file uses self-contained models and service classes for testing.
+# No sys.modules modifications needed - all test classes are defined locally.
+# This prevents test pollution when running with other test files.
+#
+# If you need to mock external services in individual tests, use:
+#   from unittest.mock import patch
+#   with patch('module.function', return_value=...):
+#       # test code
 # ============================================================================
 
-# Create a mock database module
+# Create mock objects for use by test classes (NOT added to sys.modules)
 mock_database = Mock()
 mock_supabase = Mock()
 mock_database.get_supabase = Mock(return_value=mock_supabase)
-sys.modules['database'] = mock_database
-
-# Create mock anthropic module
 mock_anthropic_module = Mock()
-sys.modules['anthropic'] = mock_anthropic_module
 
 
 # ============================================================================

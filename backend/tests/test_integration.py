@@ -51,10 +51,14 @@ _is_test_url = "test.supabase.co" in SUPABASE_URL or not SUPABASE_URL
 _has_real_key = SUPABASE_KEY and len(SUPABASE_KEY) > 50  # Real keys are long
 
 # Skip entire module if no real credentials
-pytestmark = pytest.mark.skipif(
-    _is_test_url or not _has_real_key,
-    reason="Real Supabase credentials not configured - run with real .env"
-)
+# Also mark all tests as forked to avoid mock pollution from other test files
+pytestmark = [
+    pytest.mark.skipif(
+        _is_test_url or not _has_real_key,
+        reason="Real Supabase credentials not configured - run with real .env"
+    ),
+    pytest.mark.forked,  # Run each test in separate process to avoid mock pollution
+]
 
 
 # ============================================================================
@@ -115,10 +119,53 @@ def real_supabase():
 
 
 @pytest.fixture(scope="module")
-def test_client():
-    """Create FastAPI test client with real app."""
-    from fastapi.testclient import TestClient
+def integration_client():
+    """Create FastAPI test client with real app for integration tests.
+
+    Note: Named 'integration_client' to avoid conflict with conftest.py's
+    mocked 'test_client' fixture which has function scope.
+
+    CRITICAL: This fixture must reload the app fresh to avoid mock pollution
+    from other test files that patch dependencies at module level.
+    """
+    import importlib
+
+    # Step 1: Restore any mocked modules to None to force reimport
+    _restore_real_modules()
+
+    # Step 2: Remove cached main module and its dependencies
+    modules_to_reload = [
+        'main',
+        'database',
+        'auth',
+        'api.routes.agents',
+        'api.routes.tasks',
+        'api.routes.opportunities',
+        'api.routes.documents',
+        'api.routes.stakeholders',
+        'api.routes.conversations',
+    ]
+
+    # Remove from cache first
+    for mod in modules_to_reload:
+        if mod in sys.modules:
+            del sys.modules[mod]
+
+    # Also remove any api.routes submodules
+    to_remove = [k for k in sys.modules.keys() if k.startswith('api.routes.')]
+    for k in to_remove:
+        del sys.modules[k]
+
+    # Step 3: Reload core modules
+    import database
+    importlib.reload(database)
+
+    import auth
+    importlib.reload(auth)
+
+    # Step 4: Import fresh app (will recreate routes with real dependencies)
     from main import app
+    from fastapi.testclient import TestClient
 
     with TestClient(app) as client:
         yield client
@@ -178,25 +225,25 @@ def auth_headers(test_user_id, test_user_email) -> dict:
 class TestHealthEndpoints:
     """Test health and connectivity endpoints."""
 
-    def test_root_endpoint(self, test_client):
+    def test_root_endpoint(self, integration_client):
         """Root endpoint returns API info."""
-        response = test_client.get("/")
+        response = integration_client.get("/")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
         assert "version" in data
 
-    def test_health_endpoint(self, test_client):
+    def test_health_endpoint(self, integration_client):
         """Health endpoint confirms database connection."""
-        response = test_client.get("/health")
+        response = integration_client.get("/health")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
         assert data["database"] == "connected"
 
-    def test_cors_preflight(self, test_client):
+    def test_cors_preflight(self, integration_client):
         """CORS preflight returns correct headers."""
-        response = test_client.options(
+        response = integration_client.options(
             "/api/agents",
             headers={"Origin": "http://localhost:3000"}
         )
@@ -212,15 +259,15 @@ class TestHealthEndpoints:
 class TestAgentEndpoints:
     """Test agent-related API endpoints."""
 
-    def test_list_agents_unauthenticated(self, test_client):
+    def test_list_agents_unauthenticated(self, integration_client):
         """List agents without auth may return 200 (public) or 401/403."""
-        response = test_client.get("/api/agents")
+        response = integration_client.get("/api/agents")
         # Agents endpoint may be public in some configurations
         assert response.status_code in [200, 401, 403]
 
-    def test_list_agents_authenticated(self, test_client, auth_headers):
+    def test_list_agents_authenticated(self, integration_client, auth_headers):
         """List agents with valid auth returns agent list."""
-        response = test_client.get("/api/agents", headers=auth_headers)
+        response = integration_client.get("/api/agents", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert "agents" in data or isinstance(data, list)
@@ -234,10 +281,10 @@ class TestAgentEndpoints:
             agent = agents[0]
             assert "id" in agent or "name" in agent
 
-    def test_get_agent_by_id(self, test_client, auth_headers, real_supabase):
+    def test_get_agent_by_id(self, integration_client, auth_headers, real_supabase):
         """Get specific agent by ID."""
         # First get list of agents
-        list_response = test_client.get("/api/agents", headers=auth_headers)
+        list_response = integration_client.get("/api/agents", headers=auth_headers)
         agents = list_response.json().get("agents", list_response.json())
 
         if not agents:
@@ -247,7 +294,7 @@ class TestAgentEndpoints:
         if not agent_id:
             pytest.skip("Agent has no ID")
 
-        response = test_client.get(f"/api/agents/{agent_id}", headers=auth_headers)
+        response = integration_client.get(f"/api/agents/{agent_id}", headers=auth_headers)
         # May be 200 or 404 depending on route structure
         assert response.status_code in [200, 404, 422]
 
@@ -261,7 +308,7 @@ class TestTaskEndpoints:
     """Test task CRUD operations."""
 
     @pytest.fixture
-    def test_task_id(self, test_client, auth_headers, real_supabase, test_user_id) -> Generator[str, None, None]:
+    def test_task_id(self, integration_client, auth_headers, real_supabase, test_user_id) -> Generator[str, None, None]:
         """Create a test task and clean up after."""
         task_data = {
             "title": f"Integration Test Task {uuid.uuid4().hex[:8]}",
@@ -270,7 +317,7 @@ class TestTaskEndpoints:
             "priority": 3,
         }
 
-        response = test_client.post("/api/tasks", json=task_data, headers=auth_headers)
+        response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
 
         if response.status_code != 200:
             pytest.skip(f"Could not create test task: {response.text}")
@@ -289,19 +336,19 @@ class TestTaskEndpoints:
         except Exception:
             pass
 
-    def test_list_tasks_unauthenticated(self, test_client):
+    def test_list_tasks_unauthenticated(self, integration_client):
         """List tasks without auth returns 401."""
-        response = test_client.get("/api/tasks")
+        response = integration_client.get("/api/tasks")
         assert response.status_code in [401, 403]
 
-    def test_list_tasks_authenticated(self, test_client, auth_headers):
+    def test_list_tasks_authenticated(self, integration_client, auth_headers):
         """List tasks with auth returns task list."""
-        response = test_client.get("/api/tasks", headers=auth_headers)
+        response = integration_client.get("/api/tasks", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert "tasks" in data or "success" in data
 
-    def test_create_task(self, test_client, auth_headers, real_supabase):
+    def test_create_task(self, integration_client, auth_headers, real_supabase):
         """Create a new task."""
         task_data = {
             "title": f"Integration Test Task {uuid.uuid4().hex[:8]}",
@@ -311,7 +358,7 @@ class TestTaskEndpoints:
             "tags": ["integration-test"],
         }
 
-        response = test_client.post("/api/tasks", json=task_data, headers=auth_headers)
+        response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
@@ -327,39 +374,39 @@ class TestTaskEndpoints:
         if task_id:
             real_supabase.table("project_tasks").delete().eq("id", task_id).execute()
 
-    def test_create_task_validation(self, test_client, auth_headers):
+    def test_create_task_validation(self, integration_client, auth_headers):
         """Create task with invalid data returns 422."""
         # Empty title should fail
         task_data = {"title": "", "status": "pending"}
 
-        response = test_client.post("/api/tasks", json=task_data, headers=auth_headers)
+        response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
         assert response.status_code == 422
 
-    def test_get_task_by_id(self, test_client, auth_headers, test_task_id):
+    def test_get_task_by_id(self, integration_client, auth_headers, test_task_id):
         """Get specific task by ID."""
-        response = test_client.get(f"/api/tasks/{test_task_id}", headers=auth_headers)
+        response = integration_client.get(f"/api/tasks/{test_task_id}", headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
         task = data.get("task", data)
         assert task["id"] == test_task_id
 
-    def test_get_task_not_found(self, test_client, auth_headers):
+    def test_get_task_not_found(self, integration_client, auth_headers):
         """Get non-existent task returns 404 or 500 (Supabase single() error)."""
         fake_id = str(uuid.uuid4())
-        response = test_client.get(f"/api/tasks/{fake_id}", headers=auth_headers)
+        response = integration_client.get(f"/api/tasks/{fake_id}", headers=auth_headers)
         # API returns 500 when Supabase single() finds no rows
         # This is a known behavior - ideally should be 404
         assert response.status_code in [404, 500]
 
-    def test_update_task(self, test_client, auth_headers, test_task_id):
+    def test_update_task(self, integration_client, auth_headers, test_task_id):
         """Update an existing task."""
         update_data = {
             "title": "Updated Integration Test Task",
             "priority": 1,
         }
 
-        response = test_client.patch(f"/api/tasks/{test_task_id}", json=update_data, headers=auth_headers)
+        response = integration_client.patch(f"/api/tasks/{test_task_id}", json=update_data, headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
@@ -367,11 +414,11 @@ class TestTaskEndpoints:
         assert task["title"] == "Updated Integration Test Task"
         assert task["priority"] == 1
 
-    def test_update_task_status(self, test_client, auth_headers, real_supabase):
+    def test_update_task_status(self, integration_client, auth_headers, real_supabase):
         """Update task status (Kanban operation)."""
         # Create a fresh task for this test
         task_data = {"title": f"Status update test {uuid.uuid4().hex[:8]}"}
-        create_response = test_client.post("/api/tasks", json=task_data, headers=auth_headers)
+        create_response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
         if create_response.status_code != 200:
             pytest.skip(f"Could not create task: {create_response.text}")
 
@@ -381,7 +428,7 @@ class TestTaskEndpoints:
 
         try:
             status_data = {"status": "in_progress"}
-            response = test_client.patch(f"/api/tasks/{task_id}/status", json=status_data, headers=auth_headers)
+            response = integration_client.patch(f"/api/tasks/{task_id}/status", json=status_data, headers=auth_headers)
             assert response.status_code == 200
 
             data = response.json()
@@ -391,28 +438,28 @@ class TestTaskEndpoints:
             # Cleanup
             real_supabase.table("project_tasks").delete().eq("id", task_id).execute()
 
-    def test_delete_task(self, test_client, auth_headers, real_supabase):
+    def test_delete_task(self, integration_client, auth_headers, real_supabase):
         """Delete a task."""
         # Create a task to delete
         task_data = {"title": f"Task to delete {uuid.uuid4().hex[:8]}"}
-        create_response = test_client.post("/api/tasks", json=task_data, headers=auth_headers)
+        create_response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
         task_id = create_response.json().get("task", {}).get("id")
 
         if not task_id:
             pytest.skip("Could not create task for delete test")
 
         # Delete it
-        response = test_client.delete(f"/api/tasks/{task_id}", headers=auth_headers)
+        response = integration_client.delete(f"/api/tasks/{task_id}", headers=auth_headers)
         assert response.status_code == 200
 
         # Verify it's gone (returns 404 or 500 due to Supabase single() behavior)
-        get_response = test_client.get(f"/api/tasks/{task_id}", headers=auth_headers)
+        get_response = integration_client.get(f"/api/tasks/{task_id}", headers=auth_headers)
         assert get_response.status_code in [404, 500]
 
-    def test_kanban_board(self, test_client, auth_headers):
+    def test_kanban_board(self, integration_client, auth_headers):
         """Get Kanban board view."""
         # Note: /kanban comes before /{task_id} so FastAPI routing works
-        response = test_client.get("/api/tasks/kanban", headers=auth_headers)
+        response = integration_client.get("/api/tasks/kanban", headers=auth_headers)
 
         # Route may return 400 if /kanban is interpreted as /{task_id}
         # This indicates a routing issue in the API
@@ -442,7 +489,7 @@ class TestOpportunityEndpoints:
     """Test opportunity pipeline endpoints."""
 
     @pytest.fixture
-    def test_opportunity_id(self, test_client, auth_headers, real_supabase) -> Generator[str, None, None]:
+    def test_opportunity_id(self, integration_client, auth_headers, real_supabase) -> Generator[str, None, None]:
         """Create a test opportunity and clean up after."""
         opp_code = f"T{uuid.uuid4().hex[:4].upper()}"
         opp_data = {
@@ -457,7 +504,7 @@ class TestOpportunityEndpoints:
             "stakeholder_readiness": 2,
         }
 
-        response = test_client.post("/api/opportunities", json=opp_data, headers=auth_headers)
+        response = integration_client.post("/api/opportunities", json=opp_data, headers=auth_headers)
 
         if response.status_code != 200:
             pytest.skip(f"Could not create test opportunity: {response.text}")
@@ -476,15 +523,15 @@ class TestOpportunityEndpoints:
         except Exception:
             pass
 
-    def test_list_opportunities(self, test_client, auth_headers):
+    def test_list_opportunities(self, integration_client, auth_headers):
         """List opportunities."""
-        response = test_client.get("/api/opportunities", headers=auth_headers)
+        response = integration_client.get("/api/opportunities", headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
         assert "opportunities" in data or isinstance(data, list)
 
-    def test_create_opportunity(self, test_client, auth_headers, real_supabase):
+    def test_create_opportunity(self, integration_client, auth_headers, real_supabase):
         """Create a new opportunity."""
         opp_code = f"T{uuid.uuid4().hex[:4].upper()}"
         opp_data = {
@@ -499,7 +546,7 @@ class TestOpportunityEndpoints:
             "stakeholder_readiness": 3,
         }
 
-        response = test_client.post("/api/opportunities", json=opp_data, headers=auth_headers)
+        response = integration_client.post("/api/opportunities", json=opp_data, headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
@@ -515,23 +562,23 @@ class TestOpportunityEndpoints:
         if opp_id:
             real_supabase.table("ai_opportunities").delete().eq("id", opp_id).execute()
 
-    def test_get_opportunity_by_id(self, test_client, auth_headers, test_opportunity_id):
+    def test_get_opportunity_by_id(self, integration_client, auth_headers, test_opportunity_id):
         """Get specific opportunity."""
-        response = test_client.get(f"/api/opportunities/{test_opportunity_id}", headers=auth_headers)
+        response = integration_client.get(f"/api/opportunities/{test_opportunity_id}", headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
         opp = data.get("opportunity", data)
         assert opp["id"] == test_opportunity_id
 
-    def test_update_opportunity(self, test_client, auth_headers, test_opportunity_id):
+    def test_update_opportunity(self, integration_client, auth_headers, test_opportunity_id):
         """Update an opportunity."""
         update_data = {
             "status": "validating",
             "roi_potential": 5,
         }
 
-        response = test_client.patch(f"/api/opportunities/{test_opportunity_id}", json=update_data, headers=auth_headers)
+        response = integration_client.patch(f"/api/opportunities/{test_opportunity_id}", json=update_data, headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
@@ -539,7 +586,7 @@ class TestOpportunityEndpoints:
         assert opp["status"] == "validating"
         assert opp["roi_potential"] == 5
 
-    def test_opportunity_tier_calculation(self, test_client, auth_headers, real_supabase):
+    def test_opportunity_tier_calculation(self, integration_client, auth_headers, real_supabase):
         """Verify tier calculation from scores."""
         # Tier 1: total >= 17
         opp_code = f"T{uuid.uuid4().hex[:4].upper()}"
@@ -552,7 +599,7 @@ class TestOpportunityEndpoints:
             "stakeholder_readiness": 4,  # Total = 18
         }
 
-        response = test_client.post("/api/opportunities", json=tier1_data, headers=auth_headers)
+        response = integration_client.post("/api/opportunities", json=tier1_data, headers=auth_headers)
         assert response.status_code == 200
 
         opp = response.json().get("opportunity", response.json())
@@ -571,9 +618,9 @@ class TestOpportunityEndpoints:
 class TestStakeholderEndpoints:
     """Test stakeholder management endpoints."""
 
-    def test_list_stakeholders(self, test_client, auth_headers):
+    def test_list_stakeholders(self, integration_client, auth_headers):
         """List stakeholders."""
-        response = test_client.get("/api/stakeholders", headers=auth_headers)
+        response = integration_client.get("/api/stakeholders", headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
@@ -589,14 +636,14 @@ class TestStakeholderEndpoints:
 class TestDocumentEndpoints:
     """Test document management endpoints."""
 
-    def test_list_documents(self, test_client, auth_headers):
+    def test_list_documents(self, integration_client, auth_headers):
         """List documents."""
-        response = test_client.get("/api/documents", headers=auth_headers)
+        response = integration_client.get("/api/documents", headers=auth_headers)
         assert response.status_code == 200
 
-    def test_get_user_documents(self, test_client, auth_headers):
+    def test_get_user_documents(self, integration_client, auth_headers):
         """Get current user's documents."""
-        response = test_client.get("/api/users/me/documents", headers=auth_headers)
+        response = integration_client.get("/api/users/me/documents", headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
@@ -611,9 +658,9 @@ class TestDocumentEndpoints:
 class TestConversationEndpoints:
     """Test conversation endpoints."""
 
-    def test_list_conversations(self, test_client, auth_headers):
+    def test_list_conversations(self, integration_client, auth_headers):
         """List conversations."""
-        response = test_client.get("/api/conversations", headers=auth_headers)
+        response = integration_client.get("/api/conversations", headers=auth_headers)
         assert response.status_code == 200
 
 
@@ -626,29 +673,29 @@ class TestConversationEndpoints:
 class TestDatabaseIntegrity:
     """Test database schema and constraints."""
 
-    def test_task_status_constraint(self, test_client, auth_headers):
+    def test_task_status_constraint(self, integration_client, auth_headers):
         """Task status must be valid enum value."""
         task_data = {
             "title": "Invalid status test",
             "status": "invalid_status",
         }
 
-        response = test_client.post("/api/tasks", json=task_data, headers=auth_headers)
+        response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
         assert response.status_code == 422  # Pydantic validation should catch this
 
-    def test_task_priority_range(self, test_client, auth_headers):
+    def test_task_priority_range(self, integration_client, auth_headers):
         """Task priority must be 1-5."""
         # Priority too high
         task_data = {"title": "Priority test", "priority": 10}
-        response = test_client.post("/api/tasks", json=task_data, headers=auth_headers)
+        response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
         assert response.status_code == 422
 
         # Priority too low
         task_data = {"title": "Priority test", "priority": 0}
-        response = test_client.post("/api/tasks", json=task_data, headers=auth_headers)
+        response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
         assert response.status_code == 422
 
-    def test_opportunity_score_range(self, test_client, auth_headers):
+    def test_opportunity_score_range(self, integration_client, auth_headers):
         """Opportunity scores must be 1-5."""
         opp_data = {
             "opportunity_code": "TSCR",
@@ -656,12 +703,12 @@ class TestDatabaseIntegrity:
             "roi_potential": 10,  # Invalid (must be 1-5)
         }
 
-        response = test_client.post("/api/opportunities", json=opp_data, headers=auth_headers)
+        response = integration_client.post("/api/opportunities", json=opp_data, headers=auth_headers)
         assert response.status_code == 422
 
-    def test_uuid_validation(self, test_client, auth_headers):
+    def test_uuid_validation(self, integration_client, auth_headers):
         """Invalid UUIDs should be rejected."""
-        response = test_client.get("/api/tasks/not-a-valid-uuid", headers=auth_headers)
+        response = integration_client.get("/api/tasks/not-a-valid-uuid", headers=auth_headers)
         assert response.status_code in [400, 422, 404]
 
 
@@ -674,7 +721,7 @@ class TestDatabaseIntegrity:
 class TestConcurrentAccess:
     """Test concurrent database operations."""
 
-    def test_concurrent_task_creation(self, test_client, auth_headers, real_supabase):
+    def test_concurrent_task_creation(self, integration_client, auth_headers, real_supabase):
         """Multiple tasks can be created without collision."""
         import concurrent.futures
 
@@ -682,7 +729,7 @@ class TestConcurrentAccess:
 
         def create_task(i: int) -> Optional[str]:
             task_data = {"title": f"Concurrent task {i} - {uuid.uuid4().hex[:8]}"}
-            response = test_client.post("/api/tasks", json=task_data, headers=auth_headers)
+            response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
             if response.status_code == 200:
                 task = response.json().get("task", response.json())
                 return task.get("id")
@@ -719,23 +766,23 @@ class TestConcurrentAccess:
 class TestPerformance:
     """Basic performance/load tests."""
 
-    def test_list_tasks_performance(self, test_client, auth_headers):
+    def test_list_tasks_performance(self, integration_client, auth_headers):
         """List tasks should respond within acceptable time."""
         import time
 
         start = time.time()
-        response = test_client.get("/api/tasks?limit=100", headers=auth_headers)
+        response = integration_client.get("/api/tasks?limit=100", headers=auth_headers)
         elapsed = time.time() - start
 
         assert response.status_code == 200
         assert elapsed < 5.0, f"List tasks took {elapsed:.2f}s (expected < 5s)"
 
-    def test_list_opportunities_performance(self, test_client, auth_headers):
+    def test_list_opportunities_performance(self, integration_client, auth_headers):
         """List opportunities should respond within acceptable time."""
         import time
 
         start = time.time()
-        response = test_client.get("/api/opportunities", headers=auth_headers)
+        response = integration_client.get("/api/opportunities", headers=auth_headers)
         elapsed = time.time() - start
 
         assert response.status_code == 200
@@ -750,25 +797,25 @@ class TestPerformance:
 class TestErrorHandling:
     """Test error response formats."""
 
-    def test_404_format(self, test_client, auth_headers):
+    def test_404_format(self, integration_client, auth_headers):
         """Not found errors have consistent format."""
         fake_id = str(uuid.uuid4())
-        response = test_client.get(f"/api/tasks/{fake_id}", headers=auth_headers)
+        response = integration_client.get(f"/api/tasks/{fake_id}", headers=auth_headers)
 
         # API returns 404 or 500 for not found (Supabase single() behavior)
         assert response.status_code in [404, 500]
         data = response.json()
         assert "detail" in data or "message" in data
 
-    def test_401_without_auth(self, test_client):
+    def test_401_without_auth(self, integration_client):
         """401 errors for missing auth."""
-        response = test_client.get("/api/tasks")
+        response = integration_client.get("/api/tasks")
         assert response.status_code in [401, 403]
 
-    def test_422_validation_error(self, test_client, auth_headers):
+    def test_422_validation_error(self, integration_client, auth_headers):
         """422 errors for validation failures."""
         # Send invalid JSON
-        response = test_client.post(
+        response = integration_client.post(
             "/api/tasks",
             json={"priority": "not-a-number"},
             headers=auth_headers

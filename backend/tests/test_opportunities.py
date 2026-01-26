@@ -21,31 +21,19 @@ import uuid
 
 
 # ============================================================================
-# Mock Module Setup - Avoid import chain issues
+# Note: This test file uses self-contained models and service classes for testing.
+# No sys.modules modifications needed - all test classes are defined locally.
+# This prevents test pollution when running with other test files.
+#
+# If you need to mock external services in individual tests, use:
+#   from unittest.mock import patch
+#   with patch('module.function', return_value=...):
+#       # test code
 # ============================================================================
 
-# Create a mock database module
-mock_database = Mock()
-mock_supabase = Mock()
-mock_database.get_supabase = Mock(return_value=mock_supabase)
-sys.modules['database'] = mock_database
-
-# Note: Do NOT mock 'config' - it's a real package and mocking it breaks other tests
-# If you need to mock config settings, use patch() in individual tests
-
-# Create mock auth module
-mock_auth = Mock()
-mock_auth.get_current_user = Mock()
-sys.modules['auth'] = mock_auth
-
-# Create mock anthropic module
-mock_anthropic_module = Mock()
-sys.modules['anthropic'] = mock_anthropic_module
-
-# Mock opportunity services (specific submodules only)
+# Create mock objects for opportunity services (used by test methods directly, not sys.modules)
 mock_opportunity_context = Mock()
 mock_opportunity_context.get_scoring_related_documents = Mock(return_value=[])
-sys.modules['services.opportunity_context'] = mock_opportunity_context
 
 mock_opportunity_chat = Mock()
 mock_opportunity_chat.ask_about_opportunity = AsyncMock(return_value={
@@ -53,7 +41,6 @@ mock_opportunity_chat.ask_about_opportunity = AsyncMock(return_value={
     "sources": []
 })
 mock_opportunity_chat.get_opportunity_conversations = AsyncMock(return_value=[])
-sys.modules['services.opportunity_chat'] = mock_opportunity_chat
 
 
 # ============================================================================

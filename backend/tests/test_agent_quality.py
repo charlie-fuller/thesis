@@ -16,56 +16,56 @@ import re
 # Sample agent responses for testing
 SAMPLE_RESPONSES = {
     "atlas": """
-    **Key AI Trends for 2026**
+    Key AI Trends for 2026
 
     Recent Gartner research indicates three dominant trends:
 
-    1. **Agentic AI** - Autonomous systems capable of multi-step reasoning
-    2. **Multimodal Foundation Models** - Integration of text, image, and code
-    3. **AI Engineering Platforms** - Operationalizing AI at scale
+    1. Agentic AI - Autonomous systems capable of multi-step reasoning
+    2. Multimodal Foundation Models - Integration of text, image, and code
+    3. AI Engineering Platforms - Operationalizing AI at scale
 
     McKinsey estimates 75% of enterprises will adopt agentic AI by 2027.
 
-    *Sources: Gartner Hype Cycle 2025, McKinsey AI Adoption Report*
+    Sources: Gartner Hype Cycle 2025, McKinsey AI Adoption Report
     """,
     "capital": """
-    **ROI Analysis: AI Chatbot Implementation**
+    ROI Analysis: AI Chatbot Implementation
 
-    - **Investment Required**: $250,000 (Year 1)
-    - **Annual Savings**: $180,000 (support cost reduction)
-    - **Payback Period**: 16 months
-    - **3-Year NPV**: $412,000 (10% discount rate)
+    Investment Required: $250,000 (Year 1)
+    Annual Savings: $180,000 (support cost reduction)
+    Payback Period: 16 months
+    3-Year NPV: $412,000 (10% discount rate)
 
     The financial case is strong with a 72% IRR.
     """,
     "guardian": """
-    **Security Assessment: AI Implementation**
+    Security Assessment: AI Implementation
 
     Key risks identified:
-    1. **Data Privacy** - PII exposure in training data
-    2. **Model Security** - Prompt injection vulnerabilities
-    3. **Compliance** - GDPR/CCPA data handling requirements
+    1. Data Privacy - PII exposure in training data
+    2. Model Security - Prompt injection vulnerabilities
+    3. Compliance - GDPR/CCPA data handling requirements
 
     Recommended mitigations: Data anonymization, input validation, privacy impact assessment.
     """,
     "counselor": """
-    **Legal Considerations: AI Deployment**
+    Legal Considerations: AI Deployment
 
-    Critical issues:
-    - **IP Ownership** - Clarify rights to AI-generated content
-    - **Liability** - Establish accountability for AI decisions
-    - **Contracts** - Review vendor agreements for AI-specific terms
+    Critical issues include:
+    1. IP Ownership - Clarify rights to AI-generated content
+    2. Liability - Establish accountability for AI decisions
+    3. Contracts - Review vendor agreements for AI-specific terms
 
     Recommend legal review before production deployment.
     """,
     "sage": """
-    **Change Management: AI Adoption**
+    Change Management: AI Adoption
 
     Employee concerns are valid and addressable:
 
-    - **Job security fears** - Focus on augmentation, not replacement
-    - **Skill anxiety** - Provide clear training roadmap
-    - **Trust issues** - Start with low-stakes use cases
+    1. Job security fears - Focus on augmentation, not replacement
+    2. Skill anxiety - Provide clear training roadmap
+    3. Trust issues - Start with low-stakes use cases
 
     Build champions through early wins and visible leadership support.
     """,

@@ -16,53 +16,10 @@ from typing import Optional
 
 
 # ============================================================================
-# Mock Module Setup - Avoid import chain issues
+# Note: This test file uses self-contained agent classes for testing.
+# No sys.modules modifications needed - all test classes are defined locally.
+# This prevents test pollution when running with other test files.
 # ============================================================================
-
-# Save original modules to restore after tests
-_original_modules = {}
-
-def _save_original_module(name):
-    """Save original module if it exists."""
-    if name in sys.modules:
-        _original_modules[name] = sys.modules[name]
-
-def _restore_original_modules():
-    """Restore original modules after tests."""
-    for name, module in _original_modules.items():
-        sys.modules[name] = module
-    # Remove mocked modules that weren't originally present
-    mock_module_names = ['services.instruction_loader']
-    for name in mock_module_names:
-        if name not in _original_modules and name in sys.modules:
-            del sys.modules[name]
-
-# Save originals before mocking
-_save_original_module('database')
-_save_original_module('anthropic')
-_save_original_module('services')
-
-# Create mock database module
-mock_database = Mock()
-mock_supabase = Mock()
-mock_database.get_supabase = Mock(return_value=mock_supabase)
-sys.modules['database'] = mock_database
-
-# Create mock anthropic module
-mock_anthropic_module = Mock()
-sys.modules['anthropic'] = mock_anthropic_module
-
-# Note: Do NOT mock 'config' - it breaks other tests that import config.constants
-# The config module is a real package that should be imported normally
-
-# Create mock services modules (only specific submodules, not the whole package)
-sys.modules['services.instruction_loader'] = Mock()
-sys.modules['services.instruction_loader'].load_instruction_from_file = Mock(return_value=None)
-sys.modules['services.instruction_loader'].instruction_file_exists = Mock(return_value=False)
-
-# Register cleanup to restore original modules
-import atexit
-atexit.register(_restore_original_modules)
 
 
 # ============================================================================

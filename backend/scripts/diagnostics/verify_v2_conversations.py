@@ -1,9 +1,15 @@
 import json
+import sys
+from pathlib import Path
 
 import requests
 
-SUPABASE_URL = "https://iyugbpnxfbhqjxrvmnij.supabase.co"
-SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5dWdicG54ZmJocWp4cnZtbmlqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTkyODQxMywiZXhwIjoyMDc3NTA0NDEzfQ.X2-uWIFX_LtAREfK8WfODxmXxPjp2MB6g7A-9w42peI"
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from scripts.lib.credentials import get_credentials
+
+creds = get_credentials()
+SUPABASE_URL = creds['supabase_url']
+SUPABASE_SERVICE_ROLE_KEY = creds['supabase_key']
 
 # Load the v2 synthetic conversations JSON
 with open('synthetic_conversations_charlie_v2.json', 'r') as f:
