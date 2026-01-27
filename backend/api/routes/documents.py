@@ -427,13 +427,32 @@ async def get_all_tags(
     try:
         user_id = current_user['id']
 
-        # Get all tags for user's documents with manual aggregation
-        result = await asyncio.to_thread(
-            lambda: supabase.table('document_tags')
-                .select('tag, document_id, documents!inner(uploaded_by)')
-                .eq('documents.uploaded_by', user_id)
+        # Step 1: Get all document IDs owned by the user
+        docs_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id')
+                .eq('uploaded_by', user_id)
                 .execute()
         )
+        user_doc_ids = [d['id'] for d in (docs_result.data or [])]
+
+        if not user_doc_ids:
+            logger.info(f"No documents found for user {user_id}")
+            return {
+                'success': True,
+                'tags': [],
+                'hasMore': False
+            }
+
+        # Step 2: Get all tags for those documents
+        result = await asyncio.to_thread(
+            lambda: supabase.table('document_tags')
+                .select('tag, document_id')
+                .in_('document_id', user_doc_ids)
+                .execute()
+        )
+
+        logger.info(f"Found {len(result.data or [])} tag entries for user {user_id} across {len(user_doc_ids)} documents")
 
         # Aggregate counts
         tag_counts = {}
