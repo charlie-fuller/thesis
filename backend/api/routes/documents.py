@@ -521,15 +521,21 @@ async def get_obsidian_folders(
                 .execute()
         )
 
-        # Extract unique folder paths
+        # Extract unique folder paths, excluding GitHub folders
         folders = set()
         for doc in (result.data or []):
             path = doc.get('obsidian_file_path', '')
             if path and '/' in path:
+                # Skip paths containing 'github' (case-insensitive)
+                if 'github' in path.lower():
+                    continue
                 # Get all parent folders
                 parts = path.split('/')
                 for i in range(1, len(parts)):
-                    folders.add('/'.join(parts[:i]))
+                    folder_path = '/'.join(parts[:i])
+                    # Also skip if any parent folder contains 'github'
+                    if 'github' not in folder_path.lower():
+                        folders.add(folder_path)
 
         # Sort folders alphabetically
         sorted_folders = sorted(folders)
