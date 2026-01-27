@@ -187,14 +187,14 @@ function CreateInitiativeModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+      <div className="relative card rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+        <h2 className="text-lg font-semibold text-primary mb-4">
           Create New Initiative
         </h2>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-secondary mb-1">
               Name *
             </label>
             <input
@@ -202,13 +202,13 @@ function CreateInitiativeModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Customer Portal Redesign"
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="input-field"
               autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-secondary mb-1">
               Description
             </label>
             <textarea
@@ -216,26 +216,26 @@ function CreateInitiativeModal({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief description of the initiative..."
               rows={3}
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="textarea-field"
             />
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            <p className="text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>
           )}
         </div>
 
         <div className="flex justify-end gap-3 mt-6">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
+            className="btn-secondary"
           >
             Cancel
           </button>
           <button
             onClick={handleCreate}
             disabled={creating || !name.trim()}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors"
+            className="btn-primary flex items-center gap-2"
           >
             {creating && <Loader2 className="w-4 h-4 animate-spin" />}
             Create Initiative
