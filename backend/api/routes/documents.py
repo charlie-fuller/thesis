@@ -1233,6 +1233,175 @@ async def bulk_delete_documents(
 
 
 # ============================================================================
+# Document Cleanup by Path Pattern (Admin)
+# ============================================================================
+
+@router.get("/cleanup/by-path")
+async def find_documents_by_path_pattern(
+    pattern: str,
+    current_user: dict = Depends(require_admin),
+    limit: int = 100
+):
+    """Find documents whose obsidian_file_path contains the given pattern (admin only).
+
+    Use this to identify documents that should be cleaned up, e.g., from node_modules.
+
+    Args:
+        pattern: Substring to search for in obsidian_file_path (e.g., "node_modules")
+        limit: Maximum number of documents to return (default 100)
+
+    Returns:
+        List of documents matching the pattern with their tags
+    """
+    try:
+        if not pattern or len(pattern) < 3:
+            raise HTTPException(status_code=400, detail="Pattern must be at least 3 characters")
+
+        # Find documents with path containing the pattern
+        result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, filename, title, obsidian_file_path, uploaded_at')
+                .ilike('obsidian_file_path', f'%{pattern}%')
+                .limit(limit)
+                .execute()
+        )
+
+        documents = result.data or []
+
+        # Get tags for each document
+        for doc in documents:
+            tags_result = await asyncio.to_thread(
+                lambda d=doc['id']: supabase.table('document_tags')
+                    .select('tag, source')
+                    .eq('document_id', d)
+                    .execute()
+            )
+            doc['tags'] = [t['tag'] for t in (tags_result.data or [])]
+
+        # Get total count (may be more than limit)
+        count_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id', count='exact')
+                .ilike('obsidian_file_path', f'%{pattern}%')
+                .execute()
+        )
+
+        return {
+            'success': True,
+            'pattern': pattern,
+            'total_count': count_result.count,
+            'returned_count': len(documents),
+            'documents': documents
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error finding documents by path pattern: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+@router.delete("/cleanup/by-path")
+async def delete_documents_by_path_pattern(
+    pattern: str,
+    current_user: dict = Depends(require_admin),
+    dry_run: bool = True
+):
+    """Delete documents whose obsidian_file_path contains the given pattern (admin only).
+
+    Tags are automatically deleted via CASCADE when documents are deleted.
+
+    Args:
+        pattern: Substring to search for in obsidian_file_path (e.g., "node_modules")
+        dry_run: If True (default), only report what would be deleted without actually deleting
+
+    Returns:
+        Summary of deleted (or would-be-deleted) documents and affected tags
+    """
+    try:
+        if not pattern or len(pattern) < 3:
+            raise HTTPException(status_code=400, detail="Pattern must be at least 3 characters")
+
+        # Find documents with path containing the pattern
+        result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, filename, obsidian_file_path')
+                .ilike('obsidian_file_path', f'%{pattern}%')
+                .execute()
+        )
+
+        documents = result.data or []
+        doc_ids = [d['id'] for d in documents]
+
+        # Get unique tags that will be affected
+        affected_tags = set()
+        for doc_id in doc_ids:
+            tags_result = await asyncio.to_thread(
+                lambda d=doc_id: supabase.table('document_tags')
+                    .select('tag')
+                    .eq('document_id', d)
+                    .execute()
+            )
+            for t in (tags_result.data or []):
+                affected_tags.add(t['tag'])
+
+        if dry_run:
+            return {
+                'success': True,
+                'dry_run': True,
+                'pattern': pattern,
+                'would_delete_count': len(documents),
+                'affected_tags': sorted(affected_tags),
+                'documents': [{'id': d['id'], 'filename': d['filename'], 'path': d['obsidian_file_path']} for d in documents[:50]],
+                'message': f"Would delete {len(documents)} documents. Set dry_run=false to actually delete."
+            }
+
+        # Actually delete
+        deleted_count = 0
+        errors = []
+
+        for doc_id in doc_ids:
+            try:
+                # Delete chunks first
+                await asyncio.to_thread(
+                    lambda d=doc_id: supabase.table('document_chunks')
+                        .delete()
+                        .eq('document_id', d)
+                        .execute()
+                )
+
+                # Delete document (tags deleted via CASCADE)
+                await asyncio.to_thread(
+                    lambda d=doc_id: supabase.table('documents')
+                        .delete()
+                        .eq('id', d)
+                        .execute()
+                )
+
+                deleted_count += 1
+
+            except Exception as e:
+                errors.append({'document_id': doc_id, 'error': str(e)})
+
+        logger.info(f"Deleted {deleted_count} documents matching pattern '{pattern}' by admin {current_user['id']}")
+
+        return {
+            'success': True,
+            'dry_run': False,
+            'pattern': pattern,
+            'deleted_count': deleted_count,
+            'affected_tags': sorted(affected_tags),
+            'errors': errors if errors else None
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting documents by path pattern: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+# ============================================================================
 # Document Download
 # ============================================================================
 

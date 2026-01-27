@@ -43,7 +43,43 @@ supabase = get_supabase()
 # Default sync options
 DEFAULT_SYNC_OPTIONS = {
     "include_patterns": ["**/*.md"],
-    "exclude_patterns": [".obsidian/**", ".trash/**", ".git/**", "node_modules/**"],
+    "exclude_patterns": [
+        # Version control & IDE
+        ".obsidian/**",
+        ".trash/**",
+        ".git/**",
+        ".vscode/**",
+        ".idea/**",
+        ".github/**",
+        ".husky/**",
+        # Dependencies & caches (catch node_modules anywhere)
+        "**/node_modules/**",
+        "__pycache__/**",
+        ".pytest_cache/**",
+        ".hypothesis/**",
+        ".cache/**",
+        # Claude/AI tools
+        ".claude/**",
+        # Templates & system
+        "_templates/**",
+        "Templates/**",
+        # Attachments & assets (binary files)
+        "_attachments/**",
+        "Attachments/**",
+        "_assets/**",
+        "_resources/**",
+        # Excalidraw (huge JSON blobs)
+        "_excalidraw/**",
+        "*.excalidraw.md",
+        # Backups & scratch
+        "_backup/**",
+        "Backups/**",
+        "_scratch/**",
+        # Other tools
+        "logseq/**",
+        # Transient notes
+        "Daily Notes/**",
+    ],
     "auto_classify": True,
     "sync_on_delete": False,
     "parse_frontmatter": True,
@@ -1228,6 +1264,11 @@ def _extract_path_tags(relative_path: str) -> List[str]:
     after "GitHub"), not subfolders within the repo.
     Example: "GitHub/thesis/backend/services/file.md" -> ["GitHub", "thesis"]
 
+    Filters out:
+    - npm scopes (folders starting with @)
+    - Common npm/code folders (node_modules, helper-*, config-*, etc.)
+    - Build/dist folders
+
     Args:
         relative_path: Relative path from vault root (e.g., "folder/subfolder/file.md")
 
@@ -1256,6 +1297,30 @@ def _extract_path_tags(relative_path: str) -> List[str]:
         # Example: ["foo", "GitHub", "thesis", "backend"] -> ["foo", "GitHub", "thesis"]
         max_idx = github_idx + 2  # GitHub + repo name
         parts = parts[:max_idx]
+
+    # Filter out npm-related and code artifact folder names
+    # These shouldn't become tags even if the document somehow gets synced
+    excluded_patterns = {
+        # npm/code folders
+        'node_modules', 'dist', 'build', 'out', 'coverage', '__pycache__',
+        '.git', '.github', '.vscode', '.idea', '.cache', '.hypothesis',
+        # Common generic code folders that make poor tags
+        'src', 'lib', 'bin', 'vendor', 'packages', 'deps',
+    }
+    excluded_prefixes = (
+        '@',           # npm scopes like @babel, @eslint
+        'helper-',     # babel helpers
+        'config-',     # eslint config packages
+        'plugin-',     # various plugin packages
+        'eslint-',     # eslint packages
+        'babel-',      # babel packages
+    )
+
+    parts = [
+        p for p in parts
+        if p.lower() not in excluded_patterns
+        and not p.startswith(excluded_prefixes)
+    ]
 
     return parts
 
