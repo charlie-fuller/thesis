@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Search, FileText, Tag, Plus, Minus, Loader2, Check, X, AlertCircle } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 import TagSelector from '@/components/TagSelector'
@@ -102,17 +102,23 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
 
   // Initial load
   useEffect(() => {
-    fetchDocuments(true)
+    fetchDocuments(true, '', new Set())
     fetchTags()
   }, [])
 
-  // Search and filter effect
+  // Search and filter effect - skip on initial mount
+  const isFirstRender = useRef(true)
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
     const timer = setTimeout(() => {
+      console.log('Searching with:', { searchQuery, filterTags: Array.from(filterTags) })
       fetchDocuments(true, searchQuery, filterTags)
     }, 300)
     return () => clearTimeout(timer)
-  }, [searchQuery, filterTags, fetchDocuments])
+  }, [searchQuery, filterTags])
 
   // Toggle document selection
   const toggleDoc = (docId: string) => {
