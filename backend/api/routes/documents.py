@@ -427,7 +427,11 @@ async def get_all_tags(
     try:
         user_id = current_user['id']
 
-        # Step 1: Get all document IDs owned by the user
+        # Get tags by joining document_tags with documents filtered by user
+        # Use a direct approach that avoids large IN() clauses
+        all_tags_data = []
+
+        # Batch fetch: get document IDs in chunks to avoid query size limits
         docs_result = await asyncio.to_thread(
             lambda: supabase.table('documents')
                 .select('id')
@@ -444,19 +448,23 @@ async def get_all_tags(
                 'hasMore': False
             }
 
-        # Step 2: Get all tags for those documents
-        result = await asyncio.to_thread(
-            lambda: supabase.table('document_tags')
-                .select('tag, document_id')
-                .in_('document_id', user_doc_ids)
-                .execute()
-        )
+        # Batch the document IDs to avoid query size limits (100 at a time)
+        batch_size = 100
+        for i in range(0, len(user_doc_ids), batch_size):
+            batch_ids = user_doc_ids[i:i + batch_size]
+            batch_result = await asyncio.to_thread(
+                lambda ids=batch_ids: supabase.table('document_tags')
+                    .select('tag, document_id')
+                    .in_('document_id', ids)
+                    .execute()
+            )
+            all_tags_data.extend(batch_result.data or [])
 
-        logger.info(f"Found {len(result.data or [])} tag entries for user {user_id} across {len(user_doc_ids)} documents")
+        logger.info(f"Found {len(all_tags_data)} tag entries for user {user_id} across {len(user_doc_ids)} documents")
 
         # Aggregate counts
         tag_counts = {}
-        for row in (result.data or []):
+        for row in all_tags_data:
             tag = row['tag']
             if search and search.lower() not in tag.lower():
                 continue
