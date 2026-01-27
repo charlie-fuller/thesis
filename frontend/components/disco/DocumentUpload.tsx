@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, FileText, X, Loader2, CheckCircle } from 'lucide-react'
+import { Upload, FileText, X, Loader2, CheckCircle, Database } from 'lucide-react'
 import { authenticatedFetch } from '@/lib/api'
+import KBDocumentBrowser from './KBDocumentBrowser'
 
 interface DocumentUploadProps {
   initiativeId: string
+  initiativeName?: string
   onUploaded: (document: any) => void
 }
 
@@ -15,14 +17,17 @@ interface UploadProgress {
   error?: string
 }
 
-export default function DocumentUpload({ initiativeId, onUploaded }: DocumentUploadProps) {
+type UploadMode = 'file' | 'paste' | 'kb'
+
+export default function DocumentUpload({ initiativeId, initiativeName = 'Initiative', onUploaded }: DocumentUploadProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [pasteMode, setPasteMode] = useState(false)
+  const [mode, setMode] = useState<UploadMode>('file')
   const [pasteFilename, setPasteFilename] = useState('')
   const [pasteContent, setPasteContent] = useState('')
+  const [kbBrowserOpen, setKbBrowserOpen] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -156,7 +161,7 @@ export default function DocumentUpload({ initiativeId, onUploaded }: DocumentUpl
         onUploaded(result.document)
         setPasteFilename('')
         setPasteContent('')
-        setPasteMode(false)
+        setMode('file')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed')
@@ -170,9 +175,9 @@ export default function DocumentUpload({ initiativeId, onUploaded }: DocumentUpl
       {/* Toggle buttons */}
       <div className="flex gap-2">
         <button
-          onClick={() => setPasteMode(false)}
+          onClick={() => setMode('file')}
           className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-            !pasteMode
+            mode === 'file'
               ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
               : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
@@ -180,18 +185,29 @@ export default function DocumentUpload({ initiativeId, onUploaded }: DocumentUpl
           Upload File
         </button>
         <button
-          onClick={() => setPasteMode(true)}
+          onClick={() => setMode('paste')}
           className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-            pasteMode
+            mode === 'paste'
               ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
               : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
           Paste Content
         </button>
+        <button
+          onClick={() => setKbBrowserOpen(true)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+            mode === 'kb'
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+              : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Database className="w-3.5 h-3.5" />
+          Add from KB
+        </button>
       </div>
 
-      {!pasteMode ? (
+      {mode === 'file' ? (
         /* File Upload Zone */
         <div
           onDragOver={handleDragOver}
@@ -256,7 +272,7 @@ export default function DocumentUpload({ initiativeId, onUploaded }: DocumentUpl
             </>
           )}
         </div>
-      ) : (
+      ) : mode === 'paste' ? (
         /* Paste Content Form */
         <div className="space-y-3">
           <div>
@@ -292,7 +308,7 @@ export default function DocumentUpload({ initiativeId, onUploaded }: DocumentUpl
             Upload Content
           </button>
         </div>
-      )}
+      ) : null}
 
       {/* Error message */}
       {error && (
@@ -307,6 +323,20 @@ export default function DocumentUpload({ initiativeId, onUploaded }: DocumentUpl
           </button>
         </div>
       )}
+
+      {/* KB Document Browser Modal */}
+      <KBDocumentBrowser
+        initiativeId={initiativeId}
+        initiativeName={initiativeName}
+        isOpen={kbBrowserOpen}
+        onClose={() => setKbBrowserOpen(false)}
+        onLinked={(docIds) => {
+          // Notify parent of linked documents
+          docIds.forEach(docId => {
+            onUploaded({ id: docId, source: 'kb_linked' })
+          })
+        }}
+      />
     </div>
   )
 }

@@ -684,13 +684,112 @@ async def _fetch_kb_folder_documents(folder_path: str, user_id: str) -> str:
         return ""
 
 
+async def _fetch_kb_tagged_documents(tags: List[str], user_id: str) -> str:
+    """
+    Fetch documents that have ALL specified tags and return their content.
+
+    Uses AND logic - only returns documents that have every tag in the list.
+
+    Args:
+        tags: List of tags to filter by
+        user_id: User ID for authorization
+
+    Returns:
+        Concatenated document content with headers
+    """
+    try:
+        if not tags:
+            logger.warning("No tags provided to _fetch_kb_tagged_documents")
+            return ""
+
+        # Strategy: get documents with first tag, then filter by remaining tags
+        first_tag = tags[0]
+
+        # Get documents with the first tag
+        result = await asyncio.to_thread(
+            lambda: supabase.table('document_tags')
+                .select('document_id, documents!inner(id, filename, title, obsidian_file_path, uploaded_by)')
+                .eq('tag', first_tag)
+                .eq('documents.uploaded_by', user_id)
+                .execute()
+        )
+
+        if not result.data:
+            logger.warning(f"No documents found with tag: {first_tag}")
+            return ""
+
+        # Get candidate document IDs
+        candidate_ids = [row['document_id'] for row in result.data]
+
+        # For AND logic: filter documents that have ALL tags
+        if len(tags) > 1:
+            for additional_tag in tags[1:]:
+                tag_result = await asyncio.to_thread(
+                    lambda t=additional_tag: supabase.table('document_tags')
+                        .select('document_id')
+                        .eq('tag', t)
+                        .in_('document_id', candidate_ids)
+                        .execute()
+                )
+                # Intersect with candidates
+                tag_doc_ids = {row['document_id'] for row in (tag_result.data or [])}
+                candidate_ids = [did for did in candidate_ids if did in tag_doc_ids]
+
+                if not candidate_ids:
+                    logger.warning(f"No documents found with all tags: {tags}")
+                    return ""
+
+        logger.info(f"Found {len(candidate_ids)} documents with tags: {tags}")
+
+        # Fetch document metadata and content
+        content_parts = []
+        for doc_id in candidate_ids:
+            # Get document metadata
+            doc_result = await asyncio.to_thread(
+                lambda d=doc_id: supabase.table('documents')
+                    .select('id, filename, title, obsidian_file_path')
+                    .eq('id', d)
+                    .single()
+                    .execute()
+            )
+
+            if not doc_result.data:
+                continue
+
+            doc = doc_result.data
+
+            # Get document content from chunks
+            chunks_result = await asyncio.to_thread(
+                lambda d=doc_id: supabase.table('document_chunks')
+                    .select('content, chunk_index')
+                    .eq('document_id', d)
+                    .order('chunk_index')
+                    .execute()
+            )
+
+            content = '\n'.join([c['content'] for c in (chunks_result.data or [])])
+            if content:
+                title = doc.get('title') or doc.get('filename') or doc.get('obsidian_file_path') or 'Untitled'
+                content_parts.append(f"\n\n=== {title} ===\n")
+                source = doc.get('obsidian_file_path') or doc.get('filename') or 'Unknown'
+                content_parts.append(f"Source: {source}\n")
+                content_parts.append(content)
+
+        return '\n'.join(content_parts)
+
+    except Exception as e:
+        logger.error(f"Error fetching KB tagged documents: {e}")
+        return ""
+
+
 async def run_agent(
     initiative_id: str,
     agent_type: str,
     user_id: str,
     document_ids: Optional[List[str]] = None,
     output_format: str = "comprehensive",
-    kb_folder: Optional[str] = None
+    kb_folder: Optional[str] = None,
+    kb_tags: Optional[List[str]] = None
 ) -> AsyncGenerator[Dict, None]:
     """
     Execute an agent run with streaming response.
@@ -700,7 +799,8 @@ async def run_agent(
         agent_type: Type of agent to run
         user_id: User running the agent
         document_ids: Optional list of specific document IDs to use
-        kb_folder: Optional KB folder path to include documents from (for discovery_prep)
+        kb_folder: Optional KB folder path to include documents from (deprecated, use kb_tags)
+        kb_tags: Optional list of KB tags to filter documents by (preferred, uses AND logic)
 
     Yields:
         Dict with type (status, content, complete) and data
@@ -710,6 +810,8 @@ async def run_agent(
     logger.info(f"[PURDY] Initiative: {initiative_id}, User: {user_id}")
     if kb_folder:
         logger.info(f"[PURDY] KB folder: {kb_folder}")
+    if kb_tags:
+        logger.info(f"[PURDY] KB tags: {kb_tags}")
 
     # Validate agent_type immediately
     if not agent_type or agent_type not in AGENT_FILES:
@@ -742,8 +844,16 @@ async def run_agent(
         # Build context
         context = await build_agent_context(initiative_id, agent_type)
 
-        # If KB folder specified, fetch and add those documents
-        if kb_folder:
+        # If KB tags specified, fetch and add those documents (preferred method)
+        if kb_tags:
+            tag_list = ', '.join(kb_tags)
+            yield {'type': 'status', 'data': f'Loading documents with tags: {tag_list}...'}
+            kb_docs_content = await _fetch_kb_tagged_documents(kb_tags, user_id)
+            if kb_docs_content:
+                context['kb_folder_documents'] = kb_docs_content  # Reuse same context key
+                logger.info(f"[PURDY] Added {len(kb_docs_content)} chars from KB tags: {kb_tags}")
+        # Fallback: If KB folder specified (deprecated), fetch and add those documents
+        elif kb_folder:
             yield {'type': 'status', 'data': f'Loading documents from {kb_folder}...'}
             kb_docs_content = await _fetch_kb_folder_documents(kb_folder, user_id)
             if kb_docs_content:

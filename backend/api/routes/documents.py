@@ -403,6 +403,387 @@ async def get_pending_classification_reviews(
 
 
 # ============================================================================
+# Tag-Based Document Selection (for DISCo/Initiatives)
+# ============================================================================
+
+@router.get("/tags")
+async def get_all_tags(
+    search: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all tags with document counts, with optional search and pagination.
+
+    Args:
+        search: Optional search query to filter tags
+        limit: Maximum number of tags to return (default 50)
+        offset: Number of tags to skip for pagination
+
+    Returns:
+        tags: List of {tag: string, count: number} sorted alphabetically
+        hasMore: Boolean indicating if more tags exist
+    """
+    try:
+        user_id = current_user['id']
+
+        # Get all tags for user's documents with manual aggregation
+        result = await asyncio.to_thread(
+            lambda: supabase.table('document_tags')
+                .select('tag, document_id, documents!inner(uploaded_by)')
+                .eq('documents.uploaded_by', user_id)
+                .execute()
+        )
+
+        # Aggregate counts
+        tag_counts = {}
+        for row in (result.data or []):
+            tag = row['tag']
+            if search and search.lower() not in tag.lower():
+                continue
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+
+        # Sort alphabetically and paginate
+        sorted_tags = sorted(tag_counts.items(), key=lambda x: x[0].lower())
+        paginated = sorted_tags[offset:offset + limit + 1]
+
+        has_more = len(paginated) > limit
+        if has_more:
+            paginated = paginated[:limit]
+
+        tags = [{'tag': t[0], 'count': t[1]} for t in paginated]
+
+        return {
+            'success': True,
+            'tags': tags,
+            'hasMore': has_more
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting tags: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+@router.get("/by-tags")
+async def get_documents_by_tags(
+    tags: str,  # Comma-separated tags
+    current_user: dict = Depends(get_current_user)
+):
+    """Get documents that have ALL specified tags (AND logic).
+
+    Args:
+        tags: Comma-separated list of tags (e.g., "tag1,tag2,tag3")
+
+    Returns:
+        Documents that have all the specified tags, with their content
+    """
+    try:
+        if not tags or not tags.strip():
+            raise HTTPException(status_code=400, detail="At least one tag is required")
+
+        user_id = current_user['id']
+        tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+
+        if not tag_list:
+            raise HTTPException(status_code=400, detail="At least one valid tag is required")
+
+        # Find documents that have ALL the specified tags
+        # Strategy: get documents for first tag, then filter for others
+        first_tag = tag_list[0]
+
+        # Get documents with the first tag
+        result = await asyncio.to_thread(
+            lambda: supabase.table('document_tags')
+                .select('document_id, documents!inner(id, filename, title, uploaded_by)')
+                .eq('tag', first_tag)
+                .eq('documents.uploaded_by', user_id)
+                .execute()
+        )
+
+        if not result.data:
+            return {
+                'success': True,
+                'tags': tag_list,
+                'count': 0,
+                'documents': []
+            }
+
+        # Get candidate document IDs
+        candidate_ids = [row['document_id'] for row in result.data]
+
+        # For AND logic: filter documents that have ALL tags
+        if len(tag_list) > 1:
+            for additional_tag in tag_list[1:]:
+                # Get documents with this tag
+                tag_result = await asyncio.to_thread(
+                    lambda t=additional_tag: supabase.table('document_tags')
+                        .select('document_id')
+                        .eq('tag', t)
+                        .in_('document_id', candidate_ids)
+                        .execute()
+                )
+                # Intersect with candidates
+                tag_doc_ids = {row['document_id'] for row in (tag_result.data or [])}
+                candidate_ids = [did for did in candidate_ids if did in tag_doc_ids]
+
+                if not candidate_ids:
+                    return {
+                        'success': True,
+                        'tags': tag_list,
+                        'count': 0,
+                        'documents': []
+                    }
+
+        # Now fetch full documents with content
+        docs_with_content = []
+        for doc_id in candidate_ids:
+            # Get document metadata
+            doc_result = await asyncio.to_thread(
+                lambda d=doc_id: supabase.table('documents')
+                    .select('id, filename, title, obsidian_file_path, uploaded_at')
+                    .eq('id', d)
+                    .single()
+                    .execute()
+            )
+
+            if not doc_result.data:
+                continue
+
+            doc = doc_result.data
+
+            # Get document content from chunks
+            chunks_result = await asyncio.to_thread(
+                lambda d=doc_id: supabase.table('document_chunks')
+                    .select('content, chunk_index')
+                    .eq('document_id', d)
+                    .order('chunk_index')
+                    .execute()
+            )
+
+            content = '\n'.join([c['content'] for c in (chunks_result.data or [])])
+
+            # Get all tags for this document
+            tags_result = await asyncio.to_thread(
+                lambda d=doc_id: supabase.table('document_tags')
+                    .select('tag, source')
+                    .eq('document_id', d)
+                    .execute()
+            )
+
+            docs_with_content.append({
+                **doc,
+                'content': content,
+                'tags': [t['tag'] for t in (tags_result.data or [])]
+            })
+
+        return {
+            'success': True,
+            'tags': tag_list,
+            'count': len(docs_with_content),
+            'documents': docs_with_content
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting documents by tags: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+class BulkTagsRequest(BaseModel):
+    """Request body for bulk tag operations."""
+    document_ids: List[str]
+    tags: List[str]
+    operation: str  # 'add' or 'remove'
+
+
+@router.post("/bulk-tags")
+async def bulk_tag_operation(
+    request: BulkTagsRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Add or remove tags from multiple documents.
+
+    Args:
+        document_ids: List of document UUIDs
+        tags: List of tags to add or remove
+        operation: 'add' or 'remove'
+
+    Returns:
+        Summary of operations performed
+    """
+    try:
+        if request.operation not in ['add', 'remove']:
+            raise HTTPException(status_code=400, detail="Operation must be 'add' or 'remove'")
+
+        if not request.document_ids:
+            raise HTTPException(status_code=400, detail="At least one document_id is required")
+
+        if not request.tags:
+            raise HTTPException(status_code=400, detail="At least one tag is required")
+
+        user_id = current_user['id']
+        results = {'success': 0, 'failed': 0, 'errors': []}
+
+        for doc_id in request.document_ids:
+            try:
+                validate_uuid(doc_id, "document_id")
+
+                # Verify user owns document
+                doc_result = await asyncio.to_thread(
+                    lambda d=doc_id: supabase.table('documents')
+                        .select('id, uploaded_by')
+                        .eq('id', d)
+                        .single()
+                        .execute()
+                )
+
+                if not doc_result.data:
+                    results['failed'] += 1
+                    results['errors'].append({'document_id': doc_id, 'error': 'Not found'})
+                    continue
+
+                if current_user['role'] != 'admin' and doc_result.data['uploaded_by'] != user_id:
+                    results['failed'] += 1
+                    results['errors'].append({'document_id': doc_id, 'error': 'Not authorized'})
+                    continue
+
+                # Perform operation for each tag
+                for tag in request.tags:
+                    tag = tag.strip()
+                    if not tag:
+                        continue
+
+                    if request.operation == 'add':
+                        # Upsert tag
+                        await asyncio.to_thread(
+                            lambda d=doc_id, t=tag: supabase.table('document_tags')
+                                .upsert({
+                                    'document_id': d,
+                                    'tag': t,
+                                    'source': 'manual'
+                                }, on_conflict='document_id,tag')
+                                .execute()
+                        )
+                    else:  # remove
+                        # Only remove manual tags
+                        await asyncio.to_thread(
+                            lambda d=doc_id, t=tag: supabase.table('document_tags')
+                                .delete()
+                                .eq('document_id', d)
+                                .eq('tag', t)
+                                .eq('source', 'manual')
+                                .execute()
+                        )
+
+                results['success'] += 1
+
+            except Exception as doc_error:
+                results['failed'] += 1
+                results['errors'].append({'document_id': doc_id, 'error': str(doc_error)})
+
+        logger.info(f"Bulk tag operation: {request.operation} {request.tags} on {len(request.document_ids)} docs - "
+                    f"success: {results['success']}, failed: {results['failed']}")
+
+        return {
+            'success': True,
+            'operation': request.operation,
+            'tags': request.tags,
+            'results': results
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in bulk tag operation: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+@router.get("/search")
+async def search_documents(
+    q: Optional[str] = None,
+    tags: Optional[str] = None,  # Comma-separated
+    limit: int = 20,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user)
+):
+    """Search KB documents by filename, title, content, and/or tags.
+
+    Args:
+        q: Search query (searches filename, title, and content)
+        tags: Comma-separated list of tags to filter by
+        limit: Maximum results to return
+        offset: Number of results to skip
+
+    Returns:
+        Matching documents with metadata and tags
+    """
+    try:
+        user_id = current_user['id']
+
+        # Start with user's documents
+        query = supabase.table('documents')\
+            .select('id, filename, title, obsidian_file_path, uploaded_at, source_platform')\
+            .eq('uploaded_by', user_id)\
+            .order('uploaded_at', desc=True)
+
+        # Apply text search if provided
+        if q and q.strip():
+            search_term = q.strip()
+            # Search in filename and title using ilike
+            query = query.or_(f"filename.ilike.%{search_term}%,title.ilike.%{search_term}%")
+
+        result = await asyncio.to_thread(lambda: query.execute())
+        documents = result.data or []
+
+        # Filter by tags if provided
+        if tags:
+            tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+            if tag_list:
+                # Get documents that have ALL specified tags
+                filtered_docs = []
+                for doc in documents:
+                    doc_tags_result = await asyncio.to_thread(
+                        lambda d=doc['id']: supabase.table('document_tags')
+                            .select('tag')
+                            .eq('document_id', d)
+                            .execute()
+                    )
+                    doc_tags = {t['tag'] for t in (doc_tags_result.data or [])}
+                    if all(tag in doc_tags for tag in tag_list):
+                        filtered_docs.append(doc)
+                documents = filtered_docs
+
+        # Paginate
+        total_count = len(documents)
+        documents = documents[offset:offset + limit]
+
+        # Enrich with tags
+        for doc in documents:
+            tags_result = await asyncio.to_thread(
+                lambda d=doc['id']: supabase.table('document_tags')
+                    .select('tag, source')
+                    .eq('document_id', d)
+                    .execute()
+            )
+            doc['tags'] = [t['tag'] for t in (tags_result.data or [])]
+
+        return {
+            'success': True,
+            'query': q,
+            'tag_filter': tags,
+            'total_count': total_count,
+            'count': len(documents),
+            'documents': documents,
+            'hasMore': offset + limit < total_count
+        }
+
+    except Exception as e:
+        logger.error(f"Error searching documents: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+# ============================================================================
 # Document Processing
 # ============================================================================
 
@@ -1638,3 +2019,78 @@ async def update_document_sync_cadence(
     except Exception as e:
         logger.error(f"Error updating document sync_cadence: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+# ============================================================================
+# Initiative Links (for delete protection)
+# ============================================================================
+
+@router.get("/{document_id}/initiative-links")
+async def get_document_initiative_links(
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get DISCo initiatives that link to this document.
+
+    Used for delete protection - warns user before deleting a document
+    that's linked to initiatives.
+
+    Returns:
+        initiatives: List of {id, name, status} for linked initiatives
+    """
+    try:
+        validate_uuid(document_id, "document_id")
+
+        # Verify document exists and user has access
+        doc_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, uploaded_by')
+                .eq('id', document_id)
+                .single()
+                .execute()
+        )
+
+        if not doc_result.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Authorization check
+        document = doc_result.data
+        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+            raise HTTPException(status_code=403, detail="Not authorized to view this document")
+
+        # Get linked initiatives from junction table
+        links_result = await asyncio.to_thread(
+            lambda: supabase.table('disco_initiative_documents')
+                .select('initiative_id, disco_initiatives(id, name, status)')
+                .eq('document_id', document_id)
+                .execute()
+        )
+
+        initiatives = []
+        for link in (links_result.data or []):
+            if link.get('disco_initiatives'):
+                initiative = link['disco_initiatives']
+                initiatives.append({
+                    'id': initiative['id'],
+                    'name': initiative['name'],
+                    'status': initiative.get('status', 'unknown')
+                })
+
+        return {
+            'success': True,
+            'document_id': document_id,
+            'linked': len(initiatives) > 0,
+            'initiatives': initiatives
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting document initiative links: {e}")
+        # Return empty rather than error - junction table may not exist yet
+        return {
+            'success': True,
+            'document_id': document_id,
+            'linked': False,
+            'initiatives': []
+        }

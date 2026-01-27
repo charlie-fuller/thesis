@@ -10,6 +10,8 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import ConfirmModal from '@/components/ConfirmModal'
 import StorageIndicator from '@/components/StorageIndicator'
 import GoogleDrivePicker from '@/components/GoogleDrivePicker'
+import TagManagerTab from '@/components/kb/TagManagerTab'
+import DeleteDocumentModal from '@/components/kb/DeleteDocumentModal'
 import { logger } from '@/lib/logger'
 import {
   getGoogleDriveStatus,
@@ -154,6 +156,9 @@ export default function KBDocumentsContent() {
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [sourceFilter, setSourceFilter] = useState<string>('all') // 'all', 'upload', 'google_drive', 'obsidian'
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
+
+  // Tab state for Documents vs Tag Manager
+  const [activeTab, setActiveTab] = useState<'documents' | 'tags'>('documents')
 
   // Compute all unique tags from documents (sorted by frequency, then alphabetically)
   const allTags = useMemo(() => {
@@ -1225,6 +1230,40 @@ export default function KBDocumentsContent() {
         refreshTrigger={storageRefreshTrigger}
       />
 
+      {/* Tab Navigation */}
+      <div className="mb-4 border-b border-default">
+        <nav className="-mb-px flex gap-4">
+          <button
+            onClick={() => setActiveTab('documents')}
+            className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'documents'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-secondary hover:text-primary hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+          >
+            Documents
+          </button>
+          <button
+            onClick={() => setActiveTab('tags')}
+            className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'tags'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-secondary hover:text-primary hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+          >
+            Tag Manager
+          </button>
+        </nav>
+      </div>
+
+      {/* Tag Manager Tab Content */}
+      {activeTab === 'tags' && (
+        <TagManagerTab onDocumentsChange={handleDocumentsChange} />
+      )}
+
+      {/* Documents Tab Content */}
+      {activeTab === 'documents' && (
+      <>
       {/* Google Drive Integration Section */}
       <div className={`card mb-3 ${driveExpanded && driveStatus?.connected ? 'p-6' : 'p-2'}`}>
         <div className="flex items-center justify-between gap-3">
@@ -1925,6 +1964,8 @@ export default function KBDocumentsContent() {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* Disconnect Confirmation Modal */}
       <ConfirmModal
@@ -1950,18 +1991,18 @@ export default function KBDocumentsContent() {
         onCancel={() => setShowNotionDisconnectModal(false)}
       />
 
-      {/* Delete Confirmation Modal */}
-      <ConfirmModal
-        open={showDeleteModal}
-        title="Delete Document"
-        message={`Are you sure you want to delete "${docToDelete?.filename}"? This action cannot be undone.`}
-        confirmText="Delete"
-        cancelText="Cancel"
-        confirmVariant="danger"
-        onConfirm={handleDeleteConfirm}
-        onCancel={() => {
+      {/* Delete Confirmation Modal with Initiative Warnings */}
+      <DeleteDocumentModal
+        isOpen={showDeleteModal}
+        documentId={docToDelete?.id || null}
+        documentName={docToDelete?.filename || ''}
+        onClose={() => {
           setShowDeleteModal(false)
           setDocToDelete(null)
+        }}
+        onDeleted={() => {
+          handleDocumentsChange()
+          setStorageRefreshTrigger(prev => prev + 1)
         }}
       />
 

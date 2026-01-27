@@ -120,7 +120,13 @@ class AgentRunRequest(BaseModel):
     document_ids: Optional[List[str]] = None
     output_format: Optional[str] = "comprehensive"  # comprehensive, executive, brief
     multi_pass: Optional[bool] = False  # Enable multi-pass synthesis (synthesizer only)
-    kb_folder: Optional[str] = None  # KB folder path for discovery_prep agent
+    kb_folder: Optional[str] = None  # KB folder path for discovery_prep agent (deprecated)
+    kb_tags: Optional[List[str]] = None  # KB tags for discovery_prep agent (preferred)
+
+
+class LinkDocumentsRequest(BaseModel):
+    """Request body for linking KB documents to an initiative."""
+    document_ids: List[str]
 
 
 # ============================================================================
@@ -431,6 +437,149 @@ async def api_delete_document(
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
+@router.post("/initiatives/{initiative_id}/documents/link")
+async def api_link_kb_documents(
+    initiative_id: str,
+    data: LinkDocumentsRequest,
+    current_user: dict = Depends(require_disco_access)
+):
+    """Link existing KB documents to an initiative.
+
+    Creates links in disco_initiative_documents table and auto-tags
+    the KB documents with the initiative name.
+    """
+    await require_initiative_access(initiative_id, current_user, 'editor')
+
+    try:
+        if not data.document_ids:
+            raise HTTPException(status_code=400, detail="At least one document_id is required")
+
+        # Get initiative name for auto-tagging
+        initiative_result = await asyncio.to_thread(
+            lambda: supabase.table('disco_initiatives')
+                .select('id, name')
+                .eq('id', initiative_id)
+                .single()
+                .execute()
+        )
+
+        if not initiative_result.data:
+            raise HTTPException(status_code=404, detail="Initiative not found")
+
+        initiative_name = initiative_result.data['name']
+        user_id = current_user['id']
+
+        linked_documents = []
+        errors = []
+
+        for doc_id in data.document_ids:
+            try:
+                # Verify document exists and user owns it
+                doc_result = await asyncio.to_thread(
+                    lambda d=doc_id: supabase.table('documents')
+                        .select('id, filename, title, uploaded_by')
+                        .eq('id', d)
+                        .single()
+                        .execute()
+                )
+
+                if not doc_result.data:
+                    errors.append({'document_id': doc_id, 'error': 'Document not found'})
+                    continue
+
+                if doc_result.data['uploaded_by'] != user_id:
+                    errors.append({'document_id': doc_id, 'error': 'Not authorized'})
+                    continue
+
+                # Create link in junction table (upsert to handle duplicates)
+                await asyncio.to_thread(
+                    lambda d=doc_id: supabase.table('disco_initiative_documents')
+                        .upsert({
+                            'initiative_id': initiative_id,
+                            'document_id': d,
+                            'linked_by': user_id
+                        }, on_conflict='initiative_id,document_id')
+                        .execute()
+                )
+
+                # Auto-tag document with initiative name
+                await asyncio.to_thread(
+                    lambda d=doc_id: supabase.table('document_tags')
+                        .upsert({
+                            'document_id': d,
+                            'tag': initiative_name,
+                            'source': 'initiative'
+                        }, on_conflict='document_id,tag')
+                        .execute()
+                )
+
+                linked_documents.append({
+                    'id': doc_id,
+                    'filename': doc_result.data.get('filename'),
+                    'title': doc_result.data.get('title')
+                })
+
+            except Exception as e:
+                errors.append({'document_id': doc_id, 'error': str(e)})
+
+        logger.info(f"[DISCO] Linked {len(linked_documents)} KB docs to initiative {initiative_id}")
+
+        return {
+            'success': True,
+            'linked_count': len(linked_documents),
+            'documents': linked_documents,
+            'errors': errors if errors else None
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error linking KB documents: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+@router.get("/initiatives/as-tags")
+async def api_get_initiatives_as_tags(
+    current_user: dict = Depends(require_disco_access)
+):
+    """Get all initiatives formatted as tag options.
+
+    Used by TagSelector component when showInitiatives=true.
+    Returns initiative names sorted alphabetically.
+    """
+    try:
+        user_id = current_user['id']
+
+        # Get initiatives the user has access to
+        result = await list_initiatives(
+            user_id=user_id,
+            limit=500  # Get all
+        )
+
+        initiatives = result.get('initiatives', [])
+
+        # Format as tag options, sorted alphabetically
+        tags = sorted([
+            {
+                'tag': init['name'],
+                'count': 0,  # Initiatives don't have document counts here
+                'type': 'initiative',
+                'initiative_id': init['id'],
+                'status': init.get('status', 'active')
+            }
+            for init in initiatives
+        ], key=lambda x: x['tag'].lower())
+
+        return {
+            'success': True,
+            'tags': tags
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting initiatives as tags: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
 # ============================================================================
 # RUNS
 # ============================================================================
@@ -491,7 +640,8 @@ async def api_start_run(
                     user_id=current_user['id'],
                     document_ids=data.document_ids,
                     output_format=data.output_format or "comprehensive",
-                    kb_folder=data.kb_folder
+                    kb_folder=data.kb_folder,
+                    kb_tags=data.kb_tags
                 )
 
             async for event in agent_gen:
