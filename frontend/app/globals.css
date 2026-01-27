@@ -168,8 +168,8 @@ select:disabled {
 .input-field {
   @apply w-full px-4 py-2 rounded-lg transition-all;
   border: 1px solid var(--color-border-default);
-  background-color: var(--color-bg-input);
-  color: var(--color-text-input);
+  background-color: var(--color-bg-card);
+  color: var(--color-text-primary);
 }
 
 .input-field:focus {
@@ -187,8 +187,8 @@ select:disabled {
 .textarea-field {
   @apply w-full px-4 py-3 rounded-lg resize-none transition-all;
   border: 1px solid var(--color-border-default);
-  background-color: var(--color-bg-input);
-  color: var(--color-text-input);
+  background-color: var(--color-bg-card);
+  color: var(--color-text-primary);
 }
 
 .textarea-field:focus {

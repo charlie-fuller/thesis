@@ -46,18 +46,20 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
   const LIMIT = 50
 
   // Fetch documents
-  const fetchDocuments = useCallback(async (reset = true) => {
+  const fetchDocuments = useCallback(async (reset = true, query?: string, tags?: Set<string>) => {
     setLoadingDocs(true)
     try {
       const params = new URLSearchParams({
         limit: LIMIT.toString(),
         offset: reset ? '0' : docsOffset.toString()
       })
-      if (searchQuery) {
-        params.append('q', searchQuery)
+      const q = query ?? searchQuery
+      const t = tags ?? filterTags
+      if (q) {
+        params.append('q', q)
       }
-      if (filterTags.size > 0) {
-        params.append('tags', Array.from(filterTags).join(','))
+      if (t.size > 0) {
+        params.append('tags', Array.from(t).join(','))
       }
 
       const result = await apiGet<{
@@ -79,7 +81,7 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
     } finally {
       setLoadingDocs(false)
     }
-  }, [searchQuery, filterTags, docsOffset])
+  }, [docsOffset])
 
   // Fetch all tags
   const fetchTags = useCallback(async () => {
@@ -107,10 +109,10 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
   // Search and filter effect
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchDocuments(true)
+      fetchDocuments(true, searchQuery, filterTags)
     }, 300)
     return () => clearTimeout(timer)
-  }, [searchQuery, filterTags])
+  }, [searchQuery, filterTags, fetchDocuments])
 
   // Toggle document selection
   const toggleDoc = (docId: string) => {
