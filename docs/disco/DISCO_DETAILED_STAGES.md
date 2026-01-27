@@ -47,6 +47,179 @@ AVOID ACROSS ALL:
 
 ---
 
+## DISCo North Star: Why This Process Exists
+
+### Strategic Context
+
+**Year 1 was about tool acquisition. Year 2 is about people and process.**
+
+Year 1 proved that AI works—Lynn automated NDAs, Sam built contract agents, Nelson saved 286 hours with check-in automation. But these were organic wins. The pattern that made them successful wasn't captured or repeatable:
+
+```
+DOMAIN EXPERT + AI CAPABILITY + FAST SHIPPING = MEASURABLE WIN
+```
+
+**DISCo systematizes this pattern.** It's the process that ensures every AI initiative follows the success formula: domain experts share what they know, AI synthesizes it into actionable specs, and we ship fast with measurable outcomes.
+
+### Alignment to Company & Department Goals
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     FY27 COMPANY PRIORITIES                         │
+├─────────────────┬─────────────────┬────────────────┬───────────────┤
+│ Market          │ Cost-Efficient  │ Product        │ Culture       │
+│ Leadership      │ GTM Growth      │ Innovation     │ (98% retain)  │
+├─────────────────┼─────────────────┼────────────────┼───────────────┤
+│ G&A operates    │ 2,000 hrs saved │ Test agent     │ Domain experts│
+│ AI-forward      │ $500K avoided   │ patterns first │ drive AI work │
+└─────────────────┴─────────────────┴────────────────┴───────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                   G&A AI STRATEGY PILLARS                           │
+│                                                                     │
+│    ENABLE          →      OPERATIONALIZE      →      GOVERN         │
+│  (AI Literacy)          (Deploy Solutions)        (Sustain Scale)   │
+│                                │                                    │
+│                          DISCo LIVES HERE                           │
+│                    The engine for identifying,                      │
+│                    validating, and shipping                         │
+│                    AI solutions systematically                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### How DISCo Delivers on Each Goal
+
+| Company Goal | What DISCo Does | Measurable Contribution |
+|--------------|-----------------|-------------------------|
+| **Cost-Efficient GTM Growth** | Validates ROI before building; kills bad ideas fast | Hours saved documented; cost avoidance tracked |
+| **Market Leadership** | Demonstrates AI-forward operations internally | G&A ships solutions that showcase AI capability |
+| **Product Innovation** | Tests agent architectures before broader rollout | Patterns validated internally inform product |
+| **Culture (98% retention)** | Domain experts are the heroes; AI amplifies their knowledge | "You are the expert. AI is waiting for you." |
+
+### The North Star Metric
+
+> **"How many hours/dollars has AI saved G&A this quarter?"**
+
+DISCo is how we get from "someone has an idea" to "leadership has data for this metric."
+
+### Why DISCo Exists
+
+| Without DISCo | With DISCo |
+|---------------|------------|
+| Organic wins that can't be replicated | Systematized success pattern |
+| Ideas die between conversation and action | Every insight becomes a decision |
+| Weeks to go from interview to spec | Days from discovery to PRD |
+| "We should explore..." | "GO/NO-GO with owner and deadline" |
+| AI projects disconnected from goals | Every initiative tied to company metrics |
+| Domain experts bypassed by technologists | Domain experts are the critical ingredient |
+
+### The Success Formula Made Repeatable
+
+```
+            ┌─────────────────────────────────────────────────────────┐
+            │                    DISCo FORMULA                        │
+            │                                                         │
+            │   DOMAIN EXPERT      +      AI SYNTHESIS     =  WIN     │
+            │   (Human Discovery)       (Agent Processing)            │
+            │                                                         │
+            │   • Stakeholder interviews    • Pattern extraction      │
+            │   • Workshop facilitation     • Gap analysis            │
+            │   • Process observation       • Decision documents      │
+            │   • Context & politics        • PRD generation          │
+            │                                                         │
+            │   "You know the work"    →    "AI structures it"        │
+            └─────────────────────────────────────────────────────────┘
+```
+
+### Guiding Principles
+
+| Principle | Why It Matters |
+|-----------|----------------|
+| **Domain Experts Drive** | Lynn, Sam, Nelson succeeded because they knew their work. AI amplified expertise, not replaced it. |
+| **Fast Validation** | Kill bad ideas in Triage before wasting discovery time. Protect the organization's capacity. |
+| **Measurable Outcomes** | Every initiative connects to hours saved or dollars avoided. No vanity projects. |
+| **Decision Velocity** | <7 days from intake to recommendation. Speed is a feature, not a compromise. |
+| **Human-in-the-Loop** | AI synthesizes; humans decide. Especially for legal, financial, and hiring decisions. |
+
+### Infographic Prompt
+
+```
+Create an infographic for "DISCo North Star: Why We Do This"
+
+PURPOSE:
+Show how DISCo connects to company strategy—WHY this process exists, not just how it works. This is the strategic vision that sits above the tactical process.
+
+STRUCTURE (Top-Down Cascade):
+
+TOP TIER - Company Priorities:
+Four boxes showing FY27 company goals:
+- Market Leadership (G&A operates AI-forward)
+- Cost-Efficient GTM (2,000 hours saved, $500K avoided)
+- Product Innovation (Test agent patterns)
+- Culture (Domain experts drive AI work)
+
+MIDDLE TIER - G&A AI Strategy:
+Three connected pillars: ENABLE → OPERATIONALIZE → GOVERN
+Highlight that DISCo lives in "OPERATIONALIZE"
+Label: "The engine for shipping AI solutions systematically"
+
+BOTTOM TIER - The Success Formula:
+Show the equation visually:
+DOMAIN EXPERT (human figure with expertise icons)
++ AI SYNTHESIS (abstract processing shape)
+= MEASURABLE WIN (hours/dollars metric)
+
+Include examples: "Lynn + NDA patterns = Sales bottleneck removed"
+
+NORTH STAR CALLOUT (prominent):
+Quote box: "How many hours/dollars has AI saved G&A this quarter?"
+Show this as the guiding metric that DISCo feeds.
+
+THE PROMISE (before/after):
+Show transformation:
+- "Organic wins" → "Systematized pattern"
+- "Ideas die in the gap" → "Every insight becomes a decision"
+- "Disconnected projects" → "Tied to company metrics"
+
+KEY MESSAGE:
+"Year 1 proved AI works. Year 2 makes it repeatable. DISCo is the system."
+
+VISUAL EMPHASIS:
+- Strategic hierarchy (company → department → process)
+- The formula should be visually prominent
+- Domain experts as heroes (human figures central)
+- Connection to measurable outcomes
+- Professional, strategic, executive-ready
+
+AVOID:
+- Process flow details (that's what other infographics show)
+- Technical AI imagery
+- Making it look like AI does everything
+- Disconnection from business outcomes
+
+[Apply Master Style Guide]
+```
+
+### Quick Prompt (North Star)
+
+```
+Infographic: "DISCo North Star - Why We Do This"
+
+Top-down strategic cascade:
+- TOP: FY27 Company Priorities (Market Leadership, Cost-Efficient GTM, Product Innovation, Culture)
+- MIDDLE: G&A AI Strategy pillars (Enable → OPERATIONALIZE → Govern) with DISCo highlighted in center
+- BOTTOM: Success Formula (Domain Expert + AI Synthesis = Measurable Win)
+
+Prominent callout: "How many hours/dollars has AI saved G&A this quarter?"
+
+Key message: "Year 1 proved AI works. Year 2 makes it repeatable. DISCo is the system."
+
+Style: Navy/coral palette. Strategic hierarchy. Executive-ready. Domain experts as heroes.
+```
+
+---
+
 ## Stage 0: Starting Inputs
 
 ### Detailed Information
