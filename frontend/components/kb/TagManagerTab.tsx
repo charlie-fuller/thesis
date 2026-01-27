@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Search, FileText, Tag, Plus, Minus, Loader2, Check, X, AlertCircle } from 'lucide-react'
+import { Search, FileText, Tag, Plus, Minus, Loader2, Check, X } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 import TagSelector from '@/components/TagSelector'
 
@@ -200,34 +200,45 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
 
     try {
       const results: string[] = []
+      let hasFailures = false
 
       // Add tags
       if (tagsToAdd.size > 0) {
         const addResult = await apiPost<{
           success: boolean
-          results: { success: number; failed: number }
+          results: { success: number; failed: number; errors?: Array<{ document_id: string; error: string }> }
         }>('/api/documents/bulk-tags', {
           document_ids: Array.from(selectedDocs),
           tags: Array.from(tagsToAdd),
           operation: 'add'
         })
-        results.push(`Added ${tagsToAdd.size} tag(s) to ${addResult.results.success} document(s)`)
+        if (addResult.results.failed > 0) {
+          hasFailures = true
+          results.push(`Added tags to ${addResult.results.success}/${selectedDocs.size} docs (${addResult.results.failed} failed)`)
+        } else {
+          results.push(`Added ${tagsToAdd.size} tag(s) to ${addResult.results.success} document(s)`)
+        }
       }
 
       // Remove tags
       if (tagsToRemove.size > 0) {
         const removeResult = await apiPost<{
           success: boolean
-          results: { success: number; failed: number }
+          results: { success: number; failed: number; errors?: Array<{ document_id: string; error: string }> }
         }>('/api/documents/bulk-tags', {
           document_ids: Array.from(selectedDocs),
           tags: Array.from(tagsToRemove),
           operation: 'remove'
         })
-        results.push(`Removed ${tagsToRemove.size} tag(s) from ${removeResult.results.success} document(s)`)
+        if (removeResult.results.failed > 0) {
+          hasFailures = true
+          results.push(`Removed tags from ${removeResult.results.success}/${selectedDocs.size} docs (${removeResult.results.failed} failed)`)
+        } else {
+          results.push(`Removed ${tagsToRemove.size} tag(s) from ${removeResult.results.success} document(s)`)
+        }
       }
 
-      setResult({ success: true, message: results.join('. ') })
+      setResult({ success: !hasFailures, message: results.join('. ') })
 
       // Reset and refresh
       setTagsToAdd(new Set())
@@ -236,7 +247,9 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
       fetchTags()
       onDocumentsChange?.()
     } catch (err) {
-      setResult({ success: false, message: 'Failed to apply tags' })
+      console.error('Failed to apply tags:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      setResult({ success: false, message: `Failed to apply tags: ${errorMessage}` })
     } finally {
       setApplying(false)
     }
@@ -254,14 +267,14 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
       <div className="flex-1 border-r border-default flex flex-col">
         {/* Search and Filter */}
         <div className="p-4 border-b border-default space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+          <div className="flex items-center gap-2 px-3 py-2 border border-default rounded-lg bg-card hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
+            <Search className="w-4 h-4 text-muted" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search documents..."
-              className="input-field w-full !pl-14 text-sm"
+              className="flex-1 bg-transparent outline-none text-sm text-primary placeholder:text-muted"
             />
           </div>
           <TagSelector
