@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Search, FileText, Tag, Plus, Minus, Loader2, Check, X, AlertCircle } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
+import TagSelector from '@/components/TagSelector'
 
 interface KBDocument {
   id: string
@@ -24,6 +25,7 @@ interface TagManagerTabProps {
 export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps) {
   // Document selection state
   const [searchQuery, setSearchQuery] = useState('')
+  const [filterTags, setFilterTags] = useState<Set<string>>(new Set())
   const [documents, setDocuments] = useState<KBDocument[]>([])
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set())
   const [loadingDocs, setLoadingDocs] = useState(false)
@@ -54,6 +56,9 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
       if (searchQuery) {
         params.append('q', searchQuery)
       }
+      if (filterTags.size > 0) {
+        params.append('tags', Array.from(filterTags).join(','))
+      }
 
       const result = await apiGet<{
         success: boolean
@@ -74,7 +79,7 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
     } finally {
       setLoadingDocs(false)
     }
-  }, [searchQuery, docsOffset])
+  }, [searchQuery, filterTags, docsOffset])
 
   // Fetch all tags
   const fetchTags = useCallback(async () => {
@@ -99,13 +104,13 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
     fetchTags()
   }, [])
 
-  // Search effect
+  // Search and filter effect
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchDocuments(true)
     }, 300)
     return () => clearTimeout(timer)
-  }, [searchQuery])
+  }, [searchQuery, filterTags])
 
   // Toggle document selection
   const toggleDoc = (docId: string) => {
@@ -233,8 +238,8 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
     <div className="flex h-full">
       {/* Left Panel - Document Selection */}
       <div className="flex-1 border-r border-default flex flex-col">
-        {/* Search */}
-        <div className="p-4 border-b border-default">
+        {/* Search and Filter */}
+        <div className="p-4 border-b border-default space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
             <input
@@ -245,6 +250,11 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
               className="input-field w-full pl-10"
             />
           </div>
+          <TagSelector
+            selectedTags={filterTags}
+            onTagsChange={setFilterTags}
+            placeholder="Filter by tags..."
+          />
         </div>
 
         {/* Selection Actions */}
