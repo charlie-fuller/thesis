@@ -261,7 +261,7 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search documents..."
-              className="input-field w-full !pl-12"
+              className="input-field w-full !pl-14 text-sm"
             />
           </div>
           <TagSelector
