@@ -1224,6 +1224,10 @@ def _extract_path_tags(relative_path: str) -> List[str]:
 
     For example: "Projects/AI Strategy/meeting-notes.md" -> ["Projects", "AI Strategy"]
 
+    Special handling for GitHub folders: only include up to the repo name (first folder
+    after "GitHub"), not subfolders within the repo.
+    Example: "GitHub/thesis/backend/services/file.md" -> ["GitHub", "thesis"]
+
     Args:
         relative_path: Relative path from vault root (e.g., "folder/subfolder/file.md")
 
@@ -1236,8 +1240,24 @@ def _extract_path_tags(relative_path: str) -> List[str]:
     # Get all parent folders (exclude the filename)
     parts = list(path.parts[:-1])  # Exclude last part (filename)
 
-    # Filter out empty parts and return
-    return [part for part in parts if part and part.strip()]
+    # Filter out empty parts
+    parts = [part for part in parts if part and part.strip()]
+
+    # Special handling for GitHub folders - only keep up to repo name
+    # Look for "GitHub" (case-insensitive) in the path
+    github_idx = None
+    for i, part in enumerate(parts):
+        if part.lower() == 'github':
+            github_idx = i
+            break
+
+    if github_idx is not None:
+        # Keep everything before GitHub, plus GitHub folder, plus one more (repo name)
+        # Example: ["foo", "GitHub", "thesis", "backend"] -> ["foo", "GitHub", "thesis"]
+        max_idx = github_idx + 2  # GitHub + repo name
+        parts = parts[:max_idx]
+
+    return parts
 
 
 def _sync_document_tags(document_id: str, tags: List[str], source: str = 'frontmatter') -> None:
