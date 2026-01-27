@@ -120,6 +120,7 @@ class AgentRunRequest(BaseModel):
     document_ids: Optional[List[str]] = None
     output_format: Optional[str] = "comprehensive"  # comprehensive, executive, brief
     multi_pass: Optional[bool] = False  # Enable multi-pass synthesis (synthesizer only)
+    kb_folder: Optional[str] = None  # KB folder path for discovery_prep agent
 
 
 # ============================================================================
@@ -489,7 +490,8 @@ async def api_start_run(
                     agent_type=data.agent_type,
                     user_id=current_user['id'],
                     document_ids=data.document_ids,
-                    output_format=data.output_format or "comprehensive"
+                    output_format=data.output_format or "comprehensive",
+                    kb_folder=data.kb_folder
                 )
 
             async for event in agent_gen:

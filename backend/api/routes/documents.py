@@ -434,6 +434,116 @@ async def process_document_endpoint(
 # Document Retrieval
 # ============================================================================
 
+@router.get("/by-folder")
+async def get_documents_by_folder(
+    folder_path: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all KB documents from a specific Obsidian folder path.
+
+    Args:
+        folder_path: The folder path prefix to match (e.g., "Legal Ops/Ashley Adams")
+
+    Returns:
+        List of documents whose obsidian_file_path starts with the given folder path
+    """
+    try:
+        if not folder_path or not folder_path.strip():
+            raise HTTPException(status_code=400, detail="folder_path is required")
+
+        folder_path = folder_path.strip()
+        # Ensure folder path ends with / for prefix matching (unless it's the root)
+        search_prefix = folder_path if folder_path.endswith('/') else f"{folder_path}/"
+
+        # Query documents where obsidian_file_path starts with the folder path
+        # Use ilike for case-insensitive matching
+        result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, filename, title, obsidian_file_path, source_platform, uploaded_at, storage_url')
+                .eq('source_platform', 'obsidian')
+                .eq('uploaded_by', current_user['id'])
+                .ilike('obsidian_file_path', f'{folder_path}%')
+                .order('obsidian_file_path')
+                .execute()
+        )
+
+        documents = result.data or []
+
+        # Also get the full content for each document (for agent use)
+        docs_with_content = []
+        for doc in documents:
+            # Get document content from chunks
+            chunks_result = await asyncio.to_thread(
+                lambda d=doc: supabase.table('document_chunks')
+                    .select('content, chunk_index')
+                    .eq('document_id', d['id'])
+                    .order('chunk_index')
+                    .execute()
+            )
+
+            content = '\n'.join([c['content'] for c in (chunks_result.data or [])])
+            docs_with_content.append({
+                **doc,
+                'content': content
+            })
+
+        return {
+            'success': True,
+            'folder_path': folder_path,
+            'count': len(docs_with_content),
+            'documents': docs_with_content
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching documents by folder: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+@router.get("/folders")
+async def get_obsidian_folders(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get unique Obsidian folder paths for the current user.
+
+    Returns:
+        List of unique folder paths from the user's Obsidian documents
+    """
+    try:
+        # Get all obsidian documents for this user
+        result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('obsidian_file_path')
+                .eq('source_platform', 'obsidian')
+                .eq('uploaded_by', current_user['id'])
+                .not_.is_('obsidian_file_path', 'null')
+                .execute()
+        )
+
+        # Extract unique folder paths
+        folders = set()
+        for doc in (result.data or []):
+            path = doc.get('obsidian_file_path', '')
+            if path and '/' in path:
+                # Get all parent folders
+                parts = path.split('/')
+                for i in range(1, len(parts)):
+                    folders.add('/'.join(parts[:i]))
+
+        # Sort folders alphabetically
+        sorted_folders = sorted(folders)
+
+        return {
+            'success': True,
+            'folders': sorted_folders
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching Obsidian folders: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
 @router.get("/{document_id}")
 async def get_document_metadata(
     document_id: str,

@@ -305,6 +305,11 @@ export default function AgentRunner({
   const [currentPassLabel, setCurrentPassLabel] = useState('')
   const [hitlExpanded, setHitlExpanded] = useState(false)
 
+  // KB folder selection (for Discovery Prep)
+  const [kbFolders, setKbFolders] = useState<string[]>([])
+  const [selectedKbFolder, setSelectedKbFolder] = useState<string>('')
+  const [loadingFolders, setLoadingFolders] = useState(false)
+
   const contentRef = useRef<HTMLDivElement>(null)
 
   // Load available agents
@@ -319,6 +324,24 @@ export default function AgentRunner({
     }
     loadAgents()
   }, [])
+
+  // Load KB folders when Discovery Prep is selected
+  useEffect(() => {
+    if (selectedAgent === 'discovery_prep') {
+      const loadFolders = async () => {
+        setLoadingFolders(true)
+        try {
+          const result = await apiGet<{ success: boolean; folders: string[] }>('/api/documents/folders')
+          setKbFolders(result.folders || [])
+        } catch (err) {
+          console.error('Failed to load KB folders:', err)
+        } finally {
+          setLoadingFolders(false)
+        }
+      }
+      loadFolders()
+    }
+  }, [selectedAgent])
 
   // Auto-scroll to bottom of content
   useEffect(() => {
@@ -362,16 +385,23 @@ export default function AgentRunner({
       const isMultiPass = (selectedAgent === 'consolidator' || selectedAgent === 'synthesizer') && multiPass
       const timeoutMs = isMultiPass ? 600000 : 300000 // 10 min for multi-pass, 5 min for single
 
+      const requestBody: Record<string, unknown> = {
+        agent_type: selectedAgent,
+        output_format: outputFormat,
+        multi_pass: isMultiPass
+      }
+
+      // Add KB folder for Discovery Prep
+      if (selectedAgent === 'discovery_prep' && selectedKbFolder) {
+        requestBody.kb_folder = selectedKbFolder
+      }
+
       const response = await authenticatedFetch(
         `/api/disco/initiatives/${initiativeId}/runs`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            agent_type: selectedAgent,
-            output_format: outputFormat,
-            multi_pass: isMultiPass
-          }),
+          body: JSON.stringify(requestBody),
           timeout: timeoutMs,
         }
       )
@@ -698,6 +728,45 @@ export default function AgentRunner({
                 </div>
               </label>
             </div>
+          </div>
+        )}
+
+        {/* KB Folder Selection (Discovery Prep) */}
+        {selectedAgent === 'discovery_prep' && (
+          <div className="mt-4 p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+            <h4 className="text-sm font-medium text-orange-900 dark:text-orange-100 mb-2">
+              Select Knowledge Base Folder
+            </h4>
+            <p className="text-xs text-orange-700 dark:text-orange-300 mb-3">
+              Choose an Obsidian folder containing stakeholder documents (interviews, meeting notes, spreadsheets)
+            </p>
+            {loadingFolders ? (
+              <div className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading folders...
+              </div>
+            ) : kbFolders.length === 0 ? (
+              <p className="text-sm text-orange-600 dark:text-orange-400">
+                No Obsidian folders found. Sync your Obsidian vault first.
+              </p>
+            ) : (
+              <select
+                value={selectedKbFolder}
+                onChange={(e) => setSelectedKbFolder(e.target.value)}
+                disabled={running}
+                className="w-full px-3 py-2 text-sm border border-orange-300 dark:border-orange-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              >
+                <option value="">-- Select a folder --</option>
+                {kbFolders.map((folder) => (
+                  <option key={folder} value={folder}>{folder}</option>
+                ))}
+              </select>
+            )}
+            {selectedKbFolder && (
+              <p className="mt-2 text-xs text-orange-600 dark:text-orange-400">
+                All documents in &quot;{selectedKbFolder}&quot; will be analyzed
+              </p>
+            )}
           </div>
         )}
 

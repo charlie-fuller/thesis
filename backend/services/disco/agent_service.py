@@ -628,12 +628,69 @@ async def build_agent_context(
     return context
 
 
+async def _fetch_kb_folder_documents(folder_path: str, user_id: str) -> str:
+    """
+    Fetch documents from a KB folder and return their content.
+
+    Args:
+        folder_path: The Obsidian folder path (e.g., "Legal Ops/Ashley Adams")
+        user_id: User ID for authorization
+
+    Returns:
+        Concatenated document content with headers
+    """
+    try:
+        # Query documents where obsidian_file_path starts with the folder path
+        result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, filename, title, obsidian_file_path')
+                .eq('source_platform', 'obsidian')
+                .eq('uploaded_by', user_id)
+                .ilike('obsidian_file_path', f'{folder_path}%')
+                .order('obsidian_file_path')
+                .execute()
+        )
+
+        documents = result.data or []
+        if not documents:
+            logger.warning(f"No documents found in KB folder: {folder_path}")
+            return ""
+
+        logger.info(f"Found {len(documents)} documents in KB folder: {folder_path}")
+
+        # Fetch content for each document
+        content_parts = []
+        for doc in documents:
+            # Get document content from chunks
+            chunks_result = await asyncio.to_thread(
+                lambda d=doc: supabase.table('document_chunks')
+                    .select('content, chunk_index')
+                    .eq('document_id', d['id'])
+                    .order('chunk_index')
+                    .execute()
+            )
+
+            content = '\n'.join([c['content'] for c in (chunks_result.data or [])])
+            if content:
+                title = doc.get('title') or doc.get('filename') or doc.get('obsidian_file_path')
+                content_parts.append(f"\n\n=== {title} ===\n")
+                content_parts.append(f"Source: {doc.get('obsidian_file_path', 'Unknown')}\n")
+                content_parts.append(content)
+
+        return '\n'.join(content_parts)
+
+    except Exception as e:
+        logger.error(f"Error fetching KB folder documents: {e}")
+        return ""
+
+
 async def run_agent(
     initiative_id: str,
     agent_type: str,
     user_id: str,
     document_ids: Optional[List[str]] = None,
-    output_format: str = "comprehensive"
+    output_format: str = "comprehensive",
+    kb_folder: Optional[str] = None
 ) -> AsyncGenerator[Dict, None]:
     """
     Execute an agent run with streaming response.
@@ -643,6 +700,7 @@ async def run_agent(
         agent_type: Type of agent to run
         user_id: User running the agent
         document_ids: Optional list of specific document IDs to use
+        kb_folder: Optional KB folder path to include documents from (for discovery_prep)
 
     Yields:
         Dict with type (status, content, complete) and data
@@ -650,6 +708,8 @@ async def run_agent(
     logger.info(f"[PURDY] ========== Starting agent run ==========")
     logger.info(f"[PURDY] Agent type: '{agent_type}' (type: {type(agent_type).__name__})")
     logger.info(f"[PURDY] Initiative: {initiative_id}, User: {user_id}")
+    if kb_folder:
+        logger.info(f"[PURDY] KB folder: {kb_folder}")
 
     # Validate agent_type immediately
     if not agent_type or agent_type not in AGENT_FILES:
@@ -681,6 +741,14 @@ async def run_agent(
 
         # Build context
         context = await build_agent_context(initiative_id, agent_type)
+
+        # If KB folder specified, fetch and add those documents
+        if kb_folder:
+            yield {'type': 'status', 'data': f'Loading documents from {kb_folder}...'}
+            kb_docs_content = await _fetch_kb_folder_documents(kb_folder, user_id)
+            if kb_docs_content:
+                context['kb_folder_documents'] = kb_docs_content
+                logger.info(f"[PURDY] Added {len(kb_docs_content)} chars from KB folder")
 
         # Build the full prompt with format guidance
         full_prompt = build_full_prompt(agent_type, context, output_format)
@@ -881,6 +949,12 @@ def build_full_prompt(agent_type: str, context: Dict, output_format: str = "comp
 
     parts.append("# Initiative Context\n")
 
+    # KB folder documents (for discovery_prep - these are the PRIMARY input)
+    if context.get('kb_folder_documents'):
+        parts.append("## Stakeholder Documents (from KB Folder)\n")
+        parts.append(context['kb_folder_documents'])
+        parts.append("\n")
+
     if context.get('documents'):
         parts.append("## Source Documents\n")
         parts.append(context['documents'])
@@ -898,6 +972,24 @@ def build_full_prompt(agent_type: str, context: Dict, output_format: str = "comp
 
     # Agent-specific instructions
     agent_instructions = {
+        'discovery_prep': """Please analyze the stakeholder documents provided and create a Meeting Preparation Guide.
+
+FIRST, evaluate the Minimum Viable Input (MVI):
+- Can you identify at least 2 potential projects or challenges?
+- Do you have stakeholder context (role, team)?
+- Is there enough detail to justify Impact/Feasibility/Urgency scores?
+
+If MVI is NOT met, output a Stakeholder Request asking for the specific context needed.
+
+If MVI IS met, create a Meeting Prep Guide with:
+1. Project Cards (3-5) with IFU scores and evidence-based rationale
+2. Key Assumptions to validate (with checkboxes)
+3. Confirmation Questions for each project
+4. Meta-Questions (cross-cutting concerns)
+5. Selection Table with recommendations
+6. Blank capture sections for meeting use
+
+Base all scores and insights on evidence from the provided documents. Do not invent projects not mentioned in the documents.""",
         'triage': "Please perform a triage analysis of this initiative. Provide a GO/NO-GO recommendation, tier routing, and confidence-tagged ROI assessment.",
         'discovery_planner': """Please create an outcome-driven discovery plan for this initiative.
 
