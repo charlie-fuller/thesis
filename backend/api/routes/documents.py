@@ -655,19 +655,31 @@ async def bulk_tag_operation(
                         continue
 
                     if request.operation == 'add':
-                        # Upsert tag
-                        await asyncio.to_thread(
+                        # Insert tag - use insert instead of upsert for better reliability
+                        # Check if tag already exists first
+                        existing = await asyncio.to_thread(
                             lambda d=doc_id, t=tag: supabase.table('document_tags')
-                                .upsert({
-                                    'document_id': d,
-                                    'tag': t,
-                                    'source': 'manual'
-                                }, on_conflict='document_id,tag')
+                                .select('id')
+                                .eq('document_id', d)
+                                .eq('tag', t)
                                 .execute()
                         )
+                        if not existing.data:
+                            insert_result = await asyncio.to_thread(
+                                lambda d=doc_id, t=tag: supabase.table('document_tags')
+                                    .insert({
+                                        'document_id': d,
+                                        'tag': t,
+                                        'source': 'manual'
+                                    })
+                                    .execute()
+                            )
+                            logger.info(f"Tag insert for doc {doc_id}, tag '{tag}': data={insert_result.data}")
+                        else:
+                            logger.info(f"Tag already exists for doc {doc_id}, tag '{tag}': skipping")
                     else:  # remove
                         # Only remove manual tags
-                        await asyncio.to_thread(
+                        delete_result = await asyncio.to_thread(
                             lambda d=doc_id, t=tag: supabase.table('document_tags')
                                 .delete()
                                 .eq('document_id', d)
@@ -675,6 +687,7 @@ async def bulk_tag_operation(
                                 .eq('source', 'manual')
                                 .execute()
                         )
+                        logger.info(f"Tag delete for doc {doc_id}, tag '{tag}': data={delete_result.data}")
 
                 results['success'] += 1
 
@@ -1941,18 +1954,36 @@ async def add_document_tag(
         if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
             raise HTTPException(status_code=403, detail="Not authorized to modify this document")
 
-        # Insert tag (upsert to handle duplicates)
-        tag_result = await asyncio.to_thread(
+        # Check if tag already exists
+        existing = await asyncio.to_thread(
             lambda: supabase.table('document_tags')
-                .upsert({
-                    'document_id': document_id,
-                    'tag': tag,
-                    'source': 'manual'
-                }, on_conflict='document_id,tag')
+                .select('id, tag, source')
+                .eq('document_id', document_id)
+                .eq('tag', tag)
                 .execute()
         )
 
-        logger.info(f"Added tag '{tag}' to document {document_id}")
+        if existing.data:
+            logger.info(f"Tag '{tag}' already exists on document {document_id}")
+            return {
+                'success': True,
+                'document_id': document_id,
+                'tag': existing.data[0],
+                'already_exists': True
+            }
+
+        # Insert new tag
+        tag_result = await asyncio.to_thread(
+            lambda: supabase.table('document_tags')
+                .insert({
+                    'document_id': document_id,
+                    'tag': tag,
+                    'source': 'manual'
+                })
+                .execute()
+        )
+
+        logger.info(f"Added tag '{tag}' to document {document_id}: {tag_result.data}")
 
         return {
             'success': True,
