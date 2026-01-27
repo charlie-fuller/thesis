@@ -183,8 +183,8 @@ export default function TagSelector({
         className={`relative ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         onClick={() => !disabled && setIsOpen(true)}
       >
-        <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
-          <Search className="w-4 h-4 text-slate-400" />
+        <div className="flex items-center gap-2 px-3 py-2 border border-default rounded-lg bg-card hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
+          <Search className="w-4 h-4 text-muted" />
           <input
             ref={inputRef}
             type="text"
@@ -193,15 +193,15 @@ export default function TagSelector({
             onFocus={() => !disabled && setIsOpen(true)}
             placeholder={placeholder}
             disabled={disabled}
-            className="flex-1 bg-transparent outline-none text-sm text-slate-900 dark:text-white placeholder:text-slate-400"
+            className="flex-1 bg-transparent outline-none text-sm text-primary placeholder:text-muted"
           />
-          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-4 h-4 text-muted transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </div>
       </div>
 
       {/* Dropdown */}
       {isOpen && !disabled && (
-        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-72 overflow-auto">
+        <div className="absolute z-50 w-full mt-1 bg-card border border-default rounded-lg shadow-lg max-h-72 overflow-auto">
           {loading && offset === 0 ? (
             <div className="flex items-center justify-center py-4">
               <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
@@ -211,7 +211,7 @@ export default function TagSelector({
               {/* Initiative Tags Section */}
               {showInitiatives && filteredInitiativeTags.length > 0 && (
                 <div>
-                  <div className="px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-900/50 flex items-center gap-2">
+                  <div className="px-3 py-2 text-xs font-semibold text-secondary uppercase tracking-wider bg-subtle flex items-center gap-2">
                     <Building2 className="w-3 h-3" />
                     Initiatives
                   </div>
@@ -219,18 +219,18 @@ export default function TagSelector({
                     <button
                       key={`initiative-${item.tag}`}
                       onClick={() => toggleTag(item.tag)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${
+                      className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-subtle transition-colors ${
                         selectedTags.has(item.tag) ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
                       }`}
                     >
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${
                         selectedTags.has(item.tag)
                           ? 'bg-indigo-600 border-indigo-600'
-                          : 'border-slate-300 dark:border-slate-600'
+                          : 'border-default'
                       }`}>
                         {selectedTags.has(item.tag) && <Check className="w-3 h-3 text-white" />}
                       </div>
-                      <span className="flex-1 text-sm text-slate-900 dark:text-white">{item.tag}</span>
+                      <span className="flex-1 text-sm text-primary">{item.tag}</span>
                       <Building2 className="w-3 h-3 text-emerald-500" />
                     </button>
                   ))}
@@ -241,7 +241,7 @@ export default function TagSelector({
               {tags.length > 0 && (
                 <div>
                   {showInitiatives && filteredInitiativeTags.length > 0 && (
-                    <div className="px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-900/50 flex items-center gap-2">
+                    <div className="px-3 py-2 text-xs font-semibold text-secondary uppercase tracking-wider bg-subtle flex items-center gap-2">
                       <Tag className="w-3 h-3" />
                       Tags
                     </div>
@@ -250,19 +250,19 @@ export default function TagSelector({
                     <button
                       key={item.tag}
                       onClick={() => toggleTag(item.tag)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${
+                      className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-subtle transition-colors ${
                         selectedTags.has(item.tag) ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
                       }`}
                     >
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${
                         selectedTags.has(item.tag)
                           ? 'bg-indigo-600 border-indigo-600'
-                          : 'border-slate-300 dark:border-slate-600'
+                          : 'border-default'
                       }`}>
                         {selectedTags.has(item.tag) && <Check className="w-3 h-3 text-white" />}
                       </div>
-                      <span className="flex-1 text-sm text-slate-900 dark:text-white">{item.tag}</span>
-                      <span className="text-xs text-slate-400">{item.count}</span>
+                      <span className="flex-1 text-sm text-primary">{item.tag}</span>
+                      <span className="text-xs text-muted">{item.count}</span>
                     </button>
                   ))}
                 </div>
@@ -270,7 +270,7 @@ export default function TagSelector({
 
               {/* Empty State */}
               {tags.length === 0 && filteredInitiativeTags.length === 0 && !loading && (
-                <div className="px-3 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                <div className="px-3 py-4 text-center text-sm text-secondary">
                   {debouncedSearch ? `No tags matching "${debouncedSearch}"` : 'No tags found'}
                 </div>
               )}
@@ -280,7 +280,7 @@ export default function TagSelector({
                 <button
                   onClick={loadMore}
                   disabled={loading}
-                  className="w-full px-3 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center justify-center gap-2"
+                  className="w-full px-3 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-subtle transition-colors flex items-center justify-center gap-2"
                 >
                   {loading ? (
                     <>
