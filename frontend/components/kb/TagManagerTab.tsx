@@ -232,32 +232,32 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
   return (
     <div className="flex h-full">
       {/* Left Panel - Document Selection */}
-      <div className="flex-1 border-r border-slate-200 dark:border-slate-700 flex flex-col">
+      <div className="flex-1 border-r border-default flex flex-col">
         {/* Search */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+        <div className="p-4 border-b border-default">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search documents..."
-              className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500"
+              className="input-field w-full pl-10"
             />
           </div>
         </div>
 
         {/* Selection Actions */}
-        <div className="px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-          <span className="text-sm text-slate-600 dark:text-slate-400">
+        <div className="px-4 py-2 bg-subtle border-b border-default flex items-center justify-between">
+          <span className="text-sm text-secondary">
             {selectedDocs.size} document(s) selected
           </span>
           <div className="flex gap-2">
             <button onClick={selectAll} className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
               Select all
             </button>
-            <span className="text-slate-300">|</span>
-            <button onClick={deselectAll} className="text-sm text-slate-500 hover:underline">
+            <span className="text-muted">|</span>
+            <button onClick={deselectAll} className="text-sm text-secondary hover:underline">
               Clear
             </button>
           </div>
@@ -270,41 +270,41 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
               <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
             </div>
           ) : documents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-              <FileText className="w-10 h-10 mb-3 text-slate-300" />
+            <div className="flex flex-col items-center justify-center py-12 text-secondary">
+              <FileText className="w-10 h-10 mb-3 text-muted" />
               <p>No documents found</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100 dark:divide-slate-700">
+            <div className="divide-y divide-default">
               {documents.map(doc => (
                 <button
                   key={doc.id}
                   onClick={() => toggleDoc(doc.id)}
-                  className={`w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${
+                  className={`w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-subtle transition-colors ${
                     selectedDocs.has(doc.id) ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
                   }`}
                 >
                   <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 ${
                     selectedDocs.has(doc.id)
                       ? 'bg-indigo-600 border-indigo-600'
-                      : 'border-slate-300 dark:border-slate-600'
+                      : 'border-default'
                   }`}>
                     {selectedDocs.has(doc.id) && <Check className="w-3 h-3 text-white" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-slate-900 dark:text-white truncate">
+                    <div className="font-medium text-primary truncate">
                       {doc.title || doc.filename}
                     </div>
                     {doc.tags && doc.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
                         {doc.tags.slice(0, 4).map(tag => (
-                          <span key={tag} className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded">
+                          <span key={tag} className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-subtle text-secondary rounded">
                             <Tag className="w-2.5 h-2.5" />
                             {tag}
                           </span>
                         ))}
                         {doc.tags.length > 4 && (
-                          <span className="text-xs text-slate-400">+{doc.tags.length - 4}</span>
+                          <span className="text-xs text-muted">+{doc.tags.length - 4}</span>
                         )}
                       </div>
                     )}
@@ -317,7 +317,7 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
                 <button
                   onClick={() => fetchDocuments(false)}
                   disabled={loadingDocs}
-                  className="w-full py-3 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center justify-center gap-2"
+                  className="w-full py-3 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-subtle flex items-center justify-center gap-2"
                 >
                   {loadingDocs ? (
                     <>
@@ -336,16 +336,16 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
 
       {/* Right Panel - Tag Operations */}
       <div className="w-80 flex flex-col">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-          <h3 className="font-medium text-slate-900 dark:text-white">Tag Operations</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+        <div className="p-4 border-b border-default">
+          <h3 className="font-medium text-primary">Tag Operations</h3>
+          <p className="text-sm text-secondary mt-1">
             Select documents, then add or remove tags
           </p>
         </div>
 
         {/* New Tag Input */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+        <div className="p-4 border-b border-default">
+          <label className="block text-sm font-medium text-secondary mb-2">
             Create New Tag
           </label>
           <div className="flex gap-2">
@@ -355,7 +355,7 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
               onChange={(e) => setNewTag(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addNewTag()}
               placeholder="New tag name..."
-              className="flex-1 px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+              className="input-field flex-1 text-sm"
             />
             <button
               onClick={addNewTag}
@@ -416,13 +416,13 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
 
             {/* All Tags */}
             <div>
-              <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-2">
+              <h4 className="text-xs font-semibold text-secondary uppercase mb-2">
                 All Tags ({allTags.length})
               </h4>
               {loadingTags ? (
                 <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
               ) : allTags.length === 0 ? (
-                <p className="text-sm text-slate-400">No tags yet</p>
+                <p className="text-sm text-muted">No tags yet</p>
               ) : (
                 <div className="flex flex-wrap gap-1">
                   {allTags.map(item => {
@@ -441,20 +441,20 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
                               ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-300'
                               : isOnSelected
                               ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200'
-                              : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600'
+                              : 'bg-subtle text-secondary border-default'
                           }`}
                           title="Click to add this tag"
                         >
                           <Tag className="w-3 h-3" />
                           {item.tag}
-                          <span className="text-xs text-slate-400">({item.count})</span>
+                          <span className="text-xs text-muted">({item.count})</span>
                         </button>
                         <button
                           onClick={() => toggleTagToRemove(item.tag)}
                           className={`px-1.5 rounded-r-md border-t border-r border-b transition-colors ${
                             isRemoving
                               ? 'bg-red-200 dark:bg-red-800 text-red-700 dark:text-red-300 border-red-300'
-                              : 'bg-slate-100 dark:bg-slate-700 text-slate-500 hover:bg-red-50 hover:text-red-600 border-slate-200 dark:border-slate-600'
+                              : 'bg-subtle text-muted hover:bg-red-50 hover:text-red-600 border-default'
                           }`}
                           title="Click to remove this tag"
                         >
@@ -470,7 +470,7 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
         </div>
 
         {/* Apply Button */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700">
+        <div className="p-4 border-t border-default">
           {result && (
             <div className={`mb-3 p-2 rounded-md text-sm ${
               result.success
@@ -500,7 +500,7 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
           </button>
 
           {selectedDocs.size === 0 && (
-            <p className="mt-2 text-xs text-slate-500 text-center">
+            <p className="mt-2 text-xs text-secondary text-center">
               Select documents to enable tag operations
             </p>
           )}
