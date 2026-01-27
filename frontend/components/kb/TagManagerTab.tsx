@@ -45,8 +45,12 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
 
   const LIMIT = 50
 
+  // Track latest request to prevent race conditions
+  const latestRequestRef = useRef(0)
+
   // Fetch documents
   const fetchDocuments = useCallback(async (reset = true, query?: string, tags?: Set<string>) => {
+    const requestId = ++latestRequestRef.current
     setLoadingDocs(true)
     try {
       const params = new URLSearchParams({
@@ -68,6 +72,12 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
         hasMore: boolean
       }>(`/api/documents/search?${params}`)
 
+      // Only update state if this is still the latest request
+      if (requestId !== latestRequestRef.current) {
+        console.log('Ignoring stale response for request', requestId, '(latest is', latestRequestRef.current + ')')
+        return
+      }
+
       if (reset) {
         setDocuments(result.documents || [])
         setDocsOffset(LIMIT)
@@ -79,7 +89,10 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
     } catch (err) {
       console.error('Failed to fetch documents:', err)
     } finally {
-      setLoadingDocs(false)
+      // Only clear loading if this is still the latest request
+      if (requestId === latestRequestRef.current) {
+        setLoadingDocs(false)
+      }
     }
   }, [docsOffset])
 
@@ -226,7 +239,7 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
       // Reset and refresh
       setTagsToAdd(new Set())
       setTagsToRemove(new Set())
-      fetchDocuments(true)
+      fetchDocuments(true, searchQuery, filterTags)
       fetchTags()
       onDocumentsChange?.()
     } catch (err) {
@@ -333,7 +346,7 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
               {/* Load More */}
               {hasMoreDocs && (
                 <button
-                  onClick={() => fetchDocuments(false)}
+                  onClick={() => fetchDocuments(false, searchQuery, filterTags)}
                   disabled={loadingDocs}
                   className="w-full py-3 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-subtle flex items-center justify-center gap-2"
                 >
