@@ -113,21 +113,14 @@ export default function TagManagerTab({ onDocumentsChange }: TagManagerTabProps)
     }
   }, [])
 
-  // Initial load
+  // Fetch tags on mount
   useEffect(() => {
-    fetchDocuments(true, '', new Set())
     fetchTags()
   }, [])
 
-  // Search and filter effect - skip on initial mount
-  const isFirstRender = useRef(true)
+  // Search-based document loading (runs on mount and when search params change)
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false
-      return
-    }
     const timer = setTimeout(() => {
-      console.log('Searching with:', { searchQuery, filterTags: Array.from(filterTags) })
       fetchDocuments(true, searchQuery, filterTags)
     }, 300)
     return () => clearTimeout(timer)
