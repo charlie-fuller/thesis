@@ -420,7 +420,8 @@ async def list_user_documents(
         }
 
     except Exception as e:
-        logger.error(f"❌ Error listing documents: {str(e)}")
+        import traceback
+        logger.error(f"❌ Error listing documents: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
@@ -435,19 +436,20 @@ async def get_storage_info(
     try:
         user_id = current_user['id']
 
-        # Get user's storage quota
-        user_result = await asyncio.to_thread(
-            lambda: supabase.table('users')\
-                .select('storage_quota')\
-                .eq('id', user_id)\
-                .single()\
-                .execute()
-        )
-
-        if not user_result.data:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        storage_quota = user_result.data.get('storage_quota') or 524288000  # 500MB default
+        # Get user's storage quota (handle case where user doesn't exist in users table yet)
+        storage_quota = 524288000  # 500MB default
+        try:
+            user_result = await asyncio.to_thread(
+                lambda: supabase.table('users')\
+                    .select('storage_quota')\
+                    .eq('id', user_id)\
+                    .maybe_single()\
+                    .execute()
+            )
+            if user_result.data:
+                storage_quota = user_result.data.get('storage_quota') or storage_quota
+        except Exception as user_err:
+            logger.debug(f"Could not fetch user storage quota: {user_err}")
 
         # Calculate actual storage used from documents table
         docs_result = await asyncio.to_thread(
