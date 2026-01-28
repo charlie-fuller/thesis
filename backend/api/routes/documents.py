@@ -761,9 +761,9 @@ async def search_documents(
     try:
         user_id = current_user['id']
 
-        # Start with user's documents
+        # Start with user's documents - include tags_cache for fast filtering
         query = supabase.table('documents')\
-            .select('id, filename, title, obsidian_file_path, uploaded_at, source_platform')\
+            .select('id, filename, title, obsidian_file_path, uploaded_at, source_platform, tags_cache')\
             .eq('uploaded_by', user_id)\
             .order('uploaded_at', desc=True)
 
@@ -773,58 +773,27 @@ async def search_documents(
             # Search in filename and title using ilike
             query = query.or_(f"filename.ilike.%{search_term}%,title.ilike.%{search_term}%")
 
-        result = await asyncio.to_thread(lambda: query.execute())
-        documents = result.data or []
-
-        # Filter by tags if provided (optimized - single query instead of N+1)
+        # Apply tag filter directly in query using JSONB containment
+        # This uses the GIN index on tags_cache for fast lookups
         if tags:
             tag_list = [t.strip() for t in tags.split(',') if t.strip()]
-            if tag_list:
-                # Get all document IDs that have the required tags in a single query
-                doc_ids = [doc['id'] for doc in documents]
-                if doc_ids:
-                    # Batch query to get all tags for user's documents
-                    all_tags_data = []
-                    batch_size = 100
-                    for i in range(0, len(doc_ids), batch_size):
-                        batch_ids = doc_ids[i:i + batch_size]
-                        batch_result = await asyncio.to_thread(
-                            lambda ids=batch_ids: supabase.table('document_tags')
-                                .select('document_id, tag')
-                                .in_('document_id', ids)
-                                .execute()
-                        )
-                        all_tags_data.extend(batch_result.data or [])
+            for tag in tag_list:
+                # Each tag must be contained in tags_cache (AND logic)
+                query = query.contains('tags_cache', [tag])
 
-                    # Build a map of document_id -> set of tags
-                    doc_tags_map = {}
-                    for row in all_tags_data:
-                        doc_id = row['document_id']
-                        if doc_id not in doc_tags_map:
-                            doc_tags_map[doc_id] = set()
-                        doc_tags_map[doc_id].add(row['tag'])
-
-                    # Filter documents that have ALL specified tags
-                    filtered_docs = []
-                    for doc in documents:
-                        doc_tags = doc_tags_map.get(doc['id'], set())
-                        if all(tag in doc_tags for tag in tag_list):
-                            filtered_docs.append(doc)
-                    documents = filtered_docs
+        result = await asyncio.to_thread(lambda: query.execute())
+        documents = result.data or []
 
         # Paginate
         total_count = len(documents)
         documents = documents[offset:offset + limit]
 
-        # Enrich with tags
+        # Use tags_cache for display (already fetched, no extra query needed)
         for doc in documents:
-            tags_result = await asyncio.to_thread(
-                lambda d=doc['id']: supabase.table('document_tags')
-                    .select('tag, source')
-                    .eq('document_id', d)
-                    .execute()
-            )
-            doc['tags'] = [t['tag'] for t in (tags_result.data or [])]
+            # tags_cache is already a list from JSONB, use it directly
+            doc['tags'] = doc.get('tags_cache') or []
+            # Remove tags_cache from response (internal field)
+            doc.pop('tags_cache', None)
 
         return {
             'success': True,
