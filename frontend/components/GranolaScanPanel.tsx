@@ -145,7 +145,7 @@ export default function GranolaScanPanel() {
   if (!status) return null
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+    <div className="card p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
@@ -156,8 +156,8 @@ export default function GranolaScanPanel() {
             }`} />
           </div>
           <div>
-            <h3 className="font-medium text-slate-900 dark:text-white">Vault</h3>
-            <p className="text-xs text-slate-500">
+            <h3 className="text-lg font-semibold text-primary">Vault</h3>
+            <p className="text-sm text-secondary">
               {status.connected
                 ? `${status.scanned_files}/${status.total_files} meetings scanned`
                 : (status.error && status.error.length > 100
