@@ -12,17 +12,17 @@ type ProcessStep = {
 const processSteps: ProcessStep[] = [
   {
     id: 'vault',
-    title: 'Obsidian Vault',
+    title: 'Vault',
     description: 'New transcript file detected',
     details: [
-      'Granola creates meeting summaries in vault',
-      'Files saved to Granola/Meeting-summaries folder',
+      'Meeting summaries created in vault',
+      'Files saved to Meeting-summaries folder',
       'Includes transcript, participants, action items'
     ]
   },
   {
     id: 'sync',
-    title: 'Obsidian Sync',
+    title: 'Sync',
     description: 'File synced to Thesis',
     details: [
       'API endpoint: POST /api/obsidian/sync',
@@ -33,7 +33,7 @@ const processSteps: ProcessStep[] = [
   },
   {
     id: 'scanner',
-    title: 'Granola Scanner',
+    title: 'Scan',
     description: 'Meeting document identified',
     details: [
       'Heuristics detect meeting content',
@@ -99,6 +99,22 @@ const processSteps: ProcessStep[] = [
   }
 ]
 
+// High contrast colors that work in both light and dark modes
+const colors = {
+  // Brand blue - visible on both backgrounds
+  brand: '#3b82f6',
+  brandLight: 'rgba(59, 130, 246, 0.15)',
+  // Success green
+  success: '#22c55e',
+  successLight: 'rgba(34, 197, 94, 0.15)',
+  // Text colors - using explicit values for SVG
+  textPrimary: 'currentColor',
+  textSecondary: '#9ca3af',
+  // Arrows
+  arrow: '#60a5fa',
+  arrowSuccess: '#4ade80',
+}
+
 export default function ProcessMapPanel() {
   const [selectedStep, setSelectedStep] = useState<ProcessStep | null>(null)
 
@@ -112,27 +128,27 @@ export default function ProcessMapPanel() {
       </div>
 
       {/* SVG Flowchart */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto text-primary">
         <svg
           viewBox="0 0 1200 500"
           className="w-full min-w-[800px]"
           style={{ maxHeight: '500px' }}
         >
-          {/* Background */}
+          {/* Definitions */}
           <defs>
             {/* Gradient for main flow boxes */}
             <linearGradient id="boxGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="var(--color-brand)" stopOpacity="0.1" />
-              <stop offset="100%" stopColor="var(--color-brand)" stopOpacity="0.05" />
+              <stop offset="0%" stopColor={colors.brand} stopOpacity="0.2" />
+              <stop offset="100%" stopColor={colors.brand} stopOpacity="0.1" />
             </linearGradient>
 
             {/* Gradient for output boxes */}
             <linearGradient id="outputGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="var(--color-success)" stopOpacity="0.15" />
-              <stop offset="100%" stopColor="var(--color-success)" stopOpacity="0.05" />
+              <stop offset="0%" stopColor={colors.success} stopOpacity="0.2" />
+              <stop offset="100%" stopColor={colors.success} stopOpacity="0.1" />
             </linearGradient>
 
-            {/* Arrow marker */}
+            {/* Arrow marker - brand */}
             <marker
               id="arrowhead"
               markerWidth="10"
@@ -143,8 +159,22 @@ export default function ProcessMapPanel() {
             >
               <polygon
                 points="0 0, 10 3.5, 0 7"
-                fill="var(--color-brand)"
-                fillOpacity="0.6"
+                fill={colors.arrow}
+              />
+            </marker>
+
+            {/* Arrow marker - success */}
+            <marker
+              id="arrowheadSuccess"
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon
+                points="0 0, 10 3.5, 0 7"
+                fill={colors.arrowSuccess}
               />
             </marker>
           </defs>
@@ -160,16 +190,16 @@ export default function ProcessMapPanel() {
               x="50" y="60" width="160" height="80"
               rx="8"
               fill="url(#boxGradient)"
-              stroke="var(--color-brand)"
+              stroke={colors.brand}
               strokeWidth="2"
             />
-            <text x="130" y="90" textAnchor="middle" className="fill-primary text-sm font-semibold">
-              Obsidian Vault
+            <text x="130" y="92" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="600">
+              Vault
             </text>
-            <text x="130" y="115" textAnchor="middle" className="fill-secondary text-xs">
+            <text x="130" y="112" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               New transcript file
             </text>
-            <text x="130" y="130" textAnchor="middle" className="fill-secondary text-xs">
+            <text x="130" y="128" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               detected
             </text>
           </g>
@@ -178,9 +208,8 @@ export default function ProcessMapPanel() {
           <path
             d="M 210 100 L 270 100"
             fill="none"
-            stroke="var(--color-brand)"
+            stroke={colors.arrow}
             strokeWidth="2"
-            strokeOpacity="0.6"
             markerEnd="url(#arrowhead)"
           />
 
@@ -193,16 +222,16 @@ export default function ProcessMapPanel() {
               x="280" y="60" width="160" height="80"
               rx="8"
               fill="url(#boxGradient)"
-              stroke="var(--color-brand)"
+              stroke={colors.brand}
               strokeWidth="2"
             />
-            <text x="360" y="90" textAnchor="middle" className="fill-primary text-sm font-semibold">
-              Obsidian Sync
+            <text x="360" y="92" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="600">
+              Sync
             </text>
-            <text x="360" y="115" textAnchor="middle" className="fill-secondary text-xs">
+            <text x="360" y="112" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               File synced to Thesis
             </text>
-            <text x="360" y="130" textAnchor="middle" className="fill-secondary text-xs">
+            <text x="360" y="128" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               database
             </text>
           </g>
@@ -211,9 +240,8 @@ export default function ProcessMapPanel() {
           <path
             d="M 440 100 L 500 100"
             fill="none"
-            stroke="var(--color-brand)"
+            stroke={colors.arrow}
             strokeWidth="2"
-            strokeOpacity="0.6"
             markerEnd="url(#arrowhead)"
           />
 
@@ -226,16 +254,16 @@ export default function ProcessMapPanel() {
               x="510" y="60" width="160" height="80"
               rx="8"
               fill="url(#boxGradient)"
-              stroke="var(--color-brand)"
+              stroke={colors.brand}
               strokeWidth="2"
             />
-            <text x="590" y="90" textAnchor="middle" className="fill-primary text-sm font-semibold">
-              Granola Scanner
+            <text x="590" y="92" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="600">
+              Scan
             </text>
-            <text x="590" y="115" textAnchor="middle" className="fill-secondary text-xs">
+            <text x="590" y="112" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               Meeting document
             </text>
-            <text x="590" y="130" textAnchor="middle" className="fill-secondary text-xs">
+            <text x="590" y="128" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               identified
             </text>
           </g>
@@ -244,9 +272,8 @@ export default function ProcessMapPanel() {
           <path
             d="M 670 100 L 730 100"
             fill="none"
-            stroke="var(--color-brand)"
+            stroke={colors.arrow}
             strokeWidth="2"
-            strokeOpacity="0.6"
             markerEnd="url(#arrowhead)"
           />
 
@@ -259,16 +286,16 @@ export default function ProcessMapPanel() {
               x="740" y="60" width="160" height="80"
               rx="8"
               fill="url(#boxGradient)"
-              stroke="var(--color-brand)"
+              stroke={colors.brand}
               strokeWidth="2"
             />
-            <text x="820" y="90" textAnchor="middle" className="fill-primary text-sm font-semibold">
+            <text x="820" y="92" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="600">
               Document Processor
             </text>
-            <text x="820" y="115" textAnchor="middle" className="fill-secondary text-xs">
+            <text x="820" y="112" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               Text extraction
             </text>
-            <text x="820" y="130" textAnchor="middle" className="fill-secondary text-xs">
+            <text x="820" y="128" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               and embedding
             </text>
           </g>
@@ -277,9 +304,8 @@ export default function ProcessMapPanel() {
           <path
             d="M 820 140 L 820 180 L 590 180 L 590 220"
             fill="none"
-            stroke="var(--color-brand)"
+            stroke={colors.arrow}
             strokeWidth="2"
-            strokeOpacity="0.6"
             markerEnd="url(#arrowhead)"
           />
 
@@ -294,16 +320,16 @@ export default function ProcessMapPanel() {
               x="480" y="230" width="220" height="100"
               rx="12"
               fill="url(#boxGradient)"
-              stroke="var(--color-brand)"
+              stroke={colors.brand}
               strokeWidth="3"
             />
-            <text x="590" y="265" textAnchor="middle" className="fill-primary font-bold">
+            <text x="590" y="268" textAnchor="middle" fill={colors.textPrimary} fontSize="16" fontWeight="700">
               Discovery Inbox
             </text>
-            <text x="590" y="290" textAnchor="middle" className="fill-secondary text-sm">
+            <text x="590" y="292" textAnchor="middle" fill={colors.textSecondary} fontSize="13">
               AI analyzes for actionable items
             </text>
-            <text x="590" y="310" textAnchor="middle" className="fill-secondary text-xs">
+            <text x="590" y="312" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
               (LLM extraction)
             </text>
           </g>
@@ -314,30 +340,27 @@ export default function ProcessMapPanel() {
           <path
             d="M 520 330 L 520 360 L 230 360 L 230 400"
             fill="none"
-            stroke="var(--color-success)"
+            stroke={colors.arrowSuccess}
             strokeWidth="2"
-            strokeOpacity="0.6"
-            markerEnd="url(#arrowhead)"
+            markerEnd="url(#arrowheadSuccess)"
           />
 
           {/* Arrow: Discovery -> Projects */}
           <path
             d="M 590 330 L 590 400"
             fill="none"
-            stroke="var(--color-success)"
+            stroke={colors.arrowSuccess}
             strokeWidth="2"
-            strokeOpacity="0.6"
-            markerEnd="url(#arrowhead)"
+            markerEnd="url(#arrowheadSuccess)"
           />
 
           {/* Arrow: Discovery -> Stakeholders */}
           <path
             d="M 660 330 L 660 360 L 950 360 L 950 400"
             fill="none"
-            stroke="var(--color-success)"
+            stroke={colors.arrowSuccess}
             strokeWidth="2"
-            strokeOpacity="0.6"
-            markerEnd="url(#arrowhead)"
+            markerEnd="url(#arrowheadSuccess)"
           />
 
           {/* Tasks Output */}
@@ -349,13 +372,13 @@ export default function ProcessMapPanel() {
               x="130" y="410" width="200" height="70"
               rx="8"
               fill="url(#outputGradient)"
-              stroke="var(--color-success)"
+              stroke={colors.success}
               strokeWidth="2"
             />
-            <text x="230" y="440" textAnchor="middle" className="fill-primary text-sm font-semibold">
+            <text x="230" y="442" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="600">
               Tasks
             </text>
-            <text x="230" y="460" textAnchor="middle" className="fill-secondary text-xs">
+            <text x="230" y="462" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               Action items extracted
             </text>
           </g>
@@ -369,13 +392,13 @@ export default function ProcessMapPanel() {
               x="490" y="410" width="200" height="70"
               rx="8"
               fill="url(#outputGradient)"
-              stroke="var(--color-success)"
+              stroke={colors.success}
               strokeWidth="2"
             />
-            <text x="590" y="440" textAnchor="middle" className="fill-primary text-sm font-semibold">
+            <text x="590" y="442" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="600">
               Projects
             </text>
-            <text x="590" y="460" textAnchor="middle" className="fill-secondary text-xs">
+            <text x="590" y="462" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               Opportunities identified
             </text>
           </g>
@@ -389,28 +412,28 @@ export default function ProcessMapPanel() {
               x="850" y="410" width="200" height="70"
               rx="8"
               fill="url(#outputGradient)"
-              stroke="var(--color-success)"
+              stroke={colors.success}
               strokeWidth="2"
             />
-            <text x="950" y="440" textAnchor="middle" className="fill-primary text-sm font-semibold">
+            <text x="950" y="442" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="600">
               Stakeholders
             </text>
-            <text x="950" y="460" textAnchor="middle" className="fill-secondary text-xs">
+            <text x="950" y="462" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               People and relationships
             </text>
           </g>
 
           {/* Legend */}
           <g transform="translate(970, 60)">
-            <text x="0" y="0" className="fill-muted text-xs font-medium">Legend</text>
+            <text x="0" y="0" fill={colors.textSecondary} fontSize="12" fontWeight="500">Legend</text>
 
-            <rect x="0" y="15" width="20" height="12" rx="2" fill="url(#boxGradient)" stroke="var(--color-brand)" strokeWidth="1" />
-            <text x="28" y="25" className="fill-secondary text-xs">Processing Step</text>
+            <rect x="0" y="15" width="20" height="12" rx="2" fill="url(#boxGradient)" stroke={colors.brand} strokeWidth="1" />
+            <text x="28" y="25" fill={colors.textSecondary} fontSize="11">Processing Step</text>
 
-            <rect x="0" y="40" width="20" height="12" rx="2" fill="url(#outputGradient)" stroke="var(--color-success)" strokeWidth="1" />
-            <text x="28" y="50" className="fill-secondary text-xs">Output Entity</text>
+            <rect x="0" y="40" width="20" height="12" rx="2" fill="url(#outputGradient)" stroke={colors.success} strokeWidth="1" />
+            <text x="28" y="50" fill={colors.textSecondary} fontSize="11">Output Entity</text>
 
-            <text x="0" y="75" className="fill-muted text-xs">Click any box for details</text>
+            <text x="0" y="75" fill={colors.textSecondary} fontSize="11">Click any box for details</text>
           </g>
         </svg>
       </div>
@@ -451,7 +474,7 @@ export default function ProcessMapPanel() {
             <span className="text-sm font-medium text-primary">Ingestion</span>
           </div>
           <p className="text-xs text-secondary">
-            Files from Obsidian vault are synced, scanned for meeting content, and processed into searchable chunks with embeddings.
+            Files from vault are synced, scanned for meeting content, and processed into searchable chunks with embeddings.
           </p>
         </div>
         <div className="p-4 bg-hover rounded-lg">
