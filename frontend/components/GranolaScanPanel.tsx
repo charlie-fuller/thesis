@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { FileText, RefreshCw, CheckCircle } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 
@@ -32,6 +32,8 @@ export default function GranolaScanPanel() {
   const [isScanning, setIsScanning] = useState(false)
   const [loading, setLoading] = useState(true)
   const [scanMessage, setScanMessage] = useState<string | null>(null)
+  const autoScanTriggeredRef = useRef(false)
+  const lastPendingCountRef = useRef(0)
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -61,7 +63,46 @@ export default function GranolaScanPanel() {
     }
   }, [scanMessage])
 
-  const handleScan = async () => {
+  // Auto-scan when new documents are detected and sync is not active
+  useEffect(() => {
+    if (!status) return
+
+    const hasPendingFiles = status.pending_files > 0
+    const syncIsActive = status.sync_activity?.active
+    const newFilesDetected = status.pending_files > lastPendingCountRef.current
+
+    // Update last pending count
+    lastPendingCountRef.current = status.pending_files
+
+    // Auto-scan conditions:
+    // 1. Has pending files
+    // 2. Not currently scanning
+    // 3. Sync is not active (wait for files to finish syncing)
+    // 4. Either new files were just detected OR we haven't auto-scanned yet for current pending
+    if (hasPendingFiles && !isScanning && !syncIsActive) {
+      // Reset auto-scan flag when new files are detected
+      if (newFilesDetected) {
+        autoScanTriggeredRef.current = false
+      }
+
+      // Trigger auto-scan if not already triggered
+      if (!autoScanTriggeredRef.current) {
+        autoScanTriggeredRef.current = true
+        // Small delay to batch any rapid successive syncs
+        const timer = setTimeout(() => {
+          handleScan()
+        }, 2000)
+        return () => clearTimeout(timer)
+      }
+    }
+
+    // Reset flag when all files are scanned
+    if (!hasPendingFiles) {
+      autoScanTriggeredRef.current = false
+    }
+  }, [status?.pending_files, status?.sync_activity?.active, isScanning, handleScan])
+
+  const handleScan = useCallback(async () => {
     try {
       setIsScanning(true)
       setScanMessage(null)
@@ -69,7 +110,7 @@ export default function GranolaScanPanel() {
       const result = await apiPost<ScanResult>('/api/pipeline/granola/scan?force_rescan=false&background=true', {})
 
       if (result.status === 'started') {
-        setScanMessage('Scan started! You can navigate away - it will continue in the background.')
+        setScanMessage('Scan started! Analyzing in the background...')
         // Poll status after a delay
         setTimeout(async () => {
           await fetchStatus()
@@ -84,7 +125,7 @@ export default function GranolaScanPanel() {
       setScanMessage('Scan failed to start. Please try again.')
       setIsScanning(false)
     }
-  }
+  }, [fetchStatus])
 
   if (loading) {
     return (
