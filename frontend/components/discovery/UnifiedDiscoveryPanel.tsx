@@ -344,7 +344,7 @@ export default function UnifiedDiscoveryPanel() {
             <h3 className="text-lg font-semibold text-primary">Discovery Inbox</h3>
             {scanning?.active ? (
               <p className="text-sm text-amber-500">
-                {scanning.message || 'Analyzing documents for tasks, opportunities, stakeholders...'}
+                {scanning.message || 'Analyzing documents for tasks, projects, stakeholders...'}
               </p>
             ) : (
               <p className="text-sm text-green-500">All caught up - no items to review</p>

@@ -287,7 +287,7 @@ async def get_all_pending_candidates(
             scanning_status = ScanningStatus(
                 active=True,
                 pending_documents=pending_count,
-                message=f"Analyzing {pending_count} meeting{'s' if pending_count != 1 else ''} for tasks, opportunities, stakeholders..."
+                message=f"Analyzing {pending_count} meeting{'s' if pending_count != 1 else ''} for tasks, projects, stakeholders..."
             )
         else:
             scanning_status = ScanningStatus(active=False, pending_documents=0)
