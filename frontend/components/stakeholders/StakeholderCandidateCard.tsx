@@ -38,7 +38,9 @@ export interface StakeholderCandidate {
   confidence: string;
   potential_match_stakeholder_id: string | null;
   potential_match_name: string | null;
+  matched_candidate_id: string | null;
   match_confidence: number | null;
+  match_reason: string | null;
   created_at: string;
 }
 
@@ -197,12 +199,16 @@ export default function StakeholderCandidateCard({
       </div>
 
       {/* Potential Match Warning */}
-      {candidate.potential_match_stakeholder_id && (
+      {(candidate.potential_match_stakeholder_id || candidate.matched_candidate_id) && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
           <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 text-sm">
             <AlertCircle className="w-4 h-4" />
             <span>
-              Potential match: <strong>{candidate.potential_match_name}</strong>
+              {candidate.potential_match_stakeholder_id ? (
+                <>Potential match: <strong>{candidate.potential_match_name}</strong></>
+              ) : (
+                <>Similar to pending candidate</>
+              )}
               {candidate.match_confidence && (
                 <span className="text-amber-600 dark:text-amber-400 ml-1">
                   ({Math.round(candidate.match_confidence * 100)}% match)
@@ -210,6 +216,11 @@ export default function StakeholderCandidateCard({
               )}
             </span>
           </div>
+          {candidate.match_reason && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              {candidate.match_reason}
+            </p>
+          )}
         </div>
       )}
 

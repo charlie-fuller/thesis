@@ -88,6 +88,18 @@ class SyncActivityInfo(BaseModel):
     recent_files: List[dict] = []
 
 
+class ExtractionActivityInfo(BaseModel):
+    """Status of entity extraction from scanned documents."""
+    active: bool
+    job_id: Optional[str] = None
+    status: Optional[str] = None  # 'pending', 'running', 'completed', 'failed'
+    files_processed: int = 0
+    opportunities_found: int = 0
+    tasks_found: int = 0
+    stakeholders_found: int = 0
+    started_at: Optional[str] = None
+
+
 class GranolaScanStatus(BaseModel):
     """Status of Granola vault scanning."""
     connected: bool
@@ -98,6 +110,7 @@ class GranolaScanStatus(BaseModel):
     last_scan: Optional[str]
     error: Optional[str] = None
     sync_activity: Optional[SyncActivityInfo] = None
+    extraction_activity: Optional[ExtractionActivityInfo] = None
 
 
 class GranolaScanResult(BaseModel):
@@ -491,6 +504,49 @@ async def get_granola_status(
         except Exception as e:
             logger.warning(f"Failed to get sync activity: {e}")
 
+        # Get extraction activity from background scan jobs
+        extraction_activity = None
+        try:
+            # Find any active or recently completed extraction job for this user
+            for job_id, job in _scan_jobs.items():
+                if job.get('user_id') == user_id:
+                    job_status = job.get('status', 'unknown')
+                    # Include active jobs or recently completed ones (within 30 seconds)
+                    if job_status in ('pending', 'running'):
+                        result = job.get('result', {})
+                        extraction_activity = ExtractionActivityInfo(
+                            active=True,
+                            job_id=job_id,
+                            status=job_status,
+                            files_processed=result.get('files_processed', 0),
+                            opportunities_found=result.get('opportunities_created', 0),
+                            tasks_found=result.get('tasks_created', 0),
+                            stakeholders_found=result.get('stakeholders_created', 0),
+                            started_at=job.get('started_at')
+                        )
+                        break
+                    elif job_status == 'completed':
+                        completed_at = job.get('completed_at')
+                        if completed_at:
+                            try:
+                                completed_time = datetime.fromisoformat(completed_at)
+                                if (datetime.now() - completed_time).total_seconds() < 30:
+                                    result = job.get('result', {})
+                                    extraction_activity = ExtractionActivityInfo(
+                                        active=False,
+                                        job_id=job_id,
+                                        status='completed',
+                                        files_processed=result.get('files_processed', 0),
+                                        opportunities_found=result.get('opportunities_created', 0),
+                                        tasks_found=result.get('tasks_created', 0),
+                                        stakeholders_found=result.get('stakeholders_created', 0),
+                                        started_at=job.get('started_at')
+                                    )
+                            except Exception:
+                                pass
+        except Exception as e:
+            logger.warning(f"Failed to get extraction activity: {e}")
+
         return GranolaScanStatus(
             connected=status.get('connected', False),
             vault_path=status.get('vault_path', ''),
@@ -499,7 +555,8 @@ async def get_granola_status(
             pending_files=status.get('pending_files', 0),
             last_scan=last_scan,
             error=status.get('error'),
-            sync_activity=sync_activity
+            sync_activity=sync_activity,
+            extraction_activity=extraction_activity
         )
     except Exception as e:
         logger.error(f"Granola status endpoint error: {e}")

@@ -699,6 +699,11 @@ class CandidateAction(BaseModel):
     reason: Optional[str] = None  # For reject
 
 
+class LinkCandidateRequest(BaseModel):
+    """Request body for linking a candidate to an existing item."""
+    task_id: str
+
+
 class BulkCandidateAction(BaseModel):
     """Request body for bulk accept/reject."""
     candidate_ids: List[str]
@@ -890,6 +895,104 @@ async def reject_task_candidate(
         raise
     except Exception as e:
         logger.error(f"Error rejecting task candidate: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+@router.post("/candidates/{candidate_id}/link")
+async def link_task_candidate(
+    candidate_id: str,
+    body: LinkCandidateRequest,
+    current_user=Depends(get_current_user)
+):
+    """
+    Link a task candidate to an existing task instead of creating a new one.
+
+    This is used when a duplicate is detected and the user wants to associate
+    the candidate's context with an existing task rather than creating a new one.
+    """
+    try:
+        validate_uuid(candidate_id, "candidate_id")
+        validate_uuid(body.task_id, "task_id")
+        client_id = current_user.get('client_id') or get_default_client_id()
+        user_id = current_user['id']
+
+        # Get the candidate
+        candidate_result = await asyncio.to_thread(
+            lambda: supabase.table('task_candidates')
+                .select('*')
+                .eq('id', candidate_id)
+                .eq('client_id', client_id)
+                .single()
+                .execute()
+        )
+
+        if not candidate_result.data:
+            raise HTTPException(status_code=404, detail="Task candidate not found")
+
+        candidate = candidate_result.data
+
+        # Verify target task exists
+        task_result = await asyncio.to_thread(
+            lambda: supabase.table('project_tasks')
+                .select('id, title, description')
+                .eq('id', body.task_id)
+                .eq('client_id', client_id)
+                .single()
+                .execute()
+        )
+
+        if not task_result.data:
+            raise HTTPException(status_code=404, detail="Target task not found")
+
+        task = task_result.data
+
+        # Append candidate context to the existing task's description
+        existing_desc = task.get('description') or ''
+        candidate_context = candidate.get('meeting_context') or ''
+        candidate_source = candidate.get('source_document_name') or ''
+
+        if candidate_context or candidate_source:
+            linked_note = f"\n\n---\nLinked from meeting: {candidate_source}"
+            if candidate_context:
+                linked_note += f"\nContext: {candidate_context}"
+            new_description = existing_desc + linked_note
+
+            await asyncio.to_thread(
+                lambda: supabase.table('project_tasks')
+                    .update({
+                        'description': new_description,
+                        'updated_by': user_id
+                    })
+                    .eq('id', body.task_id)
+                    .execute()
+            )
+
+        # Mark candidate as accepted with reference to the linked task
+        await asyncio.to_thread(
+            lambda: supabase.table('task_candidates')
+                .update({
+                    'status': 'accepted',
+                    'created_task_id': body.task_id,
+                    'reviewed_at': datetime.now(timezone.utc).isoformat(),
+                    'reviewed_by': user_id
+                })
+                .eq('id', candidate_id)
+                .execute()
+        )
+
+        logger.info(f"Task candidate {candidate_id} linked to existing task {body.task_id}")
+
+        return {
+            'success': True,
+            'linked_task_id': body.task_id,
+            'linked_task_title': task['title'],
+            'message': f"Linked to existing task: {task['title']}"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error linking task candidate: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 

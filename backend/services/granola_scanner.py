@@ -12,6 +12,7 @@ Extracted items go to candidate tables for user review before becoming real entr
 
 import os
 import re
+import uuid
 from datetime import datetime, timezone, date
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional, Tuple
@@ -24,6 +25,7 @@ from database import get_supabase
 from document_processor import search_similar_chunks
 from logger_config import get_logger
 from services.embeddings import create_embedding
+from services.entity_deduplicator import EntityDeduplicator, DeduplicationConfig
 
 logger = get_logger(__name__)
 
@@ -463,10 +465,20 @@ async def scan_document(
     document: Dict[str, Any],
     user_id: str,
     client_id: str,
-    force_rescan: bool = False
+    force_rescan: bool = False,
+    deduplicator: Optional[EntityDeduplicator] = None,
+    batch_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Scan a single document from the KB for opportunities, tasks, and stakeholders.
+
+    Args:
+        document: Document record from database
+        user_id: User ID
+        client_id: Client ID
+        force_rescan: Re-process already scanned files
+        deduplicator: Optional EntityDeduplicator instance for within-batch dedup
+        batch_id: Batch ID for within-batch deduplication
 
     Returns scan result with status and extracted data.
     """
@@ -474,6 +486,12 @@ async def scan_document(
     filename = document.get('filename', 'Unknown')
     storage_url = document.get('storage_url')
     obsidian_path = document.get('obsidian_file_path', '')
+
+    # Create deduplicator if not provided (for backwards compatibility)
+    if deduplicator is None:
+        deduplicator = EntityDeduplicator(supabase)
+    if batch_id is None:
+        batch_id = str(uuid.uuid4())
 
     logger.info(f"Scanning document: {filename}")
 
@@ -545,45 +563,18 @@ async def scan_document(
             try:
                 opp_title = opp.get('description', '')[:200]
 
-                # Check for duplicate candidate (pending OR rejected - don't recreate declined items)
-                try:
-                    existing_cand = supabase.rpc('check_duplicate_opportunity_candidate', {
-                        'p_client_id': client_id,
-                        'p_title_prefix': opp_title[:50]
-                    }).execute()
-                except Exception as rpc_err:
-                    logger.warning(f"RPC check_duplicate_opportunity_candidate failed: {rpc_err}")
-                    existing_cand = type('obj', (object,), {'data': []})()
-
-                if existing_cand.data:
-                    logger.debug(f"Skipping duplicate opportunity candidate: {opp_title[:50]}")
-                    continue
-
-                # Also check against rejected candidates (fuzzy match) - don't recreate declined items
-                skip_as_rejected = False
-                try:
-                    rejected_cands = supabase.table('opportunity_candidates') \
-                        .select('id, title') \
-                        .eq('client_id', client_id) \
-                        .eq('status', 'rejected') \
-                        .execute()
-                    for rejected in rejected_cands.data or []:
-                        if fuzzy_match(opp_title, rejected.get('title', '')) > 0.80:
-                            logger.debug(f"Skipping - similar to rejected candidate: {rejected['title'][:50]}")
-                            skip_as_rejected = True
-                            break
-                except Exception as e:
-                    logger.warning(f"Failed to check rejected opportunity candidates: {e}")
-
-                if skip_as_rejected:
-                    continue
-
-                # Check for matching existing opportunity (deduplication)
-                match = await find_matching_opportunity(
-                    client_id,
-                    opp_title,
-                    opp.get('quote', '')
+                # Use unified deduplicator for all checks
+                opp_match = await deduplicator.deduplicate_opportunity(
+                    client_id=client_id,
+                    title=opp_title,
+                    quote=opp.get('quote', ''),
+                    batch_id=batch_id
                 )
+
+                # Block on rejected or batch duplicates
+                if opp_match and opp_match.should_block(deduplicator.config):
+                    logger.debug(f"Skipping opportunity ({opp_match.match_type}): {opp_match.match_reason}")
+                    continue
 
                 candidate_data = {
                     'client_id': client_id,
@@ -603,15 +594,22 @@ async def scan_document(
                     'created_at': now
                 }
 
-                # Add deduplication info if match found
-                if match:
-                    candidate_data['matched_opportunity_id'] = match['matched_opportunity_id']
-                    candidate_data['match_confidence'] = match['match_confidence']
-                    candidate_data['match_reason'] = match['match_reason']
-                    logger.info(f"Potential duplicate found: {match['match_reason']}")
+                # Track match info for pending/existing matches (don't block, just track)
+                if opp_match:
+                    if opp_match.match_type == 'existing':
+                        candidate_data['matched_opportunity_id'] = opp_match.matched_id
+                    elif opp_match.match_type == 'pending':
+                        candidate_data['matched_candidate_id'] = opp_match.matched_id
+                    candidate_data['match_confidence'] = opp_match.match_confidence
+                    candidate_data['match_reason'] = opp_match.match_reason
+                    logger.info(f"Potential duplicate found: {opp_match.match_reason}")
 
-                supabase.table('opportunity_candidates').insert(candidate_data).execute()
+                result = supabase.table('opportunity_candidates').insert(candidate_data).execute()
                 opportunities_created += 1
+
+                # Update batch cache with actual ID
+                if result.data:
+                    deduplicator.update_batch_cache_id('opportunity', batch_id, opp_title, result.data[0]['id'])
 
             except Exception as e:
                 logger.warning(f"Failed to create opportunity candidate: {e}")
@@ -638,46 +636,32 @@ async def scan_document(
                     logger.debug(f"Skipping task assigned to someone else: {assignee} - {task_title[:50]}")
                     continue
 
-                # Check for duplicate candidate using RPC (avoids PostgREST ilike issues)
+                # Generate embedding for semantic matching
+                task_desc = task.get('description', '')
                 try:
-                    existing_cand = supabase.rpc('check_duplicate_task_candidate', {
-                        'p_client_id': client_id,
-                        'p_title_prefix': task_title[:50]
-                    }).execute()
-                except Exception as rpc_err:
-                    logger.warning(f"RPC check_duplicate_task_candidate failed: {rpc_err}")
-                    existing_cand = type('obj', (object,), {'data': []})()
+                    task_embedding = deduplicator.generate_task_embedding(task_title, task_desc)
+                except Exception as emb_err:
+                    logger.warning(f"Failed to generate task embedding: {emb_err}")
+                    task_embedding = None
 
-                if existing_cand.data:
-                    logger.debug(f"Skipping duplicate task candidate: {task_title[:50]}")
+                # Use unified deduplicator for all checks
+                task_match = await deduplicator.deduplicate_task(
+                    client_id=client_id,
+                    title=task_title,
+                    description=task_desc,
+                    batch_id=batch_id,
+                    embedding=task_embedding
+                )
+
+                # Block on rejected or batch duplicates
+                if task_match and task_match.should_block(deduplicator.config):
+                    logger.debug(f"Skipping task ({task_match.match_type}): {task_match.match_reason}")
                     continue
-
-                # Also check against rejected task candidates (fuzzy match)
-                skip_task_as_rejected = False
-                try:
-                    rejected_tasks = supabase.table('task_candidates') \
-                        .select('id, title') \
-                        .eq('client_id', client_id) \
-                        .eq('status', 'rejected') \
-                        .execute()
-                    for rejected in rejected_tasks.data or []:
-                        if fuzzy_match(task_title, rejected.get('title', '')) > 0.80:
-                            logger.debug(f"Skipping - similar to rejected task: {rejected['title'][:50]}")
-                            skip_task_as_rejected = True
-                            break
-                except Exception as e:
-                    logger.warning(f"Failed to check rejected task candidates: {e}")
-
-                if skip_task_as_rejected:
-                    continue
-
-                # Check for matching existing task
-                task_match = await find_matching_task(client_id, task_title)
 
                 candidate_data = {
                     'client_id': client_id,
                     'title': task_title,
-                    'description': task.get('description', ''),
+                    'description': task_desc,
                     'assignee_name': task.get('assignee_name'),
                     'suggested_due_date': task.get('due_date'),
                     'team': task.get('team'),
@@ -685,22 +669,32 @@ async def scan_document(
                     'document_date': meeting_date.isoformat() if meeting_date else None,
                     'source_document_id': document_id,
                     'source_document_name': title,
-                    'source_text': task.get('description', ''),
+                    'source_text': task_desc,
                     'status': 'pending',
                     'confidence': 'medium',
                     'suggested_priority': 3,
-                    'created_at': now
+                    'created_at': now,
+                    # Add embedding for future semantic matching
+                    'embedding': task_embedding,
+                    'embedding_status': 'completed' if task_embedding else 'pending'
                 }
 
-                # Note: task_candidates doesn't have match fields yet
-                # but we can log it for awareness
+                # Track match info for pending/existing matches (don't block, just track)
                 if task_match:
-                    logger.info(f"Similar task exists: {task_match['match_reason']}")
-                    # Skip creating if very similar task exists
-                    continue
+                    if task_match.match_type == 'existing':
+                        candidate_data['matched_task_id'] = task_match.matched_id
+                    elif task_match.match_type == 'pending':
+                        candidate_data['matched_candidate_id'] = task_match.matched_id
+                    candidate_data['match_confidence'] = task_match.match_confidence
+                    candidate_data['match_reason'] = task_match.match_reason
+                    logger.info(f"Potential task duplicate found: {task_match.match_reason}")
 
-                supabase.table('task_candidates').insert(candidate_data).execute()
+                result = supabase.table('task_candidates').insert(candidate_data).execute()
                 tasks_created += 1
+
+                # Update batch cache with actual ID
+                if result.data:
+                    deduplicator.update_batch_cache_id('task', batch_id, task_title, result.data[0]['id'])
 
             except Exception as e:
                 logger.warning(f"Failed to create task candidate: {e}")
@@ -713,69 +707,64 @@ async def scan_document(
                 if not name or len(name) < 2:
                     continue
 
-                # Check for existing stakeholder using RPC (avoids PostgREST ilike issues)
-                try:
-                    existing_sh = supabase.rpc('check_existing_stakeholder', {
-                        'p_client_id': client_id,
-                        'p_name': name
-                    }).execute()
-                except Exception as rpc_err:
-                    logger.warning(f"RPC check_existing_stakeholder failed: {rpc_err}")
-                    existing_sh = type('obj', (object,), {'data': []})()
+                # Additional validation: require role for stakeholder extraction
+                role = sh.get('role')
+                concerns = sh.get('concerns', [])
+                interests = sh.get('interests', [])
 
-                if not existing_sh.data:
-                    # Check for existing candidate using RPC
-                    try:
-                        existing_cand = supabase.rpc('check_existing_stakeholder_candidate', {
-                            'p_client_id': client_id,
-                            'p_name': name
-                        }).execute()
-                    except Exception as rpc_err:
-                        logger.warning(f"RPC check_existing_stakeholder_candidate failed: {rpc_err}")
-                        existing_cand = type('obj', (object,), {'data': []})()
+                # Skip if no role AND no concerns AND no interests (just a name mention)
+                if not role and not concerns and not interests:
+                    logger.debug(f"Skipping stakeholder with no context: {name}")
+                    continue
 
-                    # Also check against rejected stakeholder candidates
-                    skip_stakeholder_as_rejected = False
-                    try:
-                        rejected_stakeholders = supabase.table('stakeholder_candidates') \
-                            .select('id, name') \
-                            .eq('client_id', client_id) \
-                            .eq('status', 'rejected') \
-                            .execute()
-                        for rejected in rejected_stakeholders.data or []:
-                            if fuzzy_match(name, rejected.get('name', '')) > 0.85:
-                                logger.debug(f"Skipping - similar to rejected stakeholder: {rejected['name']}")
-                                skip_stakeholder_as_rejected = True
-                                break
-                    except Exception as e:
-                        logger.warning(f"Failed to check rejected stakeholder candidates: {e}")
+                # Use unified deduplicator for all checks
+                sh_match = await deduplicator.deduplicate_stakeholder(
+                    client_id=client_id,
+                    name=name,
+                    role=role or '',
+                    department=sh.get('department', ''),
+                    organization=sh.get('organization', ''),
+                    email=sh.get('email', ''),
+                    batch_id=batch_id
+                )
 
-                    if not existing_cand.data and not skip_stakeholder_as_rejected:
-                        # Additional validation: require role for stakeholder extraction
-                        role = sh.get('role')
-                        concerns = sh.get('concerns', [])
-                        interests = sh.get('interests', [])
+                # Block on rejected or batch duplicates
+                if sh_match and sh_match.should_block(deduplicator.config):
+                    logger.debug(f"Skipping stakeholder ({sh_match.match_type}): {sh_match.match_reason}")
+                    continue
 
-                        # Skip if no role AND no concerns AND no interests (just a name mention)
-                        if not role and not concerns and not interests:
-                            logger.debug(f"Skipping stakeholder with no context: {name}")
-                            continue
+                candidate_data = {
+                    'client_id': client_id,
+                    'name': name,
+                    'role': role,
+                    'department': sh.get('department'),
+                    'initial_sentiment': sh.get('sentiment', 'neutral'),
+                    'key_concerns': concerns,
+                    'interests': interests,
+                    'source_document_id': document_id,
+                    'source_document_name': title,
+                    'status': 'pending',
+                    'confidence': 'medium',
+                    'created_at': now
+                }
 
-                        supabase.table('stakeholder_candidates').insert({
-                            'client_id': client_id,
-                            'name': name,
-                            'role': sh.get('role'),
-                            'department': sh.get('department'),
-                            'initial_sentiment': sh.get('sentiment', 'neutral'),
-                            'key_concerns': sh.get('concerns', []),
-                            'interests': sh.get('interests', []),
-                            'source_document_id': document_id,
-                            'source_document_name': title,
-                            'status': 'pending',
-                            'confidence': 'medium',
-                            'created_at': now
-                        }).execute()
-                        stakeholders_created += 1
+                # Track match info for pending/existing matches (don't block, just track)
+                if sh_match:
+                    if sh_match.match_type == 'existing':
+                        candidate_data['potential_match_stakeholder_id'] = sh_match.matched_id
+                    elif sh_match.match_type == 'pending':
+                        candidate_data['matched_candidate_id'] = sh_match.matched_id
+                    candidate_data['match_confidence'] = sh_match.match_confidence
+                    candidate_data['match_reason'] = sh_match.match_reason
+                    logger.info(f"Potential stakeholder duplicate found: {sh_match.match_reason}")
+
+                result = supabase.table('stakeholder_candidates').insert(candidate_data).execute()
+                stakeholders_created += 1
+
+                # Update batch cache with actual ID
+                if result.data:
+                    deduplicator.update_batch_cache_id('stakeholder', batch_id, name, result.data[0]['id'])
+
             except Exception as e:
                 logger.warning(f"Failed to create stakeholder candidate: {e}")
 
@@ -884,10 +873,18 @@ async def scan_granola_documents(
 
     results = []
 
+    # Create shared deduplicator with batch ID for within-batch dedup across all documents
+    deduplicator = EntityDeduplicator(supabase)
+    batch_id = str(uuid.uuid4())
+
     for doc in documents:
         stats['files_scanned'] += 1
 
-        result = await scan_document(doc, user_id, client_id, force_rescan)
+        result = await scan_document(
+            doc, user_id, client_id, force_rescan,
+            deduplicator=deduplicator,
+            batch_id=batch_id
+        )
         results.append({'file': doc.get('filename', 'Unknown'), **result})
 
         if result['status'] == 'processed':
@@ -899,6 +896,9 @@ async def scan_granola_documents(
             stats['files_skipped'] += 1
         else:
             stats['files_failed'] += 1
+
+    # Clear batch cache after all documents processed
+    deduplicator.clear_batch_cache()
 
     logger.info(f"\nScan complete!")
     logger.info(f"  Scanned: {stats['files_scanned']}")

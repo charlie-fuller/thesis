@@ -253,6 +253,31 @@ class DatabaseConfig:
 
 
 @dataclass(frozen=True)
+class DeduplicationConfig:
+    """
+    Configuration for entity deduplication during sync.
+
+    Controls how tasks, opportunities, and stakeholders are matched
+    against existing items to prevent duplicates.
+    """
+
+    # Fuzzy matching threshold (SequenceMatcher ratio, 0-1)
+    # Higher values require closer text matches
+    TASK_FUZZY_THRESHOLD: float = 0.80
+    OPPORTUNITY_FUZZY_THRESHOLD: float = 0.80
+    STAKEHOLDER_NAME_THRESHOLD: float = 0.85
+
+    # Semantic matching threshold (cosine similarity, 0-1)
+    # Higher values require closer semantic meaning
+    TASK_SEMANTIC_THRESHOLD: float = 0.75
+    OPPORTUNITY_SEMANTIC_THRESHOLD: float = 0.75
+
+    # Behavior flags
+    BLOCK_ON_REJECTED: bool = True
+    BLOCK_ON_BATCH_DUPLICATE: bool = True
+
+
+@dataclass(frozen=True)
 class RedirectConfig:
     """
     Frontend redirect configuration for OAuth callbacks.
@@ -293,6 +318,7 @@ FILE_LIMITS = FileLimits()
 OAUTH = OAuthConfig()
 DATABASE = DatabaseConfig()
 REDIRECTS = RedirectConfig()
+DEDUPLICATION = DeduplicationConfig()
 
 
 # Convenience exports
@@ -305,6 +331,7 @@ __all__ = [
     'OAuthConfig',
     'DatabaseConfig',
     'RedirectConfig',
+    'DeduplicationConfig',
     'TEXT_CHUNKING',
     'EMBEDDING',
     'SEARCH',
@@ -313,4 +340,5 @@ __all__ = [
     'OAUTH',
     'DATABASE',
     'REDIRECTS',
+    'DEDUPLICATION',
 ]

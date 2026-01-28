@@ -1,13 +1,24 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { FileText, RefreshCw, CheckCircle } from 'lucide-react'
+import { FileText, RefreshCw, CheckCircle, Sparkles } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 
 interface SyncActivity {
   active: boolean
   current_file: string | null
   recent_files: Array<{ files_added: number; files_updated: number }>
+}
+
+interface ExtractionActivity {
+  active: boolean
+  job_id: string | null
+  status: string | null
+  files_processed: number
+  opportunities_found: number
+  tasks_found: number
+  stakeholders_found: number
+  started_at: string | null
 }
 
 interface GranolaScanStatus {
@@ -19,6 +30,7 @@ interface GranolaScanStatus {
   last_scan: string | null
   error: string | null
   sync_activity?: SyncActivity
+  extraction_activity?: ExtractionActivity
 }
 
 interface ScanResult {
@@ -46,10 +58,12 @@ export default function GranolaScanPanel() {
 
   useEffect(() => {
     fetchStatus()
-    // Poll every 10 seconds for real-time sync visibility
-    const interval = setInterval(fetchStatus, 10000)
+    // Poll more frequently when scanning/syncing is active
+    const isActive = status?.sync_activity?.active || status?.extraction_activity?.active || isScanning
+    const pollInterval = isActive ? 3000 : 10000  // 3s when active, 10s otherwise
+    const interval = setInterval(fetchStatus, pollInterval)
     return () => clearInterval(interval)
-  }, [fetchStatus])
+  }, [fetchStatus, status?.sync_activity?.active, status?.extraction_activity?.active, isScanning])
 
   // Auto-dismiss scan message after 10 seconds
   useEffect(() => {
@@ -160,6 +174,31 @@ export default function GranolaScanPanel() {
         <div className="mt-3 flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
           <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" />
           <span>Syncing: {status.sync_activity.current_file || 'processing...'}</span>
+        </div>
+      )}
+
+      {/* Extraction Activity Indicator */}
+      {status.extraction_activity?.active && (
+        <div className="mt-3 flex items-center gap-2 text-sm text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded-lg px-3 py-2">
+          <Sparkles className="w-4 h-4 animate-pulse flex-shrink-0" />
+          <span>
+            Analyzing meetings for tasks, opportunities & stakeholders...
+            {status.extraction_activity.files_processed > 0 && (
+              <span className="text-purple-500 dark:text-purple-300 ml-1">
+                ({status.extraction_activity.files_processed} processed)
+              </span>
+            )}
+          </span>
+        </div>
+      )}
+
+      {/* Extraction Complete Summary */}
+      {status.extraction_activity && !status.extraction_activity.active && status.extraction_activity.status === 'completed' && (
+        <div className="mt-3 flex items-center gap-2 text-sm text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded-lg px-3 py-2">
+          <CheckCircle className="w-4 h-4 flex-shrink-0" />
+          <span>
+            Found {status.extraction_activity.opportunities_found} opportunities, {status.extraction_activity.tasks_found} tasks, {status.extraction_activity.stakeholders_found} stakeholders
+          </span>
         </div>
       )}
 

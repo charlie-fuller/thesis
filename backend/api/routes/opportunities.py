@@ -1568,6 +1568,92 @@ async def reject_opportunity_candidate(
     return {"message": "Candidate rejected"}
 
 
+class LinkOpportunityCandidateRequest(BaseModel):
+    """Request body for linking a candidate to an existing opportunity."""
+    opportunity_id: str
+
+
+@router.post("/candidates/{candidate_id}/link")
+async def link_opportunity_candidate(
+    candidate_id: str,
+    body: LinkOpportunityCandidateRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """
+    Link an opportunity candidate to an existing opportunity instead of creating a new one.
+
+    This is used when a duplicate is detected and the user wants to associate
+    the candidate's context with an existing opportunity rather than creating a new one.
+    """
+    client_id = current_user.get('client_id')
+    user_id = current_user['id']
+
+    # Verify candidate exists and is pending
+    candidate_result = supabase.table("opportunity_candidates") \
+        .select("*") \
+        .eq("id", candidate_id) \
+        .eq("client_id", client_id) \
+        .eq("status", "pending") \
+        .single() \
+        .execute()
+
+    if not candidate_result.data:
+        raise HTTPException(status_code=404, detail="Candidate not found or already processed")
+
+    candidate = candidate_result.data
+
+    # Verify target opportunity exists
+    opp_result = supabase.table("ai_opportunities") \
+        .select("id, title, project_name, description") \
+        .eq("id", body.opportunity_id) \
+        .eq("client_id", client_id) \
+        .single() \
+        .execute()
+
+    if not opp_result.data:
+        raise HTTPException(status_code=404, detail="Target opportunity not found")
+
+    opportunity = opp_result.data
+
+    # Append candidate context to the existing opportunity's description
+    existing_desc = opportunity.get('description') or ''
+    candidate_source = candidate.get('source_document_name') or ''
+    candidate_quote = candidate.get('source_text') or ''
+
+    if candidate_source or candidate_quote:
+        linked_note = f"\n\n---\nLinked from: {candidate_source}"
+        if candidate_quote:
+            linked_note += f"\nQuote: \"{candidate_quote[:200]}...\""
+        new_description = existing_desc + linked_note
+
+        supabase.table("ai_opportunities") \
+            .update({"description": new_description}) \
+            .eq("id", body.opportunity_id) \
+            .execute()
+
+    # Mark candidate as accepted with reference to the linked opportunity
+    now = datetime.now(timezone.utc).isoformat()
+    supabase.table("opportunity_candidates") \
+        .update({
+            "status": "accepted",
+            "created_opportunity_id": body.opportunity_id,
+            "accepted_at": now,
+            "accepted_by": user_id
+        }) \
+        .eq("id", candidate_id) \
+        .execute()
+
+    logger.info(f"Opportunity candidate {candidate_id} linked to existing opportunity {body.opportunity_id}")
+
+    return {
+        "success": True,
+        "linked_opportunity_id": body.opportunity_id,
+        "linked_opportunity_title": opportunity.get('title') or opportunity.get('project_name'),
+        "message": f"Linked to existing opportunity"
+    }
+
+
 # ============================================================================
 # CONFIDENCE EVALUATION ENDPOINTS
 # ============================================================================

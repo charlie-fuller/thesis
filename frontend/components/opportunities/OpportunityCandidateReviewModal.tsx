@@ -22,6 +22,7 @@ interface OpportunityCandidate {
   status: string
   confidence: string
   matched_opportunity_id?: string
+  matched_candidate_id?: string
   match_confidence?: number
   match_reason?: string
   created_at: string
@@ -182,7 +183,7 @@ export default function OpportunityCandidateReviewModal({
   const currentCandidate = candidates[currentIndex]
   const isLast = currentIndex === candidates.length - 1
   const progress = ((currentIndex + 1) / candidates.length) * 100
-  const hasPotentialMatch = !!currentCandidate.matched_opportunity_id
+  const hasPotentialMatch = !!currentCandidate.matched_opportunity_id || !!currentCandidate.matched_candidate_id
 
   return (
     <div

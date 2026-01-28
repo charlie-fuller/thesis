@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { X, ChevronRight, ChevronLeft, Check, XIcon, FileText } from 'lucide-react'
+import { X, ChevronRight, ChevronLeft, Check, XIcon, FileText, Link2, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiPost, apiGet } from '@/lib/api'
 
@@ -23,12 +23,17 @@ interface TaskCandidate {
   value_proposition?: string
   document_date?: string
   topics?: string[]
+  // Deduplication fields
+  matched_task_id?: string
+  matched_candidate_id?: string
+  match_confidence?: number
+  match_reason?: string
 }
 
 interface TaskCandidateReviewModalProps {
   open: boolean
   onClose: () => void
-  onComplete: (stats: { accepted: number; rejected: number }) => void
+  onComplete: (stats: { accepted: number; rejected: number; linked: number }) => void
   candidates: TaskCandidate[]
 }
 
@@ -56,7 +61,7 @@ export default function TaskCandidateReviewModal({
   const [candidates, setCandidates] = useState<TaskCandidate[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [saving, setSaving] = useState(false)
-  const [stats, setStats] = useState({ accepted: 0, rejected: 0 })
+  const [stats, setStats] = useState({ accepted: 0, rejected: 0, linked: 0 })
 
   // Form state for current candidate
   const [title, setTitle] = useState('')
@@ -74,7 +79,7 @@ export default function TaskCandidateReviewModal({
     if (open && initialCandidates.length > 0) {
       setCandidates(initialCandidates)
       setCurrentIndex(0)
-      setStats({ accepted: 0, rejected: 0 })
+      setStats({ accepted: 0, rejected: 0, linked: 0 })
       loadCandidate(initialCandidates[0])
     }
   }, [open, initialCandidates])
@@ -136,6 +141,27 @@ export default function TaskCandidateReviewModal({
     }
   }, [candidates, currentIndex, title, description, status, priority, dueDate, assigneeName, category, tags, blockerReason, moveToNext])
 
+  // Link to existing task (when duplicate detected)
+  const handleLinkToExisting = useCallback(async () => {
+    const candidate = candidates[currentIndex]
+    if (!candidate || !candidate.matched_task_id) return
+
+    setSaving(true)
+    try {
+      await apiPost(`/api/tasks/candidates/${candidate.id}/link`, {
+        task_id: candidate.matched_task_id
+      })
+      toast.success('Linked to existing task')
+      setStats(prev => ({ ...prev, linked: prev.linked + 1 }))
+      moveToNext()
+    } catch (error) {
+      console.error('Failed to link candidate:', error)
+      toast.error('Failed to link to existing task')
+    } finally {
+      setSaving(false)
+    }
+  }, [candidates, currentIndex, moveToNext])
+
   // Reject current candidate (skip without creating)
   const handleReject = useCallback(async () => {
     const candidate = candidates[currentIndex]
@@ -161,6 +187,7 @@ export default function TaskCandidateReviewModal({
   const currentCandidate = candidates[currentIndex]
   const isLast = currentIndex === candidates.length - 1
   const progress = ((currentIndex + 1) / candidates.length) * 100
+  const hasPotentialMatch = !!currentCandidate.matched_task_id || !!currentCandidate.matched_candidate_id
 
   return (
     <div
@@ -196,6 +223,34 @@ export default function TaskCandidateReviewModal({
             style={{ width: `${progress}%` }}
           />
         </div>
+
+        {/* Potential match warning */}
+        {hasPotentialMatch && currentCandidate.match_reason && (
+          <div className="px-4 py-3 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800">
+            <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
+              <AlertTriangle className="w-4 h-4" />
+              <span className="font-medium">Potential Duplicate</span>
+              {currentCandidate.match_confidence && (
+                <span className="text-sm text-yellow-600 dark:text-yellow-400">
+                  ({Math.round(currentCandidate.match_confidence * 100)}% match)
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-1">
+              {currentCandidate.match_reason}
+            </p>
+            {currentCandidate.matched_task_id && (
+              <button
+                onClick={handleLinkToExisting}
+                disabled={saving}
+                className="mt-2 flex items-center gap-1 text-sm text-yellow-700 dark:text-yellow-300 hover:underline disabled:opacity-50"
+              >
+                <Link2 className="w-3 h-3" />
+                Link to existing task instead
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Source info with rich context */}
         <div className="px-4 py-3 bg-page border-b border-default">
@@ -408,7 +463,7 @@ export default function TaskCandidateReviewModal({
           </button>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted">
-              {stats.accepted} accepted, {stats.rejected} skipped
+              {stats.accepted} created, {stats.linked} linked, {stats.rejected} skipped
             </span>
             <button
               type="button"

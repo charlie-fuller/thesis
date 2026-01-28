@@ -60,6 +60,8 @@ DEFAULT_SYNC_OPTIONS = {
         ".cache/**",
         # Claude/AI tools
         ".claude/**",
+        "**/.claude/**",
+        "**/preserved-context/**",
         # Templates & system
         "_templates/**",
         "Templates/**",
@@ -992,40 +994,17 @@ def sync_file(
             )
             action = 'updated'
         else:
-            # Check for existing document with same path (deduplication)
-            # This prevents duplicates if sync state was lost/corrupted
-            existing_doc = supabase.table('documents') \
-                .select('id') \
-                .eq('user_id', config['user_id']) \
-                .eq('obsidian_file_path', relative_path) \
-                .execute()
-
-            if existing_doc.data:
-                # Document exists, update instead of create
-                document_id = existing_doc.data[0]['id']
-                logger.info(f"      Found existing document (dedup): {document_id}")
-                updated = _update_obsidian_document(
-                    document_id=document_id,
-                    file_content=file_content,
-                    title=title,
-                    relative_path=relative_path,
-                    frontmatter=frontmatter,
-                    original_date=original_date_value
-                )
-                action = 'updated'
-            else:
-                # Create new document
-                logger.debug(f"      Creating new document")
-                document_id = _create_obsidian_document(
-                    config=config,
-                    file_content=file_content,
-                    filename=file_path.name,
-                    title=title,
-                    relative_path=relative_path,
-                    frontmatter=frontmatter,
-                    original_date=original_date_value
-                )
-                action = 'added'
+            # Use upsert pattern: try to find existing, create if not found
+            # The unique constraint on (user_id, obsidian_file_path) prevents duplicates
+            document_id, action = _upsert_obsidian_document(
+                config=config,
+                file_content=file_content,
+                filename=file_path.name,
+                title=title,
+                relative_path=relative_path,
+                frontmatter=frontmatter,
+                original_date=original_date_value
+            )
 
         # Update sync state
         update_sync_state(
@@ -1059,6 +1038,94 @@ def sync_file(
         )
 
         return {'status': 'failed', 'error': error_msg}
+
+
+def _upsert_obsidian_document(
+    config: Dict,
+    file_content: bytes,
+    filename: str,
+    title: str,
+    relative_path: str,
+    frontmatter: Dict,
+    original_date: Optional[date] = None
+) -> tuple[str, str]:
+    """
+    Upsert an Obsidian document - find existing by path and update, or create new.
+
+    Uses the unique constraint on (user_id, obsidian_file_path) to prevent duplicates.
+    If a race condition causes a constraint violation on insert, it falls back to update.
+
+    Returns:
+        Tuple of (document_id, action) where action is 'added' or 'updated'
+
+    Raises:
+        ObsidianSyncError: If content is empty or operation fails
+    """
+    user_id = config['user_id']
+
+    # First, check if document already exists with this path
+    existing_doc = supabase.table('documents') \
+        .select('id') \
+        .eq('user_id', user_id) \
+        .eq('obsidian_file_path', relative_path) \
+        .execute()
+
+    if existing_doc.data:
+        # Document exists, update it
+        document_id = existing_doc.data[0]['id']
+        logger.info(f"      Found existing document (dedup): {document_id}")
+        _update_obsidian_document(
+            document_id=document_id,
+            file_content=file_content,
+            title=title,
+            relative_path=relative_path,
+            frontmatter=frontmatter,
+            original_date=original_date
+        )
+        return document_id, 'updated'
+
+    # Document doesn't exist, try to create it
+    try:
+        logger.debug(f"      Creating new document")
+        document_id = _create_obsidian_document(
+            config=config,
+            file_content=file_content,
+            filename=filename,
+            title=title,
+            relative_path=relative_path,
+            frontmatter=frontmatter,
+            original_date=original_date
+        )
+        return document_id, 'added'
+    except Exception as e:
+        error_str = str(e)
+        # Check if this is a unique constraint violation (race condition)
+        if 'duplicate key' in error_str.lower() or 'unique constraint' in error_str.lower() or 'idx_documents_unique_obsidian_path' in error_str.lower():
+            logger.info(f"      Concurrent insert detected, falling back to update")
+            # Another sync created the document, fetch and update it
+            existing_doc = supabase.table('documents') \
+                .select('id') \
+                .eq('user_id', user_id) \
+                .eq('obsidian_file_path', relative_path) \
+                .execute()
+
+            if existing_doc.data:
+                document_id = existing_doc.data[0]['id']
+                _update_obsidian_document(
+                    document_id=document_id,
+                    file_content=file_content,
+                    title=title,
+                    relative_path=relative_path,
+                    frontmatter=frontmatter,
+                    original_date=original_date
+                )
+                return document_id, 'updated'
+            else:
+                # This shouldn't happen, but re-raise if it does
+                raise
+        else:
+            # Some other error, re-raise
+            raise
 
 
 def _create_obsidian_document(
