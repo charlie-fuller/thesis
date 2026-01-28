@@ -149,7 +149,7 @@ async def get_pipeline_overview(
     # -------------------------------------------------------------------------
     # PRIORITY QUEUE - Opportunities ranked by composite score
     # -------------------------------------------------------------------------
-    opp_query = supabase.table('ai_opportunities') \
+    opp_query = supabase.table('ai_projects') \
         .select('*, stakeholders!owner_stakeholder_id(name)') \
         .eq('client_id', client_id) \
         .neq('status', 'completed')
@@ -277,7 +277,7 @@ async def get_pipeline_overview(
     # STATS
     # -------------------------------------------------------------------------
     # Count totals
-    opp_count = supabase.table('ai_opportunities') \
+    opp_count = supabase.table('ai_projects') \
         .select('id', count='exact') \
         .eq('client_id', client_id) \
         .neq('status', 'completed') \
@@ -318,7 +318,7 @@ async def get_priority_queue(
     """Get just the priority queue (opportunities ranked by priority score)."""
     client_id = current_user.get("client_id")
 
-    query = supabase.table('ai_opportunities') \
+    query = supabase.table('ai_projects') \
         .select('*, stakeholders!owner_stakeholder_id(name)') \
         .eq('client_id', client_id)
 
