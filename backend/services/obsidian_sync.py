@@ -62,6 +62,7 @@ DEFAULT_SYNC_OPTIONS = {
         ".claude/**",
         "**/.claude/**",
         "**/preserved-context/**",
+        "**/compact-context-*.md",  # Claude session context files
         # Templates & system
         "_templates/**",
         "Templates/**",
