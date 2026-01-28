@@ -668,6 +668,7 @@ Extract the following in JSON format - ONLY include the TOP strategic items (exp
    - assignee_name: Who assigned it or "Charlie" if self-assigned
    - due_date: When due (YYYY-MM-DD) if mentioned
    - team: Which team/department
+   - linked_project_title: If this task is part of an opportunity/project mentioned above, include the project's description here (exact match). Otherwise null.
 
 3. **stakeholders** - Key decision-makers you need to actively manage:
    Extract ONLY if:
@@ -794,7 +795,7 @@ async def scan_document(
         now = datetime.now(timezone.utc).isoformat()
         supabase.table('documents').update({
             'granola_scanned_at': now,
-            'projects_scanned_at': now,
+            'opportunities_scanned_at': now,  # TODO: rename to projects_scanned_at after migration
             'tasks_scanned_at': now,
             'stakeholders_scanned_at': now,
             'updated_at': now
@@ -803,6 +804,9 @@ async def scan_document(
         # Store extracted projects as candidates (only Tier 1-2: total score >= 14)
         projects_created = 0
         raw_projects = extracted.get('opportunities', [])  # Keep extraction key for backwards compat
+
+        # Track project titles to candidate IDs for task linking
+        project_title_to_candidate_id: Dict[str, str] = {}
 
         # Filter to projects meeting minimum score threshold
         qualified_projs = []
@@ -868,7 +872,10 @@ async def scan_document(
 
                 # Update batch cache with actual ID
                 if result.data:
-                    deduplicator.update_batch_cache_id('opportunity', batch_id, proj_title, result.data[0]['id'])
+                    candidate_id = result.data[0]['id']
+                    deduplicator.update_batch_cache_id('opportunity', batch_id, proj_title, candidate_id)
+                    # Track project title -> candidate ID for task linking
+                    project_title_to_candidate_id[proj_title.lower()] = candidate_id
 
             except Exception as e:
                 logger.warning(f"Failed to create project candidate: {e}")
@@ -937,6 +944,21 @@ async def scan_document(
                     'embedding': task_embedding,
                     'embedding_status': 'completed' if task_embedding else 'pending'
                 }
+
+                # Link task to project if linked_project_title provided
+                linked_project_title = task.get('linked_project_title')
+                if linked_project_title:
+                    linked_proj_key = linked_project_title.lower().strip()
+                    if linked_proj_key in project_title_to_candidate_id:
+                        candidate_data['linked_project_candidate_id'] = project_title_to_candidate_id[linked_proj_key]
+                        logger.info(f"Linked task '{task_title[:50]}' to project candidate")
+                    else:
+                        # Try fuzzy match if exact match fails
+                        for proj_title_key, proj_cand_id in project_title_to_candidate_id.items():
+                            if fuzzy_match(linked_proj_key, proj_title_key) > 0.8:
+                                candidate_data['linked_project_candidate_id'] = proj_cand_id
+                                logger.info(f"Fuzzy-linked task '{task_title[:50]}' to project candidate")
+                                break
 
                 # Track match info for pending/existing matches (don't block, just track)
                 if task_match:
