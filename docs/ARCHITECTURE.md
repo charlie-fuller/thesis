@@ -77,9 +77,9 @@ This document contains detailed architecture documentation. For essential Claude
 19. **Enhanced RAG Search** - Original date tracking, document type filtering, recency boost
 
 ### Discovery & Pipeline
-20. **Unified Discovery Inbox** - Tabs for Tasks, Opportunities, Stakeholders candidates
-21. **Project Naming Workflow** - Required names for opportunities in active phases
-22. **Granola Vault Scanner** - Extract opportunities, tasks, stakeholders from meeting notes
+20. **Unified Discovery Inbox** - Tabs for Tasks, Projects, Stakeholders candidates with deduplication
+21. **Project Naming Workflow** - Required names for projects in active phases
+22. **Meeting Scanner** - Heuristic-based document classification extracts projects, tasks, stakeholders from meeting notes (transcripts, summaries, 1:1s)
 
 ### DISCo (Discovery → Insights → Synthesis → Capabilities)
 23. **DISCo Pipeline** - AI-assisted product discovery with 8 specialized agents across 4 stages:
@@ -129,13 +129,15 @@ This document contains detailed architecture documentation. For essential Claude
 - `meeting_room_messages` - Messages with agent attribution
 
 ### Task Management
-- `project_tasks` - Kanban tasks with status, priority, team
+- `project_tasks` - Kanban tasks with status, priority, team, embeddings
+- `task_candidates` - Auto-extracted pending review with dedup tracking
 - `task_comments` - Comments on tasks
 - `task_history` - Status/priority change history
 
 ### Business Intelligence
-- `ai_opportunities` - Tier-scored opportunities with justifications
-- `opportunity_conversations` - Q&A history
+- `ai_projects` - Tier-scored AI projects with justifications
+- `project_candidates` - Auto-extracted pending review with dedup tracking
+- `project_conversations` - Q&A history
 - `roi_opportunities` - Identified ROI opportunities
 
 ### Research Intelligence
