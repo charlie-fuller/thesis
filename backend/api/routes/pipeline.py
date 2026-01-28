@@ -9,7 +9,7 @@ Also includes Granola vault scanning endpoints.
 
 import logging
 from typing import Optional, List, Dict
-from datetime import datetime, date
+from datetime import datetime, date, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel
@@ -81,6 +81,13 @@ class PipelineOverview(BaseModel):
     stats: dict
 
 
+class SyncActivityInfo(BaseModel):
+    """Real-time sync activity from Obsidian watcher."""
+    active: bool
+    current_file: Optional[str] = None
+    recent_files: List[dict] = []
+
+
 class GranolaScanStatus(BaseModel):
     """Status of Granola vault scanning."""
     connected: bool
@@ -90,6 +97,7 @@ class GranolaScanStatus(BaseModel):
     pending_files: int
     last_scan: Optional[str]
     error: Optional[str] = None
+    sync_activity: Optional[SyncActivityInfo] = None
 
 
 class GranolaScanResult(BaseModel):
@@ -428,6 +436,61 @@ async def get_granola_status(
             except Exception as e:
                 logger.warning(f"Failed to get last scan time: {e}")
 
+        # Get sync activity from obsidian_sync_log
+        sync_activity = None
+        try:
+            # Get user's vault config
+            config_result = supabase.table('obsidian_vault_configs') \
+                .select('id') \
+                .eq('user_id', user_id) \
+                .eq('is_active', True) \
+                .execute()
+
+            if config_result.data:
+                config_id = config_result.data[0]['id']
+
+                # Check for running syncs
+                running = supabase.table('obsidian_sync_log') \
+                    .select('id') \
+                    .eq('config_id', config_id) \
+                    .eq('status', 'running') \
+                    .execute()
+
+                # Get most recently synced file if there's an active sync
+                current_file = None
+                if running.data:
+                    recent_state = supabase.table('obsidian_sync_state') \
+                        .select('file_path') \
+                        .eq('config_id', config_id) \
+                        .order('updated_at', desc=True) \
+                        .limit(1) \
+                        .execute()
+                    if recent_state.data:
+                        # Extract just the filename from the path
+                        current_file = recent_state.data[0]['file_path'].split('/')[-1]
+
+                # Get recently completed syncs (last 60 seconds)
+                cutoff = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
+                recent = supabase.table('obsidian_sync_log') \
+                    .select('files_added, files_updated, completed_at') \
+                    .eq('config_id', config_id) \
+                    .eq('status', 'completed') \
+                    .gte('completed_at', cutoff) \
+                    .order('completed_at', desc=True) \
+                    .limit(3) \
+                    .execute()
+
+                sync_activity = SyncActivityInfo(
+                    active=len(running.data) > 0,
+                    current_file=current_file,
+                    recent_files=[
+                        {'files_added': r.get('files_added', 0), 'files_updated': r.get('files_updated', 0)}
+                        for r in recent.data
+                    ]
+                )
+        except Exception as e:
+            logger.warning(f"Failed to get sync activity: {e}")
+
         return GranolaScanStatus(
             connected=status.get('connected', False),
             vault_path=status.get('vault_path', ''),
@@ -435,7 +498,8 @@ async def get_granola_status(
             scanned_files=status.get('scanned_files', 0),
             pending_files=status.get('pending_files', 0),
             last_scan=last_scan,
-            error=status.get('error')
+            error=status.get('error'),
+            sync_activity=sync_activity
         )
     except Exception as e:
         logger.error(f"Granola status endpoint error: {e}")

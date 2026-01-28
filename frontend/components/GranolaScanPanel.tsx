@@ -4,6 +4,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { FileText, RefreshCw, CheckCircle } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 
+interface SyncActivity {
+  active: boolean
+  current_file: string | null
+  recent_files: Array<{ files_added: number; files_updated: number }>
+}
+
 interface GranolaScanStatus {
   connected: boolean
   vault_path: string
@@ -12,6 +18,7 @@ interface GranolaScanStatus {
   pending_files: number
   last_scan: string | null
   error: string | null
+  sync_activity?: SyncActivity
 }
 
 interface ScanResult {
@@ -39,6 +46,9 @@ export default function GranolaScanPanel() {
 
   useEffect(() => {
     fetchStatus()
+    // Poll every 10 seconds for real-time sync visibility
+    const interval = setInterval(fetchStatus, 10000)
+    return () => clearInterval(interval)
   }, [fetchStatus])
 
   // Auto-dismiss scan message after 10 seconds
@@ -142,6 +152,20 @@ export default function GranolaScanPanel() {
         <div className="mt-3 flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-2">
           <CheckCircle className="w-4 h-4 flex-shrink-0" />
           <span>{scanMessage}</span>
+        </div>
+      )}
+
+      {/* Sync Activity Indicator */}
+      {status.sync_activity?.active && (
+        <div className="mt-3 flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
+          <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" />
+          <span>Syncing: {status.sync_activity.current_file || 'processing...'}</span>
+        </div>
+      )}
+
+      {!status.sync_activity?.active && status.sync_activity?.recent_files && status.sync_activity.recent_files.length > 0 && (
+        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          Just synced: {status.sync_activity.recent_files[0].files_added + status.sync_activity.recent_files[0].files_updated} file(s)
         </div>
       )}
     </div>
