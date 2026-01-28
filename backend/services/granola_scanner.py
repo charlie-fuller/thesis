@@ -1,10 +1,17 @@
 """
-Granola Meeting Scanner Service
+Meeting Scanner Service
 
-Scans synced Granola meeting documents from the KB and extracts:
+Scans meeting documents from the KB and extracts:
 - AI opportunities (as candidates for review)
 - Action items/tasks (as candidates for review)
 - Stakeholder mentions (as candidates for review)
+
+Uses heuristics to identify meeting-like documents (transcripts, summaries, etc.)
+regardless of their source folder. Prioritizes documents with clear meeting indicators:
+- HIGH priority: Granola folder, filenames with "transcript", "meeting", "1:1", etc.
+- MEDIUM priority: Documents with meeting-style content sections
+- LOW priority: Articles, slides, templates, etc. (marked as scanned but not processed)
+- SKIP: Excluded patterns (specific people's meetings, training docs, etc.)
 
 Works with documents already synced via Obsidian vault sync.
 Extracted items go to candidate tables for user review before becoming real entries.
@@ -42,6 +49,152 @@ FILENAME_DATE_PATTERN = re.compile(r'(\d{4}-\d{2}-\d{2})')
 # Pattern to identify Granola meeting documents in storage paths
 # Supports both Meeting-summaries and Transcripts folders
 GRANOLA_PATH_PATTERN = re.compile(r'Granola[/\\](Meeting-summaries|Transcripts)[/\\]', re.IGNORECASE)
+
+# =============================================================================
+# DOCUMENT CLASSIFICATION HEURISTICS
+# =============================================================================
+# These heuristics help identify documents likely to contain tasks, opportunities,
+# and stakeholders - regardless of their source folder.
+
+# HIGH priority filename patterns (likely meetings/transcripts)
+HIGH_PRIORITY_FILENAME_PATTERNS = [
+    re.compile(r'transcript', re.IGNORECASE),
+    re.compile(r'meeting', re.IGNORECASE),
+    re.compile(r'summary', re.IGNORECASE),
+    re.compile(r'1[:\-_]1|one[:\-_]one', re.IGNORECASE),  # 1:1, 1-1, one-on-one
+    re.compile(r'sync\b', re.IGNORECASE),
+    re.compile(r'standup|stand[:\-_]up', re.IGNORECASE),
+    re.compile(r'retro(spective)?', re.IGNORECASE),
+    re.compile(r'all[:\-_]?hands', re.IGNORECASE),
+    re.compile(r'kickoff|kick[:\-_]off', re.IGNORECASE),
+    re.compile(r'interview', re.IGNORECASE),
+    re.compile(r'workshop', re.IGNORECASE),
+    re.compile(r'brainstorm', re.IGNORECASE),
+    re.compile(r'planning\s+session', re.IGNORECASE),
+    re.compile(r'review\s+meeting', re.IGNORECASE),
+    re.compile(r'strategy\s+session', re.IGNORECASE),
+]
+
+# HIGH priority content patterns (meeting indicators in document body)
+HIGH_PRIORITY_CONTENT_PATTERNS = [
+    re.compile(r'^#+\s*(participants?|attendees?)', re.IGNORECASE | re.MULTILINE),
+    re.compile(r'^#+\s*action\s+items?', re.IGNORECASE | re.MULTILINE),
+    re.compile(r'^#+\s*next\s+steps?', re.IGNORECASE | re.MULTILINE),
+    re.compile(r'^#+\s*decisions?', re.IGNORECASE | re.MULTILINE),
+    re.compile(r'^#+\s*agenda', re.IGNORECASE | re.MULTILINE),
+    re.compile(r'^#+\s*summary', re.IGNORECASE | re.MULTILINE),
+    re.compile(r'^#+\s*key\s+(points?|takeaways?)', re.IGNORECASE | re.MULTILINE),
+    re.compile(r'\*\*(participants?|attendees?):\*\*', re.IGNORECASE),
+    re.compile(r'Granola\s+(ID|Notes)', re.IGNORECASE),  # Granola-specific
+    re.compile(r'\[speaker\s*\d*\]', re.IGNORECASE),  # Transcript speaker markers
+]
+
+# LOW priority filename patterns (unlikely to have tasks/opportunities)
+LOW_PRIORITY_FILENAME_PATTERNS = [
+    re.compile(r'article', re.IGNORECASE),
+    re.compile(r'reference', re.IGNORECASE),
+    re.compile(r'guide\b', re.IGNORECASE),
+    re.compile(r'slides?|deck', re.IGNORECASE),
+    re.compile(r'presentation', re.IGNORECASE),
+    re.compile(r'template', re.IGNORECASE),
+    re.compile(r'readme', re.IGNORECASE),
+    re.compile(r'changelog', re.IGNORECASE),
+    re.compile(r'documentation', re.IGNORECASE),
+    re.compile(r'tutorial', re.IGNORECASE),
+    re.compile(r'example', re.IGNORECASE),
+    re.compile(r'sample', re.IGNORECASE),
+    re.compile(r'test[:\-_]', re.IGNORECASE),  # test files but not "testing meeting"
+    re.compile(r'backup', re.IGNORECASE),
+    re.compile(r'archive', re.IGNORECASE),
+    re.compile(r'\.excalidraw', re.IGNORECASE),
+]
+
+# LOW priority path patterns (folders unlikely to have meeting content)
+LOW_PRIORITY_PATH_PATTERNS = [
+    re.compile(r'Articles?[/\\]', re.IGNORECASE),
+    re.compile(r'Reference[/\\]', re.IGNORECASE),
+    re.compile(r'Templates?[/\\]', re.IGNORECASE),
+    re.compile(r'Archive[/\\]', re.IGNORECASE),
+    re.compile(r'\.claude[/\\]', re.IGNORECASE),
+    re.compile(r'node_modules[/\\]', re.IGNORECASE),
+]
+
+
+def classify_document_priority(
+    filename: str,
+    obsidian_path: Optional[str] = None,
+    content: Optional[str] = None
+) -> str:
+    """
+    Classify a document's priority for task/opportunity/stakeholder extraction.
+
+    Returns:
+        'high' - Likely a meeting transcript/summary, should be scanned
+        'medium' - Unclear, may contain relevant content
+        'low' - Unlikely to contain tasks/opportunities (articles, slides, etc.)
+        'skip' - Should be excluded entirely
+    """
+    path_to_check = obsidian_path or filename or ''
+    filename_lower = (filename or '').lower()
+
+    # Always HIGH priority: Granola folder (known meeting source)
+    if GRANOLA_PATH_PATTERN.search(path_to_check):
+        return 'high'
+
+    # Check exclusion patterns first
+    for pattern in EXCLUDE_PATTERNS:
+        if pattern.search(filename) or pattern.search(path_to_check):
+            return 'skip'
+
+    # Check LOW priority path patterns
+    for pattern in LOW_PRIORITY_PATH_PATTERNS:
+        if pattern.search(path_to_check):
+            return 'low'
+
+    # Check LOW priority filename patterns
+    for pattern in LOW_PRIORITY_FILENAME_PATTERNS:
+        if pattern.search(filename):
+            return 'low'
+
+    # Check HIGH priority filename patterns
+    for pattern in HIGH_PRIORITY_FILENAME_PATTERNS:
+        if pattern.search(filename):
+            return 'high'
+
+    # If content is available, check content patterns
+    if content:
+        content_sample = content[:3000]  # Check first 3000 chars for efficiency
+        high_matches = sum(1 for p in HIGH_PRIORITY_CONTENT_PATTERNS if p.search(content_sample))
+        if high_matches >= 2:  # Multiple meeting indicators = high priority
+            return 'high'
+        elif high_matches == 1:
+            return 'medium'
+
+    # Default to medium - will be processed but not prioritized
+    return 'medium'
+
+
+def should_scan_document(doc: Dict[str, Any], content: Optional[str] = None) -> Tuple[bool, str]:
+    """
+    Determine if a document should be scanned for tasks/opportunities/stakeholders.
+
+    Returns:
+        (should_scan, reason) tuple
+    """
+    filename = doc.get('filename', '')
+    obsidian_path = doc.get('obsidian_file_path', '')
+
+    priority = classify_document_priority(filename, obsidian_path, content)
+
+    if priority == 'skip':
+        return False, 'excluded_by_pattern'
+    elif priority == 'low':
+        return False, 'low_priority_content'
+    elif priority in ('high', 'medium'):
+        return True, f'{priority}_priority'
+
+    return False, 'unknown'
+
 
 # Patterns to EXCLUDE from scanning (case-insensitive)
 # These documents are not relevant for opportunity/task/stakeholder extraction
@@ -783,33 +936,34 @@ async def scan_document(
         return {'status': 'failed', 'error': str(e)}
 
 
-async def scan_granola_documents(
+async def scan_meeting_documents(
     user_id: str,
     client_id: str,
     force_rescan: bool = False,
-    since_date: Optional[date] = None
+    since_date: Optional[date] = None,
+    include_medium_priority: bool = False
 ) -> Dict[str, Any]:
     """
-    Scan Granola meeting documents from the KB.
+    Scan meeting documents from the KB for tasks, opportunities, and stakeholders.
 
-    Finds documents with obsidian_file_path containing 'Granola/Meeting-summaries'
-    and extracts opportunities, tasks, and stakeholders.
+    Uses heuristics to identify meeting-like documents (transcripts, summaries, etc.)
+    regardless of their source folder. Prioritizes documents with clear meeting indicators.
 
     Args:
         user_id: User ID
         client_id: Client ID
         force_rescan: Re-process already scanned files
         since_date: Only scan documents created on or after this date (defaults to Jan 5, 2026)
+        include_medium_priority: Also scan medium-priority documents (default: only high priority)
 
     Returns:
         Scan results with stats
     """
     # Apply default cutoff date if not specified
     effective_since_date = since_date if since_date is not None else DEFAULT_SINCE_DATE
-    logger.info(f"Scanning Granola documents from KB (since {effective_since_date})")
+    logger.info(f"Scanning meeting documents from KB (since {effective_since_date})")
 
-    # Find Granola meeting documents in KB
-    # Query directly to get original_date for filtering (RPC doesn't return all needed fields)
+    # Find meeting-like documents in KB using heuristics
     try:
         result = supabase.table('documents') \
             .select('id, filename, title, original_date, storage_url, granola_scanned_at, obsidian_file_path, uploaded_at') \
@@ -819,20 +973,44 @@ async def scan_granola_documents(
 
         all_docs = result.data or []
 
-        # Filter to Granola docs only (avoiding ilike which causes Cloudflare 1101 errors)
-        granola_docs = [
-            d for d in all_docs
-            if d.get('obsidian_file_path') and 'Granola' in d.get('obsidian_file_path', '')
-        ]
+        # Classify documents by priority using heuristics
+        meeting_docs = []
+        skipped_low = 0
+        skipped_excluded = 0
+
+        for doc in all_docs:
+            filename = doc.get('filename', '')
+            obsidian_path = doc.get('obsidian_file_path', '')
+
+            priority = classify_document_priority(filename, obsidian_path)
+
+            if priority == 'skip':
+                skipped_excluded += 1
+                continue
+            elif priority == 'low':
+                skipped_low += 1
+                # Mark low-priority docs as scanned so they don't appear as pending
+                if not doc.get('granola_scanned_at'):
+                    try:
+                        supabase.table('documents').update({
+                            'granola_scanned_at': datetime.now(timezone.utc).isoformat()
+                        }).eq('id', doc['id']).execute()
+                    except Exception:
+                        pass  # Non-critical, continue
+                continue
+            elif priority == 'high' or (priority == 'medium' and include_medium_priority):
+                meeting_docs.append(doc)
+
+        logger.info(f"Document classification: {len(meeting_docs)} meeting docs, {skipped_low} low priority, {skipped_excluded} excluded")
 
         # Filter by already scanned (unless force_rescan)
         if not force_rescan:
-            granola_docs = [d for d in granola_docs if not d.get('granola_scanned_at')]
+            meeting_docs = [d for d in meeting_docs if not d.get('granola_scanned_at')]
 
         # Filter by date (always applies - uses default cutoff if not specified)
-        original_count = len(granola_docs)
+        original_count = len(meeting_docs)
         documents = []
-        for doc in granola_docs:
+        for doc in meeting_docs:
             # Use get_document_meeting_date for comprehensive date detection
             doc_date = get_document_meeting_date(doc)
             if doc_date and doc_date >= effective_since_date:
@@ -842,11 +1020,11 @@ async def scan_granola_documents(
                 logger.debug(f"Skipping doc with no date: {doc.get('filename', 'Unknown')[:50]}")
         logger.info(f"Date filter: {original_count} -> {len(documents)} documents (since {effective_since_date})")
     except Exception as e:
-        logger.error(f"Failed to query Granola documents: {e}")
+        logger.error(f"Failed to query meeting documents: {e}")
         raise GranolaScannerError(f"Failed to query documents: {e}")
 
     if not documents:
-        logger.info("No unscanned Granola documents found")
+        logger.info("No unscanned meeting documents found")
         return {
             'status': 'success',
             'stats': {
@@ -918,10 +1096,11 @@ async def scan_granola_documents(
 
 def get_scan_status(user_id: str, since_date: Optional[date] = None) -> Dict[str, Any]:
     """
-    Get current scan status for Granola documents in the KB.
+    Get current scan status for meeting documents in the KB.
 
-    Returns counts of scanned vs unscanned Granola meeting documents.
-    Defaults to counting only documents from Jan 5, 2026 onwards (post role-start).
+    Uses heuristics to identify meeting-like documents and returns counts
+    of scanned vs unscanned. Defaults to counting only documents from
+    Jan 5, 2026 onwards (post role-start).
     """
     # Apply default cutoff date if not specified
     effective_since_date = since_date if since_date is not None else DEFAULT_SINCE_DATE
@@ -938,15 +1117,19 @@ def get_scan_status(user_id: str, since_date: Optional[date] = None) -> Dict[str
 
         all_docs = result.data or []
 
-        # Filter to Granola docs only
-        granola_docs = [
-            d for d in all_docs
-            if d.get('obsidian_file_path') and 'Granola' in d.get('obsidian_file_path', '')
-        ]
+        # Filter to meeting documents using heuristics
+        meeting_docs = []
+        for doc in all_docs:
+            filename = doc.get('filename', '')
+            obsidian_path = doc.get('obsidian_file_path', '')
+            priority = classify_document_priority(filename, obsidian_path)
+            # Only count high/medium priority docs (skip low-priority and excluded)
+            if priority in ('high', 'medium'):
+                meeting_docs.append(doc)
 
         # Filter by meeting date
         filtered_docs = []
-        for doc in granola_docs:
+        for doc in meeting_docs:
             doc_date = get_document_meeting_date(doc)
             if doc_date and doc_date >= effective_since_date:
                 filtered_docs.append(doc)
@@ -978,7 +1161,7 @@ def get_scan_status(user_id: str, since_date: Optional[date] = None) -> Dict[str
         }
 
 
-# Keep old function name for backwards compatibility
+# Keep old function names for backwards compatibility
 async def scan_granola_vault(
     user_id: str,
     client_id: str,
@@ -987,7 +1170,19 @@ async def scan_granola_vault(
     since_date: Optional[date] = None
 ) -> Dict[str, Any]:
     """
-    Backwards-compatible wrapper for scan_granola_documents.
+    Backwards-compatible wrapper for scan_meeting_documents.
     The vault_path parameter is ignored - scanning now uses documents from the KB.
     """
-    return await scan_granola_documents(user_id, client_id, force_rescan, since_date)
+    return await scan_meeting_documents(user_id, client_id, force_rescan, since_date)
+
+
+async def scan_granola_documents(
+    user_id: str,
+    client_id: str,
+    force_rescan: bool = False,
+    since_date: Optional[date] = None
+) -> Dict[str, Any]:
+    """
+    Backwards-compatible alias for scan_meeting_documents.
+    """
+    return await scan_meeting_documents(user_id, client_id, force_rescan, since_date)
