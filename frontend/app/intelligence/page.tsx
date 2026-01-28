@@ -17,12 +17,6 @@ const EngagementTrendsChart = dynamic(
   { ssr: false, loading: () => <LoadingSpinner /> }
 )
 
-// Lazy load the stakeholder candidates section
-const StakeholderCandidatesSection = dynamic(
-  () => import('@/components/stakeholders/StakeholderCandidatesSection'),
-  { ssr: false, loading: () => <LoadingSpinner /> }
-)
-
 // Lazy load the department grouped view
 const DepartmentGroupedView = dynamic(
   () => import('@/components/stakeholders/DepartmentGroupedView'),
@@ -349,14 +343,6 @@ export default function IntelligencePage() {
         {/* Stakeholders Tab */}
         {activeTab === 'stakeholders' && (
           <div>
-            {/* Stakeholder Discovery Section */}
-            <div className="mb-8">
-              <StakeholderCandidatesSection
-                onStakeholderCreated={loadStakeholderData}
-                stakeholders={stakeholders.map(s => ({ id: s.id, name: s.name }))}
-              />
-            </div>
-
             {/* Add Stakeholder Button */}
             <div className="flex justify-end mb-6">
               <button

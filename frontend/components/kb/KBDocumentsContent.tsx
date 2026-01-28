@@ -1492,7 +1492,7 @@ export default function KBDocumentsContent() {
                 </svg>
               )}
             </button>
-            <h3 className="heading-3">Obsidian</h3>
+            <h3 className="heading-3">Vault</h3>
           </div>
           {obsidianStatus && !obsidianStatus.connected && obsidianExpanded && (
             <span className="text-sm text-muted">Not configured - run watcher script to connect</span>
@@ -1786,7 +1786,7 @@ export default function KBDocumentsContent() {
               >
                 <option value="all">All Sources</option>
                 <option value="google_drive">Google Drive</option>
-                <option value="obsidian">Obsidian</option>
+                <option value="obsidian">Vault</option>
                 <option value="upload">Uploads</option>
               </select>
 
