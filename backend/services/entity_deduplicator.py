@@ -148,8 +148,9 @@ class EntityDeduplicator:
         """
         cache_key = normalize_for_cache_key(title)
 
-        # 1. Within-batch check
+        # 1. Within-batch check (exact + fuzzy)
         if batch_id:
+            # First check exact match
             batch_key = f"{batch_id}:{cache_key}"
             if batch_key in self._batch_cache.tasks:
                 cached = self._batch_cache.tasks[batch_key]
@@ -159,6 +160,17 @@ class EntityDeduplicator:
                     match_confidence=1.0,
                     match_reason=f"Duplicate in same batch: '{cached['title'][:50]}'"
                 )
+            # Also check fuzzy match against all batch items
+            for key, cached in self._batch_cache.tasks.items():
+                if key.startswith(f"{batch_id}:"):
+                    similarity = fuzzy_match(title, cached['title'])
+                    if similarity > self.config.fuzzy_threshold:
+                        return MatchResult(
+                            matched_id=cached['id'],
+                            match_type='batch',
+                            match_confidence=similarity,
+                            match_reason=f"Similar to batch item: '{cached['title'][:50]}'"
+                        )
             # Add to cache for future checks
             self._batch_cache.tasks[batch_key] = {'id': 'pending', 'title': title}
 
@@ -344,8 +356,9 @@ class EntityDeduplicator:
         """
         cache_key = normalize_for_cache_key(title)
 
-        # 1. Within-batch check
+        # 1. Within-batch check (exact + fuzzy)
         if batch_id:
+            # First check exact match
             batch_key = f"{batch_id}:{cache_key}"
             if batch_key in self._batch_cache.opportunities:
                 cached = self._batch_cache.opportunities[batch_key]
@@ -355,6 +368,17 @@ class EntityDeduplicator:
                     match_confidence=1.0,
                     match_reason=f"Duplicate in same batch: '{cached['title'][:50]}'"
                 )
+            # Also check fuzzy match against all batch items
+            for key, cached in self._batch_cache.opportunities.items():
+                if key.startswith(f"{batch_id}:"):
+                    similarity = fuzzy_match(title, cached['title'])
+                    if similarity > self.config.fuzzy_threshold:
+                        return MatchResult(
+                            matched_id=cached['id'],
+                            match_type='batch',
+                            match_confidence=similarity,
+                            match_reason=f"Similar to batch item: '{cached['title'][:50]}'"
+                        )
             self._batch_cache.opportunities[batch_key] = {'id': 'pending', 'title': title}
 
         # 2. Check rejected candidates
@@ -495,8 +519,9 @@ class EntityDeduplicator:
         """
         cache_key = normalize_for_cache_key(name)
 
-        # 1. Within-batch check
+        # 1. Within-batch check (exact + fuzzy)
         if batch_id:
+            # First check exact match
             batch_key = f"{batch_id}:{cache_key}"
             if batch_key in self._batch_cache.stakeholders:
                 cached = self._batch_cache.stakeholders[batch_key]
@@ -506,6 +531,17 @@ class EntityDeduplicator:
                     match_confidence=1.0,
                     match_reason=f"Duplicate in same batch: '{cached['name']}'"
                 )
+            # Also check fuzzy match against all batch items (catches name variations)
+            for key, cached in self._batch_cache.stakeholders.items():
+                if key.startswith(f"{batch_id}:"):
+                    similarity = fuzzy_match(name, cached['name'])
+                    if similarity > 0.90:  # Higher threshold for names
+                        return MatchResult(
+                            matched_id=cached['id'],
+                            match_type='batch',
+                            match_confidence=similarity,
+                            match_reason=f"Similar to batch item: '{cached['name']}'"
+                        )
             self._batch_cache.stakeholders[batch_key] = {'id': 'pending', 'name': name}
 
         # 2. Check rejected candidates
