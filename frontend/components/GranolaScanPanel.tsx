@@ -91,11 +91,22 @@ export default function GranolaScanPanel() {
 
   // Auto-scan when new documents are detected and sync is not active
   useEffect(() => {
+    console.log('[AutoScan] Effect running, status:', status ? 'loaded' : 'null')
     if (!status) return
 
     const hasPendingFiles = status.pending_files > 0
     const syncIsActive = status.sync_activity?.active
     const newFilesDetected = status.pending_files > lastPendingCountRef.current
+
+    console.log('[AutoScan] Conditions:', {
+      pending: status.pending_files,
+      lastPending: lastPendingCountRef.current,
+      hasPendingFiles,
+      syncIsActive,
+      isScanning,
+      newFilesDetected,
+      autoScanTriggered: autoScanTriggeredRef.current
+    })
 
     // Update last pending count
     lastPendingCountRef.current = status.pending_files
@@ -108,17 +119,25 @@ export default function GranolaScanPanel() {
     if (hasPendingFiles && !isScanning && !syncIsActive) {
       // Reset auto-scan flag when new files are detected
       if (newFilesDetected) {
+        console.log('[AutoScan] New files detected, resetting flag')
         autoScanTriggeredRef.current = false
       }
 
       // Trigger auto-scan if not already triggered
       if (!autoScanTriggeredRef.current) {
+        console.log('[AutoScan] Triggering auto-scan in 2 seconds')
         autoScanTriggeredRef.current = true
         // Small delay to batch any rapid successive syncs
         const timer = setTimeout(() => {
+          console.log('[AutoScan] Timer fired, calling handleScan')
           handleScan()
         }, 2000)
-        return () => clearTimeout(timer)
+        return () => {
+          console.log('[AutoScan] Cleanup - clearing timer')
+          clearTimeout(timer)
+        }
+      } else {
+        console.log('[AutoScan] Already triggered, skipping')
       }
     }
 
