@@ -538,7 +538,7 @@ async def process_document_with_classification(
 
     # Check if this document affects any opportunities and update justifications
     try:
-        from services.opportunity_kb_sync import check_and_sync_opportunities_for_document
+        from services.project_kb_sync import check_and_sync_opportunities_for_document
         sync_result = await check_and_sync_opportunities_for_document(document_id)
         result['opportunity_sync'] = {
             'status': 'completed',

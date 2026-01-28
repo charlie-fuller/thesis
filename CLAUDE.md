@@ -24,7 +24,7 @@ Save to Mem0 when:
 
 Multi-agent platform for enterprise GenAI strategy. 21 specialized agents for research, finance, IT/governance, legal, meeting analysis, and more.
 
-**Key features**: Agent chat with @mentions, Knowledge Base with auto-classification, Meeting Rooms with autonomous discussion, Kanban tasks, Opportunities pipeline, Stakeholder tracking, Obsidian sync, DISCo product discovery.
+**Key features**: Agent chat with @mentions, Knowledge Base with auto-classification, Meeting Rooms with autonomous discussion, Kanban tasks, Projects pipeline, Stakeholder tracking, Obsidian sync, DISCo product discovery.
 
 See `/docs/ARCHITECTURE.md` for full agent roster, capabilities, and database schema.
 
@@ -44,7 +44,7 @@ See `/docs/ARCHITECTURE.md` for full agent roster, capabilities, and database sc
 
 ```
 /frontend
-  /app           - Next.js pages (kb, chat, meeting-room, tasks, opportunities, disco)
+  /app           - Next.js pages (kb, chat, meeting-room, tasks, projects, disco)
   /components    - React components
   /contexts      - AuthContext, ThemeContext
 
@@ -71,10 +71,63 @@ See `/docs/ARCHITECTURE.md` for full agent roster, capabilities, and database sc
 npm run dev          # Dev server (localhost:3000)
 npm run build        # Production build
 
-# Backend (from /backend)
-uvicorn main:app --reload --port 8000
+# Backend (from /backend) - requires environment setup
 uv run pytest tests/ -v
 ```
+
+### Backend Startup (IMPORTANT)
+
+The backend uses encrypted `.env` (dotenvx) and requires a Supabase JWK for ES256 JWT validation.
+
+**Quick Start:**
+```bash
+# 1. Get the JWK from Supabase (or 1Password: "Thesis Supabase JWT JWK")
+JWK=$(curl -s "https://imdavfgreeddxluslsdl.supabase.co/auth/v1/.well-known/jwks.json" | jq -c '.keys[0]')
+
+# 2. Start backend with dotenvx decryption + JWK override
+cd backend
+SUPABASE_JWT_SECRET="$JWK" \
+DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c230 \
+dotenvx run -f .env -- .venv/bin/python -m uvicorn main:app --reload --port 8000
+```
+
+**Why this is needed:**
+- Supabase issues ES256 JWTs (not HS256) for user authentication
+- The backend needs the JWK public key to verify these tokens
+- The `.env` file is encrypted with dotenvx - use `DOTENV_PRIVATE_KEY` to decrypt
+
+**1Password:** The JWK is stored in "Thesis Supabase JWT JWK" in Employee vault.
+
+## Available Tools & Services
+
+Claude has access to these CLIs and services for Thesis development:
+
+### Infrastructure CLIs
+| Tool | Usage | Notes |
+|------|-------|-------|
+| `supabase` | `supabase projects list`, `supabase projects api-keys --project-ref imdavfgreeddxluslsdl` | Linked project: Thesis (imdavfgreeddxluslsdl) |
+| `op` (1Password) | `op item get "Thesis Supabase JWT JWK"`, `op item list --vault "Employee"` | Secrets storage |
+| `dotenvx` | Decrypt `.env` files with `DOTENV_PRIVATE_KEY` | Private key in backend/.env.keys |
+| `railway` | Deploy backend, check logs | MCP server available |
+| `gh` (GitHub) | PRs, issues, code search | Full repo access, can push |
+| `git` | Commits, branches, push to origin | Main branch: main |
+
+### Browser Automation (Chrome DevTools MCP)
+- `take_snapshot` - Get page DOM for element IDs
+- `click`, `fill`, `navigate_page` - Interact with pages
+- `list_console_messages` - Check for JS errors
+- `list_network_requests` - Debug API calls
+- Use for testing frontend at localhost:3000
+
+### Supabase Project Info
+- **Project Ref:** imdavfgreeddxluslsdl
+- **JWKS Endpoint:** `https://imdavfgreeddxluslsdl.supabase.co/auth/v1/.well-known/jwks.json`
+- **JWT Algorithm:** ES256 (requires JWK public key, not HMAC secret)
+
+### GitHub
+- **Repo:** anthropics/thesis (or charlie.fuller's fork)
+- Can create branches, commits, PRs
+- Use `gh pr create`, `gh issue list`, etc.
 
 ## Code Conventions
 
@@ -159,11 +212,39 @@ Notes:
 
 ## Testing
 
+### Quick Commands
+
 ```bash
-# From the repo root:
+# All backend tests (recommended)
 cd backend
-uv run pytest tests/test_document_classifier.py tests/test_tasks.py \
-  tests/test_opportunities.py tests/test_engagement.py tests/test_agents_new.py -v
+DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c230 \
+./scripts/run_all_tests.sh
+
+# Quick mode - core tests only
+./scripts/run_all_tests.sh --quick
+
+# Individual test file
+.venv/bin/python -m pytest tests/test_tasks.py -v
 ```
 
-See `/docs/testing/TESTING_PLAN.md` for full guide.
+### Test Coverage
+
+| Layer | Tests | File |
+|-------|-------|------|
+| Unit | 370+ | `tests/test_*.py` |
+| Integration | 35+ | `tests/test_integration.py` |
+| Obsidian | 55+ | `tests/test_obsidian_sync.py` |
+| E2E Browser | 66 | `tests/e2e_browser_tests.py` |
+
+### E2E Browser Tests
+
+E2E tests use Chrome DevTools MCP. Requires servers running:
+
+```bash
+# Check available scenarios
+.venv/bin/python tests/e2e_browser_tests.py
+```
+
+Key scenarios: `auth_login_success`, `chat_send_message`, `kb_upload_pdf`, `tasks_create`, `projects_create`
+
+See `/docs/testing/CLAUDE_TESTING_GUIDE.md` for full E2E instructions.

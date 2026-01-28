@@ -93,10 +93,10 @@ Assign tasks to stakeholders. The linkage shows in both Task and Intelligence vi
 Total score across four dimensions: ROI Potential, Implementation Effort, Strategic Alignment, Stakeholder Readiness. Each scored 1-5. Total 16-20 = Tier 1, 12-15 = Tier 2, etc.
 
 **Can scores change?**
-Yes. Edit an opportunity to update scores. The tier recalculates automatically.
+Yes. Edit a project to update scores. The tier recalculates automatically.
 
 **How does Operator use this?**
-Operator has access to your pipeline. When you ask about priorities or triage, it references your actual opportunities.
+Operator has access to your pipeline. When you ask about priorities or triage, it references your actual projects.
 
 ---
 

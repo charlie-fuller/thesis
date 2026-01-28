@@ -164,5 +164,5 @@ The KB is specifically for reference documents and conversation history.
 ## What's Next?
 
 - [Tasks](./05-tasks.md) - Kanban task management
-- [Opportunities](./06-opportunities.md) - AI opportunity pipeline
+- [Projects](./06-projects.md) - AI project pipeline
 - [Chat Interface](./02-chat.md) - See KB context in action

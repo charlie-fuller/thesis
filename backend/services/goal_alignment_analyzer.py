@@ -1,7 +1,7 @@
 """
 Goal Alignment Analyzer Service
 
-Analyzes AI opportunities against IS team FY27 strategic goals.
+Analyzes AI projects against IS team FY27 strategic goals.
 Produces a 0-100 alignment score across 4 pillars (25 points each):
 1. Decision-Ready Customer Journey
 2. Maximize Business Systems & AI Value
@@ -88,14 +88,14 @@ IS_GOALS = {
 }
 
 
-def _build_analysis_prompt(opportunity: dict) -> str:
+def _build_analysis_prompt(project: dict) -> str:
     """Build the prompt for analyzing goal alignment."""
 
-    title = opportunity.get("title", "Untitled")
-    description = opportunity.get("description") or "No description provided"
-    current_state = opportunity.get("current_state") or "Not specified"
-    desired_state = opportunity.get("desired_state") or "Not specified"
-    department = opportunity.get("department") or "General"
+    title = project.get("title", "Untitled")
+    description = project.get("description") or "No description provided"
+    current_state = project.get("current_state") or "Not specified"
+    desired_state = project.get("desired_state") or "Not specified"
+    department = project.get("department") or "General"
 
     # Build pillar descriptions
     pillar_text = ""
@@ -109,9 +109,9 @@ def _build_analysis_prompt(opportunity: dict) -> str:
    - KPIs: {kpis}
 """
 
-    return f"""Analyze this AI opportunity against IS team FY27 strategic goals.
+    return f"""Analyze this AI project against IS team FY27 strategic goals.
 
-OPPORTUNITY:
+PROJECT:
 - Title: {title}
 - Department: {department}
 - Description: {description}
@@ -128,7 +128,7 @@ SCORING GUIDANCE:
 - 5-9: Tangential connection to this pillar
 - 0-4: Minimal or no alignment with this pillar
 
-Score each pillar and identify which KPIs this opportunity could impact.
+Score each pillar and identify which KPIs this project could impact.
 
 Respond using this exact format:
 PILLAR_1_SCORE: [0-25]
@@ -216,38 +216,38 @@ def _parse_analysis_response(response_text: str) -> tuple[int, dict]:
 
 
 async def analyze_goal_alignment(
-    opportunity_id: str,
+    project_id: str,
     client_id: Optional[str] = None,
 ) -> tuple[int, dict]:
     """
-    Analyze an opportunity's alignment with IS team strategic goals.
+    Analyze a project's alignment with IS team strategic goals.
 
     Args:
-        opportunity_id: The opportunity UUID
+        project_id: The project UUID
         client_id: Optional client_id for verification
 
     Returns:
         Tuple of (total_score, details_dict)
 
     Raises:
-        ValueError: If opportunity not found
+        ValueError: If project not found
     """
     supabase = get_supabase()
 
-    # Fetch opportunity
-    query = supabase.table("ai_opportunities").select("*").eq("id", opportunity_id)
+    # Fetch project
+    query = supabase.table("ai_projects").select("*").eq("id", project_id)
     if client_id:
         query = query.eq("client_id", client_id)
 
     result = query.single().execute()
 
     if not result.data:
-        raise ValueError(f"Opportunity {opportunity_id} not found")
+        raise ValueError(f"Project {project_id} not found")
 
-    opportunity = result.data
+    project = result.data
 
     # Build prompt and call Claude
-    prompt = _build_analysis_prompt(opportunity)
+    prompt = _build_analysis_prompt(project)
 
     client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
@@ -261,55 +261,55 @@ async def analyze_goal_alignment(
         response_text = response.content[0].text
         score, details = _parse_analysis_response(response_text)
 
-        # Update the opportunity in database
-        supabase.table("ai_opportunities").update({
+        # Update the project in database
+        supabase.table("ai_projects").update({
             "goal_alignment_score": score,
             "goal_alignment_details": details
-        }).eq("id", opportunity_id).execute()
+        }).eq("id", project_id).execute()
 
         logger.info(
-            f"Analyzed goal alignment for opportunity {opportunity_id}: "
+            f"Analyzed goal alignment for project {project_id}: "
             f"score={score}/100"
         )
 
         return score, details
 
     except Exception as e:
-        logger.error(f"Failed to analyze goal alignment for {opportunity_id}: {e}")
+        logger.error(f"Failed to analyze goal alignment for {project_id}: {e}")
         raise
 
 
 async def batch_analyze_all(client_id: str) -> dict:
     """
-    Analyze goal alignment for all opportunities belonging to a client.
+    Analyze goal alignment for all projects belonging to a client.
 
     Returns:
         Dict with counts and statistics
     """
     supabase = get_supabase()
 
-    # Get all opportunities for client
-    result = supabase.table("ai_opportunities") \
+    # Get all projects for client
+    result = supabase.table("ai_projects") \
         .select("id, title") \
         .eq("client_id", client_id) \
         .execute()
 
-    opportunities = result.data
+    projects = result.data
     success_count = 0
     failure_count = 0
     errors = []
     scores = []
 
-    for opp in opportunities:
+    for proj in projects:
         try:
-            score, _ = await analyze_goal_alignment(opp["id"], client_id)
+            score, _ = await analyze_goal_alignment(proj["id"], client_id)
             success_count += 1
             scores.append(score)
-            logger.info(f"Analyzed alignment for: {opp['title']} (score: {score})")
+            logger.info(f"Analyzed alignment for: {proj['title']} (score: {score})")
         except Exception as e:
             failure_count += 1
-            errors.append({"id": opp["id"], "title": opp["title"], "error": str(e)})
-            logger.error(f"Failed for {opp['title']}: {e}")
+            errors.append({"id": proj["id"], "title": proj["title"], "error": str(e)})
+            logger.error(f"Failed for {proj['title']}: {e}")
 
     # Calculate statistics
     avg_score = sum(scores) / len(scores) if scores else 0
@@ -321,7 +321,7 @@ async def batch_analyze_all(client_id: str) -> dict:
     }
 
     return {
-        "total": len(opportunities),
+        "total": len(projects),
         "success": success_count,
         "failed": failure_count,
         "average_score": round(avg_score, 1),

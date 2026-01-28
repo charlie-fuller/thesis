@@ -331,6 +331,7 @@ app.include_router(meeting_rooms.router)
 app.include_router(research.router)
 app.include_router(projects.router)
 app.include_router(glean_connectors.router)
+# NOTE: opportunities.router kept for backward compatibility during transition to /api/projects
 app.include_router(opportunities.router)
 app.include_router(discovery.router)
 app.include_router(stakeholder_metrics.router)

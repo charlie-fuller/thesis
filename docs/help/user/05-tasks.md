@@ -139,13 +139,13 @@ Tasks track *work* - specific actions that need to happen.
 
 **Don't use Tasks for:**
 - Tracking stakeholder relationships (use Intelligence)
-- Managing AI opportunities (use Opportunities)
+- Managing AI projects (use Projects)
 - Storing documents (use Knowledge Base)
 
 ---
 
 ## What's Next?
 
-- [Opportunities](./06-opportunities.md) - The AI opportunity pipeline
+- [Projects](./06-projects.md) - The AI project pipeline
 - [Stakeholder Intelligence](./07-stakeholders.md) - Connect tasks to people
 - [Meeting Rooms](./03-meeting-rooms.md) - Where many tasks come from

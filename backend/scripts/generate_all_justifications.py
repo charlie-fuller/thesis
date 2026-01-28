@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from database import get_supabase
-from services.opportunity_justification import generate_opportunity_justifications
+from services.project_justification import generate_opportunity_justifications
 
 
 async def generate_all(client_id: str = None):

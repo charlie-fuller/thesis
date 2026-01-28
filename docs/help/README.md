@@ -12,7 +12,7 @@ User and administrator help content for the Thesis multi-agent GenAI strategy pl
 | [Meeting Rooms](./user/03-meeting-rooms.md) | Multi-agent collaboration and autonomous discussion |
 | [Knowledge Base](./user/04-knowledge-base.md) | Document management, uploads, and integrations |
 | [Tasks](./user/05-tasks.md) | Kanban task management |
-| [Opportunities](./user/06-opportunities.md) | AI opportunity pipeline and scoring |
+| [Projects](./user/06-projects.md) | AI project pipeline and scoring |
 | [Stakeholder Intelligence](./user/07-stakeholders.md) | Tracking relationships and meeting prep |
 | [FAQ](./user/08-faq.md) | Quick answers to common questions |
 

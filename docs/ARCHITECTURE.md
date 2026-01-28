@@ -64,8 +64,8 @@ This document contains detailed architecture documentation. For essential Claude
 ### Task & Project Management
 11. **Auto-Generated Titles** - Conversation titles from initial message
 12. **Task Management** - Kanban board with auto-extraction from documents
-13. **Project Triage (Operator)** - AI opportunity pipeline with tier-based scoring
-14. **Opportunities Pipeline** - Pipeline and Analysis tabs with scatter plot visualization
+13. **Project Triage (Operator)** - AI project pipeline with tier-based scoring
+14. **Projects Pipeline** - Pipeline and Analysis tabs with scatter plot visualization
 
 ### Intelligence & Analytics
 15. **Meeting Prep** - Stakeholder briefing pages
@@ -134,10 +134,11 @@ This document contains detailed architecture documentation. For essential Claude
 - `task_comments` - Comments on tasks
 - `task_history` - Status/priority change history
 
-### Business Intelligence
+### Project Management
 - `ai_projects` - Tier-scored AI projects with justifications
 - `project_candidates` - Auto-extracted pending review with dedup tracking
 - `project_conversations` - Q&A history
+- `project_stakeholder_link` - Links stakeholders to projects with roles
 - `roi_opportunities` - Identified ROI opportunities
 
 ### Research Intelligence
@@ -205,6 +206,7 @@ Run migrations in order from `/database/migrations/`:
 | 040 | add_compass_agent | Compass agent |
 | 047 | disco_outcome_tracking | Outcome tracking (formerly purdy_outcome_tracking) |
 | 048 | disco_synthesis | DISCo bundles + PRDs tables |
+| 056 | rename_opportunities_to_projects | Rename opportunities → projects throughout |
 
 ## Important Files Reference
 
@@ -221,7 +223,7 @@ Run migrations in order from `/database/migrations/`:
 - `/backend/services/document_classifier.py` - Hybrid classification
 - `/backend/services/obsidian_sync.py` - Vault sync
 - `/backend/services/engagement_calculator.py` - Engagement levels
-- `/backend/services/opportunity_*.py` - Opportunity services (context, chat, justification, confidence)
+- `/backend/services/project_*.py` - Project services (context, chat, justification, confidence, taskmaster, kb_sync)
 - `/backend/services/stakeholder_*.py` - Stakeholder services (extractor, scanner, deduplicator, linker)
 - `/backend/services/task_*.py` - Task services (auto_extractor, extractor)
 - `/backend/services/disco/` - DISCo services (8 agents) (formerly `purdy/`, path alias still supported)
@@ -233,7 +235,7 @@ Run migrations in order from `/database/migrations/`:
 - `/backend/api/routes/agents.py` - Agent management
 - `/backend/api/routes/documents.py` - Document CRUD
 - `/backend/api/routes/tasks.py` - Task management
-- `/backend/api/routes/opportunities.py` - Opportunity pipeline
+- `/backend/api/routes/projects.py` - Project pipeline (also `/api/opportunities/*` for backward compatibility)
 - `/backend/api/routes/disco.py` - DISCo endpoints (formerly `purdy.py`, route `/api/purdy/*` still accepted)
 
 ### Frontend Core
@@ -244,7 +246,7 @@ Run migrations in order from `/database/migrations/`:
 ### Frontend Features
 - `/frontend/app/meeting-room/` - Meeting rooms
 - `/frontend/app/tasks/` - Kanban board
-- `/frontend/app/opportunities/` - Opportunity pipeline
+- `/frontend/app/projects/` - Project pipeline
 - `/frontend/app/disco/` - DISCo feature (formerly `purdy/`, route `/purdy` still redirects)
 - `/frontend/components/disco/` - DISCo components (7 files) (formerly `purdy/`)
 
@@ -255,7 +257,7 @@ Run migrations in order from `/database/migrations/`:
   - `strategist-v1.0.md`, `prd-generator-v1.0.md`
   - `RUBRIC-v3.0.md` - Scoring rubric for evaluation
   - `EVALUATION-v4.2-RESULTS.md` - Latest evaluation results
-- `/frontend/components/opportunities/` - Opportunity components
+- `/frontend/components/projects/` - Project components
 - `/frontend/components/tasks/` - Task components
 
 ### Configuration

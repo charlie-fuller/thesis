@@ -97,8 +97,8 @@ This is the view to pull up before you meet with them:
 **Status Summary:**
 - Red/yellow/green indicators across key areas
 
-**Linked Opportunities:**
-- AI opportunities they own or care about
+**Linked Projects:**
+- AI projects they own or care about
 
 **Open Questions:**
 - Things to address in your next conversation
@@ -150,7 +150,7 @@ This graph context gets injected into agent responses. When you ask about a stak
 
 **Upload transcripts regularly.** The more data Oracle has, the better the analysis.
 
-**Link opportunities.** Every opportunity should have a stakeholder owner.
+**Link projects.** Every project should have a stakeholder owner.
 
 ---
 
@@ -166,7 +166,7 @@ Track *relationships and people dynamics* in your AI initiatives.
 
 **Don't use Intelligence for:**
 - Tasks (use Tasks page)
-- Opportunities (use Opportunities page)
+- Projects (use Projects page)
 - Documents (use Knowledge Base)
 
 ---
@@ -176,7 +176,7 @@ Track *relationships and people dynamics* in your AI initiatives.
 Stakeholder Intelligence connects to everything else:
 
 - **Meeting Rooms** → Oracle extracts stakeholder insights
-- **Opportunities** → Stakeholders own opportunities
+- **Projects** → Stakeholders own projects
 - **Tasks** → Tasks assigned to stakeholders
 - **Knowledge Base** → Stakeholder-relevant documents
 
@@ -187,5 +187,5 @@ The goal is a unified view of the humans in your AI initiatives.
 ## What's Next?
 
 - [Meeting Rooms](./03-meeting-rooms.md) - Where you get stakeholder insights
-- [Opportunities](./06-opportunities.md) - Connect opportunities to people
+- [Projects](./06-projects.md) - Connect projects to people
 - [Tasks](./05-tasks.md) - Track commitments to stakeholders

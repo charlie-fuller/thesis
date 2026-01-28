@@ -36,7 +36,7 @@ class TaskSourceType(str, Enum):
     TRANSCRIPT = "transcript"
     CONVERSATION = "conversation"
     RESEARCH = "research"
-    OPPORTUNITY = "opportunity"
+    PROJECT = "project"
     MANUAL = "manual"
 
 
@@ -67,13 +67,13 @@ class TaskCreate(BaseModel):
     tags: Optional[List[str]] = None
     team: Optional[str] = None
     related_stakeholder_ids: Optional[List[str]] = None
-    related_opportunity_id: Optional[str] = None
-    linked_opportunity_id: Optional[str] = None  # Parent project/opportunity
+    related_project_id: Optional[str] = None
+    linked_project_id: Optional[str] = None  # Parent project
     source_type: TaskSourceType = TaskSourceType.MANUAL
     source_transcript_id: Optional[str] = None
     source_conversation_id: Optional[str] = None
     source_research_task_id: Optional[str] = None
-    source_opportunity_id: Optional[str] = None
+    source_project_id: Optional[str] = None
     source_text: Optional[str] = None
     blocker_reason: Optional[str] = None
 
@@ -106,8 +106,8 @@ class TaskUpdate(BaseModel):
     tags: Optional[List[str]] = None
     team: Optional[str] = None
     blocker_reason: Optional[str] = None
-    related_opportunity_id: Optional[str] = None
-    linked_opportunity_id: Optional[str] = None  # Parent project/opportunity
+    related_project_id: Optional[str] = None
+    linked_project_id: Optional[str] = None  # Parent project
 
     @field_validator('title')
     @classmethod
@@ -175,14 +175,14 @@ def serialize_task(task: dict) -> dict:
         'source_transcript_id': task.get('source_transcript_id'),
         'source_conversation_id': task.get('source_conversation_id'),
         'source_research_task_id': task.get('source_research_task_id'),
-        'source_opportunity_id': task.get('source_opportunity_id'),
+        'source_project_id': task.get('source_project_id'),
         'category': task.get('category'),
         'tags': task.get('tags') or [],
         'team': task.get('team'),
         'blocker_reason': task.get('blocker_reason'),
         'blocked_at': task.get('blocked_at'),
-        'related_opportunity_id': task.get('related_opportunity_id'),
-        'linked_opportunity_id': task.get('linked_opportunity_id'),
+        'related_project_id': task.get('related_project_id'),
+        'linked_project_id': task.get('linked_project_id'),
         'position': task.get('position', 0),
         'created_at': task['created_at'],
         'updated_at': task['updated_at'],
@@ -225,7 +225,7 @@ async def get_kanban_board(
     source_type: Optional[List[str]] = Query(None),
     category: Optional[str] = Query(None),
     team: Optional[str] = Query(None, description="Filter by team/department"),
-    linked_opportunity_id: Optional[str] = Query(None, description="Filter by linked opportunity/project"),
+    linked_project_id: Optional[str] = Query(None, description="Filter by linked project"),
     search: Optional[str] = Query(None),
     include_completed: bool = Query(True),
 ):
@@ -263,9 +263,9 @@ async def get_kanban_board(
         if team:
             query = query.eq('team', team)
 
-        if linked_opportunity_id:
-            validate_uuid(linked_opportunity_id, "linked_opportunity_id")
-            query = query.eq('linked_opportunity_id', linked_opportunity_id)
+        if linked_project_id:
+            validate_uuid(linked_project_id, "linked_project_id")
+            query = query.eq('linked_project_id', linked_project_id)
 
         if not include_completed:
             query = query.neq('status', 'completed')
@@ -313,7 +313,7 @@ async def get_kanban_board(
                 'source_type': source_type,
                 'category': category,
                 'team': team,
-                'linked_opportunity_id': linked_opportunity_id,
+                'linked_project_id': linked_project_id,
                 'search': search,
                 'include_completed': include_completed,
             }
@@ -510,7 +510,7 @@ async def list_tasks(
     source_type: Optional[List[str]] = Query(None),
     category: Optional[str] = Query(None),
     team: Optional[str] = Query(None, description="Filter by team/department"),
-    linked_opportunity_id: Optional[str] = Query(None, description="Filter by linked opportunity/project"),
+    linked_project_id: Optional[str] = Query(None, description="Filter by linked project"),
     search: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
@@ -554,9 +554,9 @@ async def list_tasks(
         if team:
             query = query.eq('team', team)
 
-        if linked_opportunity_id:
-            validate_uuid(linked_opportunity_id, "linked_opportunity_id")
-            query = query.eq('linked_opportunity_id', linked_opportunity_id)
+        if linked_project_id:
+            validate_uuid(linked_project_id, "linked_project_id")
+            query = query.eq('linked_project_id', linked_project_id)
 
         # Apply ordering
         valid_order_fields = ['created_at', 'updated_at', 'due_date', 'priority', 'position', 'title']
@@ -594,7 +594,7 @@ async def list_tasks(
                 'source_type': source_type,
                 'category': category,
                 'team': team,
-                'linked_opportunity_id': linked_opportunity_id,
+                'linked_project_id': linked_project_id,
                 'search': search,
             }
         }
@@ -625,10 +625,10 @@ async def create_task(
             validate_uuid(request.assignee_stakeholder_id, "assignee_stakeholder_id")
         if request.assignee_user_id:
             validate_uuid(request.assignee_user_id, "assignee_user_id")
-        if request.related_opportunity_id:
-            validate_uuid(request.related_opportunity_id, "related_opportunity_id")
-        if request.linked_opportunity_id:
-            validate_uuid(request.linked_opportunity_id, "linked_opportunity_id")
+        if request.related_project_id:
+            validate_uuid(request.related_project_id, "related_project_id")
+        if request.linked_project_id:
+            validate_uuid(request.linked_project_id, "linked_project_id")
         if request.source_transcript_id:
             validate_uuid(request.source_transcript_id, "source_transcript_id")
         if request.source_conversation_id:
@@ -652,13 +652,13 @@ async def create_task(
             'tags': request.tags or [],
             'team': request.team,
             'related_stakeholder_ids': request.related_stakeholder_ids or [],
-            'related_opportunity_id': request.related_opportunity_id,
-            'linked_opportunity_id': request.linked_opportunity_id,
+            'related_project_id': request.related_project_id,
+            'linked_project_id': request.linked_project_id,
             'source_type': request.source_type.value,
             'source_transcript_id': request.source_transcript_id,
             'source_conversation_id': request.source_conversation_id,
             'source_research_task_id': request.source_research_task_id,
-            'source_opportunity_id': request.source_opportunity_id,
+            'source_project_id': request.source_project_id,
             'source_text': request.source_text,
             'source_extracted_at': datetime.now(timezone.utc).isoformat() if request.source_text else None,
             'blocker_reason': request.blocker_reason if request.status == TaskStatus.BLOCKED else None,
@@ -1398,14 +1398,14 @@ async def update_task(
             update_record['team'] = request.team or None
         if request.blocker_reason is not None:
             update_record['blocker_reason'] = request.blocker_reason or None
-        if request.related_opportunity_id is not None:
-            if request.related_opportunity_id:
-                validate_uuid(request.related_opportunity_id, "related_opportunity_id")
-            update_record['related_opportunity_id'] = request.related_opportunity_id or None
-        if request.linked_opportunity_id is not None:
-            if request.linked_opportunity_id:
-                validate_uuid(request.linked_opportunity_id, "linked_opportunity_id")
-            update_record['linked_opportunity_id'] = request.linked_opportunity_id or None
+        if request.related_project_id is not None:
+            if request.related_project_id:
+                validate_uuid(request.related_project_id, "related_project_id")
+            update_record['related_project_id'] = request.related_project_id or None
+        if request.linked_project_id is not None:
+            if request.linked_project_id:
+                validate_uuid(request.linked_project_id, "linked_project_id")
+            update_record['linked_project_id'] = request.linked_project_id or None
 
         result = await asyncio.to_thread(
             lambda: supabase.table('project_tasks')

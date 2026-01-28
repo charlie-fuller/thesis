@@ -15,11 +15,11 @@ from uuid import uuid4
 
 
 class TestOpportunityContext:
-    """Tests for services/opportunity_context.py"""
+    """Tests for services/project_context.py"""
 
     def test_get_scoring_related_documents_formats_correctly(self):
         """Verify that document chunks are formatted correctly for frontend"""
-        from services.opportunity_context import get_scoring_related_documents
+        from services.project_context import get_scoring_related_documents
 
         # Mock the search_similar_chunks function
         mock_chunks = [
@@ -37,7 +37,7 @@ class TestOpportunityContext:
             }
         ]
 
-        with patch('services.opportunity_context.search_similar_chunks', return_value=mock_chunks):
+        with patch('services.project_context.search_similar_chunks', return_value=mock_chunks):
             opportunity = {
                 'title': 'Test Opportunity',
                 'description': 'A test opportunity',
@@ -71,7 +71,7 @@ class TestOpportunityContext:
 
     def test_build_opportunity_context_includes_all_sections(self):
         """Verify context string includes all opportunity details"""
-        from services.opportunity_context import build_opportunity_context
+        from services.project_context import build_opportunity_context
 
         opportunity = {
             'title': 'AI Invoice Processing',
@@ -118,7 +118,7 @@ class TestOpportunityChat:
     @pytest.mark.asyncio
     async def test_ask_about_opportunity_returns_response_and_sources(self):
         """Verify ask_about_opportunity returns expected structure"""
-        from services.opportunity_chat import ask_about_opportunity
+        from services.project_chat import ask_about_opportunity
 
         mock_opportunity = {
             'id': str(uuid4()),
@@ -140,9 +140,9 @@ class TestOpportunityChat:
             }
         ]
 
-        with patch('services.opportunity_chat.supabase') as mock_sb, \
-             patch('services.opportunity_chat.get_scoring_related_documents', return_value=mock_docs), \
-             patch('services.opportunity_chat.anthropic_client') as mock_anthropic:
+        with patch('services.project_chat.supabase') as mock_sb, \
+             patch('services.project_chat.get_scoring_related_documents', return_value=mock_docs), \
+             patch('services.project_chat.anthropic_client') as mock_anthropic:
 
             # Mock Supabase query
             mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value.data = mock_opportunity

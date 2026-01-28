@@ -37,7 +37,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from database import get_supabase
-from services.opportunity_confidence import evaluate_opportunity_confidence
+from services.project_confidence import evaluate_opportunity_confidence
 
 
 def main():
