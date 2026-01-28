@@ -130,8 +130,9 @@ export default function UnifiedDiscoveryPanel() {
   useEffect(() => {
     if (authLoading || !user || !session) return;
     fetchData();
-    // Poll more frequently when scanning is active to show results quickly
-    const pollInterval = scanning?.active ? 5000 : 120000; // 5s when scanning, 2min otherwise
+    // Poll frequently to catch scanning status and new items quickly
+    // 5s when scanning active, 15s otherwise (fast enough to catch scan start/end)
+    const pollInterval = scanning?.active ? 5000 : 15000;
     const interval = setInterval(fetchData, pollInterval);
     return () => clearInterval(interval);
   }, [authLoading, user, session, fetchData, scanning?.active]);
