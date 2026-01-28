@@ -16,14 +16,14 @@ from pydantic import BaseModel, Field
 
 from auth import get_current_user
 from database import get_supabase
-from services.opportunity_context import get_scoring_related_documents
-from services.opportunity_chat import ask_about_opportunity, get_opportunity_conversations
-from services.opportunity_justification import (
+from services.project_context import get_scoring_related_documents
+from services.project_chat import ask_about_opportunity, get_opportunity_conversations
+from services.project_justification import (
     generate_opportunity_justifications,
     generate_all_justifications,
     regenerate_if_scores_changed,
 )
-from services.opportunity_taskmaster import chat_with_taskmaster
+from services.project_taskmaster import chat_with_taskmaster
 from services.goal_alignment_analyzer import (
     analyze_goal_alignment,
     batch_analyze_all,
@@ -1321,7 +1321,7 @@ class OpportunityCandidateReject(BaseModel):
 
 
 @router.get("/candidates/list", response_model=List[OpportunityCandidateResponse])
-async def list_opportunity_candidates(
+async def list_project_candidates(
     status: str = "pending",
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -1334,7 +1334,7 @@ async def list_opportunity_candidates(
     Candidates are extracted from meeting documents and await user review
     before becoming real opportunities.
     """
-    query = supabase.table("opportunity_candidates") \
+    query = supabase.table("project_candidates") \
         .select("*") \
         .eq("client_id", current_user["client_id"]) \
         .eq("status", status) \
@@ -1370,7 +1370,7 @@ async def list_opportunity_candidates(
 
 
 @router.get("/candidates/count")
-async def get_opportunity_candidates_count(
+async def get_project_candidates_count(
     current_user: dict = Depends(get_current_user),
     supabase = Depends(get_supabase)
 ):
@@ -1379,7 +1379,7 @@ async def get_opportunity_candidates_count(
 
     Used for dashboard badge display.
     """
-    result = supabase.table("opportunity_candidates") \
+    result = supabase.table("project_candidates") \
         .select("id", count="exact") \
         .eq("client_id", current_user["client_id"]) \
         .eq("status", "pending") \
@@ -1406,7 +1406,7 @@ async def accept_opportunity_candidate(
         accept_data = OpportunityCandidateAccept()
 
     # Get the candidate
-    candidate = supabase.table("opportunity_candidates") \
+    candidate = supabase.table("project_candidates") \
         .select("*") \
         .eq("id", candidate_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -1440,7 +1440,7 @@ async def accept_opportunity_candidate(
                 .execute()
 
             # Mark candidate as accepted
-            supabase.table("opportunity_candidates") \
+            supabase.table("project_candidates") \
                 .update({
                     "status": "accepted",
                     "accepted_at": now,
@@ -1492,7 +1492,7 @@ async def accept_opportunity_candidate(
         new_opp = result.data[0]
 
         # Mark candidate as accepted
-        supabase.table("opportunity_candidates") \
+        supabase.table("project_candidates") \
             .update({
                 "status": "accepted",
                 "accepted_at": now,
@@ -1542,7 +1542,7 @@ async def reject_opportunity_candidate(
         reject_data = OpportunityCandidateReject()
 
     # Verify candidate exists and is pending
-    candidate = supabase.table("opportunity_candidates") \
+    candidate = supabase.table("project_candidates") \
         .select("id") \
         .eq("id", candidate_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -1555,7 +1555,7 @@ async def reject_opportunity_candidate(
 
     now = datetime.now(timezone.utc).isoformat()
 
-    supabase.table("opportunity_candidates") \
+    supabase.table("project_candidates") \
         .update({
             "status": "rejected",
             "rejected_at": now,
@@ -1590,7 +1590,7 @@ async def link_opportunity_candidate(
     user_id = current_user['id']
 
     # Verify candidate exists and is pending
-    candidate_result = supabase.table("opportunity_candidates") \
+    candidate_result = supabase.table("project_candidates") \
         .select("*") \
         .eq("id", candidate_id) \
         .eq("client_id", client_id) \
@@ -1634,7 +1634,7 @@ async def link_opportunity_candidate(
 
     # Mark candidate as accepted with reference to the linked opportunity
     now = datetime.now(timezone.utc).isoformat()
-    supabase.table("opportunity_candidates") \
+    supabase.table("project_candidates") \
         .update({
             "status": "accepted",
             "created_opportunity_id": body.opportunity_id,
@@ -1673,7 +1673,7 @@ async def evaluate_all_confidence(
 
     Returns distribution and average confidence.
     """
-    from services.opportunity_confidence import evaluate_all_opportunities
+    from services.project_confidence import evaluate_all_opportunities
 
     try:
         result = await evaluate_all_opportunities(current_user["client_id"])
@@ -1692,7 +1692,7 @@ async def evaluate_single_confidence(
     """
     Evaluate and update confidence score for a single opportunity.
     """
-    from services.opportunity_confidence import evaluate_opportunity_confidence
+    from services.project_confidence import evaluate_opportunity_confidence
 
     # Fetch opportunity
     result = supabase.table("ai_opportunities") \

@@ -20,7 +20,7 @@ def reset_discovery_queue():
     print(f"  - Deleted {len(result.data)} task candidates")
     
     # Clear opportunity candidates  
-    result = supabase.table('opportunity_candidates').delete().eq('status', 'pending').execute()
+    result = supabase.table('project_candidates').delete().eq('status', 'pending').execute()
     print(f"  - Deleted {len(result.data)} opportunity candidates")
     
     # Clear stakeholder candidates

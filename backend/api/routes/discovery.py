@@ -126,8 +126,8 @@ async def get_discovery_counts(
         .execute()
     tasks_count = tasks_result.count or 0
 
-    # Get opportunity candidates count
-    opps_result = supabase.table("opportunity_candidates") \
+    # Get project candidates count
+    opps_result = supabase.table("project_candidates") \
         .select("id", count="exact") \
         .eq("client_id", client_id) \
         .eq("status", "pending") \
@@ -194,8 +194,8 @@ async def get_all_pending_candidates(
         for t in tasks_result.data
     ]
 
-    # Get pending opportunity candidates
-    opps_result = supabase.table("opportunity_candidates") \
+    # Get pending project candidates
+    opps_result = supabase.table("project_candidates") \
         .select("*") \
         .eq("client_id", client_id) \
         .eq("status", "pending") \
@@ -257,7 +257,7 @@ async def get_all_pending_candidates(
         .execute()
     tasks_count = tasks_count_result.count or 0
 
-    opps_count_result = supabase.table("opportunity_candidates") \
+    opps_count_result = supabase.table("project_candidates") \
         .select("id", count="exact") \
         .eq("client_id", client_id) \
         .eq("status", "pending") \

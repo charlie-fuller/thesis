@@ -363,7 +363,7 @@ class EntityDeduplicator:
             return rejected_match
 
         # 3. Check pending candidates
-        pending_match = await self._check_pending_opportunity_candidates(client_id, title)
+        pending_match = await self._check_pending_project_candidates(client_id, title)
         if pending_match:
             return pending_match
 
@@ -379,7 +379,7 @@ class EntityDeduplicator:
     ) -> Optional[MatchResult]:
         """Check if opportunity matches a rejected candidate."""
         try:
-            result = self.supabase.table('opportunity_candidates') \
+            result = self.supabase.table('project_candidates') \
                 .select('id, title') \
                 .eq('client_id', client_id) \
                 .eq('status', 'rejected') \
@@ -398,12 +398,12 @@ class EntityDeduplicator:
             logger.warning(f"Error checking rejected opportunities: {e}")
         return None
 
-    async def _check_pending_opportunity_candidates(
+    async def _check_pending_project_candidates(
         self, client_id: str, title: str
     ) -> Optional[MatchResult]:
         """Check if opportunity matches a pending candidate."""
         try:
-            result = self.supabase.table('opportunity_candidates') \
+            result = self.supabase.table('project_candidates') \
                 .select('id, title') \
                 .eq('client_id', client_id) \
                 .eq('status', 'pending') \
