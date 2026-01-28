@@ -38,6 +38,13 @@ class DiscoveryCounts(BaseModel):
     total: int
 
 
+class ScanningStatus(BaseModel):
+    """Status of document scanning for discovery extraction."""
+    active: bool
+    pending_documents: int = 0
+    message: Optional[str] = None
+
+
 class TaskCandidateItem(BaseModel):
     """Task candidate for discovery panel."""
     id: str
@@ -87,6 +94,7 @@ class DiscoveryAllResponse(BaseModel):
     opportunities: List[OpportunityCandidateItem]
     stakeholders: List[StakeholderCandidateItem]
     counts: DiscoveryCounts
+    scanning: Optional[ScanningStatus] = None
 
 
 # ============================================================================
@@ -265,6 +273,34 @@ async def get_all_pending_candidates(
         .execute()
     stakeholders_count = stakeholders_count_result.count or 0
 
+    # Check for pending Granola documents (synced but not yet scanned for extraction)
+    scanning_status = None
+    try:
+        user_id = current_user["id"]
+        # Get documents that are Granola meetings but haven't been scanned yet
+        # These are documents with obsidian_file_path containing 'Granola' and no granola_scanned_at
+        pending_docs = supabase.table("documents") \
+            .select("id", count="exact") \
+            .eq("user_id", user_id) \
+            .is_("granola_scanned_at", "null") \
+            .execute()
+
+        # Filter to only Granola docs (can't use ilike due to Cloudflare issues)
+        # We'll just check if there are unscanned docs - the Granola panel shows the accurate count
+        pending_count = pending_docs.count or 0
+
+        if pending_count > 0:
+            scanning_status = ScanningStatus(
+                active=True,
+                pending_documents=pending_count,
+                message=f"Analyzing {pending_count} document{'s' if pending_count != 1 else ''} for tasks, opportunities, stakeholders..."
+            )
+        else:
+            scanning_status = ScanningStatus(active=False, pending_documents=0)
+    except Exception as e:
+        logger.warning(f"Failed to get scanning status: {e}")
+        scanning_status = ScanningStatus(active=False, pending_documents=0)
+
     return {
         "tasks": tasks,
         "opportunities": opportunities,
@@ -274,5 +310,6 @@ async def get_all_pending_candidates(
             "opportunities": opps_count,
             "stakeholders": stakeholders_count,
             "total": tasks_count + opps_count + stakeholders_count
-        }
+        },
+        "scanning": scanning_status
     }

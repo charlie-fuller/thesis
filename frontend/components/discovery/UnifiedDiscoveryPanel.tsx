@@ -28,6 +28,12 @@ interface DiscoveryCounts {
   total: number;
 }
 
+interface ScanningStatus {
+  active: boolean;
+  pending_documents: number;
+  message?: string;
+}
+
 interface TaskCandidate {
   id: string;
   title: string;
@@ -73,6 +79,7 @@ interface DiscoveryAllResponse {
   opportunities: OpportunityCandidate[];
   stakeholders: StakeholderCandidate[];
   counts: DiscoveryCounts;
+  scanning?: ScanningStatus;
 }
 
 type TabType = 'tasks' | 'opportunities' | 'stakeholders';
@@ -97,6 +104,7 @@ export default function UnifiedDiscoveryPanel() {
   const [stakeholderIndex, setStakeholderIndex] = useState(0);
 
   const [processing, setProcessing] = useState(false);
+  const [scanning, setScanning] = useState<ScanningStatus | null>(null);
 
   // Fetch counts and candidates
   const fetchData = useCallback(async () => {
@@ -106,6 +114,7 @@ export default function UnifiedDiscoveryPanel() {
       setTasks(data.tasks);
       setOpportunities(data.opportunities);
       setStakeholders(data.stakeholders);
+      setScanning(data.scanning || null);
 
       // Set active tab to first non-empty category
       if (data.tasks.length > 0) setActiveTab('tasks');
@@ -319,17 +328,27 @@ export default function UnifiedDiscoveryPanel() {
   // Don't render while loading
   if (loading) return null;
 
-  // Don't render if nothing to review
+  // Don't render if nothing to review (but show scanning status if active)
   if (counts.total === 0) {
     return (
       <div className="card p-6">
         <div className="flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-green-500/10">
-            <Check className="w-6 h-6 text-green-500" />
+          <div className={`p-3 rounded-lg ${scanning?.active ? 'bg-amber-500/10' : 'bg-green-500/10'}`}>
+            {scanning?.active ? (
+              <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
+            ) : (
+              <Check className="w-6 h-6 text-green-500" />
+            )}
           </div>
           <div>
             <h3 className="text-lg font-semibold text-primary">Discovery Inbox</h3>
-            <p className="text-sm text-green-500">All caught up - no items to review</p>
+            {scanning?.active ? (
+              <p className="text-sm text-amber-500">
+                {scanning.message || 'Analyzing documents for tasks, opportunities, stakeholders...'}
+              </p>
+            ) : (
+              <p className="text-sm text-green-500">All caught up - no items to review</p>
+            )}
           </div>
         </div>
       </div>
@@ -362,12 +381,20 @@ export default function UnifiedDiscoveryPanel() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="px-3 py-1.5 text-sm font-medium text-secondary hover:text-primary transition-colors"
-          >
-            {expanded ? 'Collapse' : 'Expand'}
-          </button>
+          <div className="flex items-center gap-3">
+            {scanning?.active && (
+              <div className="flex items-center gap-2 text-xs text-amber-500">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>Analyzing {scanning.pending_documents} more...</span>
+              </div>
+            )}
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="px-3 py-1.5 text-sm font-medium text-secondary hover:text-primary transition-colors"
+            >
+              {expanded ? 'Collapse' : 'Expand'}
+            </button>
+          </div>
         </div>
       </div>
 
