@@ -1,9 +1,9 @@
 """
-Opportunity Justification Generation Service
+Project Justification Generation Service
 
-Generates AI-powered justifications for opportunity scores using Claude.
+Generates AI-powered justifications for project scores using Claude.
 Produces:
-- A 3-4 sentence summary of the opportunity
+- A 3-4 sentence summary of the project
 - A 3-4 sentence justification for each of the 4 scoring dimensions
 - Confidence score (0-100) based on information completeness
 - Questions that would raise confidence if answered
@@ -15,7 +15,7 @@ from typing import Optional
 import anthropic
 
 from database import get_supabase
-from services.opportunity_confidence import evaluate_opportunity_confidence
+from services.project_confidence import evaluate_project_confidence
 
 logger = logging.getLogger(__name__)
 
@@ -23,33 +23,33 @@ logger = logging.getLogger(__name__)
 MODEL = "claude-3-5-haiku-20241022"
 
 
-def _build_generation_prompt(opportunity: dict) -> str:
+def _build_generation_prompt(project: dict) -> str:
     """Build the prompt for generating justifications."""
 
-    # Extract opportunity details
-    title = opportunity.get("title", "Untitled")
-    description = opportunity.get("description") or "No description provided"
-    current_state = opportunity.get("current_state") or "Not specified"
-    desired_state = opportunity.get("desired_state") or "Not specified"
-    department = opportunity.get("department") or "General"
+    # Extract project details
+    title = project.get("title", "Untitled")
+    description = project.get("description") or "No description provided"
+    current_state = project.get("current_state") or "Not specified"
+    desired_state = project.get("desired_state") or "Not specified"
+    department = project.get("department") or "General"
 
     # Scores
-    roi = opportunity.get("roi_potential")
-    effort = opportunity.get("implementation_effort")
-    alignment = opportunity.get("strategic_alignment")
-    readiness = opportunity.get("stakeholder_readiness")
+    roi = project.get("roi_potential")
+    effort = project.get("implementation_effort")
+    alignment = project.get("strategic_alignment")
+    readiness = project.get("stakeholder_readiness")
 
     # ROI indicators if available
-    roi_indicators = opportunity.get("roi_indicators") or {}
+    roi_indicators = project.get("roi_indicators") or {}
     roi_details = ""
     if roi_indicators:
         roi_details = "\nROI Indicators: " + ", ".join(
             f"{k}: {v}" for k, v in roi_indicators.items()
         )
 
-    return f"""Analyze this AI opportunity and explain the scores.
+    return f"""Analyze this AI project and explain the scores.
 
-OPPORTUNITY:
+PROJECT:
 - Title: {title}
 - Department: {department}
 - Description: {description}
@@ -63,14 +63,14 @@ SCORES (1-5 scale, where 5 is best):
 - Stakeholder Readiness: {readiness if readiness else 'Not scored'}/5 (champion, data, team eagerness)
 
 Write brief justifications (2-4 sentences each) for:
-1. What this opportunity is and its business impact
+1. What this project is and its business impact
 2. Why ROI potential is scored as shown
 3. Why implementation ease is scored as shown
 4. Why strategic alignment is scored as shown
 5. Why stakeholder readiness is scored as shown
 
 Use these section labels (parser expects this format):
-OPPORTUNITY_SUMMARY: [text]
+PROJECT_SUMMARY: [text]
 ROI_JUSTIFICATION: [text]
 EFFORT_JUSTIFICATION: [text]
 ALIGNMENT_JUSTIFICATION: [text]
@@ -80,7 +80,7 @@ READINESS_JUSTIFICATION: [text]"""
 def _parse_generation_response(response_text: str) -> dict:
     """Parse the Claude response into structured fields."""
     result = {
-        "opportunity_summary": None,
+        "project_summary": None,
         "roi_justification": None,
         "effort_justification": None,
         "alignment_justification": None,
@@ -89,7 +89,7 @@ def _parse_generation_response(response_text: str) -> dict:
 
     # Parse each section
     sections = {
-        "OPPORTUNITY_SUMMARY:": "opportunity_summary",
+        "PROJECT_SUMMARY:": "project_summary",
         "ROI_JUSTIFICATION:": "roi_justification",
         "EFFORT_JUSTIFICATION:": "effort_justification",
         "ALIGNMENT_JUSTIFICATION:": "alignment_justification",
@@ -114,39 +114,39 @@ def _parse_generation_response(response_text: str) -> dict:
     return result
 
 
-async def generate_opportunity_justifications(
-    opportunity_id: str,
+async def generate_project_justifications(
+    project_id: str,
     client_id: Optional[str] = None,
 ) -> dict:
     """
-    Generate justifications for an opportunity's scores.
+    Generate justifications for a project's scores.
 
     Args:
-        opportunity_id: The opportunity UUID
+        project_id: The project UUID
         client_id: Optional client_id for verification
 
     Returns:
         Dict with the 5 justification fields
 
     Raises:
-        ValueError: If opportunity not found
+        ValueError: If project not found
     """
     supabase = get_supabase()
 
-    # Fetch opportunity
-    query = supabase.table("ai_opportunities").select("*").eq("id", opportunity_id)
+    # Fetch project
+    query = supabase.table("ai_projects").select("*").eq("id", project_id)
     if client_id:
         query = query.eq("client_id", client_id)
 
     result = query.single().execute()
 
     if not result.data:
-        raise ValueError(f"Opportunity {opportunity_id} not found")
+        raise ValueError(f"Project {project_id} not found")
 
-    opportunity = result.data
+    project = result.data
 
     # Build prompt and call Claude
-    prompt = _build_generation_prompt(opportunity)
+    prompt = _build_generation_prompt(project)
 
     client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
@@ -160,22 +160,22 @@ async def generate_opportunity_justifications(
         response_text = response.content[0].text
         justifications = _parse_generation_response(response_text)
 
-        # Update the opportunity in database with justifications
-        supabase.table("ai_opportunities").update(justifications).eq("id", opportunity_id).execute()
+        # Update the project in database with justifications
+        supabase.table("ai_projects").update(justifications).eq("id", project_id).execute()
 
-        # Re-fetch the opportunity to get updated data for confidence calculation
-        updated_result = supabase.table("ai_opportunities").select("*").eq("id", opportunity_id).single().execute()
-        updated_opportunity = updated_result.data
+        # Re-fetch the project to get updated data for confidence calculation
+        updated_result = supabase.table("ai_projects").select("*").eq("id", project_id).single().execute()
+        updated_project = updated_result.data
 
         # Calculate and save confidence score
-        confidence, questions = evaluate_opportunity_confidence(updated_opportunity)
-        supabase.table("ai_opportunities").update({
+        confidence, questions = evaluate_project_confidence(updated_project)
+        supabase.table("ai_projects").update({
             "scoring_confidence": confidence,
             "confidence_questions": questions,
-        }).eq("id", opportunity_id).execute()
+        }).eq("id", project_id).execute()
 
         logger.info(
-            f"Generated justifications for opportunity {opportunity_id} "
+            f"Generated justifications for project {project_id} "
             f"(confidence: {confidence}%)"
         )
 
@@ -186,42 +186,42 @@ async def generate_opportunity_justifications(
         return justifications
 
     except Exception as e:
-        logger.error(f"Failed to generate justifications for {opportunity_id}: {e}")
+        logger.error(f"Failed to generate justifications for {project_id}: {e}")
         raise
 
 
 async def generate_all_justifications(client_id: str) -> dict:
     """
-    Generate justifications for all opportunities belonging to a client.
+    Generate justifications for all projects belonging to a client.
 
     Returns:
         Dict with counts of success/failure
     """
     supabase = get_supabase()
 
-    # Get all opportunities for client
-    result = supabase.table("ai_opportunities") \
+    # Get all projects for client
+    result = supabase.table("ai_projects") \
         .select("id, title") \
         .eq("client_id", client_id) \
         .execute()
 
-    opportunities = result.data
+    projects = result.data
     success_count = 0
     failure_count = 0
     errors = []
 
-    for opp in opportunities:
+    for project in projects:
         try:
-            await generate_opportunity_justifications(opp["id"], client_id)
+            await generate_project_justifications(project["id"], client_id)
             success_count += 1
-            logger.info(f"Generated justifications for: {opp['title']}")
+            logger.info(f"Generated justifications for: {project['title']}")
         except Exception as e:
             failure_count += 1
-            errors.append({"id": opp["id"], "title": opp["title"], "error": str(e)})
-            logger.error(f"Failed for {opp['title']}: {e}")
+            errors.append({"id": project["id"], "title": project["title"], "error": str(e)})
+            logger.error(f"Failed for {project['title']}: {e}")
 
     return {
-        "total": len(opportunities),
+        "total": len(projects),
         "success": success_count,
         "failed": failure_count,
         "errors": errors if errors else None,
@@ -229,7 +229,7 @@ async def generate_all_justifications(client_id: str) -> dict:
 
 
 async def regenerate_if_scores_changed(
-    opportunity_id: str,
+    project_id: str,
     old_scores: dict,
     new_scores: dict,
     client_id: Optional[str] = None,
@@ -238,7 +238,7 @@ async def regenerate_if_scores_changed(
     Check if scores changed and regenerate justifications if so.
 
     Args:
-        opportunity_id: The opportunity UUID
+        project_id: The project UUID
         old_scores: Dict with roi_potential, implementation_effort, etc.
         new_scores: Dict with the new score values
         client_id: Optional client_id for verification
@@ -263,7 +263,7 @@ async def regenerate_if_scores_changed(
             break
 
     if changed:
-        await generate_opportunity_justifications(opportunity_id, client_id)
+        await generate_project_justifications(project_id, client_id)
         return True
 
     return False

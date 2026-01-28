@@ -1,12 +1,12 @@
 """
-Opportunity Context Service
+Project Context Service
 
-Provides vector search and context retrieval for AI opportunities.
-Used by the opportunity detail modal to show related documents
+Provides vector search and context retrieval for AI projects.
+Used by the project detail modal to show related documents
 and provide context for the Q&A feature.
 
 Key feature: Documents are searched using scoring-focused queries to find
-evidence that supports or explains the opportunity's scoring rationale.
+evidence that supports or explains the project's scoring rationale.
 """
 
 from typing import Dict, List, Optional
@@ -37,21 +37,21 @@ SCORING_DIMENSIONS = {
 
 
 def get_scoring_related_documents(
-    opportunity: Dict,
+    project: Dict,
     client_id: str,
     limit: int = 8,
     min_similarity: float = 0.25
 ) -> List[Dict]:
     """
-    Find documents that support the scoring rationale for an opportunity.
+    Find documents that support the scoring rationale for a project.
 
     Builds search queries focused on the scoring dimensions (ROI, effort,
     strategic alignment, stakeholder readiness) rather than just the
-    title/description. This helps answer "why" the opportunity is scored
+    title/description. This helps answer "why" the project is scored
     the way it is.
 
     Args:
-        opportunity: Full opportunity dict with all fields
+        project: Full project dict with all fields
         client_id: Client ID to filter results
         limit: Maximum number of results (default: 8)
         min_similarity: Minimum similarity score (default: 0.25)
@@ -59,17 +59,17 @@ def get_scoring_related_documents(
     Returns:
         List of document chunks with relevance to scoring, formatted for frontend
     """
-    title = opportunity.get('title', '')
-    description = opportunity.get('description', '')
-    department = opportunity.get('department', '')
-    current_state = opportunity.get('current_state', '')
-    desired_state = opportunity.get('desired_state', '')
+    title = project.get('title', '')
+    description = project.get('description', '')
+    department = project.get('department', '')
+    current_state = project.get('current_state', '')
+    desired_state = project.get('desired_state', '')
 
     # Build a scoring-focused search query
-    # Combine opportunity context with scoring dimension keywords
+    # Combine project context with scoring dimension keywords
     query_parts = []
 
-    # Core opportunity context
+    # Core project context
     if title:
         query_parts.append(title)
     if department:
@@ -82,7 +82,7 @@ def get_scoring_related_documents(
         query_parts.append(f"target outcomes: {desired_state[:200]}")
 
     # Add ROI indicators if present
-    roi_indicators = opportunity.get('roi_indicators', {})
+    roi_indicators = project.get('roi_indicators', {})
     if roi_indicators:
         roi_terms = []
         if roi_indicators.get('time_savings_percent'):
@@ -95,7 +95,7 @@ def get_scoring_related_documents(
             query_parts.append(" ".join(roi_terms))
 
     # Add general scoring terms to help find relevant evidence
-    query_parts.append("AI implementation opportunity ROI business case stakeholder")
+    query_parts.append("AI implementation project ROI business case stakeholder")
 
     search_query = " ".join(query_parts)
 
@@ -162,22 +162,22 @@ def get_scoring_related_documents(
 
 
 def get_related_documents(
-    opportunity_title: str,
-    opportunity_description: Optional[str],
+    project_title: str,
+    project_description: Optional[str],
     client_id: str,
     limit: int = 5,
     min_similarity: float = 0.3
 ) -> List[Dict]:
     """
-    Find documents related to an opportunity using vector search.
+    Find documents related to a project using vector search.
     (Legacy function - prefer get_scoring_related_documents for detail modal)
 
-    Builds a search query from the opportunity's title and description,
+    Builds a search query from the project's title and description,
     then searches the knowledge base for relevant document chunks.
 
     Args:
-        opportunity_title: The opportunity title
-        opportunity_description: Optional opportunity description
+        project_title: The project title
+        project_description: Optional project description
         client_id: Client ID to filter results
         limit: Maximum number of results (default: 5)
         min_similarity: Minimum similarity score (default: 0.3)
@@ -185,15 +185,15 @@ def get_related_documents(
     Returns:
         List of document chunks with source information formatted for frontend
     """
-    # Build search query from opportunity data
-    query_parts = [opportunity_title]
-    if opportunity_description:
+    # Build search query from project data
+    query_parts = [project_title]
+    if project_description:
         # Limit description to first 500 chars to avoid overly long queries
-        query_parts.append(opportunity_description[:500])
+        query_parts.append(project_description[:500])
 
     search_query = " ".join(query_parts)
 
-    logger.info(f"Searching for documents related to opportunity: {opportunity_title[:50]}...")
+    logger.info(f"Searching for documents related to project: {project_title[:50]}...")
 
     try:
         # Search using existing vector search function
@@ -237,7 +237,7 @@ def get_related_documents(
                 }
             })
 
-        logger.info(f"Found {len(formatted_results)} related documents for opportunity")
+        logger.info(f"Found {len(formatted_results)} related documents for project")
         return formatted_results
 
     except Exception as e:
@@ -245,16 +245,16 @@ def get_related_documents(
         return []
 
 
-def build_opportunity_context(
-    opportunity: Dict,
+def build_project_context(
+    project: Dict,
     related_documents: List[Dict]
 ) -> str:
     """
-    Build a context string for Claude containing opportunity details
+    Build a context string for Claude containing project details
     and related document content.
 
     Args:
-        opportunity: The opportunity data dict
+        project: The project data dict
         related_documents: List of related document chunks
 
     Returns:
@@ -262,43 +262,43 @@ def build_opportunity_context(
     """
     context_parts = []
 
-    # Opportunity details section
-    context_parts.append("<opportunity_context>")
-    context_parts.append(f"Title: {opportunity.get('title', 'Unknown')}")
-    context_parts.append(f"Code: {opportunity.get('opportunity_code', 'N/A')}")
-    context_parts.append(f"Department: {opportunity.get('department', 'Not specified')}")
-    context_parts.append(f"Status: {opportunity.get('status', 'Unknown')}")
+    # Project details section
+    context_parts.append("<project_context>")
+    context_parts.append(f"Title: {project.get('title', 'Unknown')}")
+    context_parts.append(f"Code: {project.get('project_code', 'N/A')}")
+    context_parts.append(f"Department: {project.get('department', 'Not specified')}")
+    context_parts.append(f"Status: {project.get('status', 'Unknown')}")
 
     # Scoring
     context_parts.append(f"\nScoring (1-5 scale, max 20 total):")
-    context_parts.append(f"  - ROI Potential: {opportunity.get('roi_potential', 'Not scored')}/5")
-    context_parts.append(f"  - Implementation Effort: {opportunity.get('implementation_effort', 'Not scored')}/5")
-    context_parts.append(f"  - Strategic Alignment: {opportunity.get('strategic_alignment', 'Not scored')}/5")
-    context_parts.append(f"  - Stakeholder Readiness: {opportunity.get('stakeholder_readiness', 'Not scored')}/5")
-    context_parts.append(f"  - Total Score: {opportunity.get('total_score', 0)}/20")
-    context_parts.append(f"  - Tier: {opportunity.get('tier', 4)}")
+    context_parts.append(f"  - ROI Potential: {project.get('roi_potential', 'Not scored')}/5")
+    context_parts.append(f"  - Implementation Effort: {project.get('implementation_effort', 'Not scored')}/5")
+    context_parts.append(f"  - Strategic Alignment: {project.get('strategic_alignment', 'Not scored')}/5")
+    context_parts.append(f"  - Stakeholder Readiness: {project.get('stakeholder_readiness', 'Not scored')}/5")
+    context_parts.append(f"  - Total Score: {project.get('total_score', 0)}/20")
+    context_parts.append(f"  - Tier: {project.get('tier', 4)}")
 
-    if opportunity.get('description'):
-        context_parts.append(f"\nDescription: {opportunity['description']}")
+    if project.get('description'):
+        context_parts.append(f"\nDescription: {project['description']}")
 
-    if opportunity.get('current_state'):
-        context_parts.append(f"\nCurrent State: {opportunity['current_state']}")
+    if project.get('current_state'):
+        context_parts.append(f"\nCurrent State: {project['current_state']}")
 
-    if opportunity.get('desired_state'):
-        context_parts.append(f"\nDesired State: {opportunity['desired_state']}")
+    if project.get('desired_state'):
+        context_parts.append(f"\nDesired State: {project['desired_state']}")
 
-    if opportunity.get('next_step'):
-        context_parts.append(f"\nNext Step: {opportunity['next_step']}")
+    if project.get('next_step'):
+        context_parts.append(f"\nNext Step: {project['next_step']}")
 
-    blockers = opportunity.get('blockers', [])
+    blockers = project.get('blockers', [])
     if blockers:
         context_parts.append(f"\nBlockers: {', '.join(blockers)}")
 
-    roi_indicators = opportunity.get('roi_indicators', {})
+    roi_indicators = project.get('roi_indicators', {})
     if roi_indicators:
         context_parts.append(f"\nROI Indicators: {roi_indicators}")
 
-    context_parts.append("</opportunity_context>")
+    context_parts.append("</project_context>")
 
     # Related documents section
     if related_documents:

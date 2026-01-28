@@ -1,9 +1,9 @@
 """
-Opportunity Taskmaster Service
+Project Taskmaster Service
 
-Handles Taskmaster chat within opportunity/project context.
+Handles Taskmaster chat within project context.
 Extracts tasks from conversation and creates them as task_candidates
-linked to the opportunity.
+linked to the project.
 """
 
 import logging
@@ -20,22 +20,22 @@ logger = logging.getLogger(__name__)
 
 
 async def chat_with_taskmaster(
-    opportunity_id: str,
+    project_id: str,
     message: str,
     client_id: str,
     user_id: str,
     supabase: Client,
 ) -> dict:
     """
-    Chat with Taskmaster about an opportunity/project.
+    Chat with Taskmaster about a project.
 
     Taskmaster will:
     1. Respond to the user's message with task suggestions
     2. Extract concrete tasks from the conversation
-    3. Create task_candidates linked to the opportunity
+    3. Create task_candidates linked to the project
 
     Args:
-        opportunity_id: The opportunity being discussed
+        project_id: The project being discussed
         message: User's message
         client_id: Client ID for scoping
         user_id: User ID for attribution
@@ -44,38 +44,38 @@ async def chat_with_taskmaster(
     Returns:
         dict with response, tasks_created count, and task_titles
     """
-    # Get opportunity details for context
-    opp_result = supabase.table("ai_opportunities").select(
+    # Get project details for context
+    project_result = supabase.table("ai_projects").select(
         "id, title, description, project_name, project_description, current_state, "
         "desired_state, next_step, department, status"
-    ).eq("id", opportunity_id).eq("client_id", client_id).single().execute()
+    ).eq("id", project_id).eq("client_id", client_id).single().execute()
 
-    if not opp_result.data:
-        raise ValueError(f"Opportunity {opportunity_id} not found")
+    if not project_result.data:
+        raise ValueError(f"Project {project_id} not found")
 
-    opportunity = opp_result.data
+    project = project_result.data
 
     # Build context for Taskmaster
     context_parts = [
-        f"Project: {opportunity.get('project_name') or opportunity['title']}",
+        f"Project: {project.get('project_name') or project['title']}",
     ]
 
-    if opportunity.get('project_description'):
-        context_parts.append(f"Project Description: {opportunity['project_description']}")
-    elif opportunity.get('description'):
-        context_parts.append(f"Description: {opportunity['description']}")
+    if project.get('project_description'):
+        context_parts.append(f"Project Description: {project['project_description']}")
+    elif project.get('description'):
+        context_parts.append(f"Description: {project['description']}")
 
-    if opportunity.get('current_state'):
-        context_parts.append(f"Current State: {opportunity['current_state']}")
+    if project.get('current_state'):
+        context_parts.append(f"Current State: {project['current_state']}")
 
-    if opportunity.get('desired_state'):
-        context_parts.append(f"Desired State: {opportunity['desired_state']}")
+    if project.get('desired_state'):
+        context_parts.append(f"Desired State: {project['desired_state']}")
 
-    if opportunity.get('next_step'):
-        context_parts.append(f"Next Step Already Identified: {opportunity['next_step']}")
+    if project.get('next_step'):
+        context_parts.append(f"Next Step Already Identified: {project['next_step']}")
 
-    if opportunity.get('department'):
-        context_parts.append(f"Department: {opportunity['department']}")
+    if project.get('department'):
+        context_parts.append(f"Department: {project['department']}")
 
     project_context = "\n".join(context_parts)
 
@@ -154,14 +154,14 @@ After listing tasks, always ask if they want to proceed with creating these task
                 "due_date_text": task_data.get("due_text"),
                 "suggested_due_date": task_data.get("due_date"),
                 "assignee_name": user_name,
-                "source_document_name": f"Taskmaster: {opportunity.get('project_name') or opportunity['title']}",
-                "source_text": f"Created via Taskmaster chat for project: {opportunity.get('project_name') or opportunity['title']}",
+                "source_document_name": f"Taskmaster: {project.get('project_name') or project['title']}",
+                "source_text": f"Created via Taskmaster chat for project: {project.get('project_name') or project['title']}",
                 "confidence": "high",
                 "extraction_pattern": "taskmaster_chat",
                 "status": "pending",
-                "linked_opportunity_id": opportunity_id,
-                "source_opportunity_id": opportunity_id,
-                "team": opportunity.get("department"),
+                "linked_project_id": project_id,
+                "source_project_id": project_id,
+                "team": project.get("department"),
             }
 
             try:

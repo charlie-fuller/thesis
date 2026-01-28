@@ -1,7 +1,7 @@
 """
-Opportunity Confidence Scoring Service
+Project Confidence Scoring Service
 
-Evaluates how confident we are in an opportunity's scores based on
+Evaluates how confident we are in a project's scores based on
 the completeness of available information. Higher confidence means
 fewer unknowns and better-supported scoring decisions.
 
@@ -43,7 +43,7 @@ RUBRIC = {
     },
     "description": {
         "points": 10,
-        "question": "What specific problem or opportunity does this initiative address?",
+        "question": "What specific problem or project does this initiative address?",
     },
     "current_state": {
         "points": 8,
@@ -59,7 +59,7 @@ RUBRIC = {
     },
     "department": {
         "points": 5,
-        "question": "Which department or business unit owns this opportunity?",
+        "question": "Which department or business unit owns this project?",
     },
     "roi_indicators": {
         "points": 12,
@@ -71,7 +71,7 @@ RUBRIC = {
     },
     "source_type": {
         "points": 8,
-        "question": "What is the source of this opportunity (meeting transcript, research, stakeholder request)?",
+        "question": "What is the source of this project (meeting transcript, research, stakeholder request)?",
     },
     "next_step": {
         "points": 5,
@@ -90,21 +90,21 @@ MAX_CONFIDENCE = sum(item["points"] for item in RUBRIC.values())
 # SCORING FUNCTIONS
 # ============================================================================
 
-def _make_specific_question(template: str, opportunity: dict) -> str:
+def _make_specific_question(template: str, project: dict) -> str:
     """
-    Make a question specific to the opportunity by including context.
+    Make a question specific to the project by including context.
 
     Args:
         template: Generic question template
-        opportunity: Opportunity dict with title and other fields
+        project: Project dict with title and other fields
 
     Returns:
         Context-specific question string
     """
-    title = opportunity.get("title", "this opportunity")
-    department = opportunity.get("department")
+    title = project.get("title", "this project")
+    department = project.get("department")
 
-    # Add opportunity context to questions
+    # Add project context to questions
     context_prefix = f"For \"{title}\""
     if department:
         context_prefix += f" ({department})"
@@ -112,8 +112,8 @@ def _make_specific_question(template: str, opportunity: dict) -> str:
 
     # Make questions specific based on their type
     if "scores would you assign" in template:
-        return f"{context_prefix}What specific evidence supports the current scores for ROI potential ({opportunity.get('roi_potential', 'unset')}), effort ({opportunity.get('implementation_effort', 'unset')}), alignment ({opportunity.get('strategic_alignment', 'unset')}), and readiness ({opportunity.get('stakeholder_readiness', 'unset')})?"
-    elif "problem or opportunity" in template:
+        return f"{context_prefix}What specific evidence supports the current scores for ROI potential ({project.get('roi_potential', 'unset')}), effort ({project.get('implementation_effort', 'unset')}), alignment ({project.get('strategic_alignment', 'unset')}), and readiness ({project.get('stakeholder_readiness', 'unset')})?"
+    elif "problem or project" in template:
         return f"{context_prefix}What specific business problem does this solve, and how does it impact day-to-day operations?"
     elif "current process" in template or "baseline state" in template:
         return f"{context_prefix}How are things done today without this solution? What workarounds exist?"
@@ -126,8 +126,8 @@ def _make_specific_question(template: str, opportunity: dict) -> str:
     elif "quantifiable benefits" in template:
         return f"{context_prefix}What are the estimated hours saved per week, cost reduction, or revenue impact?"
     elif "rationale" in template:
-        return f"{context_prefix}What specific factors led to scoring ROI as {opportunity.get('roi_potential', 'N/A')} and effort as {opportunity.get('implementation_effort', 'N/A')}?"
-    elif "source of this opportunity" in template:
+        return f"{context_prefix}What specific factors led to scoring ROI as {project.get('roi_potential', 'N/A')} and effort as {project.get('implementation_effort', 'N/A')}?"
+    elif "source of this project" in template:
         return f"Where did \"{title}\" originate? (e.g., specific meeting, stakeholder request, pain point observation)"
     elif "immediate next action" in template:
         return f"{context_prefix}What is the single most important next step to validate or advance this?"
@@ -138,12 +138,12 @@ def _make_specific_question(template: str, opportunity: dict) -> str:
     return f"{context_prefix}{template}"
 
 
-def evaluate_opportunity_confidence(opportunity: dict) -> Tuple[int, List[str]]:
+def evaluate_project_confidence(project: dict) -> Tuple[int, List[str]]:
     """
-    Evaluate confidence in an opportunity's scores.
+    Evaluate confidence in a project's scores.
 
     Args:
-        opportunity: Dict with opportunity fields
+        project: Dict with project fields
 
     Returns:
         Tuple of (confidence_score: int 0-100, questions: List[str])
@@ -153,105 +153,105 @@ def evaluate_opportunity_confidence(opportunity: dict) -> Tuple[int, List[str]]:
 
     # Check all 4 dimension scores are present
     scores = [
-        opportunity.get("roi_potential"),
-        opportunity.get("implementation_effort"),
-        opportunity.get("strategic_alignment"),
-        opportunity.get("stakeholder_readiness"),
+        project.get("roi_potential"),
+        project.get("implementation_effort"),
+        project.get("strategic_alignment"),
+        project.get("stakeholder_readiness"),
     ]
     if all(s is not None for s in scores):
         points += RUBRIC["scores_complete"]["points"]
     else:
         questions.append(_make_specific_question(
-            RUBRIC["scores_complete"]["question"], opportunity
+            RUBRIC["scores_complete"]["question"], project
         ))
 
     # Check description
-    if opportunity.get("description"):
+    if project.get("description"):
         points += RUBRIC["description"]["points"]
     else:
         questions.append(_make_specific_question(
-            RUBRIC["description"]["question"], opportunity
+            RUBRIC["description"]["question"], project
         ))
 
     # Check current_state
-    if opportunity.get("current_state"):
+    if project.get("current_state"):
         points += RUBRIC["current_state"]["points"]
     else:
         questions.append(_make_specific_question(
-            RUBRIC["current_state"]["question"], opportunity
+            RUBRIC["current_state"]["question"], project
         ))
 
     # Check desired_state
-    if opportunity.get("desired_state"):
+    if project.get("desired_state"):
         points += RUBRIC["desired_state"]["points"]
     else:
         questions.append(_make_specific_question(
-            RUBRIC["desired_state"]["question"], opportunity
+            RUBRIC["desired_state"]["question"], project
         ))
 
     # Check owner
-    if opportunity.get("owner_stakeholder_id"):
+    if project.get("owner_stakeholder_id"):
         points += RUBRIC["owner_stakeholder_id"]["points"]
     else:
         questions.append(_make_specific_question(
-            RUBRIC["owner_stakeholder_id"]["question"], opportunity
+            RUBRIC["owner_stakeholder_id"]["question"], project
         ))
 
     # Check department
-    if opportunity.get("department"):
+    if project.get("department"):
         points += RUBRIC["department"]["points"]
     else:
         questions.append(_make_specific_question(
-            RUBRIC["department"]["question"], opportunity
+            RUBRIC["department"]["question"], project
         ))
 
     # Check ROI indicators (must have at least one)
-    roi_indicators = opportunity.get("roi_indicators") or {}
+    roi_indicators = project.get("roi_indicators") or {}
     if roi_indicators and len(roi_indicators) > 0:
         points += RUBRIC["roi_indicators"]["points"]
     else:
         questions.append(_make_specific_question(
-            RUBRIC["roi_indicators"]["question"], opportunity
+            RUBRIC["roi_indicators"]["question"], project
         ))
 
     # Check justifications generated
     has_justifications = any([
-        opportunity.get("opportunity_summary"),
-        opportunity.get("roi_justification"),
-        opportunity.get("effort_justification"),
-        opportunity.get("alignment_justification"),
-        opportunity.get("readiness_justification"),
+        project.get("project_summary"),
+        project.get("roi_justification"),
+        project.get("effort_justification"),
+        project.get("alignment_justification"),
+        project.get("readiness_justification"),
     ])
     if has_justifications:
         points += RUBRIC["has_justifications"]["points"]
     else:
         questions.append(_make_specific_question(
-            RUBRIC["has_justifications"]["question"], opportunity
+            RUBRIC["has_justifications"]["question"], project
         ))
 
     # Check source documentation
-    if opportunity.get("source_type") or opportunity.get("source_notes"):
+    if project.get("source_type") or project.get("source_notes"):
         points += RUBRIC["source_type"]["points"]
     else:
         questions.append(_make_specific_question(
-            RUBRIC["source_type"]["question"], opportunity
+            RUBRIC["source_type"]["question"], project
         ))
 
     # Check next_step
-    if opportunity.get("next_step"):
+    if project.get("next_step"):
         points += RUBRIC["next_step"]["points"]
     else:
         questions.append(_make_specific_question(
-            RUBRIC["next_step"]["question"], opportunity
+            RUBRIC["next_step"]["question"], project
         ))
 
     # Check blockers documented (get points if blockers array exists, even if empty)
-    blockers = opportunity.get("blockers")
+    blockers = project.get("blockers")
     if blockers is not None:  # Array exists (could be empty, meaning "reviewed, none found")
         points += RUBRIC["blockers_documented"]["points"]
     else:
         questions.append(_make_specific_question(
-            RUBRIC["blockers_documented"]["question"], opportunity
+            RUBRIC["blockers_documented"]["question"], project
         ))
 
     # Calculate percentage (0-100)
@@ -261,7 +261,7 @@ def evaluate_opportunity_confidence(opportunity: dict) -> Tuple[int, List[str]]:
     questions = questions[:5]
 
     logger.debug(
-        f"Opportunity confidence: {confidence}% ({points}/{MAX_CONFIDENCE} points), "
+        f"Project confidence: {confidence}% ({points}/{MAX_CONFIDENCE} points), "
         f"{len(questions)} questions"
     )
 
@@ -284,9 +284,9 @@ def get_confidence_level_description(confidence: int) -> str:
 # BATCH OPERATIONS
 # ============================================================================
 
-async def evaluate_all_opportunities(client_id: str) -> dict:
+async def evaluate_all_projects(client_id: str) -> dict:
     """
-    Evaluate confidence for all opportunities belonging to a client.
+    Evaluate confidence for all projects belonging to a client.
 
     Args:
         client_id: The client UUID
@@ -298,50 +298,50 @@ async def evaluate_all_opportunities(client_id: str) -> dict:
 
     supabase = get_supabase()
 
-    # Get all opportunities for client
-    result = supabase.table("ai_opportunities") \
+    # Get all projects for client
+    result = supabase.table("ai_projects") \
         .select("*") \
         .eq("client_id", client_id) \
         .execute()
 
-    opportunities = result.data
+    projects = result.data
     updated_count = 0
     errors = []
 
-    for opp in opportunities:
+    for project in projects:
         try:
-            confidence, questions = evaluate_opportunity_confidence(opp)
+            confidence, questions = evaluate_project_confidence(project)
 
-            # Update the opportunity
-            supabase.table("ai_opportunities").update({
+            # Update the project
+            supabase.table("ai_projects").update({
                 "scoring_confidence": confidence,
                 "confidence_questions": questions,
-            }).eq("id", opp["id"]).execute()
+            }).eq("id", project["id"]).execute()
 
             updated_count += 1
             logger.info(
-                f"Updated confidence for '{opp['title']}': {confidence}% "
+                f"Updated confidence for '{project['title']}': {confidence}% "
                 f"({len(questions)} questions)"
             )
 
         except Exception as e:
             errors.append({
-                "id": opp["id"],
-                "title": opp.get("title", "Unknown"),
+                "id": project["id"],
+                "title": project.get("title", "Unknown"),
                 "error": str(e),
             })
-            logger.error(f"Failed to evaluate {opp.get('title')}: {e}")
+            logger.error(f"Failed to evaluate {project.get('title')}: {e}")
 
     # Calculate summary stats
     confidences = []
-    for opp in opportunities:
-        conf, _ = evaluate_opportunity_confidence(opp)
+    for project in projects:
+        conf, _ = evaluate_project_confidence(project)
         confidences.append(conf)
 
     avg_confidence = round(sum(confidences) / len(confidences)) if confidences else 0
 
     return {
-        "total": len(opportunities),
+        "total": len(projects),
         "updated": updated_count,
         "failed": len(errors),
         "errors": errors if errors else None,
