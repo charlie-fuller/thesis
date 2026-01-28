@@ -610,7 +610,7 @@ export default function OpportunitiesPage() {
       {/* Detail Modal */}
       {selectedOpportunity && (
         <ProjectDetailModal
-          opportunity={selectedOpportunity}
+          project={selectedOpportunity}
           open={modalOpen}
           onClose={handleModalClose}
         />
