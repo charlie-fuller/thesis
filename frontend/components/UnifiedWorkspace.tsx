@@ -11,12 +11,14 @@ interface UnifiedWorkspaceProps {
   clientId?: string  // Optional - backend auto-assigns default client
   userId: string
   conversationId?: string
+  tabSwitcher?: React.ReactNode  // Optional tab switcher to display in the header area
 }
 
 export default function UnifiedWorkspace({
   clientId,
   userId,
-  conversationId
+  conversationId,
+  tabSwitcher
 }: UnifiedWorkspaceProps) {
   useAuth()  // Auth context is used for component initialization
 
@@ -66,6 +68,7 @@ export default function UnifiedWorkspace({
         showRightPanel={showRightPanel}
         onToggleLeftPanel={() => setShowLeftPanel(!showLeftPanel)}
         onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
+        tabSwitcher={tabSwitcher}
       />
 
       {/* Main Workspace - 2-column layout */}

@@ -12,6 +12,7 @@ interface PageHeaderProps {
   showRightPanel?: boolean
   onToggleLeftPanel?: () => void
   onToggleRightPanel?: () => void
+  tabSwitcher?: React.ReactNode
 }
 
 export default function PageHeader({
@@ -20,6 +21,7 @@ export default function PageHeader({
   showRightPanel = false,
   onToggleLeftPanel,
   onToggleRightPanel,
+  tabSwitcher,
 }: PageHeaderProps) {
   const { isAdmin, hasDiscoAccess } = useAuth()
   const { theme } = useTheme()
@@ -29,7 +31,6 @@ export default function PageHeader({
   const userLinks = [
     { href: '/', label: 'Dashboard' },
     { href: '/chat', label: 'Chat' },
-    { href: '/meeting-room', label: 'Meeting Room' },
     { href: '/tasks', label: 'Tasks' },
     { href: '/projects', label: 'Projects' },
     { href: '/strategy', label: 'Strategy' },
@@ -88,6 +89,13 @@ export default function PageHeader({
                 </Link>
               ))}
             </div>
+
+            {/* Tab Switcher (when provided) */}
+            {tabSwitcher && (
+              <div className="ml-4 pl-4 border-l border-default">
+                {tabSwitcher}
+              </div>
+            )}
           </div>
 
           {/* Center: Logo/Brand - truly centered between nav and right edge */}
