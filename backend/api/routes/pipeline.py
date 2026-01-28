@@ -573,6 +573,8 @@ async def get_granola_status(
 
 # In-memory scan job tracking (simple approach - could use Redis for production)
 _scan_jobs: Dict[str, Dict] = {}
+# Track active scans per user to prevent concurrent duplicates
+_active_user_scans: Dict[str, str] = {}  # user_id -> job_id
 
 
 def _run_background_scan(job_id: str, user_id: str, client_id: str, force_rescan: bool, since_date):
@@ -610,6 +612,9 @@ def _run_background_scan(job_id: str, user_id: str, client_id: str, force_rescan
         loop.run_until_complete(_async_scan())
     finally:
         loop.close()
+        # Clear active scan for this user
+        if user_id in _active_user_scans and _active_user_scans[user_id] == job_id:
+            del _active_user_scans[user_id]
 
 
 @router.post("/granola/scan", response_model=GranolaScanResult)
@@ -644,6 +649,20 @@ async def scan_granola_vault(
     if not client_id:
         raise HTTPException(status_code=400, detail="User has no associated client")
 
+    # Check for active scan to prevent concurrent duplicates
+    if user_id in _active_user_scans:
+        existing_job_id = _active_user_scans[user_id]
+        existing_job = _scan_jobs.get(existing_job_id, {})
+        if existing_job.get('status') in ('starting', 'running'):
+            logger.info(f"Scan already in progress for user {user_id}, skipping duplicate request")
+            return GranolaScanResult(
+                status='already_running',
+                job_id=existing_job_id,
+                message='Scan already in progress',
+                files_scanned=0, files_processed=0, files_skipped=0, files_failed=0,
+                opportunities_created=0, tasks_created=0, stakeholders_created=0
+            )
+
     # Calculate since_date from days_back if provided
     effective_since_date = since_date
     if days_back and not since_date:
@@ -658,6 +677,8 @@ async def scan_granola_vault(
             'user_id': user_id,
             'started_at': datetime.now().isoformat()
         }
+        # Track active scan for this user
+        _active_user_scans[user_id] = job_id
         # Start in background thread
         thread = threading.Thread(
             target=_run_background_scan,
