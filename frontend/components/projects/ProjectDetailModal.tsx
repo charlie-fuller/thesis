@@ -54,7 +54,8 @@ import GoalAlignmentSection from './GoalAlignmentSection'
 
 interface Project {
   id: string
-  project_code: string
+  project_code?: string  // New naming
+  opportunity_code?: string  // Legacy naming (backward compatibility)
   title: string
   description: string | null
   department: string | null
@@ -591,7 +592,7 @@ export default function ProjectDetailModal({
           <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm font-mono font-bold text-muted">
-                {project.project_code}
+                {project.project_code || project.opportunity_code}
               </span>
               <span className={`px-2 py-0.5 rounded text-xs font-medium ${tierConfig.color}`}>
                 Tier {project.tier}
