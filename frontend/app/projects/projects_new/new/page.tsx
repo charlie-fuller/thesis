@@ -251,8 +251,8 @@ export default function NewOpportunityPage() {
         ...form,
         owner_stakeholder_id: form.owner_stakeholder_id || undefined,
       }
-      await apiPost('/api/opportunities/', payload)
-      router.push('/opportunities')
+      await apiPost('/api/projects/', payload)
+      router.push('/projects')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create opportunity')
     } finally {
@@ -267,7 +267,7 @@ export default function NewOpportunityPage() {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => router.push('/opportunities')}
+            onClick={() => router.push('/projects')}
             className="flex items-center gap-2 text-muted hover:text-primary mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -485,7 +485,7 @@ export default function NewOpportunityPage() {
           <div className="flex items-center justify-end gap-4">
             <button
               type="button"
-              onClick={() => router.push('/opportunities')}
+              onClick={() => router.push('/projects')}
               className="px-6 py-2 text-muted hover:text-primary"
             >
               Cancel

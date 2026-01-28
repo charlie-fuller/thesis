@@ -15,9 +15,9 @@ import {
 import { Target, TrendingUp, AlertTriangle, Info } from 'lucide-react'
 
 // Minimal fields required for the scatter plot
-interface OpportunityData {
+interface ProjectData {
   id: string
-  opportunity_code: string
+  project_code: string
   title: string
   roi_potential: number | null
   implementation_effort: number | null
@@ -28,10 +28,10 @@ interface OpportunityData {
   total_score: number
 }
 
-// Accept any opportunity that has at least the required fields
-interface OpportunityScatterPlotProps<T extends OpportunityData> {
-  opportunities: T[]
-  onOpportunityClick: (opportunity: T) => void
+// Accept any project that has at least the required fields
+interface ProjectScatterPlotProps<T extends ProjectData> {
+  projects: T[]
+  onProjectClick: (project: T) => void
 }
 
 // Tier colors matching the main page
@@ -60,7 +60,7 @@ const QUADRANTS = {
 interface CustomTooltipProps {
   active?: boolean
   payload?: Array<{
-    payload: OpportunityData & { x: number; y: number }
+    payload: ProjectData & { x: number; y: number }
   }>
 }
 
@@ -72,7 +72,7 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
   return (
     <div className="bg-card border border-default rounded-lg shadow-lg p-3 max-w-xs">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-xs font-mono text-muted">{data.opportunity_code}</span>
+        <span className="text-xs font-mono text-muted">{data.project_code}</span>
         <span
           className="text-xs px-1.5 py-0.5 rounded"
           style={{
@@ -105,25 +105,25 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
   )
 }
 
-export default function OpportunityScatterPlot<T extends OpportunityData>({
-  opportunities,
-  onOpportunityClick,
-}: OpportunityScatterPlotProps<T>) {
+export default function ProjectScatterPlot<T extends ProjectData>({
+  projects,
+  onProjectClick,
+}: ProjectScatterPlotProps<T>) {
   // Transform data for scatter plot
   // X-axis: Implementation Effort (1=hard, 5=easy) - we'll invert display so left=easy, right=hard
   // Y-axis: ROI Potential (1=low, 5=high)
-  const scatterData = opportunities
-    .filter((opp) => opp.roi_potential !== null && opp.implementation_effort !== null)
-    .map((opp) => ({
-      ...opp,
+  const scatterData = projects
+    .filter((proj) => proj.roi_potential !== null && proj.implementation_effort !== null)
+    .map((proj) => ({
+      ...proj,
       // Invert effort so that 5 (easy) appears on the left, 1 (hard) on the right
-      x: 6 - (opp.implementation_effort ?? 3),
-      y: opp.roi_potential ?? 3,
+      x: 6 - (proj.implementation_effort ?? 3),
+      y: proj.roi_potential ?? 3,
     }))
 
-  const missingDataCount = opportunities.length - scatterData.length
+  const missingDataCount = projects.length - scatterData.length
 
-  // Count opportunities in each quadrant
+  // Count projects in each quadrant
   const quadrantCounts = {
     quickWins: scatterData.filter((d) => d.y > 3 && d.x < 3).length,
     strategicBets: scatterData.filter((d) => d.y > 3 && d.x >= 3).length,
@@ -171,7 +171,7 @@ export default function OpportunityScatterPlot<T extends OpportunityData>({
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-semibold text-primary">ROI vs Effort Matrix</h3>
-            <p className="text-sm text-muted">Click any point to view opportunity details</p>
+            <p className="text-sm text-muted">Click any point to view project details</p>
           </div>
           {/* Tier Legend */}
           <div className="flex items-center gap-4">
@@ -264,8 +264,8 @@ export default function OpportunityScatterPlot<T extends OpportunityData>({
               cursor="pointer"
               onClick={(data) => {
                 if (data) {
-                  // The data includes our extra x/y fields, but the original opportunity is preserved
-                  onOpportunityClick(data as unknown as T)
+                  // The data includes our extra x/y fields, but the original project is preserved
+                  onProjectClick(data as unknown as T)
                 }
               }}
             >
@@ -305,7 +305,7 @@ export default function OpportunityScatterPlot<T extends OpportunityData>({
         <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
           <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
           <span className="text-amber-700 dark:text-amber-300">
-            {missingDataCount} {missingDataCount === 1 ? 'opportunity is' : 'opportunities are'} missing
+            {missingDataCount} {missingDataCount === 1 ? 'project is' : 'projects are'} missing
             ROI or Effort scores and {missingDataCount === 1 ? "isn't" : "aren't"} shown on the chart.
           </span>
         </div>

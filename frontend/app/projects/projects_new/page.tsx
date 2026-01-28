@@ -22,8 +22,8 @@ import {
 } from 'lucide-react'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
 import PageHeader from '@/components/PageHeader'
-import OpportunityDetailModal from '@/components/opportunities/OpportunityDetailModal'
-import OpportunityScatterPlot from '@/components/opportunities/OpportunityScatterPlot'
+import ProjectDetailModal from '@/components/projects/ProjectDetailModal'
+import ProjectScatterPlot from '@/components/projects/ProjectScatterPlot'
 
 // ============================================================================
 // TYPES
@@ -354,7 +354,7 @@ export default function OpportunitiesPage() {
       setLoading(true)
       setError(null)
 
-      let endpoint = '/api/opportunities/by-tier'
+      let endpoint = '/api/projects/by-tier'
       const params = new URLSearchParams()
       if (departmentFilter) params.append('department', departmentFilter)
       if (statusFilter) params.append('status', statusFilter)
@@ -418,7 +418,7 @@ export default function OpportunitiesPage() {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => router.push('/opportunities/new')}
+              onClick={() => router.push('/projects/new')}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               <Plus className="w-4 h-4" />
@@ -585,7 +585,7 @@ export default function OpportunitiesPage() {
 
         {/* Analysis Tab Content */}
         {activeTab === 'analysis' && data && (
-          <OpportunityScatterPlot
+          <ProjectScatterPlot
             opportunities={[...data.tier_1, ...data.tier_2, ...data.tier_3, ...data.tier_4]}
             onOpportunityClick={handleOpportunityClick}
           />
@@ -598,7 +598,7 @@ export default function OpportunitiesPage() {
             <h3 className="text-lg font-medium text-primary mb-2">No opportunities yet</h3>
             <p className="text-muted mb-4">Start tracking AI implementation opportunities</p>
             <button
-              onClick={() => router.push('/opportunities/new')}
+              onClick={() => router.push('/projects/new')}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Add First Opportunity
@@ -609,7 +609,7 @@ export default function OpportunitiesPage() {
 
       {/* Detail Modal */}
       {selectedOpportunity && (
-        <OpportunityDetailModal
+        <ProjectDetailModal
           opportunity={selectedOpportunity}
           open={modalOpen}
           onClose={handleModalClose}

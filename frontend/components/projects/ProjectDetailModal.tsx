@@ -1,20 +1,20 @@
 'use client'
 
 /**
- * OpportunityDetailModal Component
+ * ProjectDetailModal Component
  *
- * Full-featured detail modal for opportunities with tabbed interface:
+ * Full-featured detail modal for projects with tabbed interface:
  *
  * Tabs:
  * - Scores: Score breakdown with inline editing, AI-generated justifications
  * - Confidence: Scoring confidence meter and questions to raise confidence
  * - Details: Description, current/desired state, next step (all inline-editable)
  * - Related: Linked stakeholders and related documents from KB
- * - Chat: Q&A about the opportunity + Taskmaster for task breakdown
+ * - Chat: Q&A about the project + Taskmaster for task breakdown
  *
  * Features:
  * - Individual inline edit icons for each section (hover to reveal)
- * - Convert to Project workflow with project naming
+ * - Convert to Active Project workflow with project naming
  * - AI-generated justifications for scores
  */
 
@@ -52,9 +52,9 @@ import GoalAlignmentSection from './GoalAlignmentSection'
 // TYPES
 // ============================================================================
 
-interface Opportunity {
+interface Project {
   id: string
-  opportunity_code: string
+  project_code: string
   title: string
   description: string | null
   department: string | null
@@ -75,11 +75,11 @@ interface Opportunity {
   roi_indicators: Record<string, unknown>
   created_at: string
   updated_at: string
-  // Project fields
+  // Active project fields
   project_name?: string | null
   project_description?: string | null
   // Extended justification fields
-  opportunity_summary?: string | null
+  project_summary?: string | null
   roi_justification?: string | null
   effort_justification?: string | null
   alignment_justification?: string | null
@@ -116,7 +116,7 @@ interface EditFormState {
   stakeholder_readiness: number | null
   status: string
   // Justification fields
-  opportunity_summary: string
+  project_summary: string
   roi_justification: string
   effort_justification: string
   alignment_justification: string
@@ -139,7 +139,7 @@ interface RelatedDocument {
 
 interface LinkedStakeholder {
   id: string
-  opportunity_id: string
+  project_id: string
   stakeholder_id: string
   stakeholder_name: string | null
   stakeholder_role: string | null
@@ -162,8 +162,8 @@ interface Conversation {
   created_at: string
 }
 
-interface OpportunityDetailModalProps {
-  opportunity: Opportunity
+interface ProjectDetailModalProps {
+  project: Project
   open: boolean
   onClose: () => void
 }
@@ -215,13 +215,13 @@ const TIER_CONFIG = {
 // COMPONENT
 // ============================================================================
 
-export default function OpportunityDetailModal({
-  opportunity: initialOpportunity,
+export default function ProjectDetailModal({
+  project: initialProject,
   open,
   onClose,
-}: OpportunityDetailModalProps) {
-  // Local opportunity state to allow refreshing after generation
-  const [opportunity, setOpportunity] = useState<Opportunity>(initialOpportunity)
+}: ProjectDetailModalProps) {
+  // Local project state to allow refreshing after generation
+  const [project, setProject] = useState<Project>(initialProject)
 
   // State
   const [relatedDocs, setRelatedDocs] = useState<RelatedDocument[]>([])
@@ -262,7 +262,7 @@ export default function OpportunityDetailModal({
     strategic_alignment: null,
     stakeholder_readiness: null,
     status: 'identified',
-    opportunity_summary: '',
+    project_summary: '',
     roi_justification: '',
     effort_justification: '',
     alignment_justification: '',
@@ -287,47 +287,47 @@ export default function OpportunityDetailModal({
 
   const questionInputRef = useRef<HTMLTextAreaElement>(null)
 
-  // Update local opportunity when prop changes
+  // Update local project when prop changes
   useEffect(() => {
-    setOpportunity(initialOpportunity)
-    // Reset editing section and auto-generate flag when opportunity changes
+    setProject(initialProject)
+    // Reset editing section and auto-generate flag when project changes
     setEditingSection(null)
     setShouldAutoGenerateTasks(false)
-  }, [initialOpportunity])
+  }, [initialProject])
 
   // Initialize edit form when entering any section's edit mode
   useEffect(() => {
-    if (editingSection && opportunity) {
+    if (editingSection && project) {
       setEditForm({
-        title: opportunity.title || '',
-        description: opportunity.description || '',
-        department: opportunity.department || '',
-        current_state: opportunity.current_state || '',
-        desired_state: opportunity.desired_state || '',
-        next_step: opportunity.next_step || '',
-        roi_potential: opportunity.roi_potential,
-        implementation_effort: opportunity.implementation_effort,
-        strategic_alignment: opportunity.strategic_alignment,
-        stakeholder_readiness: opportunity.stakeholder_readiness,
-        status: opportunity.status || 'identified',
+        title: project.title || '',
+        description: project.description || '',
+        department: project.department || '',
+        current_state: project.current_state || '',
+        desired_state: project.desired_state || '',
+        next_step: project.next_step || '',
+        roi_potential: project.roi_potential,
+        implementation_effort: project.implementation_effort,
+        strategic_alignment: project.strategic_alignment,
+        stakeholder_readiness: project.stakeholder_readiness,
+        status: project.status || 'identified',
         // Justification fields
-        opportunity_summary: opportunity.opportunity_summary || '',
-        roi_justification: opportunity.roi_justification || '',
-        effort_justification: opportunity.effort_justification || '',
-        alignment_justification: opportunity.alignment_justification || '',
-        readiness_justification: opportunity.readiness_justification || '',
+        project_summary: project.project_summary || '',
+        roi_justification: project.roi_justification || '',
+        effort_justification: project.effort_justification || '',
+        alignment_justification: project.alignment_justification || '',
+        readiness_justification: project.readiness_justification || '',
       })
     }
-  }, [editingSection, opportunity])
+  }, [editingSection, project])
 
   // Fetch related documents and stakeholders on open
   useEffect(() => {
-    if (open && opportunity) {
+    if (open && project) {
       fetchRelatedDocuments()
       fetchLinkedStakeholders()
       fetchConversations()
     }
-  }, [open, opportunity?.id])
+  }, [open, project?.id])
 
   // Focus question input when modal opens
   useEffect(() => {
@@ -341,7 +341,7 @@ export default function OpportunityDetailModal({
     setDocsLoading(true)
     try {
       const docs = await apiGet<RelatedDocument[]>(
-        `/api/opportunities/${opportunity.id}/related-documents?limit=8`
+        `/api/projects/${project.id}/related-documents?limit=8`
       )
       setRelatedDocs(docs)
     } catch (error) {
@@ -355,7 +355,7 @@ export default function OpportunityDetailModal({
     setStakeholdersLoading(true)
     try {
       const stakeholders = await apiGet<LinkedStakeholder[]>(
-        `/api/opportunities/${opportunity.id}/stakeholders`
+        `/api/projects/${project.id}/stakeholders`
       )
       setLinkedStakeholders(stakeholders)
     } catch (error) {
@@ -369,7 +369,7 @@ export default function OpportunityDetailModal({
     setConversationsLoading(true)
     try {
       const convos = await apiGet<Conversation[]>(
-        `/api/opportunities/${opportunity.id}/conversations?limit=10`
+        `/api/projects/${project.id}/conversations?limit=10`
       )
       setConversations(convos)
     } catch (error) {
@@ -389,7 +389,7 @@ export default function OpportunityDetailModal({
       const result = await apiPost<{
         response: string
         sources: RelatedDocument[]
-      }>(`/api/opportunities/${opportunity.id}/ask`, { question: question.trim() })
+      }>(`/api/projects/${project.id}/ask`, { question: question.trim() })
 
       setLatestResponse(result)
       setQuestion('')
@@ -430,11 +430,11 @@ export default function OpportunityDetailModal({
 
     setGenerating(true)
     try {
-      await apiPost(`/api/opportunities/${opportunity.id}/generate-justifications`, {})
+      await apiPost(`/api/projects/${project.id}/generate-justifications`, {})
 
-      // Refetch opportunity to get updated justifications
-      const updated = await apiGet<Opportunity>(`/api/opportunities/${opportunity.id}`)
-      setOpportunity(updated)
+      // Refetch project to get updated justifications
+      const updated = await apiGet<Project>(`/api/projects/${project.id}`)
+      setProject(updated)
     } catch (error) {
       console.error('Failed to generate justifications:', error)
       alert('Failed to generate justifications. Please try again.')
@@ -445,11 +445,11 @@ export default function OpportunityDetailModal({
 
   const handleAnalyzeGoalAlignment = async () => {
     try {
-      await apiPost(`/api/opportunities/${opportunity.id}/analyze-goal-alignment`, {})
+      await apiPost(`/api/projects/${project.id}/analyze-goal-alignment`, {})
 
-      // Refetch opportunity to get updated goal alignment data
-      const updated = await apiGet<Opportunity>(`/api/opportunities/${opportunity.id}`)
-      setOpportunity(updated)
+      // Refetch project to get updated goal alignment data
+      const updated = await apiGet<Project>(`/api/projects/${project.id}`)
+      setProject(updated)
     } catch (error) {
       console.error('Failed to analyze goal alignment:', error)
       alert('Failed to analyze goal alignment. Please try again.')
@@ -467,10 +467,10 @@ export default function OpportunityDetailModal({
 
       switch (section) {
         case 'header':
-          if (editForm.title !== opportunity.title) updateData.title = editForm.title
-          if (editForm.status !== opportunity.status) {
+          if (editForm.title !== project.title) updateData.title = editForm.title
+          if (editForm.status !== project.status) {
             const requiresProjectName = ['scoping', 'pilot'].includes(editForm.status)
-            const hasProjectName = !!opportunity.project_name
+            const hasProjectName = !!project.project_name
             if (requiresProjectName && !hasProjectName) {
               setPendingStatus(editForm.status as 'scoping' | 'pilot')
               setShowProjectNameModal(true)
@@ -482,32 +482,32 @@ export default function OpportunityDetailModal({
           break
 
         case 'scores':
-          if (editForm.roi_potential !== opportunity.roi_potential) updateData.roi_potential = editForm.roi_potential
-          if (editForm.implementation_effort !== opportunity.implementation_effort) updateData.implementation_effort = editForm.implementation_effort
-          if (editForm.strategic_alignment !== opportunity.strategic_alignment) updateData.strategic_alignment = editForm.strategic_alignment
-          if (editForm.stakeholder_readiness !== opportunity.stakeholder_readiness) updateData.stakeholder_readiness = editForm.stakeholder_readiness
+          if (editForm.roi_potential !== project.roi_potential) updateData.roi_potential = editForm.roi_potential
+          if (editForm.implementation_effort !== project.implementation_effort) updateData.implementation_effort = editForm.implementation_effort
+          if (editForm.strategic_alignment !== project.strategic_alignment) updateData.strategic_alignment = editForm.strategic_alignment
+          if (editForm.stakeholder_readiness !== project.stakeholder_readiness) updateData.stakeholder_readiness = editForm.stakeholder_readiness
           break
 
         case 'justifications':
-          if (editForm.opportunity_summary !== (opportunity.opportunity_summary || '')) updateData.opportunity_summary = editForm.opportunity_summary || null
-          if (editForm.roi_justification !== (opportunity.roi_justification || '')) updateData.roi_justification = editForm.roi_justification || null
-          if (editForm.effort_justification !== (opportunity.effort_justification || '')) updateData.effort_justification = editForm.effort_justification || null
-          if (editForm.alignment_justification !== (opportunity.alignment_justification || '')) updateData.alignment_justification = editForm.alignment_justification || null
-          if (editForm.readiness_justification !== (opportunity.readiness_justification || '')) updateData.readiness_justification = editForm.readiness_justification || null
+          if (editForm.project_summary !== (project.project_summary || '')) updateData.project_summary = editForm.project_summary || null
+          if (editForm.roi_justification !== (project.roi_justification || '')) updateData.roi_justification = editForm.roi_justification || null
+          if (editForm.effort_justification !== (project.effort_justification || '')) updateData.effort_justification = editForm.effort_justification || null
+          if (editForm.alignment_justification !== (project.alignment_justification || '')) updateData.alignment_justification = editForm.alignment_justification || null
+          if (editForm.readiness_justification !== (project.readiness_justification || '')) updateData.readiness_justification = editForm.readiness_justification || null
           break
 
         case 'description':
-          if (editForm.description !== (opportunity.description || '')) updateData.description = editForm.description || null
-          if (editForm.department !== (opportunity.department || '')) updateData.department = editForm.department || null
+          if (editForm.description !== (project.description || '')) updateData.description = editForm.description || null
+          if (editForm.department !== (project.department || '')) updateData.department = editForm.department || null
           break
 
         case 'states':
-          if (editForm.current_state !== (opportunity.current_state || '')) updateData.current_state = editForm.current_state || null
-          if (editForm.desired_state !== (opportunity.desired_state || '')) updateData.desired_state = editForm.desired_state || null
+          if (editForm.current_state !== (project.current_state || '')) updateData.current_state = editForm.current_state || null
+          if (editForm.desired_state !== (project.desired_state || '')) updateData.desired_state = editForm.desired_state || null
           break
 
         case 'next_step':
-          if (editForm.next_step !== (opportunity.next_step || '')) updateData.next_step = editForm.next_step || null
+          if (editForm.next_step !== (project.next_step || '')) updateData.next_step = editForm.next_step || null
           break
       }
 
@@ -517,11 +517,11 @@ export default function OpportunityDetailModal({
         return
       }
 
-      const updated = await apiPatch<Opportunity>(`/api/opportunities/${opportunity.id}`, updateData)
-      setOpportunity(updated)
+      const updated = await apiPatch<Project>(`/api/projects/${project.id}`, updateData)
+      setProject(updated)
       setEditingSection(null)
     } catch (error) {
-      console.error('Failed to save opportunity:', error)
+      console.error('Failed to save project:', error)
       alert('Failed to save changes. Please try again.')
     } finally {
       setIsSaving(false)
@@ -533,12 +533,12 @@ export default function OpportunityDetailModal({
 
     try {
       // Update status with project name
-      const updated = await apiPatch<Opportunity>(`/api/opportunities/${opportunity.id}/status`, {
+      const updated = await apiPatch<Project>(`/api/projects/${project.id}/status`, {
         status: pendingStatus,
         project_name: projectName,
         project_description: projectDescription,
       })
-      setOpportunity(updated)
+      setProject(updated)
       setShowProjectNameModal(false)
       setPendingStatus(null)
       setEditingSection(null)
@@ -553,7 +553,7 @@ export default function OpportunityDetailModal({
   }
 
   const handleConvertToProject = () => {
-    // Trigger the project name modal for "Start as Project"
+    // Trigger the project name modal for "Start as Active Project"
     setPendingStatus('scoping')
     setShowProjectNameModal(true)
   }
@@ -564,17 +564,17 @@ export default function OpportunityDetailModal({
 
   // Check if justifications exist
   const hasJustifications = !!(
-    opportunity.opportunity_summary ||
-    opportunity.roi_justification ||
-    opportunity.effort_justification ||
-    opportunity.alignment_justification ||
-    opportunity.readiness_justification
+    project.project_summary ||
+    project.roi_justification ||
+    project.effort_justification ||
+    project.alignment_justification ||
+    project.readiness_justification
   )
 
   if (!open) return null
 
-  const statusConfig = STATUS_CONFIG[opportunity.status] || STATUS_CONFIG.identified
-  const tierConfig = TIER_CONFIG[opportunity.tier as keyof typeof TIER_CONFIG] || TIER_CONFIG[4]
+  const statusConfig = STATUS_CONFIG[project.status] || STATUS_CONFIG.identified
+  const tierConfig = TIER_CONFIG[project.tier as keyof typeof TIER_CONFIG] || TIER_CONFIG[4]
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -591,10 +591,10 @@ export default function OpportunityDetailModal({
           <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm font-mono font-bold text-muted">
-                {opportunity.opportunity_code}
+                {project.project_code}
               </span>
               <span className={`px-2 py-0.5 rounded text-xs font-medium ${tierConfig.color}`}>
-                Tier {opportunity.tier}
+                Tier {project.tier}
               </span>
               {editingSection === 'header' ? (
                 <select
@@ -611,9 +611,9 @@ export default function OpportunityDetailModal({
                   {statusConfig.label}
                 </span>
               )}
-              {opportunity.project_name && (
+              {project.project_name && (
                 <span className="px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                  Project: {opportunity.project_name}
+                  Active: {project.project_name}
                 </span>
               )}
             </div>
@@ -624,11 +624,11 @@ export default function OpportunityDetailModal({
                   value={editForm.title}
                   onChange={(e) => handleEditFormChange('title', e.target.value)}
                   className="text-xl font-semibold text-primary bg-transparent border-b border-blue-500 focus:outline-none flex-1"
-                  placeholder="Opportunity title"
+                  placeholder="Project title"
                 />
               ) : (
                 <h2 className="text-xl font-semibold text-primary truncate flex-1">
-                  {opportunity.title}
+                  {project.title}
                 </h2>
               )}
               {editingSection === 'header' ? (
@@ -659,15 +659,15 @@ export default function OpportunityDetailModal({
                 </button>
               )}
             </div>
-            {opportunity.owner_name && editingSection !== 'header' && (
+            {project.owner_name && editingSection !== 'header' && (
               <p className="text-sm text-muted flex items-center gap-1 mt-1">
                 <User className="w-3 h-3" />
-                {opportunity.owner_name}
-                {opportunity.department && (
+                {project.owner_name}
+                {project.department && (
                   <>
                     <span className="mx-1">|</span>
                     <Building2 className="w-3 h-3" />
-                    {opportunity.department}
+                    {project.department}
                   </>
                 )}
               </p>
@@ -805,18 +805,18 @@ export default function OpportunityDetailModal({
                   </div>
                 ) : (
                   <ScoreJustification
-                    roiPotential={opportunity.roi_potential}
-                    implementationEffort={opportunity.implementation_effort}
-                    strategicAlignment={opportunity.strategic_alignment}
-                    stakeholderReadiness={opportunity.stakeholder_readiness}
-                    totalScore={opportunity.total_score}
-                    tier={opportunity.tier}
-                    opportunityDescription={opportunity.opportunity_summary || undefined}
+                    roiPotential={project.roi_potential}
+                    implementationEffort={project.implementation_effort}
+                    strategicAlignment={project.strategic_alignment}
+                    stakeholderReadiness={project.stakeholder_readiness}
+                    totalScore={project.total_score}
+                    tier={project.tier}
+                    opportunityDescription={project.project_summary || undefined}
                     dimensionJustifications={{
-                      roi_potential: opportunity.roi_justification || undefined,
-                      implementation_effort: opportunity.effort_justification || undefined,
-                      strategic_alignment: opportunity.alignment_justification || undefined,
-                      stakeholder_readiness: opportunity.readiness_justification || undefined,
+                      roi_potential: project.roi_justification || undefined,
+                      implementation_effort: project.effort_justification || undefined,
+                      strategic_alignment: project.alignment_justification || undefined,
+                      stakeholder_readiness: project.readiness_justification || undefined,
                     }}
                   />
                 )}
@@ -886,11 +886,11 @@ export default function OpportunityDetailModal({
                         Opportunity Summary
                       </label>
                       <textarea
-                        value={editForm.opportunity_summary}
-                        onChange={(e) => handleEditFormChange('opportunity_summary', e.target.value)}
+                        value={editForm.project_summary}
+                        onChange={(e) => handleEditFormChange('project_summary', e.target.value)}
                         rows={3}
                         className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                        placeholder="Summary of the opportunity and its potential business impact..."
+                        placeholder="Summary of the project and its potential business impact..."
                       />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -952,9 +952,9 @@ export default function OpportunityDetailModal({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {opportunity.opportunity_summary && (
+                    {project.project_summary && (
                       <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-                        <p className="text-sm text-secondary">{opportunity.opportunity_summary}</p>
+                        <p className="text-sm text-secondary">{project.project_summary}</p>
                       </div>
                     )}
                   </div>
@@ -966,7 +966,7 @@ export default function OpportunityDetailModal({
           {/* CONFIDENCE TAB */}
           {activeTab === 'confidence' && (
             <div className="space-y-6">
-              {(opportunity.scoring_confidence !== null && opportunity.scoring_confidence !== undefined) ? (
+              {(project.scoring_confidence !== null && project.scoring_confidence !== undefined) ? (
                 <>
                   {/* Confidence Meter */}
                   <section>
@@ -978,43 +978,43 @@ export default function OpportunityDetailModal({
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-lg text-secondary">Confidence Level</span>
                         <span className={`text-3xl font-bold ${
-                          opportunity.scoring_confidence >= 80 ? 'text-green-600 dark:text-green-400' :
-                          opportunity.scoring_confidence >= 60 ? 'text-blue-600 dark:text-blue-400' :
-                          opportunity.scoring_confidence >= 40 ? 'text-amber-600 dark:text-amber-400' :
+                          project.scoring_confidence >= 80 ? 'text-green-600 dark:text-green-400' :
+                          project.scoring_confidence >= 60 ? 'text-blue-600 dark:text-blue-400' :
+                          project.scoring_confidence >= 40 ? 'text-amber-600 dark:text-amber-400' :
                           'text-red-600 dark:text-red-400'
                         }`}>
-                          {opportunity.scoring_confidence}%
+                          {project.scoring_confidence}%
                         </span>
                       </div>
                       <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
-                            opportunity.scoring_confidence >= 80 ? 'bg-green-500' :
-                            opportunity.scoring_confidence >= 60 ? 'bg-blue-500' :
-                            opportunity.scoring_confidence >= 40 ? 'bg-amber-500' :
+                            project.scoring_confidence >= 80 ? 'bg-green-500' :
+                            project.scoring_confidence >= 60 ? 'bg-blue-500' :
+                            project.scoring_confidence >= 40 ? 'bg-amber-500' :
                             'bg-red-500'
                           }`}
-                          style={{ width: `${opportunity.scoring_confidence}%` }}
+                          style={{ width: `${project.scoring_confidence}%` }}
                         />
                       </div>
                       <p className="text-sm text-muted mt-3">
-                        {opportunity.scoring_confidence >= 80 ? 'High confidence - scores are well-supported by available information' :
-                         opportunity.scoring_confidence >= 60 ? 'Moderate confidence - some assumptions were made based on limited data' :
-                         opportunity.scoring_confidence >= 40 ? 'Low confidence - significant unknowns remain in the scoring' :
+                        {project.scoring_confidence >= 80 ? 'High confidence - scores are well-supported by available information' :
+                         project.scoring_confidence >= 60 ? 'Moderate confidence - some assumptions were made based on limited data' :
+                         project.scoring_confidence >= 40 ? 'Low confidence - significant unknowns remain in the scoring' :
                          'Very low confidence - scores are mostly speculative due to lack of information'}
                       </p>
                     </div>
                   </section>
 
                   {/* Questions to Raise Confidence */}
-                  {opportunity.confidence_questions && opportunity.confidence_questions.length > 0 && (
+                  {project.confidence_questions && project.confidence_questions.length > 0 && (
                     <section>
                       <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4 flex items-center gap-2">
                         <HelpCircle className="w-4 h-4" />
                         Questions to Raise Confidence
                       </h3>
                       <div className="space-y-3">
-                        {opportunity.confidence_questions.map((question, i) => (
+                        {project.confidence_questions.map((question, i) => (
                           <div
                             key={i}
                             className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg"
@@ -1037,7 +1037,7 @@ export default function OpportunityDetailModal({
                   <Gauge className="w-12 h-12 mx-auto text-muted mb-3" />
                   <h3 className="text-lg font-medium text-primary mb-2">No Confidence Data</h3>
                   <p className="text-sm text-muted max-w-md mx-auto">
-                    Confidence scoring has not been generated for this opportunity yet.
+                    Confidence scoring has not been generated for this project yet.
                     Generate AI analysis on the Scores tab to evaluate confidence levels.
                   </p>
                 </div>
@@ -1048,9 +1048,9 @@ export default function OpportunityDetailModal({
           {/* ALIGNMENT TAB */}
           {activeTab === 'alignment' && (
             <GoalAlignmentSection
-              opportunityId={opportunity.id}
-              goalAlignmentScore={opportunity.goal_alignment_score ?? null}
-              goalAlignmentDetails={opportunity.goal_alignment_details ?? null}
+              projectId={project.id}
+              goalAlignmentScore={project.goal_alignment_score ?? null}
+              goalAlignmentDetails={project.goal_alignment_details ?? null}
               onAnalyze={handleAnalyzeGoalAlignment}
             />
           )}
@@ -1117,20 +1117,20 @@ export default function OpportunityDetailModal({
                         onChange={(e) => handleEditFormChange('description', e.target.value)}
                         rows={4}
                         className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                        placeholder="Describe the opportunity..."
+                        placeholder="Describe the project..."
                       />
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {opportunity.department && (
+                    {project.department && (
                       <div className="flex items-center gap-2">
                         <Building2 className="w-4 h-4 text-muted" />
-                        <span className="text-sm text-secondary">{opportunity.department}</span>
+                        <span className="text-sm text-secondary">{project.department}</span>
                       </div>
                     )}
-                    {opportunity.description ? (
-                      <p className="text-sm text-secondary whitespace-pre-wrap">{opportunity.description}</p>
+                    {project.description ? (
+                      <p className="text-sm text-secondary whitespace-pre-wrap">{project.description}</p>
                     ) : (
                       <p className="text-sm text-muted italic">No description provided. Click Edit to add one.</p>
                     )}
@@ -1204,8 +1204,8 @@ export default function OpportunityDetailModal({
                       <h4 className="text-xs font-medium text-red-600 dark:text-red-400 uppercase mb-1">
                         Current State
                       </h4>
-                      {opportunity.current_state ? (
-                        <p className="text-sm text-secondary">{opportunity.current_state}</p>
+                      {project.current_state ? (
+                        <p className="text-sm text-secondary">{project.current_state}</p>
                       ) : (
                         <p className="text-sm text-muted italic">Not defined</p>
                       )}
@@ -1214,8 +1214,8 @@ export default function OpportunityDetailModal({
                       <h4 className="text-xs font-medium text-green-600 dark:text-green-400 uppercase mb-1">
                         Desired State
                       </h4>
-                      {opportunity.desired_state ? (
-                        <p className="text-sm text-secondary">{opportunity.desired_state}</p>
+                      {project.desired_state ? (
+                        <p className="text-sm text-secondary">{project.desired_state}</p>
                       ) : (
                         <p className="text-sm text-muted italic">Not defined</p>
                       )}
@@ -1269,22 +1269,22 @@ export default function OpportunityDetailModal({
                     className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                     placeholder="What's the next step?"
                   />
-                ) : opportunity.next_step ? (
-                  <p className="text-sm text-secondary">{opportunity.next_step}</p>
+                ) : project.next_step ? (
+                  <p className="text-sm text-secondary">{project.next_step}</p>
                 ) : (
                   <p className="text-sm text-muted italic">No next step defined. Click Edit to add one.</p>
                 )}
               </section>
 
               {/* Blockers Section (read-only) */}
-              {opportunity.blockers.length > 0 && (
+              {project.blockers.length > 0 && (
                 <section>
                   <h3 className="text-sm font-medium text-red-500 uppercase tracking-wide mb-3 flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />
                     Blockers
                   </h3>
                   <ul className="text-sm text-secondary list-disc list-inside space-y-1">
-                    {opportunity.blockers.map((blocker, i) => (
+                    {project.blockers.map((blocker, i) => (
                       <li key={i}>{blocker}</li>
                     ))}
                   </ul>
@@ -1292,13 +1292,13 @@ export default function OpportunityDetailModal({
               )}
 
               {/* ROI Indicators Section (read-only) */}
-              {Object.keys(opportunity.roi_indicators).length > 0 && (
+              {Object.keys(project.roi_indicators).length > 0 && (
                 <section>
                   <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-3">
                     ROI Indicators
                   </h3>
                   <div className="flex flex-wrap gap-2">
-                    {Object.entries(opportunity.roi_indicators).map(([key, value]) => (
+                    {Object.entries(project.roi_indicators).map(([key, value]) => (
                       <span
                         key={key}
                         className="px-2 py-1 bg-hover rounded text-xs text-secondary"
@@ -1311,7 +1311,7 @@ export default function OpportunityDetailModal({
               )}
 
               {/* Convert to Project CTA */}
-              {opportunity.status === 'identified' && !opportunity.project_name && (
+              {project.status === 'identified' && !project.project_name && (
                 <section className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
                   <div className="flex items-center justify-between">
                     <div>
@@ -1320,7 +1320,7 @@ export default function OpportunityDetailModal({
                         Ready to move forward?
                       </h3>
                       <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
-                        Convert this opportunity into an active project to start scoping and task planning.
+                        Activate this project to start scoping and task planning.
                       </p>
                     </div>
                     <button
@@ -1526,7 +1526,7 @@ export default function OpportunityDetailModal({
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask a question about this opportunity..."
+                  placeholder="Ask a question about this project..."
                   className="w-full px-4 py-3 pr-12 border border-default rounded-lg bg-card text-primary placeholder-muted resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                   rows={2}
                   disabled={asking}
@@ -1582,11 +1582,11 @@ export default function OpportunityDetailModal({
           </section>
 
           {/* Taskmaster Section */}
-          {opportunity.project_name ? (
+          {project.project_name ? (
             <TaskmasterChatSection
-              opportunityId={opportunity.id}
-              projectName={opportunity.project_name}
-              opportunityTitle={opportunity.title}
+              projectId={project.id}
+              projectName={project.project_name}
+              projectTitle={project.title}
               autoGenerate={shouldAutoGenerateTasks}
               onAutoGenerateComplete={() => setShouldAutoGenerateTasks(false)}
             />
@@ -1601,7 +1601,7 @@ export default function OpportunityDetailModal({
                       Break Down Tasks with Taskmaster
                     </h3>
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      Convert this opportunity to a project to unlock Taskmaster and start breaking down tasks.
+                      Activate this project to unlock Taskmaster and start breaking down tasks.
                     </p>
                   </div>
                 </div>
@@ -1650,7 +1650,7 @@ export default function OpportunityDetailModal({
           setPendingStatus(null)
         }}
         onSubmit={handleProjectNameSubmit}
-        opportunityTitle={opportunity.title}
+        projectTitle={project.title}
         newStatus={pendingStatus || 'scoping'}
       />
     </div>

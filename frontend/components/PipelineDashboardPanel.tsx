@@ -21,9 +21,9 @@ import { apiGet, apiPost } from '@/lib/api'
 // TYPES
 // ============================================================================
 
-interface PriorityOpportunity {
+interface PriorityProject {
   id: string
-  opportunity_code: string
+  project_code: string
   title: string
   description: string | null
   department: string | null
@@ -66,11 +66,11 @@ interface StakeholderPulse {
 }
 
 interface PipelineOverview {
-  priority_queue: PriorityOpportunity[]
+  priority_queue: PriorityProject[]
   commitments: Commitment[]
   stakeholder_pulse: StakeholderPulse[]
   stats: {
-    total_opportunities: number
+    total_projects: number
     total_commitments: number
     overdue_commitments: number
     total_stakeholders: number
@@ -113,11 +113,11 @@ const TIER_COLORS: Record<number, string> = {
 // ============================================================================
 
 function PriorityQueuePanel({
-  opportunities,
-  onViewOpportunity
+  projects,
+  onViewProject
 }: {
-  opportunities: PriorityOpportunity[]
-  onViewOpportunity: (id: string) => void
+  projects: PriorityProject[]
+  onViewProject: (id: string) => void
 }) {
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
@@ -126,25 +126,25 @@ function PriorityQueuePanel({
           <Target className="w-5 h-5 text-rose-500" />
           <h2 className="font-semibold text-slate-900 dark:text-white">Priority Queue</h2>
           <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-            {opportunities.length}
+            {projects.length}
           </span>
         </div>
         <span className="text-xs text-slate-500">Ranked by impact/effort</span>
       </div>
 
       <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[400px] overflow-y-auto">
-        {opportunities.length === 0 ? (
+        {projects.length === 0 ? (
           <div className="px-4 py-8 text-center text-slate-500">
             <Target className="w-8 h-8 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">No opportunities yet</p>
-            <p className="text-xs">Scan your Granola vault to discover opportunities</p>
+            <p className="text-sm">No projects yet</p>
+            <p className="text-xs">Scan your vault to discover projects</p>
           </div>
         ) : (
-          opportunities.map((opp, index) => (
+          projects.map((proj, index) => (
             <div
-              key={opp.id}
+              key={proj.id}
               className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
-              onClick={() => onViewOpportunity(opp.id)}
+              onClick={() => onViewProject(proj.id)}
             >
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-medium text-slate-600 dark:text-slate-400">
@@ -152,28 +152,28 @@ function PriorityQueuePanel({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono text-slate-500">{opp.opportunity_code}</span>
-                    {opp.tier && (
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${TIER_COLORS[opp.tier]}`}>
-                        T{opp.tier}
+                    <span className="text-xs font-mono text-slate-500">{proj.project_code}</span>
+                    {proj.tier && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${TIER_COLORS[proj.tier]}`}>
+                        T{proj.tier}
                       </span>
                     )}
-                    {opp.department && (
-                      <span className="text-xs text-slate-400">{opp.department}</span>
+                    {proj.department && (
+                      <span className="text-xs text-slate-400">{proj.department}</span>
                     )}
                   </div>
                   <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
-                    {opp.title}
+                    {proj.title}
                   </p>
                   <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                     <span className="flex items-center gap-1">
                       <Zap className="w-3 h-3" />
-                      Score: {opp.priority_score}
+                      Score: {proj.priority_score}
                     </span>
-                    {opp.owner_name && (
+                    {proj.owner_name && (
                       <span className="flex items-center gap-1">
                         <Users className="w-3 h-3" />
-                        {opp.owner_name}
+                        {proj.owner_name}
                       </span>
                     )}
                   </div>
@@ -364,7 +364,7 @@ function GranolaScanPanel({
             }`} />
           </div>
           <div>
-            <h3 className="font-medium text-slate-900 dark:text-white">Granola Vault</h3>
+            <h3 className="font-medium text-slate-900 dark:text-white">Vault</h3>
             <p className="text-xs text-slate-500">
               {status.connected
                 ? `${status.scanned_files}/${status.total_files} meetings scanned`
@@ -447,14 +447,14 @@ export default function PipelineDashboardPanel() {
       await fetchData()
     } catch (err) {
       console.error('Scan failed:', err)
-      setError('Failed to scan Granola vault')
+      setError('Failed to scan vault')
     } finally {
       setIsScanning(false)
     }
   }
 
-  const handleViewOpportunity = (id: string) => {
-    router.push(`/opportunities?selected=${id}`)
+  const handleViewProject = (id: string) => {
+    router.push(`/projects?selected=${id}`)
   }
 
   const handleViewTask = (id: string) => {
@@ -531,10 +531,10 @@ export default function PipelineDashboardPanel() {
           <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
             <div className="flex items-center gap-2 text-slate-500 mb-1">
               <Target className="w-4 h-4" />
-              <span className="text-xs uppercase tracking-wide">Opportunities</span>
+              <span className="text-xs uppercase tracking-wide">Projects</span>
             </div>
             <p className="text-2xl font-semibold text-slate-900 dark:text-white">
-              {data.stats.total_opportunities}
+              {data.stats.total_projects}
             </p>
           </div>
           <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
@@ -570,8 +570,8 @@ export default function PipelineDashboardPanel() {
       {/* Three Panel Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <PriorityQueuePanel
-          opportunities={data?.priority_queue || []}
-          onViewOpportunity={handleViewOpportunity}
+          projects={data?.priority_queue || []}
+          onViewProject={handleViewProject}
         />
         <CommitmentsPanel
           commitments={data?.commitments || []}

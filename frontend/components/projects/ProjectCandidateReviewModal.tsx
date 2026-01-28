@@ -5,7 +5,7 @@ import { X, ChevronRight, Check, XIcon, FileText, Link2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiPost } from '@/lib/api'
 
-interface OpportunityCandidate {
+interface ProjectCandidate {
   id: string
   title: string
   description?: string
@@ -21,18 +21,18 @@ interface OpportunityCandidate {
   related_stakeholder_names?: string[]
   status: string
   confidence: string
-  matched_opportunity_id?: string
+  matched_project_id?: string
   matched_candidate_id?: string
   match_confidence?: number
   match_reason?: string
   created_at: string
 }
 
-interface OpportunityCandidateReviewModalProps {
+interface ProjectCandidateReviewModalProps {
   open: boolean
   onClose: () => void
   onComplete: (stats: { accepted: number; rejected: number; linked: number }) => void
-  candidates: OpportunityCandidate[]
+  candidates: ProjectCandidate[]
 }
 
 const DEPARTMENT_OPTIONS = [
@@ -56,13 +56,13 @@ const SCORE_OPTIONS = [
   { value: 5, label: '5 - High' },
 ]
 
-export default function OpportunityCandidateReviewModal({
+export default function ProjectCandidateReviewModal({
   open,
   onClose,
   onComplete,
   candidates: initialCandidates,
-}: OpportunityCandidateReviewModalProps) {
-  const [candidates, setCandidates] = useState<OpportunityCandidate[]>([])
+}: ProjectCandidateReviewModalProps) {
+  const [candidates, setCandidates] = useState<ProjectCandidate[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [saving, setSaving] = useState(false)
   const [stats, setStats] = useState({ accepted: 0, rejected: 0, linked: 0 })
@@ -87,7 +87,7 @@ export default function OpportunityCandidateReviewModal({
   }, [open, initialCandidates])
 
   // Load candidate data into form
-  const loadCandidate = useCallback((candidate: OpportunityCandidate) => {
+  const loadCandidate = useCallback((candidate: ProjectCandidate) => {
     setTitle(candidate.title || '')
     setDescription(candidate.description || '')
     setDepartment(candidate.department || '')
@@ -109,14 +109,14 @@ export default function OpportunityCandidateReviewModal({
     }
   }, [currentIndex, candidates, stats, loadCandidate, onComplete])
 
-  // Accept current candidate and create opportunity
+  // Accept current candidate and create project
   const handleAccept = useCallback(async () => {
     const candidate = candidates[currentIndex]
     if (!candidate) return
 
     setSaving(true)
     try {
-      await apiPost(`/api/opportunities/candidates/${candidate.id}/accept`, {
+      await apiPost(`/api/projects/candidates/${candidate.id}/accept`, {
         title: title.trim(),
         description: description.trim() || null,
         department: department || null,
@@ -126,33 +126,33 @@ export default function OpportunityCandidateReviewModal({
         stakeholder_readiness: readiness,
         link_to_existing: false,
       })
-      toast.success('Opportunity created')
+      toast.success('Project created')
       setStats(prev => ({ ...prev, accepted: prev.accepted + 1 }))
       moveToNext()
     } catch (error) {
       console.error('Failed to accept candidate:', error)
-      toast.error('Failed to create opportunity')
+      toast.error('Failed to create project')
     } finally {
       setSaving(false)
     }
   }, [candidates, currentIndex, title, description, department, roiPotential, effort, alignment, readiness, moveToNext])
 
-  // Link to existing opportunity (when duplicate detected)
+  // Link to existing project (when duplicate detected)
   const handleLinkToExisting = useCallback(async () => {
     const candidate = candidates[currentIndex]
-    if (!candidate || !candidate.matched_opportunity_id) return
+    if (!candidate || !candidate.matched_project_id) return
 
     setSaving(true)
     try {
-      await apiPost(`/api/opportunities/candidates/${candidate.id}/accept`, {
+      await apiPost(`/api/projects/candidates/${candidate.id}/accept`, {
         link_to_existing: true,
       })
-      toast.success('Linked to existing opportunity')
+      toast.success('Linked to existing project')
       setStats(prev => ({ ...prev, linked: prev.linked + 1 }))
       moveToNext()
     } catch (error) {
       console.error('Failed to link candidate:', error)
-      toast.error('Failed to link to existing opportunity')
+      toast.error('Failed to link to existing project')
     } finally {
       setSaving(false)
     }
@@ -165,14 +165,14 @@ export default function OpportunityCandidateReviewModal({
 
     setSaving(true)
     try {
-      await apiPost(`/api/opportunities/candidates/${candidate.id}/reject`, {
+      await apiPost(`/api/projects/candidates/${candidate.id}/reject`, {
         reason: 'Skipped during review'
       })
       setStats(prev => ({ ...prev, rejected: prev.rejected + 1 }))
       moveToNext()
     } catch (error) {
       console.error('Failed to reject candidate:', error)
-      toast.error('Failed to skip opportunity')
+      toast.error('Failed to skip project')
     } finally {
       setSaving(false)
     }
@@ -183,7 +183,7 @@ export default function OpportunityCandidateReviewModal({
   const currentCandidate = candidates[currentIndex]
   const isLast = currentIndex === candidates.length - 1
   const progress = ((currentIndex + 1) / candidates.length) * 100
-  const hasPotentialMatch = !!currentCandidate.matched_opportunity_id || !!currentCandidate.matched_candidate_id
+  const hasPotentialMatch = !!currentCandidate.matched_project_id || !!currentCandidate.matched_candidate_id
 
   return (
     <div
@@ -198,7 +198,7 @@ export default function OpportunityCandidateReviewModal({
         <div className="flex items-center justify-between p-4 border-b border-default">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold text-primary">
-              Review Opportunity Candidates
+              Review Project Candidates
             </h2>
             <span className="text-sm text-secondary">
               {currentIndex + 1} of {candidates.length}
@@ -235,7 +235,7 @@ export default function OpportunityCandidateReviewModal({
               disabled={saving}
               className="mt-2 text-sm text-amber-600 dark:text-amber-400 underline hover:no-underline"
             >
-              Link to existing opportunity instead
+              Link to existing project instead
             </button>
           </div>
         )}
@@ -284,7 +284,7 @@ export default function OpportunityCandidateReviewModal({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="What is this opportunity?"
+              placeholder="What is this project?"
               className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-emerald-500"
               autoFocus
             />
@@ -298,7 +298,7 @@ export default function OpportunityCandidateReviewModal({
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Additional details about this opportunity..."
+              placeholder="Additional details about this project..."
               rows={3}
               className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-sm"
             />

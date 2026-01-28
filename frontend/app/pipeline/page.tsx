@@ -141,7 +141,7 @@ function PriorityQueuePanel({
           <div className="px-4 py-8 text-center text-slate-500">
             <Target className="w-8 h-8 mx-auto mb-2 opacity-40" />
             <p className="text-sm">No opportunities yet</p>
-            <p className="text-xs">Scan your Granola vault to discover opportunities</p>
+            <p className="text-xs">Scan your vault to discover projects</p>
           </div>
         ) : (
           opportunities.map((opp, index) => (
@@ -368,7 +368,7 @@ function GranolaScanPanel({
             }`} />
           </div>
           <div>
-            <h3 className="font-medium text-slate-900 dark:text-white">Granola Vault</h3>
+            <h3 className="font-medium text-slate-900 dark:text-white">Vault</h3>
             <p className="text-xs text-slate-500">
               {status.connected
                 ? `${status.scanned_files}/${status.total_files} meetings scanned`
@@ -451,7 +451,7 @@ export default function PipelinePage() {
       await fetchData()
     } catch (err) {
       console.error('Scan failed:', err)
-      setError('Failed to scan Granola vault')
+      setError('Failed to scan vault')
     } finally {
       setIsScanning(false)
     }

@@ -30,7 +30,7 @@ export interface Task {
   category: string | null
   tags: string[]
   team: string | null
-  linked_opportunity_id: string | null
+  linked_project_id: string | null
   blocker_reason: string | null
   blocked_at: string | null
   position: number
@@ -65,7 +65,7 @@ export interface TaskFiltersState {
   priority: number[] | null
   source_type: string[] | null
   team: string | null
-  linked_opportunity_id: string | null
+  linked_project_id: string | null
   search: string | null
   include_completed: boolean
 }
@@ -105,7 +105,7 @@ export default function TaskKanbanBoard() {
     priority: null,
     source_type: null,
     team: null,
-    linked_opportunity_id: null,
+    linked_project_id: null,
     search: null,
     include_completed: true,
   })
@@ -161,7 +161,7 @@ export default function TaskKanbanBoard() {
       f.source_type.forEach(s => params.append('source_type', s))
     }
     if (f.team) params.append('team', f.team)
-    if (f.linked_opportunity_id) params.append('linked_opportunity_id', f.linked_opportunity_id)
+    if (f.linked_project_id) params.append('linked_project_id', f.linked_project_id)
     if (f.search) params.append('search', f.search)
     params.append('include_completed', f.include_completed.toString())
     return params.toString()
@@ -355,7 +355,7 @@ export default function TaskKanbanBoard() {
     if (filters.priority && filters.priority.length > 0) count++
     if (filters.source_type && filters.source_type.length > 0) count++
     if (filters.team) count++
-    if (filters.linked_opportunity_id) count++
+    if (filters.linked_project_id) count++
     if (filters.search) count++
     if (!filters.include_completed) count++
     return count

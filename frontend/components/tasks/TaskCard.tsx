@@ -24,7 +24,7 @@ const SOURCE_ICONS = {
   conversation: MessageSquare,
   research: Search,
   manual: Pencil,
-  opportunity: AlertCircle,
+  project: AlertCircle,
 } as const
 
 export default function TaskCard({ task, onClick }: TaskCardProps) {

@@ -31,7 +31,7 @@ export default function PageHeader({
     { href: '/chat', label: 'Chat' },
     { href: '/meeting-room', label: 'Meeting Room' },
     { href: '/tasks', label: 'Tasks' },
-    { href: '/opportunities', label: 'Opportunities' },
+    { href: '/projects', label: 'Projects' },
     { href: '/strategy', label: 'Strategy' },
     { href: '/intelligence', label: 'Intelligence' },
     { href: '/kb', label: 'KB' },

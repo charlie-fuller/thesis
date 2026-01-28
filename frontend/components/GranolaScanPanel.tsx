@@ -156,7 +156,7 @@ export default function GranolaScanPanel() {
             }`} />
           </div>
           <div>
-            <h3 className="font-medium text-slate-900 dark:text-white">Granola Vault</h3>
+            <h3 className="font-medium text-slate-900 dark:text-white">Vault</h3>
             <p className="text-xs text-slate-500">
               {status.connected
                 ? `${status.scanned_files}/${status.total_files} meetings scanned`

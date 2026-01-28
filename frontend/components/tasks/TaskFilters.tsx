@@ -18,11 +18,11 @@ interface Stakeholder {
   department?: string
 }
 
-interface Opportunity {
+interface Project {
   id: string
   title: string
   project_name: string | null
-  opportunity_code: string
+  project_code: string
 }
 
 const TEAM_OPTIONS = [
@@ -51,15 +51,15 @@ const SOURCE_TYPE_OPTIONS = [
   { value: 'conversation', label: 'Conversation' },
   { value: 'research', label: 'Research' },
   { value: 'manual', label: 'Manual' },
-  { value: 'opportunity', label: 'Opportunity' },
+  { value: 'project', label: 'Project' },
 ]
 
 export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersProps) {
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([])
-  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+  const [projectsList, setProjectsList] = useState<Project[]>([])
   const [searchValue, setSearchValue] = useState(filters.search || '')
 
-  // Load stakeholders and opportunities
+  // Load stakeholders and projects
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -69,10 +69,10 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
           setStakeholders(stakeholderResponse.stakeholders)
         }
 
-        // Load opportunities for project filter
-        const oppResponse = await apiGet<Opportunity[]>('/api/opportunities')
-        if (Array.isArray(oppResponse)) {
-          setOpportunities(oppResponse)
+        // Load projects for project filter
+        const projResponse = await apiGet<Project[]>('/api/projects')
+        if (Array.isArray(projResponse)) {
+          setProjectsList(projResponse)
         }
       } catch (error) {
         console.error('Failed to load filter data:', error)
@@ -100,7 +100,7 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
       priority: null,
       source_type: null,
       team: null,
-      linked_opportunity_id: null,
+      linked_project_id: null,
       search: null,
       include_completed: true,
     })
@@ -188,18 +188,18 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
           </select>
         </div>
 
-        {/* Project/Opportunity */}
+        {/* Project */}
         <div>
           <label className="block text-sm font-medium text-secondary mb-1">Project</label>
           <select
-            value={filters.linked_opportunity_id || ''}
-            onChange={(e) => onChange({ ...filters, linked_opportunity_id: e.target.value || null })}
+            value={filters.linked_project_id || ''}
+            onChange={(e) => onChange({ ...filters, linked_project_id: e.target.value || null })}
             className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
           >
             <option value="">All projects</option>
-            {opportunities.map(opp => (
-              <option key={opp.id} value={opp.id}>
-                {opp.project_name || opp.title} ({opp.opportunity_code})
+            {projectsList.map(proj => (
+              <option key={proj.id} value={proj.id}>
+                {proj.project_name || proj.title} ({proj.project_code})
               </option>
             ))}
           </select>

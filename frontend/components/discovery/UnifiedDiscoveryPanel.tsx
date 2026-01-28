@@ -23,7 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 // Types
 interface DiscoveryCounts {
   tasks: number;
-  opportunities: number;
+  projects: number;
   stakeholders: number;
   total: number;
 }
@@ -46,7 +46,7 @@ interface TaskCandidate {
   created_at: string;
 }
 
-interface OpportunityCandidate {
+interface ProjectCandidate {
   id: string;
   title: string;
   description?: string;
@@ -57,7 +57,7 @@ interface OpportunityCandidate {
   suggested_alignment?: number;
   suggested_readiness?: number;
   confidence: string;
-  matched_opportunity_id?: string;
+  matched_project_id?: string;
   match_reason?: string;
   created_at: string;
 }
@@ -76,26 +76,26 @@ interface StakeholderCandidate {
 
 interface DiscoveryAllResponse {
   tasks: TaskCandidate[];
-  opportunities: OpportunityCandidate[];
+  projects: ProjectCandidate[];
   stakeholders: StakeholderCandidate[];
   counts: DiscoveryCounts;
   scanning?: ScanningStatus;
 }
 
-type TabType = 'tasks' | 'opportunities' | 'stakeholders';
+type TabType = 'tasks' | 'projects' | 'stakeholders';
 
 export default function UnifiedDiscoveryPanel() {
   const router = useRouter();
   const { user, session, loading: authLoading } = useAuth();
 
   const [loading, setLoading] = useState(true);
-  const [counts, setCounts] = useState<DiscoveryCounts>({ tasks: 0, opportunities: 0, stakeholders: 0, total: 0 });
+  const [counts, setCounts] = useState<DiscoveryCounts>({ tasks: 0, projects: 0, stakeholders: 0, total: 0 });
   const [activeTab, setActiveTab] = useState<TabType>('tasks');
   const [expanded, setExpanded] = useState(false);
 
   // Candidate data
   const [tasks, setTasks] = useState<TaskCandidate[]>([]);
-  const [opportunities, setOpportunities] = useState<OpportunityCandidate[]>([]);
+  const [projects, setProjects] = useState<ProjectCandidate[]>([]);
   const [stakeholders, setStakeholders] = useState<StakeholderCandidate[]>([]);
 
   // Current index for each tab
@@ -112,13 +112,13 @@ export default function UnifiedDiscoveryPanel() {
       const data = await apiGet<DiscoveryAllResponse>('/api/discovery/all');
       setCounts(data.counts);
       setTasks(data.tasks);
-      setOpportunities(data.opportunities);
+      setProjects(data.projects);
       setStakeholders(data.stakeholders);
       setScanning(data.scanning || null);
 
       // Set active tab to first non-empty category
       if (data.tasks.length > 0) setActiveTab('tasks');
-      else if (data.opportunities.length > 0) setActiveTab('opportunities');
+      else if (data.projects.length > 0) setActiveTab('projects');
       else if (data.stakeholders.length > 0) setActiveTab('stakeholders');
     } catch (err) {
       logger.error('Error fetching discovery data:', err);
@@ -139,8 +139,8 @@ export default function UnifiedDiscoveryPanel() {
     switch (activeTab) {
       case 'tasks':
         return tasks[taskIndex];
-      case 'opportunities':
-        return opportunities[oppIndex];
+      case 'projects':
+        return projects[oppIndex];
       case 'stakeholders':
         return stakeholders[stakeholderIndex];
       default:
@@ -152,8 +152,8 @@ export default function UnifiedDiscoveryPanel() {
     switch (activeTab) {
       case 'tasks':
         return tasks;
-      case 'opportunities':
-        return opportunities;
+      case 'projects':
+        return projects;
       case 'stakeholders':
         return stakeholders;
       default:
@@ -165,7 +165,7 @@ export default function UnifiedDiscoveryPanel() {
     switch (activeTab) {
       case 'tasks':
         return taskIndex;
-      case 'opportunities':
+      case 'projects':
         return oppIndex;
       case 'stakeholders':
         return stakeholderIndex;
@@ -179,7 +179,7 @@ export default function UnifiedDiscoveryPanel() {
       case 'tasks':
         setTaskIndex(index);
         break;
-      case 'opportunities':
+      case 'projects':
         setOppIndex(index);
         break;
       case 'stakeholders':
@@ -215,8 +215,8 @@ export default function UnifiedDiscoveryPanel() {
           endpoint = `/api/tasks/candidates/${item.id}/accept`;
           body = { overrides: {} };
           break;
-        case 'opportunities':
-          endpoint = `/api/opportunities/candidates/${item.id}/accept`;
+        case 'projects':
+          endpoint = `/api/projects/candidates/${item.id}/accept`;
           body = { link_to_existing: false };
           break;
         case 'stakeholders':
@@ -226,7 +226,7 @@ export default function UnifiedDiscoveryPanel() {
       }
 
       await apiPost(endpoint, body);
-      const singular = activeTab === 'opportunities' ? 'Opportunity' : activeTab.slice(0, -1).charAt(0).toUpperCase() + activeTab.slice(0, -1).slice(1);
+      const singular = activeTab === 'projects' ? 'Project' : activeTab.slice(0, -1).charAt(0).toUpperCase() + activeTab.slice(0, -1).slice(1);
       toast.success(`${singular} created`);
 
       // Remove from list and update counts
@@ -239,9 +239,9 @@ export default function UnifiedDiscoveryPanel() {
           setCounts(prev => ({ ...prev, tasks: prev.tasks - 1, total: prev.total - 1 }));
           if (taskIndex >= newList.length && taskIndex > 0) setTaskIndex(taskIndex - 1);
           break;
-        case 'opportunities':
-          setOpportunities(newList as OpportunityCandidate[]);
-          setCounts(prev => ({ ...prev, opportunities: prev.opportunities - 1, total: prev.total - 1 }));
+        case 'projects':
+          setProjects(newList as ProjectCandidate[]);
+          setCounts(prev => ({ ...prev, projects: prev.projects - 1, total: prev.total - 1 }));
           if (oppIndex >= newList.length && oppIndex > 0) setOppIndex(oppIndex - 1);
           break;
         case 'stakeholders':
@@ -270,8 +270,8 @@ export default function UnifiedDiscoveryPanel() {
         case 'tasks':
           endpoint = `/api/tasks/candidates/${item.id}/reject`;
           break;
-        case 'opportunities':
-          endpoint = `/api/opportunities/candidates/${item.id}/reject`;
+        case 'projects':
+          endpoint = `/api/projects/candidates/${item.id}/reject`;
           break;
         case 'stakeholders':
           endpoint = `/api/stakeholders/candidates/${item.id}/reject`;
@@ -291,9 +291,9 @@ export default function UnifiedDiscoveryPanel() {
           setCounts(prev => ({ ...prev, tasks: prev.tasks - 1, total: prev.total - 1 }));
           if (taskIndex >= newList.length && taskIndex > 0) setTaskIndex(taskIndex - 1);
           break;
-        case 'opportunities':
-          setOpportunities(newList as OpportunityCandidate[]);
-          setCounts(prev => ({ ...prev, opportunities: prev.opportunities - 1, total: prev.total - 1 }));
+        case 'projects':
+          setProjects(newList as ProjectCandidate[]);
+          setCounts(prev => ({ ...prev, projects: prev.projects - 1, total: prev.total - 1 }));
           if (oppIndex >= newList.length && oppIndex > 0) setOppIndex(oppIndex - 1);
           break;
         case 'stakeholders':
@@ -316,8 +316,8 @@ export default function UnifiedDiscoveryPanel() {
       case 'tasks':
         router.push('/tasks');
         break;
-      case 'opportunities':
-        router.push('/opportunities');
+      case 'projects':
+        router.push('/projects');
         break;
       case 'stakeholders':
         router.push('/intelligence?tab=stakeholders');
@@ -361,7 +361,7 @@ export default function UnifiedDiscoveryPanel() {
 
   const tabs = [
     { key: 'tasks' as TabType, label: 'Tasks', count: counts.tasks, icon: ListChecks, color: 'amber' },
-    { key: 'opportunities' as TabType, label: 'Opportunities', count: counts.opportunities, icon: Lightbulb, color: 'emerald' },
+    { key: 'projects' as TabType, label: 'Projects', count: counts.projects, icon: Lightbulb, color: 'emerald' },
     { key: 'stakeholders' as TabType, label: 'Stakeholders', count: counts.stakeholders, icon: Users, color: 'purple' },
   ];
 
@@ -483,10 +483,10 @@ export default function UnifiedDiscoveryPanel() {
             )}
 
             {/* Opportunity scores preview */}
-            {activeTab === 'opportunities' && (
+            {activeTab === 'projects' && (
               <div className="flex gap-4 mt-2 text-xs text-muted">
-                <span>ROI: {(currentItem as OpportunityCandidate).suggested_roi_potential || 3}/5</span>
-                <span>Effort: {(currentItem as OpportunityCandidate).suggested_effort || 3}/5</span>
+                <span>ROI: {(currentItem as ProjectCandidate).suggested_roi_potential || 3}/5</span>
+                <span>Effort: {(currentItem as ProjectCandidate).suggested_effort || 3}/5</span>
               </div>
             )}
 
@@ -502,8 +502,8 @@ export default function UnifiedDiscoveryPanel() {
               </div>
             )}
 
-            {/* Match warning for opportunities */}
-            {activeTab === 'opportunities' && (currentItem as OpportunityCandidate).matched_opportunity_id && (
+            {/* Match warning for projects */}
+            {activeTab === 'projects' && (currentItem as ProjectCandidate).matched_project_id && (
               <div className="mt-2 flex items-center gap-1 text-xs text-amber-500">
                 <Link2 className="w-3 h-3" />
                 <span>Potential duplicate detected</span>

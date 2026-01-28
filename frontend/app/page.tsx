@@ -11,13 +11,14 @@ import UnifiedDiscoveryPanel from '@/components/discovery/UnifiedDiscoveryPanel'
 import GranolaScanPanel from '@/components/GranolaScanPanel'
 import GraphStatsPanel from '@/components/GraphStatsPanel'
 import GraphVisualizationPanel from '@/components/admin/GraphVisualizationPanel'
+import ProcessMapPanel from '@/components/ProcessMapPanel'
 
 // Lazy load analytics to reduce initial bundle size
 const LazyUsageAnalytics = dynamic(() => import('@/components/LazyUsageAnalytics'), {
   loading: () => <div className="flex items-center justify-center py-12"><LoadingSpinner size="lg" /></div>
 })
 
-type HomeTab = 'system' | 'knowledge-graph' | 'analytics'
+type HomeTab = 'system' | 'knowledge-graph' | 'analytics' | 'process-map'
 type GraphSubTab = 'data' | 'visualization'
 
 export default function HomePage() {
@@ -97,6 +98,18 @@ export default function HomePage() {
               Analytics
             </button>
           )}
+          {isAdmin && (
+            <button
+              onClick={() => setActiveTab('process-map')}
+              className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                activeTab === 'process-map'
+                  ? 'border-brand text-brand'
+                  : 'border-transparent text-muted hover:text-primary'
+              }`}
+            >
+              Process Map
+            </button>
+          )}
         </div>
 
         {/* System Health Tab */}
@@ -145,6 +158,13 @@ export default function HomePage() {
         {activeTab === 'analytics' && (
           <div>
             <LazyUsageAnalytics />
+          </div>
+        )}
+
+        {/* Process Map Tab */}
+        {activeTab === 'process-map' && (
+          <div>
+            <ProcessMapPanel />
           </div>
         )}
       </main>

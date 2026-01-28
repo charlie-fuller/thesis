@@ -3,7 +3,7 @@
 /**
  * GoalAlignmentSection Component
  *
- * Displays goal alignment analysis for an opportunity against IS team FY27 strategic goals.
+ * Displays goal alignment analysis for a project against IS team FY27 strategic goals.
  * Shows overall score (0-100) and breakdown across 4 strategic pillars.
  */
 
@@ -28,7 +28,7 @@ interface GoalAlignmentDetails {
 }
 
 interface GoalAlignmentSectionProps {
-  opportunityId: string
+  projectId: string
   goalAlignmentScore: number | null
   goalAlignmentDetails: GoalAlignmentDetails | null
   onAnalyze: () => Promise<void>
@@ -186,7 +186,7 @@ function PillarCard({
 }
 
 export default function GoalAlignmentSection({
-  opportunityId,
+  projectId,
   goalAlignmentScore,
   goalAlignmentDetails,
   onAnalyze,

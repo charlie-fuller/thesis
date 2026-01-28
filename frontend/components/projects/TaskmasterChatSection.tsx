@@ -3,7 +3,7 @@
 /**
  * TaskmasterChatSection Component
  *
- * Chat interface for Taskmaster agent within an opportunity/project context.
+ * Chat interface for Taskmaster agent within a project context.
  * Allows users to discuss breaking down the project into tasks.
  * Tasks are created as candidates that appear in the Discovery Inbox.
  */
@@ -28,9 +28,9 @@ interface TaskmasterMessage {
 }
 
 interface TaskmasterChatSectionProps {
-  opportunityId: string
+  projectId: string
   projectName: string
-  opportunityTitle: string
+  projectTitle: string
   /** When true, automatically generates initial tasks on mount */
   autoGenerate?: boolean
   /** Callback when auto-generation completes */
@@ -38,9 +38,9 @@ interface TaskmasterChatSectionProps {
 }
 
 export default function TaskmasterChatSection({
-  opportunityId,
+  projectId,
   projectName,
-  opportunityTitle,
+  projectTitle,
   autoGenerate = false,
   onAutoGenerateComplete,
 }: TaskmasterChatSectionProps) {
@@ -82,7 +82,7 @@ export default function TaskmasterChatSection({
         response: string
         tasks_created: number
         task_titles: string[]
-      }>(`/api/opportunities/${opportunityId}/taskmaster-chat`, {
+      }>(`/api/projects/${projectId}/taskmaster-chat`, {
         message: autoPrompt,
       })
 
@@ -126,7 +126,7 @@ export default function TaskmasterChatSection({
         response: string
         tasks_created: number
         task_titles: string[]
-      }>(`/api/opportunities/${opportunityId}/taskmaster-chat`, {
+      }>(`/api/projects/${projectId}/taskmaster-chat`, {
         message: userMessage,
       })
 
