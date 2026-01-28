@@ -19,7 +19,7 @@ from database import get_supabase
 from services.project_context import get_scoring_related_documents
 from services.project_chat import ask_about_project, get_project_conversations
 from services.project_justification import (
-    generate_opportunity_justifications,
+    generate_project_justifications,
     generate_all_justifications,
     regenerate_if_scores_changed,
 )
@@ -739,7 +739,7 @@ async def generate_justifications_for_opportunity(
         raise HTTPException(status_code=404, detail="Opportunity not found")
 
     try:
-        justifications = await generate_opportunity_justifications(
+        justifications = await generate_project_justifications(
             opportunity_id=opportunity_id,
             client_id=current_user["client_id"]
         )
@@ -939,7 +939,7 @@ async def create_opportunity(
     ])
     if has_scores:
         try:
-            await generate_opportunity_justifications(
+            await generate_project_justifications(
                 opportunity_id=created_opp["id"],
                 client_id=current_user["client_id"]
             )
@@ -1504,7 +1504,7 @@ async def accept_opportunity_candidate(
 
         # Generate justifications for the new opportunity
         try:
-            await generate_opportunity_justifications(
+            await generate_project_justifications(
                 opportunity_id=new_opp["id"],
                 client_id=current_user["client_id"]
             )
