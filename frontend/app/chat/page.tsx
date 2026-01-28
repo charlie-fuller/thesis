@@ -271,6 +271,8 @@ function ChatPageContent() {
   const conversationId = searchParams.get('id') || undefined
   const tabParam = searchParams.get('tab')
   const [activeTab, setActiveTab] = useState<TabType>(tabParam === 'meetings' ? 'meetings' : 'chat')
+  // Use a separate variable for styling comparisons to avoid TypeScript narrowing issues
+  const currentTab: TabType = activeTab
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
 
   // Redirect to login if not authenticated
@@ -418,7 +420,7 @@ function ChatPageContent() {
               <button
                 onClick={() => handleTabChange('chat')}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  activeTab === 'chat'
+                  currentTab === 'chat'
                     ? 'bg-card text-primary shadow-sm'
                     : 'text-secondary hover:text-primary'
                 }`}
@@ -428,7 +430,7 @@ function ChatPageContent() {
               <button
                 onClick={() => handleTabChange('meetings')}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  activeTab === 'meetings'
+                  currentTab === 'meetings'
                     ? 'bg-card text-primary shadow-sm'
                     : 'text-secondary hover:text-primary'
                 }`}
@@ -448,7 +450,7 @@ function ChatPageContent() {
               <button
                 onClick={() => handleTabChange('chat')}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  activeTab === 'chat'
+                  currentTab === 'chat'
                     ? 'bg-card text-primary shadow-sm'
                     : 'text-secondary hover:text-primary'
                 }`}
@@ -458,7 +460,7 @@ function ChatPageContent() {
               <button
                 onClick={() => handleTabChange('meetings')}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  activeTab === 'meetings'
+                  currentTab === 'meetings'
                     ? 'bg-card text-primary shadow-sm'
                     : 'text-secondary hover:text-primary'
                 }`}

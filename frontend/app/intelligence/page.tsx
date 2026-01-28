@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { apiGet, apiPost, apiDelete } from '@/lib/api'
@@ -79,7 +79,7 @@ interface StakeholderCreateForm {
 const ENGAGEMENT_LEVELS = ['champion', 'supporter', 'neutral', 'skeptic', 'blocker']
 const DEPARTMENTS = ['finance', 'it', 'legal', 'governance', 'hr', 'marketing', 'engineering', 'operations', 'executive']
 
-export default function IntelligencePage() {
+function IntelligencePageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, session, loading: authLoading } = useAuth()
@@ -752,5 +752,13 @@ export default function IntelligencePage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function IntelligencePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-page flex items-center justify-center"><LoadingSpinner size="lg" /></div>}>
+      <IntelligencePageContent />
+    </Suspense>
   )
 }
