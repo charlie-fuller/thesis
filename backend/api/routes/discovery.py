@@ -276,24 +276,18 @@ async def get_all_pending_candidates(
     # Check for pending Granola documents (synced but not yet scanned for extraction)
     scanning_status = None
     try:
+        from services.granola_scanner import get_scan_status
         user_id = current_user["id"]
-        # Get documents that are Granola meetings but haven't been scanned yet
-        # These are documents with obsidian_file_path containing 'Granola' and no granola_scanned_at
-        pending_docs = supabase.table("documents") \
-            .select("id", count="exact") \
-            .eq("user_id", user_id) \
-            .is_("granola_scanned_at", "null") \
-            .execute()
 
-        # Filter to only Granola docs (can't use ilike due to Cloudflare issues)
-        # We'll just check if there are unscanned docs - the Granola panel shows the accurate count
-        pending_count = pending_docs.count or 0
+        # Use Granola scanner's status function to get accurate pending count
+        granola_status = get_scan_status(user_id)
+        pending_count = granola_status.get('pending_files', 0)
 
         if pending_count > 0:
             scanning_status = ScanningStatus(
                 active=True,
                 pending_documents=pending_count,
-                message=f"Analyzing {pending_count} document{'s' if pending_count != 1 else ''} for tasks, opportunities, stakeholders..."
+                message=f"Analyzing {pending_count} meeting{'s' if pending_count != 1 else ''} for tasks, opportunities, stakeholders..."
             )
         else:
             scanning_status = ScanningStatus(active=False, pending_documents=0)
