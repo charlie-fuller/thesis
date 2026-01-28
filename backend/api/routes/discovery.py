@@ -298,10 +298,12 @@ async def get_all_pending_candidates(
     return {
         "tasks": tasks,
         "projects": projects,
+        "opportunities": projects,  # Backward compatibility
         "stakeholders": stakeholders,
         "counts": {
             "tasks": tasks_count,
             "projects": opps_count,
+            "opportunities": opps_count,  # Backward compatibility
             "stakeholders": stakeholders_count,
             "total": tasks_count + opps_count + stakeholders_count
         },
