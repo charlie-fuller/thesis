@@ -1,20 +1,23 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Target,
   Filter,
   RefreshCw,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Building2,
   Users,
   Zap,
   TrendingUp,
   AlertTriangle,
-  Plus
+  Plus,
+  ArrowUpDown
 } from 'lucide-react'
-import { apiGet } from '@/lib/api'
+import { apiGet, apiPatch } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import PageHeader from '@/components/PageHeader'
@@ -49,6 +52,7 @@ interface Project {
   project_summary: string | null
   scoring_confidence: number | null
   goal_alignment_score: number | null
+  display_order: number
 }
 
 // ============================================================================
@@ -95,6 +99,17 @@ const DEPARTMENT_OPTIONS = [
   { value: 'Operations', label: 'Operations' },
 ]
 
+const SORT_OPTIONS = [
+  { value: 'manual', label: 'Manual Order' },
+  { value: 'score-desc', label: 'Score (High → Low)' },
+  { value: 'score-asc', label: 'Score (Low → High)' },
+  { value: 'created-desc', label: 'Created (Newest)' },
+  { value: 'created-asc', label: 'Created (Oldest)' },
+  { value: 'alpha', label: 'Alphabetical' },
+  { value: 'roi-desc', label: 'ROI (High → Low)' },
+  { value: 'effort-asc', label: 'Effort (Low → High)' },
+]
+
 // ============================================================================
 // COMPONENTS
 // ============================================================================
@@ -109,28 +124,56 @@ function ScoreBar({ value, max = 5, color = 'bg-brand' }: { value: number | null
   )
 }
 
-function ProjectCard({ project, onClick }: { project: Project; onClick: () => void }) {
+interface ProjectCardProps {
+  project: Project
+  onClick: () => void
+  onMoveUp?: () => void
+  onMoveDown?: () => void
+  isFirst?: boolean
+  isLast?: boolean
+}
+
+function ProjectCard({ project, onClick, onMoveUp, onMoveDown, isFirst, isLast }: ProjectCardProps) {
   const tierColor = TIER_COLORS[project.tier] || TIER_COLORS[4]
   const statusColor = STATUS_COLORS[project.status] || STATUS_COLORS.identified
 
   return (
-    <div
-      onClick={onClick}
-      className="bg-card rounded-lg border border-default p-4 hover:shadow-md hover:border-brand/30 transition-all cursor-pointer"
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-muted">{project.project_code}</span>
-          <span className={`text-xs px-1.5 py-0.5 rounded ${tierColor}`}>
-            T{project.tier}
-          </span>
-          <span className={`text-xs px-1.5 py-0.5 rounded capitalize ${statusColor}`}>
-            {project.status}
-          </span>
-        </div>
-        <ChevronRight className="w-4 h-4 text-muted flex-shrink-0" />
+    <div className="bg-card rounded-lg border border-default p-4 hover:shadow-md hover:border-brand/30 transition-all group relative">
+      {/* Reorder buttons */}
+      <div className="absolute right-2 top-2 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => { e.stopPropagation(); onMoveUp?.() }}
+          disabled={isFirst}
+          className={`p-1 rounded hover:bg-hover ${isFirst ? 'opacity-30 cursor-not-allowed' : ''}`}
+          title="Move up"
+        >
+          <ChevronUp className="w-3 h-3 text-muted" />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onMoveDown?.() }}
+          disabled={isLast}
+          className={`p-1 rounded hover:bg-hover ${isLast ? 'opacity-30 cursor-not-allowed' : ''}`}
+          title="Move down"
+        >
+          <ChevronDown className="w-3 h-3 text-muted" />
+        </button>
       </div>
+
+      {/* Clickable area */}
+      <div onClick={onClick} className="cursor-pointer">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-3 pr-6">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono text-muted">{project.project_code}</span>
+            <span className={`text-xs px-1.5 py-0.5 rounded ${tierColor}`}>
+              T{project.tier}
+            </span>
+            <span className={`text-xs px-1.5 py-0.5 rounded capitalize ${statusColor}`}>
+              {project.status}
+            </span>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted flex-shrink-0" />
+        </div>
 
       {/* Title */}
       <h3 className="font-semibold text-primary mb-2 line-clamp-2">
@@ -199,6 +242,7 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
           <span className="text-xs text-muted">{project.scoring_confidence}% confident</span>
         </div>
       )}
+      </div>
     </div>
   )
 }
@@ -218,6 +262,7 @@ export default function ProjectsPage() {
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [tierFilter, setTierFilter] = useState<number | ''>('')
+  const [sortBy, setSortBy] = useState('manual')
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -257,6 +302,75 @@ export default function ProjectsPage() {
     // Navigate to project detail - could be a modal or separate page
     router.push(`/pipeline?selected=${id}`)
   }
+
+  // Move project up or down within its tier
+  const moveProject = useCallback(async (projectId: string, direction: 'up' | 'down') => {
+    const projectIndex = projects.findIndex(p => p.id === projectId)
+    if (projectIndex === -1) return
+
+    const project = projects[projectIndex]
+    const tierProjects = projects.filter(p => p.tier === project.tier)
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+
+    const tierIndex = tierProjects.findIndex(p => p.id === projectId)
+    if (tierIndex === -1) return
+
+    // Can't move up if first, can't move down if last
+    if (direction === 'up' && tierIndex === 0) return
+    if (direction === 'down' && tierIndex === tierProjects.length - 1) return
+
+    const swapIndex = direction === 'up' ? tierIndex - 1 : tierIndex + 1
+    const swapProject = tierProjects[swapIndex]
+
+    // Swap display orders
+    const newOrder = swapProject.display_order || swapIndex
+    const oldOrder = project.display_order || tierIndex
+
+    // Update locally first for instant feedback
+    setProjects(prev => prev.map(p => {
+      if (p.id === projectId) return { ...p, display_order: newOrder }
+      if (p.id === swapProject.id) return { ...p, display_order: oldOrder }
+      return p
+    }))
+
+    // Persist to backend
+    try {
+      await Promise.all([
+        apiPatch(`/api/projects/${projectId}`, { display_order: newOrder }),
+        apiPatch(`/api/projects/${swapProject.id}`, { display_order: oldOrder })
+      ])
+    } catch (err) {
+      console.error('Failed to update project order:', err)
+      toast.error('Failed to save order')
+      // Revert on error
+      fetchProjects()
+    }
+  }, [projects, fetchProjects])
+
+  // Sort projects
+  const sortedProjects = useMemo(() => {
+    const sorted = [...projects]
+    switch (sortBy) {
+      case 'manual':
+        return sorted.sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+      case 'score-desc':
+        return sorted.sort((a, b) => (b.total_score || 0) - (a.total_score || 0))
+      case 'score-asc':
+        return sorted.sort((a, b) => (a.total_score || 0) - (b.total_score || 0))
+      case 'created-desc':
+        return sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      case 'created-asc':
+        return sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      case 'alpha':
+        return sorted.sort((a, b) => a.title.localeCompare(b.title))
+      case 'roi-desc':
+        return sorted.sort((a, b) => (b.roi_potential || 0) - (a.roi_potential || 0))
+      case 'effort-asc':
+        return sorted.sort((a, b) => (a.implementation_effort || 0) - (b.implementation_effort || 0))
+      default:
+        return sorted
+    }
+  }, [projects, sortBy])
 
   // Show loading state while auth is being checked
   if (authLoading) {
@@ -374,6 +488,19 @@ export default function ProjectsPage() {
             <option value="4">Tier 4 (Low Priority)</option>
           </select>
 
+          <div className="flex items-center gap-2 ml-4 pl-4 border-l border-default">
+            <ArrowUpDown className="w-4 h-4 text-muted" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-auto bg-hover border border-default rounded-md text-sm py-1.5 px-3 text-primary"
+            >
+              {SORT_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
           {(departmentFilter || statusFilter || tierFilter) && (
             <button
               onClick={() => {
@@ -427,22 +554,29 @@ export default function ProjectsPage() {
                 <span className={`text-xs px-2 py-1 rounded font-medium ${TIER_COLORS[1]}`}>T1</span>
                 <span className="text-sm font-medium text-primary">Quick Wins</span>
                 <span className="text-xs text-muted ml-auto">
-                  {projects.filter(p => p.tier === 1).length} projects
+                  {sortedProjects.filter(p => p.tier === 1).length} projects
                 </span>
               </div>
-              {projects.filter(p => p.tier === 1).length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {projects.filter(p => p.tier === 1).map(project => (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                      onClick={() => handleViewProject(project.id)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted py-4">No T1 projects</p>
-              )}
+              {(() => {
+                const tierProjects = sortedProjects.filter(p => p.tier === 1)
+                return tierProjects.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {tierProjects.map((project, idx) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        onClick={() => handleViewProject(project.id)}
+                        onMoveUp={() => moveProject(project.id, 'up')}
+                        onMoveDown={() => moveProject(project.id, 'down')}
+                        isFirst={idx === 0}
+                        isLast={idx === tierProjects.length - 1}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted py-4">No T1 projects</p>
+                )
+              })()}
             </div>
 
             {/* Tier 2 - Strategic */}
@@ -451,22 +585,29 @@ export default function ProjectsPage() {
                 <span className={`text-xs px-2 py-1 rounded font-medium ${TIER_COLORS[2]}`}>T2</span>
                 <span className="text-sm font-medium text-primary">Strategic</span>
                 <span className="text-xs text-muted ml-auto">
-                  {projects.filter(p => p.tier === 2).length} projects
+                  {sortedProjects.filter(p => p.tier === 2).length} projects
                 </span>
               </div>
-              {projects.filter(p => p.tier === 2).length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {projects.filter(p => p.tier === 2).map(project => (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                      onClick={() => handleViewProject(project.id)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted py-4">No T2 projects</p>
-              )}
+              {(() => {
+                const tierProjects = sortedProjects.filter(p => p.tier === 2)
+                return tierProjects.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {tierProjects.map((project, idx) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        onClick={() => handleViewProject(project.id)}
+                        onMoveUp={() => moveProject(project.id, 'up')}
+                        onMoveDown={() => moveProject(project.id, 'down')}
+                        isFirst={idx === 0}
+                        isLast={idx === tierProjects.length - 1}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted py-4">No T2 projects</p>
+                )
+              })()}
             </div>
 
             {/* Tier 3 - Long-term */}
@@ -475,22 +616,29 @@ export default function ProjectsPage() {
                 <span className={`text-xs px-2 py-1 rounded font-medium ${TIER_COLORS[3]}`}>T3</span>
                 <span className="text-sm font-medium text-primary">Long-term</span>
                 <span className="text-xs text-muted ml-auto">
-                  {projects.filter(p => p.tier === 3).length} projects
+                  {sortedProjects.filter(p => p.tier === 3).length} projects
                 </span>
               </div>
-              {projects.filter(p => p.tier === 3).length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {projects.filter(p => p.tier === 3).map(project => (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                      onClick={() => handleViewProject(project.id)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted py-4">No T3 projects</p>
-              )}
+              {(() => {
+                const tierProjects = sortedProjects.filter(p => p.tier === 3)
+                return tierProjects.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {tierProjects.map((project, idx) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        onClick={() => handleViewProject(project.id)}
+                        onMoveUp={() => moveProject(project.id, 'up')}
+                        onMoveDown={() => moveProject(project.id, 'down')}
+                        isFirst={idx === 0}
+                        isLast={idx === tierProjects.length - 1}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted py-4">No T3 projects</p>
+                )
+              })()}
             </div>
 
             {/* Tier 4 - Low Priority */}
@@ -499,22 +647,29 @@ export default function ProjectsPage() {
                 <span className={`text-xs px-2 py-1 rounded font-medium ${TIER_COLORS[4]}`}>T4</span>
                 <span className="text-sm font-medium text-primary">Low Priority</span>
                 <span className="text-xs text-muted ml-auto">
-                  {projects.filter(p => p.tier === 4).length} projects
+                  {sortedProjects.filter(p => p.tier === 4).length} projects
                 </span>
               </div>
-              {projects.filter(p => p.tier === 4).length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {projects.filter(p => p.tier === 4).map(project => (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                      onClick={() => handleViewProject(project.id)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted py-4">No T4 projects</p>
-              )}
+              {(() => {
+                const tierProjects = sortedProjects.filter(p => p.tier === 4)
+                return tierProjects.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {tierProjects.map((project, idx) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        onClick={() => handleViewProject(project.id)}
+                        onMoveUp={() => moveProject(project.id, 'up')}
+                        onMoveDown={() => moveProject(project.id, 'down')}
+                        isFirst={idx === 0}
+                        isLast={idx === tierProjects.length - 1}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted py-4">No T4 projects</p>
+                )
+              })()}
             </div>
           </div>
         )}

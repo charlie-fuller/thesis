@@ -87,6 +87,7 @@ class ProjectUpdate(BaseModel):
     source_notes: Optional[str] = None
     scoring_confidence: Optional[int] = Field(None, ge=0, le=100)
     confidence_questions: Optional[List[str]] = None
+    display_order: Optional[int] = None
 
 
 class ProjectScoreUpdate(BaseModel):
@@ -138,6 +139,8 @@ class ProjectResponse(BaseModel):
     # Goal alignment fields
     goal_alignment_score: Optional[int] = None  # 0-100 alignment with IS strategic goals
     goal_alignment_details: Optional[dict] = None  # Pillar scores, KPI impacts, summary
+    # Display order for manual sorting
+    display_order: int = 0
 
 
 class StakeholderLinkCreate(BaseModel):
