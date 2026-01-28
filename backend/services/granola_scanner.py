@@ -795,7 +795,7 @@ async def scan_document(
         now = datetime.now(timezone.utc).isoformat()
         supabase.table('documents').update({
             'granola_scanned_at': now,
-            'opportunities_scanned_at': now,  # TODO: rename to projects_scanned_at after migration
+            'projects_scanned_at': now,
             'tasks_scanned_at': now,
             'stakeholders_scanned_at': now,
             'updated_at': now
