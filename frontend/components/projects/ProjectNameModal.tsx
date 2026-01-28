@@ -7,7 +7,7 @@ interface ProjectNameModalProps {
   open: boolean
   onClose: () => void
   onSubmit: (projectName: string, projectDescription?: string) => void
-  opportunityTitle?: string
+  projectTitle?: string
   newStatus: 'scoping' | 'pilot'
 }
 
@@ -15,7 +15,7 @@ export default function ProjectNameModal({
   open,
   onClose,
   onSubmit,
-  opportunityTitle,
+  projectTitle,
   newStatus,
 }: ProjectNameModalProps) {
   const [projectName, setProjectName] = useState('')
@@ -72,9 +72,9 @@ export default function ProjectNameModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {opportunityTitle && (
+          {projectTitle && (
             <div className="text-sm text-secondary bg-page p-3 rounded-lg border border-default">
-              <span className="font-medium">Opportunity:</span> {opportunityTitle}
+              <span className="font-medium">Project:</span> {projectTitle}
             </div>
           )}
 
