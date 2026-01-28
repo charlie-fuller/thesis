@@ -236,7 +236,7 @@ export default function ProjectsPage() {
       if (statusFilter) params.set('status', statusFilter)
       if (tierFilter) params.set('tier', tierFilter.toString())
 
-      const data = await apiGet<Project[]>(`/api/projects?${params}`)
+      const data = await apiGet<Project[]>(`/api/projects/?${params}`)
       setProjects(data)
     } catch (err) {
       console.error('Failed to fetch projects:', err)

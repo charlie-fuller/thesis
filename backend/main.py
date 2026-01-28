@@ -265,6 +265,49 @@ class CustomCORSMiddleware:
 # Add custom CORS middleware (added last = runs first due to LIFO)
 app.add_middleware(CustomCORSMiddleware)
 
+
+# ============================================================================
+# HTTPS Redirect Fix Middleware
+# ============================================================================
+# Railway/proxies terminate TLS and forward requests as HTTP internally.
+# FastAPI's trailing-slash redirects use the internal HTTP scheme, causing
+# mixed content errors. This middleware intercepts redirects and fixes the scheme.
+
+class HTTPSRedirectFixMiddleware:
+    """Fix redirect URLs to use HTTPS when behind a proxy."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                status = message.get("status", 200)
+                # Fix redirects (301, 302, 307, 308)
+                if status in (301, 302, 307, 308):
+                    headers = list(message.get("headers", []))
+                    new_headers = []
+                    for name, value in headers:
+                        if name.lower() == b"location":
+                            location = value.decode("utf-8")
+                            # Replace http:// with https:// for railway.app URLs
+                            if "railway.app" in location and location.startswith("http://"):
+                                location = location.replace("http://", "https://", 1)
+                                value = location.encode("utf-8")
+                        new_headers.append((name, value))
+                    message = {**message, "headers": new_headers}
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+
+# Add HTTPS redirect fix middleware (runs after CORS)
+app.add_middleware(HTTPSRedirectFixMiddleware)
+
 # Initialize Supabase connection
 supabase = get_supabase()
 
