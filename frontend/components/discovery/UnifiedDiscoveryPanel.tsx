@@ -130,9 +130,11 @@ export default function UnifiedDiscoveryPanel() {
   useEffect(() => {
     if (authLoading || !user || !session) return;
     fetchData();
-    const interval = setInterval(fetchData, 120000); // Refresh every 2 minutes
+    // Poll more frequently when scanning is active to show results quickly
+    const pollInterval = scanning?.active ? 5000 : 120000; // 5s when scanning, 2min otherwise
+    const interval = setInterval(fetchData, pollInterval);
     return () => clearInterval(interval);
-  }, [authLoading, user, session, fetchData]);
+  }, [authLoading, user, session, fetchData, scanning?.active]);
 
   // Get current item based on active tab
   const getCurrentItem = () => {
