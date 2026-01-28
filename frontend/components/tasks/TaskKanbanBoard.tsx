@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Plus, Filter, RefreshCw, ListChecks, ChevronDown, ChevronUp, Loader2, Search } from 'lucide-react'
+import { Plus, Filter, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
 import { logger } from '@/lib/logger'
@@ -97,7 +97,7 @@ export default function TaskKanbanBoard() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editTask, setEditTask] = useState<Task | null>(null)
   const [defaultStatus, setDefaultStatus] = useState<Task['status']>('pending')
-  const [showFilters, setShowFilters] = useState(false)
+  const [showFilters, setShowFilters] = useState(true)
   const [filters, setFilters] = useState<TaskFiltersState>({
     assignee_stakeholder_id: null,
     due_date_from: null,
@@ -109,6 +109,14 @@ export default function TaskKanbanBoard() {
     search: null,
     include_completed: true,
   })
+
+  // Stakeholders for assignee dropdown
+  interface Stakeholder {
+    id: string
+    name: string
+    role: string | null
+  }
+  const [stakeholders, setStakeholders] = useState<Stakeholder[]>([])
 
   // Task candidates state
   interface TaskCandidate {
@@ -133,20 +141,6 @@ export default function TaskKanbanBoard() {
   const [candidatesCount, setCandidatesCount] = useState(0)
   const [showCandidateReview, setShowCandidateReview] = useState(false)
 
-  // Task discovery panel state
-  const [discoveryExpanded, setDiscoveryExpanded] = useState(false)
-  const [scanLoading, setScanLoading] = useState(false)
-  const [scanLimit, setScanLimit] = useState(5)
-  const [sinceDays, setSinceDays] = useState(30)
-  const [forceRescan, setForceRescan] = useState(false)
-  interface ScanStats {
-    total_documents: number
-    recent_documents_30d: number
-    pending_candidates: number
-    last_scan_at: string | null
-    documents_scanned_ever: number
-  }
-  const [scanStats, setScanStats] = useState<ScanStats | null>(null)
 
   // Build query string from filters
   const buildQueryString = useCallback((f: TaskFiltersState) => {
@@ -204,65 +198,36 @@ export default function TaskKanbanBoard() {
     }
   }, [])
 
-  // Fetch scan stats
-  const fetchScanStats = useCallback(async () => {
+  // Fetch stakeholders for assignee dropdown
+  const fetchStakeholders = useCallback(async () => {
     try {
-      const stats = await apiGet<ScanStats>('/api/tasks/scan-stats')
-      setScanStats(stats)
+      const response = await apiGet<Stakeholder[]>('/api/stakeholders/')
+      setStakeholders(response || [])
     } catch (err) {
-      logger.error('Error fetching scan stats:', err)
+      logger.error('Error fetching stakeholders:', err)
     }
   }, [])
 
-  // Scan documents for tasks
-  const handleScanDocuments = useCallback(async () => {
+  // Handle assignee change from card dropdown
+  const handleAssigneeChange = useCallback(async (taskId: string, stakeholderId: string | null) => {
     try {
-      setScanLoading(true)
-
-      const params = new URLSearchParams({
-        limit: scanLimit.toString(),
-        ...(sinceDays > 0 && { since_days: sinceDays.toString() }),
-        ...(forceRescan && { force_rescan: 'true' })
+      await apiPatch(`/api/tasks/${taskId}`, {
+        assignee_stakeholder_id: stakeholderId
       })
-
-      interface ScanApiResponse {
-        success: boolean
-        documents_scanned: number
-        total_tasks_found: number
-        total_tasks_stored: number
-        message: string
-      }
-
-      // Use longer timeout for LLM-based task extraction (120s for Sonnet quality)
-      const scanResponse = await apiPost<ScanApiResponse>(
-        `/api/tasks/scan-documents?${params}`,
-        {},
-        { timeout: 120000 }
-      )
-
-      // Refresh candidates and stats
-      await Promise.all([fetchCandidates(), fetchScanStats()])
-
-      if (scanResponse.total_tasks_found > 0) {
-        setShowCandidateReview(true)
-        toast.success(`Found ${scanResponse.total_tasks_found} potential tasks from ${scanResponse.documents_scanned} documents`)
-      } else {
-        toast.success(`Scanned ${scanResponse.documents_scanned} documents - no new tasks found`)
-      }
+      // Refresh kanban to get updated display_assignee
+      fetchKanban(false)
     } catch (err) {
-      logger.error('Failed to scan documents:', err)
-      toast.error('Failed to scan documents for tasks')
-    } finally {
-      setScanLoading(false)
+      logger.error('Error updating assignee:', err)
+      toast.error('Failed to update assignee')
     }
-  }, [scanLimit, sinceDays, forceRescan, fetchCandidates, fetchScanStats])
+  }, [fetchKanban])
 
   // Initial load
   useEffect(() => {
     fetchKanban()
     fetchCandidates()
-    fetchScanStats()
-  }, [fetchKanban, fetchCandidates, fetchScanStats])
+    fetchStakeholders()
+  }, [fetchKanban, fetchCandidates, fetchStakeholders])
 
   // Handle drag and drop
   const handleDrop = useCallback(async (taskId: string, newStatus: Task['status'], newPosition?: number) => {
@@ -344,8 +309,7 @@ export default function TaskKanbanBoard() {
       fetchKanban(false)
     }
     fetchCandidates()
-    fetchScanStats()
-  }, [fetchKanban, fetchCandidates, fetchScanStats])
+  }, [fetchKanban, fetchCandidates])
 
   // Active filters count
   const activeFiltersCount = useMemo(() => {
@@ -442,106 +406,6 @@ export default function TaskKanbanBoard() {
         </div>
       </div>
 
-      {/* Task Discovery Panel - matches kanban board width: 4 columns * 320px + 3 gaps * 16px */}
-      <div className="card" style={{ maxWidth: 'calc(4 * 320px + 3 * 16px)' }}>
-        {/* Header */}
-        <button
-          onClick={() => setDiscoveryExpanded(!discoveryExpanded)}
-          className="w-full p-4 flex items-center justify-between hover:bg-page/50 transition-colors rounded-lg"
-        >
-          <div className="flex items-center gap-2">
-            <ListChecks className="w-5 h-5 text-amber-500" />
-            <span className="font-semibold text-primary">Task Discovery</span>
-            {candidatesCount > 0 && (
-              <span className="px-2 py-0.5 text-xs bg-amber-500/20 text-amber-500 rounded-full font-medium">
-                {candidatesCount} pending
-              </span>
-            )}
-          </div>
-          {discoveryExpanded ? (
-            <ChevronUp className="w-5 h-5 text-secondary" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-secondary" />
-          )}
-        </button>
-
-        {/* Expanded Content */}
-        {discoveryExpanded && (
-          <div className="px-4 pb-4 border-t border-border">
-            <p className="text-secondary text-sm my-4">
-              Scan your Knowledge Base documents (meetings, transcripts, notes) for potential tasks.
-              Found tasks are saved as candidates for you to review, accept, or reject.
-            </p>
-
-            {/* Scan Settings - inline */}
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              <div className="flex items-center gap-2">
-                <label htmlFor="scanLimit" className="text-sm text-secondary">Documents:</label>
-                <select
-                  id="scanLimit"
-                  value={scanLimit}
-                  onChange={(e) => setScanLimit(Number(e.target.value))}
-                  className="px-2 py-1.5 text-sm bg-page border border-border rounded-md text-primary"
-                >
-                  <option value={5}>5</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <label htmlFor="sinceDays" className="text-sm text-secondary">Time range:</label>
-                <select
-                  id="sinceDays"
-                  value={sinceDays}
-                  onChange={(e) => setSinceDays(Number(e.target.value))}
-                  className="px-2 py-1.5 text-sm bg-page border border-border rounded-md text-primary"
-                >
-                  <option value={7}>Last 7 days</option>
-                  <option value={30}>Last 30 days</option>
-                  <option value={90}>Last 90 days</option>
-                  <option value={365}>Last year</option>
-                  <option value={0}>All time</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <label htmlFor="forceRescan" className="text-sm text-secondary">Rescan:</label>
-                <button
-                  id="forceRescan"
-                  onClick={() => setForceRescan(!forceRescan)}
-                  className={`px-3 py-1 text-sm rounded-md border transition-colors ${
-                    forceRescan
-                      ? 'bg-amber-600/20 border-amber-500/50 text-amber-500'
-                      : 'bg-page border-border text-muted hover:text-primary'
-                  }`}
-                >
-                  {forceRescan ? 'On' : 'Off'}
-                </button>
-              </div>
-            </div>
-
-            {/* Scan Button */}
-            <button
-              onClick={handleScanDocuments}
-              disabled={scanLoading}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50 font-medium"
-            >
-              {scanLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Scanning {scanLimit} Documents...
-                </>
-              ) : (
-                <>
-                  <Search className="w-4 h-4" />
-                  Scan Documents
-                </>
-              )}
-            </button>
-          </div>
-        )}
-      </div>
-
       {/* Filters */}
       {showFilters && (
         <TaskFilters
@@ -565,6 +429,8 @@ export default function TaskKanbanBoard() {
             onDrop={handleDrop}
             onTaskClick={handleTaskClick}
             onAddTask={handleAddTaskFromColumn}
+            stakeholders={stakeholders}
+            onAssigneeChange={handleAssigneeChange}
           />
         ))}
       </div>

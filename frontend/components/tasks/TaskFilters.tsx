@@ -123,7 +123,7 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
   }
 
   return (
-    <div className="bg-card border border-default rounded-lg p-4 space-y-4">
+    <div className="bg-card border border-default rounded-lg p-3 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-primary">Filters</h3>
         <div className="flex items-center gap-2">
@@ -142,7 +142,7 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Search */}
         <div>
           <label className="block text-sm font-medium text-secondary mb-1">Search</label>
@@ -206,7 +206,7 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Due Date From */}
         <div>
           <label className="block text-sm font-medium text-secondary mb-1">Due From</label>
@@ -231,7 +231,7 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
       </div>
 
       {/* Priority & Source Type */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Priority */}
         <div>
           <label className="block text-sm font-medium text-secondary mb-2">Priority</label>
