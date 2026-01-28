@@ -345,7 +345,7 @@ export default function ProjectsPage() {
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="input-field text-sm py-1.5 w-auto min-w-[140px]"
+            className="bg-hover border border-default rounded-md text-sm py-1.5 px-3 text-primary min-w-[140px]"
           >
             {DEPARTMENT_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -355,7 +355,7 @@ export default function ProjectsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="input-field text-sm py-1.5 w-auto min-w-[120px]"
+            className="bg-hover border border-default rounded-md text-sm py-1.5 px-3 text-primary min-w-[120px]"
           >
             {STATUS_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -365,7 +365,7 @@ export default function ProjectsPage() {
           <select
             value={tierFilter}
             onChange={(e) => setTierFilter(e.target.value ? parseInt(e.target.value) : '')}
-            className="input-field text-sm py-1.5 w-auto min-w-[160px]"
+            className="bg-hover border border-default rounded-md text-sm py-1.5 px-3 text-primary min-w-[100px]"
           >
             <option value="">All Tiers</option>
             <option value="1">Tier 1 (Quick Wins)</option>
