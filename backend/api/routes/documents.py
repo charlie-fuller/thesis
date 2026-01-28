@@ -776,23 +776,41 @@ async def search_documents(
         result = await asyncio.to_thread(lambda: query.execute())
         documents = result.data or []
 
-        # Filter by tags if provided
+        # Filter by tags if provided (optimized - single query instead of N+1)
         if tags:
             tag_list = [t.strip() for t in tags.split(',') if t.strip()]
             if tag_list:
-                # Get documents that have ALL specified tags
-                filtered_docs = []
-                for doc in documents:
-                    doc_tags_result = await asyncio.to_thread(
-                        lambda d=doc['id']: supabase.table('document_tags')
-                            .select('tag')
-                            .eq('document_id', d)
-                            .execute()
-                    )
-                    doc_tags = {t['tag'] for t in (doc_tags_result.data or [])}
-                    if all(tag in doc_tags for tag in tag_list):
-                        filtered_docs.append(doc)
-                documents = filtered_docs
+                # Get all document IDs that have the required tags in a single query
+                doc_ids = [doc['id'] for doc in documents]
+                if doc_ids:
+                    # Batch query to get all tags for user's documents
+                    all_tags_data = []
+                    batch_size = 100
+                    for i in range(0, len(doc_ids), batch_size):
+                        batch_ids = doc_ids[i:i + batch_size]
+                        batch_result = await asyncio.to_thread(
+                            lambda ids=batch_ids: supabase.table('document_tags')
+                                .select('document_id, tag')
+                                .in_('document_id', ids)
+                                .execute()
+                        )
+                        all_tags_data.extend(batch_result.data or [])
+
+                    # Build a map of document_id -> set of tags
+                    doc_tags_map = {}
+                    for row in all_tags_data:
+                        doc_id = row['document_id']
+                        if doc_id not in doc_tags_map:
+                            doc_tags_map[doc_id] = set()
+                        doc_tags_map[doc_id].add(row['tag'])
+
+                    # Filter documents that have ALL specified tags
+                    filtered_docs = []
+                    for doc in documents:
+                        doc_tags = doc_tags_map.get(doc['id'], set())
+                        if all(tag in doc_tags for tag in tag_list):
+                            filtered_docs.append(doc)
+                    documents = filtered_docs
 
         # Paginate
         total_count = len(documents)
