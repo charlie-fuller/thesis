@@ -46,6 +46,32 @@ export default function GranolaScanPanel() {
     }
   }, [])
 
+  // Define handleScan BEFORE the effects that use it
+  const handleScan = useCallback(async () => {
+    try {
+      setIsScanning(true)
+      setScanMessage(null)
+      // Use background=true so scan continues even if user navigates away
+      const result = await apiPost<ScanResult>('/api/pipeline/granola/scan?force_rescan=false&background=true', {})
+
+      if (result.status === 'started') {
+        setScanMessage('Scan started! Analyzing in the background...')
+        // Poll status after a delay
+        setTimeout(async () => {
+          await fetchStatus()
+          setIsScanning(false)
+        }, 5000)
+      } else {
+        await fetchStatus()
+        setIsScanning(false)
+      }
+    } catch (err) {
+      console.error('Scan failed:', err)
+      setScanMessage('Scan failed to start. Please try again.')
+      setIsScanning(false)
+    }
+  }, [fetchStatus])
+
   useEffect(() => {
     fetchStatus()
     // Poll more frequently when scanning/syncing is active
@@ -101,31 +127,6 @@ export default function GranolaScanPanel() {
       autoScanTriggeredRef.current = false
     }
   }, [status?.pending_files, status?.sync_activity?.active, isScanning, handleScan])
-
-  const handleScan = useCallback(async () => {
-    try {
-      setIsScanning(true)
-      setScanMessage(null)
-      // Use background=true so scan continues even if user navigates away
-      const result = await apiPost<ScanResult>('/api/pipeline/granola/scan?force_rescan=false&background=true', {})
-
-      if (result.status === 'started') {
-        setScanMessage('Scan started! Analyzing in the background...')
-        // Poll status after a delay
-        setTimeout(async () => {
-          await fetchStatus()
-          setIsScanning(false)
-        }, 5000)
-      } else {
-        await fetchStatus()
-        setIsScanning(false)
-      }
-    } catch (err) {
-      console.error('Scan failed:', err)
-      setScanMessage('Scan failed to start. Please try again.')
-      setIsScanning(false)
-    }
-  }, [fetchStatus])
 
   if (loading) {
     return (
