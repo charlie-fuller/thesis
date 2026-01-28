@@ -205,7 +205,8 @@ export default function GranolaScanPanel() {
         </div>
       )}
 
-      {!status.sync_activity?.active && status.sync_activity?.recent_files && status.sync_activity.recent_files.length > 0 && (
+      {!status.sync_activity?.active && status.sync_activity?.recent_files && status.sync_activity.recent_files.length > 0 &&
+       (status.sync_activity.recent_files[0].files_added + status.sync_activity.recent_files[0].files_updated) > 0 && (
         <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
           Just synced: {status.sync_activity.recent_files[0].files_added + status.sync_activity.recent_files[0].files_updated} file(s)
         </div>
