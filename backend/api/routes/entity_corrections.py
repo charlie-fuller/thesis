@@ -189,7 +189,7 @@ async def batch_apply_corrections(
             updated_count = len(result.data) if result.data else 0
 
             # Also update opportunities department if applicable
-            opp_result = supabase.table("ai_opportunities") \
+            opp_result = supabase.table("ai_projects") \
                 .update({"department": corrected_value}) \
                 .eq("client_id", client_id) \
                 .eq("department", original_value) \

@@ -330,7 +330,7 @@ class EntityDeduplicator:
         1. Within-batch (BLOCK if match)
         2. Rejected candidates (BLOCK if match)
         3. Pending candidates (CREATE + track)
-        4. Existing ai_opportunities (CREATE + track)
+        4. Existing ai_projects (CREATE + track)
 
         Args:
             client_id: Client ID
@@ -427,7 +427,7 @@ class EntityDeduplicator:
     ) -> Optional[MatchResult]:
         """Check if opportunity matches an existing one."""
         try:
-            result = self.supabase.table('ai_opportunities') \
+            result = self.supabase.table('ai_projects') \
                 .select('id, title, project_name, description') \
                 .eq('client_id', client_id) \
                 .execute()

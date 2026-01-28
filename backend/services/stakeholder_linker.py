@@ -52,7 +52,7 @@ class StakeholderLinker:
         try:
             # Search by department if available
             if stakeholder.department:
-                dept_result = self.supabase.table("ai_opportunities") \
+                dept_result = self.supabase.table("ai_projects") \
                     .select("id") \
                     .eq("client_id", client_id) \
                     .ilike("department", f"%{stakeholder.department}%") \
@@ -63,7 +63,7 @@ class StakeholderLinker:
 
             # Search by stakeholder name in owner_name
             if stakeholder.name:
-                name_result = self.supabase.table("ai_opportunities") \
+                name_result = self.supabase.table("ai_projects") \
                     .select("id") \
                     .eq("client_id", client_id) \
                     .ilike("owner_name", f"%{stakeholder.name}%") \
@@ -81,7 +81,7 @@ class StakeholderLinker:
                     if len(keyword) < 3:
                         continue
 
-                    role_result = self.supabase.table("ai_opportunities") \
+                    role_result = self.supabase.table("ai_projects") \
                         .select("id") \
                         .eq("client_id", client_id) \
                         .or_(f"title.ilike.%{keyword}%,description.ilike.%{keyword}%") \

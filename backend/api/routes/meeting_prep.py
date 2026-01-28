@@ -280,19 +280,19 @@ async def get_meeting_prep(
 
     # Get stakeholder opportunities (via link table)
     opp_links_result = supabase.table("opportunity_stakeholder_link") \
-        .select("*, ai_opportunities(*)") \
+        .select("*, ai_projects(*)") \
         .eq("stakeholder_id", stakeholder_id) \
         .execute()
 
     opportunities_with_role = []
     for link in opp_links_result.data:
-        opp = link.get("ai_opportunities", {})
+        opp = link.get("ai_projects", {})
         if opp:
             opp["stakeholder_role"] = link.get("role", "involved")
             opportunities_with_role.append(opp)
 
     # Also get opportunities where stakeholder is owner
-    owned_opps_result = supabase.table("ai_opportunities") \
+    owned_opps_result = supabase.table("ai_projects") \
         .select("*") \
         .eq("owner_stakeholder_id", stakeholder_id) \
         .eq("client_id", current_user["client_id"]) \

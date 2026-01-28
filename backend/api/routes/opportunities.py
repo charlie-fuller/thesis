@@ -254,7 +254,7 @@ async def _get_owner_names(supabase, opportunity_ids: List[str]) -> dict:
         return {}
 
     # Get opportunities with owner IDs
-    result = supabase.table("ai_opportunities") \
+    result = supabase.table("ai_projects") \
         .select("id, owner_stakeholder_id") \
         .in_("id", opportunity_ids) \
         .execute()
@@ -300,7 +300,7 @@ async def list_opportunities(
 
     Supports filtering by department, tier, status, and owner.
     """
-    query = supabase.table("ai_opportunities") \
+    query = supabase.table("ai_projects") \
         .select("*") \
         .eq("client_id", current_user["client_id"])
 
@@ -334,7 +334,7 @@ async def get_opportunities_by_tier(
 
     Returns a dict with tier keys (1-4) and lists of opportunities.
     """
-    query = supabase.table("ai_opportunities") \
+    query = supabase.table("ai_projects") \
         .select("*") \
         .eq("client_id", current_user["client_id"])
 
@@ -380,7 +380,7 @@ async def get_opportunities_by_department(
     """
     Get opportunities grouped by department.
     """
-    query = supabase.table("ai_opportunities") \
+    query = supabase.table("ai_projects") \
         .select("*") \
         .eq("client_id", current_user["client_id"])
 
@@ -421,7 +421,7 @@ async def get_top_opportunities(
 
     Excludes completed opportunities by default.
     """
-    query = supabase.table("ai_opportunities") \
+    query = supabase.table("ai_projects") \
         .select("*") \
         .eq("client_id", current_user["client_id"])
 
@@ -445,7 +445,7 @@ async def get_blocked_opportunities(
     """
     Get all blocked opportunities.
     """
-    result = supabase.table("ai_opportunities") \
+    result = supabase.table("ai_projects") \
         .select("*") \
         .eq("client_id", current_user["client_id"]) \
         .eq("status", "blocked") \
@@ -469,7 +469,7 @@ async def get_opportunities_summary(
 
     Returns counts by tier, status, and department.
     """
-    result = supabase.table("ai_opportunities") \
+    result = supabase.table("ai_projects") \
         .select("tier, status, department") \
         .eq("client_id", current_user["client_id"]) \
         .execute()
@@ -522,7 +522,7 @@ async def get_opportunity_related_documents(
     Documents are sorted by relevance score (highest first).
     """
     # Fetch the full opportunity
-    result = supabase.table("ai_opportunities") \
+    result = supabase.table("ai_projects") \
         .select("*") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -557,7 +557,7 @@ async def get_opportunity_conversation_history(
     Returns conversations newest first.
     """
     # Verify opportunity exists and belongs to client
-    opp = supabase.table("ai_opportunities") \
+    opp = supabase.table("ai_projects") \
         .select("id") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -596,7 +596,7 @@ async def ask_question_about_opportunity(
     GET /{opportunity_id}/conversations.
     """
     # Verify opportunity exists and belongs to client
-    opp = supabase.table("ai_opportunities") \
+    opp = supabase.table("ai_projects") \
         .select("id") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -673,7 +673,7 @@ async def taskmaster_chat_for_opportunity(
     Only available for opportunities that have a project_name (i.e., are active projects).
     """
     # Verify opportunity exists, belongs to client, and is a project
-    opp = supabase.table("ai_opportunities") \
+    opp = supabase.table("ai_projects") \
         .select("id, project_name") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -728,7 +728,7 @@ async def generate_justifications_for_opportunity(
     be triggered manually to regenerate justifications.
     """
     # Verify opportunity exists and belongs to client
-    opp = supabase.table("ai_opportunities") \
+    opp = supabase.table("ai_projects") \
         .select("id") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -821,7 +821,7 @@ async def analyze_opportunity_goal_alignment(
     - 0-39: Minimal alignment - limited strategic value
     """
     # Verify opportunity exists and belongs to client
-    opp = supabase.table("ai_opportunities") \
+    opp = supabase.table("ai_projects") \
         .select("id") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -865,7 +865,7 @@ async def get_opportunity(
     supabase = Depends(get_supabase)
 ):
     """Get a single opportunity by ID."""
-    result = supabase.table("ai_opportunities") \
+    result = supabase.table("ai_projects") \
         .select("*") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -919,7 +919,7 @@ async def create_opportunity(
     }
 
     try:
-        result = supabase.table("ai_opportunities").insert(data).execute()
+        result = supabase.table("ai_projects").insert(data).execute()
     except Exception as e:
         if "duplicate" in str(e).lower():
             raise HTTPException(
@@ -944,7 +944,7 @@ async def create_opportunity(
                 client_id=current_user["client_id"]
             )
             # Refetch to get updated justifications
-            updated = supabase.table("ai_opportunities") \
+            updated = supabase.table("ai_projects") \
                 .select("*") \
                 .eq("id", created_opp["id"]) \
                 .single() \
@@ -965,7 +965,7 @@ async def update_opportunity(
 ):
     """Update an opportunity."""
     # Verify ownership
-    existing = supabase.table("ai_opportunities") \
+    existing = supabase.table("ai_projects") \
         .select("id") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -984,7 +984,7 @@ async def update_opportunity(
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
 
-    result = supabase.table("ai_opportunities") \
+    result = supabase.table("ai_projects") \
         .update(update_data) \
         .eq("id", opportunity_id) \
         .execute()
@@ -1006,7 +1006,7 @@ async def update_opportunity_scores(
     Automatically regenerates justifications when scores change.
     """
     # Get existing opportunity with current scores
-    existing = supabase.table("ai_opportunities") \
+    existing = supabase.table("ai_projects") \
         .select("id, roi_potential, implementation_effort, strategic_alignment, stakeholder_readiness") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -1022,7 +1022,7 @@ async def update_opportunity_scores(
     if not update_data:
         raise HTTPException(status_code=400, detail="No scores to update")
 
-    result = supabase.table("ai_opportunities") \
+    result = supabase.table("ai_projects") \
         .update(update_data) \
         .eq("id", opportunity_id) \
         .execute()
@@ -1039,7 +1039,7 @@ async def update_opportunity_scores(
         )
         if regenerated:
             # Refetch to get updated justifications
-            refreshed = supabase.table("ai_opportunities") \
+            refreshed = supabase.table("ai_projects") \
                 .select("*") \
                 .eq("id", opportunity_id) \
                 .single() \
@@ -1082,7 +1082,7 @@ async def update_opportunity_status(
         )
 
     # Verify ownership and get current data
-    existing = supabase.table("ai_opportunities") \
+    existing = supabase.table("ai_projects") \
         .select("id, project_name, status") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -1110,7 +1110,7 @@ async def update_opportunity_status(
     if request.project_description:
         update_data["project_description"] = request.project_description
 
-    result = supabase.table("ai_opportunities") \
+    result = supabase.table("ai_projects") \
         .update(update_data) \
         .eq("id", opportunity_id) \
         .execute()
@@ -1126,7 +1126,7 @@ async def delete_opportunity(
 ):
     """Delete an opportunity."""
     # Verify ownership
-    existing = supabase.table("ai_opportunities") \
+    existing = supabase.table("ai_projects") \
         .select("id") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -1136,7 +1136,7 @@ async def delete_opportunity(
     if not existing.data:
         raise HTTPException(status_code=404, detail="Opportunity not found")
 
-    supabase.table("ai_opportunities") \
+    supabase.table("ai_projects") \
         .delete() \
         .eq("id", opportunity_id) \
         .execute()
@@ -1156,7 +1156,7 @@ async def get_opportunity_stakeholders(
 ):
     """Get all stakeholders linked to an opportunity."""
     # Verify opportunity exists and belongs to client
-    opp = supabase.table("ai_opportunities") \
+    opp = supabase.table("ai_projects") \
         .select("id") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -1197,7 +1197,7 @@ async def link_stakeholder_to_opportunity(
 ):
     """Link a stakeholder to an opportunity."""
     # Verify opportunity exists
-    opp = supabase.table("ai_opportunities") \
+    opp = supabase.table("ai_projects") \
         .select("id") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -1256,7 +1256,7 @@ async def unlink_stakeholder_from_opportunity(
 ):
     """Remove a stakeholder link from an opportunity."""
     # Verify opportunity exists
-    opp = supabase.table("ai_opportunities") \
+    opp = supabase.table("ai_projects") \
         .select("id") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -1423,7 +1423,7 @@ async def accept_opportunity_candidate(
     # If linking to existing opportunity
     if accept_data.link_to_existing and cand.get("matched_opportunity_id"):
         # Just update the existing opportunity's source_notes with this new info
-        existing_opp = supabase.table("ai_opportunities") \
+        existing_opp = supabase.table("ai_projects") \
             .select("*") \
             .eq("id", cand["matched_opportunity_id"]) \
             .single() \
@@ -1434,7 +1434,7 @@ async def accept_opportunity_candidate(
             existing_notes = existing_opp.data.get("source_notes") or ""
             new_notes = f"{existing_notes}\n\nLinked from: {cand.get('source_document_name', 'Document')}\nQuote: {cand.get('source_text', '')[:200]}"
 
-            supabase.table("ai_opportunities") \
+            supabase.table("ai_projects") \
                 .update({"source_notes": new_notes.strip()}) \
                 .eq("id", cand["matched_opportunity_id"]) \
                 .execute()
@@ -1488,7 +1488,7 @@ async def accept_opportunity_candidate(
     }
 
     try:
-        result = supabase.table("ai_opportunities").insert(opp_data).execute()
+        result = supabase.table("ai_projects").insert(opp_data).execute()
         new_opp = result.data[0]
 
         # Mark candidate as accepted
@@ -1509,7 +1509,7 @@ async def accept_opportunity_candidate(
                 client_id=current_user["client_id"]
             )
             # Refetch to get updated justifications
-            updated = supabase.table("ai_opportunities") \
+            updated = supabase.table("ai_projects") \
                 .select("*") \
                 .eq("id", new_opp["id"]) \
                 .single() \
@@ -1604,7 +1604,7 @@ async def link_opportunity_candidate(
     candidate = candidate_result.data
 
     # Verify target opportunity exists
-    opp_result = supabase.table("ai_opportunities") \
+    opp_result = supabase.table("ai_projects") \
         .select("id, title, project_name, description") \
         .eq("id", body.opportunity_id) \
         .eq("client_id", client_id) \
@@ -1627,7 +1627,7 @@ async def link_opportunity_candidate(
             linked_note += f"\nQuote: \"{candidate_quote[:200]}...\""
         new_description = existing_desc + linked_note
 
-        supabase.table("ai_opportunities") \
+        supabase.table("ai_projects") \
             .update({"description": new_description}) \
             .eq("id", body.opportunity_id) \
             .execute()
@@ -1695,7 +1695,7 @@ async def evaluate_single_confidence(
     from services.project_confidence import evaluate_opportunity_confidence
 
     # Fetch opportunity
-    result = supabase.table("ai_opportunities") \
+    result = supabase.table("ai_projects") \
         .select("*") \
         .eq("id", opportunity_id) \
         .eq("client_id", current_user["client_id"]) \
@@ -1711,7 +1711,7 @@ async def evaluate_single_confidence(
     confidence, questions = evaluate_opportunity_confidence(opportunity)
 
     # Update in database
-    supabase.table("ai_opportunities").update({
+    supabase.table("ai_projects").update({
         "scoring_confidence": confidence,
         "confidence_questions": questions,
     }).eq("id", opportunity_id).execute()

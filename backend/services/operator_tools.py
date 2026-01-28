@@ -29,7 +29,7 @@ class OperatorTools:
             Summary dict with tier counts, status breakdown, top opportunities.
         """
         try:
-            result = self.supabase.table("ai_opportunities") \
+            result = self.supabase.table("ai_projects") \
                 .select("id, opportunity_code, title, total_score, tier, status, department") \
                 .eq("client_id", self.client_id) \
                 .order("total_score", desc=True) \
@@ -83,7 +83,7 @@ class OperatorTools:
             List of opportunities for that department.
         """
         try:
-            result = self.supabase.table("ai_opportunities") \
+            result = self.supabase.table("ai_projects") \
                 .select("id, opportunity_code, title, total_score, tier, status, current_state, desired_state, next_step") \
                 .eq("client_id", self.client_id) \
                 .eq("department", department.lower()) \
@@ -104,7 +104,7 @@ class OperatorTools:
             List of blocked opportunities with blockers.
         """
         try:
-            result = self.supabase.table("ai_opportunities") \
+            result = self.supabase.table("ai_projects") \
                 .select("id, opportunity_code, title, department, total_score, blockers, next_step") \
                 .eq("client_id", self.client_id) \
                 .eq("status", "blocked") \
@@ -193,12 +193,12 @@ class OperatorTools:
 
             # Get linked opportunities
             opps_result = self.supabase.table("opportunity_stakeholder_link") \
-                .select("role, ai_opportunities(opportunity_code, title, total_score, tier, status, next_step)") \
+                .select("role, ai_projects(opportunity_code, title, total_score, tier, status, next_step)") \
                 .eq("stakeholder_id", stakeholder_id) \
                 .execute()
 
             # Also get owned opportunities
-            owned_opps_result = self.supabase.table("ai_opportunities") \
+            owned_opps_result = self.supabase.table("ai_projects") \
                 .select("opportunity_code, title, total_score, tier, status, next_step") \
                 .eq("owner_stakeholder_id", stakeholder_id) \
                 .execute()
@@ -206,7 +206,7 @@ class OperatorTools:
             # Format response
             linked_opps = []
             for link in opps_result.data or []:
-                opp = link.get("ai_opportunities")
+                opp = link.get("ai_projects")
                 if opp:
                     linked_opps.append({
                         **opp,
@@ -256,7 +256,7 @@ class OperatorTools:
             Dict with Tier 1 opportunities and their next steps.
         """
         try:
-            result = self.supabase.table("ai_opportunities") \
+            result = self.supabase.table("ai_projects") \
                 .select("*, stakeholders:owner_stakeholder_id(name)") \
                 .eq("client_id", self.client_id) \
                 .eq("tier", 1) \
