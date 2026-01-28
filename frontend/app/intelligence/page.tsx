@@ -1,14 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { apiGet, apiPost, apiDelete } from '@/lib/api'
-import { logger } from '@/lib/logger'
 import PageHeader from '@/components/PageHeader'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import { AgentIcon, getAgentColor } from '@/components/AgentIcon'
 import dynamic from 'next/dynamic'
 
 // Lazy load the chart component to avoid SSR issues with recharts
@@ -23,8 +20,14 @@ const DepartmentGroupedView = dynamic(
   { ssr: false, loading: () => <LoadingSpinner /> }
 )
 
+// Lazy load Strategy content
+const StrategyContent = dynamic(
+  () => import('@/components/StrategyContent'),
+  { ssr: false, loading: () => <LoadingSpinner /> }
+)
+
 // Tab type
-type TabType = 'agents' | 'stakeholders' | 'engagement'
+type TabType = 'strategy' | 'stakeholders' | 'engagement'
 
 // Stakeholder view mode
 type StakeholderViewMode = 'grid' | 'department'
@@ -73,28 +76,18 @@ interface StakeholderCreateForm {
   notes: string
 }
 
-// Agent types
-interface Agent {
-  id: string
-  name: string
-  display_name: string
-  description: string | null
-  is_active: boolean
-  created_at: string
-  updated_at: string
-  instruction_versions_count: number
-  kb_documents_count: number
-  conversations_count: number
-  meeting_rooms_count: number
-}
-
 const ENGAGEMENT_LEVELS = ['champion', 'supporter', 'neutral', 'skeptic', 'blocker']
 const DEPARTMENTS = ['finance', 'it', 'legal', 'governance', 'hr', 'marketing', 'engineering', 'operations', 'executive']
 
 export default function IntelligencePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, session, loading: authLoading } = useAuth()
-  const [activeTab, setActiveTab] = useState<TabType>('agents')
+  const tabParam = searchParams.get('tab')
+  const [activeTab, setActiveTab] = useState<TabType>(
+    tabParam === 'stakeholders' ? 'stakeholders' :
+    tabParam === 'engagement' ? 'engagement' : 'strategy'
+  )
 
   // Stakeholder state
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([])
@@ -114,11 +107,6 @@ export default function IntelligencePage() {
     notes: ''
   })
   const [creating, setCreating] = useState(false)
-
-  // Agent state
-  const [agents, setAgents] = useState<Agent[]>([])
-  const [agentLoading, setAgentLoading] = useState(true)
-  const [agentError, setAgentError] = useState<string | null>(null)
 
   // Load stakeholder data
   async function loadStakeholderData() {
@@ -144,21 +132,6 @@ export default function IntelligencePage() {
     }
   }
 
-  // Load agent data
-  async function loadAgentData() {
-    try {
-      setAgentLoading(true)
-      setAgentError(null)
-      const data = await apiGet<{ agents: Agent[] }>('/api/agents?include_inactive=true')
-      setAgents(data.agents || [])
-    } catch (err) {
-      logger.error('Failed to fetch agents:', err)
-      setAgentError('Failed to load agents')
-    } finally {
-      setAgentLoading(false)
-    }
-  }
-
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
@@ -170,7 +143,6 @@ export default function IntelligencePage() {
   useEffect(() => {
     if (!authLoading && user && session) {
       loadStakeholderData()
-      loadAgentData()
     }
   }, [authLoading, user, session])
 
@@ -294,18 +266,18 @@ export default function IntelligencePage() {
         {/* Tabs */}
         <div className="flex gap-1 mb-6 border-b border-default">
           <button
-            onClick={() => setActiveTab('agents')}
+            onClick={() => setActiveTab('strategy')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'agents'
+              activeTab === 'strategy'
                 ? 'border-brand text-brand'
                 : 'border-transparent text-secondary hover:text-primary'
             }`}
           >
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
-              Agents
+              Strategy
             </div>
           </button>
           <button
@@ -664,103 +636,9 @@ export default function IntelligencePage() {
           </div>
         )}
 
-        {/* Agents Tab */}
-        {activeTab === 'agents' && (
-          <div>
-            {agentLoading && (
-              <div className="flex items-center justify-center py-20">
-                <LoadingSpinner size="lg" />
-              </div>
-            )}
-
-            {agentError && (
-              <div className="text-center py-20">
-                <p className="text-red-400">{agentError}</p>
-                <button
-                  onClick={loadAgentData}
-                  className="mt-4 btn-primary"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
-
-            {!agentLoading && !agentError && (
-              <>
-                {/* Agent Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {agents.map((agent) => (
-                    <Link
-                      key={agent.id}
-                      href={`/admin/agents/${agent.id}`}
-                      className="card p-6 hover:border-primary/50 transition-all group"
-                    >
-                      {/* Agent Header */}
-                      <div className="flex items-start gap-4 mb-4">
-                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center border ${getAgentColor(agent.name)}`}>
-                          <AgentIcon name={agent.name} size="lg" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-semibold text-primary group-hover:text-blue-400 transition-colors">
-                            {agent.display_name}
-                          </h3>
-                          <p className="text-sm text-secondary">
-                            {agent.name}
-                          </p>
-                        </div>
-                        <div className={`px-2 py-1 rounded text-xs font-medium ${
-                          agent.is_active
-                            ? 'bg-green-500/20 text-green-400'
-                            : 'bg-gray-500/20 text-gray-400'
-                        }`}>
-                          {agent.is_active ? 'Active' : 'Inactive'}
-                        </div>
-                      </div>
-
-                      {/* Description */}
-                      <p className="text-sm text-secondary mb-4 line-clamp-2">
-                        {agent.description || 'No description configured'}
-                      </p>
-
-                      {/* Stats */}
-                      <div className="grid grid-cols-4 gap-3 pt-4 border-t border-border">
-                        <div className="text-center">
-                          <div className="text-lg font-semibold text-primary">
-                            {agent.instruction_versions_count}
-                          </div>
-                          <div className="text-xs text-secondary">Versions</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-semibold text-primary">
-                            {agent.kb_documents_count}
-                          </div>
-                          <div className="text-xs text-secondary">KB Docs</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-semibold text-primary">
-                            {agent.conversations_count ?? 0}
-                          </div>
-                          <div className="text-xs text-secondary">Chats</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-semibold text-primary">
-                            {agent.meeting_rooms_count ?? 0}
-                          </div>
-                          <div className="text-xs text-secondary">Meetings</div>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-
-                {agents.length === 0 && (
-                  <div className="text-center py-20 card">
-                    <p className="text-secondary">No agents configured yet</p>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+        {/* Strategy Tab */}
+        {activeTab === 'strategy' && (
+          <StrategyContent />
         )}
 
         {/* Engagement Tab */}
