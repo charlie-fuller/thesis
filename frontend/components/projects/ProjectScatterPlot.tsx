@@ -17,7 +17,8 @@ import { Target, TrendingUp, AlertTriangle, Info } from 'lucide-react'
 // Minimal fields required for the scatter plot
 interface ProjectData {
   id: string
-  project_code: string
+  project_code?: string  // New naming
+  opportunity_code?: string  // Legacy naming (backward compatibility)
   title: string
   roi_potential: number | null
   implementation_effort: number | null
@@ -72,7 +73,7 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
   return (
     <div className="bg-card border border-default rounded-lg shadow-lg p-3 max-w-xs">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-xs font-mono text-muted">{data.project_code}</span>
+        <span className="text-xs font-mono text-muted">{data.project_code || data.opportunity_code}</span>
         <span
           className="text-xs px-1.5 py-0.5 rounded"
           style={{
