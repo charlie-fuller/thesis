@@ -345,7 +345,7 @@ export default function ProjectsPage() {
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="bg-hover border border-default rounded-md text-sm py-1.5 px-3 text-primary min-w-[140px]"
+            className="w-auto bg-hover border border-default rounded-md text-sm py-1.5 px-3 text-primary"
           >
             {DEPARTMENT_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -355,7 +355,7 @@ export default function ProjectsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-hover border border-default rounded-md text-sm py-1.5 px-3 text-primary min-w-[120px]"
+            className="w-auto bg-hover border border-default rounded-md text-sm py-1.5 px-3 text-primary"
           >
             {STATUS_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -365,7 +365,7 @@ export default function ProjectsPage() {
           <select
             value={tierFilter}
             onChange={(e) => setTierFilter(e.target.value ? parseInt(e.target.value) : '')}
-            className="bg-hover border border-default rounded-md text-sm py-1.5 px-3 text-primary min-w-[100px]"
+            className="w-auto bg-hover border border-default rounded-md text-sm py-1.5 px-3 text-primary"
           >
             <option value="">All Tiers</option>
             <option value="1">Tier 1 (Quick Wins)</option>
@@ -420,88 +420,100 @@ export default function ProjectsPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="space-y-8">
             {/* Tier 1 - Quick Wins */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 pb-2 border-b border-default">
+            <div>
+              <div className="flex items-center gap-2 pb-3 mb-4 border-b border-default">
                 <span className={`text-xs px-2 py-1 rounded font-medium ${TIER_COLORS[1]}`}>T1</span>
                 <span className="text-sm font-medium text-primary">Quick Wins</span>
                 <span className="text-xs text-muted ml-auto">
-                  {projects.filter(p => p.tier === 1).length}
+                  {projects.filter(p => p.tier === 1).length} projects
                 </span>
               </div>
-              {projects.filter(p => p.tier === 1).map(project => (
-                <ProjectCard
-                  key={project.id}
-                  project={project}
-                  onClick={() => handleViewProject(project.id)}
-                />
-              ))}
-              {projects.filter(p => p.tier === 1).length === 0 && (
-                <p className="text-xs text-muted text-center py-4">No T1 projects</p>
+              {projects.filter(p => p.tier === 1).length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {projects.filter(p => p.tier === 1).map(project => (
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      onClick={() => handleViewProject(project.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted py-4">No T1 projects</p>
               )}
             </div>
 
             {/* Tier 2 - Strategic */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 pb-2 border-b border-default">
+            <div>
+              <div className="flex items-center gap-2 pb-3 mb-4 border-b border-default">
                 <span className={`text-xs px-2 py-1 rounded font-medium ${TIER_COLORS[2]}`}>T2</span>
                 <span className="text-sm font-medium text-primary">Strategic</span>
                 <span className="text-xs text-muted ml-auto">
-                  {projects.filter(p => p.tier === 2).length}
+                  {projects.filter(p => p.tier === 2).length} projects
                 </span>
               </div>
-              {projects.filter(p => p.tier === 2).map(project => (
-                <ProjectCard
-                  key={project.id}
-                  project={project}
-                  onClick={() => handleViewProject(project.id)}
-                />
-              ))}
-              {projects.filter(p => p.tier === 2).length === 0 && (
-                <p className="text-xs text-muted text-center py-4">No T2 projects</p>
+              {projects.filter(p => p.tier === 2).length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {projects.filter(p => p.tier === 2).map(project => (
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      onClick={() => handleViewProject(project.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted py-4">No T2 projects</p>
               )}
             </div>
 
             {/* Tier 3 - Long-term */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 pb-2 border-b border-default">
+            <div>
+              <div className="flex items-center gap-2 pb-3 mb-4 border-b border-default">
                 <span className={`text-xs px-2 py-1 rounded font-medium ${TIER_COLORS[3]}`}>T3</span>
                 <span className="text-sm font-medium text-primary">Long-term</span>
                 <span className="text-xs text-muted ml-auto">
-                  {projects.filter(p => p.tier === 3).length}
+                  {projects.filter(p => p.tier === 3).length} projects
                 </span>
               </div>
-              {projects.filter(p => p.tier === 3).map(project => (
-                <ProjectCard
-                  key={project.id}
-                  project={project}
-                  onClick={() => handleViewProject(project.id)}
-                />
-              ))}
-              {projects.filter(p => p.tier === 3).length === 0 && (
-                <p className="text-xs text-muted text-center py-4">No T3 projects</p>
+              {projects.filter(p => p.tier === 3).length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {projects.filter(p => p.tier === 3).map(project => (
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      onClick={() => handleViewProject(project.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted py-4">No T3 projects</p>
               )}
             </div>
 
             {/* Tier 4 - Low Priority */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 pb-2 border-b border-default">
+            <div>
+              <div className="flex items-center gap-2 pb-3 mb-4 border-b border-default">
                 <span className={`text-xs px-2 py-1 rounded font-medium ${TIER_COLORS[4]}`}>T4</span>
                 <span className="text-sm font-medium text-primary">Low Priority</span>
                 <span className="text-xs text-muted ml-auto">
-                  {projects.filter(p => p.tier === 4).length}
+                  {projects.filter(p => p.tier === 4).length} projects
                 </span>
               </div>
-              {projects.filter(p => p.tier === 4).map(project => (
-                <ProjectCard
-                  key={project.id}
-                  project={project}
-                  onClick={() => handleViewProject(project.id)}
-                />
-              ))}
-              {projects.filter(p => p.tier === 4).length === 0 && (
-                <p className="text-xs text-muted text-center py-4">No T4 projects</p>
+              {projects.filter(p => p.tier === 4).length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {projects.filter(p => p.tier === 4).map(project => (
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      onClick={() => handleViewProject(project.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted py-4">No T4 projects</p>
               )}
             </div>
           </div>
