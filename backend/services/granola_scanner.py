@@ -58,21 +58,21 @@ GRANOLA_PATH_PATTERN = re.compile(r'Granola[/\\](Meeting-summaries|Transcripts)[
 
 # HIGH priority filename patterns (likely meetings/transcripts)
 HIGH_PRIORITY_FILENAME_PATTERNS = [
-    re.compile(r'transcript', re.IGNORECASE),
-    re.compile(r'meeting', re.IGNORECASE),
-    re.compile(r'summary', re.IGNORECASE),
+    re.compile(r'transcript', re.IGNORECASE),  # Meeting transcripts
+    re.compile(r'meeting', re.IGNORECASE),  # Meeting notes/summaries
     re.compile(r'1[:\-_]1|one[:\-_]one', re.IGNORECASE),  # 1:1, 1-1, one-on-one
-    re.compile(r'sync\b', re.IGNORECASE),
+    re.compile(r'sync\b', re.IGNORECASE),  # Sync meetings
     re.compile(r'standup|stand[:\-_]up', re.IGNORECASE),
     re.compile(r'retro(spective)?', re.IGNORECASE),
     re.compile(r'all[:\-_]?hands', re.IGNORECASE),
     re.compile(r'kickoff|kick[:\-_]off', re.IGNORECASE),
-    re.compile(r'interview', re.IGNORECASE),
     re.compile(r'workshop', re.IGNORECASE),
     re.compile(r'brainstorm', re.IGNORECASE),
     re.compile(r'planning\s+session', re.IGNORECASE),
     re.compile(r'review\s+meeting', re.IGNORECASE),
     re.compile(r'strategy\s+session', re.IGNORECASE),
+    # Granola-specific naming patterns (person names with transcript suffix)
+    re.compile(r'-transcript-\d{4}-\d{2}-\d{2}', re.IGNORECASE),
 ]
 
 # HIGH priority content patterns (meeting indicators in document body)
@@ -93,7 +93,7 @@ HIGH_PRIORITY_CONTENT_PATTERNS = [
 LOW_PRIORITY_FILENAME_PATTERNS = [
     re.compile(r'article', re.IGNORECASE),
     re.compile(r'reference', re.IGNORECASE),
-    re.compile(r'guide\b', re.IGNORECASE),
+    re.compile(r'guide[_\b]', re.IGNORECASE),  # guide_ or guide at word boundary
     re.compile(r'slides?|deck', re.IGNORECASE),
     re.compile(r'presentation', re.IGNORECASE),
     re.compile(r'template', re.IGNORECASE),
@@ -107,6 +107,86 @@ LOW_PRIORITY_FILENAME_PATTERNS = [
     re.compile(r'backup', re.IGNORECASE),
     re.compile(r'archive', re.IGNORECASE),
     re.compile(r'\.excalidraw', re.IGNORECASE),
+    # Travel/logistics docs
+    re.compile(r'itinerary', re.IGNORECASE),
+    re.compile(r'logistics', re.IGNORECASE),
+    re.compile(r'transfer', re.IGNORECASE),
+    # Content/writing docs
+    re.compile(r'speech', re.IGNORECASE),
+    re.compile(r'draft', re.IGNORECASE),
+    re.compile(r'podcast', re.IGNORECASE),
+    re.compile(r'framework', re.IGNORECASE),
+    re.compile(r'synthesizer', re.IGNORECASE),
+    re.compile(r'planner', re.IGNORECASE),
+    # Versioned docs (v1, v2, etc.)
+    re.compile(r'-v\d+\.', re.IGNORECASE),
+    # Compact context (Claude session files)
+    re.compile(r'compact-context', re.IGNORECASE),
+    # Job-related docs
+    re.compile(r'job[:\-_\s]?description', re.IGNORECASE),
+    re.compile(r'resume', re.IGNORECASE),
+    re.compile(r'cover[:\-_\s]?letter', re.IGNORECASE),
+    re.compile(r'interview[:\-_\s]?prep', re.IGNORECASE),
+    # Reports and briefs (not meetings)
+    re.compile(r'report\.', re.IGNORECASE),
+    re.compile(r'brief\.', re.IGNORECASE),
+    re.compile(r'process[:\-_\s]?map', re.IGNORECASE),
+    # Email/correspondence
+    re.compile(r'email\.', re.IGNORECASE),
+    re.compile(r'-email\.', re.IGNORECASE),
+    # Analysis/evaluation docs
+    re.compile(r'evaluation', re.IGNORECASE),
+    re.compile(r'diagnosis', re.IGNORECASE),
+    re.compile(r'analysis', re.IGNORECASE),
+    re.compile(r'considerations', re.IGNORECASE),
+    re.compile(r'questions\.', re.IGNORECASE),
+    re.compile(r'lenses\.', re.IGNORECASE),
+    # Operations/systems docs
+    re.compile(r'operations\.', re.IGNORECASE),
+    re.compile(r'internal[:\-_]?systems', re.IGNORECASE),
+    re.compile(r'daily[:\-_]?operations', re.IGNORECASE),
+    # Generator/tool outputs
+    re.compile(r'generator', re.IGNORECASE),
+    re.compile(r'triage', re.IGNORECASE),
+    # App/product docs (not meetings)
+    re.compile(r'app[:\-_]summary', re.IGNORECASE),
+    re.compile(r'purdy', re.IGNORECASE),
+    # Prep docs (not the actual meeting)
+    re.compile(r'meeting[:\-_]?prep', re.IGNORECASE),
+    re.compile(r'prep\.md', re.IGNORECASE),
+    # Planning/tracking docs
+    re.compile(r'tracker', re.IGNORECASE),
+    re.compile(r'checklist', re.IGNORECASE),
+    re.compile(r'taxonomy', re.IGNORECASE),
+    re.compile(r'scoring', re.IGNORECASE),
+    re.compile(r'comparison', re.IGNORECASE),
+    re.compile(r'sentiment', re.IGNORECASE),
+    re.compile(r'mapping', re.IGNORECASE),
+    re.compile(r'prd[:\-_]', re.IGNORECASE),  # Product requirement docs
+    # Discovery/research docs (not meetings)
+    re.compile(r'discovery[:\-_]plan', re.IGNORECASE),
+    re.compile(r'discovery[:\-_]checklist', re.IGNORECASE),
+    # Systems docs
+    re.compile(r'[:\-_]systems\.', re.IGNORECASE),
+    # Prompts (AI prompts, not meetings)
+    re.compile(r'prompt', re.IGNORECASE),
+    # Lists/reports
+    re.compile(r'[:\-_]list\.', re.IGNORECASE),
+    re.compile(r'coverage[:\-_]report', re.IGNORECASE),
+    # Personas/alignment docs
+    re.compile(r'personas?\.', re.IGNORECASE),
+    re.compile(r'alignment\.', re.IGNORECASE),
+    # Question banks
+    re.compile(r'question[:\-_]?banks?', re.IGNORECASE),
+    # Synthesis/discovery docs (not meetings)
+    re.compile(r'synthesis[:\-_]summary', re.IGNORECASE),
+    re.compile(r'^discovery\.md$', re.IGNORECASE),
+    # Person summaries (not meeting summaries)
+    re.compile(r'_Summary\.', re.IGNORECASE),
+    # CLAUDE.md files
+    re.compile(r'^CLAUDE\.md$', re.IGNORECASE),
+    # PRD files
+    re.compile(r'^prd\.md$', re.IGNORECASE),
 ]
 
 # LOW priority path patterns (folders unlikely to have meeting content)
@@ -320,38 +400,59 @@ def parse_date_from_filename(filename: str) -> Optional[date]:
     return None
 
 
+def is_valid_date(d: Optional[date]) -> bool:
+    """Check if a date is valid (not in the future, not too old)."""
+    if not d:
+        return False
+    today = date.today()
+    # Reject future dates (data quality issue)
+    if d > today:
+        return False
+    # Reject dates more than 2 years old (likely bad data)
+    two_years_ago = today - timedelta(days=730)
+    if d < two_years_ago:
+        return False
+    return True
+
+
 def get_document_meeting_date(doc: Dict[str, Any]) -> Optional[date]:
     """
     Determine the meeting date for a document using multiple methods.
     Priority order:
-    1. original_date field (if exists and set)
-    2. Date parsed from filename (most reliable for Granola)
+    1. Date parsed from filename (most reliable for Granola)
+    2. original_date field (if exists and valid - not in future)
     3. uploaded_at as fallback
-    """
-    # Method 1: Check original_date field
-    original_date = doc.get('original_date')
-    if original_date:
-        parsed = parse_date_from_iso(original_date)
-        if parsed:
-            return parsed
 
-    # Method 2: Parse from filename (works for Granola naming convention)
+    Rejects dates that are in the future (data quality issue).
+    """
+    today = date.today()
+
+    # Method 1: Parse from filename (most reliable for Granola naming convention)
     filename = doc.get('filename', '')
     filename_date = parse_date_from_filename(filename)
-    if filename_date:
+    if is_valid_date(filename_date):
         return filename_date
 
-    # Method 3: Check obsidian_file_path for date
+    # Method 2: Check obsidian_file_path for date
     obsidian_path = doc.get('obsidian_file_path', '')
     if obsidian_path:
         path_date = parse_date_from_filename(obsidian_path)
-        if path_date:
+        if is_valid_date(path_date):
             return path_date
+
+    # Method 3: Check original_date field (but reject future dates)
+    original_date_str = doc.get('original_date')
+    if original_date_str:
+        parsed = parse_date_from_iso(original_date_str)
+        if is_valid_date(parsed):
+            return parsed
 
     # Method 4: Fall back to uploaded_at (sync date, not ideal but better than nothing)
     uploaded_at = doc.get('uploaded_at')
     if uploaded_at:
-        return parse_date_from_iso(uploaded_at)
+        parsed = parse_date_from_iso(uploaded_at)
+        if is_valid_date(parsed):
+            return parsed
 
     return None
 
