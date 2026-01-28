@@ -2,7 +2,7 @@
 Meeting Scanner Service
 
 Scans meeting documents from the KB and extracts:
-- AI opportunities (as candidates for review)
+- AI projects (as candidates for review)
 - Action items/tasks (as candidates for review)
 - Stakeholder mentions (as candidates for review)
 
@@ -20,7 +20,7 @@ Extracted items go to candidate tables for user review before becoming real entr
 import os
 import re
 import uuid
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -220,19 +220,24 @@ EXCLUDE_PATTERNS = [
 # The user whose tasks we want to extract
 TASK_OWNER_NAME = "Charlie"
 
-# Default cutoff date - meetings before this date are not scanned (pre-role)
-DEFAULT_SINCE_DATE = date(2026, 1, 5)
+# Rolling window for scanning - only scan meetings from the last N weeks
+# Aligns with DISCOVERY_MAX_AGE_WEEKS in discovery.py
+SCAN_WINDOW_WEEKS = 2
 
-# Minimum total score to surface an opportunity (Tier 1 only)
+def get_default_since_date() -> date:
+    """Get the default cutoff date for scanning (rolling 2-week window)."""
+    return date.today() - timedelta(weeks=SCAN_WINDOW_WEEKS)
+
+# Minimum total score to surface a project (Tier 1 only)
 # Scoring: roi_potential + implementation_effort + strategic_alignment + stakeholder_readiness
 # Each dimension is 1-5, total max 20
 # Tier 1: 17-20, Tier 2: 14-16, Tier 3: 11-13, Tier 4: <11
-MIN_OPPORTUNITY_TOTAL_SCORE = 17  # Tier 1 only - requires average of 4.25 across all dimensions
+MIN_PROJECT_TOTAL_SCORE = 17  # Tier 1 only - requires average of 4.25 across all dimensions
 
 
-def calculate_opportunity_total_score(opp: Dict[str, Any]) -> int:
+def calculate_project_total_score(proj: Dict[str, Any]) -> int:
     """
-    Calculate total score using the same 4-dimension rubric as ai_opportunities.
+    Calculate total score using the same 4-dimension rubric as ai_projects.
 
     Dimensions (1-5 scale each, max 20 total):
     - roi_potential (potential_impact in extraction)
@@ -242,10 +247,10 @@ def calculate_opportunity_total_score(opp: Dict[str, Any]) -> int:
 
     Returns total score 4-20.
     """
-    roi = opp.get('potential_impact', 3)
-    effort = opp.get('effort_estimate', 3)
-    alignment = opp.get('strategic_alignment', 3)
-    readiness = opp.get('readiness', 3)
+    roi = proj.get('potential_impact', 3)
+    effort = proj.get('effort_estimate', 3)
+    alignment = proj.get('strategic_alignment', 3)
+    readiness = proj.get('readiness', 3)
 
     return roi + effort + alignment + readiness
 
@@ -364,41 +369,41 @@ def fuzzy_match(str1: str, str2: str) -> float:
     return SequenceMatcher(None, s1, s2).ratio()
 
 
-async def find_matching_opportunity(
+async def find_matching_project(
     client_id: str,
     extracted_title: str,
     extracted_quote: str = ""
 ) -> Optional[Dict[str, Any]]:
     """
-    Check if extracted opportunity matches an existing one.
+    Check if extracted project matches an existing one.
     Uses multi-layer matching: fuzzy title match + vector similarity.
 
-    Returns dict with matched_opportunity_id, match_confidence, match_reason
+    Returns dict with matched_project_id, match_confidence, match_reason
     if match found, otherwise None.
     """
     # Layer 1: Title/project_name fuzzy match
-    existing = supabase.table('ai_opportunities') \
+    existing = supabase.table('ai_projects') \
         .select('id, title, project_name, description') \
         .eq('client_id', client_id) \
         .execute()
 
-    for opp in existing.data or []:
+    for proj in existing.data or []:
         # Check title similarity
-        title_sim = fuzzy_match(extracted_title, opp.get('title', ''))
+        title_sim = fuzzy_match(extracted_title, proj.get('title', ''))
         if title_sim > 0.85:
             return {
-                'matched_opportunity_id': opp['id'],
+                'matched_project_id': proj['id'],
                 'match_confidence': title_sim,
-                'match_reason': f"Title match ({title_sim:.0%}): '{opp['title'][:50]}'"
+                'match_reason': f"Title match ({title_sim:.0%}): '{proj['title'][:50]}'"
             }
 
         # Check project_name similarity
-        project_name = opp.get('project_name')
+        project_name = proj.get('project_name')
         if project_name:
             proj_sim = fuzzy_match(extracted_title, project_name)
             if proj_sim > 0.85:
                 return {
-                    'matched_opportunity_id': opp['id'],
+                    'matched_project_id': proj['id'],
                     'match_confidence': proj_sim,
                     'match_reason': f"Project name match ({proj_sim:.0%}): '{project_name[:50]}'"
                 }
@@ -409,8 +414,8 @@ async def find_matching_opportunity(
         if extracted_quote:
             search_text = f"{extracted_title} {extracted_quote[:200]}"
 
-        # Search existing opportunities by embedding their descriptions
-        # Use document chunks that may have been linked to opportunities
+        # Search existing projects by embedding their descriptions
+        # Use document chunks that may have been linked to projects
         chunks = search_similar_chunks(
             query=search_text,
             client_id=client_id,
@@ -419,24 +424,24 @@ async def find_matching_opportunity(
             min_similarity=0.85
         )
 
-        # Check if any chunks are from documents linked to opportunities
+        # Check if any chunks are from documents linked to projects
         for chunk in chunks:
             doc_id = chunk.get('document_id')
             if not doc_id:
                 continue
 
-            # Check if this document is a source for any opportunity
-            linked_opp = supabase.table('ai_opportunities') \
+            # Check if this document is a source for any project
+            linked_proj = supabase.table('ai_projects') \
                 .select('id, title') \
                 .eq('source_id', doc_id) \
                 .execute()
 
-            if linked_opp.data:
-                opp = linked_opp.data[0]
+            if linked_proj.data:
+                proj = linked_proj.data[0]
                 return {
-                    'matched_opportunity_id': opp['id'],
+                    'matched_project_id': proj['id'],
                     'match_confidence': chunk.get('similarity', 0.85),
-                    'match_reason': f"Similar content to '{opp['title'][:50]}'"
+                    'match_reason': f"Similar content to '{proj['title'][:50]}'"
                 }
 
     except Exception as e:
@@ -688,84 +693,84 @@ async def scan_document(
         now = datetime.now(timezone.utc).isoformat()
         supabase.table('documents').update({
             'granola_scanned_at': now,
-            'opportunities_scanned_at': now,
+            'projects_scanned_at': now,
             'tasks_scanned_at': now,
             'stakeholders_scanned_at': now,
             'updated_at': now
         }).eq('id', document_id).execute()
 
-        # Store extracted opportunities as candidates (only Tier 1-2: total score >= 14)
-        opportunities_created = 0
-        raw_opportunities = extracted.get('opportunities', [])
+        # Store extracted projects as candidates (only Tier 1-2: total score >= 14)
+        projects_created = 0
+        raw_projects = extracted.get('opportunities', [])  # Keep extraction key for backwards compat
 
-        # Filter to opportunities meeting minimum score threshold
-        qualified_opps = []
-        for opp in raw_opportunities:
-            opp_title = opp.get('description', '')[:200]
-            if not opp_title or len(opp_title) < 10:
+        # Filter to projects meeting minimum score threshold
+        qualified_projs = []
+        for proj in raw_projects:
+            proj_title = proj.get('description', '')[:200]
+            if not proj_title or len(proj_title) < 10:
                 continue
-            total_score = calculate_opportunity_total_score(opp)
-            if total_score >= MIN_OPPORTUNITY_TOTAL_SCORE:
-                qualified_opps.append((total_score, opp))
+            total_score = calculate_project_total_score(proj)
+            if total_score >= MIN_PROJECT_TOTAL_SCORE:
+                qualified_projs.append((total_score, proj))
             else:
-                logger.debug(f"Skipping low-score opportunity: {opp_title[:50]} (score={total_score}, min={MIN_OPPORTUNITY_TOTAL_SCORE})")
+                logger.debug(f"Skipping low-score project: {proj_title[:50]} (score={total_score}, min={MIN_PROJECT_TOTAL_SCORE})")
 
-        logger.info(f"Extracted {len(raw_opportunities)} opportunities, {len(qualified_opps)} meet Tier 1-2 threshold (score >= {MIN_OPPORTUNITY_TOTAL_SCORE})")
+        logger.info(f"Extracted {len(raw_projects)} projects, {len(qualified_projs)} meet Tier 1-2 threshold (score >= {MIN_PROJECT_TOTAL_SCORE})")
 
-        for total_score, opp in qualified_opps:
+        for total_score, proj in qualified_projs:
             try:
-                opp_title = opp.get('description', '')[:200]
+                proj_title = proj.get('description', '')[:200]
 
                 # Use unified deduplicator for all checks
-                opp_match = await deduplicator.deduplicate_opportunity(
+                proj_match = await deduplicator.deduplicate_opportunity(
                     client_id=client_id,
-                    title=opp_title,
-                    quote=opp.get('quote', ''),
+                    title=proj_title,
+                    quote=proj.get('quote', ''),
                     batch_id=batch_id
                 )
 
                 # Block on rejected or batch duplicates
-                if opp_match and opp_match.should_block(deduplicator.config):
-                    logger.debug(f"Skipping opportunity ({opp_match.match_type}): {opp_match.match_reason}")
+                if proj_match and proj_match.should_block(deduplicator.config):
+                    logger.debug(f"Skipping project ({proj_match.match_type}): {proj_match.match_reason}")
                     continue
 
                 candidate_data = {
                     'client_id': client_id,
-                    'title': opp_title,
-                    'description': opp.get('description', ''),
-                    'department': opp.get('department', 'General'),
+                    'title': proj_title,
+                    'description': proj.get('description', ''),
+                    'department': proj.get('department', 'General'),
                     'source_document_id': document_id,
                     'source_document_name': title,
-                    'source_text': opp.get('quote', ''),
-                    'suggested_roi_potential': opp.get('potential_impact', 3),
-                    'suggested_effort': opp.get('effort_estimate', 3),
-                    'suggested_alignment': opp.get('strategic_alignment', 3),
-                    'suggested_readiness': opp.get('readiness', 3),
-                    'potential_impact': opp.get('description', ''),
+                    'source_text': proj.get('quote', ''),
+                    'suggested_roi_potential': proj.get('potential_impact', 3),
+                    'suggested_effort': proj.get('effort_estimate', 3),
+                    'suggested_alignment': proj.get('strategic_alignment', 3),
+                    'suggested_readiness': proj.get('readiness', 3),
+                    'potential_impact': proj.get('description', ''),
                     'status': 'pending',
                     'confidence': 'medium',
                     'created_at': now
                 }
 
                 # Track match info for pending/existing matches (don't block, just track)
-                if opp_match:
-                    if opp_match.match_type == 'existing':
-                        candidate_data['matched_opportunity_id'] = opp_match.matched_id
-                    elif opp_match.match_type == 'pending':
-                        candidate_data['matched_candidate_id'] = opp_match.matched_id
-                    candidate_data['match_confidence'] = opp_match.match_confidence
-                    candidate_data['match_reason'] = opp_match.match_reason
-                    logger.info(f"Potential duplicate found: {opp_match.match_reason}")
+                if proj_match:
+                    if proj_match.match_type == 'existing':
+                        candidate_data['matched_project_id'] = proj_match.matched_id
+                    elif proj_match.match_type == 'pending':
+                        candidate_data['matched_candidate_id'] = proj_match.matched_id
+                    candidate_data['match_confidence'] = proj_match.match_confidence
+                    candidate_data['match_reason'] = proj_match.match_reason
+                    logger.info(f"Potential duplicate found: {proj_match.match_reason}")
 
-                result = supabase.table('opportunity_candidates').insert(candidate_data).execute()
-                opportunities_created += 1
+                result = supabase.table('project_candidates').insert(candidate_data).execute()
+                projects_created += 1
 
                 # Update batch cache with actual ID
                 if result.data:
-                    deduplicator.update_batch_cache_id('opportunity', batch_id, opp_title, result.data[0]['id'])
+                    deduplicator.update_batch_cache_id('opportunity', batch_id, proj_title, result.data[0]['id'])
 
             except Exception as e:
-                logger.warning(f"Failed to create opportunity candidate: {e}")
+                logger.warning(f"Failed to create project candidate: {e}")
 
         # Store extracted tasks as candidates (only for Charlie)
         tasks_created = 0
@@ -926,7 +931,7 @@ async def scan_document(
             'document_id': document_id,
             'title': title,
             'meeting_date': meeting_date.isoformat() if meeting_date else None,
-            'opportunities_created': opportunities_created,
+            'projects_created': projects_created,
             'tasks_created': tasks_created,
             'stakeholders_created': stakeholders_created
         }
@@ -960,7 +965,7 @@ async def scan_meeting_documents(
         Scan results with stats
     """
     # Apply default cutoff date if not specified
-    effective_since_date = since_date if since_date is not None else DEFAULT_SINCE_DATE
+    effective_since_date = since_date if since_date is not None else get_default_since_date()
     logger.info(f"Scanning meeting documents from KB (since {effective_since_date})")
 
     # Find meeting-like documents in KB using heuristics
@@ -1032,7 +1037,7 @@ async def scan_meeting_documents(
                 'files_processed': 0,
                 'files_skipped': 0,
                 'files_failed': 0,
-                'opportunities_created': 0,
+                'projects_created': 0,
                 'tasks_created': 0,
                 'stakeholders_created': 0
             },
@@ -1067,7 +1072,7 @@ async def scan_meeting_documents(
 
         if result['status'] == 'processed':
             stats['files_processed'] += 1
-            stats['opportunities_created'] += result.get('opportunities_created', 0)
+            stats['projects_created'] += result.get('projects_created', 0)
             stats['tasks_created'] += result.get('tasks_created', 0)
             stats['stakeholders_created'] += result.get('stakeholders_created', 0)
         elif result['status'] == 'skipped':
@@ -1083,7 +1088,7 @@ async def scan_meeting_documents(
     logger.info(f"  Processed: {stats['files_processed']}")
     logger.info(f"  Skipped: {stats['files_skipped']}")
     logger.info(f"  Failed: {stats['files_failed']}")
-    logger.info(f"  Opportunities: {stats['opportunities_created']}")
+    logger.info(f"  Projects: {stats['projects_created']}")
     logger.info(f"  Tasks: {stats['tasks_created']}")
     logger.info(f"  Stakeholders: {stats['stakeholders_created']}")
 
@@ -1103,7 +1108,7 @@ def get_scan_status(user_id: str, since_date: Optional[date] = None) -> Dict[str
     Jan 5, 2026 onwards (post role-start).
     """
     # Apply default cutoff date if not specified
-    effective_since_date = since_date if since_date is not None else DEFAULT_SINCE_DATE
+    effective_since_date = since_date if since_date is not None else get_default_since_date()
 
     try:
         # Query documents directly to get original_date for filtering
