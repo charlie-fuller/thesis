@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from auth import get_current_user
 from database import get_supabase
 from services.project_context import get_scoring_related_documents
-from services.project_chat import ask_about_opportunity, get_opportunity_conversations
+from services.project_chat import ask_about_project, get_project_conversations
 from services.project_justification import (
     generate_opportunity_justifications,
     generate_all_justifications,
@@ -568,7 +568,7 @@ async def get_opportunity_conversation_history(
         raise HTTPException(status_code=404, detail="Opportunity not found")
 
     # Get conversations
-    conversations = await get_opportunity_conversations(
+    conversations = await get_project_conversations(
         opportunity_id=opportunity_id,
         client_id=current_user["client_id"],
         limit=limit,
@@ -607,7 +607,7 @@ async def ask_question_about_opportunity(
         raise HTTPException(status_code=404, detail="Opportunity not found")
 
     try:
-        result = await ask_about_opportunity(
+        result = await ask_about_project(
             opportunity_id=opportunity_id,
             question=request.question,
             client_id=current_user["client_id"],
