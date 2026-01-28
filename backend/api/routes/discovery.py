@@ -33,7 +33,7 @@ router = APIRouter(prefix="/api/discovery", tags=["discovery"])
 class DiscoveryCounts(BaseModel):
     """Counts of pending candidates across all types."""
     tasks: int
-    opportunities: int
+    projects: int
     stakeholders: int
     total: int
 
@@ -58,8 +58,8 @@ class TaskCandidateItem(BaseModel):
     created_at: str
 
 
-class OpportunityCandidateItem(BaseModel):
-    """Opportunity candidate for discovery panel."""
+class ProjectCandidateItem(BaseModel):
+    """Project candidate for discovery panel."""
     id: str
     title: str
     description: Optional[str]
@@ -70,7 +70,7 @@ class OpportunityCandidateItem(BaseModel):
     suggested_alignment: Optional[int]
     suggested_readiness: Optional[int]
     confidence: str
-    matched_opportunity_id: Optional[str]
+    matched_project_id: Optional[str]
     match_reason: Optional[str]
     created_at: str
 
@@ -91,7 +91,7 @@ class StakeholderCandidateItem(BaseModel):
 class DiscoveryAllResponse(BaseModel):
     """All pending candidates for inline review."""
     tasks: List[TaskCandidateItem]
-    opportunities: List[OpportunityCandidateItem]
+    projects: List[ProjectCandidateItem]
     stakeholders: List[StakeholderCandidateItem]
     counts: DiscoveryCounts
     scanning: Optional[ScanningStatus] = None
@@ -146,7 +146,7 @@ async def get_discovery_counts(
 
     return {
         "tasks": tasks_count,
-        "opportunities": opps_count,
+        "projects": opps_count,
         "stakeholders": stakeholders_count,
         "total": tasks_count + opps_count + stakeholders_count
     }
@@ -161,7 +161,7 @@ async def get_all_pending_candidates(
     """
     Get all pending candidates for inline review.
 
-    Returns tasks, opportunities, and stakeholders with their counts.
+    Returns tasks, projects, and stakeholders with their counts.
     Used by the unified discovery panel for carousel-style review.
     """
     client_id = current_user["client_id"]
@@ -204,7 +204,7 @@ async def get_all_pending_candidates(
         .limit(limit) \
         .execute()
 
-    opportunities = [
+    projects = [
         {
             "id": o["id"],
             "title": o["title"],
@@ -216,7 +216,7 @@ async def get_all_pending_candidates(
             "suggested_alignment": o.get("suggested_alignment"),
             "suggested_readiness": o.get("suggested_readiness"),
             "confidence": o.get("confidence", "medium"),
-            "matched_opportunity_id": o.get("matched_opportunity_id"),
+            "matched_project_id": o.get("matched_project_id"),
             "match_reason": o.get("match_reason"),
             "created_at": o["created_at"],
         }
@@ -297,11 +297,11 @@ async def get_all_pending_candidates(
 
     return {
         "tasks": tasks,
-        "opportunities": opportunities,
+        "projects": projects,
         "stakeholders": stakeholders,
         "counts": {
             "tasks": tasks_count,
-            "opportunities": opps_count,
+            "projects": opps_count,
             "stakeholders": stakeholders_count,
             "total": tasks_count + opps_count + stakeholders_count
         },
