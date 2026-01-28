@@ -34,6 +34,7 @@ class DiscoveryCounts(BaseModel):
     """Counts of pending candidates across all types."""
     tasks: int
     projects: int
+    opportunities: Optional[int] = None  # Backward compatibility alias
     stakeholders: int
     total: int
 
@@ -92,6 +93,7 @@ class DiscoveryAllResponse(BaseModel):
     """All pending candidates for inline review."""
     tasks: List[TaskCandidateItem]
     projects: List[ProjectCandidateItem]
+    opportunities: Optional[List[ProjectCandidateItem]] = None  # Backward compatibility alias
     stakeholders: List[StakeholderCandidateItem]
     counts: DiscoveryCounts
     scanning: Optional[ScanningStatus] = None

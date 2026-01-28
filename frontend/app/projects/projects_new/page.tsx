@@ -586,8 +586,8 @@ export default function OpportunitiesPage() {
         {/* Analysis Tab Content */}
         {activeTab === 'analysis' && data && (
           <ProjectScatterPlot
-            opportunities={[...data.tier_1, ...data.tier_2, ...data.tier_3, ...data.tier_4]}
-            onOpportunityClick={handleOpportunityClick}
+            projects={[...data.tier_1, ...data.tier_2, ...data.tier_3, ...data.tier_4]}
+            onProjectClick={handleOpportunityClick}
           />
         )}
 
