@@ -169,19 +169,17 @@ export default function GranolaScanPanel() {
         </div>
 
         <div className="flex items-center gap-2">
-          {status.pending_files > 0 && (
+          {status.pending_files > 0 && !isScanning && (
             <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
               {status.pending_files} new
             </span>
           )}
-          <button
-            onClick={handleScan}
-            disabled={isScanning || !status.connected}
-            className="px-3 py-1.5 text-sm font-medium rounded-lg bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${isScanning ? 'animate-spin' : ''}`} />
-            {isScanning ? 'Scanning...' : 'Scan'}
-          </button>
+          {isScanning && (
+            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center gap-1">
+              <RefreshCw className="w-3 h-3 animate-spin" />
+              Scanning...
+            </span>
+          )}
         </div>
       </div>
 
