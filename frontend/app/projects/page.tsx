@@ -1,68 +1,223 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import {
-  getProjects,
-  createProject,
-  updateProject,
-  deleteProject,
-  type Project
-} from '@/lib/api'
+  Target,
+  Filter,
+  RefreshCw,
+  ChevronRight,
+  Building2,
+  Users,
+  Zap,
+  TrendingUp,
+  AlertTriangle,
+  Plus
+} from 'lucide-react'
+import { apiGet } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import ConfirmModal from '@/components/ConfirmModal'
 import PageHeader from '@/components/PageHeader'
 import toast from 'react-hot-toast'
-import { logger } from '@/lib/logger'
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  'active': { bg: 'bg-green-100', text: 'text-green-700' },
-  'archived': { bg: 'bg-gray-100', text: 'text-gray-500' },
-  'complete': { bg: 'bg-blue-100', text: 'text-blue-700' },
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface Project {
+  id: string
+  project_code: string
+  title: string
+  description: string | null
+  department: string | null
+  owner_stakeholder_id: string | null
+  owner_name: string | null
+  current_state: string | null
+  desired_state: string | null
+  roi_potential: number | null
+  implementation_effort: number | null
+  strategic_alignment: number | null
+  stakeholder_readiness: number | null
+  total_score: number
+  tier: number
+  status: string
+  next_step: string | null
+  blockers: string[]
+  follow_up_questions: string[]
+  created_at: string
+  updated_at: string
+  project_summary: string | null
+  scoring_confidence: number | null
+  goal_alignment_score: number | null
 }
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const TIER_COLORS: Record<number, string> = {
+  1: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+  2: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  3: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  4: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  identified: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+  scoping: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  pilot: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  scaling: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  deployed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  paused: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  archived: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500',
+}
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'All Statuses' },
+  { value: 'identified', label: 'Identified' },
+  { value: 'scoping', label: 'Scoping' },
+  { value: 'pilot', label: 'Pilot' },
+  { value: 'scaling', label: 'Scaling' },
+  { value: 'deployed', label: 'Deployed' },
+  { value: 'paused', label: 'Paused' },
+  { value: 'archived', label: 'Archived' },
+]
+
+const DEPARTMENT_OPTIONS = [
+  { value: '', label: 'All Departments' },
+  { value: 'Legal', label: 'Legal' },
+  { value: 'HR', label: 'HR' },
+  { value: 'Finance', label: 'Finance' },
+  { value: 'IT', label: 'IT' },
+  { value: 'Engineering', label: 'Engineering' },
+  { value: 'Marketing', label: 'Marketing' },
+  { value: 'Sales', label: 'Sales' },
+  { value: 'Operations', label: 'Operations' },
+]
+
+// ============================================================================
+// COMPONENTS
+// ============================================================================
+
+function ScoreBar({ value, max = 5, color = 'bg-brand' }: { value: number | null; max?: number; color?: string }) {
+  if (value === null) return <span className="text-xs text-muted">--</span>
+  const percentage = (value / max) * 100
+  return (
+    <div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+      <div className={`h-full ${color} rounded-full`} style={{ width: `${percentage}%` }} />
+    </div>
+  )
+}
+
+function ProjectCard({ project, onClick }: { project: Project; onClick: () => void }) {
+  const tierColor = TIER_COLORS[project.tier] || TIER_COLORS[4]
+  const statusColor = STATUS_COLORS[project.status] || STATUS_COLORS.identified
+
+  return (
+    <div
+      onClick={onClick}
+      className="bg-card rounded-lg border border-default p-4 hover:shadow-md hover:border-brand/30 transition-all cursor-pointer"
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono text-muted">{project.project_code}</span>
+          <span className={`text-xs px-1.5 py-0.5 rounded ${tierColor}`}>
+            T{project.tier}
+          </span>
+          <span className={`text-xs px-1.5 py-0.5 rounded capitalize ${statusColor}`}>
+            {project.status}
+          </span>
+        </div>
+        <ChevronRight className="w-4 h-4 text-muted flex-shrink-0" />
+      </div>
+
+      {/* Title */}
+      <h3 className="font-semibold text-primary mb-2 line-clamp-2">
+        {project.title}
+      </h3>
+
+      {/* Description */}
+      {project.description && (
+        <p className="text-sm text-secondary mb-3 line-clamp-2">
+          {project.description}
+        </p>
+      )}
+
+      {/* Scores */}
+      <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+        <div className="flex items-center justify-between">
+          <span className="text-muted">ROI</span>
+          <ScoreBar value={project.roi_potential} color="bg-emerald-500" />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted">Effort</span>
+          <ScoreBar value={project.implementation_effort} color="bg-amber-500" />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted">Alignment</span>
+          <ScoreBar value={project.strategic_alignment} color="bg-blue-500" />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted">Readiness</span>
+          <ScoreBar value={project.stakeholder_readiness} color="bg-purple-500" />
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center gap-3 pt-3 border-t border-default text-xs text-muted">
+        <div className="flex items-center gap-1">
+          <Zap className="w-3 h-3" />
+          <span>Score: {project.total_score}</span>
+        </div>
+        {project.department && (
+          <div className="flex items-center gap-1">
+            <Building2 className="w-3 h-3" />
+            <span>{project.department}</span>
+          </div>
+        )}
+        {project.owner_name && (
+          <div className="flex items-center gap-1">
+            <Users className="w-3 h-3" />
+            <span>{project.owner_name}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Confidence indicator */}
+      {project.scoring_confidence !== null && (
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex-1 h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full ${
+                project.scoring_confidence >= 70 ? 'bg-emerald-500' :
+                project.scoring_confidence >= 40 ? 'bg-amber-500' : 'bg-red-500'
+              }`}
+              style={{ width: `${project.scoring_confidence}%` }}
+            />
+          </div>
+          <span className="text-xs text-muted">{project.scoring_confidence}% confident</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================================================
+// MAIN PAGE
+// ============================================================================
 
 export default function ProjectsPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [editingProject, setEditingProject] = useState<Project | null>(null)
-  const [statusFilter, setStatusFilter] = useState<string>('active')
+  const [error, setError] = useState<string | null>(null)
 
-  // Form state
-  const [formTitle, setFormTitle] = useState('')
-  const [formDescription, setFormDescription] = useState('')
-
-  // Delete modal state
-  const [confirmModal, setConfirmModal] = useState<{
-    open: boolean
-    title: string
-    message: string
-    onConfirm: () => void
-  }>({
-    open: false,
-    title: '',
-    message: '',
-    onConfirm: () => {}
-  })
-
-  // Track which projects are expanded to show conversations
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
-
-  function toggleProjectExpanded(projectId: string) {
-    setExpandedProjects(prev => {
-      const next = new Set(prev)
-      if (next.has(projectId)) {
-        next.delete(projectId)
-      } else {
-        next.add(projectId)
-      }
-      return next
-    })
-  }
+  // Filters
+  const [departmentFilter, setDepartmentFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [tierFilter, setTierFilter] = useState<number | ''>('')
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -71,123 +226,36 @@ export default function ProjectsPage() {
     }
   }, [authLoading, user, router])
 
-  useEffect(() => {
-    if (user) {
-      loadProjects()
-    }
-  }, [statusFilter, user])
-
-  async function loadProjects() {
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await getProjects(statusFilter !== 'all' ? statusFilter : undefined)
-      if (response.success) {
-        setProjects(response.projects)
-      }
+      setError(null)
+
+      const params = new URLSearchParams()
+      if (departmentFilter) params.set('department', departmentFilter)
+      if (statusFilter) params.set('status', statusFilter)
+      if (tierFilter) params.set('tier', tierFilter.toString())
+
+      const data = await apiGet<Project[]>(`/api/projects?${params}`)
+      setProjects(data)
     } catch (err) {
-      logger.error('Error loading projects:', err)
+      console.error('Failed to fetch projects:', err)
+      setError('Failed to load projects')
       toast.error('Failed to load projects')
     } finally {
       setLoading(false)
     }
-  }
+  }, [departmentFilter, statusFilter, tierFilter])
 
-  function openCreateModal() {
-    setEditingProject(null)
-    setFormTitle('')
-    setFormDescription('')
-    setShowCreateModal(true)
-  }
-
-  function openEditModal(project: Project) {
-    setEditingProject(project)
-    setFormTitle(project.title)
-    setFormDescription(project.description || '')
-    setShowCreateModal(true)
-  }
-
-  function closeModal() {
-    setShowCreateModal(false)
-    setEditingProject(null)
-    setFormTitle('')
-    setFormDescription('')
-  }
-
-  async function handleSaveProject() {
-    if (!formTitle.trim()) {
-      toast.error('Project title is required')
-      return
+  useEffect(() => {
+    if (user) {
+      fetchProjects()
     }
+  }, [user, fetchProjects])
 
-    try {
-      if (editingProject) {
-        await updateProject(editingProject.id, {
-          title: formTitle.trim(),
-          description: formDescription.trim() || undefined
-        })
-        toast.success('Project updated')
-      } else {
-        await createProject({
-          title: formTitle.trim(),
-          description: formDescription.trim() || undefined
-        })
-        toast.success('Project created')
-      }
-
-      await loadProjects()
-      closeModal()
-    } catch (err) {
-      logger.error('Error saving project:', err)
-      toast.error('Failed to save project')
-    }
-  }
-
-  function handleDeleteProject(project: Project) {
-    setConfirmModal({
-      open: true,
-      title: 'Delete Project',
-      message: `Are you sure you want to delete "${project.title}"? Conversations will be unlinked but not deleted.`,
-      onConfirm: async () => {
-        try {
-          await deleteProject(project.id)
-          toast.success('Project deleted')
-          await loadProjects()
-        } catch (err) {
-          logger.error('Error deleting project:', err)
-          toast.error('Failed to delete project')
-        }
-        setConfirmModal({ ...confirmModal, open: false })
-      }
-    })
-  }
-
-  async function handleArchiveProject(project: Project) {
-    try {
-      await updateProject(project.id, { status: 'archived' })
-      toast.success('Project archived')
-      await loadProjects()
-    } catch (err) {
-      logger.error('Error archiving project:', err)
-      toast.error('Failed to archive project')
-    }
-  }
-
-  async function handleRestoreProject(project: Project) {
-    try {
-      await updateProject(project.id, { status: 'active' })
-      toast.success('Project restored')
-      await loadProjects()
-    } catch (err) {
-      logger.error('Error restoring project:', err)
-      toast.error('Failed to restore project')
-    }
-  }
-
-  function formatDate(isoString: string) {
-    if (!isoString) return 'Unknown'
-    const date = new Date(isoString)
-    if (isNaN(date.getTime())) return 'Unknown'
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const handleViewProject = (id: string) => {
+    // Navigate to project detail - could be a modal or separate page
+    router.push(`/pipeline?selected=${id}`)
   }
 
   // Show loading state while auth is being checked
@@ -207,51 +275,125 @@ export default function ProjectsPage() {
     return null
   }
 
-  const filteredProjects = statusFilter === 'all'
-    ? projects
-    : projects.filter(p => p.status === statusFilter)
+  // Group projects by tier for summary
+  const tierCounts = projects.reduce((acc, p) => {
+    acc[p.tier] = (acc[p.tier] || 0) + 1
+    return acc
+  }, {} as Record<number, number>)
 
   return (
-    <div className="flex flex-col min-h-screen bg-page">
-      {/* Consistent Header */}
+    <div className="min-h-screen bg-page">
       <PageHeader />
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-6xl mx-auto w-full p-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Page Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-primary">Initiatives</h1>
-            <p className="text-secondary mt-1">
-              Organize your AI strategy work into initiatives
+            <h1 className="text-2xl font-bold text-primary">Projects</h1>
+            <p className="text-sm text-secondary mt-1">
+              AI implementation opportunities ranked by impact and effort
             </p>
           </div>
           <button
-            onClick={openCreateModal}
+            onClick={() => router.push('/pipeline')}
             className="btn-primary flex items-center gap-2"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            New Initiative
+            <Target className="w-4 h-4" />
+            View Pipeline
           </button>
         </div>
 
-        {/* Status Filter Tabs */}
-        <div className="flex border-b border-border mb-6">
-          {['active', 'archived', 'all'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize ${
-                statusFilter === status
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-secondary hover:text-primary'
-              }`}
-            >
-              {status}
-            </button>
+        {/* Error State */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
+              <AlertTriangle className="w-5 h-5" />
+              <span>{error}</span>
+              <button onClick={fetchProjects} className="ml-auto text-sm underline">
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Stats Row */}
+        <div className="mb-6 grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="bg-card rounded-lg border border-default p-4">
+            <div className="flex items-center gap-2 text-muted mb-1">
+              <Target className="w-4 h-4" />
+              <span className="text-xs uppercase tracking-wide">Total</span>
+            </div>
+            <p className="text-2xl font-semibold text-primary">{projects.length}</p>
+          </div>
+          {[1, 2, 3, 4].map(tier => (
+            <div key={tier} className="bg-card rounded-lg border border-default p-4">
+              <div className="flex items-center gap-2 text-muted mb-1">
+                <span className={`text-xs px-1.5 py-0.5 rounded ${TIER_COLORS[tier]}`}>T{tier}</span>
+              </div>
+              <p className="text-2xl font-semibold text-primary">{tierCounts[tier] || 0}</p>
+            </div>
           ))}
+        </div>
+
+        {/* Filters */}
+        <div className="mb-6 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-muted" />
+            <span className="text-sm text-muted">Filters:</span>
+          </div>
+
+          <select
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            className="input-field text-sm py-1.5"
+          >
+            {DEPARTMENT_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="input-field text-sm py-1.5"
+          >
+            {STATUS_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+
+          <select
+            value={tierFilter}
+            onChange={(e) => setTierFilter(e.target.value ? parseInt(e.target.value) : '')}
+            className="input-field text-sm py-1.5"
+          >
+            <option value="">All Tiers</option>
+            <option value="1">Tier 1 (Quick Wins)</option>
+            <option value="2">Tier 2 (Strategic)</option>
+            <option value="3">Tier 3 (Long-term)</option>
+            <option value="4">Tier 4 (Low Priority)</option>
+          </select>
+
+          {(departmentFilter || statusFilter || tierFilter) && (
+            <button
+              onClick={() => {
+                setDepartmentFilter('')
+                setStatusFilter('')
+                setTierFilter('')
+              }}
+              className="text-sm text-muted hover:text-primary"
+            >
+              Clear filters
+            </button>
+          )}
+
+          <button
+            onClick={fetchProjects}
+            className="ml-auto p-2 hover:bg-hover rounded-lg transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw className={`w-4 h-4 text-muted ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
 
         {/* Projects Grid */}
@@ -259,217 +401,35 @@ export default function ProjectsPage() {
           <div className="flex justify-center py-12">
             <LoadingSpinner size="lg" />
           </div>
-        ) : filteredProjects.length === 0 ? (
+        ) : projects.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-6xl mb-4 text-secondary opacity-30">
-              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-              </svg>
+            <div className="text-secondary opacity-30 mb-4">
+              <Target className="w-16 h-16 mx-auto" />
             </div>
-            <h3 className="text-lg font-medium text-primary mb-2">
-              {statusFilter === 'active' ? 'No active initiatives' :
-               statusFilter === 'archived' ? 'No archived initiatives' : 'No initiatives yet'}
-            </h3>
+            <h3 className="text-lg font-medium text-primary mb-2">No projects found</h3>
             <p className="text-secondary mb-4">
-              {statusFilter === 'active'
-                ? 'Create an initiative to organize your AI strategy work'
-                : 'Archived initiatives will appear here'}
+              {departmentFilter || statusFilter || tierFilter
+                ? 'Try adjusting your filters'
+                : 'Scan your vault to discover AI implementation opportunities'}
             </p>
-            {statusFilter === 'active' && (
-              <button onClick={openCreateModal} className="btn-primary">
-                Create Your First Initiative
-              </button>
-            )}
+            <button
+              onClick={() => router.push('/pipeline')}
+              className="btn-primary"
+            >
+              Go to Pipeline
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredProjects.map((project) => {
-              const statusColors = STATUS_COLORS[project.status] || STATUS_COLORS['active']
-              const isArchived = project.status === 'archived'
-
-              return (
-                <div
-                  key={project.id}
-                  className={`card p-4 hover:shadow-md transition-shadow ${isArchived ? 'opacity-60' : ''}`}
-                >
-                  {/* Project Header */}
-                  <div className="mb-3">
-                    <h3 className="font-semibold text-primary truncate">
-                      {project.title}
-                    </h3>
-                    {project.description && (
-                      <p className="text-sm text-secondary mt-1 line-clamp-2">
-                        {project.description}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Stats */}
-                  <div className="flex items-center gap-4 text-sm text-secondary mb-4">
-                    <div className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                      <span>{project.conversation_count || 0} chats</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>{formatDate(project.updated_at)}</span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 pt-3 border-t border-border">
-                    <button
-                      onClick={() => openEditModal(project)}
-                      className="p-2 hover:bg-hover rounded transition-colors cursor-pointer"
-                      title="Edit"
-                    >
-                      <svg className="w-4 h-4 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    {isArchived ? (
-                      <button
-                        onClick={() => handleRestoreProject(project)}
-                        className="p-2 hover:bg-hover rounded transition-colors cursor-pointer"
-                        title="Reactivate"
-                      >
-                        <svg className="w-4 h-4 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleArchiveProject(project)}
-                        className="p-2 hover:bg-hover rounded transition-colors cursor-pointer"
-                        title="Archive"
-                      >
-                        <svg className="w-4 h-4 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                        </svg>
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDeleteProject(project)}
-                      className="p-2 hover:bg-hover rounded transition-colors cursor-pointer"
-                      title="Delete"
-                    >
-                      <svg className="w-4 h-4 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                    <div className="flex-1" />
-                    <Link
-                      href={`/chat?project=${project.id}`}
-                      className="p-2 hover:bg-hover rounded transition-colors cursor-pointer"
-                      title="Start new chat in project"
-                    >
-                      <svg className="w-4 h-4 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </Link>
-                  </div>
-
-                  {/* Expandable Conversations List */}
-                  {project.conversations && project.conversations.length > 0 && (
-                    <div className="mt-3 border-t border-border">
-                      <button
-                        onClick={() => toggleProjectExpanded(project.id)}
-                        className="w-full flex items-center justify-between py-2 text-sm text-secondary hover:text-primary transition-colors"
-                      >
-                        <span>{project.conversations.length} conversation{project.conversations.length !== 1 ? 's' : ''}</span>
-                        <svg
-                          className={`w-4 h-4 transition-transform ${expandedProjects.has(project.id) ? 'rotate-180' : ''}`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                      {expandedProjects.has(project.id) && (
-                        <div className="pb-2 space-y-1">
-                          {project.conversations.map((conv) => (
-                            <Link
-                              key={conv.id}
-                              href={`/chat?id=${conv.id}`}
-                              className="block px-2 py-1.5 text-sm text-secondary hover:text-primary hover:bg-hover rounded transition-colors truncate"
-                            >
-                              {conv.title || 'Untitled conversation'}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+            {projects.map(project => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onClick={() => handleViewProject(project.id)}
+              />
+            ))}
           </div>
         )}
-
-        {/* Create/Edit Modal */}
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-card rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-              <h2 className="text-xl font-semibold text-primary mb-4">
-                {editingProject ? 'Edit Initiative' : 'Create Initiative'}
-              </h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="label">Initiative Name</label>
-                  <input
-                    type="text"
-                    value={formTitle}
-                    onChange={(e) => setFormTitle(e.target.value)}
-                    placeholder="e.g., Finance GenAI Pilot"
-                    className="input-field w-full"
-                    autoFocus
-                  />
-                </div>
-
-                <div>
-                  <label className="label">Description (optional)</label>
-                  <textarea
-                    value={formDescription}
-                    onChange={(e) => setFormDescription(e.target.value)}
-                    placeholder="Brief description of this initiative..."
-                    rows={3}
-                    className="input-field w-full resize-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={handleSaveProject}
-                  className="btn-primary flex-1"
-                >
-                  {editingProject ? 'Save Changes' : 'Create Initiative'}
-                </button>
-                <button
-                  onClick={closeModal}
-                  className="btn-secondary flex-1"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Delete Confirmation Modal */}
-        <ConfirmModal
-          open={confirmModal.open}
-          title={confirmModal.title}
-          message={confirmModal.message}
-          onConfirm={confirmModal.onConfirm}
-          onCancel={() => setConfirmModal({ ...confirmModal, open: false })}
-        />
       </main>
     </div>
   )
