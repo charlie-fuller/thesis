@@ -415,6 +415,8 @@ async def get_all_tags(
 ):
     """Get all tags with document counts, with optional search and pagination.
 
+    Uses the denormalized tags_cache JSONB column for efficient single-query aggregation.
+
     Args:
         search: Optional search query to filter tags
         limit: Maximum number of tags to return (default 50)
@@ -425,22 +427,20 @@ async def get_all_tags(
         hasMore: Boolean indicating if more tags exist
     """
     try:
+        from collections import Counter
+
         user_id = current_user['id']
 
-        # Get tags by joining document_tags with documents filtered by user
-        # Use a direct approach that avoids large IN() clauses
-        all_tags_data = []
-
-        # Batch fetch: get document IDs in chunks to avoid query size limits
+        # Single query using tags_cache JSONB column
+        # This replaces the previous N+1 pattern that batched document_tags queries
         docs_result = await asyncio.to_thread(
             lambda: supabase.table('documents')
-                .select('id')
+                .select('tags_cache')
                 .eq('uploaded_by', user_id)
                 .execute()
         )
-        user_doc_ids = [d['id'] for d in (docs_result.data or [])]
 
-        if not user_doc_ids:
+        if not docs_result.data:
             logger.info(f"No documents found for user {user_id}")
             return {
                 'success': True,
@@ -448,27 +448,17 @@ async def get_all_tags(
                 'hasMore': False
             }
 
-        # Batch the document IDs to avoid query size limits (100 at a time)
-        batch_size = 100
-        for i in range(0, len(user_doc_ids), batch_size):
-            batch_ids = user_doc_ids[i:i + batch_size]
-            batch_result = await asyncio.to_thread(
-                lambda ids=batch_ids: supabase.table('document_tags')
-                    .select('tag, document_id')
-                    .in_('document_id', ids)
-                    .execute()
-            )
-            all_tags_data.extend(batch_result.data or [])
+        # Aggregate tag counts from tags_cache arrays
+        tag_counts: Counter = Counter()
+        for doc in docs_result.data:
+            tags_list = doc.get('tags_cache') or []
+            for tag in tags_list:
+                # Apply search filter if provided
+                if search and search.lower() not in tag.lower():
+                    continue
+                tag_counts[tag] += 1
 
-        logger.info(f"Found {len(all_tags_data)} tag entries for user {user_id} across {len(user_doc_ids)} documents")
-
-        # Aggregate counts
-        tag_counts = {}
-        for row in all_tags_data:
-            tag = row['tag']
-            if search and search.lower() not in tag.lower():
-                continue
-            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+        logger.info(f"Found {sum(tag_counts.values())} tag entries for user {user_id} across {len(docs_result.data)} documents")
 
         # Sort alphabetically and paginate
         sorted_tags = sorted(tag_counts.items(), key=lambda x: x[0].lower())
@@ -561,46 +551,55 @@ async def get_documents_by_tags(
                         'documents': []
                     }
 
-        # Now fetch full documents with content
+        # Batch fetch all data in 2 queries (uses tags_cache instead of document_tags)
+        from collections import defaultdict
+
+        # 1. Batch fetch all documents with tags_cache
+        docs_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, filename, title, obsidian_file_path, uploaded_at, tags_cache')
+                .in_('id', candidate_ids)
+                .execute()
+        )
+
+        if not docs_result.data:
+            return {
+                'success': True,
+                'tags': tag_list,
+                'count': 0,
+                'documents': []
+            }
+
+        # 2. Batch fetch all chunks for these documents
+        chunks_result = await asyncio.to_thread(
+            lambda: supabase.table('document_chunks')
+                .select('document_id, content, chunk_index')
+                .in_('document_id', candidate_ids)
+                .order('chunk_index')
+                .execute()
+        )
+
+        # Group chunks by document_id
+        chunks_by_doc: dict = defaultdict(list)
+        for chunk in (chunks_result.data or []):
+            chunks_by_doc[chunk['document_id']].append(chunk)
+
+        # Build response with content from chunks and tags from tags_cache
         docs_with_content = []
-        for doc_id in candidate_ids:
-            # Get document metadata
-            doc_result = await asyncio.to_thread(
-                lambda d=doc_id: supabase.table('documents')
-                    .select('id, filename, title, obsidian_file_path, uploaded_at')
-                    .eq('id', d)
-                    .single()
-                    .execute()
-            )
-
-            if not doc_result.data:
-                continue
-
-            doc = doc_result.data
-
-            # Get document content from chunks
-            chunks_result = await asyncio.to_thread(
-                lambda d=doc_id: supabase.table('document_chunks')
-                    .select('content, chunk_index')
-                    .eq('document_id', d)
-                    .order('chunk_index')
-                    .execute()
-            )
-
-            content = '\n'.join([c['content'] for c in (chunks_result.data or [])])
-
-            # Get all tags for this document
-            tags_result = await asyncio.to_thread(
-                lambda d=doc_id: supabase.table('document_tags')
-                    .select('tag, source')
-                    .eq('document_id', d)
-                    .execute()
-            )
+        for doc in docs_result.data:
+            doc_chunks = chunks_by_doc.get(doc['id'], [])
+            # Sort chunks by index just in case they're not ordered
+            doc_chunks.sort(key=lambda c: c['chunk_index'])
+            content = '\n'.join([c['content'] for c in doc_chunks])
 
             docs_with_content.append({
-                **doc,
+                'id': doc['id'],
+                'filename': doc.get('filename'),
+                'title': doc.get('title'),
+                'obsidian_file_path': doc.get('obsidian_file_path'),
+                'uploaded_at': doc.get('uploaded_at'),
                 'content': content,
-                'tags': [t['tag'] for t in (tags_result.data or [])]
+                'tags': doc.get('tags_cache') or []
             })
 
         return {
@@ -761,9 +760,10 @@ async def search_documents(
     try:
         user_id = current_user['id']
 
-        # Start with user's documents - include tags_cache for fast filtering
+        # Build base query with count for pagination
+        # Using count='exact' returns total matching rows in response
         query = supabase.table('documents')\
-            .select('id, filename, title, obsidian_file_path, uploaded_at, source_platform, tags_cache')\
+            .select('id, filename, title, obsidian_file_path, uploaded_at, source_platform, tags_cache', count='exact')\
             .eq('uploaded_by', user_id)\
             .order('uploaded_at', desc=True)
 
@@ -781,12 +781,12 @@ async def search_documents(
                 # Each tag must be contained in tags_cache (AND logic)
                 query = query.contains('tags_cache', [tag])
 
+        # Apply pagination at database level (much faster than fetching all then slicing)
+        query = query.range(offset, offset + limit - 1)
+
         result = await asyncio.to_thread(lambda: query.execute())
         documents = result.data or []
-
-        # Paginate
-        total_count = len(documents)
-        documents = documents[offset:offset + limit]
+        total_count = result.count if result.count is not None else len(documents)
 
         # Use tags_cache for display (already fetched, no extra query needed)
         for doc in documents:
@@ -877,19 +877,38 @@ async def get_documents_by_folder(
 
         documents = result.data or []
 
-        # Also get the full content for each document (for agent use)
+        if not documents:
+            return {
+                'success': True,
+                'folder_path': folder_path,
+                'count': 0,
+                'documents': []
+            }
+
+        # Batch fetch all chunks for all documents in a single query
+        from collections import defaultdict
+
+        doc_ids = [d['id'] for d in documents]
+        chunks_result = await asyncio.to_thread(
+            lambda: supabase.table('document_chunks')
+                .select('document_id, content, chunk_index')
+                .in_('document_id', doc_ids)
+                .order('chunk_index')
+                .execute()
+        )
+
+        # Group chunks by document_id
+        chunks_by_doc: dict = defaultdict(list)
+        for chunk in (chunks_result.data or []):
+            chunks_by_doc[chunk['document_id']].append(chunk)
+
+        # Build response with content from chunks
         docs_with_content = []
         for doc in documents:
-            # Get document content from chunks
-            chunks_result = await asyncio.to_thread(
-                lambda d=doc: supabase.table('document_chunks')
-                    .select('content, chunk_index')
-                    .eq('document_id', d['id'])
-                    .order('chunk_index')
-                    .execute()
-            )
-
-            content = '\n'.join([c['content'] for c in (chunks_result.data or [])])
+            doc_chunks = chunks_by_doc.get(doc['id'], [])
+            # Sort chunks by index just in case they're not ordered
+            doc_chunks.sort(key=lambda c: c['chunk_index'])
+            content = '\n'.join([c['content'] for c in doc_chunks])
             docs_with_content.append({
                 **doc,
                 'content': content
