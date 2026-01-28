@@ -33,8 +33,8 @@ export default function PageHeader({
     { href: '/chat', label: 'Chat' },
     { href: '/tasks', label: 'Tasks' },
     { href: '/projects', label: 'Projects' },
-    { href: '/strategy', label: 'Strategy' },
     { href: '/intelligence', label: 'Intelligence' },
+    { href: '/agents', label: 'Agents' },
     { href: '/kb', label: 'KB' },
     // Conditionally add PuRDy link for users with access
     ...(hasDiscoAccess ? [{ href: '/disco', label: 'DISCo' }] : []),
