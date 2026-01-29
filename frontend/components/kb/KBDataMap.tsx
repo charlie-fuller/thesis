@@ -609,15 +609,6 @@ export default function KBDataMap() {
 
             <text x="550" y="25" fill={colors.textSecondary} fontSize="11">Click any box for details</text>
           </g>
-
-          {/* File type icons in Upload box */}
-          <g transform="translate(55, 105)">
-            <text fontSize="9" fill="#64748b">PDF</text>
-            <text x="25" fontSize="9" fill="#64748b">DOCX</text>
-            <text x="55" fontSize="9" fill="#64748b">MD</text>
-            <text x="75" fontSize="9" fill="#64748b">CSV</text>
-            <text x="100" fontSize="9" fill="#64748b">JSON</text>
-          </g>
         </svg>
       </div>
 
