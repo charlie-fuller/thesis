@@ -148,6 +148,117 @@ class ObsidianSyncError(Exception):
 
 
 # ============================================================================
+# Document Classification
+# ============================================================================
+
+def classify_document_by_filename(filename: str, relative_path: str = "") -> Dict[str, Any]:
+    """
+    Classify a document based on filename and path patterns.
+
+    Uses the same rules as migration 027_document_type_classification.sql
+    to ensure consistency.
+
+    Args:
+        filename: The document filename
+        relative_path: Full relative path from vault root (for folder-based hints)
+
+    Returns:
+        Dict with document_type, primary_use_case, classification_confidence, classification_method
+    """
+    filename_lower = filename.lower()
+    path_lower = relative_path.lower() if relative_path else filename_lower
+
+    # Transcripts (meeting recordings, call transcripts, interviews)
+    if 'transcript' in filename_lower or '-transcript.md' in filename_lower:
+        return {
+            'document_type': 'transcript',
+            'primary_use_case': 'action_source',
+            'classification_confidence': 0.9,
+            'classification_method': 'filename'
+        }
+
+    # Meeting notes (personal notes from meetings)
+    if ('meeting-notes' in filename_lower or 'meeting notes' in filename_lower or
+        filename_lower.endswith('notes.md') or 'meeting_notes' in filename_lower):
+        return {
+            'document_type': 'notes',
+            'primary_use_case': 'action_source',
+            'classification_confidence': 0.8,
+            'classification_method': 'filename'
+        }
+
+    # Granola meeting notes (contain " __ " pattern like "Person1 __ Person2.md")
+    if ' __ ' in filename:
+        return {
+            'document_type': 'transcript',
+            'primary_use_case': 'action_source',
+            'classification_confidence': 0.85,
+            'classification_method': 'filename'
+        }
+
+    # Instructions/guides/playbooks
+    if any(kw in filename_lower for kw in ['instructions', 'guide', 'playbook', 'how-to', 'howto']):
+        return {
+            'document_type': 'instructions',
+            'primary_use_case': 'guidance',
+            'classification_confidence': 0.85,
+            'classification_method': 'filename'
+        }
+
+    # Reports/analysis
+    if any(kw in filename_lower for kw in ['report', 'analysis', 'whitepaper', 'research']):
+        return {
+            'document_type': 'report',
+            'primary_use_case': 'knowledge',
+            'classification_confidence': 0.8,
+            'classification_method': 'filename'
+        }
+
+    # Presentations
+    if any(ext in filename_lower for ext in ['.pptx', '.ppt']) or any(kw in filename_lower for kw in ['slides', 'deck', 'presentation']):
+        return {
+            'document_type': 'presentation',
+            'primary_use_case': 'knowledge',
+            'classification_confidence': 0.9,
+            'classification_method': 'filename'
+        }
+
+    # Spreadsheets
+    if any(ext in filename_lower for ext in ['.csv', '.xlsx', '.xls']):
+        return {
+            'document_type': 'spreadsheet',
+            'primary_use_case': 'evidence',
+            'classification_confidence': 0.9,
+            'classification_method': 'filename'
+        }
+
+    # Path-based classification (folder hints)
+    if any(folder in path_lower for folder in ['meetings/', 'transcripts/', 'calls/']):
+        return {
+            'document_type': 'transcript',
+            'primary_use_case': 'action_source',
+            'classification_confidence': 0.7,
+            'classification_method': 'path'
+        }
+
+    if any(folder in path_lower for folder in ['notes/', 'journal/']):
+        return {
+            'document_type': 'notes',
+            'primary_use_case': 'context',
+            'classification_confidence': 0.6,
+            'classification_method': 'path'
+        }
+
+    # Default: no classification (leave as NULL for manual or LLM classification later)
+    return {
+        'document_type': None,
+        'primary_use_case': None,
+        'classification_confidence': 0.0,
+        'classification_method': None
+    }
+
+
+# ============================================================================
 # Date Extraction
 # ============================================================================
 
@@ -1276,6 +1387,11 @@ def _create_obsidian_document(
 
     storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
 
+    # Classify document based on filename/path patterns
+    classification = classify_document_by_filename(filename, relative_path)
+    if classification.get('document_type'):
+        logger.info(f"      Auto-classified as {classification['document_type']} ({classification['classification_method']})")
+
     # Create document record
     now = datetime.now(timezone.utc).isoformat()
     document_data = {
@@ -1292,7 +1408,12 @@ def _create_obsidian_document(
         'last_synced_at': now,
         'processed': False,
         'uploaded_at': now,
-        'original_date': original_date.isoformat() if original_date else None
+        'original_date': original_date.isoformat() if original_date else None,
+        # Document classification for smart retrieval
+        'document_type': classification.get('document_type'),
+        'primary_use_case': classification.get('primary_use_case'),
+        'classification_confidence': classification.get('classification_confidence'),
+        'classification_method': classification.get('classification_method')
         # Note: frontmatter is stored in obsidian_sync_state, not documents
     }
 
@@ -1393,9 +1514,30 @@ def _update_obsidian_document(
     # Only update original_date if provided and not already set
     if original_date:
         # Check if original_date is already set
-        existing_doc = _get_db().table('documents').select('original_date').eq('id', document_id).execute()
+        existing_doc = _get_db().table('documents').select('original_date, document_type').eq('id', document_id).execute()
         if existing_doc.data and not existing_doc.data[0].get('original_date'):
             update_data['original_date'] = original_date.isoformat()
+
+        # Also check if document_type needs to be set (wasn't classified before)
+        if existing_doc.data and not existing_doc.data[0].get('document_type'):
+            classification = classify_document_by_filename(filename, relative_path)
+            if classification.get('document_type'):
+                logger.info(f"      Backfill classification: {classification['document_type']} ({classification['classification_method']})")
+                update_data['document_type'] = classification['document_type']
+                update_data['primary_use_case'] = classification['primary_use_case']
+                update_data['classification_confidence'] = classification['classification_confidence']
+                update_data['classification_method'] = classification['classification_method']
+    else:
+        # No original_date provided, but still check if we need to backfill classification
+        existing_doc = _get_db().table('documents').select('document_type').eq('id', document_id).execute()
+        if existing_doc.data and not existing_doc.data[0].get('document_type'):
+            classification = classify_document_by_filename(filename, relative_path)
+            if classification.get('document_type'):
+                logger.info(f"      Backfill classification: {classification['document_type']} ({classification['classification_method']})")
+                update_data['document_type'] = classification['document_type']
+                update_data['primary_use_case'] = classification['primary_use_case']
+                update_data['classification_confidence'] = classification['classification_confidence']
+                update_data['classification_method'] = classification['classification_method']
 
     result = _get_db().table('documents') \
         .update(update_data) \
