@@ -416,27 +416,29 @@ function ChatPageContent() {
           userId={user!.id}
           conversationId={conversationId}
           tabSwitcher={
-            <div className="flex gap-1 bg-hover rounded-lg p-1">
-              <button
-                onClick={() => handleTabChange('chat')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  currentTab === 'chat'
-                    ? 'bg-card text-primary shadow-sm'
-                    : 'text-secondary hover:text-primary'
-                }`}
-              >
-                Chat
-              </button>
-              <button
-                onClick={() => handleTabChange('meetings')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  currentTab === 'meetings'
-                    ? 'bg-card text-primary shadow-sm'
-                    : 'text-secondary hover:text-primary'
-                }`}
-              >
-                Meeting Rooms
-              </button>
+            <div className="flex justify-center">
+              <div className="flex gap-1 bg-hover rounded-lg p-1 w-full max-w-md">
+                <button
+                  onClick={() => handleTabChange('chat')}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentTab === 'chat'
+                      ? 'bg-card text-primary shadow-sm'
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  Chat
+                </button>
+                <button
+                  onClick={() => handleTabChange('meetings')}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentTab === 'meetings'
+                      ? 'bg-card text-primary shadow-sm'
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  Meeting Rooms
+                </button>
+              </div>
             </div>
           }
         />
@@ -446,27 +448,29 @@ function ChatPageContent() {
 
           {/* Tab Switcher for Meeting Rooms view */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-            <div className="flex gap-1 bg-hover rounded-lg p-1 w-fit">
-              <button
-                onClick={() => handleTabChange('chat')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  currentTab === 'chat'
-                    ? 'bg-card text-primary shadow-sm'
-                    : 'text-secondary hover:text-primary'
-                }`}
-              >
-                Chat
-              </button>
-              <button
-                onClick={() => handleTabChange('meetings')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  currentTab === 'meetings'
-                    ? 'bg-card text-primary shadow-sm'
-                    : 'text-secondary hover:text-primary'
-                }`}
-              >
-                Meeting Rooms
-              </button>
+            <div className="flex justify-center">
+              <div className="flex gap-1 bg-hover rounded-lg p-1 w-full max-w-md">
+                <button
+                  onClick={() => handleTabChange('chat')}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentTab === 'chat'
+                      ? 'bg-card text-primary shadow-sm'
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  Chat
+                </button>
+                <button
+                  onClick={() => handleTabChange('meetings')}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentTab === 'meetings'
+                      ? 'bg-card text-primary shadow-sm'
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  Meeting Rooms
+                </button>
+              </div>
             </div>
           </div>
 
