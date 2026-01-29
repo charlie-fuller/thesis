@@ -469,9 +469,6 @@ export default function DiscoProcessMap() {
 
           {/* ===== STAGE 4: CAPABILITIES (2 agents) ===== */}
 
-          {/* Arrow: Strategist -> PRD Generator */}
-          <path d="M 930 430 L 980 430" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
-
           {/* PRD Generator */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
@@ -492,9 +489,6 @@ export default function DiscoProcessMap() {
             </text>
           </g>
 
-          {/* Arrow: Consolidator -> Tech Evaluation (side route) */}
-          <path d="M 930 315 L 980 315" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
-
           {/* Tech Evaluation */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
@@ -514,6 +508,9 @@ export default function DiscoProcessMap() {
               Technical feasibility
             </text>
           </g>
+
+          {/* Arrow: Tech Evaluation -> PRD Generator (down) */}
+          <path d="M 1060 350 L 1060 390" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* ===== DOCUMENTS INPUT ===== */}
           <g>
@@ -564,8 +561,8 @@ export default function DiscoProcessMap() {
           {/* Arrow: Strategist -> Approved Bundles */}
           <path d="M 930 430 L 960 430 L 960 475" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
 
-          {/* Arrow: Approved Bundles -> PRD Generator */}
-          <path d="M 1000 507 L 1060 507 L 1060 470" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Approved Bundles -> Tech Evaluation (up) */}
+          <path d="M 1000 507 L 1060 507 L 1060 355" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
 
           {/* Final Output: PRD */}
           <g>
