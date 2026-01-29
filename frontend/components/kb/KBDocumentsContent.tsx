@@ -132,6 +132,11 @@ export default function KBDocumentsContent() {
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [docToDelete, setDocToDelete] = useState<Document | null>(null)
+
+  // Multi-select state for bulk operations
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
   const [docSyncCadence, setDocSyncCadence] = useState<string>('manual')
   const [tempSyncCadence, setTempSyncCadence] = useState<string>('manual')
 
@@ -1306,6 +1311,83 @@ export default function KBDocumentsContent() {
     }
   }
 
+  // Toggle selection for a single document
+  function toggleDocSelection(docId: string, e: React.MouseEvent) {
+    e.stopPropagation()
+    setSelectedDocIds(prev => {
+      const next = new Set(prev)
+      if (next.has(docId)) {
+        next.delete(docId)
+      } else {
+        next.add(docId)
+      }
+      return next
+    })
+  }
+
+  // Toggle select all for uploaded documents
+  function toggleSelectAllUploaded() {
+    const uploadedIds = uploadedDocuments.map(d => d.id)
+    const allSelected = uploadedIds.every(id => selectedDocIds.has(id))
+
+    if (allSelected) {
+      // Deselect all uploaded
+      setSelectedDocIds(prev => {
+        const next = new Set(prev)
+        uploadedIds.forEach(id => next.delete(id))
+        return next
+      })
+    } else {
+      // Select all uploaded
+      setSelectedDocIds(prev => {
+        const next = new Set(prev)
+        uploadedIds.forEach(id => next.add(id))
+        return next
+      })
+    }
+  }
+
+  // Bulk delete selected documents
+  async function handleBulkDelete() {
+    if (selectedDocIds.size === 0) return
+
+    setBulkDeleting(true)
+    setShowBulkDeleteModal(false)
+
+    const idsToDelete = Array.from(selectedDocIds)
+    let deleted = 0
+    let failed = 0
+
+    for (const docId of idsToDelete) {
+      try {
+        await apiDelete(`/api/documents/${docId}?force=true`)
+        deleted++
+      } catch (err) {
+        failed++
+        logger.error(`Failed to delete document ${docId}:`, err)
+      }
+    }
+
+    // Clear selection
+    setSelectedDocIds(new Set())
+    setBulkDeleting(false)
+
+    // Show result
+    if (failed === 0) {
+      setGeneralSuccess(`Deleted ${deleted} document${deleted !== 1 ? 's' : ''}`)
+    } else {
+      setGeneralError(`Deleted ${deleted}, failed to delete ${failed} document${failed !== 1 ? 's' : ''}`)
+    }
+
+    // Refresh documents and storage
+    await loadDocuments()
+    setStorageRefreshTrigger(prev => prev + 1)
+    setTimeout(() => {
+      setGeneralSuccess(null)
+      setGeneralError(null)
+    }, 3000)
+  }
+
   async function handleDocumentSync(doc: Document) {
     if (!doc.google_drive_file_id) {
       setSyncError('Only Google Drive documents can be synced')
@@ -1786,15 +1868,58 @@ export default function KBDocumentsContent() {
             {/* Uploaded files list */}
             {uploadedDocuments.length > 0 && (
               <div className="mt-4">
-                <h4 className="text-sm font-medium text-secondary mb-2">Uploaded Files ({uploadedDocuments.length})</h4>
+                {/* Header with Select All and Delete Selected */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={uploadedDocuments.length > 0 && uploadedDocuments.every(d => selectedDocIds.has(d.id))}
+                      onChange={toggleSelectAllUploaded}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      title="Select all"
+                    />
+                    <h4 className="text-sm font-medium text-secondary">Uploaded Files ({uploadedDocuments.length})</h4>
+                  </div>
+                  {selectedDocIds.size > 0 && (
+                    <button
+                      onClick={() => setShowBulkDeleteModal(true)}
+                      disabled={bulkDeleting}
+                      className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                    >
+                      {bulkDeleting ? (
+                        <>
+                          <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Deleting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          <span>Delete Selected ({selectedDocIds.size})</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-1">
                   {uploadedDocuments.map((doc) => (
                     <div
                       key={doc.id}
                       onClick={() => handleDocumentInfo(doc)}
-                      className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm text-secondary hover:text-primary hover:bg-hover rounded cursor-pointer transition-colors"
+                      className={`flex items-center justify-between gap-2 px-2 py-1.5 text-sm text-secondary hover:text-primary hover:bg-hover rounded cursor-pointer transition-colors ${selectedDocIds.has(doc.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={selectedDocIds.has(doc.id)}
+                          onChange={() => {}}
+                          onClick={(e) => toggleDocSelection(doc.id, e)}
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer flex-shrink-0"
+                        />
                         <svg className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
@@ -2155,6 +2280,17 @@ export default function KBDocumentsContent() {
           handleDocumentsChange()
           setStorageRefreshTrigger(prev => prev + 1)
         }}
+      />
+
+      {/* Bulk Delete Confirmation Modal */}
+      <ConfirmModal
+        open={showBulkDeleteModal}
+        title="Delete Selected Documents"
+        message={`Are you sure you want to delete ${selectedDocIds.size} document${selectedDocIds.size !== 1 ? 's' : ''}? This action cannot be undone.`}
+        confirmText={`Delete ${selectedDocIds.size} Document${selectedDocIds.size !== 1 ? 's' : ''}`}
+        confirmVariant="danger"
+        onConfirm={handleBulkDelete}
+        onCancel={() => setShowBulkDeleteModal(false)}
       />
 
       {/* Document Info Modal */}
