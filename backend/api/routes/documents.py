@@ -27,6 +27,31 @@ supabase = get_supabase()
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 
 
+async def retry_supabase_operation(operation, max_retries: int = 3, base_delay: float = 0.5):
+    """Retry a Supabase operation with exponential backoff.
+
+    Handles transient connection errors like ConnectionTerminated that occur
+    with rapid successive requests to Supabase.
+    """
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            return await asyncio.to_thread(operation)
+        except Exception as e:
+            error_str = str(e)
+            # Retry on connection errors
+            if 'ConnectionTerminated' in error_str or 'RemoteProtocolError' in error_str:
+                last_error = e
+                delay = base_delay * (2 ** attempt)  # Exponential backoff
+                logger.warning(f"Supabase connection error (attempt {attempt + 1}/{max_retries}), retrying in {delay}s: {error_str}")
+                await asyncio.sleep(delay)
+            else:
+                # Non-retryable error
+                raise
+    # All retries exhausted
+    raise last_error
+
+
 # ============================================================================
 # Document Upload & Processing
 # ============================================================================
@@ -1169,16 +1194,20 @@ async def delete_document(
     document_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete a document and all its chunks"""
+    """Delete a document and all its chunks.
+
+    Uses retry logic to handle transient Supabase connection errors
+    that can occur during bulk delete operations.
+    """
     try:
         validate_uuid(document_id, "document_id")
 
-        # Get document to check ownership
-        doc_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')\
-                .select('*')\
-                .eq('id', document_id)\
-                .single()\
+        # Get document to check ownership (with retry)
+        doc_result = await retry_supabase_operation(
+            lambda: supabase.table('documents')
+                .select('*')
+                .eq('id', document_id)
+                .single()
                 .execute()
         )
 
@@ -1191,28 +1220,28 @@ async def delete_document(
         if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
             raise HTTPException(status_code=403, detail="Not authorized to delete this document")
 
-        # Delete chunks first
-        await asyncio.to_thread(
-            lambda: supabase.table('document_chunks')\
-                .delete()\
-                .eq('document_id', document_id)\
+        # Delete chunks first (with retry)
+        await retry_supabase_operation(
+            lambda: supabase.table('document_chunks')
+                .delete()
+                .eq('document_id', document_id)
                 .execute()
         )
 
-        # Delete from storage
+        # Delete from storage (with retry)
         if document.get('storage_path'):
             try:
-                await asyncio.to_thread(
+                await retry_supabase_operation(
                     lambda: supabase.storage.from_('documents').remove([document['storage_path']])
                 )
             except Exception as e:
                 logger.warning(f"Could not delete from storage: {e}")
 
-        # Delete document record
-        await asyncio.to_thread(
-            lambda: supabase.table('documents')\
-                .delete()\
-                .eq('id', document_id)\
+        # Delete document record (with retry)
+        await retry_supabase_operation(
+            lambda: supabase.table('documents')
+                .delete()
+                .eq('id', document_id)
                 .execute()
         )
 
