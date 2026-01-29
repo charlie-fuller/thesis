@@ -466,36 +466,6 @@ export default function ProcessMapPanel() {
         </div>
       )}
 
-      {/* Process Summary */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 bg-hover rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-brand"></div>
-            <span className="text-sm font-medium text-primary">Ingestion</span>
-          </div>
-          <p className="text-xs text-secondary">
-            Files from vault are synced, scanned for meeting content, and processed into searchable chunks with embeddings.
-          </p>
-        </div>
-        <div className="p-4 bg-hover rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-warning"></div>
-            <span className="text-sm font-medium text-primary">Discovery</span>
-          </div>
-          <p className="text-xs text-secondary">
-            AI analyzes document content to extract actionable items, identify opportunities, and detect stakeholder mentions.
-          </p>
-        </div>
-        <div className="p-4 bg-hover rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-success"></div>
-            <span className="text-sm font-medium text-primary">Population</span>
-          </div>
-          <p className="text-xs text-secondary">
-            Extracted items create candidates for tasks, projects, and stakeholders. Users review and approve to finalize.
-          </p>
-        </div>
-      </div>
     </div>
   )
 }
