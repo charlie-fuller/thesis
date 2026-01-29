@@ -82,14 +82,14 @@ Connect your Drive and select folders to sync. Documents stay current as you upd
 **Notion:**
 Link your Notion workspace. Pages sync automatically.
 
-**Obsidian Vaults:**
-If you use Obsidian, you can sync your vault to the KB:
+**Local Vault:**
+Sync your local markdown vault to the KB:
 - File watcher monitors changes (create/modify/delete)
 - YAML frontmatter gets parsed (including `thesis-agents` for manual tagging)
 - `[[wikilinks]]` convert to standard markdown links
 - Incremental sync via content hash detection
 
-**Supported file types in Obsidian sync:**
+**Supported file types in vault sync:**
 - Markdown files (.md)
 - PDFs (.pdf) - with OCR fallback for image-based PDFs
 - Word documents (.docx)
@@ -103,11 +103,11 @@ When syncing, you'll see a progress bar showing:
 - Total file count
 
 **Folder view:**
-In the KB, switch to "Obsidian" view to see your vault's folder structure as a navigable tree. Click folders to expand/collapse.
+In the KB, switch to "Vault" view to see your vault's folder structure as a navigable tree. Click folders to expand/collapse.
 
 **Auto-classification:**
 Documents are automatically classified by type during sync:
-- Meeting transcripts (including Granola format: "Person1 __ Person2.md")
+- Meeting transcripts (including formats like "Person1 __ Person2.md")
 - Meeting notes
 - Reports and analysis
 - Instructions and guides
@@ -115,7 +115,7 @@ Documents are automatically classified by type during sync:
 
 This enables smarter search - when you ask about "recent meetings," the system filters to transcript and notes types automatically.
 
-CLI watcher: `python -m scripts.obsidian_watcher --user-id <uuid>`
+CLI watcher: `python -m scripts.vault_watcher --user-id <uuid>`
 
 ---
 

@@ -26,9 +26,9 @@ const dataNodes: DataNode[] = [
     ]
   },
   {
-    id: 'obsidian',
-    title: 'Obsidian Vault',
-    description: 'Markdown notes sync',
+    id: 'local_vault',
+    title: 'Local Vault',
+    description: 'Local docs sync',
     category: 'source',
     details: [
       'Bidirectional sync with local vault',
@@ -64,7 +64,7 @@ const dataNodes: DataNode[] = [
   {
     id: 'meetings',
     title: 'Meeting Transcripts',
-    description: 'Granola meeting notes',
+    description: 'Meeting notes and transcripts',
     category: 'source',
     details: [
       'Auto-detected from vault',
@@ -354,7 +354,7 @@ export default function KBDataMap() {
             </text>
           </g>
 
-          {/* Obsidian Vault */}
+          {/* Local Vault */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedNode(dataNodes[1])}
@@ -362,7 +362,7 @@ export default function KBDataMap() {
             <rect x="40" y="140" width="160" height="60" rx="8"
               fill={categoryColors.source.fill} stroke={categoryColors.source.stroke} strokeWidth="2" />
             <text x="120" y="165" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
-              Obsidian Vault
+              Local Vault
             </text>
             <text x="120" y="182" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
               Markdown sync
@@ -410,7 +410,7 @@ export default function KBDataMap() {
               Meeting Transcripts
             </text>
             <text x="120" y="422" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              Granola notes
+              Auto-extracted
             </text>
           </g>
 

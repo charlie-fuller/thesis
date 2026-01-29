@@ -125,7 +125,7 @@ npm start
 - Document upload with auto-classification
 - Agent-filtered RAG retrieval
 - Google Drive and Notion integration
-- Obsidian vault sync
+- Local vault sync
 
 ### DISCo Pipeline
 - 8 specialized agents for product discovery

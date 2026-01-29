@@ -111,7 +111,7 @@ Low-confidence extractions aren't surfaced to avoid noise.
 ## When Scanning Happens
 
 The inbox populates after:
-1. Files sync from your connected vault (Obsidian, Google Drive, etc.)
+1. Files sync from your connected sources (local vault, Google Drive, etc.)
 2. New documents are uploaded to the Knowledge Base
 3. Meeting transcripts are processed by Oracle
 

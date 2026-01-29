@@ -222,7 +222,7 @@ export default function TranscriptUpload({
             disabled={isProcessing}
             placeholder="Paste your meeting transcript here...
 
-Example format (Granola/Otter.ai):
+Example format:
 
 John (Product Manager): I think we should prioritize the API integration.
 Sarah (Engineering Lead): I have some concerns about the timeline..."
@@ -433,9 +433,9 @@ Sarah (Engineering Lead): I have some concerns about the timeline..."
         <div className="text-xs text-gray-500 dark:text-gray-400 pt-4 border-t border-gray-200 dark:border-gray-700">
           <p className="font-semibold mb-1">Supported formats:</p>
           <ul className="list-disc list-inside space-y-1">
-            <li>Granola exports (.txt, .md)</li>
-            <li>Otter.ai transcripts (.txt)</li>
-            <li>Plain text with speaker labels</li>
+            <li>Meeting transcripts (.txt, .md)</li>
+            <li>Any transcript with speaker labels</li>
+            <li>Plain text meeting notes</li>
           </ul>
           <p className="mt-2">
             The Oracle agent will extract attendees, sentiment, concerns, and action items.

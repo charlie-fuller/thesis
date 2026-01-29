@@ -77,7 +77,7 @@ Common issues and how to resolve them. This guide covers system-level problems t
 - Reprocess with updated classifier
 - Add to training data for future improvements
 
-### Sync problems (Obsidian/Google Drive)
+### Sync problems (Vault/Google Drive)
 
 **Symptoms:**
 - Files not appearing after sync

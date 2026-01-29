@@ -162,7 +162,7 @@ Tasks can be linked to projects. When you create a task, you can associate it wi
 
 ## Auto-Extraction
 
-Projects are automatically extracted from meeting transcripts via the Discovery Inbox. When you sync meeting notes from Granola or Obsidian:
+Projects are automatically extracted from meeting transcripts via the Discovery Inbox. When you sync meeting notes from your vault:
 
 1. The system scans for multi-step initiatives
 2. Candidates appear in the Discovery Inbox

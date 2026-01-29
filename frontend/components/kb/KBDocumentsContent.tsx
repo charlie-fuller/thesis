@@ -2265,7 +2265,7 @@ export default function KBDocumentsContent() {
                       >
                         {t.tag}
                         {t.source === 'path' || t.source === 'frontmatter' ? (
-                          <span title={t.source === 'path' ? 'From folder path (read-only)' : 'From Obsidian frontmatter (read-only)'}>
+                          <span title={t.source === 'path' ? 'From folder path (read-only)' : 'From frontmatter (read-only)'}>
                             <svg className="w-3 h-3 opacity-50" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                             </svg>

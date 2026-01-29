@@ -11,7 +11,7 @@ Access the admin document view at `/admin/documents`.
 You'll see:
 - All documents across all users
 - Classification status and confidence scores
-- Upload source (manual, Google Drive, Obsidian, etc.)
+- Upload source (manual, Google Drive, local vault, etc.)
 - Processing status
 
 Filter by:
@@ -124,10 +124,10 @@ Standard management - can delete, reclassify, reprocess.
 - Re-sync pulls fresh content
 - Classification persists across re-syncs
 
-### Obsidian Vault
+### Local Vault
 - Files sync bidirectionally (configurable)
 - Deletions can optionally propagate back to vault
-- Check sync status at `/admin/integrations/obsidian`
+- Check sync status at `/admin/integrations/vault`
 
 ---
 

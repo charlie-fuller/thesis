@@ -257,7 +257,7 @@ These queries should return relevant, accurate help:
 16. "What file types can I upload?"
 17. "How does auto-classification work?"
 18. "Can I connect Google Drive?"
-19. "How do I sync Obsidian?"
+19. "How do I sync my vault?"
 20. "Why aren't agents using my documents?"
 
 **Task Questions:**

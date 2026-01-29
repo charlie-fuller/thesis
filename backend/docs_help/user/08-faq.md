@@ -67,7 +67,7 @@ PDF, DOCX, Markdown, CSV, JSON, XML, plain text.
 The system analyzes content and tags documents with relevant agents. High confidence (>80%) is auto-tagged. Ambiguous results get flagged for your review.
 
 **Can I connect external sources?**
-Yes. Google Drive, Notion, and Obsidian vaults can sync automatically.
+Yes. Google Drive, Notion, and local vaults can sync automatically.
 
 **How do I know if agents are using my documents?**
 Responses will cite sources: "According to your Security Policy document..."
@@ -118,10 +118,10 @@ Yes. Upload a meeting transcript, Oracle identifies participants and can link th
 **What can I connect?**
 - Google Drive (documents sync)
 - Notion (pages sync)
-- Obsidian vaults (local markdown sync)
+- Local vault (markdown sync)
 
-**How does Obsidian sync work?**
-A file watcher monitors your vault. Changes (create/modify/delete) sync to the KB. Run the watcher: `python -m scripts.obsidian_watcher --user-id <uuid>`
+**How does vault sync work?**
+A file watcher monitors your vault. Changes (create/modify/delete) sync to the KB. Run the watcher: `python -m scripts.vault_watcher --user-id <uuid>`
 
 ---
 
