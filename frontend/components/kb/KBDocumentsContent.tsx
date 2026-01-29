@@ -223,20 +223,21 @@ export default function KBDocumentsContent() {
     })
   }, [documents, searchQuery, sourceFilter, selectedTags])
 
-  // Helper to extract top-level folder from Obsidian file path
-  const getTopLevelFolder = (filePath: string | undefined): string => {
+  // Helper to extract parent folder path from Obsidian file path
+  const getParentFolder = (filePath: string | undefined): string => {
     if (!filePath) return ''
     const parts = filePath.split('/')
-    return parts.length > 1 ? parts[0] : ''
+    // Return everything except the filename (last part)
+    return parts.length > 1 ? parts.slice(0, -1).join('/') : ''
   }
 
-  // Group ALL Obsidian documents by top-level folder (for Obsidian panel vault structure)
+  // Group ALL Obsidian documents by full folder path (for Obsidian panel vault structure)
   const obsidianFolders = useMemo(() => {
     const folders: Record<string, Document[]> = {}
 
     documents.forEach(doc => {
       if (doc.source_platform === 'obsidian' && doc.obsidian_file_path) {
-        const folder = getTopLevelFolder(doc.obsidian_file_path) || '(root)'
+        const folder = getParentFolder(doc.obsidian_file_path) || '(root)'
         if (!folders[folder]) folders[folder] = []
         folders[folder].push(doc)
       }
