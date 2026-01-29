@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Plus, Filter, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
@@ -222,12 +222,24 @@ export default function TaskKanbanBoard() {
     }
   }, [fetchKanban])
 
-  // Initial load
+  // Initial load - run once on mount
   useEffect(() => {
     fetchKanban()
     fetchCandidates()
     fetchStakeholders()
-  }, [fetchKanban, fetchCandidates, fetchStakeholders])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Re-fetch when filters change (skip initial render)
+  const isInitialMount = useRef(true)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
+    fetchKanban()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters])
 
   // Handle drag and drop
   const handleDrop = useCallback(async (taskId: string, newStatus: Task['status'], newPosition?: number) => {
