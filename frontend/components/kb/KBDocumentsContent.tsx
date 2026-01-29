@@ -119,7 +119,11 @@ export default function KBDocumentsContent() {
   const [obsidianSyncing, setObsidianSyncing] = useState(false)
   const [obsidianSyncError, setObsidianSyncError] = useState<string | null>(null)
   const [obsidianSyncSuccess, setObsidianSyncSuccess] = useState<string | null>(null)
-  const [obsidianSyncProgress, setObsidianSyncProgress] = useState<{ synced: number; total: number } | null>(null)
+  const [obsidianSyncProgress, setObsidianSyncProgress] = useState<{
+    synced: number
+    total: number
+    current_file?: string
+  } | null>(null)
 
   // Document actions state
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
@@ -361,6 +365,12 @@ export default function KBDocumentsContent() {
         files_synced?: number
         pending_changes?: number
         last_sync?: string
+        sync_progress?: {
+          is_syncing: boolean
+          total_files: number
+          files_processed: number
+          current_file?: string
+        } | null
       }>('/api/obsidian/status')
       setObsidianStatus({
         connected: response.connected,
@@ -386,37 +396,35 @@ export default function KBDocumentsContent() {
       setObsidianSyncSuccess(null)
       setObsidianSyncProgress(null)
 
-      // Get initial count before sync
-      const initialStatus = await checkObsidianStatusFn()
-      const initialSynced = initialStatus?.files_synced ?? 0
-
       await apiPost<{ success: boolean; message: string }>('/api/obsidian/sync/full')
 
-      // Poll for progress every 2 seconds
+      // Poll for progress every second for responsive updates
       const pollInterval = setInterval(async () => {
         const status = await checkObsidianStatusFn()
         if (status) {
-          const currentSynced = status.files_synced ?? 0
-          const pending = status.pending_changes ?? 0
-          const total = currentSynced + pending
+          const progress = status.sync_progress
 
-          if (total > 0) {
-            setObsidianSyncProgress({ synced: currentSynced, total })
-          }
-
-          // Stop polling when no more pending changes
-          if (pending === 0 && currentSynced > initialSynced) {
+          if (progress && progress.is_syncing) {
+            // Update progress from live sync data
+            setObsidianSyncProgress({
+              synced: progress.files_processed,
+              total: progress.total_files,
+              current_file: progress.current_file
+            })
+          } else if (!progress || !progress.is_syncing) {
+            // Sync completed
             clearInterval(pollInterval)
             setObsidianSyncing(false)
             setObsidianSyncProgress(null)
-            setObsidianSyncSuccess(`Sync complete! ${currentSynced} documents synced.`)
+            const synced = status.files_synced ?? 0
+            setObsidianSyncSuccess(`Sync complete! ${synced} documents synced.`)
             setTimeout(() => setObsidianSyncSuccess(null), 10000)
             loadDocuments(false)
           }
         }
-      }, 2000)
+      }, 1000)
 
-      // Safety timeout after 5 minutes
+      // Safety timeout after 10 minutes
       setTimeout(() => {
         clearInterval(pollInterval)
         if (obsidianSyncing) {
@@ -426,7 +434,7 @@ export default function KBDocumentsContent() {
           setTimeout(() => setObsidianSyncSuccess(null), 10000)
           loadDocuments(false)
         }
-      }, 300000)
+      }, 600000)
 
     } catch (err) {
       setObsidianSyncError(err instanceof Error ? err.message : 'Sync failed')
@@ -1569,20 +1577,32 @@ export default function KBDocumentsContent() {
             {/* Syncing Progress */}
             {obsidianSyncing && (
               <div className="mt-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <LoadingSpinner size="sm" />
-                  <span className="text-sm text-purple-800 dark:text-purple-200">
-                    {obsidianSyncProgress
-                      ? `Syncing... ${obsidianSyncProgress.synced} of ${obsidianSyncProgress.total} files`
-                      : 'Starting sync...'}
-                  </span>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <LoadingSpinner size="sm" />
+                    <span className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                      {obsidianSyncProgress
+                        ? `Syncing... ${obsidianSyncProgress.synced} of ${obsidianSyncProgress.total} files`
+                        : 'Starting sync...'}
+                    </span>
+                  </div>
+                  {obsidianSyncProgress && obsidianSyncProgress.total > 0 && (
+                    <span className="text-sm text-purple-600 dark:text-purple-300">
+                      {Math.round((obsidianSyncProgress.synced / obsidianSyncProgress.total) * 100)}%
+                    </span>
+                  )}
                 </div>
                 {obsidianSyncProgress && obsidianSyncProgress.total > 0 && (
-                  <div className="w-full bg-purple-200 dark:bg-purple-900 rounded-full h-2">
+                  <div className="w-full bg-purple-200 dark:bg-purple-900 rounded-full h-2.5 mb-2">
                     <div
-                      className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                      className="bg-purple-600 h-2.5 rounded-full transition-all duration-300"
                       style={{ width: `${Math.round((obsidianSyncProgress.synced / obsidianSyncProgress.total) * 100)}%` }}
                     />
+                  </div>
+                )}
+                {obsidianSyncProgress?.current_file && (
+                  <div className="text-xs text-purple-600 dark:text-purple-400 truncate" title={obsidianSyncProgress.current_file}>
+                    {obsidianSyncProgress.current_file}
                   </div>
                 )}
               </div>

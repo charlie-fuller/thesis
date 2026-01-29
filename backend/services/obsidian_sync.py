@@ -622,6 +622,53 @@ def update_vault_config(
         raise ObsidianSyncError(f"Failed to update vault config: {e}")
 
 
+def update_sync_progress(
+    config_id: str,
+    is_syncing: bool,
+    total_files: int = 0,
+    files_processed: int = 0,
+    current_file: Optional[str] = None
+) -> None:
+    """
+    Update the live sync progress for a vault config.
+
+    Args:
+        config_id: UUID of the vault config
+        is_syncing: Whether sync is currently running
+        total_files: Total number of files to sync
+        files_processed: Number of files processed so far
+        current_file: Path of the file currently being synced
+    """
+    try:
+        progress_data = {
+            'is_syncing': is_syncing,
+            'total_files': total_files,
+            'files_processed': files_processed,
+            'current_file': current_file,
+            'updated_at': datetime.now(timezone.utc).isoformat()
+        }
+
+        _get_db().table('obsidian_vault_configs') \
+            .update({'sync_progress': progress_data}) \
+            .eq('id', config_id) \
+            .execute()
+
+    except Exception as e:
+        # Don't fail the sync if progress update fails
+        logger.warning(f"Failed to update sync progress: {e}")
+
+
+def clear_sync_progress(config_id: str) -> None:
+    """Clear sync progress after sync completes."""
+    try:
+        _get_db().table('obsidian_vault_configs') \
+            .update({'sync_progress': None}) \
+            .eq('id', config_id) \
+            .execute()
+    except Exception as e:
+        logger.warning(f"Failed to clear sync progress: {e}")
+
+
 def deactivate_vault_config(config_id: str, remove_documents: bool = False) -> Dict:
     """
     Deactivate a vault configuration.
@@ -1573,10 +1620,23 @@ def sync_vault(
         existing_states = get_all_sync_states(config['id'])
         synced_paths: Set[str] = set()
 
+        # Initialize progress tracking
+        total_files = len(files)
+        update_sync_progress(config['id'], is_syncing=True, total_files=total_files, files_processed=0)
+
         # Sync each file
-        for file_path in files:
+        for idx, file_path in enumerate(files):
             relative_path = str(file_path.relative_to(vault_path))
             synced_paths.add(relative_path)
+
+            # Update progress every file
+            update_sync_progress(
+                config['id'],
+                is_syncing=True,
+                total_files=total_files,
+                files_processed=idx,
+                current_file=relative_path
+            )
 
             existing_state = existing_states.get(relative_path)
             result = sync_file(config, file_path, existing_state)
@@ -1617,6 +1677,9 @@ def sync_vault(
                 mark_sync_state_deleted(config['id'], existing_path)
                 stats['files_deleted'] += 1
 
+        # Clear sync progress
+        clear_sync_progress(config['id'])
+
         # Update config with last sync time
         update_vault_config(config['id'], {
             'last_sync_at': datetime.now(timezone.utc).isoformat(),
@@ -1642,6 +1705,9 @@ def sync_vault(
     except Exception as e:
         error_msg = str(e)
         logger.error(f"\n Sync failed: {error_msg}")
+
+        # Clear sync progress
+        clear_sync_progress(config['id'])
 
         # Update config with error
         update_vault_config(config['id'], {
@@ -1695,6 +1761,9 @@ def get_sync_status(user_id: str) -> Dict:
         .in_('sync_status', ['pending', 'failed']) \
         .execute()
 
+    # Get live sync progress if available
+    sync_progress = config.get('sync_progress')
+
     return {
         'connected': True,
         'config_id': config['id'],
@@ -1705,7 +1774,9 @@ def get_sync_status(user_id: str) -> Dict:
         'last_sync': config.get('last_sync_at'),
         'last_error': config.get('last_error'),
         'pending_changes': pending_result.count or 0,
-        'sync_options': config.get('sync_options', {})
+        'sync_options': config.get('sync_options', {}),
+        # Live sync progress
+        'sync_progress': sync_progress
     }
 
 
