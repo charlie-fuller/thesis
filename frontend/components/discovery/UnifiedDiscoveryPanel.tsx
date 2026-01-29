@@ -13,7 +13,8 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
-  Link2
+  Link2,
+  Check
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiGet, apiPost } from '@/lib/api';

@@ -21,6 +21,7 @@ import { apiGet, apiPatch } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import PageHeader from '@/components/PageHeader'
+import ProjectDetailModal from '@/components/projects/ProjectDetailModal'
 import toast from 'react-hot-toast'
 
 // ============================================================================
@@ -30,6 +31,7 @@ import toast from 'react-hot-toast'
 interface Project {
   id: string
   project_code: string
+  opportunity_code?: string  // Legacy field for backward compatibility
   title: string
   description: string | null
   department: string | null
@@ -47,12 +49,22 @@ interface Project {
   next_step: string | null
   blockers: string[]
   follow_up_questions: string[]
+  roi_indicators: Record<string, unknown>
   created_at: string
   updated_at: string
   project_summary: string | null
   scoring_confidence: number | null
   goal_alignment_score: number | null
   display_order: number
+  // Extended fields for detail modal
+  project_name?: string | null
+  project_description?: string | null
+  roi_justification?: string | null
+  effort_justification?: string | null
+  alignment_justification?: string | null
+  readiness_justification?: string | null
+  confidence_questions?: string[]
+  goal_alignment_details?: Record<string, unknown>
 }
 
 // ============================================================================
@@ -257,6 +269,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
 
   // Filters
   const [departmentFilter, setDepartmentFilter] = useState('')
@@ -298,9 +311,8 @@ export default function ProjectsPage() {
     }
   }, [user, fetchProjects])
 
-  const handleViewProject = (id: string) => {
-    // Navigate to project detail - could be a modal or separate page
-    router.push(`/pipeline?selected=${id}`)
+  const handleViewProject = (project: Project) => {
+    setSelectedProject(project)
   }
 
   // Move project up or down within its tier
@@ -565,7 +577,7 @@ export default function ProjectsPage() {
                       <ProjectCard
                         key={project.id}
                         project={project}
-                        onClick={() => handleViewProject(project.id)}
+                        onClick={() => handleViewProject(project)}
                         onMoveUp={() => moveProject(project.id, 'up')}
                         onMoveDown={() => moveProject(project.id, 'down')}
                         isFirst={idx === 0}
@@ -596,7 +608,7 @@ export default function ProjectsPage() {
                       <ProjectCard
                         key={project.id}
                         project={project}
-                        onClick={() => handleViewProject(project.id)}
+                        onClick={() => handleViewProject(project)}
                         onMoveUp={() => moveProject(project.id, 'up')}
                         onMoveDown={() => moveProject(project.id, 'down')}
                         isFirst={idx === 0}
@@ -627,7 +639,7 @@ export default function ProjectsPage() {
                       <ProjectCard
                         key={project.id}
                         project={project}
-                        onClick={() => handleViewProject(project.id)}
+                        onClick={() => handleViewProject(project)}
                         onMoveUp={() => moveProject(project.id, 'up')}
                         onMoveDown={() => moveProject(project.id, 'down')}
                         isFirst={idx === 0}
@@ -658,7 +670,7 @@ export default function ProjectsPage() {
                       <ProjectCard
                         key={project.id}
                         project={project}
-                        onClick={() => handleViewProject(project.id)}
+                        onClick={() => handleViewProject(project)}
                         onMoveUp={() => moveProject(project.id, 'up')}
                         onMoveDown={() => moveProject(project.id, 'down')}
                         isFirst={idx === 0}
@@ -674,6 +686,15 @@ export default function ProjectsPage() {
           </div>
         )}
       </main>
+
+      {/* Project Detail Modal */}
+      {selectedProject && (
+        <ProjectDetailModal
+          project={selectedProject as any}
+          open={true}
+          onClose={() => setSelectedProject(null)}
+        />
+      )}
     </div>
   )
 }
