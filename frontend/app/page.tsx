@@ -19,7 +19,7 @@ const LazyUsageAnalytics = dynamic(() => import('@/components/LazyUsageAnalytics
 })
 
 type HomeTab = 'system' | 'knowledge-graph' | 'analytics' | 'process-map'
-type GraphSubTab = 'data' | 'visualization'
+type GraphSubTab = 'data' | 'visualization' | 'what-is-this'
 
 export default function HomePage() {
   const router = useRouter()
@@ -125,7 +125,7 @@ export default function HomePage() {
         {activeTab === 'knowledge-graph' && (
           <div className="space-y-6">
             {/* Sub-tab Navigation */}
-            <div className="flex gap-1 bg-hover rounded-lg p-1 max-w-xs">
+            <div className="flex gap-1 bg-hover rounded-lg p-1 max-w-md">
               <button
                 onClick={() => setGraphSubTab('data')}
                 className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
@@ -146,11 +146,110 @@ export default function HomePage() {
               >
                 Visualization
               </button>
+              <button
+                onClick={() => setGraphSubTab('what-is-this')}
+                className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  graphSubTab === 'what-is-this'
+                    ? 'bg-card text-primary shadow-sm'
+                    : 'text-muted hover:text-primary'
+                }`}
+              >
+                What is this?
+              </button>
             </div>
 
             {/* Sub-tab Content */}
             {graphSubTab === 'data' && <GraphStatsPanel />}
             {graphSubTab === 'visualization' && <GraphVisualizationPanel />}
+            {graphSubTab === 'what-is-this' && (
+              <div className="max-w-3xl space-y-6">
+                <div className="card p-6">
+                  <h2 className="text-lg font-semibold text-primary mb-3">What is a Knowledge Graph?</h2>
+                  <p className="text-secondary leading-relaxed">
+                    A knowledge graph is a structured representation of information that captures
+                    entities (nodes) and the relationships between them (edges). Unlike traditional
+                    databases that store data in isolated tables, a knowledge graph connects
+                    information in a way that mirrors how concepts relate in the real world.
+                  </p>
+                </div>
+
+                <div className="card p-6">
+                  <h2 className="text-lg font-semibold text-primary mb-3">Why is it Important?</h2>
+                  <p className="text-secondary leading-relaxed mb-3">
+                    Knowledge graphs enable AI systems to understand context and connections
+                    that would otherwise be invisible. When your agents analyze documents,
+                    stakeholders, projects, and meetings, the knowledge graph captures how
+                    all these elements relate to each other.
+                  </p>
+                  <ul className="list-disc list-inside space-y-2 text-secondary ml-2">
+                    <li><strong className="text-primary">Contextual Understanding:</strong> Agents can see that a document was discussed in a meeting, relates to a project, and involves specific stakeholders</li>
+                    <li><strong className="text-primary">Discovery:</strong> Surface hidden connections between people, topics, and initiatives across your organization</li>
+                    <li><strong className="text-primary">Memory:</strong> Maintain persistent knowledge that grows over time, not just single conversations</li>
+                  </ul>
+                </div>
+
+                <div className="card p-6">
+                  <h2 className="text-lg font-semibold text-primary mb-3">How Does it Add Value?</h2>
+                  <div className="grid gap-4">
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                        <span className="text-purple-400 font-medium">1</span>
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-primary">Smarter Agent Responses</h3>
+                        <p className="text-secondary text-sm">Agents pull in relevant context from connected entities, providing more informed answers.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                        <span className="text-blue-400 font-medium">2</span>
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-primary">Cross-Domain Insights</h3>
+                        <p className="text-secondary text-sm">Discover connections between stakeholders, documents, and projects across your organization.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                        <span className="text-green-400 font-medium">3</span>
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-primary">Institutional Knowledge</h3>
+                        <p className="text-secondary text-sm">Build a growing repository of organizational knowledge that persists beyond individual conversations.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                        <span className="text-amber-400 font-medium">4</span>
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-primary">Impact Analysis</h3>
+                        <p className="text-secondary text-sm">Understand how changes to one area might affect connected stakeholders, projects, or initiatives.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card p-6">
+                  <h2 className="text-lg font-semibold text-primary mb-3">How is it Used in Thesis?</h2>
+                  <p className="text-secondary leading-relaxed mb-3">
+                    The knowledge graph automatically syncs data from across the platform:
+                  </p>
+                  <ul className="list-disc list-inside space-y-2 text-secondary ml-2">
+                    <li><strong className="text-primary">Documents</strong> from your Knowledge Base with their topics and categories</li>
+                    <li><strong className="text-primary">Stakeholders</strong> and their relationships to projects and initiatives</li>
+                    <li><strong className="text-primary">Projects</strong> and their connected documents and team members</li>
+                    <li><strong className="text-primary">Meeting Notes</strong> linked to attendees, action items, and discussed topics</li>
+                    <li><strong className="text-primary">Tasks</strong> connected to their assignees and related projects</li>
+                  </ul>
+                  <p className="text-secondary leading-relaxed mt-3">
+                    When agents process your queries, they traverse these connections to provide
+                    comprehensive answers that consider the full context of your organization&apos;s
+                    knowledge and relationships.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
