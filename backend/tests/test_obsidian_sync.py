@@ -567,9 +567,13 @@ class TestObsidianAPIRoutes:
 
     def test_configure_endpoint_validates_path(self, authenticated_client):
         """Test that /api/obsidian/configure validates vault path."""
-        with patch("services.obsidian_sync.create_vault_config") as mock_create:
-            from services.obsidian_sync import ObsidianSyncError
+        from services.obsidian_sync import ObsidianSyncError
+
+        # Patch at the route level where create_vault_config is imported
+        with patch("api.routes.obsidian_sync.create_vault_config") as mock_create, \
+             patch("api.routes.obsidian_sync._get_db") as mock_db:
             mock_create.side_effect = ObsidianSyncError("Vault path does not exist")
+            mock_db.return_value = MagicMock()
 
             response = authenticated_client.post(
                 "/api/obsidian/configure",

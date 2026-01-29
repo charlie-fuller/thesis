@@ -96,7 +96,7 @@ def valid_jwt_token():
     import jwt
 
     payload = {
-        "sub": "test-user-id-12345",
+        "sub": "00000000-0000-0000-0000-000000000002",
         "email": "testuser@example.com",
         "aud": "authenticated",
         "exp": datetime.now(timezone.utc) + timedelta(hours=1),
@@ -114,7 +114,7 @@ def expired_jwt_token():
     import jwt
 
     payload = {
-        "sub": "test-user-id-12345",
+        "sub": "00000000-0000-0000-0000-000000000002",
         "email": "testuser@example.com",
         "aud": "authenticated",
         "exp": datetime.now(timezone.utc) - timedelta(hours=1),  # Expired
@@ -128,7 +128,7 @@ def expired_jwt_token():
 def admin_user():
     """Return admin user data."""
     return {
-        "id": "admin-user-id-12345",
+        "id": "00000000-0000-0000-0000-000000000003",
         "email": "admin@example.com",
         "role": "admin",
         "client_id": "00000000-0000-0000-0000-000000000001"
@@ -139,7 +139,7 @@ def admin_user():
 def regular_user():
     """Return regular user data."""
     return {
-        "id": "regular-user-id-12345",
+        "id": "00000000-0000-0000-0000-000000000002",
         "email": "user@example.com",
         "role": "user",
         "client_id": "00000000-0000-0000-0000-000000000001"

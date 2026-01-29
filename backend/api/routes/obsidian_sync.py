@@ -25,7 +25,17 @@ from services.obsidian_sync import (
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/obsidian", tags=["obsidian"])
-supabase = get_supabase()
+
+# Lazy Supabase initialization to avoid import-time database connections
+_supabase = None
+
+
+def _get_db():
+    """Get Supabase client with lazy initialization."""
+    global _supabase
+    if _supabase is None:
+        _supabase = get_supabase()
+    return _supabase
 
 
 # ============================================================================
@@ -72,7 +82,7 @@ async def configure_obsidian_vault(
     try:
         # Get user's client_id
         user_result = await asyncio.to_thread(
-            lambda: supabase.table('users')
+            lambda: _get_db().table('users')
                 .select('client_id')
                 .eq('id', current_user['id'])
                 .single()
@@ -258,7 +268,7 @@ async def trigger_full_sync(
 
         # Clear sync states to force full resync
         await asyncio.to_thread(
-            lambda: supabase.table('obsidian_sync_state')
+            lambda: _get_db().table('obsidian_sync_state')
                 .delete()
                 .eq('config_id', config['id'])
                 .execute()
@@ -360,7 +370,7 @@ async def get_sync_history(
             }
 
         result = await asyncio.to_thread(
-            lambda: supabase.table('obsidian_sync_log')
+            lambda: _get_db().table('obsidian_sync_log')
                 .select('*')
                 .eq('config_id', config['id'])
                 .order('started_at', desc=True)
@@ -408,7 +418,7 @@ async def get_synced_files(
                 'message': 'No vault configured'
             }
 
-        query = supabase.table('obsidian_sync_state') \
+        query = _get_db().table('obsidian_sync_state') \
             .select('*') \
             .eq('config_id', config['id'])
 
@@ -454,7 +464,7 @@ async def get_pending_files(
             }
 
         result = await asyncio.to_thread(
-            lambda: supabase.table('obsidian_sync_state')
+            lambda: _get_db().table('obsidian_sync_state')
                 .select('*')
                 .eq('config_id', config['id'])
                 .in_('sync_status', ['pending', 'failed'])
