@@ -74,6 +74,44 @@ class ConnectorGap(BaseModel):
     last_requested: Optional[str] = None
 
 
+class DiscoIntegrationRequest(BaseModel):
+    """Request to check DISCO integration feasibility."""
+    integration_names: list[str]
+
+
+class DiscoIntegrationResult(BaseModel):
+    """Result of checking a single integration's feasibility."""
+    integration_name: str
+    connector_found: bool
+    connector_name: Optional[str] = None
+    display_name: Optional[str] = None
+    connector_type: Optional[str] = None
+    contentful_status: Optional[str] = None
+    disco_score: int
+    feasibility_rating: str
+    is_blocker: bool = False
+    notes: str
+
+
+class DiscoScoreSummary(BaseModel):
+    """Summary of overall DISCO integration feasibility."""
+    total_integrations: int
+    ready_integrations: int
+    blockers: int
+    blocker_names: list[str] = []
+    score: int
+    max_score: int
+    percentage: float
+    overall_feasibility: str
+    action_required: str
+
+
+class DiscoScoreResponse(BaseModel):
+    """Full DISCO integration score response."""
+    integrations: list[DiscoIntegrationResult]
+    summary: DiscoScoreSummary
+
+
 # ============================================================================
 # Endpoints
 # ============================================================================
@@ -237,4 +275,116 @@ async def search_connectors(
         return result.data
     except Exception as e:
         logger.error(f"Error searching connectors: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+# ============================================================================
+# DISCO Integration Scoring Endpoints
+# ============================================================================
+
+@router.post("/disco/score", response_model=DiscoScoreResponse)
+async def calculate_disco_score(
+    request: DiscoIntegrationRequest,
+    supabase: Client = Depends(get_supabase)
+):
+    """
+    Calculate DISCO integration feasibility score for a list of integrations.
+
+    Scoring:
+    - 5 = READY: Integration enabled and working at Contentful
+    - 4 = TESTING: Integration in indexing/testing phase
+    - 3 = APPROVED: Integration approved, awaiting deployment
+    - 2 = BUILDING: Custom connector being developed
+    - 1 = AVAILABLE: Glean has connector, needs approval process
+    - 0 = CUSTOM: No connector exists, would need custom build
+
+    Returns detailed breakdown per integration plus overall summary.
+    """
+    try:
+        result = supabase.rpc(
+            "calculate_disco_integration_score",
+            {"p_integration_names": request.integration_names}
+        ).execute()
+
+        data = result.data
+        if not data:
+            raise HTTPException(status_code=500, detail="Failed to calculate DISCO score")
+
+        # Parse the response
+        integrations = []
+        for item in data.get("integrations", []):
+            integrations.append(DiscoIntegrationResult(
+                integration_name=item.get("integration_name", ""),
+                connector_found=item.get("connector_found", False),
+                connector_name=item.get("connector_name"),
+                display_name=item.get("display_name"),
+                connector_type=item.get("connector_type"),
+                contentful_status=item.get("contentful_status"),
+                disco_score=item.get("disco_score", 0),
+                feasibility_rating=item.get("feasibility_rating", "BLOCKER"),
+                is_blocker=item.get("is_blocker", False),
+                notes=item.get("notes", "No connector found")
+            ))
+
+        summary_data = data.get("summary", {})
+        summary = DiscoScoreSummary(
+            total_integrations=summary_data.get("total_integrations", 0),
+            ready_integrations=summary_data.get("ready_integrations", 0),
+            blockers=summary_data.get("blockers", 0),
+            blocker_names=summary_data.get("blocker_names", []),
+            score=summary_data.get("score", 0),
+            max_score=summary_data.get("max_score", 0),
+            percentage=summary_data.get("percentage", 0),
+            overall_feasibility=summary_data.get("overall_feasibility", "UNKNOWN"),
+            action_required=summary_data.get("action_required", "")
+        )
+
+        return DiscoScoreResponse(integrations=integrations, summary=summary)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error calculating DISCO score: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+@router.get("/disco/matrix")
+async def get_disco_matrix(
+    min_score: Optional[int] = None,
+    contentful_status: Optional[str] = None,
+    supabase: Client = Depends(get_supabase)
+):
+    """
+    Get the DISCO integration matrix showing all connectors with their
+    Contentful deployment status and feasibility scores.
+
+    Filter options:
+    - min_score: Only return connectors with disco_score >= this value
+    - contentful_status: 'enabled', 'testing', 'approved', 'in_progress', 'pending_approval', 'not_requested'
+    """
+    try:
+        query = supabase.table("glean_disco_integration_matrix").select("*")
+
+        if min_score is not None:
+            query = query.gte("disco_score", min_score)
+        if contentful_status:
+            query = query.eq("contentful_status", contentful_status)
+
+        result = query.execute()
+        return result.data
+    except Exception as e:
+        logger.error(f"Error getting DISCO matrix: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+@router.get("/disco/summary")
+async def get_disco_summary(supabase: Client = Depends(get_supabase)):
+    """
+    Get a summary of connectors grouped by Contentful status and DISCO score.
+    Useful for quick overview of integration capabilities.
+    """
+    try:
+        result = supabase.table("glean_connector_summary").select("*").execute()
+        return result.data
+    except Exception as e:
+        logger.error(f"Error getting DISCO summary: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
