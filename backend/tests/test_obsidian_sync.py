@@ -418,7 +418,7 @@ class TestSyncState:
             "sync_status": "synced"
         }])
 
-        with patch("services.obsidian_sync.supabase", mock_supabase):
+        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             with patch("services.obsidian_sync.get_sync_state", return_value=None):
                 result = update_sync_state(
                     config_id="config-123",
@@ -439,7 +439,7 @@ class TestSyncState:
             {"file_path": "note2.md", "sync_status": "pending"},
         ])
 
-        with patch("services.obsidian_sync.supabase", mock_supabase):
+        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             states = get_all_sync_states("config-123")
 
             assert "note1.md" in states
@@ -531,7 +531,7 @@ This is test content.""")
             )
 
             # Mock _create_obsidian_document to return doc ID directly
-            with patch("services.obsidian_sync.supabase", mock_supabase):
+            with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
                 with patch("services.obsidian_sync.process_document"):
                     with patch("services.obsidian_sync.update_sync_state", return_value={}):
                         with patch("services.obsidian_sync._create_obsidian_document", return_value="doc-123"):
@@ -661,7 +661,7 @@ class TestSyncLogging:
             data=[{"id": "log-uuid-123"}]
         )
 
-        with patch("services.obsidian_sync.supabase", mock_supabase):
+        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             log_id = create_sync_log(
                 config_id="config-123",
                 user_id="user-123",
@@ -680,7 +680,7 @@ class TestSyncLogging:
             data=[{"id": "log-uuid-123"}]
         )
 
-        with patch("services.obsidian_sync.supabase", mock_supabase):
+        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             create_sync_log(
                 config_id="config-123",
                 user_id="user-123",
@@ -701,7 +701,7 @@ class TestSyncLogging:
 
         mock_supabase = MagicMock()
 
-        with patch("services.obsidian_sync.supabase", mock_supabase):
+        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             complete_sync_log(
                 log_id="log-123",
                 status="completed",
@@ -729,7 +729,7 @@ class TestSyncLogging:
 
         mock_supabase = MagicMock()
 
-        with patch("services.obsidian_sync.supabase", mock_supabase):
+        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             complete_sync_log(
                 log_id="log-123",
                 status="failed",
@@ -766,7 +766,7 @@ class TestDeleteHandling:
             data=[{"sync_status": "deleted"}]
         )
 
-        with patch("services.obsidian_sync.supabase", mock_supabase):
+        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             with patch("services.obsidian_sync.get_sync_state", return_value={"id": "state-123"}):
                 mark_sync_state_deleted("config-123", "note.md")
 
@@ -889,7 +889,7 @@ class TestVaultConfigEdgeCases:
             data=[]
         )
 
-        with patch("services.obsidian_sync.supabase", mock_supabase):
+        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             result = get_vault_config("nonexistent-user")
             assert result is None
 
@@ -917,7 +917,7 @@ class TestVaultConfigEdgeCases:
         )
 
         with tempfile.TemporaryDirectory() as vault_dir:
-            with patch("services.obsidian_sync.supabase", mock_supabase):
+            with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
                 result = create_vault_config(
                     user_id="user-123",
                     client_id="client-123",
@@ -935,7 +935,7 @@ class TestVaultConfigEdgeCases:
         mock_supabase = MagicMock()
         mock_supabase.table.return_value.update.return_value.eq.return_value.execute.side_effect = Exception("DB Error")
 
-        with patch("services.obsidian_sync.supabase", mock_supabase):
+        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             with pytest.raises(ObsidianSyncError) as exc_info:
                 update_vault_config("config-123", {"sync_options": {}})
 
@@ -963,7 +963,7 @@ class TestSyncStateEdgeCases:
             }]
         )
 
-        with patch("services.obsidian_sync.supabase", mock_supabase):
+        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             with patch("services.obsidian_sync.get_sync_state", return_value=None):
                 result = update_sync_state(
                     config_id="config-123",
@@ -988,7 +988,7 @@ class TestSyncStateEdgeCases:
             }]
         )
 
-        with patch("services.obsidian_sync.supabase", mock_supabase):
+        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             with patch("services.obsidian_sync.get_sync_state", return_value={"id": "state-123"}):
                 result = update_sync_state(
                     config_id="config-123",
@@ -1011,7 +1011,7 @@ class TestSyncStateEdgeCases:
             data=[]
         )
 
-        with patch("services.obsidian_sync.supabase", mock_supabase):
+        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             result = get_all_sync_states("config-123")
             assert result == {}
 
@@ -1028,7 +1028,7 @@ class TestSyncStateEdgeCases:
             ]
         )
 
-        with patch("services.obsidian_sync.supabase", mock_supabase):
+        with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             result = get_all_sync_states("config-123")
 
             assert len(result) == 3

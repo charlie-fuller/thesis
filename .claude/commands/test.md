@@ -9,6 +9,13 @@ Run the complete Thesis test suite unattended, including unit tests, integration
 /test --quick  # Run core unit tests only
 ```
 
+## Prerequisites
+
+Tests require proper environment configuration:
+
+1. **dotenvx** - The `.env` file is encrypted. Use `dotenvx run` to decrypt and inject environment variables.
+2. **DOTENV_PRIVATE_KEY** - Required for decryption. Found in `backend/.env.keys`.
+
 ## Instructions
 
 Execute ALL test stages below in order. Do NOT stop if one stage fails - continue to the next stage and report all results at the end.
@@ -20,7 +27,7 @@ Run core unit tests first:
 ```bash
 cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
 DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c230 \
-.venv/bin/python -m pytest \
+dotenvx run -f .env -- .venv/bin/python -m pytest \
   tests/test_document_classifier.py \
   tests/test_tasks.py \
   tests/test_projects.py \
@@ -40,7 +47,7 @@ Run integration and Obsidian sync tests:
 ```bash
 cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
 DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c230 \
-.venv/bin/python -m pytest \
+dotenvx run -f .env -- .venv/bin/python -m pytest \
   tests/test_integration.py \
   tests/test_obsidian_sync.py \
   -v --tb=short --timeout=120 2>&1 || true
@@ -55,7 +62,7 @@ Run all remaining tests (excluding E2E):
 ```bash
 cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
 DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c230 \
-.venv/bin/python -m pytest tests/ \
+dotenvx run -f .env -- .venv/bin/python -m pytest tests/ \
   --ignore=tests/e2e/ \
   --ignore=tests/e2e_browser_tests.py \
   --ignore=tests/test_document_classifier.py \
@@ -117,7 +124,76 @@ If any tests failed, list the failed test names and suggest fixes.
 
 | Stage | Test Files | Expected Count |
 |-------|------------|----------------|
-| Unit | 7 core test files | ~150 tests |
+| Unit | 7 core test files | ~370 tests |
 | Integration | test_integration.py, test_obsidian_sync.py | ~90 tests |
-| Extended | Remaining test_*.py files | ~130 tests |
+| Extended | Remaining test_*.py files | ~345 tests |
 | E2E | e2e_browser_tests.py scenarios | 66 scenarios |
+
+## Known Issues & Fixes
+
+### 1. "Invalid URL" Supabase Errors
+
+**Symptom:** Tests fail with `SupabaseException: Invalid URL`
+
+**Cause:** The `.env` file is encrypted with dotenvx. Running pytest directly loads encrypted values.
+
+**Fix:** Always run tests with `dotenvx run`:
+```bash
+DOTENV_PRIVATE_KEY=... dotenvx run -f .env -- .venv/bin/python -m pytest ...
+```
+
+### 2. Lazy Supabase Initialization
+
+**Symptom:** Import-time errors when modules call `get_supabase()` at module level.
+
+**Fixed Files:**
+- `services/useable_output_detector.py` - Changed to lazy `_get_db()` initialization
+- `services/obsidian_sync.py` - Changed to lazy `_get_db()` initialization
+
+**Pattern for fixing:**
+```python
+# BAD - initialized at import time
+supabase = get_supabase()
+
+# GOOD - lazy initialization
+_supabase = None
+def _get_db():
+    global _supabase
+    if _supabase is None:
+        _supabase = get_supabase()
+    return _supabase
+```
+
+### 3. Test Isolation Issues
+
+**Symptom:** Tests pass individually but fail when run together.
+
+**Cause:** Module-level state pollution between tests.
+
+**Fix:** Use `pytest-forked` marker or run problematic tests in isolation.
+
+### 4. Terminology Rename (opportunity -> project)
+
+The codebase was renamed from "opportunity" to "project" terminology. All test files have been updated:
+- `test_opportunities.py` -> `test_projects.py`
+- `test_opportunity_modal.py` -> `test_project_modal.py`
+- All internal references updated to use `project` terminology
+
+### 5. Topic Detection Keyword Conflicts
+
+**Fixed:** The `detect_help_topic` function had "project" in both `tasks` and `projects` keyword lists. Fixed by removing "project" from `tasks` keywords since "project" is now the primary entity name.
+
+## Quick Test Commands
+
+```bash
+# Quick unit test (recommended for development)
+cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
+DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c230 \
+dotenvx run -f .env -- .venv/bin/python -m pytest tests/test_projects.py -v --tb=short
+
+# Run specific test class
+dotenvx run -f .env -- .venv/bin/python -m pytest tests/test_agents_new.py::TestManualHelpTopicDetection -v
+
+# Run with keyword filter
+dotenvx run -f .env -- .venv/bin/python -m pytest tests/ -k "project" -v
+```
