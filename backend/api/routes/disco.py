@@ -538,6 +538,87 @@ async def api_link_kb_documents(
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
+@router.get("/initiatives/{initiative_id}/linked-documents")
+async def api_get_linked_kb_documents(
+    initiative_id: str,
+    current_user: dict = Depends(require_disco_access)
+):
+    """Get KB documents linked to this initiative.
+
+    Returns documents from the main KB that have been linked to this initiative
+    via the disco_initiative_documents junction table.
+    """
+    await require_initiative_access(initiative_id, current_user, 'viewer')
+
+    try:
+        # Get linked document IDs with document details
+        result = await asyncio.to_thread(
+            lambda: supabase.table('disco_initiative_documents')
+                .select('document_id, linked_at, linked_by, documents(id, filename, title, uploaded_at, source_platform)')
+                .eq('initiative_id', initiative_id)
+                .order('linked_at', desc=True)
+                .execute()
+        )
+
+        linked_documents = []
+        for link in (result.data or []):
+            if link.get('documents'):
+                doc = link['documents']
+                linked_documents.append({
+                    'id': doc['id'],
+                    'filename': doc['filename'],
+                    'title': doc.get('title'),
+                    'uploaded_at': doc.get('uploaded_at'),
+                    'source_platform': doc.get('source_platform'),
+                    'linked_at': link['linked_at'],
+                    'linked_by': link['linked_by']
+                })
+
+        return {
+            'success': True,
+            'documents': linked_documents,
+            'count': len(linked_documents)
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting linked KB documents: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+@router.delete("/initiatives/{initiative_id}/linked-documents/{document_id}")
+async def api_unlink_kb_document(
+    initiative_id: str,
+    document_id: str,
+    current_user: dict = Depends(require_disco_access)
+):
+    """Unlink a KB document from this initiative.
+
+    Removes the link from disco_initiative_documents but does not delete the document.
+    """
+    await require_initiative_access(initiative_id, current_user, 'editor')
+
+    try:
+        # Delete the link
+        await asyncio.to_thread(
+            lambda: supabase.table('disco_initiative_documents')
+                .delete()
+                .eq('initiative_id', initiative_id)
+                .eq('document_id', document_id)
+                .execute()
+        )
+
+        logger.info(f"[DISCO] Unlinked document {document_id} from initiative {initiative_id}")
+
+        return {
+            'success': True,
+            'message': 'Document unlinked from initiative'
+        }
+
+    except Exception as e:
+        logger.error(f"Error unlinking document: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
 @router.get("/initiatives/as-tags")
 async def api_get_initiatives_as_tags(
     current_user: dict = Depends(require_disco_access)

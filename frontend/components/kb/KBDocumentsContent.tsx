@@ -1347,12 +1347,50 @@ export default function KBDocumentsContent() {
     }
   }
 
+  // State for DISCo usage warning
+  const [discoUsageWarning, setDiscoUsageWarning] = useState<string[]>([])
+  const [checkingDiscoUsage, setCheckingDiscoUsage] = useState(false)
+
+  // Check for DISCo usage before showing delete modal
+  async function checkDiscoUsageAndShowModal() {
+    if (selectedDocIds.size === 0) return
+
+    setCheckingDiscoUsage(true)
+    const discoInitiatives: string[] = []
+
+    // Check each document for DISCo links
+    for (const docId of Array.from(selectedDocIds)) {
+      try {
+        const result = await apiGet<{
+          success: boolean
+          disco_initiatives: Array<{ initiative_name: string }>
+          has_disco_usage: boolean
+        }>(`/api/documents/${docId}?check_only=true`)
+
+        if (result.disco_initiatives) {
+          for (const init of result.disco_initiatives) {
+            if (!discoInitiatives.includes(init.initiative_name)) {
+              discoInitiatives.push(init.initiative_name)
+            }
+          }
+        }
+      } catch {
+        // Ignore errors during check
+      }
+    }
+
+    setCheckingDiscoUsage(false)
+    setDiscoUsageWarning(discoInitiatives)
+    setShowBulkDeleteModal(true)
+  }
+
   // Bulk delete selected documents
   async function handleBulkDelete() {
     if (selectedDocIds.size === 0) return
 
     setBulkDeleting(true)
     setShowBulkDeleteModal(false)
+    setDiscoUsageWarning([])
 
     const idsToDelete = Array.from(selectedDocIds)
     let deleted = 0
@@ -1360,7 +1398,7 @@ export default function KBDocumentsContent() {
 
     for (const docId of idsToDelete) {
       try {
-        await apiDelete(`/api/documents/${docId}?force=true`)
+        await apiDelete(`/api/documents/${docId}`)
         deleted++
       } catch (err) {
         failed++
@@ -1882,11 +1920,11 @@ export default function KBDocumentsContent() {
                   </div>
                   {selectedDocIds.size > 0 && (
                     <button
-                      onClick={() => setShowBulkDeleteModal(true)}
-                      disabled={bulkDeleting}
+                      onClick={checkDiscoUsageAndShowModal}
+                      disabled={bulkDeleting || checkingDiscoUsage}
                       className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                     >
-                      {bulkDeleting ? (
+                      {bulkDeleting || checkingDiscoUsage ? (
                         <>
                           <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -2286,11 +2324,18 @@ export default function KBDocumentsContent() {
       <ConfirmModal
         open={showBulkDeleteModal}
         title="Delete Selected Documents"
-        message={`Are you sure you want to delete ${selectedDocIds.size} document${selectedDocIds.size !== 1 ? 's' : ''}? This action cannot be undone.`}
+        message={
+          discoUsageWarning.length > 0
+            ? `Are you sure you want to delete ${selectedDocIds.size} document${selectedDocIds.size !== 1 ? 's' : ''}?\n\nWARNING: ${selectedDocIds.size > 1 ? 'Some of these documents are' : 'This document is'} linked to DISCo initiative${discoUsageWarning.length !== 1 ? 's' : ''}: ${discoUsageWarning.join(', ')}. The documents will be removed from ${discoUsageWarning.length !== 1 ? 'these initiatives' : 'this initiative'}.\n\nThis action cannot be undone.`
+            : `Are you sure you want to delete ${selectedDocIds.size} document${selectedDocIds.size !== 1 ? 's' : ''}? This action cannot be undone.`
+        }
         confirmText={`Delete ${selectedDocIds.size} Document${selectedDocIds.size !== 1 ? 's' : ''}`}
         confirmVariant="danger"
         onConfirm={handleBulkDelete}
-        onCancel={() => setShowBulkDeleteModal(false)}
+        onCancel={() => {
+          setShowBulkDeleteModal(false)
+          setDiscoUsageWarning([])
+        }}
       />
 
       {/* Document Info Modal */}

@@ -90,7 +90,7 @@ export default function ConfirmModal({
         </h2>
 
         {/* Message */}
-        <p className="text-gray-600 mb-6">
+        <p className="text-gray-600 mb-6 whitespace-pre-line">
           {message}
         </p>
 

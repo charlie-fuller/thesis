@@ -1192,12 +1192,17 @@ async def get_document_details(
 async def delete_document(
     request: Request,
     document_id: str,
+    check_only: bool = False,
     current_user: dict = Depends(get_current_user)
 ):
     """Delete a document and all its chunks.
 
     Uses retry logic to handle transient Supabase connection errors
     that can occur during bulk delete operations.
+
+    Args:
+        document_id: UUID of document to delete
+        check_only: If True, only check for DISCo links without deleting
     """
     try:
         validate_uuid(document_id, "document_id")
@@ -1219,6 +1224,49 @@ async def delete_document(
         # Authorization check
         if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
             raise HTTPException(status_code=403, detail="Not authorized to delete this document")
+
+        # Check for DISCo initiative links
+        disco_links = []
+        try:
+            links_result = await retry_supabase_operation(
+                lambda: supabase.table('disco_initiative_documents')
+                    .select('initiative_id, disco_initiatives(id, name)')
+                    .eq('document_id', document_id)
+                    .execute()
+            )
+            if links_result.data:
+                for link in links_result.data:
+                    if link.get('disco_initiatives'):
+                        disco_links.append({
+                            'initiative_id': link['initiative_id'],
+                            'initiative_name': link['disco_initiatives']['name']
+                        })
+        except Exception as e:
+            # Table might not exist in some environments
+            logger.debug(f"Could not check DISCo links: {e}")
+
+        # If check_only, return the DISCo usage info without deleting
+        if check_only:
+            return {
+                'success': True,
+                'document_id': document_id,
+                'filename': document.get('filename'),
+                'disco_initiatives': disco_links,
+                'has_disco_usage': len(disco_links) > 0
+            }
+
+        # Delete DISCo initiative links explicitly (CASCADE should also handle this)
+        if disco_links:
+            try:
+                await retry_supabase_operation(
+                    lambda: supabase.table('disco_initiative_documents')
+                        .delete()
+                        .eq('document_id', document_id)
+                        .execute()
+                )
+                logger.info(f"Removed {len(disco_links)} DISCo initiative links for document {document_id}")
+            except Exception as e:
+                logger.warning(f"Could not delete DISCo links: {e}")
 
         # Delete chunks first (with retry)
         await retry_supabase_operation(
@@ -1249,7 +1297,8 @@ async def delete_document(
 
         return {
             'success': True,
-            'message': 'Document deleted successfully'
+            'message': 'Document deleted successfully',
+            'disco_initiatives_unlinked': disco_links if disco_links else None
         }
 
     except HTTPException:
