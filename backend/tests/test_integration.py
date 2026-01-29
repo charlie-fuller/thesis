@@ -35,10 +35,11 @@ from typing import Generator, Optional
 import pytest
 from dotenv import load_dotenv
 
-# CRITICAL: Load REAL credentials from .env file
-# This overrides the test values set by conftest.py
+# CRITICAL: Only load .env if credentials aren't already set
+# When running with dotenvx, the env vars are already decrypted and set
+# Calling load_dotenv would overwrite them with encrypted values
 _env_path = Path(__file__).parent.parent / ".env"
-if _env_path.exists():
+if not os.environ.get("SUPABASE_URL") and _env_path.exists():
     load_dotenv(_env_path, override=True)
 
 # Now read the real credentials

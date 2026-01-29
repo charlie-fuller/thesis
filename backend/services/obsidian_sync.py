@@ -37,8 +37,15 @@ logger = get_logger(__name__)
 # Get Supabase configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 
-# Get centralized Supabase client
-supabase = get_supabase()
+# Lazy initialization - don't call get_supabase() at import time
+_supabase = None
+
+def _get_db():
+    """Get Supabase client lazily to avoid import-time initialization."""
+    global _supabase
+    if _supabase is None:
+        _supabase = get_supabase()
+    return _supabase
 
 # Default sync options
 DEFAULT_SYNC_OPTIONS = {
@@ -468,7 +475,7 @@ def get_vault_config(user_id: str) -> Optional[Dict]:
         Vault config record or None if not configured
     """
     try:
-        result = supabase.table('obsidian_vault_configs') \
+        result = _get_db().table('obsidian_vault_configs') \
             .select('*') \
             .eq('user_id', user_id) \
             .eq('is_active', True) \
@@ -492,7 +499,7 @@ def get_vault_config_by_id(config_id: str) -> Optional[Dict]:
         Vault config record or None if not found
     """
     try:
-        result = supabase.table('obsidian_vault_configs') \
+        result = _get_db().table('obsidian_vault_configs') \
             .select('*') \
             .eq('id', config_id) \
             .execute()
@@ -533,7 +540,7 @@ def create_vault_config(
         raise ObsidianSyncError(f"Vault path is not a directory: {vault_path}")
 
     # Check for existing active config
-    existing = supabase.table('obsidian_vault_configs') \
+    existing = _get_db().table('obsidian_vault_configs') \
         .select('id') \
         .eq('user_id', user_id) \
         .eq('is_active', True) \
@@ -541,7 +548,7 @@ def create_vault_config(
 
     if existing.data:
         # Deactivate existing config
-        supabase.table('obsidian_vault_configs') \
+        _get_db().table('obsidian_vault_configs') \
             .update({'is_active': False}) \
             .eq('id', existing.data[0]['id']) \
             .execute()
@@ -567,7 +574,7 @@ def create_vault_config(
             'updated_at': now
         }
 
-        result = supabase.table('obsidian_vault_configs') \
+        result = _get_db().table('obsidian_vault_configs') \
             .insert(config_data) \
             .execute()
 
@@ -593,7 +600,7 @@ def update_vault_config(
         Updated config record
     """
     try:
-        result = supabase.table('obsidian_vault_configs') \
+        result = _get_db().table('obsidian_vault_configs') \
             .update(updates) \
             .eq('id', config_id) \
             .execute()
@@ -625,7 +632,7 @@ def deactivate_vault_config(config_id: str, remove_documents: bool = False) -> D
 
         if remove_documents:
             # Get all synced documents
-            sync_states = supabase.table('obsidian_sync_state') \
+            sync_states = _get_db().table('obsidian_sync_state') \
                 .select('document_id') \
                 .eq('config_id', config_id) \
                 .not_.is_('document_id', 'null') \
@@ -635,13 +642,13 @@ def deactivate_vault_config(config_id: str, remove_documents: bool = False) -> D
 
             if doc_ids:
                 # Delete document chunks
-                supabase.table('document_chunks') \
+                _get_db().table('document_chunks') \
                     .delete() \
                     .in_('document_id', doc_ids) \
                     .execute()
 
                 # Delete documents
-                supabase.table('documents') \
+                _get_db().table('documents') \
                     .delete() \
                     .in_('id', doc_ids) \
                     .execute()
@@ -650,13 +657,13 @@ def deactivate_vault_config(config_id: str, remove_documents: bool = False) -> D
                 logger.info(f"Removed {documents_removed} synced documents")
 
         # Delete sync state
-        supabase.table('obsidian_sync_state') \
+        _get_db().table('obsidian_sync_state') \
             .delete() \
             .eq('config_id', config_id) \
             .execute()
 
         # Deactivate config
-        supabase.table('obsidian_vault_configs') \
+        _get_db().table('obsidian_vault_configs') \
             .update({'is_active': False}) \
             .eq('id', config_id) \
             .execute()
@@ -687,7 +694,7 @@ def get_sync_state(config_id: str, file_path: str) -> Optional[Dict]:
         Sync state record or None
     """
     try:
-        result = supabase.table('obsidian_sync_state') \
+        result = _get_db().table('obsidian_sync_state') \
             .select('*') \
             .eq('config_id', config_id) \
             .eq('file_path', file_path) \
@@ -711,7 +718,7 @@ def get_all_sync_states(config_id: str) -> Dict[str, Dict]:
         Dict mapping file_path to sync state
     """
     try:
-        result = supabase.table('obsidian_sync_state') \
+        result = _get_db().table('obsidian_sync_state') \
             .select('*') \
             .eq('config_id', config_id) \
             .execute()
@@ -791,13 +798,13 @@ def update_sync_state(
         # Try update first
         existing = get_sync_state(config_id, file_path)
         if existing:
-            result = supabase.table('obsidian_sync_state') \
+            result = _get_db().table('obsidian_sync_state') \
                 .update(state_data) \
                 .eq('id', existing['id']) \
                 .execute()
         else:
             state_data['created_at'] = now
-            result = supabase.table('obsidian_sync_state') \
+            result = _get_db().table('obsidian_sync_state') \
                 .insert(state_data) \
                 .execute()
 
@@ -850,7 +857,7 @@ def create_sync_log(
         'started_at': datetime.now(timezone.utc).isoformat()
     }
 
-    result = supabase.table('obsidian_sync_log') \
+    result = _get_db().table('obsidian_sync_log') \
         .insert(log_data) \
         .execute()
 
@@ -897,7 +904,7 @@ def complete_sync_log(
     if error_details:
         update_data['error_details'] = error_details
 
-    supabase.table('obsidian_sync_log') \
+    _get_db().table('obsidian_sync_log') \
         .update(update_data) \
         .eq('id', log_id) \
         .execute()
@@ -1069,7 +1076,7 @@ def _upsert_obsidian_document(
     user_id = config['user_id']
 
     # First, check if document already exists with this path
-    existing_doc = supabase.table('documents') \
+    existing_doc = _get_db().table('documents') \
         .select('id') \
         .eq('user_id', user_id) \
         .eq('obsidian_file_path', relative_path) \
@@ -1108,7 +1115,7 @@ def _upsert_obsidian_document(
         if 'duplicate key' in error_str.lower() or 'unique constraint' in error_str.lower() or 'idx_documents_unique_obsidian_path' in error_str.lower():
             logger.info(f"      Concurrent insert detected, falling back to update")
             # Another sync created the document, fetch and update it
-            existing_doc = supabase.table('documents') \
+            existing_doc = _get_db().table('documents') \
                 .select('id') \
                 .eq('user_id', user_id) \
                 .eq('obsidian_file_path', relative_path) \
@@ -1170,7 +1177,7 @@ def _create_obsidian_document(
     # Upload to Supabase storage with error handling
     logger.info(f"Uploading {len(file_content)} bytes to storage: {storage_path}")
     try:
-        upload_result = supabase.storage.from_('documents').upload(
+        upload_result = _get_db().storage.from_('documents').upload(
             path=storage_path,
             file=file_content,
             file_options={"content-type": "text/markdown"}
@@ -1206,7 +1213,7 @@ def _create_obsidian_document(
         # Note: frontmatter is stored in obsidian_sync_state, not documents
     }
 
-    result = supabase.table('documents').insert(document_data).execute()
+    result = _get_db().table('documents').insert(document_data).execute()
     document = result.data[0]
 
     # Check for thesis-agents in frontmatter for auto-tagging
@@ -1256,7 +1263,7 @@ def _update_obsidian_document(
         raise ObsidianSyncError(f"Cannot update with empty content: {document_id}")
 
     # Get existing document
-    doc_result = supabase.table('documents') \
+    doc_result = _get_db().table('documents') \
         .select('storage_url, filename') \
         .eq('id', document_id) \
         .execute()
@@ -1271,7 +1278,7 @@ def _update_obsidian_document(
     # Update file in storage with error handling
     logger.info(f"Updating {len(file_content)} bytes in storage: {storage_path}")
     try:
-        update_result = supabase.storage.from_('documents').update(
+        update_result = _get_db().storage.from_('documents').update(
             path=storage_path,
             file=file_content,
             file_options={"upsert": "true"}
@@ -1286,7 +1293,7 @@ def _update_obsidian_document(
         raise ObsidianSyncError(f"Storage update failed for {filename}: {e}")
 
     # Delete old embeddings
-    supabase.table('document_chunks') \
+    _get_db().table('document_chunks') \
         .delete() \
         .eq('document_id', document_id) \
         .execute()
@@ -1303,11 +1310,11 @@ def _update_obsidian_document(
     # Only update original_date if provided and not already set
     if original_date:
         # Check if original_date is already set
-        existing_doc = supabase.table('documents').select('original_date').eq('id', document_id).execute()
+        existing_doc = _get_db().table('documents').select('original_date').eq('id', document_id).execute()
         if existing_doc.data and not existing_doc.data[0].get('original_date'):
             update_data['original_date'] = original_date.isoformat()
 
-    result = supabase.table('documents') \
+    result = _get_db().table('documents') \
         .update(update_data) \
         .eq('id', document_id) \
         .execute()
@@ -1412,7 +1419,7 @@ def _sync_document_tags(document_id: str, tags: List[str], source: str = 'frontm
     # Delete existing tags of this source type (preserve other sources)
     if source in ('frontmatter', 'path'):
         try:
-            supabase.table('document_tags') \
+            _get_db().table('document_tags') \
                 .delete() \
                 .eq('document_id', document_id) \
                 .eq('source', source) \
@@ -1424,7 +1431,7 @@ def _sync_document_tags(document_id: str, tags: List[str], source: str = 'frontm
     for tag in tags:
         if isinstance(tag, str) and tag.strip():
             try:
-                supabase.table('document_tags').upsert({
+                _get_db().table('document_tags').upsert({
                     'document_id': document_id,
                     'tag': tag.strip(),
                     'source': source
@@ -1444,7 +1451,7 @@ def _link_document_to_agents(document_id: str, user_id: str, agent_names: List[s
         agent_names: List of agent names from frontmatter
     """
     # Get agent IDs for the specified names
-    agents_result = supabase.table('agents') \
+    agents_result = _get_db().table('agents') \
         .select('id, name') \
         .in_('name', [name.lower() for name in agent_names]) \
         .execute()
@@ -1455,7 +1462,7 @@ def _link_document_to_agents(document_id: str, user_id: str, agent_names: List[s
         agent_id = agent_map.get(agent_name.lower())
         if agent_id:
             try:
-                supabase.table('agent_knowledge_base').insert({
+                _get_db().table('agent_knowledge_base').insert({
                     'agent_id': agent_id,
                     'document_id': document_id,
                     'added_by': user_id,
@@ -1559,11 +1566,11 @@ def sync_vault(
                     # Delete the document
                     try:
                         doc_id = state['document_id']
-                        supabase.table('document_chunks') \
+                        _get_db().table('document_chunks') \
                             .delete() \
                             .eq('document_id', doc_id) \
                             .execute()
-                        supabase.table('documents') \
+                        _get_db().table('documents') \
                             .delete() \
                             .eq('id', doc_id) \
                             .execute()
@@ -1639,14 +1646,14 @@ def get_sync_status(user_id: str) -> Dict:
         }
 
     # Count synced files
-    synced_result = supabase.table('obsidian_sync_state') \
+    synced_result = _get_db().table('obsidian_sync_state') \
         .select('id', count='exact') \
         .eq('config_id', config['id']) \
         .eq('sync_status', 'synced') \
         .execute()
 
     # Count pending/failed files
-    pending_result = supabase.table('obsidian_sync_state') \
+    pending_result = _get_db().table('obsidian_sync_state') \
         .select('id', count='exact') \
         .eq('config_id', config['id']) \
         .in_('sync_status', ['pending', 'failed']) \
@@ -1814,11 +1821,11 @@ class ObsidianVaultWatcher:
                     if existing_state and existing_state.get('document_id'):
                         if self.sync_options.get('sync_on_delete', False):
                             doc_id = existing_state['document_id']
-                            supabase.table('document_chunks') \
+                            _get_db().table('document_chunks') \
                                 .delete() \
                                 .eq('document_id', doc_id) \
                                 .execute()
-                            supabase.table('documents') \
+                            _get_db().table('documents') \
                                 .delete() \
                                 .eq('id', doc_id) \
                                 .execute()
