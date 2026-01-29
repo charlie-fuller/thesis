@@ -2,11 +2,12 @@
 
 Update the in-app help documentation and reindex for the help search function. Help docs are RAG-indexed for the Manual agent's help chat.
 
+**This command always reindexes embeddings after updating docs.**
+
 ## Usage
 
 ```
-/update-help-docs              # Update help docs for recent features
-/update-help-docs --reindex    # Also reindex embeddings after updates
+/update-help-docs              # Update help docs and reindex embeddings
 ```
 
 ## Help Docs Structure
@@ -104,7 +105,7 @@ After updating `docs/help/`, sync to the backend copy:
 rsync -av --delete docs/help/ backend/docs_help/
 ```
 
-### Step 5: Reindex Help Embeddings (if --reindex)
+### Step 5: Reindex Help Embeddings
 
 Reindex the help documentation in the database:
 
