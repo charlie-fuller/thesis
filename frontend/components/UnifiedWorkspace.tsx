@@ -68,8 +68,14 @@ export default function UnifiedWorkspace({
         showRightPanel={showRightPanel}
         onToggleLeftPanel={() => setShowLeftPanel(!showLeftPanel)}
         onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
-        tabSwitcher={tabSwitcher}
       />
+
+      {/* Tab Switcher (below header for consistency) */}
+      {tabSwitcher && (
+        <div className="flex-shrink-0 px-4 sm:px-6 lg:px-8 pt-4 bg-page">
+          {tabSwitcher}
+        </div>
+      )}
 
       {/* Main Workspace - 2-column layout */}
       <div className="flex-1 flex overflow-hidden min-h-0">
