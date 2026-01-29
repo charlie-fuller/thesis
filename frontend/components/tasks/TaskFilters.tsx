@@ -123,167 +123,146 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
   }
 
   return (
-    <div className="bg-card border border-default rounded-lg p-3 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="font-medium text-primary">Filters</h3>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleClearAll}
-            className="text-sm text-muted hover:text-primary transition-colors"
-          >
-            Clear all
-          </button>
-          <button
-            onClick={onClose}
-            className="p-1 text-muted hover:text-primary rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="bg-card border border-default rounded-lg px-3 py-2">
+      {/* Row 1: Search + Dropdowns */}
+      <div className="flex flex-wrap items-center gap-2">
         {/* Search */}
-        <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Search</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-            <input
-              type="text"
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Search tasks..."
-              className="w-full pl-9 pr-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
-            />
-          </div>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+          <input
+            type="text"
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            placeholder="Search..."
+            className="w-40 pl-8 pr-2 py-1.5 text-sm border border-default rounded-md bg-card text-primary focus:outline-none focus:ring-1 focus:ring-brand"
+          />
         </div>
 
         {/* Assignee */}
-        <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Assignee</label>
-          <select
-            value={filters.assignee_stakeholder_id || ''}
-            onChange={(e) => onChange({ ...filters, assignee_stakeholder_id: e.target.value || null })}
-            className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
-          >
-            <option value="">All assignees</option>
-            {stakeholders.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={filters.assignee_stakeholder_id || ''}
+          onChange={(e) => onChange({ ...filters, assignee_stakeholder_id: e.target.value || null })}
+          className="px-2 py-1.5 text-sm border border-default rounded-md bg-card text-primary focus:outline-none focus:ring-1 focus:ring-brand"
+        >
+          <option value="">Assignee</option>
+          {stakeholders.map(s => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
 
         {/* Team */}
-        <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Team</label>
-          <select
-            value={filters.team || ''}
-            onChange={(e) => onChange({ ...filters, team: e.target.value || null })}
-            className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
-          >
-            <option value="">All teams</option>
-            {TEAM_OPTIONS.map(team => (
-              <option key={team} value={team}>{team}</option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={filters.team || ''}
+          onChange={(e) => onChange({ ...filters, team: e.target.value || null })}
+          className="px-2 py-1.5 text-sm border border-default rounded-md bg-card text-primary focus:outline-none focus:ring-1 focus:ring-brand"
+        >
+          <option value="">Team</option>
+          {TEAM_OPTIONS.map(team => (
+            <option key={team} value={team}>{team}</option>
+          ))}
+        </select>
 
         {/* Project */}
-        <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Project</label>
-          <select
-            value={filters.linked_project_id || ''}
-            onChange={(e) => onChange({ ...filters, linked_project_id: e.target.value || null })}
-            className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
-          >
-            <option value="">All projects</option>
-            {projectsList.map(proj => (
-              <option key={proj.id} value={proj.id}>
-                {proj.project_name || proj.title} ({proj.project_code})
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+        <select
+          value={filters.linked_project_id || ''}
+          onChange={(e) => onChange({ ...filters, linked_project_id: e.target.value || null })}
+          className="px-2 py-1.5 text-sm border border-default rounded-md bg-card text-primary focus:outline-none focus:ring-1 focus:ring-brand max-w-[140px]"
+        >
+          <option value="">Project</option>
+          {projectsList.map(proj => (
+            <option key={proj.id} value={proj.id}>
+              {proj.project_code}
+            </option>
+          ))}
+        </select>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Due Date From */}
-        <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Due From</label>
+        {/* Due From */}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-muted">Due:</span>
           <input
             type="date"
             value={filters.due_date_from || ''}
             onChange={(e) => onChange({ ...filters, due_date_from: e.target.value || null })}
-            className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+            className="px-2 py-1.5 text-sm border border-default rounded-md bg-card text-primary focus:outline-none focus:ring-1 focus:ring-brand"
           />
-        </div>
-
-        {/* Due Date To */}
-        <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Due To</label>
+          <span className="text-xs text-muted">to</span>
           <input
             type="date"
             value={filters.due_date_to || ''}
             onChange={(e) => onChange({ ...filters, due_date_to: e.target.value || null })}
-            className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+            className="px-2 py-1.5 text-sm border border-default rounded-md bg-card text-primary focus:outline-none focus:ring-1 focus:ring-brand"
           />
         </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Clear + Close */}
+        <button
+          onClick={handleClearAll}
+          className="text-xs text-muted hover:text-primary transition-colors"
+        >
+          Clear
+        </button>
+        <button
+          onClick={onClose}
+          className="p-1 text-muted hover:text-primary rounded transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
-      {/* Priority & Source Type */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* Row 2: Priority + Source + Completed */}
+      <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-default">
         {/* Priority */}
-        <div>
-          <label className="block text-sm font-medium text-secondary mb-2">Priority</label>
-          <div className="flex flex-wrap gap-2">
-            {PRIORITY_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => handlePriorityToggle(opt.value)}
-                className={`px-3 py-1 text-sm rounded-full border transition-colors ${
-                  filters.priority?.includes(opt.value)
-                    ? 'bg-brand text-white border-brand'
-                    : 'border-default text-muted hover:border-brand hover:text-brand'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+        <span className="text-xs text-muted">Priority:</span>
+        <div className="flex gap-1">
+          {PRIORITY_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => handlePriorityToggle(opt.value)}
+              className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                filters.priority?.includes(opt.value)
+                  ? 'bg-brand text-white border-brand'
+                  : 'border-default text-muted hover:border-brand hover:text-brand'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
+
+        <span className="text-default">|</span>
 
         {/* Source Type */}
-        <div>
-          <label className="block text-sm font-medium text-secondary mb-2">Source</label>
-          <div className="flex flex-wrap gap-2">
-            {SOURCE_TYPE_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => handleSourceToggle(opt.value)}
-                className={`px-3 py-1 text-sm rounded-full border transition-colors ${
-                  filters.source_type?.includes(opt.value)
-                    ? 'bg-brand text-white border-brand'
-                    : 'border-default text-muted hover:border-brand hover:text-brand'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+        <span className="text-xs text-muted">Source:</span>
+        <div className="flex gap-1">
+          {SOURCE_TYPE_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => handleSourceToggle(opt.value)}
+              className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                filters.source_type?.includes(opt.value)
+                  ? 'bg-brand text-white border-brand'
+                  : 'border-default text-muted hover:border-brand hover:text-brand'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
-      </div>
 
-      {/* Include Completed Toggle */}
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="include-completed"
-          checked={filters.include_completed}
-          onChange={(e) => onChange({ ...filters, include_completed: e.target.checked })}
-          className="w-4 h-4 rounded border-default text-brand focus:ring-brand"
-        />
-        <label htmlFor="include-completed" className="text-sm text-secondary">
-          Show completed tasks
+        <span className="text-default">|</span>
+
+        {/* Include Completed Toggle */}
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={filters.include_completed}
+            onChange={(e) => onChange({ ...filters, include_completed: e.target.checked })}
+            className="w-3.5 h-3.5 rounded border-default text-brand focus:ring-brand"
+          />
+          <span className="text-xs text-secondary">Show completed</span>
         </label>
       </div>
     </div>

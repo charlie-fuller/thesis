@@ -185,9 +185,13 @@ async def list_stakeholders(
     supabase = Depends(get_supabase)
 ):
     """List all stakeholders for the current client."""
+    client_id = current_user.get("client_id")
+    if not client_id:
+        raise HTTPException(status_code=400, detail="User has no client_id assigned")
+
     query = supabase.table("stakeholders") \
         .select("*") \
-        .eq("client_id", current_user["client_id"])
+        .eq("client_id", client_id)
 
     if department:
         query = query.eq("department", department)
