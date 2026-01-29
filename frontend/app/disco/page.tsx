@@ -9,12 +9,13 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Filter,
   Search,
   Users,
   ChevronRight,
-  Loader2
+  Loader2,
+  Map
 } from 'lucide-react'
+import DiscoProcessMap from '@/components/disco/DiscoProcessMap'
 import { apiGet, apiPost } from '@/lib/api'
 
 // ============================================================================
@@ -258,6 +259,7 @@ export default function DiscoInitiativesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<'initiatives' | 'workflow'>('initiatives')
 
   const loadInitiatives = async () => {
     try {
@@ -317,7 +319,7 @@ export default function DiscoInitiativesPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Page Title - Centered */}
-      <div className="text-center mb-8">
+      <div className="text-center mb-6">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
           DISCo
         </h1>
@@ -325,6 +327,37 @@ export default function DiscoInitiativesPage() {
           Discovery, Intelligence, Synthesis, Capabilities, Operationalize
         </p>
       </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 border-b border-slate-200 dark:border-slate-700">
+        <button
+          onClick={() => setActiveTab('initiatives')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === 'initiatives'
+              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          Initiatives
+        </button>
+        <button
+          onClick={() => setActiveTab('workflow')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+            activeTab === 'workflow'
+              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          <Map className="w-4 h-4" />
+          Workflow Map
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'workflow' ? (
+        <DiscoProcessMap />
+      ) : (
+        <>
 
       {/* Header - only show New Initiative button when there are initiatives */}
       <div className="flex items-center justify-between mb-6">
@@ -450,6 +483,8 @@ export default function DiscoInitiativesPage() {
         onClose={() => setCreateModalOpen(false)}
         onCreated={handleInitiativeCreated}
       />
+      </>
+      )}
     </div>
   )
 }

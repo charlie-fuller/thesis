@@ -16,10 +16,14 @@ const ConversationsContent = dynamic(() => import('@/components/admin/Conversati
   loading: () => <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div></div>
 })
 
+const KBDataMap = dynamic(() => import('@/components/kb/KBDataMap'), {
+  loading: () => <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div></div>
+})
+
 export default function KnowledgeBasePage() {
   const router = useRouter()
   const { user, session, loading: authLoading } = useAuth()
-  const [activeTab, setActiveTab] = useState<'documents' | 'conversations'>('documents')
+  const [activeTab, setActiveTab] = useState<'documents' | 'conversations' | 'datamap'>('documents')
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -71,6 +75,16 @@ export default function KnowledgeBasePage() {
             >
               Conversations
             </button>
+            <button
+              onClick={() => setActiveTab('datamap')}
+              className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                activeTab === 'datamap'
+                  ? 'border-brand text-brand'
+                  : 'border-transparent text-muted hover:text-primary'
+              }`}
+            >
+              Data Map
+            </button>
           </div>
 
           {/* Tab Content */}
@@ -80,6 +94,11 @@ export default function KnowledgeBasePage() {
             </Suspense>
           )}
           {activeTab === 'conversations' && <ConversationsContent />}
+          {activeTab === 'datamap' && (
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div></div>}>
+              <KBDataMap />
+            </Suspense>
+          )}
         </div>
       </div>
     </div>
