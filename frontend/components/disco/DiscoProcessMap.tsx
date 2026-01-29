@@ -187,9 +187,9 @@ export default function DiscoProcessMap() {
       {/* SVG Flowchart */}
       <div className="overflow-x-auto text-primary">
         <svg
-          viewBox="0 0 1200 620"
+          viewBox="0 0 1150 720"
           className="w-full min-w-[900px]"
-          style={{ maxHeight: '620px' }}
+          style={{ maxHeight: '720px' }}
         >
           {/* Definitions */}
           <defs>
@@ -238,16 +238,16 @@ export default function DiscoProcessMap() {
 
           {/* ===== STAGE LABELS ===== */}
           <text x="280" y="30" textAnchor="middle" fill="#f59e0b" fontSize="14" fontWeight="700">
-            Stage 1: DISCOVERY
+            D: DISCOVERY
           </text>
-          <text x="590" y="30" textAnchor="middle" fill="#14b8a6" fontSize="14" fontWeight="700">
-            Stage 2: INTELLIGENCE
+          <text x="670" y="240" textAnchor="middle" fill="#14b8a6" fontSize="14" fontWeight="700">
+            I: INTELLIGENCE
           </text>
-          <text x="820" y="30" textAnchor="middle" fill="#8b5cf6" fontSize="14" fontWeight="700">
-            Stage 3: SYNTHESIS
+          <text x="860" y="255" textAnchor="middle" fill="#8b5cf6" fontSize="14" fontWeight="700">
+            S: SYNTHESIS
           </text>
-          <text x="1050" y="30" textAnchor="middle" fill="#22c55e" fontSize="14" fontWeight="700">
-            Stage 4: CAPABILITIES
+          <text x="1060" y="255" textAnchor="middle" fill="#22c55e" fontSize="14" fontWeight="700">
+            C: CAPABILITIES
           </text>
 
           {/* ===== STAGE 1: DISCOVERY (4 agents) ===== */}
@@ -300,15 +300,15 @@ export default function DiscoProcessMap() {
             <text x="317" y="125" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="600">NO-GO</text>
             <rect x="349" y="112" width="30" height="18" rx="4" fill="#f59e0b" fillOpacity="0.3" />
             <text x="364" y="125" textAnchor="middle" fill="#f59e0b" fontSize="9" fontWeight="600">?</text>
-            {/* Human icon - decision validation */}
-            <g transform="translate(375, 55)">
+            {/* Human icon - decision validation (inset into box) */}
+            <g transform="translate(355, 58)">
               <circle cx="6" cy="4" r="4" fill="#f59e0b" />
               <path d="M0 16 Q6 10 12 16" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
             </g>
           </g>
 
-          {/* Arrow: Triage -> Discovery Planner (down) */}
-          <path d="M 310 140 L 310 170" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Triage -> Discovery Planner (down and left) */}
+          <path d="M 310 140 L 310 200 L 115 200 L 115 275" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* Discovery Planner */}
           <g
@@ -316,22 +316,60 @@ export default function DiscoProcessMap() {
             onClick={() => setSelectedStep(processSteps[2])}
           >
             <rect
-              x="200" y="180" width="140" height="70"
+              x="50" y="280" width="130" height="70"
               rx="8"
               fill={stageColors.discovery.fill}
               stroke={stageColors.discovery.stroke}
               strokeWidth="2"
             />
-            <text x="270" y="210" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
+            <text x="115" y="310" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
               Discovery Planner
             </text>
-            <text x="270" y="230" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+            <text x="115" y="330" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
               Session agendas
             </text>
           </g>
 
-          {/* Arrow: Planner -> Coverage Tracker */}
-          <path d="M 340 215 L 370 215" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Planner -> Discovery Workshop */}
+          <path d="M 180 315 L 210 315" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+
+          {/* Discovery Workshop - Human stakeholder sessions */}
+          <g>
+            <rect
+              x="220" y="265" width="180" height="100"
+              rx="10"
+              fill="rgba(100, 116, 139, 0.15)"
+              stroke="#64748b"
+              strokeWidth="2"
+              strokeDasharray="6 3"
+            />
+            <text x="310" y="295" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="700">
+              Discovery Workshop
+            </text>
+            <text x="310" y="315" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+              Stakeholder interviews &amp; sessions
+            </text>
+            {/* Multiple human icons to show group activity */}
+            <g transform="translate(255, 330)">
+              <circle cx="6" cy="4" r="4" fill="#64748b" />
+              <path d="M0 16 Q6 10 12 16" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
+            </g>
+            <g transform="translate(285, 330)">
+              <circle cx="6" cy="4" r="4" fill="#64748b" />
+              <path d="M0 16 Q6 10 12 16" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
+            </g>
+            <g transform="translate(315, 330)">
+              <circle cx="6" cy="4" r="4" fill="#64748b" />
+              <path d="M0 16 Q6 10 12 16" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
+            </g>
+            <g transform="translate(345, 330)">
+              <circle cx="6" cy="4" r="4" fill="#64748b" />
+              <path d="M0 16 Q6 10 12 16" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
+            </g>
+          </g>
+
+          {/* Arrow: Workshop -> Coverage Tracker */}
+          <path d="M 400 315 L 430 315" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* Coverage Tracker */}
           <g
@@ -339,16 +377,16 @@ export default function DiscoProcessMap() {
             onClick={() => setSelectedStep(processSteps[3])}
           >
             <rect
-              x="380" y="180" width="140" height="70"
+              x="440" y="280" width="130" height="70"
               rx="8"
               fill={stageColors.discovery.fill}
               stroke={stageColors.discovery.stroke}
               strokeWidth="2"
             />
-            <text x="450" y="210" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
+            <text x="505" y="310" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
               Coverage Tracker
             </text>
-            <text x="450" y="230" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+            <text x="505" y="330" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
               READY / GAPS
             </text>
           </g>
@@ -356,7 +394,7 @@ export default function DiscoProcessMap() {
           {/* ===== STAGE 2: INTELLIGENCE (1 agent) ===== */}
 
           {/* Arrow: Coverage -> Insight Extractor */}
-          <path d="M 520 215 L 540 215" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          <path d="M 570 315 L 585 315" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* Insight Extractor */}
           <g
@@ -364,19 +402,19 @@ export default function DiscoProcessMap() {
             onClick={() => setSelectedStep(processSteps[4])}
           >
             <rect
-              x="550" y="165" width="160" height="100"
+              x="590" y="265" width="160" height="100"
               rx="10"
               fill={stageColors.intelligence.fill}
               stroke={stageColors.intelligence.stroke}
               strokeWidth="3"
             />
-            <text x="630" y="200" textAnchor="middle" fill={colors.textPrimary} fontSize="15" fontWeight="700">
+            <text x="670" y="300" textAnchor="middle" fill={colors.textPrimary} fontSize="15" fontWeight="700">
               Insight Extractor
             </text>
-            <text x="630" y="220" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
+            <text x="670" y="320" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               Patterns with evidence
             </text>
-            <text x="630" y="245" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+            <text x="670" y="345" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
               from transcripts
             </text>
           </g>
@@ -384,7 +422,7 @@ export default function DiscoProcessMap() {
           {/* ===== STAGE 3: SYNTHESIS (2 agents) ===== */}
 
           {/* Arrow: Insight -> Consolidator */}
-          <path d="M 710 215 L 740 215" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          <path d="M 750 315 L 780 315" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* Consolidator */}
           <g
@@ -392,22 +430,22 @@ export default function DiscoProcessMap() {
             onClick={() => setSelectedStep(processSteps[5])}
           >
             <rect
-              x="750" y="165" width="140" height="70"
+              x="790" y="280" width="140" height="70"
               rx="8"
               fill={stageColors.synthesis.fill}
               stroke={stageColors.synthesis.stroke}
               strokeWidth="2"
             />
-            <text x="820" y="195" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
+            <text x="860" y="310" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
               Consolidator
             </text>
-            <text x="820" y="215" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+            <text x="860" y="330" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
               Decision document
             </text>
           </g>
 
           {/* Arrow: Consolidator -> Strategist (down) */}
-          <path d="M 820 235 L 820 270" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          <path d="M 860 350 L 860 385" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* Strategist */}
           <g
@@ -415,16 +453,16 @@ export default function DiscoProcessMap() {
             onClick={() => setSelectedStep(processSteps[6])}
           >
             <rect
-              x="750" y="280" width="140" height="70"
+              x="790" y="395" width="140" height="70"
               rx="8"
               fill={stageColors.synthesis.fill}
               stroke={stageColors.synthesis.stroke}
               strokeWidth="2"
             />
-            <text x="820" y="310" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
+            <text x="860" y="425" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
               Strategist
             </text>
-            <text x="820" y="330" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+            <text x="860" y="445" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
               Feature bundles
             </text>
           </g>
@@ -432,7 +470,7 @@ export default function DiscoProcessMap() {
           {/* ===== STAGE 4: CAPABILITIES (2 agents) ===== */}
 
           {/* Arrow: Strategist -> PRD Generator */}
-          <path d="M 890 315 L 960 315" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          <path d="M 930 430 L 980 430" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* PRD Generator */}
           <g
@@ -440,22 +478,22 @@ export default function DiscoProcessMap() {
             onClick={() => setSelectedStep(processSteps[7])}
           >
             <rect
-              x="970" y="280" width="140" height="70"
+              x="990" y="395" width="140" height="70"
               rx="8"
               fill={stageColors.capabilities.fill}
               stroke={stageColors.capabilities.stroke}
               strokeWidth="2"
             />
-            <text x="1040" y="310" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
+            <text x="1060" y="425" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
               PRD Generator
             </text>
-            <text x="1040" y="330" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+            <text x="1060" y="445" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
               Product requirements
             </text>
           </g>
 
           {/* Arrow: Consolidator -> Tech Evaluation (side route) */}
-          <path d="M 890 200 L 960 200" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          <path d="M 930 315 L 980 315" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* Tech Evaluation */}
           <g
@@ -463,16 +501,16 @@ export default function DiscoProcessMap() {
             onClick={() => setSelectedStep(processSteps[8])}
           >
             <rect
-              x="970" y="165" width="140" height="70"
+              x="990" y="280" width="140" height="70"
               rx="8"
               fill={stageColors.capabilities.fill}
               stroke={stageColors.capabilities.stroke}
               strokeWidth="2"
             />
-            <text x="1040" y="195" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
+            <text x="1060" y="310" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
               Tech Evaluation
             </text>
-            <text x="1040" y="215" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+            <text x="1060" y="330" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
               Technical feasibility
             </text>
           </g>
@@ -480,79 +518,79 @@ export default function DiscoProcessMap() {
           {/* ===== DOCUMENTS INPUT ===== */}
           <g>
             <rect
-              x="50" y="180" width="120" height="50"
+              x="50" y="170" width="120" height="50"
               rx="6"
               fill="rgba(100, 116, 139, 0.1)"
               stroke="#64748b"
               strokeWidth="1"
               strokeDasharray="4 2"
             />
-            <text x="110" y="200" textAnchor="middle" fill="#64748b" fontSize="11" fontWeight="500">
+            <text x="110" y="190" textAnchor="middle" fill="#64748b" fontSize="11" fontWeight="500">
               Documents
             </text>
-            <text x="110" y="215" textAnchor="middle" fill="#64748b" fontSize="10">
+            <text x="110" y="205" textAnchor="middle" fill="#64748b" fontSize="10">
               (uploaded)
             </text>
           </g>
 
           {/* Arrow: Documents -> Prep */}
-          <path d="M 110 180 L 110 140 L 120 130" fill="none" stroke="#64748b" strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
+          <path d="M 110 170 L 110 140 L 120 130" fill="none" stroke="#64748b" strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
 
           {/* ===== OUTPUTS ===== */}
 
           {/* Approved Bundles - Human in the loop */}
           <g>
             <rect
-              x="750" y="380" width="140" height="50"
+              x="790" y="495" width="140" height="50"
               rx="6"
               fill="rgba(139, 92, 246, 0.1)"
               stroke="#8b5cf6"
               strokeWidth="1"
               strokeDasharray="4 2"
             />
-            <text x="820" y="400" textAnchor="middle" fill="#8b5cf6" fontSize="11" fontWeight="500">
+            <text x="860" y="515" textAnchor="middle" fill="#8b5cf6" fontSize="11" fontWeight="500">
               Approved Bundles
             </text>
-            <text x="820" y="415" textAnchor="middle" fill="#8b5cf6" fontSize="10">
+            <text x="860" y="530" textAnchor="middle" fill="#8b5cf6" fontSize="10">
               (user review)
             </text>
-            {/* Human icon */}
-            <g transform="translate(875, 385)">
+            {/* Human icon - inset into box */}
+            <g transform="translate(900, 500)">
               <circle cx="6" cy="4" r="4" fill="#8b5cf6" />
               <path d="M0 16 Q6 10 12 16" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" />
             </g>
           </g>
 
           {/* Arrow: Strategist -> Approved */}
-          <path d="M 820 350 L 820 375" fill="none" stroke="#8b5cf6" strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
+          <path d="M 860 465 L 860 490" fill="none" stroke="#8b5cf6" strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
 
-          {/* Arrow: Approved -> PRD */}
-          <path d="M 890 405 L 940 405 L 940 340 L 970 340" fill="none" stroke="#8b5cf6" strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Approved -> PRD Generator */}
+          <path d="M 930 520 L 1060 520 L 1060 470" fill="none" stroke="#8b5cf6" strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
 
           {/* Final Output: PRD */}
           <g>
             <rect
-              x="970" y="380" width="140" height="50"
+              x="990" y="495" width="140" height="50"
               rx="6"
               fill="rgba(34, 197, 94, 0.15)"
               stroke="#22c55e"
               strokeWidth="2"
             />
-            <text x="1040" y="402" textAnchor="middle" fill="#22c55e" fontSize="12" fontWeight="600">
+            <text x="1060" y="517" textAnchor="middle" fill="#22c55e" fontSize="12" fontWeight="600">
               PRD Document
             </text>
-            <text x="1040" y="418" textAnchor="middle" fill="#22c55e" fontSize="10">
+            <text x="1060" y="533" textAnchor="middle" fill="#22c55e" fontSize="10">
               Ready for dev
             </text>
           </g>
 
           {/* Arrow: PRD Generator -> PRD Output */}
-          <path d="M 1040 350 L 1040 375" fill="none" stroke="#22c55e" strokeWidth="2" markerEnd="url(#arrowhead)" />
+          <path d="M 1060 465 L 1060 490" fill="none" stroke="#22c55e" strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* ===== STAGE 5: OPERATIONALIZE ===== */}
 
           {/* Arrow: PRD Output -> Operationalize */}
-          <path d="M 1040 430 L 1040 455" fill="none" stroke="#ec4899" strokeWidth="2" markerEnd="url(#arrowhead)" />
+          <path d="M 1060 545 L 1060 570" fill="none" stroke="#ec4899" strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* Operationalize */}
           <g
@@ -560,22 +598,22 @@ export default function DiscoProcessMap() {
             onClick={() => setSelectedStep(processSteps[9])}
           >
             <rect
-              x="970" y="465" width="140" height="70"
+              x="990" y="580" width="140" height="70"
               rx="8"
               fill={stageColors.operationalize.fill}
               stroke={stageColors.operationalize.stroke}
               strokeWidth="3"
             />
-            <text x="1040" y="495" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="700">
+            <text x="1060" y="610" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="700">
               Operationalize
             </text>
-            <text x="1040" y="515" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+            <text x="1060" y="630" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
               Handoff to dev
             </text>
           </g>
 
           {/* ===== LEGEND ===== */}
-          <g transform="translate(50, 560)">
+          <g transform="translate(50, 670)">
             <text x="0" y="0" fill={colors.textSecondary} fontSize="12" fontWeight="600">Legend</text>
 
             <rect x="0" y="15" width="16" height="12" rx="2" fill={stageColors.discovery.fill} stroke={stageColors.discovery.stroke} strokeWidth="1" />
@@ -593,14 +631,11 @@ export default function DiscoProcessMap() {
             <rect x="460" y="15" width="16" height="12" rx="2" fill={stageColors.operationalize.fill} stroke={stageColors.operationalize.stroke} strokeWidth="1" />
             <text x="482" y="25" fill={colors.textSecondary} fontSize="10">O - Operationalize</text>
 
-            {/* Human in the loop indicator */}
-            <g transform="translate(590, 13)">
-              <circle cx="6" cy="4" r="3" fill="#64748b" />
-              <path d="M1 12 Q6 8 11 12" fill="none" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" />
-            </g>
-            <text x="610" y="25" fill={colors.textSecondary} fontSize="10">Human decision</text>
+            {/* Workshop / Human in the loop indicator */}
+            <rect x="590" y="15" width="16" height="12" rx="2" fill="rgba(100, 116, 139, 0.15)" stroke="#64748b" strokeWidth="1" strokeDasharray="3 1" />
+            <text x="612" y="25" fill={colors.textSecondary} fontSize="10">Workshop / Human</text>
 
-            <text x="720" y="25" fill={colors.textSecondary} fontSize="10">Click any box for details</text>
+            <text x="730" y="25" fill={colors.textSecondary} fontSize="10">Click any box for details</text>
           </g>
         </svg>
       </div>
