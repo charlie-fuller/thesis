@@ -49,7 +49,18 @@ def _get_db():
 
 # Default sync options
 DEFAULT_SYNC_OPTIONS = {
-    "include_patterns": ["**/*.md"],
+    "include_patterns": [
+        # Markdown (processed directly by obsidian sync)
+        "**/*.md",
+        # Documents (processed by document_processor)
+        "**/*.pdf",
+        "**/*.docx",
+        "**/*.txt",
+        # Presentations
+        "**/*.pptx",
+        # Spreadsheets
+        "**/*.xlsx",
+    ],
     "exclude_patterns": [
         # Version control & IDE
         ".obsidian/**",
@@ -936,12 +947,14 @@ def sync_file(
 
     logger.info(f"   Syncing: {relative_path}")
 
-    try:
-        # Read file content
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+    # Determine if file is binary based on extension
+    binary_extensions = {'.pdf', '.docx', '.xlsx', '.pptx'}
+    text_extensions = {'.md', '.txt'}
+    file_ext = file_path.suffix.lower()
+    is_binary = file_ext in binary_extensions
 
-        # Get file stats
+    try:
+        # Get file stats first (needed for both binary and text)
         stats = file_path.stat()
         file_mtime = datetime.fromtimestamp(stats.st_mtime, tz=timezone.utc)
         file_size = stats.st_size
@@ -957,33 +970,56 @@ def sync_file(
                 # Recovery: hash matches but no document - need to recreate
                 logger.warning(f"      Sync state missing document_id, recreating: {relative_path}")
 
-        # Parse frontmatter if enabled
+        # Handle binary files differently from text files
         frontmatter = {}
-        processed_content = content
-        if sync_options.get('parse_frontmatter', True):
-            frontmatter, processed_content = parse_frontmatter(content)
-            if frontmatter:
-                logger.debug(f"      Parsed frontmatter: {list(frontmatter.keys())}")
+        content = ""
 
-        # Convert wikilinks if enabled
-        if sync_options.get('convert_wikilinks', True):
-            processed_content = convert_wikilinks(processed_content, str(vault_path))
+        if is_binary:
+            # Read binary file as-is
+            with open(file_path, 'rb') as f:
+                file_content = f.read()
+            # Title comes from filename for binary files
+            title = file_path.stem
+            # Try to extract date from filename for binary files
+            original_date_value = extract_original_date(
+                filename=file_path.name,
+                frontmatter={},
+                content="",
+                file_mtime=file_mtime
+            )
+            logger.debug(f"      Binary file ({file_ext}): {file_size} bytes")
+        else:
+            # Read text file content
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
 
-        # Determine document title from frontmatter or filename
-        title = frontmatter.get('title') or file_path.stem
+            # Parse frontmatter if enabled (text files only)
+            processed_content = content
+            if sync_options.get('parse_frontmatter', True):
+                frontmatter, processed_content = parse_frontmatter(content)
+                if frontmatter:
+                    logger.debug(f"      Parsed frontmatter: {list(frontmatter.keys())}")
 
-        # Extract original date from frontmatter, filename, content, or file mtime
-        original_date_value = extract_original_date(
-            filename=file_path.name,
-            frontmatter=frontmatter,
-            content=content,
-            file_mtime=file_mtime
-        )
+            # Convert wikilinks if enabled (text files only)
+            if sync_options.get('convert_wikilinks', True):
+                processed_content = convert_wikilinks(processed_content, str(vault_path))
+
+            # Determine document title from frontmatter or filename
+            title = frontmatter.get('title') or file_path.stem
+
+            # Extract original date from frontmatter, filename, content, or file mtime
+            original_date_value = extract_original_date(
+                filename=file_path.name,
+                frontmatter=frontmatter,
+                content=content,
+                file_mtime=file_mtime
+            )
+
+            # Encode text content for storage
+            file_content = processed_content.encode('utf-8')
+
         if original_date_value:
             logger.debug(f"      Extracted original_date: {original_date_value}")
-
-        # Encode content for storage
-        file_content = processed_content.encode('utf-8')
 
         # Validate content is not empty before proceeding
         if len(file_content) == 0:

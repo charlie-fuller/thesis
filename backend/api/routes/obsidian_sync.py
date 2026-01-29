@@ -14,11 +14,13 @@ from auth import get_current_user
 from database import get_supabase
 from logger_config import get_logger
 from services.obsidian_sync import (
+    DEFAULT_SYNC_OPTIONS,
     ObsidianSyncError,
     create_vault_config,
     deactivate_vault_config,
     get_sync_status,
     get_vault_config,
+    scan_vault,
     sync_vault,
     update_vault_config,
 )
@@ -550,3 +552,108 @@ async def retry_failed_file(
     except Exception as e:
         logger.error(f"Retry file error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+# ============================================================================
+# Debug Endpoint
+# ============================================================================
+
+@router.get("/debug")
+async def debug_vault_scan(
+    current_user: dict = Depends(get_current_user),
+    limit: int = 100
+):
+    """
+    Debug endpoint to show what files would be scanned from the vault.
+
+    Returns the list of files found, grouped by directory depth,
+    along with the patterns being used.
+    """
+    from pathlib import Path
+    import os
+
+    try:
+        config = await asyncio.to_thread(
+            get_vault_config,
+            current_user['id']
+        )
+
+        if not config:
+            return {
+                'success': False,
+                'error': 'No vault configured'
+            }
+
+        vault_path = Path(config['vault_path'])
+        sync_options = config.get('sync_options', DEFAULT_SYNC_OPTIONS)
+
+        include_patterns = sync_options.get('include_patterns', ['**/*.md'])
+        exclude_patterns = sync_options.get('exclude_patterns', ['.obsidian/**'])
+        max_file_size_mb = sync_options.get('max_file_size_mb', 10)
+
+        # Scan vault
+        files = await asyncio.to_thread(
+            scan_vault,
+            vault_path,
+            include_patterns,
+            exclude_patterns,
+            max_file_size_mb
+        )
+
+        # Get relative paths and group by directory depth
+        files_info = []
+        directories_seen = set()
+
+        for file_path in files[:limit]:
+            relative = file_path.relative_to(vault_path)
+            relative_str = str(relative)
+            depth = len(relative.parts) - 1  # -1 because the file itself doesn't count
+
+            # Track all parent directories
+            parent = relative.parent
+            while str(parent) != '.':
+                directories_seen.add(str(parent))
+                parent = parent.parent
+
+            files_info.append({
+                'path': relative_str,
+                'depth': depth,
+                'size_kb': round(file_path.stat().st_size / 1024, 2)
+            })
+
+        # Also walk the vault to show ALL directories (even those with no matching files)
+        all_directories = set()
+        for root, dirs, _ in os.walk(vault_path):
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+            rel_root = Path(root).relative_to(vault_path)
+            if str(rel_root) != '.':
+                all_directories.add(str(rel_root))
+
+        # Find directories that have no files synced
+        dirs_without_files = sorted(all_directories - directories_seen)
+
+        return {
+            'success': True,
+            'vault_path': str(vault_path),
+            'vault_exists': vault_path.exists(),
+            'patterns': {
+                'include': include_patterns,
+                'exclude': exclude_patterns,
+                'max_file_size_mb': max_file_size_mb
+            },
+            'total_files_found': len(files),
+            'files_shown': len(files_info),
+            'files': files_info,
+            'directories_with_synced_files': sorted(directories_seen),
+            'directories_without_synced_files': dirs_without_files[:50],
+            'hint': 'Check directories_without_synced_files to see folders that may be excluded'
+        }
+
+    except Exception as e:
+        logger.error(f"Debug vault scan error: {str(e)}")
+        import traceback
+        return {
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }
