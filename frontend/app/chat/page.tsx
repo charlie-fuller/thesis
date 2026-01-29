@@ -417,12 +417,12 @@ function ChatPageContent() {
           conversationId={conversationId}
           tabSwitcher={
             <div className="flex justify-center">
-              <div className="flex gap-1 bg-hover rounded-lg p-1 w-full max-w-md">
+              <div className="flex gap-1 bg-hover rounded-lg p-1 w-full max-w-md border border-border">
                 <button
                   onClick={() => handleTabChange('chat')}
                   className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     currentTab === 'chat'
-                      ? 'bg-card text-primary shadow-sm'
+                      ? 'bg-card text-primary shadow-sm border border-border'
                       : 'text-secondary hover:text-primary'
                   }`}
                 >
@@ -432,7 +432,7 @@ function ChatPageContent() {
                   onClick={() => handleTabChange('meetings')}
                   className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     currentTab === 'meetings'
-                      ? 'bg-card text-primary shadow-sm'
+                      ? 'bg-card text-primary shadow-sm border border-border'
                       : 'text-secondary hover:text-primary'
                   }`}
                 >
@@ -449,12 +449,12 @@ function ChatPageContent() {
           {/* Tab Switcher for Meeting Rooms view */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
             <div className="flex justify-center">
-              <div className="flex gap-1 bg-hover rounded-lg p-1 w-full max-w-md">
+              <div className="flex gap-1 bg-hover rounded-lg p-1 w-full max-w-md border border-border">
                 <button
                   onClick={() => handleTabChange('chat')}
                   className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     currentTab === 'chat'
-                      ? 'bg-card text-primary shadow-sm'
+                      ? 'bg-card text-primary shadow-sm border border-border'
                       : 'text-secondary hover:text-primary'
                   }`}
                 >
@@ -464,7 +464,7 @@ function ChatPageContent() {
                   onClick={() => handleTabChange('meetings')}
                   className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     currentTab === 'meetings'
-                      ? 'bg-card text-primary shadow-sm'
+                      ? 'bg-card text-primary shadow-sm border border-border'
                       : 'text-secondary hover:text-primary'
                   }`}
                 >
