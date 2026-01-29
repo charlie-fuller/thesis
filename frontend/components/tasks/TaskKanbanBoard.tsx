@@ -339,14 +339,6 @@ export default function TaskKanbanBoard() {
     }).length
   }, [columns])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <LoadingSpinner size="lg" />
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -354,24 +346,30 @@ export default function TaskKanbanBoard() {
         <div>
           <h1 className="text-2xl font-bold text-primary">Tasks</h1>
           <p className="text-sm text-muted mt-1">
-            {counts.total} total tasks
-            {counts.overdue > 0 && (
-              <span className="text-red-600 dark:text-red-400 ml-2">
-                ({counts.overdue} overdue)
-              </span>
-            )}
-            {dueSoonCount > 0 && (
-              <span className="text-amber-600 dark:text-amber-400 ml-2">
-                ({dueSoonCount} due soon)
-              </span>
+            {loading ? (
+              <span className="text-muted">Loading tasks...</span>
+            ) : (
+              <>
+                {counts.total} total tasks
+                {counts.overdue > 0 && (
+                  <span className="text-red-600 dark:text-red-400 ml-2">
+                    ({counts.overdue} overdue)
+                  </span>
+                )}
+                {dueSoonCount > 0 && (
+                  <span className="text-amber-600 dark:text-amber-400 ml-2">
+                    ({dueSoonCount} due soon)
+                  </span>
+                )}
+              </>
             )}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => fetchKanban(false)}
-            disabled={refreshing}
-            className="p-2 text-muted hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            disabled={refreshing || loading}
+            className="p-2 text-muted hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
             title="Refresh"
           >
             <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
@@ -398,7 +396,8 @@ export default function TaskKanbanBoard() {
               setDefaultStatus('pending')
               setShowCreateModal(true)
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand/90 transition-colors"
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand/90 transition-colors disabled:opacity-50"
           >
             <Plus className="w-5 h-5" />
             <span className="font-medium">Add Task</span>
@@ -416,7 +415,12 @@ export default function TaskKanbanBoard() {
       )}
 
       {/* Kanban Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <LoadingSpinner size="lg" />
+        </div>
+      ) : (
+        <div className="flex gap-4 overflow-x-auto pb-4">
         {COLUMN_CONFIG.map(column => (
           <TaskColumn
             key={column.id}
@@ -433,7 +437,8 @@ export default function TaskKanbanBoard() {
             onAssigneeChange={handleAssigneeChange}
           />
         ))}
-      </div>
+        </div>
+      )}
 
       {/* Create/Edit Modal */}
       {showCreateModal && (
