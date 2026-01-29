@@ -13,8 +13,8 @@ Key features:
 - Hybrid matching: fuzzy (SequenceMatcher) + semantic (vector similarity)
 
 Behavior:
-- BLOCK creation for: rejected matches, within-batch duplicates
-- CREATE + track match info for: pending candidates, existing items
+- BLOCK creation for: rejected matches, within-batch duplicates, existing items
+- CREATE + track match info for: pending candidates
 """
 
 import logging
@@ -38,6 +38,8 @@ class DeduplicationConfig:
     block_on_rejected: bool = True
     # Whether to block on within-batch duplicates
     block_on_batch_duplicate: bool = True
+    # Whether to block on existing item matches (prevents duplicate candidates)
+    block_on_existing: bool = True
 
 
 @dataclass
@@ -54,6 +56,8 @@ class MatchResult:
         if self.match_type == 'rejected' and config.block_on_rejected:
             return True
         if self.match_type == 'batch' and config.block_on_batch_duplicate:
+            return True
+        if self.match_type == 'existing' and config.block_on_existing:
             return True
         return False
 
