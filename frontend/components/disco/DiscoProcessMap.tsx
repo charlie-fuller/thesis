@@ -187,9 +187,9 @@ export default function DiscoProcessMap() {
       {/* SVG Flowchart */}
       <div className="overflow-x-auto text-primary">
         <svg
-          viewBox="0 0 1150 750"
+          viewBox="0 0 1150 700"
           className="w-full min-w-[900px]"
-          style={{ maxHeight: '750px' }}
+          style={{ maxHeight: '700px' }}
         >
           {/* Definitions */}
           <defs>
@@ -612,30 +612,35 @@ export default function DiscoProcessMap() {
             </text>
           </g>
 
-          {/* ===== LEGEND ===== */}
-          <g transform="translate(50, 700)">
-            <text x="0" y="0" fill={colors.textSecondary} fontSize="14" fontWeight="700">Legend</text>
+          {/* ===== LEGEND (top right) ===== */}
+          <g transform="translate(550, 50)">
+            {/* Click instruction - prominent */}
+            <rect x="0" y="0" width="200" height="30" rx="6" fill="rgba(96, 165, 250, 0.15)" stroke="#60a5fa" strokeWidth="2" />
+            <text x="100" y="20" textAnchor="middle" fill="#60a5fa" fontSize="13" fontWeight="600">Click any box for details</text>
 
-            <rect x="0" y="18" width="22" height="16" rx="3" fill={stageColors.discovery.fill} stroke={stageColors.discovery.stroke} strokeWidth="2" />
-            <text x="30" y="32" fill={colors.textSecondary} fontSize="13">D - Discovery</text>
+            {/* Legend title */}
+            <text x="220" y="20" fill={colors.textSecondary} fontSize="14" fontWeight="700">Legend</text>
 
-            <rect x="150" y="18" width="22" height="16" rx="3" fill={stageColors.intelligence.fill} stroke={stageColors.intelligence.stroke} strokeWidth="2" />
-            <text x="180" y="32" fill={colors.textSecondary} fontSize="13">I - Intelligence</text>
+            {/* Row 1 */}
+            <rect x="280" y="5" width="20" height="14" rx="3" fill={stageColors.discovery.fill} stroke={stageColors.discovery.stroke} strokeWidth="2" />
+            <text x="306" y="17" fill={colors.textSecondary} fontSize="12">D - Discovery</text>
 
-            <rect x="310" y="18" width="22" height="16" rx="3" fill={stageColors.synthesis.fill} stroke={stageColors.synthesis.stroke} strokeWidth="2" />
-            <text x="340" y="32" fill={colors.textSecondary} fontSize="13">S - Synthesis</text>
+            <rect x="420" y="5" width="20" height="14" rx="3" fill={stageColors.intelligence.fill} stroke={stageColors.intelligence.stroke} strokeWidth="2" />
+            <text x="446" y="17" fill={colors.textSecondary} fontSize="12">I - Intelligence</text>
 
-            <rect x="455" y="18" width="22" height="16" rx="3" fill={stageColors.capabilities.fill} stroke={stageColors.capabilities.stroke} strokeWidth="2" />
-            <text x="485" y="32" fill={colors.textSecondary} fontSize="13">C - Capabilities</text>
+            {/* Row 2 */}
+            <rect x="280" y="30" width="20" height="14" rx="3" fill={stageColors.synthesis.fill} stroke={stageColors.synthesis.stroke} strokeWidth="2" />
+            <text x="306" y="42" fill={colors.textSecondary} fontSize="12">S - Synthesis</text>
 
-            <rect x="620" y="18" width="22" height="16" rx="3" fill={stageColors.operationalize.fill} stroke={stageColors.operationalize.stroke} strokeWidth="2" />
-            <text x="650" y="32" fill={colors.textSecondary} fontSize="13">O - Operationalize</text>
+            <rect x="420" y="30" width="20" height="14" rx="3" fill={stageColors.capabilities.fill} stroke={stageColors.capabilities.stroke} strokeWidth="2" />
+            <text x="446" y="42" fill={colors.textSecondary} fontSize="12">C - Capabilities</text>
 
-            {/* Workshop / Human in the loop indicator */}
-            <rect x="810" y="18" width="22" height="16" rx="3" fill="rgba(100, 116, 139, 0.15)" stroke="#64748b" strokeWidth="2" strokeDasharray="4 2" />
-            <text x="840" y="32" fill={colors.textSecondary} fontSize="13">Workshop / Human</text>
+            {/* Row 3 */}
+            <rect x="280" y="55" width="20" height="14" rx="3" fill={stageColors.operationalize.fill} stroke={stageColors.operationalize.stroke} strokeWidth="2" />
+            <text x="306" y="67" fill={colors.textSecondary} fontSize="12">O - Operationalize</text>
 
-            <text x="1000" y="32" fill={colors.textSecondary} fontSize="12" fontStyle="italic">Click any box for details</text>
+            <rect x="420" y="55" width="20" height="14" rx="3" fill="rgba(100, 116, 139, 0.15)" stroke="#64748b" strokeWidth="2" strokeDasharray="3 2" />
+            <text x="446" y="67" fill={colors.textSecondary} fontSize="12">Workshop / Human</text>
           </g>
         </svg>
       </div>
