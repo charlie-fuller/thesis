@@ -8,7 +8,6 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import PageHeader from '@/components/PageHeader'
 import InterfaceHealthPanel from '@/components/InterfaceHealthPanel'
 import UnifiedDiscoveryPanel from '@/components/discovery/UnifiedDiscoveryPanel'
-import GranolaScanPanel from '@/components/GranolaScanPanel'
 import GraphStatsPanel from '@/components/GraphStatsPanel'
 import GraphVisualizationPanel from '@/components/admin/GraphVisualizationPanel'
 import ProcessMapPanel from '@/components/ProcessMapPanel'
@@ -115,7 +114,6 @@ export default function HomePage() {
         {/* System Health Tab */}
         {activeTab === 'system' && (
           <div className="space-y-6">
-            <GranolaScanPanel />
             <UnifiedDiscoveryPanel />
             <InterfaceHealthPanel />
           </div>
