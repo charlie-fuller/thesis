@@ -81,25 +81,167 @@ Record: passed, failed, skipped counts.
 
 ### Stage 4: E2E Browser Tests
 
-E2E tests use Chrome DevTools MCP. Check if servers are running:
+E2E tests use Chrome DevTools MCP to automate browser interactions. You MUST start the servers and run these tests - do not skip them.
+
+#### Step 4.1: Check Server Status
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "Frontend not running"
 curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null || echo "Backend not running"
 ```
 
-If BOTH servers respond (status 200), run E2E tests using Chrome DevTools MCP tools:
+#### Step 4.2: Start Servers (if not running)
 
-1. Use `mcp__chrome-devtools__list_pages` to verify Chrome is connected
-2. Navigate to `http://localhost:3000` using `mcp__chrome-devtools__navigate_page`
-3. Execute key E2E scenarios from `tests/e2e_browser_tests.py`:
-   - `auth_login_success` - Login flow
-   - `chat_send_message` - Chat functionality
-   - `kb_search` - Knowledge base search
-   - `tasks_create` - Task creation
-   - `tasks_kanban_drag` - Kanban drag/drop
+If servers are not running, start them in background:
 
-If servers are NOT running, skip E2E and note it in the summary.
+**Backend** (run in background):
+```bash
+cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
+JWK=$(curl -s "https://imdavfgreeddxluslsdl.supabase.co/auth/v1/.well-known/jwks.json" | jq -c '.keys[0]')
+SUPABASE_JWT_SECRET="$JWK" \
+DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c230 \
+dotenvx run -f .env -- .venv/bin/python -m uvicorn main:app --reload --port 8000
+```
+
+**Frontend** (run in background):
+```bash
+cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/frontend
+npm run dev
+```
+
+Wait for both servers to be ready (frontend compiles, backend shows "Uvicorn running").
+
+#### Step 4.3: Verify Chrome DevTools MCP Connection
+
+Use `mcp__chrome-devtools__list_pages` to verify Chrome is connected:
+- If pages are listed: Chrome is connected, proceed to tests
+- If error or no connection: The user must have Chrome open with DevTools MCP enabled
+
+#### Step 4.4: Run E2E Test Scenarios
+
+Navigate to the app and execute each test scenario using Chrome DevTools MCP tools.
+
+---
+
+**Test 1: Auth Login Success**
+
+*Purpose:* Verify authentication flow works
+
+Steps:
+1. `mcp__chrome-devtools__navigate_page` to `http://localhost:3000`
+2. `mcp__chrome-devtools__take_snapshot` to check page state
+3. If login form visible:
+   - `mcp__chrome-devtools__fill` email field
+   - `mcp__chrome-devtools__fill` password field
+   - `mcp__chrome-devtools__click` login button
+   - `mcp__chrome-devtools__wait_for` dashboard or authenticated content
+4. If already logged in (user menu visible): PASS
+
+*Expected:* User is authenticated and can access protected routes
+
+---
+
+**Test 2: Chat Send Message**
+
+*Purpose:* Verify chat functionality with AI agents
+
+Steps:
+1. `mcp__chrome-devtools__navigate_page` to `http://localhost:3000/chat`
+2. `mcp__chrome-devtools__take_snapshot` to get element IDs
+3. Find the message input textbox (look for "Type your message" or similar)
+4. `mcp__chrome-devtools__fill` with test message: "Hello, this is an E2E test"
+5. `mcp__chrome-devtools__click` send button (or `mcp__chrome-devtools__press_key` Enter)
+6. `mcp__chrome-devtools__wait_for` response from agent (look for new message bubble)
+
+*Expected:* Message appears in chat, AI agent responds
+
+---
+
+**Test 3: KB Search** (optional - depends on UI)
+
+*Purpose:* Verify knowledge base search
+
+Steps:
+1. `mcp__chrome-devtools__navigate_page` to `http://localhost:3000/kb`
+2. `mcp__chrome-devtools__take_snapshot` to find search input
+3. If search input exists:
+   - `mcp__chrome-devtools__fill` search field with test query
+   - `mcp__chrome-devtools__press_key` Enter or click search
+   - Verify results appear
+4. If no search UI: Skip this test
+
+*Expected:* Search returns relevant KB documents
+
+---
+
+**Test 4: Tasks Create**
+
+*Purpose:* Verify task creation in Kanban board
+
+Steps:
+1. `mcp__chrome-devtools__navigate_page` to `http://localhost:3000/tasks`
+2. `mcp__chrome-devtools__take_snapshot` to get element IDs
+3. Note the current "To Do" count
+4. `mcp__chrome-devtools__click` "Add Task" button
+5. `mcp__chrome-devtools__take_snapshot` to get modal element IDs
+6. `mcp__chrome-devtools__fill` title field with "E2E Test Task - Automated"
+7. `mcp__chrome-devtools__click` "Create" button
+8. `mcp__chrome-devtools__wait_for` "E2E Test Task - Automated" to appear on page
+9. Verify To Do count increased by 1
+
+*Expected:* New task appears in To Do column
+
+---
+
+**Test 5: Tasks Kanban Drag**
+
+*Purpose:* Verify drag-and-drop status changes
+
+Steps:
+1. Ensure on `/tasks` page with the test task visible
+2. `mcp__chrome-devtools__take_snapshot` to get task card and column element IDs
+3. Find the "E2E Test Task - Automated" heading element (from Test 4)
+4. Find the "In Progress" column heading element
+5. `mcp__chrome-devtools__drag` from task element to In Progress column
+6. `mcp__chrome-devtools__click` Refresh button
+7. `mcp__chrome-devtools__take_snapshot` to verify:
+   - Task appears in In Progress column
+   - To Do count decreased
+   - In Progress count increased
+
+*Expected:* Task moves to In Progress, counts update correctly
+
+---
+
+#### Step 4.5: Record E2E Results
+
+Record pass/fail for each scenario:
+- Auth Login Success: PASS/FAIL
+- Chat Send Message: PASS/FAIL
+- KB Search: PASS/FAIL/SKIPPED
+- Tasks Create: PASS/FAIL
+- Tasks Kanban Drag: PASS/FAIL
+
+#### Troubleshooting E2E Tests
+
+**Chrome not connected:**
+- Ensure Chrome browser is open
+- Chrome DevTools MCP server must be running and configured in Claude Code settings
+- Try `mcp__chrome-devtools__list_pages` to diagnose
+
+**Server startup issues:**
+- Check port conflicts: `lsof -i :3000` and `lsof -i :8000`
+- Kill existing processes if needed: `kill -9 <PID>`
+- Frontend may use alternate port (3001) if 3000 is occupied
+
+**Element not found:**
+- Always use `mcp__chrome-devtools__take_snapshot` before interacting
+- Element UIDs change between page loads - get fresh snapshot
+- Wait for page to fully load before taking snapshot
+
+**Authentication issues:**
+- If redirected to login, complete auth flow first
+- Session persists in browser - may already be logged in
 
 ## Final Summary
 
@@ -127,7 +269,17 @@ If any tests failed, list the failed test names and suggest fixes.
 | Unit | 7 core test files | ~370 tests |
 | Integration | test_integration.py, test_obsidian_sync.py | ~90 tests |
 | Extended | Remaining test_*.py files | ~345 tests |
-| E2E | e2e_browser_tests.py scenarios | 66 scenarios |
+| E2E | Chrome DevTools MCP scenarios | 5 core scenarios |
+
+### E2E Test Scenarios
+
+| Scenario | Page | Validates |
+|----------|------|-----------|
+| Auth Login Success | / | Authentication, session management |
+| Chat Send Message | /chat | AI agent communication, real-time updates |
+| KB Search | /kb | Document search (optional) |
+| Tasks Create | /tasks | CRUD operations, form submission |
+| Tasks Kanban Drag | /tasks | Drag-drop, status persistence |
 
 ## Known Issues & Fixes
 
