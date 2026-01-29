@@ -7,7 +7,7 @@ type ProcessStep = {
   id: string
   title: string
   description: string
-  stage: 'discovery' | 'intelligence' | 'synthesis' | 'capabilities'
+  stage: 'discovery' | 'intelligence' | 'synthesis' | 'capabilities' | 'operationalize'
   details: string[]
 }
 
@@ -123,6 +123,19 @@ const processSteps: ProcessStep[] = [
       'Assesses build vs buy options',
       'Documents technical risks'
     ]
+  },
+  // Stage 5: Operationalize
+  {
+    id: 'operationalize',
+    title: 'Operationalize',
+    description: 'Handoff to development',
+    stage: 'operationalize',
+    details: [
+      'PRD approved and finalized',
+      'Development team briefed',
+      'Sprint planning initiated',
+      'Success metrics defined'
+    ]
   }
 ]
 
@@ -151,6 +164,12 @@ const stageColors = {
     stroke: '#22c55e', // green
     text: '#22c55e',
     light: 'rgba(34, 197, 94, 0.15)'
+  },
+  operationalize: {
+    fill: 'url(#operationalizeGradient)',
+    stroke: '#ec4899', // pink
+    text: '#ec4899',
+    light: 'rgba(236, 72, 153, 0.15)'
   }
 }
 
@@ -165,19 +184,12 @@ export default function DiscoProcessMap() {
 
   return (
     <div className="bg-card rounded-lg border border-default p-6">
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold text-primary">DISCo Workflow</h2>
-        <p className="text-sm text-secondary mt-1">
-          8 specialized agents across 4 stages: Discovery, Intelligence, Synthesis, Capabilities
-        </p>
-      </div>
-
       {/* SVG Flowchart */}
       <div className="overflow-x-auto text-primary">
         <svg
-          viewBox="0 0 1200 580"
+          viewBox="0 0 1200 620"
           className="w-full min-w-[900px]"
-          style={{ maxHeight: '580px' }}
+          style={{ maxHeight: '620px' }}
         >
           {/* Definitions */}
           <defs>
@@ -203,6 +215,12 @@ export default function DiscoProcessMap() {
             <linearGradient id="capabilitiesGradient" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#22c55e" stopOpacity="0.2" />
               <stop offset="100%" stopColor="#22c55e" stopOpacity="0.1" />
+            </linearGradient>
+
+            {/* Operationalize gradient (pink) */}
+            <linearGradient id="operationalizeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#ec4899" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#ec4899" stopOpacity="0.1" />
             </linearGradient>
 
             {/* Arrow marker */}
@@ -257,7 +275,7 @@ export default function DiscoProcessMap() {
           {/* Arrow: Prep -> Triage */}
           <path d="M 190 95 L 220 95" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
-          {/* Triage (central, larger) */}
+          {/* Triage (central, larger) - Human decision point */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedStep(processSteps[1])}
@@ -282,6 +300,11 @@ export default function DiscoProcessMap() {
             <text x="317" y="125" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="600">NO-GO</text>
             <rect x="349" y="112" width="30" height="18" rx="4" fill="#f59e0b" fillOpacity="0.3" />
             <text x="364" y="125" textAnchor="middle" fill="#f59e0b" fontSize="9" fontWeight="600">?</text>
+            {/* Human icon - decision validation */}
+            <g transform="translate(375, 55)">
+              <circle cx="6" cy="4" r="4" fill="#f59e0b" />
+              <path d="M0 16 Q6 10 12 16" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
+            </g>
           </g>
 
           {/* Arrow: Triage -> Discovery Planner (down) */}
@@ -477,7 +500,7 @@ export default function DiscoProcessMap() {
 
           {/* ===== OUTPUTS ===== */}
 
-          {/* Approved Bundles */}
+          {/* Approved Bundles - Human in the loop */}
           <g>
             <rect
               x="750" y="380" width="140" height="50"
@@ -493,6 +516,11 @@ export default function DiscoProcessMap() {
             <text x="820" y="415" textAnchor="middle" fill="#8b5cf6" fontSize="10">
               (user review)
             </text>
+            {/* Human icon */}
+            <g transform="translate(875, 385)">
+              <circle cx="6" cy="4" r="4" fill="#8b5cf6" />
+              <path d="M0 16 Q6 10 12 16" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" />
+            </g>
           </g>
 
           {/* Arrow: Strategist -> Approved */}
@@ -521,23 +549,58 @@ export default function DiscoProcessMap() {
           {/* Arrow: PRD Generator -> PRD Output */}
           <path d="M 1040 350 L 1040 375" fill="none" stroke="#22c55e" strokeWidth="2" markerEnd="url(#arrowhead)" />
 
+          {/* ===== STAGE 5: OPERATIONALIZE ===== */}
+
+          {/* Arrow: PRD Output -> Operationalize */}
+          <path d="M 1040 430 L 1040 455" fill="none" stroke="#ec4899" strokeWidth="2" markerEnd="url(#arrowhead)" />
+
+          {/* Operationalize */}
+          <g
+            className="cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => setSelectedStep(processSteps[9])}
+          >
+            <rect
+              x="970" y="465" width="140" height="70"
+              rx="8"
+              fill={stageColors.operationalize.fill}
+              stroke={stageColors.operationalize.stroke}
+              strokeWidth="3"
+            />
+            <text x="1040" y="495" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="700">
+              Operationalize
+            </text>
+            <text x="1040" y="515" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+              Handoff to dev
+            </text>
+          </g>
+
           {/* ===== LEGEND ===== */}
-          <g transform="translate(50, 460)">
+          <g transform="translate(50, 560)">
             <text x="0" y="0" fill={colors.textSecondary} fontSize="12" fontWeight="600">Legend</text>
 
             <rect x="0" y="15" width="16" height="12" rx="2" fill={stageColors.discovery.fill} stroke={stageColors.discovery.stroke} strokeWidth="1" />
-            <text x="22" y="25" fill={colors.textSecondary} fontSize="11">Discovery (4 agents)</text>
+            <text x="22" y="25" fill={colors.textSecondary} fontSize="10">D - Discovery</text>
 
-            <rect x="130" y="15" width="16" height="12" rx="2" fill={stageColors.intelligence.fill} stroke={stageColors.intelligence.stroke} strokeWidth="1" />
-            <text x="152" y="25" fill={colors.textSecondary} fontSize="11">Intelligence (1 agent)</text>
+            <rect x="110" y="15" width="16" height="12" rx="2" fill={stageColors.intelligence.fill} stroke={stageColors.intelligence.stroke} strokeWidth="1" />
+            <text x="132" y="25" fill={colors.textSecondary} fontSize="10">I - Intelligence</text>
 
-            <rect x="280" y="15" width="16" height="12" rx="2" fill={stageColors.synthesis.fill} stroke={stageColors.synthesis.stroke} strokeWidth="1" />
-            <text x="302" y="25" fill={colors.textSecondary} fontSize="11">Synthesis (2 agents)</text>
+            <rect x="230" y="15" width="16" height="12" rx="2" fill={stageColors.synthesis.fill} stroke={stageColors.synthesis.stroke} strokeWidth="1" />
+            <text x="252" y="25" fill={colors.textSecondary} fontSize="10">S - Synthesis</text>
 
-            <rect x="420" y="15" width="16" height="12" rx="2" fill={stageColors.capabilities.fill} stroke={stageColors.capabilities.stroke} strokeWidth="1" />
-            <text x="442" y="25" fill={colors.textSecondary} fontSize="11">Capabilities (2 agents)</text>
+            <rect x="340" y="15" width="16" height="12" rx="2" fill={stageColors.capabilities.fill} stroke={stageColors.capabilities.stroke} strokeWidth="1" />
+            <text x="362" y="25" fill={colors.textSecondary} fontSize="10">C - Capabilities</text>
 
-            <text x="600" y="25" fill={colors.textSecondary} fontSize="11">Click any box for details</text>
+            <rect x="460" y="15" width="16" height="12" rx="2" fill={stageColors.operationalize.fill} stroke={stageColors.operationalize.stroke} strokeWidth="1" />
+            <text x="482" y="25" fill={colors.textSecondary} fontSize="10">O - Operationalize</text>
+
+            {/* Human in the loop indicator */}
+            <g transform="translate(590, 13)">
+              <circle cx="6" cy="4" r="3" fill="#64748b" />
+              <path d="M1 12 Q6 8 11 12" fill="none" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" />
+            </g>
+            <text x="610" y="25" fill={colors.textSecondary} fontSize="10">Human decision</text>
+
+            <text x="720" y="25" fill={colors.textSecondary} fontSize="10">Click any box for details</text>
           </g>
         </svg>
       </div>

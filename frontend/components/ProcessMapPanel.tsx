@@ -311,7 +311,7 @@ export default function ProcessMapPanel() {
 
           {/* ===== ROW 2: Discovery ===== */}
 
-          {/* Discovery Inbox - Central hub */}
+          {/* Discovery Inbox - Central hub - AI extraction */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedStep(processSteps[4])}
@@ -363,7 +363,7 @@ export default function ProcessMapPanel() {
             markerEnd="url(#arrowheadSuccess)"
           />
 
-          {/* Tasks Output */}
+          {/* Tasks Output - Human approves candidates */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedStep(processSteps[5])}
@@ -381,9 +381,14 @@ export default function ProcessMapPanel() {
             <text x="230" y="462" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               Action items extracted
             </text>
+            {/* Human icon - user approves task candidates */}
+            <g transform="translate(310, 418)">
+              <circle cx="6" cy="4" r="4" fill={colors.success} />
+              <path d="M0 16 Q6 10 12 16" fill="none" stroke={colors.success} strokeWidth="2" strokeLinecap="round" />
+            </g>
           </g>
 
-          {/* Projects Output */}
+          {/* Projects Output - Human approves candidates */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedStep(processSteps[6])}
@@ -401,9 +406,14 @@ export default function ProcessMapPanel() {
             <text x="590" y="462" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               Opportunities identified
             </text>
+            {/* Human icon - user approves project candidates */}
+            <g transform="translate(670, 418)">
+              <circle cx="6" cy="4" r="4" fill={colors.success} />
+              <path d="M0 16 Q6 10 12 16" fill="none" stroke={colors.success} strokeWidth="2" strokeLinecap="round" />
+            </g>
           </g>
 
-          {/* Stakeholders Output */}
+          {/* Stakeholders Output - Human approves candidates */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedStep(processSteps[7])}
@@ -421,6 +431,11 @@ export default function ProcessMapPanel() {
             <text x="950" y="462" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
               People and relationships
             </text>
+            {/* Human icon - user approves stakeholder candidates */}
+            <g transform="translate(1030, 418)">
+              <circle cx="6" cy="4" r="4" fill={colors.success} />
+              <path d="M0 16 Q6 10 12 16" fill="none" stroke={colors.success} strokeWidth="2" strokeLinecap="round" />
+            </g>
           </g>
 
           {/* Legend */}
@@ -433,7 +448,14 @@ export default function ProcessMapPanel() {
             <rect x="0" y="40" width="20" height="12" rx="2" fill="url(#outputGradient)" stroke={colors.success} strokeWidth="1" />
             <text x="28" y="50" fill={colors.textSecondary} fontSize="11">Output Entity</text>
 
-            <text x="0" y="75" fill={colors.textSecondary} fontSize="11">Click any box for details</text>
+            {/* Human icon in legend */}
+            <g transform="translate(0, 60)">
+              <circle cx="6" cy="4" r="4" fill={colors.success} />
+              <path d="M0 14 Q6 9 12 14" fill="none" stroke={colors.success} strokeWidth="1.5" strokeLinecap="round" />
+            </g>
+            <text x="28" y="75" fill={colors.textSecondary} fontSize="11">Human Approval</text>
+
+            <text x="0" y="100" fill={colors.textSecondary} fontSize="11">Click any box for details</text>
           </g>
         </svg>
       </div>
