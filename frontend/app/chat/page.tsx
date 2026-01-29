@@ -422,7 +422,7 @@ function ChatPageContent() {
                   onClick={() => handleTabChange('chat')}
                   className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     currentTab === 'chat'
-                      ? 'bg-card text-primary shadow-sm border border-border'
+                      ? 'bg-card text-primary shadow-sm'
                       : 'text-secondary hover:text-primary'
                   }`}
                 >
@@ -432,7 +432,7 @@ function ChatPageContent() {
                   onClick={() => handleTabChange('meetings')}
                   className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     currentTab === 'meetings'
-                      ? 'bg-card text-primary shadow-sm border border-border'
+                      ? 'bg-card text-primary shadow-sm'
                       : 'text-secondary hover:text-primary'
                   }`}
                 >
@@ -454,7 +454,7 @@ function ChatPageContent() {
                   onClick={() => handleTabChange('chat')}
                   className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     currentTab === 'chat'
-                      ? 'bg-card text-primary shadow-sm border border-border'
+                      ? 'bg-card text-primary shadow-sm'
                       : 'text-secondary hover:text-primary'
                   }`}
                 >
@@ -464,7 +464,7 @@ function ChatPageContent() {
                   onClick={() => handleTabChange('meetings')}
                   className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     currentTab === 'meetings'
-                      ? 'bg-card text-primary shadow-sm border border-border'
+                      ? 'bg-card text-primary shadow-sm'
                       : 'text-secondary hover:text-primary'
                   }`}
                 >
