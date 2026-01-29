@@ -44,18 +44,21 @@ export default function KBDocumentBrowser({
   const LIMIT = 20
 
   // Fetch documents when search or tags change
-  const fetchDocuments = useCallback(async (resetOffset = true) => {
+  const fetchDocuments = useCallback(async (resetOffset = true, query?: string, tags?: Set<string>) => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
         limit: LIMIT.toString(),
         offset: resetOffset ? '0' : offset.toString()
       })
-      if (searchQuery) {
-        params.append('q', searchQuery)
+      // Use passed values or fall back to state
+      const q = query ?? searchQuery
+      const t = tags ?? selectedTagsFilter
+      if (q) {
+        params.append('q', q)
       }
-      if (selectedTagsFilter.size > 0) {
-        params.append('tags', Array.from(selectedTagsFilter).join(','))
+      if (t.size > 0) {
+        params.append('tags', Array.from(t).join(','))
       }
 
       const result = await apiGet<{
@@ -77,12 +80,12 @@ export default function KBDocumentBrowser({
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, selectedTagsFilter, offset])
+  }, [offset])
 
   // Initial load and search/filter changes
   useEffect(() => {
     if (isOpen) {
-      fetchDocuments(true)
+      fetchDocuments(true, searchQuery, selectedTagsFilter)
     }
   }, [isOpen, searchQuery, selectedTagsFilter])
 
@@ -308,7 +311,7 @@ export default function KBDocumentBrowser({
                 {/* Load More */}
                 {hasMore && (
                   <button
-                    onClick={() => fetchDocuments(false)}
+                    onClick={() => fetchDocuments(false, searchQuery, selectedTagsFilter)}
                     disabled={loading}
                     className="w-full py-3 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center justify-center gap-2"
                   >
