@@ -70,18 +70,11 @@ export default function UnifiedWorkspace({
         onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
       />
 
-      {/* Tab Switcher (below header for consistency) */}
-      {tabSwitcher && (
-        <div className="flex-shrink-0 px-4 sm:px-6 lg:px-8 pt-4 bg-page">
-          {tabSwitcher}
-        </div>
-      )}
-
-      {/* Main Workspace - 2-column layout */}
+      {/* Main Workspace - 3-column layout with panels extending full height */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Sidebar - Conversations */}
         {showLeftPanel && (
-          <div className="w-80 border-r border-gray-200 h-full overflow-hidden flex-shrink-0">
+          <div className="w-80 border-r border-gray-200 h-full overflow-hidden flex-shrink-0 bg-card">
             <ConversationSidebar
               clientId={clientId}
               userId={userId}
@@ -92,14 +85,24 @@ export default function UnifiedWorkspace({
           </div>
         )}
 
-        {/* Center - Chat Interface */}
-        <div className="flex-1 h-full overflow-hidden">
-          <ChatInterface
-            clientId={clientId}
-            userId={userId}
-            conversationId={conversationId}
-            onConversationCreated={handleConversationCreated}
-          />
+        {/* Center - Tab Switcher + Chat Interface */}
+        <div className="flex-1 h-full overflow-hidden flex flex-col">
+          {/* Tab Switcher (in center column only) */}
+          {tabSwitcher && (
+            <div className="flex-shrink-0 px-4 pt-4 bg-page">
+              {tabSwitcher}
+            </div>
+          )}
+
+          {/* Chat Interface */}
+          <div className="flex-1 overflow-hidden">
+            <ChatInterface
+              clientId={clientId}
+              userId={userId}
+              conversationId={conversationId}
+              onConversationCreated={handleConversationCreated}
+            />
+          </div>
         </div>
 
         {/* Help Chat Sidebar */}
