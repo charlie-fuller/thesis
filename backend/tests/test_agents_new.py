@@ -1176,7 +1176,7 @@ class ManualAgentTestable(BaseAgentTestable):
         super().__init__("manual", "Manual", supabase, anthropic_client)
         self.help_topics = [
             "agents", "chat", "meeting-rooms", "knowledge-base",
-            "tasks", "opportunities", "stakeholders", "faq"
+            "tasks", "projects", "stakeholders", "faq"
         ]
 
     def detect_help_topic(self, message: str) -> Optional[str]:
@@ -1188,8 +1188,8 @@ class ManualAgentTestable(BaseAgentTestable):
             "chat": ["chat", "conversation", "message", "ask"],
             "meeting-rooms": ["meeting", "room", "discussion", "autonomous"],
             "knowledge-base": ["kb", "knowledge base", "document", "upload", "file"],
-            "tasks": ["task", "kanban", "todo", "project"],
-            "opportunities": ["opportunity", "pipeline", "tier", "score"],
+            "projects": ["project", "pipeline", "tier", "score"],
+            "tasks": ["task", "kanban", "todo"],
             "stakeholders": ["stakeholder", "contact", "engagement"],
             "faq": ["faq", "help", "how do i", "how to", "what is"]
         }
@@ -1208,7 +1208,7 @@ class ManualAgentTestable(BaseAgentTestable):
             "meeting-rooms": "Meeting rooms enable multi-agent discussions...",
             "knowledge-base": "The Knowledge Base stores your documents...",
             "tasks": "Task management uses a Kanban board...",
-            "opportunities": "Track AI implementation opportunities...",
+            "projects": "Track AI implementation projects...",
             "stakeholders": "Manage stakeholder relationships...",
             "faq": "Frequently asked questions about Thesis..."
         }
@@ -1267,13 +1267,13 @@ class TestManualHelpTopicDetection:
 
     def test_detect_tasks_topic(self, manual_agent):
         """Should detect tasks topic."""
-        result = manual_agent.detect_help_topic("Where is the kanban board for project todos?")
+        result = manual_agent.detect_help_topic("Where is the kanban board for my todos?")
         assert result == "tasks"
 
-    def test_detect_opportunities_topic(self, manual_agent):
-        """Should detect opportunities topic."""
-        result = manual_agent.detect_help_topic("How do I add an opportunity to the pipeline?")
-        assert result == "opportunities"
+    def test_detect_projects_topic(self, manual_agent):
+        """Should detect projects topic."""
+        result = manual_agent.detect_help_topic("How do I add a project to the pipeline?")
+        assert result == "projects"
 
     def test_detect_stakeholders_topic(self, manual_agent):
         """Should detect stakeholders topic."""
@@ -1370,7 +1370,7 @@ class TestManualAgentMetadata:
         """Agent should have all expected help topics."""
         expected_topics = [
             "agents", "chat", "meeting-rooms", "knowledge-base",
-            "tasks", "opportunities", "stakeholders", "faq"
+            "tasks", "projects", "stakeholders", "faq"
         ]
         for topic in expected_topics:
             assert topic in manual_agent.help_topics

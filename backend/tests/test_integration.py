@@ -140,7 +140,7 @@ def integration_client():
         'auth',
         'api.routes.agents',
         'api.routes.tasks',
-        'api.routes.opportunities',
+        'api.routes.projects',
         'api.routes.documents',
         'api.routes.stakeholders',
         'api.routes.conversations',
@@ -481,19 +481,19 @@ class TestTaskEndpoints:
 
 
 # ============================================================================
-# Opportunity API Tests
+# Project API Tests
 # ============================================================================
 
 @pytest.mark.integration
-class TestOpportunityEndpoints:
-    """Test opportunity pipeline endpoints."""
+class TestProjectEndpoints:
+    """Test project pipeline endpoints."""
 
     @pytest.fixture
-    def test_opportunity_id(self, integration_client, auth_headers, real_supabase) -> Generator[str, None, None]:
-        """Create a test opportunity and clean up after."""
+    def test_project_id(self, integration_client, auth_headers, real_supabase) -> Generator[str, None, None]:
+        """Create a test project and clean up after."""
         opp_code = f"T{uuid.uuid4().hex[:4].upper()}"
         opp_data = {
-            "opportunity_code": opp_code,
+            "project_code": opp_code,
             "title": f"Integration Test Opp {uuid.uuid4().hex[:8]}",
             "description": "Created by integration test",
             "status": "identified",
@@ -504,40 +504,40 @@ class TestOpportunityEndpoints:
             "stakeholder_readiness": 2,
         }
 
-        response = integration_client.post("/api/opportunities", json=opp_data, headers=auth_headers)
+        response = integration_client.post("/api/projects", json=opp_data, headers=auth_headers)
 
         if response.status_code != 200:
-            pytest.skip(f"Could not create test opportunity: {response.text}")
+            pytest.skip(f"Could not create test project: {response.text}")
 
         data = response.json()
-        opp_id = data.get("opportunity", data).get("id")
+        opp_id = data.get("project", data).get("id")
 
         if not opp_id:
-            pytest.skip("Opportunity creation did not return ID")
+            pytest.skip("Project creation did not return ID")
 
         yield opp_id
 
         # Cleanup
         try:
-            real_supabase.table("ai_opportunities").delete().eq("id", opp_id).execute()
+            real_supabase.table("ai_projects").delete().eq("id", opp_id).execute()
         except Exception:
             pass
 
-    def test_list_opportunities(self, integration_client, auth_headers):
-        """List opportunities."""
-        response = integration_client.get("/api/opportunities", headers=auth_headers)
+    def test_list_projects(self, integration_client, auth_headers):
+        """List projects."""
+        response = integration_client.get("/api/projects", headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
-        assert "opportunities" in data or isinstance(data, list)
+        assert "projects" in data or isinstance(data, list)
 
-    def test_create_opportunity(self, integration_client, auth_headers, real_supabase):
-        """Create a new opportunity."""
+    def test_create_project(self, integration_client, auth_headers, real_supabase):
+        """Create a new project."""
         opp_code = f"T{uuid.uuid4().hex[:4].upper()}"
         opp_data = {
-            "opportunity_code": opp_code,
+            "project_code": opp_code,
             "title": f"Integration Test Opp {uuid.uuid4().hex[:8]}",
-            "description": "Created by test_create_opportunity",
+            "description": "Created by test_create_project",
             "status": "identified",
             "department": "Sales",
             "roi_potential": 4,
@@ -546,11 +546,11 @@ class TestOpportunityEndpoints:
             "stakeholder_readiness": 3,
         }
 
-        response = integration_client.post("/api/opportunities", json=opp_data, headers=auth_headers)
+        response = integration_client.post("/api/projects", json=opp_data, headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
-        opp = data.get("opportunity", data)
+        opp = data.get("project", data)
         assert opp["title"] == opp_data["title"]
         assert opp["status"] == "identified"
 
@@ -560,38 +560,38 @@ class TestOpportunityEndpoints:
         # Cleanup
         opp_id = opp.get("id")
         if opp_id:
-            real_supabase.table("ai_opportunities").delete().eq("id", opp_id).execute()
+            real_supabase.table("ai_projects").delete().eq("id", opp_id).execute()
 
-    def test_get_opportunity_by_id(self, integration_client, auth_headers, test_opportunity_id):
-        """Get specific opportunity."""
-        response = integration_client.get(f"/api/opportunities/{test_opportunity_id}", headers=auth_headers)
+    def test_get_project_by_id(self, integration_client, auth_headers, test_project_id):
+        """Get specific project."""
+        response = integration_client.get(f"/api/projects/{test_project_id}", headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
-        opp = data.get("opportunity", data)
-        assert opp["id"] == test_opportunity_id
+        opp = data.get("project", data)
+        assert opp["id"] == test_project_id
 
-    def test_update_opportunity(self, integration_client, auth_headers, test_opportunity_id):
-        """Update an opportunity."""
+    def test_update_project(self, integration_client, auth_headers, test_project_id):
+        """Update an project."""
         update_data = {
             "status": "validating",
             "roi_potential": 5,
         }
 
-        response = integration_client.patch(f"/api/opportunities/{test_opportunity_id}", json=update_data, headers=auth_headers)
+        response = integration_client.patch(f"/api/projects/{test_project_id}", json=update_data, headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
-        opp = data.get("opportunity", data)
+        opp = data.get("project", data)
         assert opp["status"] == "validating"
         assert opp["roi_potential"] == 5
 
-    def test_opportunity_tier_calculation(self, integration_client, auth_headers, real_supabase):
+    def test_project_tier_calculation(self, integration_client, auth_headers, real_supabase):
         """Verify tier calculation from scores."""
         # Tier 1: total >= 17
         opp_code = f"T{uuid.uuid4().hex[:4].upper()}"
         tier1_data = {
-            "opportunity_code": opp_code,
+            "project_code": opp_code,
             "title": f"Tier 1 Test {uuid.uuid4().hex[:8]}",
             "roi_potential": 5,
             "implementation_effort": 5,
@@ -599,15 +599,15 @@ class TestOpportunityEndpoints:
             "stakeholder_readiness": 4,  # Total = 18
         }
 
-        response = integration_client.post("/api/opportunities", json=tier1_data, headers=auth_headers)
+        response = integration_client.post("/api/projects", json=tier1_data, headers=auth_headers)
         assert response.status_code == 200
 
-        opp = response.json().get("opportunity", response.json())
+        opp = response.json().get("project", response.json())
         assert opp["tier"] == 1, f"Expected tier 1 for total 18, got tier {opp['tier']}"
 
         # Cleanup
         if opp.get("id"):
-            real_supabase.table("ai_opportunities").delete().eq("id", opp["id"]).execute()
+            real_supabase.table("ai_projects").delete().eq("id", opp["id"]).execute()
 
 
 # ============================================================================
@@ -695,15 +695,15 @@ class TestDatabaseIntegrity:
         response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
         assert response.status_code == 422
 
-    def test_opportunity_score_range(self, integration_client, auth_headers):
-        """Opportunity scores must be 1-5."""
+    def test_project_score_range(self, integration_client, auth_headers):
+        """Project scores must be 1-5."""
         opp_data = {
-            "opportunity_code": "TSCR",
+            "project_code": "TSCR",
             "title": "Score test",
             "roi_potential": 10,  # Invalid (must be 1-5)
         }
 
-        response = integration_client.post("/api/opportunities", json=opp_data, headers=auth_headers)
+        response = integration_client.post("/api/projects", json=opp_data, headers=auth_headers)
         assert response.status_code == 422
 
     def test_uuid_validation(self, integration_client, auth_headers):
@@ -777,16 +777,16 @@ class TestPerformance:
         assert response.status_code == 200
         assert elapsed < 5.0, f"List tasks took {elapsed:.2f}s (expected < 5s)"
 
-    def test_list_opportunities_performance(self, integration_client, auth_headers):
-        """List opportunities should respond within acceptable time."""
+    def test_list_projects_performance(self, integration_client, auth_headers):
+        """List projects should respond within acceptable time."""
         import time
 
         start = time.time()
-        response = integration_client.get("/api/opportunities", headers=auth_headers)
+        response = integration_client.get("/api/projects", headers=auth_headers)
         elapsed = time.time() - start
 
         assert response.status_code == 200
-        assert elapsed < 5.0, f"List opportunities took {elapsed:.2f}s (expected < 5s)"
+        assert elapsed < 5.0, f"List projects took {elapsed:.2f}s (expected < 5s)"
 
 
 # ============================================================================
@@ -853,10 +853,10 @@ def cleanup_test_data():
         supabase.table("project_tasks").delete().like("title", "Concurrent task%").execute()
         supabase.table("project_tasks").delete().like("title", "Task to delete%").execute()
 
-        # Delete test opportunities
-        supabase.table("ai_opportunities").delete().like("name", "Integration Test%").execute()
-        supabase.table("ai_opportunities").delete().like("name", "Tier%Test%").execute()
-        supabase.table("ai_opportunities").delete().like("name", "Score test%").execute()
+        # Delete test projects
+        supabase.table("ai_projects").delete().like("name", "Integration Test%").execute()
+        supabase.table("ai_projects").delete().like("name", "Tier%Test%").execute()
+        supabase.table("ai_projects").delete().like("name", "Score test%").execute()
 
     except Exception as e:
         # Don't fail tests due to cleanup issues

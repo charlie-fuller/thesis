@@ -1,12 +1,12 @@
 """
-Tests for Opportunity Detail Modal functionality
+Tests for Project Detail Modal functionality
 
 Tests the new endpoints and services added for:
 - Related documents via vector search
 - Q&A conversations with AI
 - Conversation history
 
-Run with: python -m pytest tests/test_opportunity_modal.py -v
+Run with: python -m pytest tests/test_project_modal.py -v
 """
 
 import pytest
@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch, AsyncMock
 from uuid import uuid4
 
 
-class TestOpportunityContext:
+class TestProjectContext:
     """Tests for services/project_context.py"""
 
     def test_get_scoring_related_documents_formats_correctly(self):
@@ -38,9 +38,9 @@ class TestOpportunityContext:
         ]
 
         with patch('services.project_context.search_similar_chunks', return_value=mock_chunks):
-            opportunity = {
-                'title': 'Test Opportunity',
-                'description': 'A test opportunity',
+            project = {
+                'title': 'Test Project',
+                'description': 'A test project',
                 'department': 'IT',
                 'current_state': 'Manual processes',
                 'desired_state': 'Automated workflows',
@@ -48,7 +48,7 @@ class TestOpportunityContext:
             }
 
             results = get_scoring_related_documents(
-                opportunity=opportunity,
+                project=project,
                 client_id=str(uuid4()),
                 limit=5
             )
@@ -69,13 +69,13 @@ class TestOpportunityContext:
             assert result['metadata']['filename'] == 'test_doc.pdf'
             assert result['metadata']['page_number'] == 5
 
-    def test_build_opportunity_context_includes_all_sections(self):
-        """Verify context string includes all opportunity details"""
-        from services.project_context import build_opportunity_context
+    def test_build_project_context_includes_all_sections(self):
+        """Verify context string includes all project details"""
+        from services.project_context import build_project_context
 
-        opportunity = {
+        project = {
             'title': 'AI Invoice Processing',
-            'opportunity_code': 'F01',
+            'project_code': 'F01',
             'department': 'Finance',
             'status': 'scoping',
             'roi_potential': 4,
@@ -99,10 +99,10 @@ class TestOpportunityContext:
             }
         ]
 
-        context = build_opportunity_context(opportunity, related_docs)
+        context = build_project_context(project, related_docs)
 
         # Verify key sections are present
-        assert '<opportunity_context>' in context
+        assert '<project_context>' in context
         assert 'AI Invoice Processing' in context
         assert 'F01' in context
         assert 'Finance' in context
@@ -112,18 +112,18 @@ class TestOpportunityContext:
         assert 'Finance Strategy.pdf' in context
 
 
-class TestOpportunityChat:
-    """Tests for services/opportunity_chat.py"""
+class TestProjectChat:
+    """Tests for services/project_chat.py"""
 
     @pytest.mark.asyncio
-    async def test_ask_about_opportunity_returns_response_and_sources(self):
-        """Verify ask_about_opportunity returns expected structure"""
-        from services.project_chat import ask_about_opportunity
+    async def test_ask_about_project_returns_response_and_sources(self):
+        """Verify ask_about_project returns expected structure"""
+        from services.project_chat import ask_about_project
 
-        mock_opportunity = {
+        mock_project = {
             'id': str(uuid4()),
-            'title': 'Test Opportunity',
-            'opportunity_code': 'T01',
+            'title': 'Test Project',
+            'project_code': 'T01',
             'department': 'IT',
             'status': 'identified',
             'total_score': 12,
@@ -145,18 +145,18 @@ class TestOpportunityChat:
              patch('services.project_chat.anthropic_client') as mock_anthropic:
 
             # Mock Supabase query
-            mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value.data = mock_opportunity
+            mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value.data = mock_project
 
             # Mock Anthropic response
             mock_response = Mock()
-            mock_response.content = [Mock(text='This is the AI response about the opportunity.')]
+            mock_response.content = [Mock(text='This is the AI response about the project.')]
             mock_anthropic.messages.create.return_value = mock_response
 
             # Mock conversation storage
             mock_sb.table.return_value.insert.return_value.execute.return_value = Mock()
 
-            result = await ask_about_opportunity(
-                opportunity_id=str(uuid4()),
+            result = await ask_about_project(
+                project_id=str(uuid4()),
                 question='What is the ROI potential?',
                 client_id=str(uuid4()),
                 user_id=str(uuid4())
@@ -164,11 +164,11 @@ class TestOpportunityChat:
 
             assert 'response' in result
             assert 'sources' in result
-            assert result['response'] == 'This is the AI response about the opportunity.'
+            assert result['response'] == 'This is the AI response about the project.'
 
 
-class TestOpportunitiesAPI:
-    """Tests for api/routes/opportunities.py endpoints"""
+class TestProjectsAPI:
+    """Tests for api/routes/projects.py endpoints"""
 
     def test_related_documents_endpoint_returns_list(self):
         """Verify GET /{id}/related-documents returns list"""
@@ -191,7 +191,7 @@ class TestOpportunitiesAPI:
         # Expected behavior:
         # - Accepts { question: string }
         # - Returns { response: string, sources: List[RelatedDocumentResponse] }
-        # - Creates record in opportunity_conversations table
+        # - Creates record in project_conversations table
         pass
 
 
@@ -200,7 +200,7 @@ class TestPydanticModels:
 
     def test_related_document_response_model(self):
         """Verify RelatedDocumentResponse validates correctly"""
-        from api.routes.opportunities import RelatedDocumentResponse, RelatedDocumentMetadata
+        from api.routes.projects import RelatedDocumentResponse, RelatedDocumentMetadata
 
         data = {
             'chunk_id': str(uuid4()),
@@ -222,7 +222,7 @@ class TestPydanticModels:
 
     def test_ask_question_request_validation(self):
         """Verify AskQuestionRequest validates correctly"""
-        from api.routes.opportunities import AskQuestionRequest
+        from api.routes.projects import AskQuestionRequest
 
         # Valid request
         req = AskQuestionRequest(question='What is the ROI?')
@@ -234,7 +234,7 @@ class TestPydanticModels:
 
     def test_conversation_response_model(self):
         """Verify ConversationResponse validates correctly"""
-        from api.routes.opportunities import ConversationResponse
+        from api.routes.projects import ConversationResponse
 
         data = {
             'id': str(uuid4()),

@@ -59,8 +59,8 @@ class TaskContract(BaseModel):
     updated_at: str
 
 
-class OpportunityContract(BaseModel):
-    """Contract for opportunity response."""
+class ProjectContract(BaseModel):
+    """Contract for project response."""
     id: str
     name: str
     client_id: str
@@ -242,11 +242,11 @@ class TestTaskContracts:
             assert task.status == status
 
 
-class TestOpportunityContracts:
-    """Validate opportunity/pipeline API contracts."""
+class TestProjectContracts:
+    """Validate project/pipeline API contracts."""
 
-    def test_opportunity_response_contract(self):
-        """Opportunity response matches frontend expectations."""
+    def test_project_response_contract(self):
+        """Project response matches frontend expectations."""
         response = {
             "id": "opp-123",
             "name": "Enterprise AI Platform",
@@ -260,12 +260,12 @@ class TestOpportunityContracts:
             "updated_at": "2026-01-25T10:00:00Z"
         }
 
-        opportunity = OpportunityContract(**response)
-        assert opportunity.tier == "A"
-        assert opportunity.strategic_alignment == 85
+        project = ProjectContract(**response)
+        assert project.tier == "A"
+        assert project.strategic_alignment == 85
 
-    def test_opportunity_scores_within_range(self):
-        """Opportunity scores should be 0-100."""
+    def test_project_scores_within_range(self):
+        """Project scores should be 0-100."""
         response = {
             "id": "opp-123",
             "name": "Test",
@@ -280,7 +280,7 @@ class TestOpportunityContracts:
 
         # Note: Pydantic doesn't enforce range by default
         # This test documents expected behavior - add validators if needed
-        opp = OpportunityContract(**response)
+        opp = ProjectContract(**response)
         # Frontend should validate: assert 0 <= opp.strategic_alignment <= 100
 
 

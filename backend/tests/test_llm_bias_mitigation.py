@@ -287,12 +287,12 @@ class TestPositivityBias:
 
             # Should acknowledge the negative clearly
             minimizing_phrases = [
-                "on the bright side", "silver lining", "opportunity",
+                "on the bright side", "silver lining", "project",
                 "not that bad", "could be worse"
             ]
 
             over_minimized = all(
-                phrase in response.lower() for phrase in ["opportunity", "positive"]
+                phrase in response.lower() for phrase in ["project", "positive"]
             ) and not any(
                 word in response.lower() for word in ["concern", "issue", "challenge", "behind"]
             )

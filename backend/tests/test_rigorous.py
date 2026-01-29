@@ -27,29 +27,29 @@ from pydantic import BaseModel, ValidationError, field_validator
 # CATEGORY 1: CONTRACT TESTS (Frontend ↔ Backend)
 # ============================================================================
 
-class TestAPIContractsOpportunity:
+class TestAPIContractsProject:
     """Verify backend responses match frontend TypeScript interfaces."""
 
-    # Fields required by frontend Opportunity interface
-    FRONTEND_OPPORTUNITY_FIELDS = [
-        "id", "opportunity_code", "title", "description", "department",
+    # Fields required by frontend Project interface
+    FRONTEND_PROJECT_FIELDS = [
+        "id", "project_code", "title", "description", "department",
         "owner_stakeholder_id", "owner_name", "current_state", "desired_state",
         "roi_potential", "implementation_effort", "strategic_alignment",
         "stakeholder_readiness", "total_score", "tier", "status",
         "next_step", "blockers", "follow_up_questions", "roi_indicators",
         "created_at", "updated_at",
         # Justification fields (optional)
-        "opportunity_summary", "roi_justification", "effort_justification",
+        "project_summary", "roi_justification", "effort_justification",
         "alignment_justification", "readiness_justification"
     ]
 
-    def test_opportunity_response_has_all_frontend_fields(self):
-        """OpportunityResponse matches frontend Opportunity interface."""
+    def test_project_response_has_all_frontend_fields(self):
+        """ProjectResponse matches frontend Project interface."""
         # Simulate a complete backend response
         backend_response = {
             "id": str(uuid4()),
-            "opportunity_code": "OPP-001",
-            "title": "Test Opportunity",
+            "project_code": "OPP-001",
+            "title": "Test Project",
             "description": "Test description",
             "department": "finance",
             "owner_stakeholder_id": str(uuid4()),
@@ -69,30 +69,30 @@ class TestAPIContractsOpportunity:
             "roi_indicators": {},
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat(),
-            "opportunity_summary": None,
+            "project_summary": None,
             "roi_justification": None,
             "effort_justification": None,
             "alignment_justification": None,
             "readiness_justification": None,
         }
 
-        for field in self.FRONTEND_OPPORTUNITY_FIELDS:
+        for field in self.FRONTEND_PROJECT_FIELDS:
             assert field in backend_response, f"Missing required field: {field}"
 
-    def test_opportunity_nullable_fields_are_nullable(self):
+    def test_project_nullable_fields_are_nullable(self):
         """Fields that frontend treats as nullable can be null."""
         nullable_fields = [
             "description", "department", "owner_stakeholder_id", "owner_name",
             "current_state", "desired_state", "roi_potential", "implementation_effort",
             "strategic_alignment", "stakeholder_readiness", "next_step",
-            "opportunity_summary", "roi_justification", "effort_justification",
+            "project_summary", "roi_justification", "effort_justification",
             "alignment_justification", "readiness_justification"
         ]
 
         response = {field: None for field in nullable_fields}
         response.update({
             "id": str(uuid4()),
-            "opportunity_code": "OPP-001",
+            "project_code": "OPP-001",
             "title": "Test",
             "total_score": 0,
             "tier": 4,
@@ -576,13 +576,14 @@ class TestConcurrentAccess:
 class TestDatabaseConstraints:
     """Test that DB constraints are enforced."""
 
-    def test_opportunity_code_format(self):
-        """Opportunity code follows expected format."""
+    def test_project_code_format(self):
+        """Project code follows expected format (dept prefix + 2-digit number)."""
         import re
-        valid_codes = ["OPP-001", "OPP-123", "OPP-999"]
-        invalid_codes = ["opp-001", "OPP001", "OPP-1", "OPPORTUNITY-001"]
+        valid_codes = ["F01", "L02", "H12", "IT01", "G99"]
+        invalid_codes = ["f01", "F1", "F001", "PROJECT-001", "123"]
 
-        pattern = r"^OPP-\d{3}$"
+        # Project codes: 1-2 uppercase letters followed by 2 digits
+        pattern = r"^[A-Z]{1,2}\d{2}$"
 
         for code in valid_codes:
             assert re.match(pattern, code), f"{code} should be valid"
@@ -642,7 +643,7 @@ class TestDatabaseConstraints:
 class TestResponseSnapshots:
     """Detect unintended API response structure changes."""
 
-    def test_opportunity_list_response_keys(self):
+    def test_project_list_response_keys(self):
         """List response has stable keys."""
         expected_keys = {"tier_1", "tier_2", "tier_3", "tier_4", "summary"}
 
@@ -673,7 +674,7 @@ class TestResponseSnapshots:
     def test_error_response_structure(self):
         """Error responses have consistent structure."""
         error_response = {
-            "detail": "Opportunity not found"
+            "detail": "Project not found"
         }
 
         assert "detail" in error_response
@@ -698,37 +699,37 @@ class TestPydanticValidation:
 
     def test_required_field_missing_raises(self):
         """Missing required field raises ValidationError."""
-        class OpportunityCreate(BaseModel):
+        class ProjectCreate(BaseModel):
             title: str
-            opportunity_code: str
+            project_code: str
 
         with pytest.raises(ValidationError) as exc_info:
-            OpportunityCreate(title="Test")  # Missing opportunity_code
+            ProjectCreate(title="Test")  # Missing project_code
 
         errors = exc_info.value.errors()
-        assert any(e["loc"] == ("opportunity_code",) for e in errors)
+        assert any(e["loc"] == ("project_code",) for e in errors)
 
     def test_optional_field_can_be_none(self):
         """Optional fields accept None."""
-        class OpportunityCreate(BaseModel):
+        class ProjectCreate(BaseModel):
             title: str
             description: Optional[str] = None
 
-        opp = OpportunityCreate(title="Test", description=None)
+        opp = ProjectCreate(title="Test", description=None)
         assert opp.description is None
 
     def test_optional_field_can_be_omitted(self):
         """Optional fields can be omitted entirely."""
-        class OpportunityCreate(BaseModel):
+        class ProjectCreate(BaseModel):
             title: str
             description: Optional[str] = None
 
-        opp = OpportunityCreate(title="Test")
+        opp = ProjectCreate(title="Test")
         assert opp.description is None
 
     def test_custom_validator_rejects_invalid(self):
         """Custom validators reject invalid values."""
-        class OpportunityCreate(BaseModel):
+        class ProjectCreate(BaseModel):
             title: str
             tier: int
 
@@ -740,7 +741,7 @@ class TestPydanticValidation:
                 return v
 
         with pytest.raises(ValidationError):
-            OpportunityCreate(title="Test", tier=5)
+            ProjectCreate(title="Test", tier=5)
 
     def test_type_coercion_string_to_int(self):
         """Pydantic coerces compatible types."""
@@ -760,12 +761,12 @@ class TestPydanticValidation:
 class TestCombinedScenarios:
     """Test realistic combined scenarios."""
 
-    def test_create_opportunity_full_flow(self):
+    def test_create_project_full_flow(self):
         """Full create flow with all validations."""
         # Input
         input_data = {
             "title": "AI Invoice Processing",
-            "opportunity_code": "OPP-042",
+            "project_code": "OPP-042",
             "department": "finance",
             "roi_potential": 4,
             "implementation_effort": 3,

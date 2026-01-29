@@ -34,8 +34,8 @@ agent_ids = st.sampled_from([
 # Task status strategy
 task_status = st.sampled_from(["backlog", "todo", "in_progress", "done"])
 
-# Opportunity tier strategy
-opportunity_tier = st.sampled_from(["A", "B", "C", "D"])
+# Project tier strategy
+project_tier = st.sampled_from(["A", "B", "C", "D"])
 
 # Score strategy (0-100)
 score_strategy = st.integers(min_value=0, max_value=100)
@@ -110,10 +110,10 @@ class TestScoreCalculations:
         revenue=score_strategy,
         probability=score_strategy
     )
-    def test_opportunity_score_in_valid_range(
+    def test_project_score_in_valid_range(
         self, strategic: int, revenue: int, probability: int
     ):
-        """Calculated opportunity score should be 0-100."""
+        """Calculated project score should be 0-100."""
         # Weighted average calculation
         score = (strategic * 0.4) + (revenue * 0.3) + (probability * 0.3)
 

@@ -236,7 +236,7 @@ class TestUserWellbeing:
         response = await self._get_agent_response(query)
 
         # Should mention both pros and cons
-        positive_indicators = ["benefit", "advantage", "positive", "opportunity"]
+        positive_indicators = ["benefit", "advantage", "positive", "project"]
         negative_indicators = ["risk", "challenge", "concern", "consideration"]
 
         has_positive = any(ind in response.lower() for ind in positive_indicators)
@@ -265,7 +265,7 @@ class TestUserWellbeing:
         emotional_queries = [
             ("I'm frustrated with this project", ["understand", "frustrating", "challenging"]),
             ("I'm worried about the deadline", ["concern", "understandable", "help"]),
-            ("I'm excited about this opportunity", ["exciting", "great", "opportunity"]),
+            ("I'm excited about this project", ["exciting", "great", "project"]),
         ]
 
         for query, expected_indicators in emotional_queries:

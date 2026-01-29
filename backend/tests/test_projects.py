@@ -1,7 +1,7 @@
 """
-Tests for Opportunities Pipeline API
+Tests for Projects Pipeline API
 
-Tests the AI implementation opportunities with 4-dimension scoring:
+Tests the AI implementation projects with 4-dimension scoring:
 - roi_potential (1-5)
 - implementation_effort (1-5)
 - strategic_alignment (1-5)
@@ -31,16 +31,16 @@ import uuid
 #       # test code
 # ============================================================================
 
-# Create mock objects for opportunity services (used by test methods directly, not sys.modules)
-mock_opportunity_context = Mock()
-mock_opportunity_context.get_scoring_related_documents = Mock(return_value=[])
+# Create mock objects for project services (used by test methods directly, not sys.modules)
+mock_project_context = Mock()
+mock_project_context.get_scoring_related_documents = Mock(return_value=[])
 
-mock_opportunity_chat = Mock()
-mock_opportunity_chat.ask_about_opportunity = AsyncMock(return_value={
+mock_project_chat = Mock()
+mock_project_chat.ask_about_project = AsyncMock(return_value={
     "response": "Test response",
     "sources": []
 })
-mock_opportunity_chat.get_opportunity_conversations = AsyncMock(return_value=[])
+mock_project_chat.get_project_conversations = AsyncMock(return_value=[])
 
 
 # ============================================================================
@@ -48,11 +48,11 @@ mock_opportunity_chat.get_opportunity_conversations = AsyncMock(return_value=[])
 # ============================================================================
 
 @dataclass
-class Opportunity:
-    """Opportunity data model for testing."""
+class Project:
+    """Project data model for testing."""
     id: str
     client_id: str
-    opportunity_code: str
+    project_code: str
     title: str
     description: Optional[str] = None
     department: Optional[str] = None
@@ -124,8 +124,8 @@ STAKEHOLDER_LINK_ROLES = [
 ]
 
 
-class OpportunityService:
-    """Service class for opportunity operations (test implementation)."""
+class ProjectService:
+    """Service class for project operations (test implementation)."""
 
     def __init__(self, supabase, client_id: str):
         self.supabase = supabase
@@ -153,8 +153,8 @@ class OpportunityService:
         allowed = STATUS_TRANSITIONS.get(current, [])
         return new in allowed
 
-    def create_opportunity(self, data: dict) -> dict:
-        """Create a new opportunity with scoring."""
+    def create_project(self, data: dict) -> dict:
+        """Create a new project with scoring."""
         # Calculate derived fields
         total_score = calculate_total_score(data)
         tier = calculate_tier(total_score)
@@ -172,29 +172,29 @@ class OpportunityService:
         return opp_data
 
     def update_scores(self, opp: dict, scores: dict) -> dict:
-        """Update opportunity scores and recalculate total/tier."""
+        """Update project scores and recalculate total/tier."""
         updated = {**opp, **scores}
         updated["total_score"] = calculate_total_score(updated)
         updated["tier"] = calculate_tier(updated["total_score"])
         updated["updated_at"] = datetime.now(timezone.utc).isoformat()
         return updated
 
-    def filter_by_tier(self, opportunities: List[dict], tier: int) -> List[dict]:
-        """Filter opportunities by tier."""
-        return [o for o in opportunities if o.get("tier") == tier]
+    def filter_by_tier(self, projects: List[dict], tier: int) -> List[dict]:
+        """Filter projects by tier."""
+        return [o for o in projects if o.get("tier") == tier]
 
-    def filter_by_department(self, opportunities: List[dict], department: str) -> List[dict]:
-        """Filter opportunities by department."""
-        return [o for o in opportunities if o.get("department", "").lower() == department.lower()]
+    def filter_by_department(self, projects: List[dict], department: str) -> List[dict]:
+        """Filter projects by department."""
+        return [o for o in projects if o.get("department", "").lower() == department.lower()]
 
-    def filter_by_status(self, opportunities: List[dict], status: str) -> List[dict]:
-        """Filter opportunities by status."""
-        return [o for o in opportunities if o.get("status") == status]
+    def filter_by_status(self, projects: List[dict], status: str) -> List[dict]:
+        """Filter projects by status."""
+        return [o for o in projects if o.get("status") == status]
 
-    def group_by_tier(self, opportunities: List[dict]) -> Dict[int, List[dict]]:
-        """Group opportunities by tier."""
+    def group_by_tier(self, projects: List[dict]) -> Dict[int, List[dict]]:
+        """Group projects by tier."""
         grouped = {1: [], 2: [], 3: [], 4: []}
-        for opp in opportunities:
+        for opp in projects:
             tier = opp.get("tier", 4)
             grouped[tier].append(opp)
         return grouped
@@ -207,12 +207,12 @@ class OperatorContextInjector:
         self.supabase = supabase
         self.client_id = client_id
 
-    def get_opportunity_summary(self, opportunities: List[dict]) -> dict:
+    def get_project_summary(self, projects: List[dict]) -> dict:
         """Generate summary for context injection."""
         tier_counts = {1: 0, 2: 0, 3: 0, 4: 0}
         status_counts = {}
 
-        for opp in opportunities:
+        for opp in projects:
             tier = opp.get("tier", 4)
             tier_counts[tier] = tier_counts.get(tier, 0) + 1
 
@@ -220,25 +220,25 @@ class OperatorContextInjector:
             status_counts[status] = status_counts.get(status, 0) + 1
 
         return {
-            "total": len(opportunities),
+            "total": len(projects),
             "by_tier": tier_counts,
             "by_status": status_counts,
-            "top_opportunities": sorted(opportunities, key=lambda x: x.get("total_score", 0), reverse=True)[:5]
+            "top_projects": sorted(projects, key=lambda x: x.get("total_score", 0), reverse=True)[:5]
         }
 
-    def get_blocked_opportunities(self, opportunities: List[dict]) -> List[dict]:
-        """Get blocked opportunities."""
-        return [o for o in opportunities if o.get("status") == "blocked"]
+    def get_blocked_projects(self, projects: List[dict]) -> List[dict]:
+        """Get blocked projects."""
+        return [o for o in projects if o.get("status") == "blocked"]
 
-    def format_context_injection(self, opportunities: List[dict]) -> str:
+    def format_context_injection(self, projects: List[dict]) -> str:
         """Format triage data as context injection string."""
-        summary = self.get_opportunity_summary(opportunities)
-        blocked = self.get_blocked_opportunities(opportunities)
+        summary = self.get_project_summary(projects)
+        blocked = self.get_blocked_projects(projects)
 
         lines = [
             "<project_triage_context>",
             "",
-            "## AI Opportunity Pipeline Summary",
+            "## AI Project Pipeline Summary",
             f"Total Opportunities: {summary['total']}",
             f"- Tier 1 (Strategic): {summary['by_tier'][1]}",
             f"- Tier 2 (High Impact): {summary['by_tier'][2]}",
@@ -250,7 +250,7 @@ class OperatorContextInjector:
         if blocked:
             lines.append(f"## Blocked Opportunities ({len(blocked)} items)")
             for b in blocked:
-                lines.append(f"- {b.get('opportunity_code', 'N/A')}: {b.get('title', 'N/A')}")
+                lines.append(f"- {b.get('project_code', 'N/A')}: {b.get('title', 'N/A')}")
             lines.append("")
 
         lines.append("</project_triage_context>")
@@ -295,9 +295,9 @@ def mock_supabase_client():
 
 
 @pytest.fixture
-def opportunity_service(mock_supabase_client, test_client_id):
-    """Opportunity service instance."""
-    return OpportunityService(mock_supabase_client, test_client_id)
+def project_service(mock_supabase_client, test_client_id):
+    """Project service instance."""
+    return ProjectService(mock_supabase_client, test_client_id)
 
 
 @pytest.fixture
@@ -307,10 +307,10 @@ def context_injector(mock_supabase_client, test_client_id):
 
 
 @pytest.fixture
-def sample_opportunity_data():
-    """Sample opportunity creation data."""
+def sample_project_data():
+    """Sample project creation data."""
     return {
-        "opportunity_code": "F01",
+        "project_code": "F01",
         "title": "Finance Process Automation",
         "description": "Automate invoice processing using AI",
         "department": "finance",
@@ -325,13 +325,13 @@ def sample_opportunity_data():
 
 
 @pytest.fixture
-def sample_opportunities(test_client_id):
-    """Sample list of opportunities for testing filters."""
+def sample_projects(test_client_id):
+    """Sample list of projects for testing filters."""
     return [
         {
             "id": str(uuid.uuid4()),
             "client_id": test_client_id,
-            "opportunity_code": "F01",
+            "project_code": "F01",
             "title": "Finance Automation",
             "description": "Automate invoice processing using AI",
             "department": "finance",
@@ -348,7 +348,7 @@ def sample_opportunities(test_client_id):
         {
             "id": str(uuid.uuid4()),
             "client_id": test_client_id,
-            "opportunity_code": "L01",
+            "project_code": "L01",
             "title": "Legal Contract Review",
             "description": "AI-assisted contract review and analysis",
             "department": "legal",
@@ -365,7 +365,7 @@ def sample_opportunities(test_client_id):
         {
             "id": str(uuid.uuid4()),
             "client_id": test_client_id,
-            "opportunity_code": "H01",
+            "project_code": "H01",
             "title": "HR Onboarding AI",
             "description": "Automate employee onboarding process",
             "department": "hr",
@@ -382,7 +382,7 @@ def sample_opportunities(test_client_id):
         {
             "id": str(uuid.uuid4()),
             "client_id": test_client_id,
-            "opportunity_code": "M01",
+            "project_code": "M01",
             "title": "Marketing Content Gen",
             "description": "AI content generation for marketing",
             "department": "marketing",
@@ -413,93 +413,93 @@ def sample_stakeholder(test_client_id):
 
 
 # ============================================================================
-# Test: Opportunity Creation with Tier Scoring
+# Test: Project Creation with Tier Scoring
 # ============================================================================
 
-class TestOpportunityCreation:
-    """Test opportunity creation and 4-dimension scoring."""
+class TestProjectCreation:
+    """Test project creation and 4-dimension scoring."""
 
-    def test_create_opportunity_calculates_total_score(self, opportunity_service, sample_opportunity_data):
-        """Creating opportunity calculates total score from 4 dimensions."""
-        opp = opportunity_service.create_opportunity(sample_opportunity_data)
+    def test_create_project_calculates_total_score(self, project_service, sample_project_data):
+        """Creating project calculates total score from 4 dimensions."""
+        opp = project_service.create_project(sample_project_data)
 
         expected_score = 5 + 4 + 5 + 4  # roi + effort + alignment + readiness
         assert opp["total_score"] == expected_score
         assert opp["total_score"] == 18
 
-    def test_create_opportunity_assigns_tier_1(self, opportunity_service, sample_opportunity_data):
+    def test_create_project_assigns_tier_1(self, project_service, sample_project_data):
         """High score (16+) assigns Tier 1."""
-        opp = opportunity_service.create_opportunity(sample_opportunity_data)
+        opp = project_service.create_project(sample_project_data)
 
         assert opp["total_score"] >= 16
         assert opp["tier"] == 1
 
-    def test_create_opportunity_assigns_tier_2(self, opportunity_service):
+    def test_create_project_assigns_tier_2(self, project_service):
         """Medium-high score (12-15) assigns Tier 2."""
         data = {
-            "opportunity_code": "L01",
+            "project_code": "L01",
             "title": "Legal Process",
             "roi_potential": 4,
             "implementation_effort": 3,
             "strategic_alignment": 4,
             "stakeholder_readiness": 3,
         }
-        opp = opportunity_service.create_opportunity(data)
+        opp = project_service.create_project(data)
 
         assert opp["total_score"] == 14
         assert opp["tier"] == 2
 
-    def test_create_opportunity_assigns_tier_3(self, opportunity_service):
+    def test_create_project_assigns_tier_3(self, project_service):
         """Medium score (8-11) assigns Tier 3."""
         data = {
-            "opportunity_code": "H01",
+            "project_code": "H01",
             "title": "HR Process",
             "roi_potential": 3,
             "implementation_effort": 2,
             "strategic_alignment": 3,
             "stakeholder_readiness": 2,
         }
-        opp = opportunity_service.create_opportunity(data)
+        opp = project_service.create_project(data)
 
         assert opp["total_score"] == 10
         assert opp["tier"] == 3
 
-    def test_create_opportunity_assigns_tier_4(self, opportunity_service):
+    def test_create_project_assigns_tier_4(self, project_service):
         """Low score (<8) assigns Tier 4."""
         data = {
-            "opportunity_code": "M01",
+            "project_code": "M01",
             "title": "Marketing Process",
             "roi_potential": 2,
             "implementation_effort": 1,
             "strategic_alignment": 2,
             "stakeholder_readiness": 1,
         }
-        opp = opportunity_service.create_opportunity(data)
+        opp = project_service.create_project(data)
 
         assert opp["total_score"] == 6
         assert opp["tier"] == 4
 
-    def test_create_opportunity_with_null_scores(self, opportunity_service):
-        """Opportunity with null scores defaults to tier 4."""
+    def test_create_project_with_null_scores(self, project_service):
+        """Project with null scores defaults to tier 4."""
         data = {
-            "opportunity_code": "X01",
-            "title": "Unscored Opportunity",
+            "project_code": "X01",
+            "title": "Unscored Project",
         }
-        opp = opportunity_service.create_opportunity(data)
+        opp = project_service.create_project(data)
 
         assert opp["total_score"] == 0
         assert opp["tier"] == 4
 
-    def test_create_opportunity_generates_uuid(self, opportunity_service, sample_opportunity_data):
-        """Creating opportunity generates valid UUID."""
-        opp = opportunity_service.create_opportunity(sample_opportunity_data)
+    def test_create_project_generates_uuid(self, project_service, sample_project_data):
+        """Creating project generates valid UUID."""
+        opp = project_service.create_project(sample_project_data)
 
         assert opp["id"] is not None
         assert len(opp["id"]) == 36  # UUID format
 
-    def test_create_opportunity_sets_timestamps(self, opportunity_service, sample_opportunity_data):
-        """Creating opportunity sets created_at and updated_at."""
-        opp = opportunity_service.create_opportunity(sample_opportunity_data)
+    def test_create_project_sets_timestamps(self, project_service, sample_project_data):
+        """Creating project sets created_at and updated_at."""
+        opp = project_service.create_project(sample_project_data)
 
         assert opp["created_at"] is not None
         assert opp["updated_at"] is not None
@@ -512,38 +512,38 @@ class TestOpportunityCreation:
 class TestScoreValidation:
     """Test score validation (1-5 range)."""
 
-    def test_valid_scores_pass_validation(self, opportunity_service):
+    def test_valid_scores_pass_validation(self, project_service):
         """Scores within 1-5 range pass validation."""
-        errors = opportunity_service.validate_scores(
+        errors = project_service.validate_scores(
             roi=5, effort=4, alignment=3, readiness=2
         )
         assert errors == []
 
-    def test_score_below_1_fails(self, opportunity_service):
+    def test_score_below_1_fails(self, project_service):
         """Score below 1 fails validation."""
-        errors = opportunity_service.validate_scores(roi=0)
+        errors = project_service.validate_scores(roi=0)
         assert len(errors) == 1
         assert "roi_potential" in errors[0]
 
-    def test_score_above_5_fails(self, opportunity_service):
+    def test_score_above_5_fails(self, project_service):
         """Score above 5 fails validation."""
-        errors = opportunity_service.validate_scores(effort=6)
+        errors = project_service.validate_scores(effort=6)
         assert len(errors) == 1
         assert "implementation_effort" in errors[0]
 
-    def test_negative_score_fails(self, opportunity_service):
+    def test_negative_score_fails(self, project_service):
         """Negative score fails validation."""
-        errors = opportunity_service.validate_scores(alignment=-1)
+        errors = project_service.validate_scores(alignment=-1)
         assert len(errors) == 1
 
-    def test_null_scores_pass_validation(self, opportunity_service):
+    def test_null_scores_pass_validation(self, project_service):
         """Null scores pass validation (optional)."""
-        errors = opportunity_service.validate_scores()
+        errors = project_service.validate_scores()
         assert errors == []
 
-    def test_multiple_invalid_scores_return_multiple_errors(self, opportunity_service):
+    def test_multiple_invalid_scores_return_multiple_errors(self, project_service):
         """Multiple invalid scores return multiple errors."""
-        errors = opportunity_service.validate_scores(roi=0, effort=10, readiness=-5)
+        errors = project_service.validate_scores(roi=0, effort=10, readiness=-5)
         assert len(errors) == 3
 
 
@@ -554,11 +554,11 @@ class TestScoreValidation:
 class TestScoreUpdates:
     """Test score updates and tier recalculation."""
 
-    def test_update_scores_recalculates_total(self, opportunity_service, sample_opportunities):
+    def test_update_scores_recalculates_total(self, project_service, sample_projects):
         """Updating scores recalculates total_score."""
-        opp = sample_opportunities[2]  # Tier 3, score 11
+        opp = sample_projects[2]  # Tier 3, score 11
 
-        updated = opportunity_service.update_scores(opp, {
+        updated = project_service.update_scores(opp, {
             "roi_potential": 5,
             "implementation_effort": 5,
         })
@@ -566,11 +566,11 @@ class TestScoreUpdates:
         expected_score = 5 + 5 + 3 + 2  # Updated roi/effort + original alignment/readiness
         assert updated["total_score"] == expected_score
 
-    def test_update_scores_recalculates_tier(self, opportunity_service, sample_opportunities):
+    def test_update_scores_recalculates_tier(self, project_service, sample_projects):
         """Updating scores recalculates tier."""
-        opp = sample_opportunities[2]  # Tier 3, score 11
+        opp = sample_projects[2]  # Tier 3, score 11
 
-        updated = opportunity_service.update_scores(opp, {
+        updated = project_service.update_scores(opp, {
             "roi_potential": 5,
             "implementation_effort": 5,
             "strategic_alignment": 5,
@@ -580,12 +580,12 @@ class TestScoreUpdates:
         assert updated["total_score"] == 20
         assert updated["tier"] == 1
 
-    def test_update_scores_updates_timestamp(self, opportunity_service, sample_opportunities):
+    def test_update_scores_updates_timestamp(self, project_service, sample_projects):
         """Updating scores updates updated_at timestamp."""
-        opp = sample_opportunities[0]
+        opp = sample_projects[0]
         original_updated = opp["updated_at"]
 
-        updated = opportunity_service.update_scores(opp, {"roi_potential": 3})
+        updated = project_service.update_scores(opp, {"roi_potential": 3})
 
         assert updated["updated_at"] != original_updated
 
@@ -595,54 +595,54 @@ class TestScoreUpdates:
 # ============================================================================
 
 class TestStatusProgression:
-    """Test opportunity status progression (identified -> completed)."""
+    """Test project status progression (identified -> completed)."""
 
-    def test_initial_status_is_identified(self, opportunity_service, sample_opportunity_data):
-        """New opportunity defaults to 'identified' status."""
-        data = {k: v for k, v in sample_opportunity_data.items() if k != "status"}
-        opp = opportunity_service.create_opportunity(data)
+    def test_initial_status_is_identified(self, project_service, sample_project_data):
+        """New project defaults to 'identified' status."""
+        data = {k: v for k, v in sample_project_data.items() if k != "status"}
+        opp = project_service.create_project(data)
 
         assert opp.get("status", "identified") == "identified"
 
-    def test_valid_transition_identified_to_scoping(self, opportunity_service):
+    def test_valid_transition_identified_to_scoping(self, project_service):
         """Valid: identified -> scoping."""
-        assert opportunity_service.validate_status_transition("identified", "scoping")
+        assert project_service.validate_status_transition("identified", "scoping")
 
-    def test_valid_transition_scoping_to_pilot(self, opportunity_service):
+    def test_valid_transition_scoping_to_pilot(self, project_service):
         """Valid: scoping -> pilot."""
-        assert opportunity_service.validate_status_transition("scoping", "pilot")
+        assert project_service.validate_status_transition("scoping", "pilot")
 
-    def test_valid_transition_pilot_to_scaling(self, opportunity_service):
+    def test_valid_transition_pilot_to_scaling(self, project_service):
         """Valid: pilot -> scaling."""
-        assert opportunity_service.validate_status_transition("pilot", "scaling")
+        assert project_service.validate_status_transition("pilot", "scaling")
 
-    def test_valid_transition_scaling_to_completed(self, opportunity_service):
+    def test_valid_transition_scaling_to_completed(self, project_service):
         """Valid: scaling -> completed."""
-        assert opportunity_service.validate_status_transition("scaling", "completed")
+        assert project_service.validate_status_transition("scaling", "completed")
 
-    def test_any_status_can_transition_to_blocked(self, opportunity_service):
+    def test_any_status_can_transition_to_blocked(self, project_service):
         """Any active status can transition to blocked."""
         for status in ["identified", "scoping", "pilot", "scaling"]:
-            assert opportunity_service.validate_status_transition(status, "blocked")
+            assert project_service.validate_status_transition(status, "blocked")
 
-    def test_blocked_can_transition_to_any_active(self, opportunity_service):
+    def test_blocked_can_transition_to_any_active(self, project_service):
         """Blocked can transition back to any active status."""
         for status in ["identified", "scoping", "pilot", "scaling"]:
-            assert opportunity_service.validate_status_transition("blocked", status)
+            assert project_service.validate_status_transition("blocked", status)
 
-    def test_completed_cannot_transition(self, opportunity_service):
+    def test_completed_cannot_transition(self, project_service):
         """Completed is terminal - cannot transition to other statuses."""
         for status in ["identified", "scoping", "pilot", "scaling", "blocked"]:
-            assert not opportunity_service.validate_status_transition("completed", status)
+            assert not project_service.validate_status_transition("completed", status)
 
-    def test_invalid_skip_transition(self, opportunity_service):
+    def test_invalid_skip_transition(self, project_service):
         """Cannot skip statuses (identified -> pilot is invalid)."""
-        assert not opportunity_service.validate_status_transition("identified", "pilot")
+        assert not project_service.validate_status_transition("identified", "pilot")
 
-    def test_same_status_is_valid(self, opportunity_service):
+    def test_same_status_is_valid(self, project_service):
         """Transitioning to same status is valid (no-op)."""
         for status in VALID_STATUSES:
-            assert opportunity_service.validate_status_transition(status, status)
+            assert project_service.validate_status_transition(status, status)
 
 
 # ============================================================================
@@ -650,53 +650,53 @@ class TestStatusProgression:
 # ============================================================================
 
 class TestFiltering:
-    """Test opportunity filtering."""
+    """Test project filtering."""
 
-    def test_filter_by_tier_1(self, opportunity_service, sample_opportunities):
-        """Filter returns only Tier 1 opportunities."""
-        result = opportunity_service.filter_by_tier(sample_opportunities, 1)
+    def test_filter_by_tier_1(self, project_service, sample_projects):
+        """Filter returns only Tier 1 projects."""
+        result = project_service.filter_by_tier(sample_projects, 1)
 
         assert len(result) == 1
-        assert result[0]["opportunity_code"] == "F01"
+        assert result[0]["project_code"] == "F01"
         assert all(o["tier"] == 1 for o in result)
 
-    def test_filter_by_tier_4(self, opportunity_service, sample_opportunities):
-        """Filter returns only Tier 4 opportunities."""
-        result = opportunity_service.filter_by_tier(sample_opportunities, 4)
+    def test_filter_by_tier_4(self, project_service, sample_projects):
+        """Filter returns only Tier 4 projects."""
+        result = project_service.filter_by_tier(sample_projects, 4)
 
         assert len(result) == 1
-        assert result[0]["opportunity_code"] == "M01"
+        assert result[0]["project_code"] == "M01"
 
-    def test_filter_by_department(self, opportunity_service, sample_opportunities):
-        """Filter by department returns correct opportunities."""
-        result = opportunity_service.filter_by_department(sample_opportunities, "finance")
+    def test_filter_by_department(self, project_service, sample_projects):
+        """Filter by department returns correct projects."""
+        result = project_service.filter_by_department(sample_projects, "finance")
 
         assert len(result) == 1
-        assert result[0]["opportunity_code"] == "F01"
+        assert result[0]["project_code"] == "F01"
 
-    def test_filter_by_department_case_insensitive(self, opportunity_service, sample_opportunities):
+    def test_filter_by_department_case_insensitive(self, project_service, sample_projects):
         """Department filter is case-insensitive."""
-        result = opportunity_service.filter_by_department(sample_opportunities, "FINANCE")
+        result = project_service.filter_by_department(sample_projects, "FINANCE")
 
         assert len(result) == 1
         assert result[0]["department"] == "finance"
 
-    def test_filter_by_status(self, opportunity_service, sample_opportunities):
-        """Filter by status returns correct opportunities."""
-        result = opportunity_service.filter_by_status(sample_opportunities, "blocked")
+    def test_filter_by_status(self, project_service, sample_projects):
+        """Filter by status returns correct projects."""
+        result = project_service.filter_by_status(sample_projects, "blocked")
 
         assert len(result) == 1
-        assert result[0]["opportunity_code"] == "M01"
+        assert result[0]["project_code"] == "M01"
 
-    def test_filter_returns_empty_for_no_matches(self, opportunity_service, sample_opportunities):
+    def test_filter_returns_empty_for_no_matches(self, project_service, sample_projects):
         """Filter returns empty list when no matches."""
-        result = opportunity_service.filter_by_department(sample_opportunities, "nonexistent")
+        result = project_service.filter_by_department(sample_projects, "nonexistent")
 
         assert result == []
 
-    def test_group_by_tier(self, opportunity_service, sample_opportunities):
+    def test_group_by_tier(self, project_service, sample_projects):
         """Group by tier returns dict with tier keys."""
-        result = opportunity_service.group_by_tier(sample_opportunities)
+        result = project_service.group_by_tier(sample_projects)
 
         assert len(result[1]) == 1  # Tier 1
         assert len(result[2]) == 1  # Tier 2
@@ -709,7 +709,7 @@ class TestFiltering:
 # ============================================================================
 
 class TestStakeholderLinkage:
-    """Test opportunity-stakeholder linking."""
+    """Test project-stakeholder linking."""
 
     def test_valid_link_roles(self):
         """All link roles are valid."""
@@ -740,9 +740,9 @@ class TestStakeholderLinkage:
 class TestOperatorContextInjection:
     """Test Operator agent context injection for triage."""
 
-    def test_get_opportunity_summary(self, context_injector, sample_opportunities):
+    def test_get_project_summary(self, context_injector, sample_projects):
         """Summary includes counts by tier and status."""
-        summary = context_injector.get_opportunity_summary(sample_opportunities)
+        summary = context_injector.get_project_summary(sample_projects)
 
         assert summary["total"] == 4
         assert summary["by_tier"][1] == 1
@@ -750,57 +750,57 @@ class TestOperatorContextInjection:
         assert summary["by_tier"][3] == 1
         assert summary["by_tier"][4] == 1
 
-    def test_summary_includes_status_breakdown(self, context_injector, sample_opportunities):
+    def test_summary_includes_status_breakdown(self, context_injector, sample_projects):
         """Summary includes status breakdown."""
-        summary = context_injector.get_opportunity_summary(sample_opportunities)
+        summary = context_injector.get_project_summary(sample_projects)
 
         assert "pilot" in summary["by_status"]
         assert "scoping" in summary["by_status"]
         assert "identified" in summary["by_status"]
         assert "blocked" in summary["by_status"]
 
-    def test_summary_top_opportunities_sorted_by_score(self, context_injector, sample_opportunities):
-        """Top opportunities are sorted by score descending."""
-        summary = context_injector.get_opportunity_summary(sample_opportunities)
-        top = summary["top_opportunities"]
+    def test_summary_top_projects_sorted_by_score(self, context_injector, sample_projects):
+        """Top projects are sorted by score descending."""
+        summary = context_injector.get_project_summary(sample_projects)
+        top = summary["top_projects"]
 
         assert len(top) <= 5
         scores = [o["total_score"] for o in top]
         assert scores == sorted(scores, reverse=True)
 
-    def test_get_blocked_opportunities(self, context_injector, sample_opportunities):
-        """Get blocked opportunities returns only blocked status."""
-        blocked = context_injector.get_blocked_opportunities(sample_opportunities)
+    def test_get_blocked_projects(self, context_injector, sample_projects):
+        """Get blocked projects returns only blocked status."""
+        blocked = context_injector.get_blocked_projects(sample_projects)
 
         assert len(blocked) == 1
         assert blocked[0]["status"] == "blocked"
-        assert blocked[0]["opportunity_code"] == "M01"
+        assert blocked[0]["project_code"] == "M01"
 
-    def test_format_context_injection_has_xml_tags(self, context_injector, sample_opportunities):
+    def test_format_context_injection_has_xml_tags(self, context_injector, sample_projects):
         """Context injection is wrapped in XML tags."""
-        context = context_injector.format_context_injection(sample_opportunities)
+        context = context_injector.format_context_injection(sample_projects)
 
         assert "<project_triage_context>" in context
         assert "</project_triage_context>" in context
 
-    def test_format_context_injection_includes_tier_counts(self, context_injector, sample_opportunities):
+    def test_format_context_injection_includes_tier_counts(self, context_injector, sample_projects):
         """Context includes tier breakdown."""
-        context = context_injector.format_context_injection(sample_opportunities)
+        context = context_injector.format_context_injection(sample_projects)
 
         assert "Tier 1 (Strategic): 1" in context
         assert "Tier 2 (High Impact): 1" in context
         assert "Tier 3 (Medium): 1" in context
         assert "Tier 4 (Backlog): 1" in context
 
-    def test_format_context_injection_includes_blocked(self, context_injector, sample_opportunities):
-        """Context includes blocked opportunities section."""
-        context = context_injector.format_context_injection(sample_opportunities)
+    def test_format_context_injection_includes_blocked(self, context_injector, sample_projects):
+        """Context includes blocked projects section."""
+        context = context_injector.format_context_injection(sample_projects)
 
         assert "Blocked Opportunities" in context
         assert "M01" in context
 
     def test_format_context_injection_empty_list(self, context_injector):
-        """Context injection handles empty opportunity list."""
+        """Context injection handles empty project list."""
         context = context_injector.format_context_injection([])
 
         assert "<project_triage_context>" in context
@@ -905,12 +905,12 @@ class TestTotalScoreCalculation:
 class TestAPIResponseFormat:
     """Test expected API response formats."""
 
-    def test_opportunity_response_has_required_fields(self, sample_opportunities):
-        """Opportunity response includes all required fields."""
-        opp = sample_opportunities[0]
+    def test_project_response_has_required_fields(self, sample_projects):
+        """Project response includes all required fields."""
+        opp = sample_projects[0]
 
         required_fields = [
-            "id", "opportunity_code", "title", "description", "department",
+            "id", "project_code", "title", "description", "department",
             "roi_potential", "implementation_effort", "strategic_alignment",
             "stakeholder_readiness", "total_score", "tier", "status",
             "created_at", "updated_at"
@@ -919,23 +919,23 @@ class TestAPIResponseFormat:
         for field in required_fields:
             assert field in opp
 
-    def test_blockers_is_list(self, sample_opportunities):
+    def test_blockers_is_list(self, sample_projects):
         """Blockers field is a list."""
-        opp = sample_opportunities[3]  # Blocked opportunity
+        opp = sample_projects[3]  # Blocked project
 
         assert isinstance(opp.get("blockers", []), list)
         assert len(opp["blockers"]) == 2
 
-    def test_scores_are_integers(self, sample_opportunities):
+    def test_scores_are_integers(self, sample_projects):
         """All score fields are integers."""
-        opp = sample_opportunities[0]
+        opp = sample_projects[0]
 
         for field in ["roi_potential", "implementation_effort", "strategic_alignment", "stakeholder_readiness"]:
             assert isinstance(opp[field], int)
 
-    def test_tier_is_integer_1_to_4(self, sample_opportunities):
+    def test_tier_is_integer_1_to_4(self, sample_projects):
         """Tier is an integer 1-4."""
-        for opp in sample_opportunities:
+        for opp in sample_projects:
             assert isinstance(opp["tier"], int)
             assert 1 <= opp["tier"] <= 4
 
@@ -945,13 +945,13 @@ class TestAPIResponseFormat:
 # ============================================================================
 
 class TestRelatedDocuments:
-    """Tests for opportunity-related document retrieval."""
+    """Tests for project-related document retrieval."""
 
     def test_get_scoring_related_documents_returns_list(self):
         """Related documents endpoint returns a list."""
-        mock_opportunity_context.get_scoring_related_documents.return_value = []
-        result = mock_opportunity_context.get_scoring_related_documents(
-            opportunity={"id": "test-id", "title": "Test Opportunity"},
+        mock_project_context.get_scoring_related_documents.return_value = []
+        result = mock_project_context.get_scoring_related_documents(
+            project={"id": "test-id", "title": "Test Project"},
             client_id="test-client",
             limit=8,
             min_similarity=0.25
@@ -973,9 +973,9 @@ class TestRelatedDocuments:
                 "storage_path": "/uploads/test.md"
             }
         }
-        mock_opportunity_context.get_scoring_related_documents.return_value = [sample_doc]
-        result = mock_opportunity_context.get_scoring_related_documents(
-            opportunity={"id": "test-id"},
+        mock_project_context.get_scoring_related_documents.return_value = [sample_doc]
+        result = mock_project_context.get_scoring_related_documents(
+            project={"id": "test-id"},
             client_id="test-client"
         )
         assert len(result) == 1
@@ -1002,11 +1002,11 @@ class TestRelatedDocuments:
     def test_related_documents_limit_respected(self):
         """Document limit parameter is respected."""
         # Test that limit parameter works
-        mock_opportunity_context.get_scoring_related_documents.return_value = [
+        mock_project_context.get_scoring_related_documents.return_value = [
             {"chunk_id": str(i)} for i in range(5)
         ]
-        result = mock_opportunity_context.get_scoring_related_documents(
-            opportunity={"id": "test-id"},
+        result = mock_project_context.get_scoring_related_documents(
+            project={"id": "test-id"},
             client_id="test-client",
             limit=5
         )
@@ -1025,28 +1025,28 @@ class TestRelatedDocuments:
         filtered_strict = [d for d in docs if d["relevance_score"] >= 0.4]
         assert len(filtered_strict) == 1
 
-    def test_related_documents_empty_opportunity(self):
-        """Empty opportunity context returns empty results gracefully."""
-        mock_opportunity_context.get_scoring_related_documents.return_value = []
-        result = mock_opportunity_context.get_scoring_related_documents(
-            opportunity={"id": "test-id", "title": "", "description": None},
+    def test_related_documents_empty_project(self):
+        """Empty project context returns empty results gracefully."""
+        mock_project_context.get_scoring_related_documents.return_value = []
+        result = mock_project_context.get_scoring_related_documents(
+            project={"id": "test-id", "title": "", "description": None},
             client_id="test-client"
         )
         assert result == []
 
 
-class TestOpportunityQA:
-    """Tests for Q&A chat about opportunities."""
+class TestProjectQA:
+    """Tests for Q&A chat about projects."""
 
     @pytest.mark.asyncio
-    async def test_ask_about_opportunity_returns_response(self):
+    async def test_ask_about_project_returns_response(self):
         """Ask endpoint returns a response with sources."""
-        mock_opportunity_chat.ask_about_opportunity.return_value = {
-            "response": "Based on the documents, this opportunity has high ROI potential.",
+        mock_project_chat.ask_about_project.return_value = {
+            "response": "Based on the documents, this project has high ROI potential.",
             "sources": []
         }
-        result = await mock_opportunity_chat.ask_about_opportunity(
-            opportunity_id="test-opp-id",
+        result = await mock_project_chat.ask_about_project(
+            project_id="test-opp-id",
             question="Why is ROI rated 5?",
             client_id="test-client",
             user_id="test-user"
@@ -1059,7 +1059,7 @@ class TestOpportunityQA:
     @pytest.mark.asyncio
     async def test_ask_with_sources(self):
         """Response includes source documents when available."""
-        mock_opportunity_chat.ask_about_opportunity.return_value = {
+        mock_project_chat.ask_about_project.return_value = {
             "response": "The ROI is rated 5 because of the evidence in the attached document.",
             "sources": [
                 {
@@ -1071,8 +1071,8 @@ class TestOpportunityQA:
                 }
             ]
         }
-        result = await mock_opportunity_chat.ask_about_opportunity(
-            opportunity_id="test-opp-id",
+        result = await mock_project_chat.ask_about_project(
+            project_id="test-opp-id",
             question="Why is ROI rated 5?",
             client_id="test-client",
             user_id="test-user"
@@ -1102,15 +1102,15 @@ class TestOpportunityQA:
         assert len(valid_question) <= max_length
 
 
-class TestOpportunityConversations:
-    """Tests for opportunity conversation history."""
+class TestProjectConversations:
+    """Tests for project conversation history."""
 
     @pytest.mark.asyncio
     async def test_get_conversations_returns_list(self):
         """Conversations endpoint returns a list."""
-        mock_opportunity_chat.get_opportunity_conversations.return_value = []
-        result = await mock_opportunity_chat.get_opportunity_conversations(
-            opportunity_id="test-opp-id",
+        mock_project_chat.get_project_conversations.return_value = []
+        result = await mock_project_chat.get_project_conversations(
+            project_id="test-opp-id",
             client_id="test-client"
         )
         assert isinstance(result, list)
@@ -1127,9 +1127,9 @@ class TestOpportunityConversations:
             ],
             "created_at": datetime.now(timezone.utc).isoformat()
         }
-        mock_opportunity_chat.get_opportunity_conversations.return_value = [sample_convo]
-        result = await mock_opportunity_chat.get_opportunity_conversations(
-            opportunity_id="test-opp-id",
+        mock_project_chat.get_project_conversations.return_value = [sample_convo]
+        result = await mock_project_chat.get_project_conversations(
+            project_id="test-opp-id",
             client_id="test-client"
         )
         assert len(result) == 1
@@ -1225,29 +1225,29 @@ class TestScoreJustification:
         assert get_score_color(1) == "gray"
 
 
-class TestOpportunityDetailModalAPI:
+class TestProjectDetailModalAPI:
     """Tests for the detail modal API endpoints."""
 
     def test_related_documents_endpoint_path(self):
         """Related documents endpoint has correct path pattern."""
-        opportunity_id = str(uuid.uuid4())
-        expected_path = f"/api/opportunities/{opportunity_id}/related-documents"
+        project_id = str(uuid.uuid4())
+        expected_path = f"/api/projects/{project_id}/related-documents"
         assert "/related-documents" in expected_path
-        assert opportunity_id in expected_path
+        assert project_id in expected_path
 
     def test_conversations_endpoint_path(self):
         """Conversations endpoint has correct path pattern."""
-        opportunity_id = str(uuid.uuid4())
-        expected_path = f"/api/opportunities/{opportunity_id}/conversations"
+        project_id = str(uuid.uuid4())
+        expected_path = f"/api/projects/{project_id}/conversations"
         assert "/conversations" in expected_path
-        assert opportunity_id in expected_path
+        assert project_id in expected_path
 
     def test_ask_endpoint_path(self):
         """Ask endpoint has correct path pattern."""
-        opportunity_id = str(uuid.uuid4())
-        expected_path = f"/api/opportunities/{opportunity_id}/ask"
+        project_id = str(uuid.uuid4())
+        expected_path = f"/api/projects/{project_id}/ask"
         assert "/ask" in expected_path
-        assert opportunity_id in expected_path
+        assert project_id in expected_path
 
     def test_related_documents_default_limit(self):
         """Related documents has sensible default limit."""

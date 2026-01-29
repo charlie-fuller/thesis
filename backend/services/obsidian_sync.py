@@ -940,11 +940,15 @@ def sync_file(
         file_size = stats.st_size
         file_hash = compute_file_hash(file_path)
 
-        # Check if file has changed (skip if unchanged)
+        # Check if file has changed (skip if unchanged AND document exists)
+        # If hash matches but document_id is missing, we need to create the document
         if existing_state:
-            if existing_state.get('file_hash') == file_hash:
+            if existing_state.get('file_hash') == file_hash and existing_state.get('document_id'):
                 logger.debug(f"      Skipping (unchanged): {relative_path}")
                 return {'status': 'skipped', 'reason': 'unchanged'}
+            elif existing_state.get('file_hash') == file_hash:
+                # Recovery: hash matches but no document - need to recreate
+                logger.warning(f"      Sync state missing document_id, recreating: {relative_path}")
 
         # Parse frontmatter if enabled
         frontmatter = {}

@@ -9,7 +9,16 @@ from database import get_supabase
 from logger_config import get_logger
 
 logger = get_logger(__name__)
-supabase = get_supabase()
+
+# Lazy initialization - don't call get_supabase() at import time
+_supabase = None
+
+def _get_db():
+    """Get Supabase client lazily to avoid import-time initialization."""
+    global _supabase
+    if _supabase is None:
+        _supabase = get_supabase()
+    return _supabase
 
 # Positive confirmation keywords indicating useable output
 CONFIRMATION_KEYWORDS = [
@@ -68,7 +77,7 @@ def calculate_turns_to_message(conversation_id: str, message_id: str) -> int:
     """
     try:
         # Get the target message timestamp
-        target_msg = supabase.table('messages').select(
+        target_msg = _get_db().table('messages').select(
             'timestamp'
         ).eq('id', message_id).execute()
 
@@ -78,7 +87,7 @@ def calculate_turns_to_message(conversation_id: str, message_id: str) -> int:
         target_timestamp = target_msg.data[0]['timestamp']
 
         # Count user messages up to this timestamp
-        user_messages = supabase.table('messages').select(
+        user_messages = _get_db().table('messages').select(
             'id'
         ).eq('conversation_id', conversation_id).eq(
             'role', 'user'
@@ -113,7 +122,7 @@ def mark_useable_output(
     """
     try:
         # Check if already marked (don't override)
-        existing = supabase.table('conversations').select(
+        existing = _get_db().table('conversations').select(
             'useable_output_message_id'
         ).eq('id', conversation_id).execute()
 
@@ -125,7 +134,7 @@ def mark_useable_output(
         turns = calculate_turns_to_message(conversation_id, message_id)
 
         # Update conversation
-        result = supabase.table('conversations').update({
+        result = _get_db().table('conversations').update({
             'useable_output_message_id': message_id,
             'turns_to_useable_output': turns,
             'useable_output_method': method,
@@ -162,7 +171,7 @@ def auto_detect_useable_output(conversation_id: str) -> Optional[Tuple[str, str,
     """
     try:
         # Get all messages in conversation
-        messages = supabase.table('messages').select(
+        messages = _get_db().table('messages').select(
             'id, role, content, timestamp'
         ).eq('conversation_id', conversation_id).order(
             'timestamp', desc=False
@@ -215,7 +224,7 @@ def process_conversation_for_useable_output(conversation_id: str) -> bool:
     """
     try:
         # Check if already marked
-        existing = supabase.table('conversations').select(
+        existing = _get_db().table('conversations').select(
             'useable_output_message_id'
         ).eq('id', conversation_id).execute()
 

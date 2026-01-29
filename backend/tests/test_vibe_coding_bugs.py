@@ -10,7 +10,7 @@ These tests target the common failure modes in AI-assisted codebases:
 - Permission/isolation bugs
 - UI state expectations
 
-Combined with test_opportunities.py tests for:
+Combined with test_projects.py tests for:
 - Data shape mismatches
 - Optional field handling
 - Deleted reference handling
@@ -32,8 +32,8 @@ import asyncio
 class TestArrayListEdgeCases:
     """Tests for empty arrays, single items, and pagination boundaries."""
 
-    def test_opportunities_empty_tier_returns_empty_list(self):
-        """Tier with 0 opportunities returns empty list, not None."""
+    def test_projects_empty_tier_returns_empty_list(self):
+        """Tier with 0 projects returns empty list, not None."""
         response = {
             "tier_1": [],
             "tier_2": [],
@@ -56,13 +56,13 @@ class TestArrayListEdgeCases:
 
     def test_empty_blockers_array_serializes_correctly(self):
         """Empty blockers array should serialize as [], not null."""
-        opportunity = {
+        project = {
             "id": str(uuid4()),
             "blockers": [],
             "follow_up_questions": []
         }
         import json
-        serialized = json.dumps(opportunity)
+        serialized = json.dumps(project)
         deserialized = json.loads(serialized)
         assert deserialized["blockers"] == []
         assert isinstance(deserialized["blockers"], list)
@@ -196,7 +196,7 @@ class TestAsyncRaceConditions:
         created_ids = []
         create_lock = asyncio.Lock()
 
-        async def create_opportunity(title: str):
+        async def create_project(title: str):
             async with create_lock:
                 # Simulate DB insert with deduplication
                 new_id = str(uuid4())
@@ -206,8 +206,8 @@ class TestAsyncRaceConditions:
 
         # Simulate double-click
         await asyncio.gather(
-            create_opportunity("Test Opportunity"),
-            create_opportunity("Test Opportunity"),
+            create_project("Test Project"),
+            create_project("Test Project"),
         )
 
         # Should only have one entry (with lock protection)
@@ -216,12 +216,12 @@ class TestAsyncRaceConditions:
     @pytest.mark.asyncio
     async def test_concurrent_status_updates_last_wins(self):
         """Concurrent updates should have deterministic outcome."""
-        opportunity = {"status": "identified", "version": 1}
+        project = {"status": "identified", "version": 1}
 
         async def update_status(new_status: str, delay: float):
             await asyncio.sleep(delay)
-            opportunity["status"] = new_status
-            opportunity["version"] += 1
+            project["status"] = new_status
+            project["version"] += 1
             return new_status
 
         # Two concurrent updates
@@ -231,8 +231,8 @@ class TestAsyncRaceConditions:
         )
 
         # Last one to complete wins
-        assert opportunity["status"] == "pilot"
-        assert opportunity["version"] == 3  # Two updates
+        assert project["status"] == "pilot"
+        assert project["version"] == 3  # Two updates
 
     @pytest.mark.asyncio
     async def test_fetch_during_update_gets_consistent_state(self):
@@ -273,7 +273,7 @@ class TestErrorMessagePropagation:
         """Pydantic validation errors should include field name."""
         from pydantic import BaseModel, ValidationError, field_validator
 
-        class OpportunityCreate(BaseModel):
+        class ProjectCreate(BaseModel):
             title: str
             tier: int
 
@@ -285,7 +285,7 @@ class TestErrorMessagePropagation:
                 return v
 
         with pytest.raises(ValidationError) as exc_info:
-            OpportunityCreate(title="Test", tier=5)
+            ProjectCreate(title="Test", tier=5)
 
         error = exc_info.value.errors()[0]
         assert "tier" in error["loc"]
@@ -293,21 +293,21 @@ class TestErrorMessagePropagation:
 
     def test_not_found_error_includes_resource_type(self):
         """404 errors should say what wasn't found."""
-        def get_opportunity(opp_id: str):
+        def get_project(opp_id: str):
             # Simulate not found
-            raise ValueError(f"Opportunity {opp_id} not found")
+            raise ValueError(f"Project {opp_id} not found")
 
         with pytest.raises(ValueError) as exc_info:
-            get_opportunity("nonexistent-id")
+            get_project("nonexistent-id")
 
-        assert "Opportunity" in str(exc_info.value)
+        assert "Project" in str(exc_info.value)
         assert "not found" in str(exc_info.value)
 
     def test_duplicate_error_message_is_clear(self):
         """Duplicate key errors should be user-friendly."""
         def create_with_duplicate_code():
             # Simulate unique constraint violation
-            raise ValueError("Opportunity with code OPP-001 already exists")
+            raise ValueError("Project with code OPP-001 already exists")
 
         with pytest.raises(ValueError) as exc_info:
             create_with_duplicate_code()
@@ -318,7 +318,7 @@ class TestErrorMessagePropagation:
     def test_permission_error_doesnt_leak_info(self):
         """Permission errors shouldn't reveal existence of resources."""
         def check_access(user_id: str, resource_id: str):
-            # Bad: "You don't have access to Opportunity X"
+            # Bad: "You don't have access to Project X"
             # Good: "Resource not found or access denied"
             raise PermissionError("Resource not found or access denied")
 
@@ -336,8 +336,8 @@ class TestErrorMessagePropagation:
 class TestDefaultValueConsistency:
     """Tests for frontend/backend default value alignment."""
 
-    def test_opportunity_default_status_is_identified(self):
-        """New opportunities should default to 'identified' status."""
+    def test_project_default_status_is_identified(self):
+        """New projects should default to 'identified' status."""
         default_status = "identified"
 
         # This is what the backend should set
@@ -348,7 +348,7 @@ class TestDefaultValueConsistency:
 
         assert new_opp["status"] == "identified"
 
-    def test_opportunity_default_tier_calculation(self):
+    def test_project_default_tier_calculation(self):
         """Default tier based on null scores should be tier 4."""
         def calculate_tier(total_score: int) -> int:
             if total_score >= 17:
@@ -400,20 +400,20 @@ class TestDefaultValueConsistency:
 class TestPermissionIsolation:
     """Tests for multi-tenant data isolation."""
 
-    def test_user_can_only_see_own_opportunities(self):
-        """User A cannot fetch User B's opportunities."""
+    def test_user_can_only_see_own_projects(self):
+        """User A cannot fetch User B's projects."""
         user_a_id = str(uuid4())
         user_b_id = str(uuid4())
 
-        opportunities = [
+        projects = [
             {"id": "1", "user_id": user_a_id, "title": "User A Opp"},
             {"id": "2", "user_id": user_b_id, "title": "User B Opp"},
         ]
 
-        def get_opportunities_for_user(user_id: str):
-            return [o for o in opportunities if o["user_id"] == user_id]
+        def get_projects_for_user(user_id: str):
+            return [o for o in projects if o["user_id"] == user_id]
 
-        user_a_opps = get_opportunities_for_user(user_a_id)
+        user_a_opps = get_projects_for_user(user_a_id)
         assert len(user_a_opps) == 1
         assert user_a_opps[0]["title"] == "User A Opp"
 
@@ -476,9 +476,9 @@ class TestUIStateSyncExpectations:
     def test_create_returns_complete_object(self):
         """Create endpoints should return full object with generated fields."""
         # Frontend expects to update its state with the response
-        created_opportunity = {
+        created_project = {
             "id": str(uuid4()),  # Generated
-            "opportunity_code": "OPP-001",  # Generated
+            "project_code": "OPP-001",  # Generated
             "title": "Test",
             "created_at": datetime.now(timezone.utc).isoformat(),  # Generated
             "updated_at": datetime.now(timezone.utc).isoformat(),  # Generated
@@ -488,10 +488,10 @@ class TestUIStateSyncExpectations:
         }
 
         # Should have all fields frontend needs to display
-        assert "id" in created_opportunity
-        assert "opportunity_code" in created_opportunity
-        assert "created_at" in created_opportunity
-        assert "tier" in created_opportunity
+        assert "id" in created_project
+        assert "project_code" in created_project
+        assert "created_at" in created_project
+        assert "tier" in created_project
 
     def test_update_returns_updated_object(self):
         """Update endpoints should return updated object, not just success."""
@@ -553,11 +553,11 @@ class TestUIStateSyncExpectations:
 class TestFullFlowIntegration:
     """End-to-end flow tests combining multiple bug categories."""
 
-    def test_opportunity_create_to_display_flow(self):
-        """Create opportunity and verify all display fields present."""
+    def test_project_create_to_display_flow(self):
+        """Create project and verify all display fields present."""
         # User input
         input_data = {
-            "title": "Test Opportunity",
+            "title": "Test Project",
             "department": "finance",
         }
 
@@ -565,7 +565,7 @@ class TestFullFlowIntegration:
         created = {
             **input_data,
             "id": str(uuid4()),
-            "opportunity_code": "OPP-001",
+            "project_code": "OPP-001",
             "status": "identified",
             "tier": 4,
             "total_score": 0,
@@ -581,7 +581,7 @@ class TestFullFlowIntegration:
 
         # Frontend display requirements
         required_display_fields = [
-            "id", "opportunity_code", "title", "status", "tier",
+            "id", "project_code", "title", "status", "tier",
             "total_score", "created_at"
         ]
 
@@ -596,19 +596,19 @@ class TestFullFlowIntegration:
 
     def test_filter_then_detail_flow(self):
         """Filter list then view detail maintains data consistency."""
-        opportunities = [
+        projects = [
             {"id": "1", "department": "finance", "tier": 1, "total_score": 18},
             {"id": "2", "department": "legal", "tier": 2, "total_score": 15},
             {"id": "3", "department": "finance", "tier": 3, "total_score": 12},
         ]
 
         # Filter by department
-        filtered = [o for o in opportunities if o["department"] == "finance"]
+        filtered = [o for o in projects if o["department"] == "finance"]
         assert len(filtered) == 2
 
         # Get detail of first filtered item
         detail_id = filtered[0]["id"]
-        detail = next(o for o in opportunities if o["id"] == detail_id)
+        detail = next(o for o in projects if o["id"] == detail_id)
 
         # Detail should match filtered item
         assert detail["department"] == "finance"

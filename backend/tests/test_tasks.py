@@ -38,7 +38,7 @@ class TaskSourceType(str, Enum):
     TRANSCRIPT = "transcript"
     CONVERSATION = "conversation"
     RESEARCH = "research"
-    OPPORTUNITY = "opportunity"
+    PROJECT = "project"
     MANUAL = "manual"
 
 
@@ -75,12 +75,12 @@ def mock_task_data():
         'source_transcript_id': None,
         'source_conversation_id': None,
         'source_research_task_id': None,
-        'source_opportunity_id': None,
+        'source_project_id': None,
         'category': 'general',
         'tags': ['urgent'],
         'blocker_reason': None,
         'blocked_at': None,
-        'related_opportunity_id': None,
+        'related_project_id': None,
         'position': 0,
         'created_at': '2026-01-15T10:00:00Z',
         'updated_at': '2026-01-15T10:00:00Z',
@@ -206,7 +206,7 @@ class TestTaskSourceType:
         assert TaskSourceType.TRANSCRIPT.value == "transcript"
         assert TaskSourceType.CONVERSATION.value == "conversation"
         assert TaskSourceType.RESEARCH.value == "research"
-        assert TaskSourceType.OPPORTUNITY.value == "opportunity"
+        assert TaskSourceType.PROJECT.value == "project"
         assert TaskSourceType.MANUAL.value == "manual"
 
 

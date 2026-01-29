@@ -521,12 +521,12 @@ def performance_config():
 
 
 # ============================================================================
-# Opportunity Testing Fixtures
+# Project Testing Fixtures
 # ============================================================================
 
 @pytest.fixture
-def sample_opportunity():
-    """Sample opportunity data."""
+def sample_project():
+    """Sample project data."""
     return {
         "id": "opp-123",
         "client_id": "00000000-0000-0000-0000-000000000001",
