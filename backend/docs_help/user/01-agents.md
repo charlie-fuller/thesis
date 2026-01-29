@@ -85,9 +85,9 @@ Enterprise AI patterns, RAG architectures, integration approaches, build vs. buy
 *Best for:* "What architecture should we use?" or "Build vs. buy for this use case?"
 
 **Operator** (Business Operations)
-Process optimization, automation opportunities, operational metrics. Also manages the **Project Triage** pipeline - scoring and prioritizing AI opportunities.
+Process optimization, automation projects, operational metrics. Also manages the **Project Triage** pipeline - scoring and prioritizing AI projects.
 
-*Best for:* "How do we optimize this process?" or "Which opportunities should we prioritize?"
+*Best for:* "How do we optimize this process?" or "Which projects should we prioritize?"
 
 **Pioneer** (Innovation/R&D)
 Emerging technology, hype filtering, maturity assessment. Pioneer gets excited about new things but also knows how to distinguish signal from noise.

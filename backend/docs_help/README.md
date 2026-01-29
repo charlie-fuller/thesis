@@ -12,9 +12,11 @@ User and administrator help content for the Thesis multi-agent GenAI strategy pl
 | [Meeting Rooms](./user/03-meeting-rooms.md) | Multi-agent collaboration and autonomous discussion |
 | [Knowledge Base](./user/04-knowledge-base.md) | Document management, uploads, and integrations |
 | [Tasks](./user/05-tasks.md) | Kanban task management |
-| [Opportunities](./user/06-opportunities.md) | AI opportunity pipeline and scoring |
+| [Projects](./user/06-projects.md) | AI project pipeline and scoring |
 | [Stakeholder Intelligence](./user/07-stakeholders.md) | Tracking relationships and meeting prep |
 | [FAQ](./user/08-faq.md) | Quick answers to common questions |
+| [DISCo Initiatives](./user/09-disco-initiatives.md) | AI-assisted product discovery workflow |
+| [Discovery Inbox](./user/10-discovery-inbox.md) | Auto-extracted tasks, projects, and stakeholders |
 
 ## Admin Documentation
 
@@ -23,6 +25,9 @@ User and administrator help content for the Thesis multi-agent GenAI strategy pl
 | [Getting Started](./admin/00-getting-started.md) | Admin overview and capabilities |
 | [Agent Management](./admin/01-agents.md) | Managing agent instructions, versions, and behavior |
 | [User Management](./admin/02-users.md) | User administration and access control |
+| [Document Management](./admin/03-document-management.md) | Bulk operations, classification review |
+| [Help System](./admin/04-help-system.md) | Help indexing and maintenance |
+| [Troubleshooting](./admin/05-troubleshooting.md) | Common issues and solutions |
 
 ## Quick Links
 

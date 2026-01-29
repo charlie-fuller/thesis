@@ -81,7 +81,7 @@ The system builds a picture of who's supportive, who's skeptical, what concerns 
 | **Chat** | One-on-one with agents |
 | **Meeting Room** | Group discussions with multiple agents |
 | **Tasks** | Kanban board for tracking work |
-| **Opportunities** | AI opportunity pipeline |
+| **Projects** | AI project pipeline |
 | **Intelligence** | Stakeholder tracking and analytics |
 | **KB** | Knowledge Base - your documents and conversations |
 

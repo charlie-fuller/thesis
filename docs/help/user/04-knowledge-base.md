@@ -89,6 +89,32 @@ If you use Obsidian, you can sync your vault to the KB:
 - `[[wikilinks]]` convert to standard markdown links
 - Incremental sync via content hash detection
 
+**Supported file types in Obsidian sync:**
+- Markdown files (.md)
+- PDFs (.pdf) - with OCR fallback for image-based PDFs
+- Word documents (.docx)
+- Excel spreadsheets (.xlsx)
+- PowerPoint presentations (.pptx)
+
+**Real-time sync progress:**
+When syncing, you'll see a progress bar showing:
+- Percentage complete
+- Current file being processed
+- Total file count
+
+**Folder view:**
+In the KB, switch to "Obsidian" view to see your vault's folder structure as a navigable tree. Click folders to expand/collapse.
+
+**Auto-classification:**
+Documents are automatically classified by type during sync:
+- Meeting transcripts (including Granola format: "Person1 __ Person2.md")
+- Meeting notes
+- Reports and analysis
+- Instructions and guides
+- Presentations and spreadsheets
+
+This enables smarter search - when you ask about "recent meetings," the system filters to transcript and notes types automatically.
+
 CLI watcher: `python -m scripts.obsidian_watcher --user-id <uuid>`
 
 ---
