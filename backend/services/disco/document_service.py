@@ -392,6 +392,8 @@ async def get_all_initiative_content(initiative_id: str) -> str:
     Get all document content for an initiative as a single string.
     Used for building agent context.
 
+    Fetches content from linked KB documents (via disco_initiative_documents junction table).
+
     Args:
         initiative_id: Initiative UUID
 
@@ -399,22 +401,51 @@ async def get_all_initiative_content(initiative_id: str) -> str:
         Concatenated document content
     """
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table('disco_documents')
-                .select('filename, content, document_type')
+        # Get linked KB document IDs
+        links_result = await asyncio.to_thread(
+            lambda: supabase.table('disco_initiative_documents')
+                .select('document_id')
                 .eq('initiative_id', initiative_id)
-                .order('uploaded_at')
                 .execute()
         )
 
-        if not result.data:
+        if not links_result.data:
             return ""
 
-        # Build content with document headers
+        doc_ids = [link['document_id'] for link in links_result.data]
+
+        # Fetch document content from KB (document_chunks table)
         content_parts = []
-        for doc in result.data:
-            content_parts.append(f"\n\n=== {doc['filename']} ({doc['document_type']}) ===\n")
-            content_parts.append(doc['content'])
+        for doc_id in doc_ids:
+            # Get document metadata
+            doc_result = await asyncio.to_thread(
+                lambda d=doc_id: supabase.table('documents')
+                    .select('filename, title')
+                    .eq('id', d)
+                    .single()
+                    .execute()
+            )
+
+            if not doc_result.data:
+                continue
+
+            doc = doc_result.data
+            display_name = doc.get('title') or doc.get('filename', 'Unknown')
+
+            # Get document chunks (full content)
+            chunks_result = await asyncio.to_thread(
+                lambda d=doc_id: supabase.table('document_chunks')
+                    .select('content, chunk_index')
+                    .eq('document_id', d)
+                    .order('chunk_index')
+                    .execute()
+            )
+
+            if chunks_result.data:
+                content_parts.append(f"\n\n=== {display_name} ===\n")
+                # Concatenate all chunks
+                for chunk in chunks_result.data:
+                    content_parts.append(chunk['content'])
 
         return '\n'.join(content_parts)
 

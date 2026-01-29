@@ -59,11 +59,16 @@ interface Initiative {
 interface Document {
   id: string
   filename: string
-  content: string
-  document_type: string
-  version: number
+  title?: string | null
   uploaded_at: string
-  metadata: Record<string, any>
+  source_platform?: string
+  linked_at?: string
+  linked_by?: string
+  // Legacy fields for backward compatibility
+  content?: string
+  document_type?: string
+  version?: number
+  metadata?: Record<string, any>
 }
 
 interface Output {
@@ -146,15 +151,15 @@ export default function InitiativeDetailPage() {
     }
   }, [initiativeId])
 
-  // Load documents
+  // Load linked KB documents
   const loadDocuments = useCallback(async () => {
     try {
       const result = await apiGet<{ success: boolean; documents: Document[] }>(
-        `/api/disco/initiatives/${initiativeId}/documents`
+        `/api/disco/initiatives/${initiativeId}/linked-documents`
       )
       setDocuments(result.documents || [])
     } catch (err) {
-      console.error('Failed to load documents:', err)
+      console.error('Failed to load linked documents:', err)
     }
   }, [initiativeId])
 
