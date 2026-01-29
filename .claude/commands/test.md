@@ -260,7 +260,195 @@ TOTAL:                       XXX passed, XXX failed, XXX skipped
 ============================================
 ```
 
-If any tests failed, list the failed test names and suggest fixes.
+If any tests failed, you MUST create a Failure Remediation Plan (see below).
+
+## Failure Remediation Plan
+
+When tests fail, create a detailed improvement plan and provide a ready-to-use prompt for a follow-up Claude Code session.
+
+### Step 1: Document Each Failure
+
+For each failing test, capture:
+
+| Field | Description |
+|-------|-------------|
+| **Test Name** | Full test path (e.g., `tests/test_tasks.py::TestTaskAPI::test_create_task`) |
+| **Stage** | Which stage (Unit/Integration/Extended/E2E) |
+| **Error Type** | Exception class or failure type |
+| **Error Message** | Full error message/traceback |
+| **Root Cause** | Your analysis of why it failed |
+| **Proposed Fix** | Specific changes needed |
+| **Files Affected** | Which files need modification |
+
+### Step 2: Create Improvement Plan
+
+Present a structured improvement plan:
+
+```
+============================================
+FAILURE REMEDIATION PLAN
+============================================
+
+FAILURE 1: [Test Name]
+-----------------------
+Stage: [Unit/Integration/Extended/E2E]
+Error: [Brief error description]
+
+Root Cause Analysis:
+[Explanation of why the test failed]
+
+Proposed Fix:
+[Specific code changes or fixes needed]
+
+Files to Modify:
+- [file1.py]: [what to change]
+- [file2.py]: [what to change]
+
+--------------------------------------------
+
+FAILURE 2: [Test Name]
+...
+
+============================================
+PRIORITY ORDER
+============================================
+1. [Most critical fix first]
+2. [Second priority]
+...
+============================================
+```
+
+### Step 3: Generate Follow-Up Prompt
+
+Create a ready-to-use prompt that can be pasted into a new Claude Code session to fix the failures. This prompt MUST include all necessary context.
+
+**Template:**
+
+````markdown
+## Fix Test Failures from /test Run
+
+### Context
+The `/test` command was run on [DATE] and the following tests failed.
+Working directory: `/Users/charlie.fuller/vaults/Contentful/GitHub/thesis`
+
+### Test Environment
+- Backend: Python 3.12, FastAPI, pytest
+- Frontend: Next.js 16, React 19
+- Database: Supabase (PostgreSQL)
+- Tests run with: `DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c230 dotenvx run -f .env --`
+
+### Failed Tests
+
+#### Failure 1: `[FULL_TEST_PATH]`
+
+**Error:**
+```
+[PASTE FULL ERROR/TRACEBACK]
+```
+
+**Root Cause:** [EXPLANATION]
+
+**Proposed Fix:** [SPECIFIC CHANGES]
+
+**Files to examine:**
+- `[FILE_PATH_1]` - [REASON]
+- `[FILE_PATH_2]` - [REASON]
+
+---
+
+#### Failure 2: `[FULL_TEST_PATH]`
+[REPEAT PATTERN]
+
+---
+
+### Instructions
+
+1. Read each failing test file to understand the test intent
+2. Read the source files being tested
+3. Implement the proposed fixes
+4. Re-run the specific failing tests to verify:
+   ```bash
+   cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
+   DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c230 \
+   dotenvx run -f .env -- .venv/bin/python -m pytest [TEST_PATH] -v --tb=short
+   ```
+5. Once all fixes are verified, run the full test suite with `/test`
+6. Commit the fixes with message: `fix: [description of what was fixed]`
+````
+
+### Step 4: Present to User
+
+After creating the plan and prompt, present to the user:
+
+```
+============================================
+TEST FAILURES DETECTED - ACTION REQUIRED
+============================================
+
+[X] test(s) failed. See Failure Remediation Plan above.
+
+To fix these issues, start a new Claude Code session and paste
+the following prompt:
+
+---BEGIN PROMPT---
+[Generated prompt from Step 3]
+---END PROMPT---
+
+Alternatively, I can attempt to fix these issues now.
+Would you like me to proceed with the fixes? (yes/no)
+============================================
+```
+
+### Example: Complete Failure Report
+
+Here's an example of a complete failure report:
+
+```
+============================================
+FAILURE REMEDIATION PLAN
+============================================
+
+FAILURE 1: tests/test_tasks.py::TestTaskAPI::test_create_task_with_project
+---------------------------------------------------------------------------
+Stage: Unit Tests
+Error: AssertionError: Expected status 201, got 400
+
+Root Cause Analysis:
+The test expects a project_id field but the API now requires project_code.
+This is due to the opportunity->project terminology rename that changed
+field names but test wasn't updated.
+
+Proposed Fix:
+Update test to use project_code instead of project_id in request payload.
+
+Files to Modify:
+- backend/tests/test_tasks.py: Change payload field name on line ~245
+
+--------------------------------------------
+
+FAILURE 2: tests/test_integration.py::test_configure_endpoint_validates_path
+-----------------------------------------------------------------------------
+Stage: Integration Tests
+Error: Test passes in isolation but fails when run with other tests
+
+Root Cause Analysis:
+Module-level state pollution. The obsidian_sync module caches a Supabase
+client that retains state between tests.
+
+Proposed Fix:
+Add pytest fixture to reset module state, or use pytest-forked to isolate.
+
+Files to Modify:
+- backend/tests/test_integration.py: Add setup/teardown fixture
+- backend/services/obsidian_sync.py: Consider adding reset_client() helper
+
+============================================
+PRIORITY ORDER
+============================================
+1. test_create_task_with_project - Quick fix, terminology update
+2. test_configure_endpoint_validates_path - Needs investigation
+============================================
+```
 
 ## Test Coverage Reference
 
