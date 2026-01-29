@@ -800,11 +800,12 @@ async def search_documents(
 
         # Apply tag filter directly in query using JSONB containment
         # This uses the GIN index on tags_cache for fast lookups
+        # Note: contains() requires JSON-serialized array for Supabase Python client
         if tags:
             tag_list = [t.strip() for t in tags.split(',') if t.strip()]
             for tag in tag_list:
                 # Each tag must be contained in tags_cache (AND logic)
-                query = query.contains('tags_cache', [tag])
+                query = query.contains('tags_cache', json.dumps([tag]))
 
         # Apply pagination at database level (much faster than fetching all then slicing)
         query = query.range(offset, offset + limit - 1)
