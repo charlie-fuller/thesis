@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X, Search } from 'lucide-react'
 import { apiGet } from '@/lib/api'
 import { TaskFiltersState } from './TaskKanbanBoard'
@@ -81,15 +81,18 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
     loadData()
   }, [])
 
-  // Debounced search
+  // Debounced search - only trigger when searchValue actually changes
+  const prevSearchRef = useRef(searchValue)
   useEffect(() => {
+    if (prevSearchRef.current === searchValue) return
+    prevSearchRef.current = searchValue
+
     const timeout = setTimeout(() => {
-      if (searchValue !== filters.search) {
-        onChange({ ...filters, search: searchValue || null })
-      }
+      onChange({ ...filters, search: searchValue || null })
     }, 300)
     return () => clearTimeout(timeout)
-  }, [searchValue, filters, onChange])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchValue])
 
   const handleClearAll = () => {
     setSearchValue('')
