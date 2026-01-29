@@ -37,6 +37,54 @@ except ImportError:
     PPTX_SUPPORT = False
     logger.warning("python-pptx not installed - PPTX support disabled")
 
+# OCR support for image-based PDFs
+try:
+    import pytesseract
+    from pdf2image import convert_from_bytes
+    OCR_SUPPORT = True
+except ImportError:
+    OCR_SUPPORT = False
+    logger.warning("pytesseract/pdf2image not installed - OCR support disabled")
+
+
+def _extract_pdf_with_ocr(file_data: bytes, filename: str) -> str:
+    """
+    Extract text from a PDF using OCR (for image-based PDFs).
+
+    Args:
+        file_data: Raw PDF file bytes
+        filename: Name of the file (for logging)
+
+    Returns:
+        Extracted text from all pages
+    """
+    if not OCR_SUPPORT:
+        raise ValueError("OCR not available - install pytesseract and pdf2image")
+
+    try:
+        # Convert PDF pages to images
+        images = convert_from_bytes(file_data, dpi=200)
+        logger.info(f"   Converting {len(images)} pages to images for OCR...")
+
+        text_parts = []
+        for page_num, image in enumerate(images, 1):
+            # Run OCR on each page
+            text = pytesseract.image_to_string(image)
+            if text.strip():
+                text_parts.append(f"=== Page {page_num} ===\n{text}")
+
+        full_text = '\n\n'.join(text_parts)
+
+        if not full_text.strip():
+            raise ValueError("OCR could not extract any text from the PDF")
+
+        logger.info(f"   OCR extracted {len(full_text)} characters from {filename}")
+        return full_text
+
+    except Exception as e:
+        logger.error(f"❌ OCR failed for {filename}: {str(e)}")
+        raise ValueError(f"OCR failed: {str(e)}")
+
 load_dotenv()
 
 # Initialize clients
@@ -122,7 +170,7 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
             raise ValueError(f"Failed to extract text from PowerPoint file: {str(e)}")
 
     elif file_ext == 'pdf':
-        # Extract text from PDF
+        # Extract text from PDF - try text extraction first, then OCR fallback
         try:
             from pypdf import PdfReader
             pdf_reader = PdfReader(BytesIO(file_data))
@@ -132,12 +180,30 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
                 if text.strip():
                     text_parts.append(f"=== Page {page_num} ===\n{text}")
             full_text = '\n\n'.join(text_parts)
-            if not full_text.strip():
-                raise ValueError("PDF appears to be empty or contains no extractable text")
-            return full_text
+
+            # If we got meaningful text, return it
+            if full_text.strip() and len(full_text.strip()) > 50:
+                return full_text
+
+            # Otherwise, try OCR if available
+            if OCR_SUPPORT:
+                logger.info(f"   PDF has no extractable text, attempting OCR for {filename}...")
+                return _extract_pdf_with_ocr(file_data, filename)
+            else:
+                if not full_text.strip():
+                    raise ValueError("PDF appears to be image-based and OCR is not available. Install pytesseract and pdf2image for OCR support.")
+                return full_text
+
         except ImportError:
             raise ValueError("PDF support not available - install pypdf: pip install pypdf")
         except Exception as e:
+            # If text extraction failed, try OCR as last resort
+            if OCR_SUPPORT and "image-based" not in str(e):
+                try:
+                    logger.info(f"   Text extraction failed, attempting OCR for {filename}...")
+                    return _extract_pdf_with_ocr(file_data, filename)
+                except Exception as ocr_error:
+                    logger.error(f"❌ OCR also failed for {filename}: {str(ocr_error)}")
             logger.error(f"❌ Error extracting text from .pdf file: {str(e)}")
             raise ValueError(f"Failed to extract text from PDF: {str(e)}")
 

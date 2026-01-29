@@ -1,0 +1,5 @@
+# Nixpacks configuration for Railway deployment
+# Adds system dependencies for OCR (tesseract) and PDF processing (poppler)
+
+[phases.setup]
+aptPkgs = ["tesseract-ocr", "tesseract-ocr-eng", "poppler-utils"]
