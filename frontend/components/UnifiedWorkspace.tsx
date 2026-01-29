@@ -24,9 +24,9 @@ export default function UnifiedWorkspace({
 
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0)
 
-  // Panel visibility state - default to true, load from localStorage after mount
+  // Panel visibility state - left panel visible by default, right panel hidden by default
   const [showLeftPanel, setShowLeftPanel] = useState(true)
-  const [showRightPanel, setShowRightPanel] = useState(true)
+  const [showRightPanel, setShowRightPanel] = useState(false)
   const [panelStateLoaded, setPanelStateLoaded] = useState(false)
 
   // Load panel state from localStorage after mount (avoids hydration mismatch)
