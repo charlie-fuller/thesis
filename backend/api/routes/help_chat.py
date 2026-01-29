@@ -675,23 +675,42 @@ async def help_system_status():
 async def test_help_search(query: str = "How do I customize the theme?"):
     """
     Debug endpoint to test the full search pipeline (no auth required).
-    Tests embedding generation and vector search.
+    Tests embedding generation and vector search with date filtering.
     """
     try:
         test_query = query
+
+        # Detect recency queries
+        query_lower = test_query.lower()
+        recency_keywords = [
+            'this week', 'past week', 'last week', 'recent', 'latest',
+            'today', 'yesterday', 'past few days', 'last few days',
+            'last couple days', 'most recent', 'new docs', 'new documents'
+        ]
+        is_recency_query = any(kw in query_lower for kw in recency_keywords)
+
+        min_date = None
+        if is_recency_query:
+            min_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+            logger.info(f"Test search: Detected recency query - filtering to docs after {min_date[:10]}")
 
         # Step 1: Test embedding generation
         query_embedding = create_embedding(test_query, input_type="query")
         embedding_len = len(query_embedding)
 
-        # Step 2: Test RPC call
+        # Step 2: Test RPC call with new parameters
+        rpc_params = {
+            'query_embedding': query_embedding,
+            'match_count': 5,
+            'user_role': 'admin',
+            'min_similarity': 0.4
+        }
+        if min_date:
+            rpc_params['min_date'] = min_date
+
         help_chunks = supabase.rpc(
             'match_help_chunks',
-            {
-                'query_embedding': query_embedding,
-                'match_count': 5,
-                'user_role': 'admin'
-            }
+            rpc_params
         ).execute()
 
         return {
@@ -699,11 +718,14 @@ async def test_help_search(query: str = "How do I customize the theme?"):
             "test_query": test_query,
             "embedding_dimension": embedding_len,
             "chunks_found": len(help_chunks.data) if help_chunks.data else 0,
+            "recency_filtered": is_recency_query,
+            "min_date": min_date,
             "sample_results": [
                 {
                     "title": chunk['document_title'],
                     "section": chunk['heading_context'],
-                    "similarity": chunk['similarity']
+                    "similarity": chunk['similarity'],
+                    "created_at": chunk.get('created_at')
                 }
                 for chunk in (help_chunks.data[:3] if help_chunks.data else [])
             ]
