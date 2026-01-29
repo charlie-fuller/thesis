@@ -106,10 +106,18 @@ class DiscoScoreSummary(BaseModel):
     action_required: str
 
 
+class DiscoDataSource(BaseModel):
+    """Information about the connector data source."""
+    source: str
+    last_updated: str
+    note: str
+
+
 class DiscoScoreResponse(BaseModel):
     """Full DISCO integration score response."""
     integrations: list[DiscoIntegrationResult]
     summary: DiscoScoreSummary
+    data_source: DiscoDataSource
 
 
 # ============================================================================
@@ -339,7 +347,14 @@ async def calculate_disco_score(
             action_required=summary_data.get("action_required", "")
         )
 
-        return DiscoScoreResponse(integrations=integrations, summary=summary)
+        data_source_data = data.get("data_source", {})
+        data_source = DiscoDataSource(
+            source=data_source_data.get("source", "AWC-Glean Data Source Connector Tracking"),
+            last_updated=data_source_data.get("last_updated", "2026-01-29"),
+            note=data_source_data.get("note", "Check with IT/AWC team for latest connector status.")
+        )
+
+        return DiscoScoreResponse(integrations=integrations, summary=summary, data_source=data_source)
     except HTTPException:
         raise
     except Exception as e:

@@ -354,6 +354,11 @@ BEGIN
                 WHEN v_total_score < v_max_score THEN 'Some integrations need approval or are in progress'
                 ELSE 'All integrations ready'
             END
+        ),
+        'data_source', jsonb_build_object(
+            'source', 'AWC-Glean Data Source Connector Tracking',
+            'last_updated', '2026-01-29',
+            'note', 'Connector availability may have changed. Check with IT/AWC team for latest status before finalizing project plans.'
         )
     );
 END;
