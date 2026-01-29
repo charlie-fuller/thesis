@@ -149,6 +149,47 @@ A file watcher monitors your vault. Changes (create/modify/delete) sync to the K
 
 ---
 
+## DISCo Initiatives
+
+**What is DISCo?**
+Discovery, Intelligence, Synthesis, Capabilities, Operationalize. It's a structured product discovery workflow with 8 specialized agents.
+
+**What's the difference between DISCo and regular Chat?**
+Chat is for questions and exploration. DISCo is a structured workflow that takes you from idea through to PRD, with specific agents for each stage.
+
+**What do GO/NO-GO/INVESTIGATE mean?**
+These are Triage decisions. **GO** (green) means proceed with discovery. **NO-GO** (red) means stop - not worth pursuing. **INVESTIGATE** (amber) means gather more info before deciding.
+
+**Do I have to run agents in order?**
+Generally yes. The workflow is designed to build on itself - later agents need outputs from earlier ones. The system will tell you if you're trying to skip ahead.
+
+**What are bundles?**
+After Strategist runs, it proposes feature bundles - groupings of capabilities that make sense together. You approve or reject bundles, and approved ones become PRDs.
+
+---
+
+## Discovery Inbox
+
+**What is the Discovery Inbox?**
+An auto-extraction feature that scans your documents and surfaces potential tasks, projects, and stakeholders you might want to track.
+
+**Where do I find it?**
+Click **Dashboard** in the navigation, then the **System Health** tab. The **Discovery Inbox** panel shows pending items.
+
+**What does "high" vs "medium" confidence mean?**
+**High** confidence (green) means strong signal - explicit mention with clear context. **Medium** confidence (yellow) means reasonable inference but less certainty.
+
+**What happens when I skip something?**
+It's dismissed and won't be shown again. If you accidentally skip, the item expires anyway after 2 weeks.
+
+**Can I edit before accepting?**
+Yes. When you click **Accept**, a modal opens with pre-filled data. Edit any fields before confirming.
+
+**How do I avoid duplicates?**
+The system checks for potential duplicates when you accept. If a match is found, you can link to the existing item instead of creating a new one.
+
+---
+
 ## Getting Help
 
 **Where's the main documentation?**
@@ -167,3 +208,5 @@ Note what happened, what you expected, and any error messages. Report to your ad
 - [Quick Start](./00-quick-start.md) - The 5-minute intro
 - [Agent Guide](./01-agents.md) - Deep dive on each agent
 - [Meeting Rooms](./03-meeting-rooms.md) - Where the magic happens
+- [DISCo Initiatives](./09-disco-initiatives.md) - Product discovery workflow
+- [Discovery Inbox](./10-discovery-inbox.md) - Auto-extracted candidates

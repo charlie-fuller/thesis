@@ -33,12 +33,14 @@ class TestCategory(Enum):
     CHAT = "chat"
     KB = "kb"
     TASKS = "tasks"
-    OPPORTUNITIES = "opportunities"
+    OPPORTUNITIES = "projects"
     MEETING = "meeting"
     STAKEHOLDERS = "stakeholders"
     PERFORMANCE = "performance"
     QUALITY = "quality"
     GRANOLA = "granola"
+    HELP = "help"
+    DISCO = "disco"
 
 
 class TestType(Enum):
@@ -715,11 +717,11 @@ E2E_TEST_SCENARIOS = {
         test_type=TestType.READ,
         description="Pipeline board loads with stages",
         steps=[
-            "Navigate to /opportunities",
+            "Navigate to /projects",
             "Verify pipeline columns load (Identified, Qualified, etc.)",
-            "Verify opportunities appear in correct stages",
+            "Verify projects appear in correct stages",
         ],
-        expected_result="Pipeline displays with opportunities",
+        expected_result="Pipeline displays with projects",
         prerequisites=["auth_login_success"],
     ),
 
@@ -727,18 +729,18 @@ E2E_TEST_SCENARIOS = {
         id="opps_create",
         category=TestCategory.OPPORTUNITIES,
         test_type=TestType.CREATE,
-        description="Create new opportunity",
+        description="Create new project",
         steps=[
-            "Click 'New Opportunity' button",
-            "Fill opportunity code (e.g., TEST-001)",
+            "Click 'New Project' button",
+            "Fill project code (e.g., TEST-001)",
             "Fill title",
             "Set scores (feasibility, impact, etc.)",
             "Save",
-            "Verify opportunity appears in pipeline",
+            "Verify project appears in pipeline",
         ],
-        expected_result="Opportunity created in Identified stage",
+        expected_result="Project created in Identified stage",
         prerequisites=["auth_login_success"],
-        cleanup=["Delete test opportunity"],
+        cleanup=["Delete test project"],
     ),
 
     "opps_create_missing_required": E2ETestScenario(
@@ -747,7 +749,7 @@ E2E_TEST_SCENARIOS = {
         test_type=TestType.VALIDATION,
         description="Cannot create without required fields",
         steps=[
-            "Click 'New Opportunity'",
+            "Click 'New Project'",
             "Leave code field empty",
             "Try to save",
             "Verify validation error for code field",
@@ -762,7 +764,7 @@ E2E_TEST_SCENARIOS = {
         test_type=TestType.VALIDATION,
         description="Score values must be 1-5",
         steps=[
-            "Create/edit opportunity",
+            "Create/edit project",
             "Enter score > 5 in a score field",
             "Verify validation error 'Score must be 1-5'",
         ],
@@ -776,7 +778,7 @@ E2E_TEST_SCENARIOS = {
         test_type=TestType.FEATURE,
         description="Tier calculated from scores",
         steps=[
-            "Create opportunity with all scores = 5",
+            "Create project with all scores = 5",
             "Verify Tier 1 badge displayed",
             "Edit scores to all = 1",
             "Verify Tier changes to 4",
@@ -789,14 +791,14 @@ E2E_TEST_SCENARIOS = {
         id="opps_edit",
         category=TestCategory.OPPORTUNITIES,
         test_type=TestType.UPDATE,
-        description="Edit opportunity details",
+        description="Edit project details",
         steps=[
-            "Click on opportunity card",
+            "Click on project card",
             "Edit description",
             "Save changes",
             "Verify changes persisted",
         ],
-        expected_result="Opportunity updated successfully",
+        expected_result="Project updated successfully",
         prerequisites=["auth_login_success"],
     ),
 
@@ -804,14 +806,14 @@ E2E_TEST_SCENARIOS = {
         id="opps_drag_between_stages",
         category=TestCategory.OPPORTUNITIES,
         test_type=TestType.UPDATE,
-        description="Drag opportunity between pipeline stages",
+        description="Drag project between pipeline stages",
         steps=[
-            "Find opportunity in Identified stage",
+            "Find project in Identified stage",
             "Drag to Qualified stage",
-            "Verify opportunity moved",
+            "Verify project moved",
             "Verify status updated in API",
         ],
-        expected_result="Opportunity stage updated",
+        expected_result="Project stage updated",
         prerequisites=["auth_login_success"],
     ),
 
@@ -819,14 +821,14 @@ E2E_TEST_SCENARIOS = {
         id="opps_delete",
         category=TestCategory.OPPORTUNITIES,
         test_type=TestType.DELETE,
-        description="Delete an opportunity",
+        description="Delete an project",
         steps=[
-            "Open opportunity details",
+            "Open project details",
             "Click delete",
             "Confirm deletion",
             "Verify removed from pipeline",
         ],
-        expected_result="Opportunity deleted",
+        expected_result="Project deleted",
         prerequisites=["auth_login_success", "opps_create"],
     ),
 
@@ -834,11 +836,11 @@ E2E_TEST_SCENARIOS = {
         id="opps_empty_state",
         category=TestCategory.OPPORTUNITIES,
         test_type=TestType.EMPTY_STATE,
-        description="Empty state when no opportunities",
+        description="Empty state when no projects",
         steps=[
             "Login as new user",
-            "Navigate to /opportunities",
-            "Verify 'No opportunities' message",
+            "Navigate to /projects",
+            "Verify 'No projects' message",
         ],
         expected_result="Empty state displayed",
         prerequisites=["auth_login_success"],
@@ -848,11 +850,11 @@ E2E_TEST_SCENARIOS = {
         id="opps_filter_by_tier",
         category=TestCategory.OPPORTUNITIES,
         test_type=TestType.READ,
-        description="Filter opportunities by tier",
+        description="Filter projects by tier",
         steps=[
-            "Navigate to /opportunities",
+            "Navigate to /projects",
             "Select Tier 1 filter",
-            "Verify only Tier 1 opportunities shown",
+            "Verify only Tier 1 projects shown",
         ],
         expected_result="Filtered by tier correctly",
         prerequisites=["auth_login_success"],
@@ -862,11 +864,11 @@ E2E_TEST_SCENARIOS = {
         id="opps_search",
         category=TestCategory.OPPORTUNITIES,
         test_type=TestType.READ,
-        description="Search opportunities by title",
+        description="Search projects by title",
         steps=[
-            "Navigate to /opportunities",
+            "Navigate to /projects",
             "Enter search query",
-            "Verify matching opportunities shown",
+            "Verify matching projects shown",
         ],
         expected_result="Search returns correct results",
         prerequisites=["auth_login_success"],
@@ -876,15 +878,15 @@ E2E_TEST_SCENARIOS = {
         id="opps_link_stakeholder",
         category=TestCategory.OPPORTUNITIES,
         test_type=TestType.FEATURE,
-        description="Link stakeholder to opportunity",
+        description="Link stakeholder to project",
         steps=[
-            "Open opportunity details",
+            "Open project details",
             "Click add stakeholder",
             "Select stakeholder from list",
             "Save",
             "Verify stakeholder linked",
         ],
-        expected_result="Stakeholder linked to opportunity",
+        expected_result="Stakeholder linked to project",
         prerequisites=["auth_login_success"],
     ),
 
@@ -1102,13 +1104,321 @@ E2E_TEST_SCENARIOS = {
     ),
 
     # =========================================================================
+    # HELP SYSTEM (8 tests)
+    # =========================================================================
+    "help_panel_open": E2ETestScenario(
+        id="help_panel_open",
+        category=TestCategory.HELP,
+        test_type=TestType.HAPPY_PATH,
+        description="Open help panel from navigation",
+        steps=[
+            "Navigate to any page (e.g., /chat)",
+            "Take snapshot to find help button (question mark icon in header)",
+            "Click help button",
+            "Verify help panel/modal opens",
+            "Verify search input is visible",
+            "Verify help categories are displayed",
+        ],
+        expected_result="Help panel opens with search and categories",
+        prerequisites=["auth_login_success"],
+    ),
+
+    "help_panel_close": E2ETestScenario(
+        id="help_panel_close",
+        category=TestCategory.HELP,
+        test_type=TestType.HAPPY_PATH,
+        description="Close help panel",
+        steps=[
+            "Open help panel",
+            "Click close button or click outside panel",
+            "Verify help panel closes",
+            "Verify underlying page still visible and functional",
+        ],
+        expected_result="Help panel closes cleanly",
+        prerequisites=["auth_login_success", "help_panel_open"],
+    ),
+
+    "help_search_agents": E2ETestScenario(
+        id="help_search_agents",
+        category=TestCategory.HELP,
+        test_type=TestType.READ,
+        description="Search help for agent information",
+        steps=[
+            "Open help panel",
+            "Type 'agents' in search input",
+            "Wait for search results",
+            "Verify results include agent-related help topics",
+            "Verify results show titles and snippets",
+        ],
+        expected_result="Search returns relevant agent help topics",
+        prerequisites=["auth_login_success"],
+    ),
+
+    "help_search_disco": E2ETestScenario(
+        id="help_search_disco",
+        category=TestCategory.HELP,
+        test_type=TestType.READ,
+        description="Search help for DISCo information",
+        steps=[
+            "Open help panel",
+            "Type 'DISCo' in search input",
+            "Wait for search results",
+            "Verify results include DISCo initiatives help",
+            "Verify results mention workflow stages (Discovery, Intelligence, Synthesis, Capabilities)",
+        ],
+        expected_result="Search returns DISCo-related help content",
+        prerequisites=["auth_login_success"],
+    ),
+
+    "help_search_discovery_inbox": E2ETestScenario(
+        id="help_search_discovery_inbox",
+        category=TestCategory.HELP,
+        test_type=TestType.READ,
+        description="Search help for Discovery Inbox",
+        steps=[
+            "Open help panel",
+            "Type 'Discovery Inbox' in search input",
+            "Wait for search results",
+            "Verify results explain auto-extraction feature",
+            "Verify results mention tasks, projects, stakeholders candidates",
+        ],
+        expected_result="Search returns Discovery Inbox help content",
+        prerequisites=["auth_login_success"],
+    ),
+
+    "help_search_no_results": E2ETestScenario(
+        id="help_search_no_results",
+        category=TestCategory.HELP,
+        test_type=TestType.EMPTY_STATE,
+        description="Handle search with no results",
+        steps=[
+            "Open help panel",
+            "Type 'xyznonexistent123' in search input",
+            "Wait for search to complete",
+            "Verify 'No results found' or similar message",
+            "Verify suggestions or fallback options shown",
+        ],
+        expected_result="No results message displayed gracefully",
+        prerequisites=["auth_login_success"],
+    ),
+
+    "help_navigate_to_doc": E2ETestScenario(
+        id="help_navigate_to_doc",
+        category=TestCategory.HELP,
+        test_type=TestType.FEATURE,
+        description="Navigate to full help documentation",
+        steps=[
+            "Open help panel",
+            "Search for a topic (e.g., 'meeting rooms')",
+            "Click on a search result",
+            "Verify help content expands or navigates to full doc",
+            "Verify content matches the selected topic",
+        ],
+        expected_result="Full help content displayed for selected topic",
+        prerequisites=["auth_login_success"],
+    ),
+
+    "help_contextual": E2ETestScenario(
+        id="help_contextual",
+        category=TestCategory.HELP,
+        test_type=TestType.FEATURE,
+        description="Help shows contextual suggestions based on current page",
+        steps=[
+            "Navigate to /tasks",
+            "Open help panel",
+            "Verify task-related help topics appear prominently",
+            "Navigate to /disco",
+            "Open help panel",
+            "Verify DISCo-related help topics appear prominently",
+        ],
+        expected_result="Help suggestions relevant to current page context",
+        prerequisites=["auth_login_success"],
+    ),
+
+    # =========================================================================
+    # DISCO INITIATIVES (10 tests)
+    # =========================================================================
+    "disco_list_initiatives": E2ETestScenario(
+        id="disco_list_initiatives",
+        category=TestCategory.DISCO,
+        test_type=TestType.READ,
+        description="List DISCo initiatives",
+        steps=[
+            "Navigate to /disco",
+            "Wait for page to load",
+            "Take snapshot to verify page structure",
+            "Verify initiative cards display (if any exist)",
+            "Verify 'New Initiative' or 'Create Initiative' button visible",
+        ],
+        expected_result="DISCo page loads with initiatives list",
+        prerequisites=["auth_login_success"],
+    ),
+
+    "disco_create_initiative": E2ETestScenario(
+        id="disco_create_initiative",
+        category=TestCategory.DISCO,
+        test_type=TestType.CREATE,
+        description="Create new DISCo initiative",
+        steps=[
+            "Navigate to /disco",
+            "Click 'New Initiative' button (or 'Create Initiative' if empty state)",
+            "Verify 'Create New Initiative' modal opens",
+            "Fill 'Name' field with 'E2E Test Initiative'",
+            "Fill 'Description' field with 'Test initiative for E2E testing'",
+            "Click 'Create Initiative' button",
+            "Wait for initiative to be created",
+            "Verify redirected to initiative detail view",
+            "Verify initiative name visible",
+        ],
+        expected_result="Initiative created and detail view shown",
+        prerequisites=["auth_login_success"],
+        cleanup=["Delete test initiative"],
+    ),
+
+    "disco_create_missing_name": E2ETestScenario(
+        id="disco_create_missing_name",
+        category=TestCategory.DISCO,
+        test_type=TestType.VALIDATION,
+        description="Cannot create initiative without name",
+        steps=[
+            "Navigate to /disco",
+            "Click 'New Initiative' button",
+            "Leave 'Name' field empty",
+            "Fill 'Description' field",
+            "Try to click 'Create Initiative' button",
+            "Verify validation error or button disabled",
+        ],
+        expected_result="Validation prevents creation without name",
+        prerequisites=["auth_login_success"],
+    ),
+
+    "disco_initiative_tabs": E2ETestScenario(
+        id="disco_initiative_tabs",
+        category=TestCategory.DISCO,
+        test_type=TestType.READ,
+        description="Initiative detail view has correct tabs",
+        steps=[
+            "Navigate to an existing initiative detail view",
+            "Take snapshot to verify tabs",
+            "Verify 'Documents' tab exists",
+            "Verify 'Run Agent' tab exists",
+            "Verify 'Outputs' tab exists",
+            "Verify 'Chat' tab exists",
+            "Click each tab and verify content area changes",
+        ],
+        expected_result="All four tabs present and functional",
+        prerequisites=["auth_login_success", "disco_create_initiative"],
+    ),
+
+    "disco_upload_document": E2ETestScenario(
+        id="disco_upload_document",
+        category=TestCategory.DISCO,
+        test_type=TestType.CREATE,
+        description="Upload document to initiative",
+        steps=[
+            "Navigate to initiative detail view",
+            "Click 'Documents' tab",
+            "Click upload button",
+            "Select a test document using upload_file MCP tool",
+            "Wait for upload to complete",
+            "Verify document appears in documents list",
+        ],
+        expected_result="Document uploaded to initiative",
+        prerequisites=["auth_login_success", "disco_create_initiative"],
+    ),
+
+    "disco_run_agent": E2ETestScenario(
+        id="disco_run_agent",
+        category=TestCategory.DISCO,
+        test_type=TestType.FEATURE,
+        description="Run a DISCo agent on initiative",
+        steps=[
+            "Navigate to initiative detail view",
+            "Click 'Run Agent' tab",
+            "Select 'Discovery Prep' or 'Triage' from dropdown",
+            "Click 'Run' button",
+            "Verify streaming output appears",
+            "Wait for agent to complete",
+            "Verify output is displayed",
+        ],
+        expected_result="Agent runs and output displayed",
+        prerequisites=["auth_login_success", "disco_create_initiative", "disco_upload_document"],
+    ),
+
+    "disco_view_outputs": E2ETestScenario(
+        id="disco_view_outputs",
+        category=TestCategory.DISCO,
+        test_type=TestType.READ,
+        description="View agent outputs",
+        steps=[
+            "Navigate to initiative detail view",
+            "Click 'Outputs' tab",
+            "Verify previous agent outputs are listed",
+            "Click on an output to expand it",
+            "Verify output content is displayed",
+        ],
+        expected_result="Agent outputs viewable in Outputs tab",
+        prerequisites=["auth_login_success", "disco_run_agent"],
+    ),
+
+    "disco_status_badges": E2ETestScenario(
+        id="disco_status_badges",
+        category=TestCategory.DISCO,
+        test_type=TestType.FEATURE,
+        description="Initiative status badges update correctly",
+        steps=[
+            "Navigate to /disco",
+            "Find initiative card",
+            "Note current status badge (e.g., 'Draft')",
+            "Run Triage agent on initiative",
+            "Return to /disco list",
+            "Verify status badge changed to 'Triaged'",
+        ],
+        expected_result="Status badge reflects workflow progress",
+        prerequisites=["auth_login_success", "disco_create_initiative"],
+    ),
+
+    "disco_share_initiative": E2ETestScenario(
+        id="disco_share_initiative",
+        category=TestCategory.DISCO,
+        test_type=TestType.FEATURE,
+        description="Share initiative with another user",
+        steps=[
+            "Navigate to initiative detail view",
+            "Click 'Share' button",
+            "Verify share modal opens",
+            "Enter email address in input",
+            "Select role ('Viewer' or 'Editor')",
+            "Click 'Invite' button",
+            "Verify success message or collaborator added to list",
+        ],
+        expected_result="Initiative shared with specified user",
+        prerequisites=["auth_login_success", "disco_create_initiative"],
+    ),
+
+    "disco_empty_state": E2ETestScenario(
+        id="disco_empty_state",
+        category=TestCategory.DISCO,
+        test_type=TestType.EMPTY_STATE,
+        description="Empty state when no initiatives",
+        steps=[
+            "Login as new user with no initiatives",
+            "Navigate to /disco",
+            "Verify empty state message displayed",
+            "Verify 'Create Initiative' button visible",
+        ],
+        expected_result="Empty state with create prompt",
+        prerequisites=["auth_login_success"],
+    ),
+
+    # =========================================================================
     # GRANOLA SYNC (3 tests)
     # =========================================================================
     "granola_sync_new_file": E2ETestScenario(
         id="granola_sync_new_file",
         category=TestCategory.GRANOLA,
         test_type=TestType.FEATURE,
-        description="Create Granola meeting file, verify sync picks it up and extracts task/opportunity/stakeholder",
+        description="Create Granola meeting file, verify sync picks it up and extracts task/project/stakeholder",
         steps=[
             "Navigate to home dashboard to see GranolaScanPanel",
             "Take snapshot to see current Granola status",
@@ -1117,7 +1427,7 @@ E2E_TEST_SCENARIOS = {
             "  - Meeting header with date: 2026-01-28",
             "  - Participants: Charlie, Dr. Elena Vostokov (VP of Data Science), Marcus Chen (Director of Engineering)",
             "  - Strategic task FROM Chris Baumgartner TO Charlie: 'Present quantum computing ROI analysis to board by Feb 15'",
-            "  - High-score opportunity: 'Quantum-enhanced ML Pipeline' with exec sponsorship, $2M annual savings, CEO priority",
+            "  - High-score project: 'Quantum-enhanced ML Pipeline' with exec sponsorship, $2M annual savings, CEO priority",
             "  - New stakeholder: Dr. Elena Vostokov with role, concerns about data governance, interests in ML ops",
             "Wait 15-20 seconds for Obsidian watcher to detect file change",
             "Observe GranolaScanPanel - should show sync activity indicator",
@@ -1125,10 +1435,10 @@ E2E_TEST_SCENARIOS = {
             "Click Scan button on GranolaScanPanel to trigger Granola scanner",
             "Wait for scan to complete",
             "Navigate to /tasks and verify new task candidate appears (may need to check candidates section)",
-            "Navigate to /opportunities and verify new opportunity candidate appears",
+            "Navigate to /projects and verify new project candidate appears",
             "Navigate to /stakeholders or admin page and verify Dr. Elena Vostokov appears as candidate",
         ],
-        expected_result="File synced, task/opportunity/stakeholder candidates created from meeting content",
+        expected_result="File synced, task/project/stakeholder candidates created from meeting content",
         prerequisites=["auth_login_success"],
         cleanup=["Delete test file E2E-Test-Meeting-{timestamp}.md from Granola/Transcripts folder"],
     ),
@@ -1180,7 +1490,7 @@ E2E_TEST_SCENARIOS = {
 # Sample meeting content for granola_sync_new_file test
 # This content is designed to reliably trigger extraction of:
 # - 1 strategic task (from Chris Baumgartner to Charlie)
-# - 1 Tier-1 opportunity (high scores, exec sponsorship)
+# - 1 Tier-1 project (high scores, exec sponsorship)
 # - 1 new stakeholder (VP with role, concerns, interests)
 GRANOLA_E2E_TEST_MEETING_CONTENT = '''## Granola Notes
 ## E2E Test - Quantum Computing Strategy Session
@@ -1285,6 +1595,16 @@ def get_validation_tests() -> dict:
 def get_error_handling_tests() -> dict:
     """Get all error handling tests."""
     return get_tests_by_type(TestType.ERROR)
+
+
+def get_help_tests() -> dict:
+    """Get all help system tests."""
+    return get_tests_by_category(TestCategory.HELP)
+
+
+def get_disco_tests() -> dict:
+    """Get all DISCo initiative tests."""
+    return get_tests_by_category(TestCategory.DISCO)
 
 
 def get_test_count_summary() -> dict:
