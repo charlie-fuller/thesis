@@ -223,34 +223,58 @@ export default function KBDocumentsContent() {
     })
   }, [documents, searchQuery, sourceFilter, selectedTags])
 
-  // Helper to extract parent folder path from Obsidian file path
-  const getParentFolder = (filePath: string | undefined): string => {
-    if (!filePath) return ''
-    const parts = filePath.split('/')
-    // Return everything except the filename (last part)
-    return parts.length > 1 ? parts.slice(0, -1).join('/') : ''
+  // Tree node type for nested folder structure
+  interface FolderTreeNode {
+    name: string
+    path: string
+    documents: Document[]
+    children: Record<string, FolderTreeNode>
   }
 
-  // Group ALL Obsidian documents by full folder path (for Obsidian panel vault structure)
-  const obsidianFolders = useMemo(() => {
-    const folders: Record<string, Document[]> = {}
+  // Build a nested tree structure from obsidian documents
+  const obsidianFolderTree = useMemo(() => {
+    const root: FolderTreeNode = { name: '(root)', path: '', documents: [], children: {} }
 
     documents.forEach(doc => {
       if (doc.source_platform === 'obsidian' && doc.obsidian_file_path) {
-        const folder = getParentFolder(doc.obsidian_file_path) || '(root)'
-        if (!folders[folder]) folders[folder] = []
-        folders[folder].push(doc)
+        const parts = doc.obsidian_file_path.split('/')
+        const filename = parts.pop() // Remove filename
+
+        // Navigate/create the tree path
+        let current = root
+        let currentPath = ''
+
+        for (const folderName of parts) {
+          currentPath = currentPath ? `${currentPath}/${folderName}` : folderName
+          if (!current.children[folderName]) {
+            current.children[folderName] = {
+              name: folderName,
+              path: currentPath,
+              documents: [],
+              children: {}
+            }
+          }
+          current = current.children[folderName]
+        }
+
+        // Add document to the deepest folder
+        current.documents.push(doc)
       }
     })
 
-    // Sort folders alphabetically
-    const sortedFolders: Record<string, Document[]> = {}
-    Object.keys(folders).sort().forEach(key => {
-      sortedFolders[key] = folders[key]
-    })
-
-    return sortedFolders
+    return root
   }, [documents])
+
+  // Get all folder paths for collapse state management
+  const allFolderPaths = useMemo(() => {
+    const paths: string[] = []
+    const traverse = (node: FolderTreeNode) => {
+      if (node.path) paths.push(node.path)
+      Object.values(node.children).forEach(traverse)
+    }
+    traverse(obsidianFolderTree)
+    return paths
+  }, [obsidianFolderTree])
 
   // Get directly uploaded documents (not from Drive, Notion, or Obsidian)
   const uploadedDocuments = useMemo(() => {
@@ -265,12 +289,11 @@ export default function KBDocumentsContent() {
 
   // Initialize all folders as collapsed when they first load
   useEffect(() => {
-    const folderKeys = Object.keys(obsidianFolders)
-    if (folderKeys.length > 0 && !foldersInitialized) {
-      setCollapsedFolders(new Set(folderKeys))
+    if (allFolderPaths.length > 0 && !foldersInitialized) {
+      setCollapsedFolders(new Set(allFolderPaths))
       setFoldersInitialized(true)
     }
-  }, [obsidianFolders, foldersInitialized])
+  }, [allFolderPaths, foldersInitialized])
 
   const toggleFolderCollapse = (folder: string) => {
     setCollapsedFolders(prev => {
@@ -282,6 +305,84 @@ export default function KBDocumentsContent() {
       }
       return next
     })
+  }
+
+  // Recursive component for rendering nested folder tree
+  const FolderTreeItem = ({
+    node,
+    depth,
+    collapsedFolders: collapsed,
+    toggleFolderCollapse: toggle,
+    onDocumentClick
+  }: {
+    node: FolderTreeNode
+    depth: number
+    collapsedFolders: Set<string>
+    toggleFolderCollapse: (path: string) => void
+    onDocumentClick: (doc: Document) => void
+  }) => {
+    const isCollapsed = collapsed.has(node.path)
+
+    // Count all documents recursively
+    const countAllDocs = (n: FolderTreeNode): number => {
+      let count = n.documents.length
+      Object.values(n.children).forEach(child => {
+        count += countAllDocs(child)
+      })
+      return count
+    }
+    const totalDocs = countAllDocs(node)
+
+    return (
+      <div style={{ marginLeft: depth > 0 ? '1rem' : 0 }}>
+        {/* Folder header */}
+        <button
+          onClick={() => toggle(node.path)}
+          className="w-full flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-primary hover:bg-hover rounded transition-colors"
+        >
+          <svg className={`w-4 h-4 text-secondary transition-transform ${isCollapsed ? '' : 'rotate-90'}`} fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+          </svg>
+          <svg className="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
+          </svg>
+          <span>{node.name}</span>
+          <span className="text-xs text-muted ml-auto">{totalDocs}</span>
+        </button>
+
+        {/* Folder contents when expanded */}
+        {!isCollapsed && (
+          <div className="ml-4">
+            {/* Documents in this folder */}
+            {node.documents.map((doc) => (
+              <div
+                key={doc.id}
+                onClick={() => onDocumentClick(doc)}
+                className="flex items-center gap-2 px-2 py-1 text-sm text-secondary hover:text-primary hover:bg-hover rounded cursor-pointer transition-colors"
+              >
+                <svg className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="truncate">{doc.filename}</span>
+              </div>
+            ))}
+            {/* Child folders */}
+            {Object.values(node.children)
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((child) => (
+                <FolderTreeItem
+                  key={child.path}
+                  node={child}
+                  depth={depth + 1}
+                  collapsedFolders={collapsed}
+                  toggleFolderCollapse={toggle}
+                  onDocumentClick={onDocumentClick}
+                />
+              ))}
+          </div>
+        )}
+      </div>
+    )
   }
 
   // General document notifications (separate from Drive/Notion specific ones)
@@ -1609,47 +1710,37 @@ export default function KBDocumentsContent() {
               </div>
             )}
 
-            {/* Vault Folder Structure */}
-            {Object.keys(obsidianFolders).length > 0 && (
+            {/* Vault Folder Structure - Nested Tree */}
+            {Object.keys(obsidianFolderTree.children).length > 0 && (
               <div className="mt-4">
                 <h4 className="text-sm font-medium text-secondary mb-2">Vault Structure</h4>
-                <div className="space-y-1">
-                  {Object.entries(obsidianFolders).map(([folder, docs]) => (
-                    <div key={folder}>
-                      {/* Folder header */}
-                      <button
-                        onClick={() => toggleFolderCollapse(folder)}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-primary hover:bg-hover rounded transition-colors"
-                      >
-                        <svg className={`w-4 h-4 text-secondary transition-transform ${collapsedFolders.has(folder) ? '' : 'rotate-90'}`} fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                        </svg>
-                        <svg className="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
-                        </svg>
-                        <span>{folder}</span>
-                        <span className="text-xs text-muted ml-auto">{docs.length}</span>
-                      </button>
-
-                      {/* Folder contents */}
-                      {!collapsedFolders.has(folder) && (
-                        <div className="ml-6 space-y-0.5 mt-0.5">
-                          {docs.map((doc) => (
-                            <div
-                              key={doc.id}
-                              onClick={() => handleDocumentInfo(doc)}
-                              className="flex items-center gap-2 px-2 py-1 text-sm text-secondary hover:text-primary hover:bg-hover rounded cursor-pointer transition-colors"
-                            >
-                              <svg className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              <span className="truncate">{doc.filename}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                <div className="space-y-0.5">
+                  {/* Render root-level documents */}
+                  {obsidianFolderTree.documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      onClick={() => handleDocumentInfo(doc)}
+                      className="flex items-center gap-2 px-2 py-1 text-sm text-secondary hover:text-primary hover:bg-hover rounded cursor-pointer transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="truncate">{doc.filename}</span>
                     </div>
                   ))}
+                  {/* Render nested folders recursively */}
+                  {Object.values(obsidianFolderTree.children)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((folder) => (
+                      <FolderTreeItem
+                        key={folder.path}
+                        node={folder}
+                        depth={0}
+                        collapsedFolders={collapsedFolders}
+                        toggleFolderCollapse={toggleFolderCollapse}
+                        onDocumentClick={handleDocumentInfo}
+                      />
+                    ))}
                 </div>
               </div>
             )}
