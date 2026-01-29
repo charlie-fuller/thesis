@@ -188,23 +188,21 @@ export default function GranolaScanPanel() {
       )}
 
 
-      {/* Status indicators - shows progress through sync → prepare → analyze */}
+      {/* Status indicators - shows progress through sync → analyze */}
       {status.sync_activity?.active && (
         <div className="mt-3 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
           <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-          <span>Syncing new files...</span>
+          <span className="truncate">
+            Syncing: {status.sync_activity.current_file || status.sync_activity.last_synced_file || 'new files...'}
+          </span>
         </div>
       )}
-      {!status.sync_activity?.active && isPreparing && (
+      {(isPreparing || isScanning) && !status.sync_activity?.active && (
         <div className="mt-3 flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
           <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-          <span>Preparing to analyze...</span>
-        </div>
-      )}
-      {isScanning && (
-        <div className="mt-3 flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
-          <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-          <span>Analyzing for tasks, projects, stakeholders...</span>
+          <span className="truncate">
+            Analyzing: {status.sync_activity?.last_synced_file || 'documents...'}
+          </span>
         </div>
       )}
     </div>
