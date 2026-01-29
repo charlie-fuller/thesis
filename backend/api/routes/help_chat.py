@@ -6,7 +6,7 @@ Separate from main chat conversations.
 """
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from threading import Lock
 from typing import Dict, List, Optional
 
@@ -123,20 +123,43 @@ async def ask_help_question(
         # Step 1: Generate query embedding
         query_embedding = create_embedding(chat_request.message, input_type="query")
 
+        # Step 1.5: Detect recency queries and calculate date filter
+        query_lower = chat_request.message.lower()
+        recency_keywords = [
+            'this week', 'past week', 'last week', 'recent', 'latest',
+            'today', 'yesterday', 'past few days', 'last few days',
+            'last couple days', 'most recent', 'new docs', 'new documents'
+        ]
+        is_recency_query = any(kw in query_lower for kw in recency_keywords)
+
+        min_date = None
+        if is_recency_query:
+            # Default to last 7 days for recency queries
+            min_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+            logger.info(f"Detected recency query - filtering to docs after {min_date[:10]}")
+
         # Step 2: Search help chunks via vector similarity
+        rpc_params = {
+            'query_embedding': query_embedding,
+            'match_count': chat_request.top_k,
+            'user_role': user_role,
+            'min_similarity': 0.4  # Reject very low relevance matches
+        }
+        if min_date:
+            rpc_params['min_date'] = min_date
+
         help_chunks = supabase.rpc(
             'match_help_chunks',
-            {
-                'query_embedding': query_embedding,
-                'match_count': chat_request.top_k,
-                'user_role': user_role
-            }
+            rpc_params
         ).execute()
 
         if not help_chunks.data:
             logger.warning(f"No help chunks found for query: {chat_request.message[:50]}")
-            # Still answer, but without context
-            context = "No specific documentation found for this query."
+            # Still answer, but without context - give better message for recency queries
+            if is_recency_query:
+                context = f"No documents found from the past 7 days matching this query. The date filter was applied because you asked for recent/this week's content."
+            else:
+                context = "No specific documentation found for this query."
             sources = []
         else:
             # Build context from retrieved chunks
@@ -163,17 +186,18 @@ async def ask_help_question(
         ).eq('conversation_id', conversation_id).order('timestamp').execute()
 
         # Step 4: Build system prompt for help assistant
-        system_prompt = f"""You are a helpful assistant for the SuperAssistant platform.
+        system_prompt = f"""You are a helpful assistant for the Thesis platform - a multi-agent GenAI strategy platform.
 
 Your role is to answer questions about:
-- How to use the admin dashboard
-- Understanding metrics and KPIs (Ideation Velocity, Correction Loop, TRIPS)
-- How the Solomon Engine works
-- Onboarding new clients
-- Managing documents and system instructions
-- Troubleshooting issues
-- Understanding the Bradbury Impact Loop framework
-- Technical details about the system
+- Using the agent chat system (21 specialized AI agents)
+- Managing the Knowledge Base (documents, auto-classification)
+- Creating and managing Tasks (Kanban board)
+- Managing AI Projects in the pipeline
+- Running Meeting Rooms (autonomous multi-agent discussions)
+- Tracking Stakeholders
+- Using DISCo product discovery workflow
+- Using the Discovery Inbox
+- Admin functions (user management, agent configuration)
 
 CRITICAL INSTRUCTIONS FOR ANSWERING:
 
@@ -462,22 +486,42 @@ async def search_help_docs(
     top_k = min(top_k, 20)
 
     try:
+        # Detect recency queries
+        query_lower = query.lower()
+        recency_keywords = [
+            'this week', 'past week', 'last week', 'recent', 'latest',
+            'today', 'yesterday', 'past few days', 'last few days',
+            'last couple days', 'most recent', 'new docs', 'new documents'
+        ]
+        is_recency_query = any(kw in query_lower for kw in recency_keywords)
+
+        min_date = None
+        if is_recency_query:
+            min_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+
         # Generate query embedding
         query_embedding = create_embedding(query, input_type="query")
 
         # Search help chunks
+        rpc_params = {
+            'query_embedding': query_embedding,
+            'match_count': top_k,
+            'user_role': user_role,
+            'min_similarity': 0.4
+        }
+        if min_date:
+            rpc_params['min_date'] = min_date
+
         results = supabase.rpc(
             'match_help_chunks',
-            {
-                'query_embedding': query_embedding,
-                'match_count': top_k,
-                'user_role': user_role
-            }
+            rpc_params
         ).execute()
 
         return {
             "query": query,
-            "results": results.data
+            "results": results.data,
+            "recency_filtered": is_recency_query,
+            "min_date": min_date
         }
 
     except Exception as e:
