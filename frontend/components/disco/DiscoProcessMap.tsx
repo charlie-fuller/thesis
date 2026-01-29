@@ -187,9 +187,9 @@ export default function DiscoProcessMap() {
       {/* SVG Flowchart */}
       <div className="overflow-x-auto text-primary">
         <svg
-          viewBox="0 0 1150 730"
+          viewBox="0 0 1150 750"
           className="w-full min-w-[900px]"
-          style={{ maxHeight: '730px' }}
+          style={{ maxHeight: '750px' }}
         >
           {/* Definitions */}
           <defs>
@@ -518,79 +518,79 @@ export default function DiscoProcessMap() {
           {/* ===== DOCUMENTS INPUT ===== */}
           <g>
             <rect
-              x="420" y="50" width="100" height="45"
+              x="50" y="150" width="90" height="40"
               rx="6"
               fill="rgba(100, 116, 139, 0.1)"
               stroke="#64748b"
               strokeWidth="1"
               strokeDasharray="4 2"
             />
-            <text x="470" y="70" textAnchor="middle" fill="#64748b" fontSize="11" fontWeight="500">
+            <text x="95" y="167" textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="500">
               Documents
             </text>
-            <text x="470" y="83" textAnchor="middle" fill="#64748b" fontSize="10">
+            <text x="95" y="180" textAnchor="middle" fill="#64748b" fontSize="9">
               (uploaded)
             </text>
           </g>
 
           {/* Arrow: Documents -> Prep */}
-          <path d="M 420 72 L 190 72 L 190 95 L 190 95" fill="none" stroke="#64748b" strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
+          <path d="M 95 150 L 95 130 L 95 130" fill="none" stroke="#64748b" strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
 
           {/* ===== OUTPUTS ===== */}
 
-          {/* Approved Bundles - Human in the loop */}
+          {/* Approved Bundles - Human in the loop (positioned between Strategist and PRD Generator) */}
           <g>
             <rect
-              x="790" y="495" width="140" height="50"
+              x="920" y="480" width="80" height="55"
               rx="6"
               fill="rgba(139, 92, 246, 0.1)"
               stroke="#8b5cf6"
-              strokeWidth="1"
+              strokeWidth="2"
               strokeDasharray="4 2"
             />
-            <text x="860" y="515" textAnchor="middle" fill="#8b5cf6" fontSize="11" fontWeight="500">
-              Approved Bundles
+            <text x="960" y="500" textAnchor="middle" fill="#8b5cf6" fontSize="10" fontWeight="500">
+              Approved
             </text>
-            <text x="860" y="530" textAnchor="middle" fill="#8b5cf6" fontSize="10">
-              (user review)
+            <text x="960" y="512" textAnchor="middle" fill="#8b5cf6" fontSize="10" fontWeight="500">
+              Bundles
             </text>
             {/* Human icon - inset into box */}
-            <g transform="translate(900, 500)">
+            <g transform="translate(942, 518)">
               <circle cx="6" cy="4" r="4" fill="#8b5cf6" />
-              <path d="M0 16 Q6 10 12 16" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" />
+              <path d="M0 14 Q6 9 12 14" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" />
             </g>
           </g>
 
-          {/* Arrow: Strategist -> Approved */}
-          <path d="M 860 465 L 860 490" fill="none" stroke="#8b5cf6" strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Strategist -> Approved Bundles */}
+          <path d="M 930 430 L 960 430 L 960 475" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
 
-          {/* Arrow: Approved -> PRD Generator */}
-          <path d="M 930 520 L 1060 520 L 1060 470" fill="none" stroke="#8b5cf6" strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Approved Bundles -> PRD Generator */}
+          <path d="M 1000 507 L 1060 507 L 1060 470" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
 
           {/* Final Output: PRD */}
           <g>
             <rect
-              x="990" y="495" width="140" height="50"
+              x="1010" y="545" width="100" height="45"
               rx="6"
               fill="rgba(34, 197, 94, 0.15)"
               stroke="#22c55e"
               strokeWidth="2"
             />
-            <text x="1060" y="517" textAnchor="middle" fill="#22c55e" fontSize="12" fontWeight="600">
+            <text x="1060" y="565" textAnchor="middle" fill="#22c55e" fontSize="11" fontWeight="600">
               PRD Document
             </text>
-            <text x="1060" y="533" textAnchor="middle" fill="#22c55e" fontSize="10">
+            <text x="1060" y="580" textAnchor="middle" fill="#22c55e" fontSize="10">
               Ready for dev
             </text>
           </g>
 
           {/* Arrow: PRD Generator -> PRD Output */}
-          <path d="M 1060 465 L 1060 490" fill="none" stroke="#22c55e" strokeWidth="2" markerEnd="url(#arrowhead)" />
+          <path d="M 1060 465 L 1060 540" fill="none" stroke="#22c55e" strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* ===== STAGE 5: OPERATIONALIZE ===== */}
 
           {/* Arrow: PRD Output -> Operationalize */}
-          <path d="M 1060 545 L 1060 570" fill="none" stroke="#ec4899" strokeWidth="2" markerEnd="url(#arrowhead)" />
+          <path d="M 1060 590 L 1060 610" fill="none" stroke="#ec4899" strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* Operationalize */}
           <g
@@ -598,22 +598,22 @@ export default function DiscoProcessMap() {
             onClick={() => setSelectedStep(processSteps[9])}
           >
             <rect
-              x="990" y="580" width="140" height="70"
+              x="990" y="620" width="140" height="60"
               rx="8"
               fill={stageColors.operationalize.fill}
               stroke={stageColors.operationalize.stroke}
               strokeWidth="3"
             />
-            <text x="1060" y="610" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="700">
+            <text x="1060" y="647" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="700">
               Operationalize
             </text>
-            <text x="1060" y="630" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+            <text x="1060" y="667" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
               Handoff to dev
             </text>
           </g>
 
           {/* ===== LEGEND ===== */}
-          <g transform="translate(50, 665)">
+          <g transform="translate(50, 700)">
             <text x="0" y="0" fill={colors.textSecondary} fontSize="14" fontWeight="700">Legend</text>
 
             <rect x="0" y="18" width="22" height="16" rx="3" fill={stageColors.discovery.fill} stroke={stageColors.discovery.stroke} strokeWidth="2" />
