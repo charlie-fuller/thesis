@@ -320,3 +320,64 @@ The Obsidian Vault Sync feature was completed after the initial release notes we
 ```bash
 python -m scripts.obsidian_watcher --user-id <uuid>
 ```
+
+---
+
+## Late January Updates (January 27-29, 2026)
+
+### Document Type Classification for Smart RAG
+
+Documents synced from Obsidian are now automatically classified by type, enabling smarter search filtering.
+
+**Document Types**:
+- `transcript` - Meeting transcripts, call recordings (including Granola format `Person1 __ Person2.md`)
+- `notes` - Meeting notes, personal notes
+- `instructions` - Guides, playbooks, how-to docs
+- `report` - Research reports, analysis, whitepapers
+- `presentation` - Slides, decks (.pptx)
+- `spreadsheet` - Data files (.csv, .xlsx)
+
+**Smart Search Behavior**:
+- Queries about "recent meetings" or "this week" filter to transcript/notes types
+- Recency boost (20%) applied to documents from last 14 days
+- Path-based classification fallback (documents in `meetings/` folder → transcript)
+
+**Files**: `backend/services/obsidian_sync.py`, `backend/migrations/049_backfill_obsidian_document_types.sql`
+
+### Binary Document Support in Obsidian Sync
+
+Obsidian sync now processes binary documents (PDF, DOCX, XLSX, PPTX) in addition to markdown.
+
+**Features**:
+- PDF text extraction with OCR fallback for image-based PDFs
+- DOCX/XLSX/PPTX processing via document_processor
+- View original document button in KB interface
+- Progress bar shows current file during sync
+
+**Files**: `backend/services/obsidian_sync.py`, `backend/document_processor.py`
+
+### Real-Time Sync Progress
+
+Obsidian sync now shows real-time progress with:
+- Progress bar with percentage complete
+- Current file being processed
+- Total file count
+
+### Date-Aware Agents
+
+Agents now receive current date context and respect KB date filters in search results.
+
+**Behavior**:
+- Agents know today's date for time-relative queries
+- "This week" queries filter to last 7 days
+- Search results respect date filters rather than silently dropping them
+
+### DISCo Enhancements
+
+- **Glean Connector Scoring Matrix**: Added DISCo-style scoring for Glean connector fit assessment
+- **Data Freshness Notes**: Scoring output now includes data freshness indicators
+
+### KB UI Improvements
+
+- **Full Folder Hierarchy**: Obsidian view now preserves complete folder structure instead of flattening
+- **Document View Button**: Direct link to view original document in storage

@@ -73,8 +73,8 @@ This document contains detailed architecture documentation. For essential Claude
 17. **Career Status Reports (Compass)** - 5-dimension rubric assessment
 
 ### Integrations
-18. **Obsidian Vault Sync** - File watching, frontmatter parsing, wikilink conversion
-19. **Enhanced RAG Search** - Original date tracking, document type filtering, recency boost
+18. **Obsidian Vault Sync** - File watching, frontmatter parsing, wikilink conversion, binary doc support (PDF/DOCX/XLSX/PPTX with OCR fallback)
+19. **Enhanced RAG Search** - Document type auto-classification (transcript, notes, report, etc.), date filtering for recency queries, 20% recency boost for recent docs
 
 ### Discovery & Pipeline
 20. **Unified Discovery Inbox** - Tabs for Tasks, Projects, Stakeholders candidates with deduplication
