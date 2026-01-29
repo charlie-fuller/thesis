@@ -562,7 +562,7 @@ export default function DiscoProcessMap() {
           <path d="M 930 430 L 960 430 L 960 475" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
 
           {/* Arrow: Approved Bundles -> Tech Evaluation (up) */}
-          <path d="M 1000 507 L 1060 507 L 1060 355" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
+          <path d="M 1000 480 L 1000 350" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
 
           {/* Final Output: PRD */}
           <g>
