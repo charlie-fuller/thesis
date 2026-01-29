@@ -11,7 +11,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from auth import get_current_user
@@ -116,6 +116,8 @@ async def get_discovery_counts(
     Used for dashboard badge display showing total pending items.
     """
     client_id = current_user["client_id"]
+    if not client_id:
+        raise HTTPException(status_code=400, detail="User has no client_id assigned")
 
     # Only show candidates from the last N weeks
     cutoff_date = (datetime.now(timezone.utc) - timedelta(weeks=DISCOVERY_MAX_AGE_WEEKS)).isoformat()
@@ -168,6 +170,8 @@ async def get_all_pending_candidates(
     Used by the unified discovery panel for carousel-style review.
     """
     client_id = current_user["client_id"]
+    if not client_id:
+        raise HTTPException(status_code=400, detail="User has no client_id assigned")
 
     # Only show candidates from the last N weeks
     cutoff_date = (datetime.now(timezone.utc) - timedelta(weeks=DISCOVERY_MAX_AGE_WEEKS)).isoformat()
