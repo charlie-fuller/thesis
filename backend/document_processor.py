@@ -1069,17 +1069,12 @@ def search_similar_chunks(
 
             chunks = result.data or []
 
-            # If recency filter returned too few results, try without date filter
+            # Keep date filter active - don't silently drop it when few results found
+            # This allows agent to accurately tell user "I found X recent documents"
             if recency_date and len(chunks) < 2:
-                logger.info(f"   Only {len(chunks)} recent chunks, trying without date filter")
-                rpc_params.pop('p_min_date', None)
-                result = supabase.rpc(
-                    'match_document_chunks_by_type',
-                    rpc_params
-                ).execute()
-                chunks = result.data or []
+                logger.info(f"   Date filter active: only {len(chunks)} recent chunks found (respecting user's recency request)")
 
-            if len(chunks) >= 2:  # Found enough results with type filter
+            if len(chunks) >= 1:  # Found results with type filter (allow sparse results when date-filtered)
                 used_document_type_filter = True
                 logger.info(f"   Found {len(chunks)} chunks from transcripts/notes")
 

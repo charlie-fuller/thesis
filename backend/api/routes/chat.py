@@ -5,6 +5,7 @@ Handles AI chat interactions with RAG (Retrieval Augmented Generation)
 import asyncio
 import json
 import os
+from datetime import datetime, timezone
 
 from anthropic import Anthropic
 from fastapi import APIRouter, Depends, Request
@@ -33,6 +34,19 @@ supabase = get_supabase()
 
 # Initialize Anthropic client
 anthropic_client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+
+def _get_date_context() -> str:
+    """
+    Generate a date context block to prepend to system prompts.
+    This ensures agents always know the current date.
+    """
+    current_date = datetime.now(timezone.utc).strftime("%B %d, %Y")  # e.g., "January 29, 2026"
+    return f"""<current_context>
+Today's date: {current_date}
+</current_context>
+
+"""
 
 
 def _message_has_substantial_content(message: str) -> bool:
@@ -290,6 +304,14 @@ async def chat(
                     elif metadata.get('conversation_title'):
                         source_info += f" - Conversation: {metadata['conversation_title']}"
 
+                # Add document date if available (helps agent understand recency)
+                doc_date = chunk.get('created_at')
+                if doc_date:
+                    # Extract just the date portion (YYYY-MM-DD)
+                    date_str = str(doc_date)[:10] if doc_date else None
+                    if date_str:
+                        source_info += f" - Date: {date_str}"
+
                 source_info += "]"
                 context_parts.append(f"{source_info}:\n{chunk['content']}")
 
@@ -364,6 +386,8 @@ Instructions:
 
         # Call Claude API with prompt caching for system instructions
         # Cached tokens are 90% cheaper - significant savings for repeated chats
+        # Prepend date context so agent knows current date
+        full_system_prompt = _get_date_context() + system_prompt
         message = anthropic_client.messages.create(
             model="claude-sonnet-4-5-20250929",
             max_tokens=2048,  # Reduced from 4096 to encourage more concise responses
@@ -371,7 +395,7 @@ Instructions:
             system=[
                 {
                     "type": "text",
-                    "text": system_prompt,
+                    "text": full_system_prompt,
                     "cache_control": {"type": "ephemeral"}  # Cache for 5 minutes
                 }
             ],
@@ -1271,6 +1295,8 @@ Instructions:
 
             # Call Claude API with streaming and prompt caching
             # Cached tokens are 90% cheaper - significant savings for repeated chats
+            # Prepend date context so agent knows current date
+            full_system_prompt = _get_date_context() + system_prompt
             full_response = ""
             input_tokens = 0
             output_tokens = 0
@@ -1282,7 +1308,7 @@ Instructions:
                 system=[
                     {
                         "type": "text",
-                        "text": system_prompt,
+                        "text": full_system_prompt,
                         "cache_control": {"type": "ephemeral"}  # Cache for 5 minutes
                     }
                 ],
@@ -1592,6 +1618,8 @@ Maintain the same format and style as your original response, but provide more c
             conversation_messages.append({"role": "user", "content": dig_deeper_prompt})
 
             # Stream the response
+            # Prepend date context so agent knows current date
+            full_system_prompt = _get_date_context() + system_prompt
             full_response = ""
             input_tokens = 0
             output_tokens = 0
@@ -1603,7 +1631,7 @@ Maintain the same format and style as your original response, but provide more c
                 system=[
                     {
                         "type": "text",
-                        "text": system_prompt,
+                        "text": full_system_prompt,
                         "cache_control": {"type": "ephemeral"}
                     }
                 ],
@@ -1811,6 +1839,8 @@ That's it. Keep it SHORT."""
         conversation_messages.append({"role": "user", "content": expansion_prompt})
 
         # Generate the expansion (non-streaming for inline insertion)
+        # Prepend date context so agent knows current date
+        full_system_prompt = _get_date_context() + system_prompt
         response = anthropic_client.messages.create(
             model="claude-sonnet-4-5-20250929",
             max_tokens=400,  # Short - ~100-150 words max for focused expansion
@@ -1818,7 +1848,7 @@ That's it. Keep it SHORT."""
             system=[
                 {
                     "type": "text",
-                    "text": system_prompt,
+                    "text": full_system_prompt,
                     "cache_control": {"type": "ephemeral"}
                 }
             ],
