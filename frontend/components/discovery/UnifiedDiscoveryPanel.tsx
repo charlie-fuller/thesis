@@ -334,22 +334,22 @@ export default function UnifiedDiscoveryPanel() {
   if (counts.total === 0) {
     return (
       <div className="card p-6">
-        <div className="flex items-center gap-4">
-          <div className={`p-3 rounded-lg ${scanning?.active ? 'bg-amber-500/10' : 'bg-green-500/10'}`}>
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${scanning?.active ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-green-100 dark:bg-green-900/30'}`}>
             {scanning?.active ? (
-              <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
+              <Loader2 className="w-5 h-5 text-amber-600 dark:text-amber-400 animate-spin" />
             ) : (
-              <Search className="w-6 h-6 text-green-500" />
+              <Search className="w-5 h-5 text-green-600 dark:text-green-400" />
             )}
           </div>
           <div>
             <h3 className="text-lg font-semibold text-primary">Discovery Inbox</h3>
             {scanning?.active ? (
-              <p className="text-sm text-amber-500">
+              <p className="text-sm text-secondary">
                 {scanning.message || 'Analyzing documents for tasks, projects, stakeholders...'}
               </p>
             ) : (
-              <p className="text-sm text-green-500">All caught up - no items to review</p>
+              <p className="text-sm text-secondary">All caught up - no items to review</p>
             )}
           </div>
         </div>
@@ -373,13 +373,13 @@ export default function UnifiedDiscoveryPanel() {
       <div className="p-4 border-b border-default">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-500/10">
-              <Search className="w-5 h-5 text-amber-500" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-amber-100 dark:bg-amber-900/30">
+              <Search className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
               <h3 className="text-lg font-semibold text-primary">Discovery Inbox</h3>
               <p className="text-sm text-secondary">
-                <span className="font-medium text-amber-500">{counts.total}</span> items to review
+                <span className="font-medium text-amber-600 dark:text-amber-400">{counts.total}</span> items to review
               </p>
             </div>
           </div>
