@@ -1,12 +1,20 @@
 'use client'
 
-import { useState, useCallback, DragEvent } from 'react'
-import { Calendar, User, AlertCircle, FileText, MessageSquare, Search, Pencil } from 'lucide-react'
+import { useState, useCallback, useRef, useEffect, DragEvent, MouseEvent } from 'react'
+import { Calendar, User, AlertCircle, FileText, MessageSquare, Search, Pencil, ChevronDown } from 'lucide-react'
 import { Task } from './TaskKanbanBoard'
+
+interface Stakeholder {
+  id: string
+  name: string
+  role: string | null
+}
 
 interface TaskCardProps {
   task: Task
   onClick: () => void
+  stakeholders?: Stakeholder[]
+  onAssigneeChange?: (taskId: string, stakeholderId: string | null) => void
 }
 
 // Priority colors (1=low, 5=critical)
@@ -27,8 +35,37 @@ const SOURCE_ICONS = {
   project: AlertCircle,
 } as const
 
-export default function TaskCard({ task, onClick }: TaskCardProps) {
+export default function TaskCard({ task, onClick, stakeholders = [], onAssigneeChange }: TaskCardProps) {
   const [isDragging, setIsDragging] = useState(false)
+  const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: Event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowAssigneeDropdown(false)
+      }
+    }
+    if (showAssigneeDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showAssigneeDropdown])
+
+  const handleAssigneeClick = (e: MouseEvent) => {
+    e.stopPropagation() // Prevent card click
+    if (onAssigneeChange && stakeholders.length > 0) {
+      setShowAssigneeDropdown(!showAssigneeDropdown)
+    }
+  }
+
+  const handleSelectAssignee = (stakeholderId: string | null) => {
+    if (onAssigneeChange) {
+      onAssigneeChange(task.id, stakeholderId)
+    }
+    setShowAssigneeDropdown(false)
+  }
 
   const handleDragStart = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.dataTransfer.setData('taskId', task.id)
@@ -97,13 +134,48 @@ export default function TaskCard({ task, onClick }: TaskCardProps) {
 
       {/* Metadata row */}
       <div className="flex items-center gap-3 text-xs text-muted">
-        {/* Assignee */}
-        {task.display_assignee && (
-          <div className="flex items-center gap-1 truncate max-w-[120px]" title={task.display_assignee}>
+        {/* Assignee with dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={handleAssigneeClick}
+            className={`flex items-center gap-1 truncate max-w-[140px] rounded px-1 py-0.5 -ml-1 transition-colors ${
+              onAssigneeChange && stakeholders.length > 0
+                ? 'hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer'
+                : ''
+            }`}
+            title={task.display_assignee || 'Unassigned'}
+          >
             <User className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="truncate">{task.display_assignee}</span>
-          </div>
-        )}
+            <span className="truncate">{task.display_assignee || 'Unassigned'}</span>
+            {onAssigneeChange && stakeholders.length > 0 && (
+              <ChevronDown className="w-3 h-3 flex-shrink-0" />
+            )}
+          </button>
+          {showAssigneeDropdown && (
+            <div className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 max-h-48 overflow-y-auto">
+              <button
+                onClick={() => handleSelectAssignee(null)}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                  !task.assignee_stakeholder_id ? 'bg-gray-100 dark:bg-gray-700 font-medium' : ''
+                }`}
+              >
+                Unassigned
+              </button>
+              {stakeholders.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => handleSelectAssignee(s.id)}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                    task.assignee_stakeholder_id === s.id ? 'bg-gray-100 dark:bg-gray-700 font-medium' : ''
+                  }`}
+                >
+                  {s.name}
+                  {s.role && <span className="text-muted ml-1">({s.role})</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Due date */}
         {task.due_date && (
