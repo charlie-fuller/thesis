@@ -85,6 +85,7 @@ class SyncActivityInfo(BaseModel):
     """Real-time sync activity from Obsidian watcher."""
     active: bool
     current_file: Optional[str] = None
+    last_synced_file: Optional[str] = None  # Most recently synced file
     recent_files: List[dict] = []
 
 
@@ -469,18 +470,20 @@ async def get_granola_status(
                     .eq('status', 'running') \
                     .execute()
 
-                # Get most recently synced file if there's an active sync
-                current_file = None
-                if running.data:
-                    recent_state = supabase.table('obsidian_sync_state') \
-                        .select('file_path') \
-                        .eq('config_id', config_id) \
-                        .order('updated_at', desc=True) \
-                        .limit(1) \
-                        .execute()
-                    if recent_state.data:
-                        # Extract just the filename from the path
-                        current_file = recent_state.data[0]['file_path'].split('/')[-1]
+                # Get most recently synced file (always, for display)
+                last_synced_file = None
+                recent_state = supabase.table('obsidian_sync_state') \
+                    .select('file_path') \
+                    .eq('config_id', config_id) \
+                    .order('updated_at', desc=True) \
+                    .limit(1) \
+                    .execute()
+                if recent_state.data:
+                    # Extract just the filename from the path
+                    last_synced_file = recent_state.data[0]['file_path'].split('/')[-1]
+
+                # During active sync, current_file is the same as last_synced_file
+                current_file = last_synced_file if running.data else None
 
                 # Get recently completed syncs (last 60 seconds)
                 cutoff = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
@@ -496,6 +499,7 @@ async def get_granola_status(
                 sync_activity = SyncActivityInfo(
                     active=len(running.data) > 0,
                     current_file=current_file,
+                    last_synced_file=last_synced_file,
                     recent_files=[
                         {'files_added': r.get('files_added', 0), 'files_updated': r.get('files_updated', 0)}
                         for r in recent.data
@@ -688,7 +692,7 @@ async def scan_granola_vault(
         return GranolaScanResult(
             status='started',
             job_id=job_id,
-            message='Scan started in background. You can navigate away safely.',
+            message='Analysis started. You can navigate away safely.',
             files_scanned=0,
             files_processed=0,
             files_skipped=0,

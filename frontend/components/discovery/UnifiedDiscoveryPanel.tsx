@@ -8,7 +8,7 @@ import {
   Users,
   ArrowRight,
   Loader2,
-  Check,
+  Search,
   X,
   ChevronLeft,
   ChevronRight,
@@ -130,12 +130,10 @@ export default function UnifiedDiscoveryPanel() {
   useEffect(() => {
     if (authLoading || !user || !session) return;
     fetchData();
-    // Poll frequently to catch scanning status and new items quickly
-    // 5s when scanning active, 15s otherwise (fast enough to catch scan start/end)
-    const pollInterval = scanning?.active ? 5000 : 15000;
-    const interval = setInterval(fetchData, pollInterval);
+    // Poll every 5 seconds to catch scanning status and new items quickly
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
-  }, [authLoading, user, session, fetchData, scanning?.active]);
+  }, [authLoading, user, session, fetchData]);
 
   // Get current item based on active tab
   const getCurrentItem = () => {
@@ -340,7 +338,7 @@ export default function UnifiedDiscoveryPanel() {
             {scanning?.active ? (
               <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
             ) : (
-              <Check className="w-6 h-6 text-green-500" />
+              <Search className="w-6 h-6 text-green-500" />
             )}
           </div>
           <div>
@@ -375,7 +373,7 @@ export default function UnifiedDiscoveryPanel() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-500/10">
-              <ListChecks className="w-5 h-5 text-amber-500" />
+              <Search className="w-5 h-5 text-amber-500" />
             </div>
             <div>
               <h3 className="text-lg font-semibold text-primary">Discovery Inbox</h3>

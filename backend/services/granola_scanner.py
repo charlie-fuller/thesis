@@ -1266,12 +1266,20 @@ def get_scan_status(user_id: str, since_date: Optional[date] = None) -> Dict[str
         total_files = len(filtered_docs)
         scanned_count = sum(1 for d in filtered_docs if d.get('granola_scanned_at'))
 
+        # Find next document to be processed (first unscanned one)
+        next_document = None
+        for d in filtered_docs:
+            if not d.get('granola_scanned_at'):
+                next_document = d.get('filename', 'Unknown')
+                break
+
         return {
             'connected': total_files > 0,
             'vault_path': 'KB (Obsidian sync)',
             'total_files': total_files,
             'scanned_files': scanned_count,
-            'pending_files': total_files - scanned_count
+            'pending_files': total_files - scanned_count,
+            'next_document': next_document
         }
     except Exception as e:
         logger.error(f"Failed to get scan status: {e}")

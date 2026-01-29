@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { FileText, RefreshCw, CheckCircle } from 'lucide-react'
+import { Vault, Loader2 } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 
 interface SyncActivity {
   active: boolean
   current_file: string | null
+  last_synced_file: string | null
   recent_files: Array<{ files_added: number; files_updated: number }>
 }
 
@@ -30,8 +31,8 @@ interface ScanResult {
 export default function GranolaScanPanel() {
   const [status, setStatus] = useState<GranolaScanStatus | null>(null)
   const [isScanning, setIsScanning] = useState(false)
+  const [isPreparing, setIsPreparing] = useState(false)  // Show during auto-scan delay
   const [loading, setLoading] = useState(true)
-  const [scanMessage, setScanMessage] = useState<string | null>(null)
   const autoScanTriggeredRef = useRef(false)
   const lastPendingCountRef = useRef(0)
 
@@ -50,44 +51,41 @@ export default function GranolaScanPanel() {
   const handleScan = useCallback(async () => {
     try {
       setIsScanning(true)
-      setScanMessage(null)
       // Use background=true so scan continues even if user navigates away
       const result = await apiPost<ScanResult>('/api/pipeline/granola/scan?force_rescan=false&background=true', {})
 
       if (result.status === 'started') {
-        setScanMessage('Scan started! Analyzing in the background...')
-        // Poll status after a delay
-        setTimeout(async () => {
+        // Poll status until pending_files becomes 0
+        const pollUntilDone = async () => {
           await fetchStatus()
-          setIsScanning(false)
-        }, 5000)
+          // Check if still have pending files (scan not complete)
+          // Note: status state won't be updated yet, so we re-fetch
+          const currentStatus = await apiGet<GranolaScanStatus>('/api/pipeline/granola/status')
+          if (currentStatus.pending_files > 0) {
+            setTimeout(pollUntilDone, 3000)
+          } else {
+            setIsScanning(false)
+          }
+        }
+        setTimeout(pollUntilDone, 3000)
       } else {
         await fetchStatus()
         setIsScanning(false)
       }
     } catch (err) {
       console.error('Scan failed:', err)
-      setScanMessage('Scan failed to start. Please try again.')
       setIsScanning(false)
     }
   }, [fetchStatus])
 
   useEffect(() => {
     fetchStatus()
-    // Poll more frequently when scanning/syncing is active
-    const isActive = status?.sync_activity?.active || isScanning
-    const pollInterval = isActive ? 3000 : 10000  // 3s when active, 10s otherwise
+    // Poll more frequently when any activity is happening
+    const isActive = status?.sync_activity?.active || isScanning || isPreparing
+    const pollInterval = isActive ? 2000 : 5000  // 2s when active, 5s otherwise (faster default)
     const interval = setInterval(fetchStatus, pollInterval)
     return () => clearInterval(interval)
-  }, [fetchStatus, status?.sync_activity?.active, isScanning])
-
-  // Auto-dismiss scan message after 10 seconds
-  useEffect(() => {
-    if (scanMessage) {
-      const timer = setTimeout(() => setScanMessage(null), 10000)
-      return () => clearTimeout(timer)
-    }
-  }, [scanMessage])
+  }, [fetchStatus, status?.sync_activity?.active, isScanning, isPreparing])
 
   // Auto-scan when new documents are detected and sync is not active
   useEffect(() => {
@@ -114,17 +112,23 @@ export default function GranolaScanPanel() {
       // Trigger auto-scan if not already triggered
       if (!autoScanTriggeredRef.current) {
         autoScanTriggeredRef.current = true
+        setIsPreparing(true)  // Show preparing state during delay
         // Small delay to batch any rapid successive syncs
         const timer = setTimeout(() => {
+          setIsPreparing(false)
           handleScan()
         }, 2000)
-        return () => clearTimeout(timer)
+        return () => {
+          clearTimeout(timer)
+          setIsPreparing(false)
+        }
       }
     }
 
     // Reset flag when all files are scanned
     if (!hasPendingFiles) {
       autoScanTriggeredRef.current = false
+      setIsPreparing(false)
     }
   }, [status?.pending_files, status?.sync_activity?.active, isScanning, handleScan])
 
@@ -151,7 +155,7 @@ export default function GranolaScanPanel() {
           <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
             status.connected ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-red-100 dark:bg-red-900/30'
           }`}>
-            <FileText className={`w-5 h-5 ${
+            <Vault className={`w-5 h-5 ${
               status.connected ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
             }`} />
           </div>
@@ -159,7 +163,7 @@ export default function GranolaScanPanel() {
             <h3 className="text-lg font-semibold text-primary">Vault</h3>
             <p className="text-sm text-secondary">
               {status.connected
-                ? `${status.scanned_files}/${status.total_files} meetings scanned`
+                ? `${status.scanned_files}/${status.total_files} meetings synced`
                 : (status.error && status.error.length > 100
                     ? 'Connection error. Please try again.'
                     : status.error || 'Not connected')
@@ -174,41 +178,33 @@ export default function GranolaScanPanel() {
               {status.pending_files} new
             </span>
           )}
-          {isScanning && (
-            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center gap-1">
-              <RefreshCw className="w-3 h-3 animate-spin" />
-              Scanning...
-            </span>
-          )}
         </div>
       </div>
 
-      {status.last_scan && (
-        <p className="text-xs text-slate-400 mt-2">
-          Last scan: {new Date(status.last_scan).toLocaleString()}
+      {status.sync_activity?.last_synced_file && (
+        <p className="text-xs text-slate-400 mt-2 truncate">
+          Last synced: {status.sync_activity.last_synced_file}
         </p>
       )}
 
-      {/* Scan status message */}
-      {scanMessage && (
-        <div className="mt-3 flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-2">
-          <CheckCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{scanMessage}</span>
-        </div>
-      )}
 
-      {/* Sync Activity Indicator - shows when files are being synced from Obsidian */}
+      {/* Status indicators - shows progress through sync → prepare → analyze */}
       {status.sync_activity?.active && (
-        <div className="mt-3 flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
-          <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" />
-          <span>Syncing: {status.sync_activity.current_file || 'processing...'}</span>
+        <div className="mt-3 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
+          <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+          <span>Syncing new files...</span>
         </div>
       )}
-
-      {!status.sync_activity?.active && status.sync_activity?.recent_files && status.sync_activity.recent_files.length > 0 &&
-       (status.sync_activity.recent_files[0].files_added + status.sync_activity.recent_files[0].files_updated) > 0 && (
-        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-          Just synced: {status.sync_activity.recent_files[0].files_added + status.sync_activity.recent_files[0].files_updated} file(s)
+      {!status.sync_activity?.active && isPreparing && (
+        <div className="mt-3 flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
+          <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+          <span>Preparing to analyze...</span>
+        </div>
+      )}
+      {isScanning && (
+        <div className="mt-3 flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
+          <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+          <span>Analyzing for tasks, projects, stakeholders...</span>
         </div>
       )}
     </div>

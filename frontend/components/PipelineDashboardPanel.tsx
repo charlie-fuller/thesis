@@ -13,7 +13,7 @@ import {
   Filter,
   Building2,
   Zap,
-  FileText
+  Vault
 } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 
@@ -359,7 +359,7 @@ function GranolaScanPanel({
           <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
             status.connected ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-red-100 dark:bg-red-900/30'
           }`}>
-            <FileText className={`w-5 h-5 ${
+            <Vault className={`w-5 h-5 ${
               status.connected ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
             }`} />
           </div>
@@ -367,7 +367,7 @@ function GranolaScanPanel({
             <h3 className="font-medium text-slate-900 dark:text-white">Vault</h3>
             <p className="text-xs text-slate-500">
               {status.connected
-                ? `${status.scanned_files}/${status.total_files} meetings scanned`
+                ? `${status.scanned_files}/${status.total_files} meetings synced`
                 : status.error || 'Not connected'
               }
             </p>

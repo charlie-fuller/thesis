@@ -44,6 +44,7 @@ class ScanningStatus(BaseModel):
     active: bool
     pending_documents: int = 0
     message: Optional[str] = None
+    current_document: Optional[str] = None
 
 
 class TaskCandidateItem(BaseModel):
@@ -286,10 +287,18 @@ async def get_all_pending_candidates(
         pending_count = granola_status.get('pending_files', 0)
 
         if pending_count > 0:
+            next_doc = granola_status.get('next_document')
+            if next_doc:
+                # Truncate long filenames
+                display_name = next_doc[:40] + '...' if len(next_doc) > 40 else next_doc
+                message = f"Analyzing: {display_name}"
+            else:
+                message = f"Analyzing {pending_count} meeting{'s' if pending_count != 1 else ''}..."
             scanning_status = ScanningStatus(
                 active=True,
                 pending_documents=pending_count,
-                message=f"Analyzing {pending_count} meeting{'s' if pending_count != 1 else ''} for tasks, projects, stakeholders..."
+                message=message,
+                current_document=next_doc
             )
         else:
             scanning_status = ScanningStatus(active=False, pending_documents=0)
