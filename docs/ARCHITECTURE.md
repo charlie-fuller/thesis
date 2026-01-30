@@ -82,7 +82,8 @@ This document contains detailed architecture documentation. For essential Claude
 22. **Meeting Scanner** - Heuristic-based document classification extracts projects, tasks, stakeholders from meeting notes (transcripts, summaries, 1:1s)
 
 ### DISCo (Discovery → Insights → Synthesis → Capabilities)
-23. **DISCo Pipeline** - AI-assisted product discovery with 8 specialized agents across 4 stages:
+23. **DISCo KB Integration** - Uses Knowledge Base as single source of truth for documents. Link existing KB documents to initiatives via browser modal with search/tag filtering.
+24. **DISCo Pipeline** - AI-assisted product discovery with 8 specialized agents across 4 stages:
     - **Discovery Stage**: Triage (GO/NO-GO with Problem Worth Solving gate), Discovery Planner
     - **Insights Stage**: Coverage Tracker, Insight Extractor (pattern library), Consolidator (decision doc)
     - **Synthesis Stage**: Strategist (cluster insights into initiative bundles)

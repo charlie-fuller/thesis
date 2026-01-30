@@ -381,3 +381,42 @@ Agents now receive current date context and respect KB date filters in search re
 
 - **Full Folder Hierarchy**: Obsidian view now preserves complete folder structure instead of flattening
 - **Document View Button**: Direct link to view original document in storage
+
+---
+
+## Late January Updates (January 29, 2026)
+
+### DISCo KB Integration
+
+DISCo initiatives now use the Knowledge Base as the single source of truth for documents, eliminating document duplication.
+
+**Features**:
+- Link documents from KB to DISCo initiatives (modal: "Link Documents from Knowledge Base")
+- KB document browser with 60/40 search/tag filter split and preview panel
+- Warning when deleting KB documents that are linked to DISCo initiatives
+- Multi-select and bulk delete for uploaded files
+- Highlighted preview selection in document list
+
+**Files**: `frontend/components/disco/KBDocumentBrowser.tsx`, `backend/api/routes/disco.py`
+
+### Vault Terminology
+
+Renamed "Obsidian" and "Granola" references to generic "Vault" terminology throughout the platform for cleaner UX.
+
+- Vault panel in dashboard shows sync status
+- Vault folders display as nested tree structure
+- Removed direct references to third-party product names in UI
+
+### Help Chat Temporal Awareness
+
+Date filtering and temporal awareness added to the help chat system.
+
+**Features**:
+- Queries like "this week" filter to last 7 days
+- Date-based filtering respects KB date metadata
+- Reindexing now always part of documentation updates
+
+### Dashboard Simplification
+
+- Removed Vault panel from main dashboard
+- Streamlined Discovery Inbox focus
