@@ -1710,26 +1710,30 @@ def _link_document_to_agents(document_id: str, user_id: str, agent_names: List[s
 
 def sync_vault(
     config: Dict,
-    trigger_source: str = 'manual'
+    trigger_source: str = 'manual',
+    recent_only: bool = False
 ) -> Dict:
     """
-    Perform a full vault sync.
+    Perform a vault sync.
 
     Args:
         config: Vault config record
         trigger_source: What triggered the sync
+        recent_only: If True, only sync files that are new, pending, or failed
+                     (skip files that are already synced and unchanged)
 
     Returns:
         Sync results dict
     """
-    logger.info(f"\n Obsidian sync for vault: {config['vault_name']}")
+    sync_mode = 'recent' if recent_only else 'full'
+    logger.info(f"\n Obsidian {sync_mode} sync for vault: {config['vault_name']}")
     logger.info(f"   Path: {config['vault_path']}")
 
     # Create sync log
     log_id = create_sync_log(
         config_id=config['id'],
         user_id=config['user_id'],
-        sync_type='full',
+        sync_type='incremental' if recent_only else 'full',
         trigger_source=trigger_source
     )
 
@@ -1781,6 +1785,16 @@ def sync_vault(
             )
 
             existing_state = existing_states.get(relative_path)
+
+            # In recent_only mode, skip files that are already synced with a document_id
+            # Only process: new files (no state), pending, or failed
+            if recent_only and existing_state:
+                status = existing_state.get('sync_status')
+                has_document = existing_state.get('document_id') is not None
+                if status == 'synced' and has_document:
+                    stats['files_skipped'] += 1
+                    continue
+
             result = sync_file(config, file_path, existing_state)
 
             if result['status'] == 'added':
@@ -1866,6 +1880,58 @@ def sync_vault(
 # Status and Connection Management
 # ============================================================================
 
+def count_unsynced_files(config: Dict) -> int:
+    """
+    Count files in vault that are not yet synced or have pending/failed status.
+
+    Scans the vault filesystem and compares with sync_state table to find:
+    - New files not yet tracked in sync_state
+    - Files with pending or failed status
+
+    Args:
+        config: Vault configuration dict
+
+    Returns:
+        Count of unsynced files
+    """
+    try:
+        vault_path = Path(config['vault_path'])
+        sync_options = config.get('sync_options', DEFAULT_SYNC_OPTIONS)
+
+        # Scan vault for all eligible files
+        all_files = scan_vault(
+            vault_path=vault_path,
+            include_patterns=sync_options.get('include_patterns', ['**/*.md']),
+            exclude_patterns=sync_options.get('exclude_patterns', ['.obsidian/**']),
+            max_file_size_mb=sync_options.get('max_file_size_mb', 10)
+        )
+
+        # Get all sync states
+        existing_states = get_all_sync_states(config['id'])
+
+        unsynced_count = 0
+
+        for file_path in all_files:
+            relative_path = str(file_path.relative_to(vault_path))
+            state = existing_states.get(relative_path)
+
+            if not state:
+                # New file not tracked
+                unsynced_count += 1
+            elif state.get('sync_status') in ('pending', 'failed'):
+                # Pending or failed
+                unsynced_count += 1
+            elif state.get('sync_status') == 'synced' and not state.get('document_id'):
+                # Synced but missing document (needs recovery)
+                unsynced_count += 1
+
+        return unsynced_count
+
+    except Exception as e:
+        logger.warning(f"Error counting unsynced files: {e}")
+        return 0
+
+
 def get_sync_status(user_id: str) -> Dict:
     """
     Get Obsidian sync status for a user.
@@ -1906,6 +1972,12 @@ def get_sync_status(user_id: str) -> Dict:
     # Get live sync progress if available
     sync_progress = config.get('sync_progress')
 
+    # Count unsynced files (new files in vault + pending/failed)
+    # Only do this scan if not currently syncing to avoid overhead
+    unsynced_count = 0
+    if not sync_progress or not sync_progress.get('is_syncing'):
+        unsynced_count = count_unsynced_files(config)
+
     return {
         'connected': True,
         'config_id': config['id'],
@@ -1916,6 +1988,7 @@ def get_sync_status(user_id: str) -> Dict:
         'last_sync': config.get('last_sync_at'),
         'last_error': config.get('last_error'),
         'pending_changes': pending_result.count or 0,
+        'unsynced_count': unsynced_count,
         'sync_options': config.get('sync_options', {}),
         # Live sync progress
         'sync_progress': sync_progress

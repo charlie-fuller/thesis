@@ -113,9 +113,15 @@ export default function KBDocumentsContent() {
     last_sync?: string
     pending_changes?: number
     total_files?: number
+    unsynced_count?: number
+  }
+  interface RecentFile {
+    file_path: string
+    document_id: string
+    last_synced_at: string
   }
   const [obsidianStatus, setObsidianStatus] = useState<ObsidianStatus | null>(null)
-  const [obsidianExpanded, setObsidianExpanded] = useState<boolean>(false)
+  const [obsidianExpanded, setObsidianExpanded] = useState<boolean>(true)
   const [obsidianSyncing, setObsidianSyncing] = useState(false)
   const [obsidianSyncError, setObsidianSyncError] = useState<string | null>(null)
   const [obsidianSyncSuccess, setObsidianSyncSuccess] = useState<string | null>(null)
@@ -124,6 +130,8 @@ export default function KBDocumentsContent() {
     total: number
     current_file?: string
   } | null>(null)
+  const [recentFiles, setRecentFiles] = useState<RecentFile[]>([])
+  const [syncingRecent, setSyncingRecent] = useState(false)
 
   // Document actions state
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
@@ -471,6 +479,7 @@ export default function KBDocumentsContent() {
         vault_path?: string
         files_synced?: number
         pending_changes?: number
+        unsynced_count?: number
         last_sync?: string
         sync_progress?: {
           is_syncing: boolean
@@ -485,6 +494,7 @@ export default function KBDocumentsContent() {
         vault_path: response.vault_path,
         document_count: response.files_synced,
         pending_changes: response.pending_changes,
+        unsynced_count: response.unsynced_count,
         last_sync: response.last_sync
       })
       return response
@@ -492,6 +502,57 @@ export default function KBDocumentsContent() {
       logger.error('Error checking Obsidian status:', err)
       setObsidianStatus({ connected: false })
       return null
+    }
+  }
+
+  // Fetch recently synced files
+  async function fetchRecentFiles() {
+    try {
+      const response = await apiGet<{
+        success: boolean
+        files: RecentFile[]
+        count: number
+      }>('/api/obsidian/files/recent?limit=10')
+      if (response?.files) {
+        setRecentFiles(response.files)
+      }
+    } catch (err) {
+      logger.error('Error fetching recent files:', err)
+    }
+  }
+
+  // Handle sync recent (only new/pending files)
+  async function handleSyncRecent() {
+    try {
+      setSyncingRecent(true)
+      setObsidianSyncError(null)
+      setObsidianSyncSuccess(null)
+
+      await apiPost('/api/obsidian/sync/recent')
+
+      // Poll for completion
+      const pollInterval = setInterval(async () => {
+        const status = await checkObsidianStatusFn()
+        if (status?.sync_progress?.is_syncing) {
+          setObsidianSyncProgress({
+            synced: status.sync_progress.files_processed,
+            total: status.sync_progress.total_files,
+            current_file: status.sync_progress.current_file
+          })
+        } else {
+          clearInterval(pollInterval)
+          setSyncingRecent(false)
+          setObsidianSyncProgress(null)
+          setObsidianSyncSuccess('Recent files synced successfully!')
+          await fetchRecentFiles()
+          await loadDocuments(false)
+          setTimeout(() => setObsidianSyncSuccess(null), 5000)
+        }
+      }, 1000)
+    } catch (err) {
+      logger.error('Error syncing recent files:', err)
+      setSyncingRecent(false)
+      setObsidianSyncError(err instanceof Error ? err.message : 'Failed to sync recent files')
     }
   }
 
@@ -556,6 +617,7 @@ export default function KBDocumentsContent() {
     checkDriveStatus()
     checkNotionStatusFn()
     checkObsidianStatusFn()
+    fetchRecentFiles()
 
     // Intentionally run only on mount - including function dependencies would cause infinite re-fetch loops
   }, [])
@@ -1503,6 +1565,204 @@ export default function KBDocumentsContent() {
       {/* Documents Tab Content */}
       {activeTab === 'documents' && (
       <>
+      {/* Obsidian Vault Section - First so it's at the top */}
+      <div className={`card mb-3 ${obsidianExpanded && obsidianStatus?.connected ? 'p-6' : 'p-2'}`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 flex-1">
+            <button
+              onClick={() => setObsidianExpanded(!obsidianExpanded)}
+              className="text-secondary hover:text-primary transition-colors"
+            >
+              {obsidianExpanded ? (
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
+            <h3 className="heading-3">Vault</h3>
+          </div>
+          {obsidianStatus && !obsidianStatus.connected && obsidianExpanded && (
+            <span className="text-sm text-muted">Not configured - run watcher script to connect</span>
+          )}
+        </div>
+
+        {obsidianExpanded && obsidianStatus?.connected && (
+          <>
+            <div className="mt-4 space-y-3">
+              {/* Status and Actions */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm">
+                  <div className="text-purple-600 font-medium flex items-center gap-2">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                    {obsidianStatus.vault_name || 'Connected'}
+                  </div>
+                  <div className="text-xs text-muted mt-1">
+                    {obsidianStatus.document_count ?? 0} documents synced
+                    {(obsidianStatus.pending_changes ?? 0) > 0 && (
+                      <span className="text-amber-600 dark:text-amber-400 ml-1">
+                        ({obsidianStatus.pending_changes} pending)
+                      </span>
+                    )}
+                    {obsidianStatus.last_sync && (
+                      <> - Last sync: {formatLastSync(obsidianStatus.last_sync)}</>
+                    )}
+                  </div>
+                  {obsidianStatus.vault_path && (
+                    <div className="text-xs text-muted font-mono truncate max-w-md" title={obsidianStatus.vault_path}>
+                      {obsidianStatus.vault_path}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Sync Recent button - only show if there are unsynced files */}
+                  {(obsidianStatus.unsynced_count ?? 0) > 0 && !obsidianSyncing && !syncingRecent && (
+                    <button
+                      onClick={handleSyncRecent}
+                      className="btn-secondary text-sm"
+                    >
+                      Sync {obsidianStatus.unsynced_count} New
+                    </button>
+                  )}
+                  <button
+                    onClick={handleObsidianFullSync}
+                    disabled={obsidianSyncing || syncingRecent}
+                    className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {obsidianSyncing || syncingRecent ? 'Syncing...' : 'Full Resync'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Success Message */}
+            {obsidianSyncSuccess && (
+              <div className="mt-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-green-800 dark:text-green-200">{obsidianSyncSuccess}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {obsidianSyncError && (
+              <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-red-600 dark:text-red-400 font-bold">Error:</span>
+                  <span className="text-sm text-red-800 dark:text-red-200">{obsidianSyncError}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Syncing Progress */}
+            {(obsidianSyncing || syncingRecent) && (
+              <div className="mt-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <LoadingSpinner size="sm" />
+                    <span className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                      {obsidianSyncProgress
+                        ? `Syncing... ${obsidianSyncProgress.synced} of ${obsidianSyncProgress.total} files`
+                        : 'Starting sync...'}
+                    </span>
+                  </div>
+                  {obsidianSyncProgress && obsidianSyncProgress.total > 0 && (
+                    <span className="text-sm text-purple-600 dark:text-purple-300">
+                      {Math.round((obsidianSyncProgress.synced / obsidianSyncProgress.total) * 100)}%
+                    </span>
+                  )}
+                </div>
+                {obsidianSyncProgress && obsidianSyncProgress.total > 0 && (
+                  <div className="w-full bg-purple-200 dark:bg-purple-900 rounded-full h-2.5 mb-2">
+                    <div
+                      className="bg-purple-600 h-2.5 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.round((obsidianSyncProgress.synced / obsidianSyncProgress.total) * 100)}%` }}
+                    />
+                  </div>
+                )}
+                {obsidianSyncProgress?.current_file && (
+                  <div className="text-xs text-purple-600 dark:text-purple-400 truncate" title={obsidianSyncProgress.current_file}>
+                    {obsidianSyncProgress.current_file}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Recently Synced Files */}
+            {recentFiles.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-secondary mb-2">Recently Synced</h4>
+                <div className="space-y-1">
+                  {recentFiles.map((file) => (
+                    <div
+                      key={file.file_path}
+                      onClick={() => {
+                        // Find the document in our documents list and open info modal
+                        const doc = documents.find(d => d.id === file.document_id)
+                        if (doc) handleDocumentInfo(doc)
+                      }}
+                      className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm hover:bg-hover rounded cursor-pointer transition-colors group"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <svg className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span className="truncate text-secondary group-hover:text-primary">
+                          {file.file_path.split('/').pop()}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted flex-shrink-0">
+                        {formatLastSync(file.last_synced_at)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Vault Folder Structure - Nested Tree */}
+            {Object.keys(obsidianFolderTree.children).length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-secondary mb-2">Vault Structure</h4>
+                <div className="space-y-0.5">
+                  {/* Render root-level documents */}
+                  {obsidianFolderTree.documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      onClick={() => handleDocumentInfo(doc)}
+                      className="flex items-center gap-2 px-2 py-1 text-sm text-secondary hover:text-primary hover:bg-hover rounded cursor-pointer transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="truncate">{doc.filename}</span>
+                    </div>
+                  ))}
+                  {/* Render nested folders recursively */}
+                  {Object.values(obsidianFolderTree.children)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((folder) => (
+                      <FolderTreeItem
+                        key={folder.path}
+                        node={folder}
+                        depth={0}
+                        collapsedFolders={collapsedFolders}
+                        toggleFolderCollapse={toggleFolderCollapse}
+                        onDocumentClick={handleDocumentInfo}
+                      />
+                    ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {/* Google Drive Integration Section */}
       <div className={`card mb-3 ${driveExpanded && driveStatus?.connected ? 'p-6' : 'p-2'}`}>
         <div className="flex items-center justify-between gap-3">
@@ -1710,161 +1970,6 @@ export default function KBDocumentsContent() {
           </div>
         )}
         </>
-        )}
-      </div>
-
-      {/* Obsidian Vault Section */}
-      <div className={`card mb-3 ${obsidianExpanded && obsidianStatus?.connected ? 'p-6' : 'p-2'}`}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 flex-1">
-            <button
-              onClick={() => setObsidianExpanded(!obsidianExpanded)}
-              className="text-secondary hover:text-primary transition-colors"
-            >
-              {obsidianExpanded ? (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                </svg>
-              )}
-            </button>
-            <h3 className="heading-3">Vault</h3>
-          </div>
-          {obsidianStatus && !obsidianStatus.connected && obsidianExpanded && (
-            <span className="text-sm text-muted">Not configured - run watcher script to connect</span>
-          )}
-        </div>
-
-        {obsidianExpanded && obsidianStatus?.connected && (
-          <>
-            <div className="mt-4 space-y-3">
-              {/* Status and Actions */}
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm">
-                  <div className="text-purple-600 font-medium flex items-center gap-2">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-                    </svg>
-                    {obsidianStatus.vault_name || 'Connected'}
-                  </div>
-                  <div className="text-xs text-muted mt-1">
-                    {obsidianStatus.document_count ?? 0} documents synced
-                    {(obsidianStatus.pending_changes ?? 0) > 0 && (
-                      <span className="text-amber-600 dark:text-amber-400 ml-1">
-                        ({obsidianStatus.pending_changes} pending)
-                      </span>
-                    )}
-                    {obsidianStatus.last_sync && (
-                      <> - Last sync: {formatLastSync(obsidianStatus.last_sync)}</>
-                    )}
-                  </div>
-                  {obsidianStatus.vault_path && (
-                    <div className="text-xs text-muted font-mono truncate max-w-md" title={obsidianStatus.vault_path}>
-                      {obsidianStatus.vault_path}
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={handleObsidianFullSync}
-                  disabled={obsidianSyncing}
-                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {obsidianSyncing ? 'Syncing...' : 'Full Resync'}
-                </button>
-              </div>
-            </div>
-
-            {/* Success Message */}
-            {obsidianSyncSuccess && (
-              <div className="mt-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-green-800 dark:text-green-200">{obsidianSyncSuccess}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Error Message */}
-            {obsidianSyncError && (
-              <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-red-600 dark:text-red-400 font-bold">Error:</span>
-                  <span className="text-sm text-red-800 dark:text-red-200">{obsidianSyncError}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Syncing Progress */}
-            {obsidianSyncing && (
-              <div className="mt-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2">
-                    <LoadingSpinner size="sm" />
-                    <span className="text-sm font-medium text-purple-800 dark:text-purple-200">
-                      {obsidianSyncProgress
-                        ? `Syncing... ${obsidianSyncProgress.synced} of ${obsidianSyncProgress.total} files`
-                        : 'Starting sync...'}
-                    </span>
-                  </div>
-                  {obsidianSyncProgress && obsidianSyncProgress.total > 0 && (
-                    <span className="text-sm text-purple-600 dark:text-purple-300">
-                      {Math.round((obsidianSyncProgress.synced / obsidianSyncProgress.total) * 100)}%
-                    </span>
-                  )}
-                </div>
-                {obsidianSyncProgress && obsidianSyncProgress.total > 0 && (
-                  <div className="w-full bg-purple-200 dark:bg-purple-900 rounded-full h-2.5 mb-2">
-                    <div
-                      className="bg-purple-600 h-2.5 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.round((obsidianSyncProgress.synced / obsidianSyncProgress.total) * 100)}%` }}
-                    />
-                  </div>
-                )}
-                {obsidianSyncProgress?.current_file && (
-                  <div className="text-xs text-purple-600 dark:text-purple-400 truncate" title={obsidianSyncProgress.current_file}>
-                    {obsidianSyncProgress.current_file}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Vault Folder Structure - Nested Tree */}
-            {Object.keys(obsidianFolderTree.children).length > 0 && (
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-secondary mb-2">Vault Structure</h4>
-                <div className="space-y-0.5">
-                  {/* Render root-level documents */}
-                  {obsidianFolderTree.documents.map((doc) => (
-                    <div
-                      key={doc.id}
-                      onClick={() => handleDocumentInfo(doc)}
-                      className="flex items-center gap-2 px-2 py-1 text-sm text-secondary hover:text-primary hover:bg-hover rounded cursor-pointer transition-colors"
-                    >
-                      <svg className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <span className="truncate">{doc.filename}</span>
-                    </div>
-                  ))}
-                  {/* Render nested folders recursively */}
-                  {Object.values(obsidianFolderTree.children)
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((folder) => (
-                      <FolderTreeItem
-                        key={folder.path}
-                        node={folder}
-                        depth={0}
-                        collapsedFolders={collapsedFolders}
-                        toggleFolderCollapse={toggleFolderCollapse}
-                        onDocumentClick={handleDocumentInfo}
-                      />
-                    ))}
-                </div>
-              </div>
-            )}
-          </>
         )}
       </div>
 

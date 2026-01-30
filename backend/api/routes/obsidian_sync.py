@@ -245,6 +245,58 @@ async def trigger_obsidian_sync(
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
+@router.post("/sync/recent")
+async def trigger_recent_sync(
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Sync only new/pending/failed files (skip already synced files).
+
+    This is faster than a full sync when you just want to pick up new files
+    without re-processing files that haven't changed.
+    """
+    try:
+        config = await asyncio.to_thread(
+            get_vault_config,
+            current_user['id']
+        )
+
+        if not config:
+            raise HTTPException(
+                status_code=404,
+                detail="No Obsidian vault configured. Please configure a vault first."
+            )
+
+        if not config.get('is_active'):
+            raise HTTPException(
+                status_code=400,
+                detail="Vault sync is not active. Please reconfigure the vault."
+            )
+
+        # Run sync in background with recent_only=True
+        background_tasks.add_task(
+            sync_vault,
+            config,
+            'manual',
+            True  # recent_only
+        )
+
+        return {
+            'success': True,
+            'message': f"Recent sync started for vault '{config['vault_name']}' in background",
+            'vault_path': config['vault_path']
+        }
+
+    except HTTPException:
+        raise
+    except ObsidianSyncError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Recent sync error: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
 @router.post("/sync/full")
 async def trigger_full_sync(
     background_tasks: BackgroundTasks,
@@ -442,6 +494,53 @@ async def get_synced_files(
 
     except Exception as e:
         logger.error(f"Get files error: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+@router.get("/files/recent")
+async def get_recent_synced_files(
+    current_user: dict = Depends(get_current_user),
+    limit: int = 10
+):
+    """
+    Get most recently synced files, ordered by last_synced_at DESC.
+
+    Returns files that have been successfully synced, useful for showing
+    recent activity in the UI.
+    """
+    try:
+        config = await asyncio.to_thread(
+            get_vault_config,
+            current_user['id']
+        )
+
+        if not config:
+            return {
+                'success': True,
+                'files': [],
+                'count': 0,
+                'message': 'No vault configured'
+            }
+
+        result = await asyncio.to_thread(
+            lambda: _get_db().table('obsidian_sync_state')
+                .select('file_path, document_id, last_synced_at')
+                .eq('config_id', config['id'])
+                .eq('sync_status', 'synced')
+                .not_.is_('last_synced_at', 'null')
+                .order('last_synced_at', desc=True)
+                .limit(limit)
+                .execute()
+        )
+
+        return {
+            'success': True,
+            'files': result.data,
+            'count': len(result.data)
+        }
+
+    except Exception as e:
+        logger.error(f"Get recent files error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
