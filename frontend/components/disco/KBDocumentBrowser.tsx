@@ -169,7 +169,7 @@ export default function KBDocumentBrowser({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-6xl max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
           <div>
@@ -311,7 +311,7 @@ export default function KBDocumentBrowser({
           </div>
 
           {/* Preview Panel */}
-          <div className="w-80 flex-shrink-0 overflow-y-auto bg-slate-50 dark:bg-slate-900/50">
+          <div className="w-96 flex-shrink-0 overflow-y-auto bg-slate-50 dark:bg-slate-900/50">
             {previewDoc ? (
               <div className="p-4">
                 <h3 className="text-sm font-medium text-slate-900 dark:text-white mb-3">

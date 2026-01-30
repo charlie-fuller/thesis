@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/entity_corrections.py
+# hypothesis_version: 6.151.0
+
+[400, 500, '/batch-apply', '/entity-corrections', '/history', 'Client ID required', 'Entity Corrections', 'ai_opportunities', 'client_id', 'corrected_by', 'corrected_value', 'correction_context', 'created_at', 'department', 'entity_type', 'id', 'message', 'name', 'organization', 'original_value', 'person', 'source_candidate_id', 'source_document_id', 'stakeholders', 'success', 'updated_count']

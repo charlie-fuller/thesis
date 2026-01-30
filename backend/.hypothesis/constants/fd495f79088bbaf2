@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/project_kb_sync.py
+# hypothesis_version: 6.151.3
+
+[0.0, 0.2, 0.35, 1.0, 'ai_projects', 'client_id', 'content', 'current_state', 'department', 'description', 'desired_state', 'document_chunks', 'document_id', 'documents', 'error', 'errors', 'id', 'message', 'projects', 'projects_checked', 'projects_updated', 'relevance', 'title']

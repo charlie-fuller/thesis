@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/opportunity_context.py
+# hypothesis_version: 6.151.0
+
+[0.0, 0.25, 0.3, 500, 'ROI Potential', 'Strategic Alignment', 'Unknown Document', 'blockers', 'chunk_id', 'content', 'cost_savings_annual', 'current_state', 'department', 'description', 'desired_state', 'document_id', 'document_name', 'filename', 'hours_saved_weekly', 'id', 'metadata', 'name', 'next_step', 'page_number', 'relevance_score', 'roi_indicators', 'roi_potential', 'search_terms', 'similarity', 'snippet', 'source_type', 'storage_path', 'strategic_alignment', 'time_savings_percent', 'title']

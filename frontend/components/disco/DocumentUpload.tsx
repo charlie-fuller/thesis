@@ -8,9 +8,10 @@ interface DocumentUploadProps {
   initiativeId: string
   initiativeName?: string
   onUploaded: (document: any) => void
+  onDocumentsLinked?: () => void
 }
 
-export default function DocumentUpload({ initiativeId, initiativeName = 'Initiative', onUploaded }: DocumentUploadProps) {
+export default function DocumentUpload({ initiativeId, initiativeName = 'Initiative', onUploaded, onDocumentsLinked }: DocumentUploadProps) {
   const [kbBrowserOpen, setKbBrowserOpen] = useState(false)
 
   return (
@@ -39,11 +40,11 @@ export default function DocumentUpload({ initiativeId, initiativeName = 'Initiat
         initiativeName={initiativeName}
         isOpen={kbBrowserOpen}
         onClose={() => setKbBrowserOpen(false)}
-        onLinked={(docIds) => {
-          // Notify parent of linked documents
-          docIds.forEach(docId => {
-            onUploaded({ id: docId, source: 'kb_linked' })
-          })
+        onLinked={() => {
+          // Refresh the documents list after linking
+          if (onDocumentsLinked) {
+            onDocumentsLinked()
+          }
         }}
       />
     </div>

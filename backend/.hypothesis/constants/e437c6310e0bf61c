@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/users.py
+# hypothesis_version: 6.151.0
+
+[100, 400, 403, 404, 500, 1000, 1024, 524288000, '*', '.', '/api/users', '/me/documents', '/me/storage', '/{user_id}', '/{user_id}/avatar', 'No fields to update', 'Not authorized', 'User not found', 'admin', 'avatar_url', 'avatars', 'client_id', 'content-type', 'count', 'created_at', 'document_id', 'document_tags', 'documents', 'email', 'email_confirm', 'file_size', 'gif', 'id', 'image/gif', 'image/jpeg', 'image/png', 'image/webp', 'jpeg', 'jpg', 'message', 'name', 'password', 'png', 'role', 'source', 'storage_available', 'storage_quota', 'storage_used', 'success', 'tag', 'tags', 'temporary_password', 'true', 'uploaded_at', 'uploaded_by', 'upsert', 'usage_percentage', 'user', 'user_id', 'users', 'webp']

@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/config/constants.py
+# hypothesis_version: 6.151.3
+
+[0.0, 0.02, 0.1, 0.25, 0.3, 0.75, 0.8, 0.85, 100, 200, 500, 600, 800, 1024, '10/minute', '100/minute', '20/minute', '30/minute', 'BACKEND_URL', 'DATABASE', 'DEDUPLICATION', 'DatabaseConfig', 'DeduplicationConfig', 'EMBEDDING', 'EmbeddingConfig', 'FILE_LIMITS', 'FRONTEND_URL', 'FileLimits', 'GOOGLE_DRIVE_SCOPES', 'MIME_TYPES', 'OAUTH', 'OAUTH_ERROR_PATHS', 'OAUTH_SUCCESS_PATHS', 'OAuthConfig', 'RATE_LIMITS', 'REDIRECTS', 'RateLimits', 'RedirectConfig', 'SEARCH', 'SearchConfig', 'TEXT_CHUNKING', 'TextChunkingConfig', 'application/msword', 'application/pdf', 'application/rtf', 'csv', 'default', 'doc', 'document', 'document_reference', 'docx', 'exploratory', 'factual', 'google_drive', 'md', 'notion', 'pdf', 'ppt', 'pptx', 'query', 'rtf', 'text/csv', 'text/markdown', 'text/plain', 'txt', 'voyage-3', 'xls', 'xlsx']

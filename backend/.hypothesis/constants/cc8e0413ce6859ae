@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/discovery.py
+# hypothesis_version: 6.151.3
+
+[100, '*', '...', '/all', '/api/discovery', '/counts', 'assignee_name', 'client_id', 'confidence', 'counts', 'created_at', 'department', 'description', 'discovery', 'exact', 'id', 'initial_sentiment', 'match_reason', 'matched_project_id', 'medium', 'name', 'next_document', 'opportunities', 'pending', 'pending_files', 'project_candidates', 'projects', 'role', 'scanning', 'source_document_name', 'stakeholders', 'status', 'suggested_alignment', 'suggested_due_date', 'suggested_effort', 'suggested_readiness', 'task_candidates', 'tasks', 'team', 'title', 'total']

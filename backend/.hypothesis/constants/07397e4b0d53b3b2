@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/obsidian_sync.py
+# hypothesis_version: 6.151.3
+
+[100, 400, 404, 500, '*', '/api/obsidian', '/configure', '/disconnect', '/files', '/files/pending', '/settings', '/status', '/sync', '/sync-history', '/sync/full', 'No vault configured', 'User not found', 'client_id', 'config_id', 'count', 'failed', 'failed_count', 'file_path', 'files', 'history', 'id', 'is_active', 'manual', 'message', 'obsidian', 'obsidian_sync_log', 'obsidian_sync_state', 'pending', 'pending_count', 'started_at', 'success', 'sync_options', 'sync_status', 'updated_at', 'users', 'vault_name', 'vault_path']

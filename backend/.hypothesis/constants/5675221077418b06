@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/notion.py
+# hypothesis_version: 6.151.0
+
+[200, 400, 404, 500, '*', '/api/notion', '/auth', '/callback', '/disconnect', '/pages', '/status', '/sync', '/sync-history', '/sync-settings', 'FRONTEND_URL', 'Invalid state', 'NOTION_CLIENT_ID', 'NOTION_CLIENT_SECRET', 'NOTION_REDIRECT_URI', 'Notion disconnected', 'access_token', 'authorization_code', 'authorization_url', 'code', 'default_page_ids', 'grant_type', 'history', 'id', 'is_active', 'message', 'notion', 'notion_sync_log', 'notion_tokens', 'oauth_states', 'pages', 'provider', 'redirect_uri', 'settings', 'started_at', 'state', 'success', 'sync_frequency', 'user_id', 'workspace_id', 'workspace_name']

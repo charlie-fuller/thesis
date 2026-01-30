@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/opportunity_chat.py
+# hypothesis_version: 6.151.0
+
+[0.25, 200, 2048, 'ANTHROPIC_API_KEY', 'ai_opportunities', 'client_id', 'content', 'created_at', 'document_id', 'document_name', 'id', 'name', 'opportunity_id', 'owner_name', 'question', 'relevance_score', 'response', 'role', 'snippet', 'source_documents', 'sources', 'stakeholders', 'user', 'user_id']

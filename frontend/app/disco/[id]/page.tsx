@@ -436,7 +436,9 @@ export default function InitiativeDetailPage() {
             {canEdit && (
               <DocumentUpload
                 initiativeId={initiativeId}
+                initiativeName={initiative?.name}
                 onUploaded={handleDocumentUploaded}
+                onDocumentsLinked={loadDocuments}
               />
             )}
             <DocumentList

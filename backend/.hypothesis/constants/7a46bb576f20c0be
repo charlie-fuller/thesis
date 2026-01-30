@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/compass.py
+# hypothesis_version: 6.151.0
+
+[401, 404, 500, '/api/compass', '/rubric', '/status-reports', 'Report not found', 'client_id', 'compass', 'description', 'dimensions', 'id', 'key', 'levels', 'name', 'weight']

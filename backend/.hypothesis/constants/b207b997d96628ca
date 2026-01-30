@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/opportunity_kb_sync.py
+# hypothesis_version: 6.151.0
+
+[0.0, 0.2, 0.35, 1.0, 'ai_opportunities', 'client_id', 'content', 'current_state', 'department', 'description', 'desired_state', 'document_chunks', 'document_id', 'documents', 'error', 'errors', 'id', 'message', 'opportunities', 'relevance', 'title']
