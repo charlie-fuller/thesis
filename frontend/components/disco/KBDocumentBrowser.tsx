@@ -191,8 +191,8 @@ export default function KBDocumentBrowser({
         {/* Search and Filter */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-start gap-4">
-            {/* Text Search - 50% width */}
-            <div className="relative w-1/2">
+            {/* Text Search - 60% width */}
+            <div className="relative w-3/5">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
@@ -203,8 +203,8 @@ export default function KBDocumentBrowser({
               />
             </div>
 
-            {/* Tag Filter - 60% width */}
-            <div className="flex-1">
+            {/* Tag Filter - 40% width */}
+            <div className="w-2/5">
               <TagSelector
                 selectedTags={selectedTagsFilter}
                 onTagsChange={setSelectedTagsFilter}
