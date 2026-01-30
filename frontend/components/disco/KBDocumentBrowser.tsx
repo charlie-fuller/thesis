@@ -236,6 +236,8 @@ export default function KBDocumentBrowser({
                     key={doc.id}
                     className={`flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${
                       selectedDocs.has(doc.id) ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
+                    } ${
+                      previewDoc === doc.id ? 'border-r-4 border-r-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20' : ''
                     }`}
                   >
                     <button
