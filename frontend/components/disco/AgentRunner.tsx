@@ -84,7 +84,9 @@ function MermaidDiagram({ chart }: { chart: string }) {
 interface Document {
   id: string
   filename: string
-  document_type: string
+  title?: string | null
+  document_type?: string
+  source_platform?: string
 }
 
 interface AgentType {
