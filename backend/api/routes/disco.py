@@ -514,9 +514,11 @@ async def api_link_kb_documents(
         linked_documents = []
         errors = []
 
+        logger.info(f"[DISCO] Linking {len(data.document_ids)} documents to initiative {initiative_id}")
+
         for doc_id in data.document_ids:
             try:
-                # Verify document exists and user owns it
+                # Verify document exists
                 doc_result = await asyncio.to_thread(
                     lambda d=doc_id: supabase.table('documents')
                         .select('id, filename, title, uploaded_by')
@@ -526,15 +528,17 @@ async def api_link_kb_documents(
                 )
 
                 if not doc_result.data:
+                    logger.warning(f"[DISCO] Document {doc_id} not found")
                     errors.append({'document_id': doc_id, 'error': 'Document not found'})
                     continue
 
-                if doc_result.data['uploaded_by'] != user_id:
-                    errors.append({'document_id': doc_id, 'error': 'Not authorized'})
-                    continue
+                # Log ownership for debugging but allow any KB document to be linked
+                doc_owner = doc_result.data.get('uploaded_by')
+                if doc_owner != user_id:
+                    logger.info(f"[DISCO] User {user_id} linking document {doc_id} owned by {doc_owner}")
 
                 # Create link in junction table (upsert to handle duplicates)
-                await asyncio.to_thread(
+                link_result = await asyncio.to_thread(
                     lambda d=doc_id: supabase.table('disco_initiative_documents')
                         .upsert({
                             'initiative_id': initiative_id,
@@ -543,6 +547,9 @@ async def api_link_kb_documents(
                         }, on_conflict='initiative_id,document_id')
                         .execute()
                 )
+
+                if not link_result.data:
+                    logger.warning(f"[DISCO] Failed to create link for document {doc_id}")
 
                 # Auto-tag document with initiative name
                 await asyncio.to_thread(
@@ -560,11 +567,13 @@ async def api_link_kb_documents(
                     'filename': doc_result.data.get('filename'),
                     'title': doc_result.data.get('title')
                 })
+                logger.debug(f"[DISCO] Successfully linked document {doc_id}")
 
             except Exception as e:
+                logger.error(f"[DISCO] Error linking document {doc_id}: {e}")
                 errors.append({'document_id': doc_id, 'error': str(e)})
 
-        logger.info(f"[DISCO] Linked {len(linked_documents)} KB docs to initiative {initiative_id}")
+        logger.info(f"[DISCO] Linked {len(linked_documents)} of {len(data.document_ids)} docs to initiative {initiative_id}")
 
         return {
             'success': True,
@@ -593,25 +602,59 @@ async def api_get_linked_kb_documents(
     await require_initiative_access(initiative_id, current_user, 'viewer')
 
     try:
-        # Get linked document IDs with document details
-        result = await asyncio.to_thread(
+        # Step 1: Get linked document IDs from junction table
+        links_result = await asyncio.to_thread(
             lambda: supabase.table('disco_initiative_documents')
-                .select('document_id, linked_at, linked_by, documents(id, filename, title, uploaded_at, source_platform)')
+                .select('document_id, linked_at, linked_by')
                 .eq('initiative_id', initiative_id)
                 .order('linked_at', desc=True)
                 .execute()
         )
 
+        links = links_result.data or []
+        if not links:
+            return {
+                'success': True,
+                'documents': [],
+                'count': 0
+            }
+
+        # Step 2: Get document details for all linked IDs
+        doc_ids = [link['document_id'] for link in links]
+        docs_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, filename, title, uploaded_at, source_platform')
+                .in_('id', doc_ids)
+                .execute()
+        )
+
+        # Build a lookup map for documents
+        docs_map = {doc['id']: doc for doc in (docs_result.data or [])}
+
+        # Step 3: Combine link info with document info
         linked_documents = []
-        for link in (result.data or []):
-            if link.get('documents'):
-                doc = link['documents']
+        for link in links:
+            doc_id = link['document_id']
+            doc = docs_map.get(doc_id)
+            if doc:
                 linked_documents.append({
                     'id': doc['id'],
-                    'filename': doc['filename'],
+                    'filename': doc.get('filename') or 'Unknown',
                     'title': doc.get('title'),
                     'uploaded_at': doc.get('uploaded_at'),
                     'source_platform': doc.get('source_platform'),
+                    'linked_at': link['linked_at'],
+                    'linked_by': link['linked_by']
+                })
+            else:
+                # Document was deleted but link remains - include with warning
+                logger.warning(f"[DISCO] Linked document {doc_id} not found (may have been deleted)")
+                linked_documents.append({
+                    'id': doc_id,
+                    'filename': '[Document deleted]',
+                    'title': None,
+                    'uploaded_at': link['linked_at'],  # Use linked_at as fallback
+                    'source_platform': None,
                     'linked_at': link['linked_at'],
                     'linked_by': link['linked_by']
                 })
@@ -624,6 +667,8 @@ async def api_get_linked_kb_documents(
 
     except Exception as e:
         logger.error(f"Error getting linked KB documents: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
