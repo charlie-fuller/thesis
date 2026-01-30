@@ -217,8 +217,8 @@ export default function KBDocumentBrowser({
 
         {/* Content - Split View */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Document List - 50% width */}
-          <div className="w-1/2 overflow-y-auto border-r border-slate-200 dark:border-slate-700">
+          {/* Document List - 40% width */}
+          <div className="w-2/5 overflow-y-auto border-r border-slate-200 dark:border-slate-700">
             {loading && documents.length === 0 ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
@@ -312,8 +312,8 @@ export default function KBDocumentBrowser({
             )}
           </div>
 
-          {/* Preview Panel - 50% width */}
-          <div className="w-1/2 overflow-y-auto bg-slate-50 dark:bg-slate-900/50">
+          {/* Preview Panel - 60% width */}
+          <div className="w-3/5 overflow-y-auto bg-slate-50 dark:bg-slate-900/50">
             {previewDoc ? (
               <div className="p-4">
                 <h3 className="text-sm font-medium text-slate-900 dark:text-white mb-3">
