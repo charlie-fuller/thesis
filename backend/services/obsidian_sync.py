@@ -56,6 +56,7 @@ DEFAULT_SYNC_OPTIONS = {
         "**/*.pdf",
         "**/*.docx",
         "**/*.txt",
+        "**/*.rtf",
         # Presentations
         "**/*.pptx",
         # Spreadsheets
@@ -128,7 +129,9 @@ DATE_PATTERNS = [
     (re.compile(r'(\d{1,2})/(\d{1,2})/(\d{2,4})'), 'mdy'),
     # US format with dashes: 01-15-2024, 1-15-24
     (re.compile(r'(\d{1,2})-(\d{1,2})-(\d{2,4})'), 'mdy'),
-    # Month.Day: 1.15, 01.15 (assumes current year)
+    # US format with dots: 05.29.25, 01.15.2024 (MM.DD.YY or MM.DD.YYYY)
+    (re.compile(r'(\d{1,2})\.(\d{1,2})\.(\d{2,4})'), 'mdy'),
+    # Month.Day only: 1.15, 01.15 (assumes current year - must come AFTER three-part patterns)
     (re.compile(r'\b(\d{1,2})\.(\d{1,2})\b'), 'md'),
     # Written: January 15, 2024 or Jan 15, 2024
     (re.compile(r'(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})(?:,?\s+(\d{4}))?', re.IGNORECASE), 'written'),
@@ -1106,7 +1109,8 @@ def sync_file(
     logger.info(f"   Syncing: {relative_path}")
 
     # Determine if file is binary based on extension
-    binary_extensions = {'.pdf', '.docx', '.xlsx', '.pptx'}
+    # RTF is text-based but needs special processing to extract plain text
+    binary_extensions = {'.pdf', '.docx', '.xlsx', '.pptx', '.rtf'}
     text_extensions = {'.md', '.txt'}
     file_ext = file_path.suffix.lower()
     is_binary = file_ext in binary_extensions
@@ -2054,9 +2058,7 @@ class ObsidianVaultWatcher:
         """
         file_path = Path(src_path)
 
-        # Skip non-markdown files and excluded paths
-        if not file_path.suffix == '.md':
-            return
+        # Skip files that don't match include patterns or are excluded
         if not self._should_process(file_path):
             return
 

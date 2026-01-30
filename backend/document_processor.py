@@ -214,12 +214,32 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
         except UnicodeDecodeError as e:
             raise ValueError(f"Failed to decode text file: {str(e)}")
 
+    elif file_ext == 'rtf':
+        # Extract text from RTF file
+        try:
+            from striprtf.striprtf import rtf_to_text
+        except ImportError:
+            raise ValueError("RTF support not available - install striprtf: pip install striprtf")
+
+        try:
+            # RTF files are text-based, decode first
+            rtf_content = file_data.decode('utf-8', errors='replace')
+            text = rtf_to_text(rtf_content)
+            if not text.strip():
+                raise ValueError("RTF document appears to be empty")
+            return text
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(f"❌ Error extracting text from .rtf file: {str(e)}")
+            raise ValueError(f"Failed to extract text from RTF document: {str(e)}")
+
     else:
         # Try to decode as text (fallback)
         try:
             return file_data.decode('utf-8')
         except UnicodeDecodeError:
-            raise ValueError(f"Unsupported file type: .{file_ext}. Supported formats: .pdf, .txt, .docx, .xlsx, .pptx")
+            raise ValueError(f"Unsupported file type: .{file_ext}. Supported formats: .pdf, .txt, .docx, .xlsx, .pptx, .rtf")
 
 
 def chunk_text(
