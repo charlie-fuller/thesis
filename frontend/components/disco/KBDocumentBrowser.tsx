@@ -189,26 +189,30 @@ export default function KBDocumentBrowser({
         </div>
 
         {/* Search and Filter */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 space-y-3">
-          {/* Text Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by filename or title..."
-              className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <div className="flex items-start gap-4">
+            {/* Text Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by filename or title..."
+                className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
 
-          {/* Tag Filter */}
-          <TagSelector
-            selectedTags={selectedTagsFilter}
-            onTagsChange={setSelectedTagsFilter}
-            placeholder="Filter by tags..."
-            showInitiatives={true}
-          />
+            {/* Tag Filter - Right side */}
+            <div className="w-64 flex-shrink-0">
+              <TagSelector
+                selectedTags={selectedTagsFilter}
+                onTagsChange={setSelectedTagsFilter}
+                placeholder="Filter by tags..."
+                showInitiatives={true}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Content - Split View */}
