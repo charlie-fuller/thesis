@@ -229,6 +229,48 @@ async def api_create_initiative(
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
+@router.get("/initiatives/as-tags")
+async def api_get_initiatives_as_tags(
+    current_user: dict = Depends(require_disco_access)
+):
+    """Get all initiatives formatted as tag options.
+
+    Used by TagSelector component when showInitiatives=true.
+    Returns initiative names sorted alphabetically.
+    """
+    try:
+        user_id = current_user['id']
+
+        # Get initiatives the user has access to
+        result = await list_initiatives(
+            user_id=user_id,
+            limit=500  # Get all
+        )
+
+        initiatives = result.get('initiatives', [])
+
+        # Format as tag options, sorted alphabetically
+        tags = sorted([
+            {
+                'tag': init['name'],
+                'count': 0,  # Initiatives don't have document counts here
+                'type': 'initiative',
+                'initiative_id': init['id'],
+                'status': init.get('status', 'active')
+            }
+            for init in initiatives
+        ], key=lambda x: x['tag'].lower())
+
+        return {
+            'success': True,
+            'tags': tags
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting initiatives as tags: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
 @router.get("/initiatives/{initiative_id}")
 async def api_get_initiative(
     initiative_id: str,
@@ -616,48 +658,6 @@ async def api_unlink_kb_document(
 
     except Exception as e:
         logger.error(f"Error unlinking document: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
-
-
-@router.get("/initiatives/as-tags")
-async def api_get_initiatives_as_tags(
-    current_user: dict = Depends(require_disco_access)
-):
-    """Get all initiatives formatted as tag options.
-
-    Used by TagSelector component when showInitiatives=true.
-    Returns initiative names sorted alphabetically.
-    """
-    try:
-        user_id = current_user['id']
-
-        # Get initiatives the user has access to
-        result = await list_initiatives(
-            user_id=user_id,
-            limit=500  # Get all
-        )
-
-        initiatives = result.get('initiatives', [])
-
-        # Format as tag options, sorted alphabetically
-        tags = sorted([
-            {
-                'tag': init['name'],
-                'count': 0,  # Initiatives don't have document counts here
-                'type': 'initiative',
-                'initiative_id': init['id'],
-                'status': init.get('status', 'active')
-            }
-            for init in initiatives
-        ], key=lambda x: x['tag'].lower())
-
-        return {
-            'success': True,
-            'tags': tags
-        }
-
-    except Exception as e:
-        logger.error(f"Error getting initiatives as tags: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
