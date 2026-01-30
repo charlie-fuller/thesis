@@ -199,7 +199,7 @@ export default function KBDocumentBrowser({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by filename or title..."
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full pl-10 pr-4 py-2 border border-default rounded-lg bg-card text-primary placeholder:text-muted focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               />
             </div>
 
