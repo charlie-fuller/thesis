@@ -526,13 +526,15 @@ async def get_recent_synced_files(
         # then join with sync_state to get file paths for Obsidian vault files.
         # This ensures we see recently updated documents regardless of when they were synced.
 
-        # First, get document IDs linked to this vault's sync state (limited sample)
+        # First, get document IDs linked to this vault's sync state
+        # Order by last_synced_at DESC to prioritize recently synced files
         sync_result = await asyncio.to_thread(
             lambda: _get_db().table('obsidian_sync_state')
                 .select('file_path, document_id, last_synced_at')
                 .eq('config_id', config['id'])
                 .eq('sync_status', 'synced')
                 .not_.is_('document_id', 'null')
+                .order('last_synced_at', desc=True)
                 .limit(500)  # Limit to avoid query size issues
                 .execute()
         )
