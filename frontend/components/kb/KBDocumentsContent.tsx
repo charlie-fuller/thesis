@@ -119,6 +119,7 @@ export default function KBDocumentsContent() {
     file_path: string
     document_id: string
     last_synced_at: string
+    original_date?: string
   }
   const [obsidianStatus, setObsidianStatus] = useState<ObsidianStatus | null>(null)
   const [obsidianExpanded, setObsidianExpanded] = useState<boolean>(true)
@@ -1693,10 +1694,10 @@ export default function KBDocumentsContent() {
               </div>
             )}
 
-            {/* Recently Synced Files */}
+            {/* Recent Documents (by document date) */}
             {recentFiles.length > 0 && (
               <div className="mt-4">
-                <h4 className="text-sm font-medium text-secondary mb-2">Recently Synced</h4>
+                <h4 className="text-sm font-medium text-secondary mb-2">Recent Documents</h4>
                 <div className="space-y-1">
                   {recentFiles.map((file) => (
                     <div
@@ -1717,7 +1718,9 @@ export default function KBDocumentsContent() {
                         </span>
                       </div>
                       <span className="text-xs text-muted flex-shrink-0">
-                        {formatLastSync(file.last_synced_at)}
+                        {file.original_date
+                          ? new Date(file.original_date).toLocaleDateString()
+                          : formatLastSync(file.last_synced_at)}
                       </span>
                     </div>
                   ))}

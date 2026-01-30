@@ -503,10 +503,10 @@ async def get_recent_synced_files(
     limit: int = 10
 ):
     """
-    Get most recently synced files, ordered by last_synced_at DESC.
+    Get most recent documents from the vault, ordered by original_date DESC.
 
-    Returns files that have been successfully synced, useful for showing
-    recent activity in the UI.
+    Returns synced documents ordered by their actual document date (e.g., meeting date),
+    falling back to last_synced_at for documents without an original_date.
     """
     try:
         config = await asyncio.to_thread(
@@ -522,21 +522,100 @@ async def get_recent_synced_files(
                 'message': 'No vault configured'
             }
 
-        result = await asyncio.to_thread(
+        # Strategy: Query documents first (ordered by updated_at DESC) to get recent activity,
+        # then join with sync_state to get file paths for Obsidian vault files.
+        # This ensures we see recently updated documents regardless of when they were synced.
+
+        # First, get document IDs linked to this vault's sync state (limited sample)
+        sync_result = await asyncio.to_thread(
             lambda: _get_db().table('obsidian_sync_state')
                 .select('file_path, document_id, last_synced_at')
                 .eq('config_id', config['id'])
                 .eq('sync_status', 'synced')
-                .not_.is_('last_synced_at', 'null')
-                .order('last_synced_at', desc=True)
-                .limit(limit)
+                .not_.is_('document_id', 'null')
+                .limit(500)  # Limit to avoid query size issues
                 .execute()
         )
 
+        if not sync_result.data:
+            return {
+                'success': True,
+                'files': [],
+                'count': 0
+            }
+
+        # Build lookup from document_id to sync info
+        sync_info = {s['document_id']: {
+            'file_path': s['file_path'],
+            'last_synced_at': s['last_synced_at']
+        } for s in sync_result.data if s.get('document_id')}
+
+        doc_ids = list(sync_info.keys())
+        if not doc_ids:
+            return {
+                'success': True,
+                'files': [],
+                'count': 0
+            }
+
+        # Get documents ordered by updated_at DESC to find most recently active
+        docs_result = await asyncio.to_thread(
+            lambda: _get_db().table('documents')
+                .select('id, original_date, updated_at')
+                .in_('id', doc_ids)
+                .order('updated_at', desc=True)
+                .limit(100)  # Get top 100 most recently updated vault docs
+                .execute()
+        )
+        doc_info = {d['id']: {
+            'original_date': d.get('original_date'),
+            'updated_at': d.get('updated_at')
+        } for d in docs_result.data}
+
+        # Get today's date for validation
+        from datetime import date
+        today = date.today().isoformat()
+
+        # Merge documents with sync info and sort by best available date DESC
+        files_with_dates = []
+        for doc in docs_result.data:
+            doc_id = doc['id']
+            sync = sync_info.get(doc_id, {})
+            orig_date = doc.get('original_date')
+            updated_at = doc.get('updated_at')
+
+            # Validate original_date - ignore future dates (data quality issue)
+            valid_orig_date = orig_date if orig_date and orig_date <= today else None
+
+            # Use valid original_date if available, otherwise updated_at, then last_synced_at
+            sort_date = valid_orig_date or (updated_at[:10] if updated_at else None) or (sync.get('last_synced_at', '')[:10] if sync.get('last_synced_at') else '')
+            files_with_dates.append({
+                'file_path': sync.get('file_path', ''),
+                'document_id': doc_id,
+                'last_synced_at': sync.get('last_synced_at'),
+                'original_date': orig_date,
+                'updated_at': updated_at,
+                '_sort_date': sort_date
+            })
+
+        # Sort by the best available date, newest first
+        files_with_dates.sort(key=lambda x: x['_sort_date'] or '', reverse=True)
+
+        # Remove internal sort field before returning
+        result_files = []
+        for f in files_with_dates[:limit]:
+            result_files.append({
+                'file_path': f['file_path'],
+                'document_id': f['document_id'],
+                'last_synced_at': f['last_synced_at'],
+                'original_date': f['original_date'],
+                'updated_at': f['updated_at']
+            })
+
         return {
             'success': True,
-            'files': result.data,
-            'count': len(result.data)
+            'files': result_files,
+            'count': len(result_files)
         }
 
     except Exception as e:
