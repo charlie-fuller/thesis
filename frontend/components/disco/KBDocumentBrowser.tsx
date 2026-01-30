@@ -219,29 +219,6 @@ export default function KBDocumentBrowser({
         <div className="flex-1 flex overflow-hidden">
           {/* Document List */}
           <div className="flex-1 overflow-y-auto border-r border-slate-200 dark:border-slate-700">
-            {/* Selection Actions */}
-            <div className="sticky top-0 bg-slate-50 dark:bg-slate-900/50 px-4 py-2 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-              <span className="text-sm text-slate-600 dark:text-slate-400">
-                {selectedDocs.size} selected
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={selectAll}
-                  className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
-                >
-                  Select visible
-                </button>
-                <span className="text-slate-300 dark:text-slate-600">|</span>
-                <button
-                  onClick={deselectAll}
-                  className="text-sm text-slate-500 dark:text-slate-400 hover:underline"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-
-            {/* Document List */}
             {loading && documents.length === 0 ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
@@ -364,9 +341,23 @@ export default function KBDocumentBrowser({
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Selected documents will be tagged with &quot;{initiativeName}&quot;
-          </p>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-slate-600 dark:text-slate-400">
+              {selectedDocs.size} selected
+            </span>
+            <button
+              onClick={selectAll}
+              className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              Select visible
+            </button>
+            <button
+              onClick={deselectAll}
+              className="text-sm text-slate-500 dark:text-slate-400 hover:underline"
+            >
+              Clear
+            </button>
+          </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handleClose}
