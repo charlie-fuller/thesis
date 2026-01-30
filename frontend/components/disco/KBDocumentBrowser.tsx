@@ -191,8 +191,8 @@ export default function KBDocumentBrowser({
         {/* Search and Filter */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-start gap-4">
-            {/* Text Search - 40% width */}
-            <div className="relative w-2/5">
+            {/* Text Search - 50% width */}
+            <div className="relative w-1/2">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
