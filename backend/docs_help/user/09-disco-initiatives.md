@@ -28,10 +28,15 @@ Every initiative has four tabs:
 
 | Tab | What It's For |
 |-----|---------------|
-| **Documents** | Upload supporting materials - research, transcripts, competitor analyses |
+| **Documents** | Link documents from the Knowledge Base or upload new ones |
 | **Run Agent** | Execute discovery agents and see streaming output |
 | **Outputs** | View all agent results in one place |
 | **Chat** | Ask questions about the initiative with full context |
+
+**Documents tab features:**
+- **Link from KB** - Browse and select existing KB documents
+- **Upload** - Add new documents directly (they go to KB automatically)
+- **Unlink** - Remove document association (keeps document in KB)
 
 ---
 
@@ -149,9 +154,35 @@ Viewers can see everything. Editors can run agents and manage documents.
 
 ---
 
+## Linking Documents from KB
+
+DISCo uses the Knowledge Base as its single source of truth for documents.
+
+**To link documents:**
+1. Go to the **Documents** tab
+2. Click **Link from KB**
+3. The browser opens with search (60%) and tag filter (40%) split
+4. Type to search or select tags to filter
+5. Click a document to preview it
+6. Select documents with checkboxes
+7. Click **Link Selected** in the footer
+
+**The browser shows:**
+- Document title and source
+- Preview panel on the right
+- Highlighted selection for previewed document
+- Tag badges for quick filtering
+
+**Benefits of KB integration:**
+- Documents stay up-to-date across all initiatives
+- No duplicate uploads needed
+- Search across all your org's content
+
+---
+
 ## Tips for Better Results
 
-1. **Upload context first.** The more documents you provide, the better Discovery Prep and Triage can assess the opportunity.
+1. **Link context first.** The more documents you provide, the better Discovery Prep and Triage can assess the opportunity.
 
 2. **Run agents in order.** The workflow is designed to build on itself. Skipping steps weakens later outputs.
 

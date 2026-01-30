@@ -138,6 +138,11 @@ In the KB view, you can:
 
 **Delete:**
 - Remove documents you no longer need
+- Documents linked to DISCo initiatives show a warning before deletion
+
+**Multi-select:**
+- Select multiple documents for bulk operations
+- Bulk delete with confirmation
 
 ---
 
@@ -176,12 +181,35 @@ The agents cite sources. They reference your specific documents. They speak your
 
 ---
 
+## KB and DISCo Integration
+
+The Knowledge Base is the single source of truth for documents used in DISCo initiatives.
+
+**Linking documents to initiatives:**
+1. In a DISCo initiative, go to the **Documents** tab
+2. Click **Link from KB**
+3. Use the document browser to search or filter by tags
+4. Select documents and click **Link Selected**
+
+**The KB document browser features:**
+- Search field (60% width) and tag filter (40% width)
+- Preview panel shows document content
+- Selected documents highlight in the list
+- Multi-select for linking multiple documents at once
+
+**Why this matters:**
+- No document duplication between KB and DISCo
+- Documents stay in sync automatically
+- Delete from KB and it's removed from linked initiatives (with warning)
+
+---
+
 ## What's Not in the KB
 
 Some things are stored elsewhere:
 - **Stakeholders** → Intelligence page
 - **Tasks** → Tasks page
-- **Opportunities** → Opportunities page
+- **Projects** → Projects page
 
 The KB is specifically for reference documents and conversation history.
 
