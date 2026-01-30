@@ -1,26 +1,40 @@
-# Run Full Test Regimen
+# Run Test Suite
 
-Run the complete Thesis test suite unattended, including unit tests, integration tests, and E2E browser tests.
+Run the Thesis test suite with options for quick unit tests, full pytest regimen, or comprehensive production E2E tests.
 
 ## Usage
 
 ```
-/test          # Run full regimen (all stages)
-/test --quick  # Run core unit tests only
+/test          # Run full regimen: pytest stages 1-4 + basic E2E (default)
+/test --quick  # Run core unit tests only (fastest)
+/test --full   # Run comprehensive E2E on production (28 scenarios)
 ```
+
+**Note:** Cleanup of E2E test data runs automatically at the end of any E2E test (default or --full modes).
 
 ## Prerequisites
 
-Tests require proper environment configuration:
-
+### For --quick and default modes (pytest)
 1. **dotenvx** - The `.env` file is encrypted. Use `dotenvx run` to decrypt and inject environment variables.
 2. **DOTENV_PRIVATE_KEY** - Required for decryption. Found in `backend/.env.keys`.
 
-## Instructions
+### For --full mode (production E2E)
+1. **Chrome DevTools MCP** - Chrome browser must be open with DevTools MCP connected
+2. **Authentication** - You should be logged into thesis-mvp.vercel.app in Chrome
+
+---
+
+# OPTION: --quick (Unit Tests Only)
+
+If `--quick` option is specified, run ONLY Stage 1 (unit tests) and skip everything else.
+
+---
+
+# DEFAULT MODE: Full Pytest Regimen + Basic E2E
 
 Execute ALL test stages below in order. Do NOT stop if one stage fails - continue to the next stage and report all results at the end.
 
-### Stage 1: Unit Tests
+## Stage 1: Unit Tests
 
 Run core unit tests first:
 
@@ -40,7 +54,7 @@ dotenvx run -f .env -- .venv/bin/python -m pytest \
 
 Record: passed, failed, skipped counts.
 
-### Stage 2: Integration Tests
+## Stage 2: Integration Tests
 
 Run integration and Obsidian sync tests:
 
@@ -55,7 +69,7 @@ dotenvx run -f .env -- .venv/bin/python -m pytest \
 
 Record: passed, failed, skipped counts.
 
-### Stage 3: Extended Tests
+## Stage 3: Extended Tests
 
 Run all remaining tests (excluding E2E):
 
@@ -79,18 +93,18 @@ dotenvx run -f .env -- .venv/bin/python -m pytest tests/ \
 
 Record: passed, failed, skipped counts.
 
-### Stage 4: E2E Browser Tests
+## Stage 4: Basic E2E Browser Tests
 
-E2E tests use Chrome DevTools MCP to automate browser interactions. You MUST start the servers and run these tests - do not skip them.
+E2E tests use Chrome DevTools MCP to automate browser interactions.
 
-#### Step 4.1: Check Server Status
+### Step 4.1: Check Server Status
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "Frontend not running"
 curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null || echo "Backend not running"
 ```
 
-#### Step 4.2: Start Servers (if not running)
+### Step 4.2: Start Servers (if not running)
 
 If servers are not running, start them in background:
 
@@ -109,141 +123,54 @@ cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/frontend
 npm run dev
 ```
 
-Wait for both servers to be ready (frontend compiles, backend shows "Uvicorn running").
+Wait for both servers to be ready.
 
-#### Step 4.3: Verify Chrome DevTools MCP Connection
+### Step 4.3: Verify Chrome DevTools MCP Connection
 
-Use `mcp__chrome-devtools__list_pages` to verify Chrome is connected:
-- If pages are listed: Chrome is connected, proceed to tests
-- If error or no connection: The user must have Chrome open with DevTools MCP enabled
+Use `mcp__chrome-devtools__list_pages` to verify Chrome is connected.
 
-#### Step 4.4: Run E2E Test Scenarios
-
-Navigate to the app and execute each test scenario using Chrome DevTools MCP tools.
-
----
+### Step 4.4: Run Basic E2E Test Scenarios
 
 **Test 1: Auth Login Success**
-
-*Purpose:* Verify authentication flow works
-
-Steps:
-1. `mcp__chrome-devtools__navigate_page` to `http://localhost:3000`
-2. `mcp__chrome-devtools__take_snapshot` to check page state
-3. If login form visible:
-   - `mcp__chrome-devtools__fill` email field
-   - `mcp__chrome-devtools__fill` password field
-   - `mcp__chrome-devtools__click` login button
-   - `mcp__chrome-devtools__wait_for` dashboard or authenticated content
-4. If already logged in (user menu visible): PASS
-
-*Expected:* User is authenticated and can access protected routes
-
----
+1. Navigate to `http://localhost:3000`
+2. Verify user is authenticated (user menu visible) or complete login flow
 
 **Test 2: Chat Send Message**
+1. Navigate to `/chat`
+2. Send test message: "Hello, this is an E2E test"
+3. Verify AI agent responds
 
-*Purpose:* Verify chat functionality with AI agents
-
-Steps:
-1. `mcp__chrome-devtools__navigate_page` to `http://localhost:3000/chat`
-2. `mcp__chrome-devtools__take_snapshot` to get element IDs
-3. Find the message input textbox (look for "Type your message" or similar)
-4. `mcp__chrome-devtools__fill` with test message: "Hello, this is an E2E test"
-5. `mcp__chrome-devtools__click` send button (or `mcp__chrome-devtools__press_key` Enter)
-6. `mcp__chrome-devtools__wait_for` response from agent (look for new message bubble)
-
-*Expected:* Message appears in chat, AI agent responds
-
----
-
-**Test 3: KB Search** (optional - depends on UI)
-
-*Purpose:* Verify knowledge base search
-
-Steps:
-1. `mcp__chrome-devtools__navigate_page` to `http://localhost:3000/kb`
-2. `mcp__chrome-devtools__take_snapshot` to find search input
-3. If search input exists:
-   - `mcp__chrome-devtools__fill` search field with test query
-   - `mcp__chrome-devtools__press_key` Enter or click search
-   - Verify results appear
-4. If no search UI: Skip this test
-
-*Expected:* Search returns relevant KB documents
-
----
+**Test 3: KB Search** (optional)
+1. Navigate to `/kb`
+2. Search for a term
+3. Verify results appear
 
 **Test 4: Tasks Create**
-
-*Purpose:* Verify task creation in Kanban board
-
-Steps:
-1. `mcp__chrome-devtools__navigate_page` to `http://localhost:3000/tasks`
-2. `mcp__chrome-devtools__take_snapshot` to get element IDs
-3. Note the current "To Do" count
-4. `mcp__chrome-devtools__click` "Add Task" button
-5. `mcp__chrome-devtools__take_snapshot` to get modal element IDs
-6. `mcp__chrome-devtools__fill` title field with "E2E Test Task - Automated"
-7. `mcp__chrome-devtools__click` "Create" button
-8. `mcp__chrome-devtools__wait_for` "E2E Test Task - Automated" to appear on page
-9. Verify To Do count increased by 1
-
-*Expected:* New task appears in To Do column
-
----
+1. Navigate to `/tasks`
+2. Click "Add Task"
+3. Create task: "E2E Test Task - Automated"
+4. Verify task appears in To Do column
 
 **Test 5: Tasks Kanban Drag**
+1. Drag test task to In Progress
+2. Verify task persists after refresh
 
-*Purpose:* Verify drag-and-drop status changes
+### Step 4.5: Cleanup Test Data
 
-Steps:
-1. Ensure on `/tasks` page with the test task visible
-2. `mcp__chrome-devtools__take_snapshot` to get task card and column element IDs
-3. Find the "E2E Test Task - Automated" heading element (from Test 4)
-4. Find the "In Progress" column heading element
-5. `mcp__chrome-devtools__drag` from task element to In Progress column
-6. `mcp__chrome-devtools__click` Refresh button
-7. `mcp__chrome-devtools__take_snapshot` to verify:
-   - Task appears in In Progress column
-   - To Do count decreased
-   - In Progress count increased
+After running E2E tests, clean up any test data created:
 
-*Expected:* Task moves to In Progress, counts update correctly
+1. Navigate to `/tasks`
+2. Delete any tasks containing "E2E Test" in the title
+3. Navigate to `/chat`
+4. Delete any conversations created during testing
+
+### Step 4.6: Record E2E Results
+
+Record pass/fail for each scenario.
 
 ---
 
-#### Step 4.5: Record E2E Results
-
-Record pass/fail for each scenario:
-- Auth Login Success: PASS/FAIL
-- Chat Send Message: PASS/FAIL
-- KB Search: PASS/FAIL/SKIPPED
-- Tasks Create: PASS/FAIL
-- Tasks Kanban Drag: PASS/FAIL
-
-#### Troubleshooting E2E Tests
-
-**Chrome not connected:**
-- Ensure Chrome browser is open
-- Chrome DevTools MCP server must be running and configured in Claude Code settings
-- Try `mcp__chrome-devtools__list_pages` to diagnose
-
-**Server startup issues:**
-- Check port conflicts: `lsof -i :3000` and `lsof -i :8000`
-- Kill existing processes if needed: `kill -9 <PID>`
-- Frontend may use alternate port (3001) if 3000 is occupied
-
-**Element not found:**
-- Always use `mcp__chrome-devtools__take_snapshot` before interacting
-- Element UIDs change between page loads - get fresh snapshot
-- Wait for page to fully load before taking snapshot
-
-**Authentication issues:**
-- If redirected to login, complete auth flow first
-- Session persists in browser - may already be logged in
-
-## Final Summary
+## Default Mode Summary
 
 After ALL stages complete, provide a summary table:
 
@@ -254,35 +181,345 @@ TEST SUMMARY
 Stage 1 - Unit Tests:        XX passed, XX failed, XX skipped
 Stage 2 - Integration Tests: XX passed, XX failed, XX skipped
 Stage 3 - Extended Tests:    XX passed, XX failed, XX skipped
-Stage 4 - E2E Browser Tests: XX passed, XX failed (or SKIPPED - servers not running)
+Stage 4 - E2E Browser Tests: XX passed, XX failed
 --------------------------------------------
 TOTAL:                       XXX passed, XXX failed, XXX skipped
 ============================================
 ```
 
-If any tests failed, you MUST create a Failure Remediation Plan (see below).
+---
 
-## Failure Remediation Plan
+# OPTION: --full (Comprehensive Production E2E)
 
-When tests fail, create a detailed improvement plan and provide a ready-to-use prompt for a follow-up Claude Code session.
+Run comprehensive end-to-end test of all Thesis functionality using Chrome DevTools MCP on production.
 
-### Step 1: Document Each Failure
+**Test Configuration:**
+- **Production URL**: https://thesis-mvp.vercel.app
+- **Test Data Prefix**: All test data uses "E2E Test" prefix for easy cleanup
 
-For each failing test, capture:
+Execute ALL test phases in order. After each test, record PASS/FAIL.
+
+---
+
+## PHASE 1: AUTHENTICATION & NAVIGATION
+
+### Test 1.1: Verify Authentication State
+
+1. `mcp__chrome-devtools__navigate_page` to `https://thesis-mvp.vercel.app`
+2. `mcp__chrome-devtools__take_snapshot`
+3. Verify user is logged in (user menu visible) or complete login flow
+
+*Expected:* User is authenticated with access to all app sections
+
+### Test 1.2: Navigation Bar Verification
+
+1. Verify presence of navigation links: Dashboard, Chat, Tasks, Projects, Intelligence, Agents, KB, DISCo
+2. Click each link and verify page loads without error
+
+*Expected:* All navigation links present and functional
+
+---
+
+## PHASE 2: DASHBOARD
+
+### Test 2.1: Dashboard Load
+
+1. Navigate to `https://thesis-mvp.vercel.app/`
+2. Verify dashboard content loads
+3. Check for console errors
+
+*Expected:* Dashboard loads without errors
+
+---
+
+## PHASE 3: CHAT & AI AGENTS
+
+### Test 3.1: New Chat Creation
+
+1. Navigate to `/chat`
+2. Click "+ New Chat" button
+3. Verify chat interface with message input
+
+### Test 3.2: Send Message and Receive Response
+
+1. Fill message: "E2E Test: Hello, this is an automated test message. Please acknowledge."
+2. Click Send
+3. Wait for AI response
+
+*Expected:* AI agent responds with acknowledgment
+
+### Test 3.3: KB Context Chat (CRITICAL)
+
+1. Click "+ New Chat"
+2. Send: "E2E KB Test: What are the key topics and themes from the documents added to the Knowledge Base in the last week? Please cite specific documents."
+3. Wait for response (10-15 seconds)
+4. **Verify response contains:**
+   - References to specific KB documents
+   - Actual content/themes from documents
+   - Agent attribution
+
+*Pass Criteria:*
+- At least 1 document cited in response
+- Response contains substantive KB content
+
+### Test 3.4: Agent Selection
+
+1. Find agent selector and select a specific agent (e.g., "Atlas")
+2. Send: "E2E Agent Test: Brief research summary on AI trends"
+3. Verify response comes from selected agent
+
+### Test 3.5: Chat Conversation Actions
+
+1. Test Rename button on a conversation
+2. Change name to "E2E Renamed Conversation"
+3. Test Archive if available
+
+---
+
+## PHASE 4: TASKS (KANBAN)
+
+### Test 4.1: View Tasks Board
+
+1. Navigate to `/tasks`
+2. Verify Kanban columns: To Do, In Progress, Done
+3. Note current task counts
+
+### Test 4.2: Create New Task
+
+1. Click "Add Task"
+2. Fill: "E2E Test Task - Full Suite Verification"
+3. Click Create
+4. Verify task appears in To Do
+
+### Test 4.3: Drag Task to In Progress
+
+1. Drag test task to In Progress column
+2. Refresh page
+3. Verify task persisted in new column
+
+### Test 4.4: Task Details Modal
+
+1. Click on test task card
+2. Verify details display (title, description, status)
+
+---
+
+## PHASE 5: PROJECTS
+
+### Test 5.1: View Projects List
+
+1. Navigate to `/projects`
+2. Verify projects list or pipeline view
+
+### Test 5.2: Create New Project
+
+1. Click "Add Project"
+2. Fill: "E2E Test Project - Automated Verification"
+3. Click Create
+4. Verify project appears
+
+### Test 5.3: Project Pipeline View
+
+1. Verify status columns (Discovery, Evaluation, etc.)
+2. Verify test project in correct column
+
+---
+
+## PHASE 6: KNOWLEDGE BASE
+
+### Test 6.1: KB Page Load
+
+1. Navigate to `/kb`
+2. Verify document list/navigator and search
+
+### Test 6.2: KB Navigator Search
+
+1. Search for "AI"
+2. Verify results appear
+
+### Test 6.3: Document Preview
+
+1. Click on a document
+2. Verify preview displays title and content
+
+### Test 6.4: Tag Filtering
+
+1. Select a tag filter
+2. Verify documents filter correctly
+
+---
+
+## PHASE 7: AGENTS
+
+### Test 7.1: Agents Directory
+
+1. Navigate to `/agents`
+2. Verify agent cards display
+3. Look for: Atlas, Compass, Capital, Guardian
+
+### Test 7.2: Agent Details
+
+1. Click an agent card
+2. Verify details and capabilities display
+
+---
+
+## PHASE 8: INTELLIGENCE
+
+### Test 8.1: Intelligence Dashboard
+
+1. Navigate to `/intelligence`
+2. Verify charts/insights display
+
+---
+
+## PHASE 9: DISCo
+
+### Test 9.1: DISCo Page Load
+
+1. Navigate to `/disco`
+2. Verify interface displays
+
+---
+
+## PHASE 10: MEETING ROOMS
+
+### Test 10.1: Meeting Rooms Interface
+
+1. Navigate to `/chat`
+2. Find "Meeting Rooms" tab
+3. Verify interface accessible
+
+---
+
+## PHASE 11: ADMIN HELP
+
+### Test 11.1: Help Panel
+
+1. Find Admin Help panel (right side)
+2. Verify help options display
+
+### Test 11.2: Help Question
+
+1. Ask: "How do I create a new task?"
+2. Verify helpful response
+
+---
+
+## PHASE 12: CLEANUP
+
+### Cleanup 12.1: Delete Test Conversations
+
+1. Navigate to `/chat`
+2. Delete all conversations containing "E2E" in title
+
+### Cleanup 12.2: Delete Test Tasks
+
+1. Navigate to `/tasks`
+2. Delete all tasks containing "E2E Test"
+
+### Cleanup 12.3: Delete Test Projects
+
+1. Navigate to `/projects`
+2. Delete all projects containing "E2E Test"
+
+---
+
+## --full Mode Summary
+
+```
+============================================
+COMPREHENSIVE E2E TEST SUMMARY
+============================================
+Date: [CURRENT_DATE]
+Environment: Production (thesis-mvp.vercel.app)
+============================================
+
+PHASE 1: Authentication & Navigation
+- Test 1.1 Verify Auth:           [PASS/FAIL]
+- Test 1.2 Navigation:            [PASS/FAIL]
+
+PHASE 2: Dashboard
+- Test 2.1 Dashboard Load:        [PASS/FAIL]
+
+PHASE 3: Chat & AI Agents
+- Test 3.1 New Chat:              [PASS/FAIL]
+- Test 3.2 Send/Receive Message:  [PASS/FAIL]
+- Test 3.3 KB Context Chat:       [PASS/FAIL] [CRITICAL]
+- Test 3.4 Agent Selection:       [PASS/FAIL]
+- Test 3.5 Chat Actions:          [PASS/FAIL]
+
+PHASE 4: Tasks (Kanban)
+- Test 4.1 View Tasks Board:      [PASS/FAIL]
+- Test 4.2 Create New Task:       [PASS/FAIL]
+- Test 4.3 Drag Task:             [PASS/FAIL]
+- Test 4.4 Task Details Modal:    [PASS/FAIL]
+
+PHASE 5: Projects
+- Test 5.1 View Projects:         [PASS/FAIL]
+- Test 5.2 Create New Project:    [PASS/FAIL]
+- Test 5.3 Pipeline View:         [PASS/FAIL]
+
+PHASE 6: Knowledge Base
+- Test 6.1 KB Page Load:          [PASS/FAIL]
+- Test 6.2 KB Search:             [PASS/FAIL]
+- Test 6.3 Document Preview:      [PASS/FAIL]
+- Test 6.4 Tag Filtering:         [PASS/FAIL]
+
+PHASE 7: Agents
+- Test 7.1 Agents Directory:      [PASS/FAIL]
+- Test 7.2 Agent Details:         [PASS/FAIL]
+
+PHASE 8: Intelligence
+- Test 8.1 Intelligence Dashboard: [PASS/FAIL]
+
+PHASE 9: DISCo
+- Test 9.1 DISCo Page:            [PASS/FAIL]
+
+PHASE 10: Meeting Rooms
+- Test 10.1 Meeting Rooms:        [PASS/FAIL]
+
+PHASE 11: Admin Help
+- Test 11.1 Help Panel:           [PASS/FAIL]
+- Test 11.2 Help Question:        [PASS/FAIL]
+
+PHASE 12: Cleanup
+- Cleanup 12.1 Conversations:     [DONE/PARTIAL]
+- Cleanup 12.2 Tasks:             [DONE/PARTIAL]
+- Cleanup 12.3 Projects:          [DONE/PARTIAL]
+
+--------------------------------------------
+TOTALS:  XX/28 tests passed
+         XX/28 tests failed
+         X items cleaned up
+============================================
+
+KB Context Chat Details:
+- Documents found: [COUNT]
+- Documents cited in response: [LIST]
+- Response quality: [GOOD/NEEDS_IMPROVEMENT]
+============================================
+```
+
+---
+
+# Failure Remediation Plan
+
+When tests fail, create a detailed improvement plan.
+
+## Step 1: Document Each Failure
 
 | Field | Description |
 |-------|-------------|
-| **Test Name** | Full test path (e.g., `tests/test_tasks.py::TestTaskAPI::test_create_task`) |
-| **Stage** | Which stage (Unit/Integration/Extended/E2E) |
-| **Error Type** | Exception class or failure type |
-| **Error Message** | Full error message/traceback |
-| **Root Cause** | Your analysis of why it failed |
+| **Test Name** | Full test path |
+| **Stage** | Which stage/phase |
+| **Error Type** | Exception or failure type |
+| **Error Message** | Full error/traceback |
+| **Root Cause** | Analysis of why it failed |
 | **Proposed Fix** | Specific changes needed |
 | **Files Affected** | Which files need modification |
 
-### Step 2: Create Improvement Plan
-
-Present a structured improvement plan:
+## Step 2: Create Improvement Plan
 
 ```
 ============================================
@@ -291,38 +528,24 @@ FAILURE REMEDIATION PLAN
 
 FAILURE 1: [Test Name]
 -----------------------
-Stage: [Unit/Integration/Extended/E2E]
-Error: [Brief error description]
+Stage: [Stage/Phase]
+Error: [Brief description]
 
 Root Cause Analysis:
-[Explanation of why the test failed]
+[Why the test failed]
 
 Proposed Fix:
-[Specific code changes or fixes needed]
+[Specific changes needed]
 
 Files to Modify:
-- [file1.py]: [what to change]
-- [file2.py]: [what to change]
+- [file1]: [what to change]
 
---------------------------------------------
-
-FAILURE 2: [Test Name]
-...
-
-============================================
-PRIORITY ORDER
-============================================
-1. [Most critical fix first]
-2. [Second priority]
-...
 ============================================
 ```
 
-### Step 3: Generate Follow-Up Prompt
+## Step 3: Generate Follow-Up Prompt
 
-Create a ready-to-use prompt that can be pasted into a new Claude Code session to fix the failures. This prompt MUST include all necessary context.
-
-**Template:**
+Create a ready-to-use prompt for a new Claude Code session:
 
 ````markdown
 ## Fix Test Failures from /test Run
@@ -330,12 +553,6 @@ Create a ready-to-use prompt that can be pasted into a new Claude Code session t
 ### Context
 The `/test` command was run on [DATE] and the following tests failed.
 Working directory: `/Users/charlie.fuller/vaults/Contentful/GitHub/thesis`
-
-### Test Environment
-- Backend: Python 3.12, FastAPI, pytest
-- Frontend: Next.js 16, React 19
-- Database: Supabase (PostgreSQL)
-- Tests run with: `DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c230 dotenvx run -f .env --`
 
 ### Failed Tests
 
@@ -347,193 +564,63 @@ Working directory: `/Users/charlie.fuller/vaults/Contentful/GitHub/thesis`
 ```
 
 **Root Cause:** [EXPLANATION]
-
 **Proposed Fix:** [SPECIFIC CHANGES]
 
-**Files to examine:**
-- `[FILE_PATH_1]` - [REASON]
-- `[FILE_PATH_2]` - [REASON]
-
----
-
-#### Failure 2: `[FULL_TEST_PATH]`
-[REPEAT PATTERN]
-
----
-
 ### Instructions
-
-1. Read each failing test file to understand the test intent
-2. Read the source files being tested
-3. Implement the proposed fixes
-4. Re-run the specific failing tests to verify:
-   ```bash
-   cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
-   DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c230 \
-   dotenvx run -f .env -- .venv/bin/python -m pytest [TEST_PATH] -v --tb=short
-   ```
-5. Once all fixes are verified, run the full test suite with `/test`
-6. Commit the fixes with message: `fix: [description of what was fixed]`
+1. Read failing test file
+2. Read source files being tested
+3. Implement fixes
+4. Re-run specific tests to verify
+5. Run full suite with `/test`
+6. Commit fixes
 ````
 
-### Step 4: Present to User
+---
 
-After creating the plan and prompt, present to the user:
+# Troubleshooting
 
-```
-============================================
-TEST FAILURES DETECTED - ACTION REQUIRED
-============================================
+## Pytest Issues
 
-[X] test(s) failed. See Failure Remediation Plan above.
+### "Invalid URL" Supabase Errors
+**Cause:** `.env` is encrypted. Always run with `dotenvx run`.
 
-To fix these issues, start a new Claude Code session and paste
-the following prompt:
+### Lazy Supabase Initialization
+Some modules need lazy `_get_db()` pattern instead of import-time initialization.
 
----BEGIN PROMPT---
-[Generated prompt from Step 3]
----END PROMPT---
+### Test Isolation Issues
+Tests pass individually but fail together - module state pollution. Use `pytest-forked` or reset fixtures.
 
-Alternatively, I can attempt to fix these issues now.
-Would you like me to proceed with the fixes? (yes/no)
-============================================
-```
+## E2E Issues
 
-### Example: Complete Failure Report
+### Chrome Not Connected
+- Ensure Chrome is open
+- Run `mcp__chrome-devtools__list_pages` to verify
 
-Here's an example of a complete failure report:
+### Element Not Found
+- Always take fresh snapshot before interacting
+- UIDs change between page loads
 
-```
-============================================
-FAILURE REMEDIATION PLAN
-============================================
+### Authentication Issues
+- Complete login flow if redirected
+- Session may expire - re-login if needed
 
-FAILURE 1: tests/test_tasks.py::TestTaskAPI::test_create_task_with_project
----------------------------------------------------------------------------
-Stage: Unit Tests
-Error: AssertionError: Expected status 201, got 400
+### Slow Responses
+- KB context chat may take 10-15 seconds
+- Use `mcp__chrome-devtools__wait_for` for expected content
 
-Root Cause Analysis:
-The test expects a project_id field but the API now requires project_code.
-This is due to the opportunity->project terminology rename that changed
-field names but test wasn't updated.
+---
 
-Proposed Fix:
-Update test to use project_code instead of project_id in request payload.
+# Test Coverage Reference
 
-Files to Modify:
-- backend/tests/test_tasks.py: Change payload field name on line ~245
+| Mode | Tests | Expected |
+|------|-------|----------|
+| --quick | Unit tests only | ~370 tests |
+| default | All pytest + 5 E2E | ~800 tests |
+| --full | Production E2E | 28 scenarios |
 
---------------------------------------------
+### E2E Scenario Summary
 
-FAILURE 2: tests/test_integration.py::test_configure_endpoint_validates_path
------------------------------------------------------------------------------
-Stage: Integration Tests
-Error: Test passes in isolation but fails when run with other tests
-
-Root Cause Analysis:
-Module-level state pollution. The obsidian_sync module caches a Supabase
-client that retains state between tests.
-
-Proposed Fix:
-Add pytest fixture to reset module state, or use pytest-forked to isolate.
-
-Files to Modify:
-- backend/tests/test_integration.py: Add setup/teardown fixture
-- backend/services/obsidian_sync.py: Consider adding reset_client() helper
-
-============================================
-PRIORITY ORDER
-============================================
-1. test_create_task_with_project - Quick fix, terminology update
-2. test_configure_endpoint_validates_path - Needs investigation
-============================================
-```
-
-## Test Coverage Reference
-
-| Stage | Test Files | Expected Count |
-|-------|------------|----------------|
-| Unit | 7 core test files | ~370 tests |
-| Integration | test_integration.py, test_obsidian_sync.py | ~90 tests |
-| Extended | Remaining test_*.py files | ~345 tests |
-| E2E | Chrome DevTools MCP scenarios | 5 core scenarios |
-
-### E2E Test Scenarios
-
-| Scenario | Page | Validates |
-|----------|------|-----------|
-| Auth Login Success | / | Authentication, session management |
-| Chat Send Message | /chat | AI agent communication, real-time updates |
-| KB Search | /kb | Document search (optional) |
-| Tasks Create | /tasks | CRUD operations, form submission |
-| Tasks Kanban Drag | /tasks | Drag-drop, status persistence |
-
-## Known Issues & Fixes
-
-### 1. "Invalid URL" Supabase Errors
-
-**Symptom:** Tests fail with `SupabaseException: Invalid URL`
-
-**Cause:** The `.env` file is encrypted with dotenvx. Running pytest directly loads encrypted values.
-
-**Fix:** Always run tests with `dotenvx run`:
-```bash
-DOTENV_PRIVATE_KEY=... dotenvx run -f .env -- .venv/bin/python -m pytest ...
-```
-
-### 2. Lazy Supabase Initialization
-
-**Symptom:** Import-time errors when modules call `get_supabase()` at module level.
-
-**Fixed Files:**
-- `services/useable_output_detector.py` - Changed to lazy `_get_db()` initialization
-- `services/obsidian_sync.py` - Changed to lazy `_get_db()` initialization
-
-**Pattern for fixing:**
-```python
-# BAD - initialized at import time
-supabase = get_supabase()
-
-# GOOD - lazy initialization
-_supabase = None
-def _get_db():
-    global _supabase
-    if _supabase is None:
-        _supabase = get_supabase()
-    return _supabase
-```
-
-### 3. Test Isolation Issues
-
-**Symptom:** Tests pass individually but fail when run together.
-
-**Cause:** Module-level state pollution between tests.
-
-**Fix:** Use `pytest-forked` marker or run problematic tests in isolation.
-
-### 4. Terminology Rename (opportunity -> project)
-
-The codebase was renamed from "opportunity" to "project" terminology. All test files have been updated:
-- `test_opportunities.py` -> `test_projects.py`
-- `test_opportunity_modal.py` -> `test_project_modal.py`
-- All internal references updated to use `project` terminology
-
-### 5. Topic Detection Keyword Conflicts
-
-**Fixed:** The `detect_help_topic` function had "project" in both `tasks` and `projects` keyword lists. Fixed by removing "project" from `tasks` keywords since "project" is now the primary entity name.
-
-## Quick Test Commands
-
-```bash
-# Quick unit test (recommended for development)
-cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
-DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c230 \
-dotenvx run -f .env -- .venv/bin/python -m pytest tests/test_projects.py -v --tb=short
-
-# Run specific test class
-dotenvx run -f .env -- .venv/bin/python -m pytest tests/test_agents_new.py::TestManualHelpTopicDetection -v
-
-# Run with keyword filter
-dotenvx run -f .env -- .venv/bin/python -m pytest tests/ -k "project" -v
-```
+| Mode | Scenarios | Validates |
+|------|-----------|-----------|
+| default (basic) | 5 | Auth, Chat, KB Search, Tasks CRUD, Kanban drag |
+| --full | 28 | Full app: Auth, Nav, Dashboard, Chat (with KB context), Tasks, Projects, KB, Agents, Intelligence, DISCo, Meeting Rooms, Help |
