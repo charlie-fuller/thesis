@@ -209,7 +209,7 @@ export default function KBDocumentBrowser({
                 selectedTags={selectedTagsFilter}
                 onTagsChange={setSelectedTagsFilter}
                 placeholder="Filter by tags..."
-                showInitiatives={true}
+                showInitiatives={false}
               />
             </div>
           </div>
