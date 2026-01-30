@@ -25,7 +25,7 @@ class TestJWTValidation:
         payload = decode_jwt(valid_jwt_token)
 
         assert payload is not None
-        assert payload["sub"] == "test-user-id-12345"
+        assert payload["sub"] == "00000000-0000-0000-0000-000000000002"
         assert payload["email"] == "testuser@example.com"
         assert payload["aud"] == "authenticated"
 
@@ -105,7 +105,7 @@ class TestGetCurrentUser:
 
         user = get_current_user(credentials)
 
-        assert user["id"] == "test-user-id-12345"
+        assert user["id"] == "00000000-0000-0000-0000-000000000002"
         assert user["email"] == "testuser@example.com"
         assert user["role"] == "user"
         assert user["client_id"] == "test-client-id"
@@ -142,7 +142,7 @@ class TestGetCurrentUser:
         user = get_current_user(credentials)
 
         # Should still return user with default role
-        assert user["id"] == "test-user-id-12345"
+        assert user["id"] == "00000000-0000-0000-0000-000000000002"
         assert user["role"] == "user"  # Default fallback
         assert user["client_id"] is None  # Default fallback
 
@@ -289,4 +289,4 @@ class TestAuthEdgeCases:
         result = get_current_user_optional(credentials)
 
         assert result is not None
-        assert result["id"] == "test-user-id-12345"
+        assert result["id"] == "00000000-0000-0000-0000-000000000002"
