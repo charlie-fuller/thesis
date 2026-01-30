@@ -17,6 +17,7 @@ interface TagSelectorProps {
   placeholder?: string
   showInitiatives?: boolean
   disabled?: boolean
+  size?: 'sm' | 'base'
 }
 
 export default function TagSelector({
@@ -24,7 +25,8 @@ export default function TagSelector({
   onTagsChange,
   placeholder = 'Search tags...',
   showInitiatives = false,
-  disabled = false
+  disabled = false,
+  size = 'sm'
 }: TagSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -183,7 +185,7 @@ export default function TagSelector({
         className={`relative ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         onClick={() => !disabled && setIsOpen(true)}
       >
-        <div className="flex items-center gap-2 px-3 py-2 border border-default rounded-lg bg-card hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
+        <div className={`flex items-center gap-2 border border-default rounded-lg bg-card hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors ${size === 'base' ? 'px-3 py-2.5' : 'px-3 py-2'}`}>
           <Search className="w-4 h-4 text-muted" />
           <input
             ref={inputRef}
@@ -193,7 +195,7 @@ export default function TagSelector({
             onFocus={() => !disabled && setIsOpen(true)}
             placeholder={placeholder}
             disabled={disabled}
-            className="flex-1 bg-transparent outline-none text-sm text-primary placeholder:text-muted"
+            className={`flex-1 bg-transparent outline-none text-primary placeholder:text-muted ${size === 'base' ? 'text-base' : 'text-sm'}`}
           />
           <ChevronDown className={`w-4 h-4 text-muted transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </div>
