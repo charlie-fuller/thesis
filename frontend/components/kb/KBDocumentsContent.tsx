@@ -133,6 +133,8 @@ export default function KBDocumentsContent() {
   } | null>(null)
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([])
   const [syncingRecent, setSyncingRecent] = useState(false)
+  const [pendingFiles, setPendingFiles] = useState<{pending: Array<{file_path: string, sync_status: string, error_message?: string}>, failed: Array<{file_path: string, sync_status: string, error_message?: string}>} | null>(null)
+  const [showPendingDetails, setShowPendingDetails] = useState(false)
 
   // Document actions state
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
@@ -519,6 +521,24 @@ export default function KBDocumentsContent() {
       }
     } catch (err) {
       logger.error('Error fetching recent files:', err)
+    }
+  }
+
+  // Fetch pending/failed files
+  async function fetchPendingFiles() {
+    try {
+      const response = await apiGet<{
+        success: boolean
+        pending: Array<{file_path: string, sync_status: string, error_message?: string}>
+        failed: Array<{file_path: string, sync_status: string, error_message?: string}>
+        pending_count: number
+        failed_count: number
+      }>('/api/obsidian/files/pending')
+      if (response) {
+        setPendingFiles({pending: response.pending, failed: response.failed})
+      }
+    } catch (err) {
+      logger.error('Error fetching pending files:', err)
     }
   }
 
@@ -1618,9 +1638,15 @@ export default function KBDocumentsContent() {
                   <div className="text-xs text-muted mt-1">
                     {obsidianStatus.document_count ?? 0} documents synced
                     {(obsidianStatus.pending_changes ?? 0) > 0 && (
-                      <span className="text-amber-600 dark:text-amber-400 ml-1">
+                      <button
+                        onClick={() => {
+                          setShowPendingDetails(!showPendingDetails)
+                          if (!pendingFiles) fetchPendingFiles()
+                        }}
+                        className="text-amber-600 dark:text-amber-400 ml-1 hover:underline cursor-pointer"
+                      >
                         ({obsidianStatus.pending_changes} pending)
-                      </span>
+                      </button>
                     )}
                     {obsidianStatus.last_sync && (
                       <> - Last sync: {formatLastSync(obsidianStatus.last_sync)}</>
@@ -1652,6 +1678,53 @@ export default function KBDocumentsContent() {
                 </div>
               </div>
             </div>
+
+            {/* Pending Files Details */}
+            {showPendingDetails && (
+              <div className="mt-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-amber-800 dark:text-amber-200">Pending Files</span>
+                  <button
+                    onClick={() => setShowPendingDetails(false)}
+                    className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                {!pendingFiles ? (
+                  <div className="text-sm text-amber-700 dark:text-amber-300">Loading...</div>
+                ) : (
+                  <div className="space-y-2">
+                    {pendingFiles.pending.length > 0 && (
+                      <div>
+                        <div className="text-xs font-medium text-amber-700 dark:text-amber-300 mb-1">Pending ({pendingFiles.pending.length})</div>
+                        {pendingFiles.pending.map((f, i) => (
+                          <div key={i} className="text-xs text-amber-600 dark:text-amber-400 font-mono truncate" title={f.file_path}>
+                            {f.file_path.split('/').pop()}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {pendingFiles.failed.length > 0 && (
+                      <div>
+                        <div className="text-xs font-medium text-red-700 dark:text-red-300 mb-1">Failed ({pendingFiles.failed.length})</div>
+                        {pendingFiles.failed.map((f, i) => (
+                          <div key={i} className="text-xs text-red-600 dark:text-red-400">
+                            <span className="font-mono truncate" title={f.file_path}>{f.file_path.split('/').pop()}</span>
+                            {f.error_message && <span className="ml-2 text-red-500">- {f.error_message}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {pendingFiles.pending.length === 0 && pendingFiles.failed.length === 0 && (
+                      <div className="text-sm text-amber-700 dark:text-amber-300">No pending or failed files found.</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Success Message */}
             {obsidianSyncSuccess && (
