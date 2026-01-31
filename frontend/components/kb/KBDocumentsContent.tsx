@@ -818,6 +818,18 @@ export default function KBDocumentsContent() {
     })
   }
 
+  // Parse date-only strings (YYYY-MM-DD) as local dates, not UTC
+  // This prevents timezone shifts that show the previous day
+  function parseLocalDate(dateStr: string): Date {
+    if (dateStr.includes('T')) {
+      // Full ISO string with time - parse normally
+      return new Date(dateStr)
+    }
+    // Date-only string - parse as local date at noon to avoid timezone issues
+    const [year, month, day] = dateStr.split('-').map(Number)
+    return new Date(year, month - 1, day, 12, 0, 0)
+  }
+
   function formatFileSize(bytes?: number): string {
     if (!bytes) return 'Unknown'
     if (bytes < 1024) return `${bytes} B`
@@ -1719,7 +1731,7 @@ export default function KBDocumentsContent() {
                       </div>
                       <span className="text-xs text-muted flex-shrink-0">
                         {file.original_date
-                          ? new Date(file.original_date).toLocaleDateString()
+                          ? parseLocalDate(file.original_date).toLocaleDateString()
                           : formatLastSync(file.last_synced_at)}
                       </span>
                     </div>
