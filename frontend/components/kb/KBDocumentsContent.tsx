@@ -133,7 +133,7 @@ export default function KBDocumentsContent() {
   } | null>(null)
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([])
   const [syncingRecent, setSyncingRecent] = useState(false)
-  const [pendingFiles, setPendingFiles] = useState<{pending: Array<{file_path: string, sync_status: string, error_message?: string}>, failed: Array<{file_path: string, sync_status: string, error_message?: string}>} | null>(null)
+  const [pendingFiles, setPendingFiles] = useState<{pending: Array<{file_path: string, sync_status: string, sync_error?: string}>, failed: Array<{file_path: string, sync_status: string, sync_error?: string}>} | null>(null)
   const [showPendingDetails, setShowPendingDetails] = useState(false)
 
   // Document actions state
@@ -529,8 +529,8 @@ export default function KBDocumentsContent() {
     try {
       const response = await apiGet<{
         success: boolean
-        pending: Array<{file_path: string, sync_status: string, error_message?: string}>
-        failed: Array<{file_path: string, sync_status: string, error_message?: string}>
+        pending: Array<{file_path: string, sync_status: string, sync_error?: string}>
+        failed: Array<{file_path: string, sync_status: string, sync_error?: string}>
         pending_count: number
         failed_count: number
       }>('/api/obsidian/files/pending')
@@ -1711,9 +1711,9 @@ export default function KBDocumentsContent() {
                       <div>
                         <div className="text-xs font-medium text-red-700 dark:text-red-300 mb-1">Failed ({pendingFiles.failed.length})</div>
                         {pendingFiles.failed.map((f, i) => (
-                          <div key={i} className="text-xs text-red-600 dark:text-red-400">
-                            <span className="font-mono truncate" title={f.file_path}>{f.file_path.split('/').pop()}</span>
-                            {f.error_message && <span className="ml-2 text-red-500">- {f.error_message}</span>}
+                          <div key={i} className="text-xs text-red-600 dark:text-red-400 mb-1">
+                            <div className="font-mono truncate" title={f.file_path}>{f.file_path.split('/').pop()}</div>
+                            {f.sync_error && <div className="text-red-500 text-xs ml-2 truncate" title={f.sync_error}>{f.sync_error.slice(0, 80)}...</div>}
                           </div>
                         ))}
                       </div>

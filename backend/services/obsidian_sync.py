@@ -1366,8 +1366,17 @@ def _create_obsidian_document(
 
     # Generate unique storage path (sanitize filename for storage)
     unique_id = str(uuid.uuid4())
-    # Remove emojis and special chars from filename for storage key
-    safe_filename = re.sub(r'[^\w\s\-\.]', '', filename).strip()
+    # Sanitize filename for storage key:
+    # 1. Replace non-breaking spaces with regular spaces
+    safe_filename = filename.replace('\xa0', ' ').replace('\u00a0', ' ')
+    # 2. Replace em-dashes, en-dashes with hyphens
+    safe_filename = safe_filename.replace('—', '-').replace('–', '-')
+    # 3. Replace fancy quotes/apostrophes with standard ones
+    safe_filename = safe_filename.replace(''', "'").replace(''', "'").replace('"', '"').replace('"', '"')
+    # 4. Remove remaining special chars (keep alphanumeric, spaces, hyphens, dots, underscores, apostrophes)
+    safe_filename = re.sub(r"[^\w\s\-\.'']", '', safe_filename).strip()
+    # 5. Collapse multiple spaces into single space
+    safe_filename = re.sub(r'\s+', ' ', safe_filename)
     if not safe_filename:
         safe_filename = 'document.md'
     storage_path = f"obsidian/{client_id}/{unique_id}_{safe_filename}"
