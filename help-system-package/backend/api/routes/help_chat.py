@@ -6,13 +6,11 @@ Separate from main chat conversations.
 """
 
 import os
-from datetime import datetime
 from typing import Dict, List, Optional
 
 import anthropic
 from auth import get_current_user
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import StreamingResponse
 from logger_config import get_logger
 from pydantic import BaseModel
 from services.embeddings import create_embedding
@@ -225,7 +223,7 @@ If the documentation doesn't cover the user's question, acknowledge this briefly
 
         # Step 6: Save messages to database
         # Save user message
-        user_msg = (
+        (
             supabase.table("help_messages")
             .insert(
                 {

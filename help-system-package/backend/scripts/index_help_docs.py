@@ -10,8 +10,6 @@ Usage:
 """
 
 import argparse
-import os
-import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -21,7 +19,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from logger_config import get_logger
 from services.embeddings import create_embedding
-from utils.safe_db import safe_get_first
 
 from database import get_supabase
 
@@ -303,7 +300,7 @@ def index_all_help_docs(force: bool = False):
     doc_count = supabase.table("help_documents").select("id", count="exact").execute()
     chunk_count = supabase.table("help_chunks").select("id", count="exact").execute()
 
-    logger.info(f"Database verification:")
+    logger.info("Database verification:")
     logger.info(f"  Documents in DB: {doc_count.count}")
     logger.info(f"  Chunks in DB: {chunk_count.count}")
 

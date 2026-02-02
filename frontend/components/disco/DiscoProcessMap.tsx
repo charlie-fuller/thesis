@@ -108,21 +108,23 @@ const colors = {
 export default function DiscoProcessMap() {
   const [selectedStep, setSelectedStep] = useState<ProcessStep | null>(null)
 
-  // Vertical layout constants
-  const centerX = 200
-  const agentWidth = 280
-  const agentHeight = 80
-  const checkpointSize = 70
-  const rowSpacing = 110
+  // Horizontal layout constants - checkpoint beside agent
+  const agentX = 30
+  const agentWidth = 260
+  const agentHeight = 70
+  const checkpointX = 320
+  const checkpointSize = 55
+  const rowSpacing = 100
+  const startY = 70
 
   return (
     <div className="bg-card rounded-lg border border-default p-6">
-      {/* SVG Flowchart - Vertical Layout */}
+      {/* SVG Flowchart - Compact Layout */}
       <div className="overflow-x-auto text-primary">
         <svg
-          viewBox="0 0 500 980"
-          className="w-full max-w-[500px] mx-auto"
-          style={{ maxHeight: '980px' }}
+          viewBox="0 0 450 580"
+          className="w-full max-w-[450px] mx-auto"
+          style={{ maxHeight: '580px' }}
         >
           {/* Definitions */}
           <defs>
@@ -164,61 +166,60 @@ export default function DiscoProcessMap() {
           </defs>
 
           {/* ===== TITLE ===== */}
-          <text x="250" y="30" textAnchor="middle" fill={colors.textPrimary} fontSize="18" fontWeight="700">
+          <text x="225" y="25" textAnchor="middle" fill={colors.textPrimary} fontSize="16" fontWeight="700">
             DISCo Workflow
           </text>
-          <text x="250" y="50" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
+          <text x="225" y="42" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
             4 Agents + 4 Human Checkpoints
           </text>
 
-          {/* ===== AGENT 1: DISCOVERY GUIDE ===== */}
+          {/* ===== ROW 1: DISCOVERY GUIDE + CHECKPOINT 1 ===== */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedStep(processSteps[0])}
           >
             <rect
-              x={centerX - agentWidth/2} y="80" width={agentWidth} height={agentHeight}
-              rx="12"
+              x={agentX} y={startY} width={agentWidth} height={agentHeight}
+              rx="10"
               fill={stageColors.discovery.fill}
               stroke={stageColors.discovery.stroke}
-              strokeWidth="3"
+              strokeWidth="2"
             />
-            <text x={centerX} y="105" textAnchor="middle" fill="#3b82f6" fontSize="11" fontWeight="700">
+            <text x={agentX + agentWidth/2} y={startY + 18} textAnchor="middle" fill="#3b82f6" fontSize="10" fontWeight="700">
               D: DISCOVERY
             </text>
-            <text x={centerX} y="125" textAnchor="middle" fill={colors.textPrimary} fontSize="15" fontWeight="600">
+            <text x={agentX + agentWidth/2} y={startY + 36} textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
               Discovery Guide
             </text>
-            <text x={centerX} y="145" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              Validates problem, plans sessions, tracks coverage
+            <text x={agentX + agentWidth/2} y={startY + 52} textAnchor="middle" fill={colors.textSecondary} fontSize="9">
+              Validates problem, plans sessions
             </text>
           </g>
 
-          {/* Arrow: Agent 1 -> Checkpoint 1 */}
-          <path d={`M ${centerX} ${80 + agentHeight} L ${centerX} ${80 + agentHeight + 15}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Agent 1 -> Checkpoint 1 (horizontal) */}
+          <path d={`M ${agentX + agentWidth} ${startY + agentHeight/2} L ${checkpointX - 5} ${startY + agentHeight/2}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* Checkpoint 1 - Human Review */}
           <g>
             <rect
-              x={centerX - checkpointSize/2} y={80 + agentHeight + 20}
+              x={checkpointX} y={startY + (agentHeight - checkpointSize)/2}
               width={checkpointSize} height={checkpointSize}
-              rx="10"
+              rx="8"
               fill="rgba(100, 116, 139, 0.15)"
               stroke="#64748b"
               strokeWidth="2"
             />
-            {/* Large person icon */}
-            <g transform={`translate(${centerX - 15}, ${80 + agentHeight + 30})`}>
-              <circle cx="15" cy="12" r="10" fill="#64748b" />
-              <path d="M0 45 Q15 30 30 45" fill="none" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />
+            <g transform={`translate(${checkpointX + 14}, ${startY + (agentHeight - checkpointSize)/2 + 8})`}>
+              <circle cx="13" cy="10" r="8" fill="#64748b" />
+              <path d="M0 35 Q13 22 26 35" fill="none" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
             </g>
-            <text x={centerX} y={80 + agentHeight + 85} textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="600">
-              CP 1
+            <text x={checkpointX + checkpointSize + 8} y={startY + agentHeight/2 + 4} fill="#64748b" fontSize="10" fontWeight="600">
+              CP1
             </text>
           </g>
 
-          {/* Arrow: Checkpoint 1 -> Agent 2 */}
-          <path d={`M ${centerX} ${80 + agentHeight + 20 + checkpointSize} L ${centerX} ${80 + rowSpacing*2 - 5}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Row 1 -> Row 2 (vertical) */}
+          <path d={`M ${agentX + agentWidth/2} ${startY + agentHeight} L ${agentX + agentWidth/2} ${startY + rowSpacing - 5}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* ===== AGENT 2: INSIGHT ANALYST ===== */}
           <g
