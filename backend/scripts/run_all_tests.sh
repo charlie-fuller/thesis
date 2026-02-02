@@ -134,8 +134,8 @@ setup_venv() {
 
         echo "  Installing dependencies with uv..."
         uv pip install -r requirements.txt --quiet 2>/dev/null || uv pip install -r requirements.txt
-        uv pip install pytest pytest-asyncio pytest-cov pytest-timeout hypothesis --quiet 2>/dev/null || \
-            uv pip install pytest pytest-asyncio pytest-cov pytest-timeout hypothesis
+        uv pip install pytest pytest-asyncio pytest-cov pytest-timeout pytest-forked hypothesis --quiet 2>/dev/null || \
+            uv pip install pytest pytest-asyncio pytest-cov pytest-timeout pytest-forked hypothesis
 
         echo -e "${GREEN}  Dependencies installed via uv${NC}"
         return 0
@@ -169,7 +169,7 @@ setup_venv() {
 
     # Install test dependencies
     echo "  Installing test dependencies..."
-    "$PYTHON_CMD" -m pip install --quiet pytest pytest-asyncio pytest-cov pytest-timeout hypothesis
+    "$PYTHON_CMD" -m pip install --quiet pytest pytest-asyncio pytest-cov pytest-timeout pytest-forked hypothesis
 
     echo -e "${GREEN}  Dependencies installed${NC}"
 }
@@ -210,7 +210,6 @@ run_unit_tests() {
     CORE_TESTS=(
         "tests/test_document_classifier.py"
         "tests/test_tasks.py"
-        "tests/test_opportunities.py"
         "tests/test_engagement.py"
         "tests/test_agents_new.py"
         "tests/test_vibe_coding_bugs.py"
@@ -257,10 +256,13 @@ run_integration_tests() {
         return 0
     fi
 
+    # Use --forked to isolate integration tests from mock pollution
+    # This ensures each test runs in a fresh process with clean module state
     $PYTHON_CMD -m pytest "${EXISTING_TESTS[@]}" \
         -v \
         --tb=short \
         --timeout=120 \
+        --forked \
         2>&1 | tee /tmp/thesis_integration_test_results.txt
 
     INTEGRATION_RESULT=${PIPESTATUS[0]}

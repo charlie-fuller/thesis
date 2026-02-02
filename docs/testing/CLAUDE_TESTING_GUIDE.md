@@ -291,6 +291,73 @@ pip install pytest pytest-asyncio
 
 ---
 
+## Integration Test Isolation (pytest-forked)
+
+### The Problem: Mock Pollution
+
+When running the full test suite, unit tests that mock modules (like `database`, `auth`, `anthropic`) can pollute the module cache. Integration tests that run later expect real connections but get mocked modules instead, causing failures like:
+- 422 errors on authenticated endpoints
+- Empty responses from database queries
+- Tests pass in isolation but fail in full suite
+
+### The Solution: pytest-forked
+
+The `pytest-forked` plugin runs each test in a separate process, ensuring complete isolation:
+
+```bash
+# Install (included in test runner)
+uv pip install pytest-forked
+
+# Run integration tests with isolation
+.venv/bin/python -m pytest tests/test_integration.py --forked -v
+```
+
+### How It Works
+
+1. Each test runs in a fresh Python process
+2. All module caches start clean
+3. No mock pollution between tests
+4. Slightly slower but 100% reliable
+
+### When to Use --forked
+
+| Test Type | Use --forked? | Reason |
+|-----------|---------------|--------|
+| Integration tests | **Yes** | Need real database/auth connections |
+| Unit tests with mocks | No | Isolation not needed, would slow down |
+| E2E browser tests | No | Run separately with live servers |
+
+### Automatic Usage
+
+The test runner script (`scripts/run_all_tests.sh`) automatically uses `--forked` for integration tests:
+
+```bash
+# This is handled automatically:
+pytest tests/test_integration.py tests/test_obsidian_sync.py --forked
+```
+
+### Manual Isolation Commands
+
+```bash
+# Run integration tests isolated (35 tests, ~2 minutes)
+DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c230 \
+dotenvx run -f .env -- .venv/bin/python -m pytest tests/test_integration.py --forked -v
+
+# Run specific integration test isolated
+.venv/bin/python -m pytest tests/test_integration.py::TestTaskEndpoints -v --forked
+```
+
+### Debugging Integration Test Failures
+
+If integration tests fail even with `--forked`:
+
+1. **Check JWT auth**: Tests may skip if using ES256 keys (can't forge tokens)
+2. **Check database**: Verify Supabase connection works
+3. **Run in isolation**: `pytest tests/test_integration.py -v` (without full suite)
+4. **Check environment**: Ensure dotenvx decrypts .env properly
+
+---
+
 ## Test Coverage Summary
 
 | Layer | Tests | Coverage |
