@@ -1,13 +1,146 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { useHelpChat } from '@/contexts/HelpChatContext';
 import { useAuth } from '@/contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 import MarkdownText from './MarkdownText';
 
+// Context-sensitive suggested questions by route
+const CONTEXTUAL_QUESTIONS: Record<string, string[]> = {
+  // DISCo pages
+  '/disco': [
+    'What is DISCo and how does the workflow work?',
+    'How do I create a new initiative?',
+    'What does each DISCo agent do?',
+    'How do I link documents from the Knowledge Base?',
+    'What do GO, NO-GO, and INVESTIGATE mean?',
+  ],
+  // Knowledge Base
+  '/kb': [
+    'How do I upload documents to the Knowledge Base?',
+    'How does document auto-classification work?',
+    'How do I sync my Obsidian vault?',
+    'How do I tag documents for specific agents?',
+    'What file types are supported?',
+  ],
+  // Chat
+  '/chat': [
+    'How do I mention a specific agent in chat?',
+    'What is Auto mode vs selecting an agent?',
+    'How do I start a new conversation?',
+    'Can agents access my Knowledge Base documents?',
+    'How do I use the dig deeper feature?',
+  ],
+  // Tasks
+  '/tasks': [
+    'How do I create a new task?',
+    'How do I change task priority or status?',
+    'Can tasks be auto-extracted from documents?',
+    'How do I assign tasks to stakeholders?',
+    'What do the priority levels mean?',
+  ],
+  // Projects
+  '/projects': [
+    'How does project scoring work?',
+    'What are the project tiers?',
+    'How do I change a project status?',
+    'How are projects connected to stakeholders?',
+    'What is the Pipeline view?',
+  ],
+  // Intelligence/Stakeholders
+  '/intelligence': [
+    'How do I add a new stakeholder?',
+    'What do the engagement levels mean?',
+    'How is sentiment calculated?',
+    'How do I track stakeholder concerns?',
+    'What is the Strategy tab for?',
+  ],
+  // Agents
+  '/agents': [
+    'What agents are available?',
+    'How do I see an agent\'s capabilities?',
+    'Can I customize agent instructions?',
+    'What documents does each agent have access to?',
+    'How do agents work together?',
+  ],
+  // Meeting Rooms
+  '/meeting-room': [
+    'How do I create a meeting room?',
+    'How does autonomous discussion mode work?',
+    'Which agents should I include in a meeting?',
+    'How do I get a meeting summary?',
+    'What are discourse moves?',
+  ],
+  // Pipeline
+  '/pipeline': [
+    'What is the Pipeline view?',
+    'How do I scan my vault for opportunities?',
+    'What are commitments?',
+    'How is the stakeholder pulse calculated?',
+    'How do I filter by department?',
+  ],
+  // Transcripts
+  '/transcripts': [
+    'How do I upload a transcript?',
+    'What insights are extracted from transcripts?',
+    'How are stakeholders discovered from meetings?',
+    'What transcript formats are supported?',
+    'How do I view transcript analysis?',
+  ],
+  // Dashboard
+  '/': [
+    'What can I see on the Dashboard?',
+    'How do I check system health?',
+    'What is the Knowledge Graph?',
+    'How do I view usage analytics?',
+    'What is the Discovery Inbox?',
+  ],
+  // Admin pages
+  '/admin': [
+    'How do I add a new user?',
+    'How do I customize the theme?',
+    'How do I manage agent instructions?',
+    'How do I export conversation history?',
+    'How do I reindex help documentation?',
+  ],
+};
+
+// Get contextual questions based on current path
+function getContextualQuestions(pathname: string, isAdmin: boolean): string[] {
+  // Check for exact match first
+  if (CONTEXTUAL_QUESTIONS[pathname]) {
+    return CONTEXTUAL_QUESTIONS[pathname];
+  }
+
+  // Check for prefix matches (e.g., /disco/123 matches /disco)
+  for (const route of Object.keys(CONTEXTUAL_QUESTIONS)) {
+    if (pathname.startsWith(route + '/') || pathname === route) {
+      return CONTEXTUAL_QUESTIONS[route];
+    }
+  }
+
+  // Default questions based on role
+  if (isAdmin) {
+    return [
+      'How do I add a new user?',
+      'How do I customize the theme?',
+      'How do I export conversation history?',
+    ];
+  }
+
+  return [
+    'What can I do with Thesis?',
+    'How do I upload my reference documents?',
+    'How do I organize my work into projects?',
+  ];
+}
+
 export default function HelpChat() {
   const { isAdmin } = useAuth();
+  const pathname = usePathname();
+  const contextualQuestions = getContextualQuestions(pathname, isAdmin);
   const {
     isOpen,
     isMinimized,
@@ -213,69 +346,16 @@ export default function HelpChat() {
               How can I help?
             </div>
             <div className="space-y-1 text-sm">
-              {isAdmin ? (
-                <>
-                  <button
-                    onClick={() => setInput('How do I add a new user?')}
-                    className="block w-full text-left px-3 py-2 bg-subtle hover:bg-hover rounded-lg transition-colors"
-                    style={{ color: 'var(--color-text-primary)' }}
-                  >
-                    <span className="text-muted mr-2">•</span>How do I add a new user?
-                  </button>
-                  <button
-                    onClick={() => setInput('How do I customize the theme?')}
-                    className="block w-full text-left px-3 py-2 bg-subtle hover:bg-hover rounded-lg transition-colors"
-                    style={{ color: 'var(--color-text-primary)' }}
-                  >
-                    <span className="text-muted mr-2">•</span>How do I customize the theme?
-                  </button>
-                  <button
-                    onClick={() => setInput('How do I export conversation history?')}
-                    className="block w-full text-left px-3 py-2 bg-subtle hover:bg-hover rounded-lg transition-colors"
-                    style={{ color: 'var(--color-text-primary)' }}
-                  >
-                    <span className="text-muted mr-2">•</span>How do I export conversation history?
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => setInput('What can I do with Thesis?')}
-                    className="block w-full text-left px-3 py-2 bg-subtle hover:bg-hover rounded-lg transition-colors"
-                    style={{ color: 'var(--color-text-primary)' }}
-                  >
-                    <span className="text-muted mr-2">•</span>What can I do with Thesis?
-                  </button>
-                  <button
-                    onClick={() => setInput('Can you help me create a training course?')}
-                    className="block w-full text-left px-3 py-2 bg-subtle hover:bg-hover rounded-lg transition-colors"
-                    style={{ color: 'var(--color-text-primary)' }}
-                  >
-                    <span className="text-muted mr-2">•</span>Can you help me create a training course?
-                  </button>
-                  <button
-                    onClick={() => setInput('Can you generate images for my project?')}
-                    className="block w-full text-left px-3 py-2 bg-subtle hover:bg-hover rounded-lg transition-colors"
-                    style={{ color: 'var(--color-text-primary)' }}
-                  >
-                    <span className="text-muted mr-2">•</span>Can you generate images for my project?
-                  </button>
-                  <button
-                    onClick={() => setInput('How do I upload my reference documents?')}
-                    className="block w-full text-left px-3 py-2 bg-subtle hover:bg-hover rounded-lg transition-colors"
-                    style={{ color: 'var(--color-text-primary)' }}
-                  >
-                    <span className="text-muted mr-2">•</span>How do I upload my reference documents?
-                  </button>
-                  <button
-                    onClick={() => setInput('How do I organize my work into projects?')}
-                    className="block w-full text-left px-3 py-2 bg-subtle hover:bg-hover rounded-lg transition-colors"
-                    style={{ color: 'var(--color-text-primary)' }}
-                  >
-                    <span className="text-muted mr-2">•</span>How do I organize my work into projects?
-                  </button>
-                </>
-              )}
+              {contextualQuestions.map((question, index) => (
+                <button
+                  key={index}
+                  onClick={() => setInput(question)}
+                  className="block w-full text-left px-3 py-2 bg-subtle hover:bg-hover rounded-lg transition-colors"
+                  style={{ color: 'var(--color-text-primary)' }}
+                >
+                  <span className="text-muted mr-2">•</span>{question}
+                </button>
+              ))}
             </div>
           </div>
         ) : (
