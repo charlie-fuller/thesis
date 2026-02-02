@@ -7,135 +7,67 @@ type ProcessStep = {
   id: string
   title: string
   description: string
-  stage: 'discovery' | 'intelligence' | 'synthesis' | 'capabilities' | 'operationalize'
+  stage: 'discovery' | 'intelligence' | 'synthesis' | 'capabilities'
   details: string[]
+  checkpoint?: string
 }
 
 const processSteps: ProcessStep[] = [
   // Stage 1: Discovery
   {
-    id: 'discovery-prep',
-    title: 'Discovery Prep',
-    description: 'Analyzes uploaded documents',
+    id: 'discovery-guide',
+    title: 'Discovery Guide',
+    description: 'Validates problem & plans discovery',
     stage: 'discovery',
     details: [
-      'Extracts key themes from documents',
-      'Identifies stakeholders mentioned',
-      'Summarizes market context',
-      'Prepares context for Triage'
-    ]
-  },
-  {
-    id: 'triage',
-    title: 'Triage',
-    description: 'GO / NO-GO / INVESTIGATE gate',
-    stage: 'discovery',
-    details: [
-      'Evaluates opportunity viability',
-      'Assesses strategic alignment',
-      'Identifies key risks and assumptions',
-      'Recommends: GO, NO-GO, or INVESTIGATE'
-    ]
-  },
-  {
-    id: 'discovery-planner',
-    title: 'Discovery Planner',
-    description: 'Creates session agendas',
-    stage: 'discovery',
-    details: [
-      'Designs stakeholder interview guides',
-      'Identifies key questions to answer',
-      'Suggests participants for each session',
-      'Creates discovery session schedule'
-    ]
-  },
-  {
-    id: 'coverage-tracker',
-    title: 'Coverage Tracker',
-    description: 'Tracks progress: READY / GAPS',
-    stage: 'discovery',
-    details: [
-      'Monitors topics covered vs needed',
-      'Identifies information gaps',
-      'Tracks stakeholder coverage',
-      'Reports: READY or GAPS remaining'
-    ]
+      'Analyzes uploaded documents for key themes',
+      'Evaluates opportunity viability (GO/NO-GO)',
+      'Creates stakeholder interview guides',
+      'Tracks coverage and identifies gaps'
+    ],
+    checkpoint: 'Checkpoint 1: Discovery Complete'
   },
   // Stage 2: Intelligence
   {
-    id: 'insight-extractor',
-    title: 'Insight Extractor',
-    description: 'Pulls patterns with evidence',
+    id: 'insight-analyst',
+    title: 'Insight Analyst',
+    description: 'Extracts patterns & creates decision doc',
     stage: 'intelligence',
     details: [
       'Analyzes discovery session transcripts',
-      'Extracts recurring themes and patterns',
-      'Links insights to source evidence',
-      'Categorizes by stakeholder perspective'
-    ]
+      'Extracts recurring themes with evidence',
+      'Synthesizes insights into cohesive narrative',
+      'Creates decision document with recommendations'
+    ],
+    checkpoint: 'Checkpoint 2: Insights Validated'
   },
   // Stage 3: Synthesis
   {
-    id: 'consolidator',
-    title: 'Consolidator',
-    description: 'Creates decision document',
+    id: 'initiative-builder',
+    title: 'Initiative Builder',
+    description: 'Clusters insights into scored bundles',
     stage: 'synthesis',
     details: [
-      'Synthesizes all insights into cohesive narrative',
-      'Identifies key decision points',
-      'Creates executive summary',
-      'Documents trade-offs and recommendations'
-    ]
-  },
-  {
-    id: 'strategist',
-    title: 'Strategist',
-    description: 'Proposes feature bundles',
-    stage: 'synthesis',
-    details: [
-      'Groups features into coherent bundles',
+      'Groups features into coherent initiative bundles',
+      'Scores bundles by value and complexity',
       'Provides business rationale for each',
-      'Estimates complexity and value',
       'Creates bundles for approval workflow'
-    ]
+    ],
+    checkpoint: 'Checkpoint 3: Bundles Approved'
   },
   // Stage 4: Capabilities
   {
-    id: 'prd-generator',
-    title: 'PRD Generator',
-    description: 'Creates product requirements',
+    id: 'requirements-generator',
+    title: 'Requirements Generator',
+    description: 'Produces PRD with tech recommendations',
     stage: 'capabilities',
     details: [
       'Generates PRD from approved bundles',
       'Includes user stories and acceptance criteria',
-      'Documents technical requirements',
-      'Creates implementation roadmap'
-    ]
-  },
-  {
-    id: 'tech-evaluation',
-    title: 'Tech Evaluation',
-    description: 'Assesses technical feasibility',
-    stage: 'capabilities',
-    details: [
       'Evaluates technical approaches',
-      'Identifies integration points',
-      'Assesses build vs buy options',
-      'Documents technical risks'
-    ]
-  },
-  // Stage 5: Operationalize
-  {
-    id: 'operationalize',
-    title: 'Operationalize',
-    description: 'Handoff to development',
-    stage: 'operationalize',
-    details: [
-      'PRD approved and finalized',
-      'Development team briefed',
-      'Sprint planning initiated',
-      'Success metrics defined'
-    ]
+      'Documents technical requirements and risks'
+    ],
+    checkpoint: 'Checkpoint 4: PRD Approved'
   }
 ]
 
@@ -143,33 +75,27 @@ const processSteps: ProcessStep[] = [
 const stageColors = {
   discovery: {
     fill: 'url(#discoveryGradient)',
-    stroke: '#f59e0b', // amber
-    text: '#f59e0b',
-    light: 'rgba(245, 158, 11, 0.15)'
+    stroke: '#3b82f6', // blue
+    text: '#3b82f6',
+    light: 'rgba(59, 130, 246, 0.15)'
   },
   intelligence: {
     fill: 'url(#intelligenceGradient)',
-    stroke: '#14b8a6', // teal
-    text: '#14b8a6',
-    light: 'rgba(20, 184, 166, 0.15)'
+    stroke: '#06b6d4', // cyan
+    text: '#06b6d4',
+    light: 'rgba(6, 182, 212, 0.15)'
   },
   synthesis: {
     fill: 'url(#synthesisGradient)',
-    stroke: '#8b5cf6', // violet
-    text: '#8b5cf6',
-    light: 'rgba(139, 92, 246, 0.15)'
-  },
-  capabilities: {
-    fill: 'url(#capabilitiesGradient)',
     stroke: '#22c55e', // green
     text: '#22c55e',
     light: 'rgba(34, 197, 94, 0.15)'
   },
-  operationalize: {
-    fill: 'url(#operationalizeGradient)',
-    stroke: '#ec4899', // pink
-    text: '#ec4899',
-    light: 'rgba(236, 72, 153, 0.15)'
+  capabilities: {
+    fill: 'url(#capabilitiesGradient)',
+    stroke: '#f43f5e', // rose
+    text: '#f43f5e',
+    light: 'rgba(244, 63, 94, 0.15)'
   }
 }
 
@@ -187,40 +113,34 @@ export default function DiscoProcessMap() {
       {/* SVG Flowchart */}
       <div className="overflow-x-auto text-primary">
         <svg
-          viewBox="0 0 1150 730"
-          className="w-full min-w-[900px]"
-          style={{ maxHeight: '730px' }}
+          viewBox="0 0 1000 520"
+          className="w-full min-w-[800px]"
+          style={{ maxHeight: '520px' }}
         >
           {/* Definitions */}
           <defs>
-            {/* Discovery gradient (amber) */}
+            {/* Discovery gradient (blue) */}
             <linearGradient id="discoveryGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.1" />
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.1" />
             </linearGradient>
 
-            {/* Intelligence gradient (teal) */}
+            {/* Intelligence gradient (cyan) */}
             <linearGradient id="intelligenceGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#14b8a6" stopOpacity="0.1" />
+              <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.1" />
             </linearGradient>
 
-            {/* Synthesis gradient (violet) */}
+            {/* Synthesis gradient (green) */}
             <linearGradient id="synthesisGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.1" />
-            </linearGradient>
-
-            {/* Capabilities gradient (green) */}
-            <linearGradient id="capabilitiesGradient" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#22c55e" stopOpacity="0.2" />
               <stop offset="100%" stopColor="#22c55e" stopOpacity="0.1" />
             </linearGradient>
 
-            {/* Operationalize gradient (pink) */}
-            <linearGradient id="operationalizeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#ec4899" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#ec4899" stopOpacity="0.1" />
+            {/* Capabilities gradient (rose) */}
+            <linearGradient id="capabilitiesGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.1" />
             </linearGradient>
 
             {/* Arrow marker */}
@@ -236,408 +156,328 @@ export default function DiscoProcessMap() {
             </marker>
           </defs>
 
-          {/* ===== STAGE LABELS ===== */}
-          <text x="280" y="30" textAnchor="middle" fill="#f59e0b" fontSize="14" fontWeight="700">
-            D: DISCOVERY
+          {/* ===== TITLE ===== */}
+          <text x="500" y="30" textAnchor="middle" fill={colors.textPrimary} fontSize="16" fontWeight="700">
+            DISCo: 4 Agents + 4 Checkpoints
           </text>
-          <text x="670" y="240" textAnchor="middle" fill="#14b8a6" fontSize="14" fontWeight="700">
-            I: INTELLIGENCE
-          </text>
-          <text x="860" y="255" textAnchor="middle" fill="#8b5cf6" fontSize="14" fontWeight="700">
-            S: SYNTHESIS
-          </text>
-          <text x="1060" y="255" textAnchor="middle" fill="#22c55e" fontSize="14" fontWeight="700">
-            C: CAPABILITIES
+          <text x="500" y="50" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
+            Click any agent for details
           </text>
 
-          {/* ===== STAGE 1: DISCOVERY (4 agents) ===== */}
-
-          {/* Discovery Prep */}
+          {/* ===== AGENT 1: DISCOVERY GUIDE ===== */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedStep(processSteps[0])}
           >
             <rect
-              x="50" y="60" width="140" height="70"
-              rx="8"
+              x="40" y="100" width="180" height="100"
+              rx="10"
               fill={stageColors.discovery.fill}
               stroke={stageColors.discovery.stroke}
-              strokeWidth="2"
+              strokeWidth="3"
             />
-            <text x="120" y="90" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
-              Discovery Prep
+            <text x="130" y="130" textAnchor="middle" fill="#3b82f6" fontSize="12" fontWeight="700">
+              D: DISCOVERY
             </text>
-            <text x="120" y="110" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              Analyze documents
+            <text x="130" y="155" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="600">
+              Discovery Guide
+            </text>
+            <text x="130" y="175" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+              Validates problem, plans
+            </text>
+            <text x="130" y="190" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+              sessions, tracks coverage
             </text>
           </g>
 
-          {/* Arrow: Prep -> Triage */}
-          <path d="M 190 95 L 220 95" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Discovery Guide -> Checkpoint 1 */}
+          <path d="M 220 150 L 250 150" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
-          {/* Triage (central, larger) - Human decision point */}
+          {/* Checkpoint 1 */}
+          <g>
+            <rect
+              x="255" y="120" width="60" height="60"
+              rx="8"
+              fill="rgba(100, 116, 139, 0.1)"
+              stroke="#64748b"
+              strokeWidth="2"
+              strokeDasharray="4 2"
+            />
+            <text x="285" y="145" textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="600">
+              CP 1
+            </text>
+            {/* Checkmark icon */}
+            <g transform="translate(273, 152)">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="#64748b" strokeWidth="1.5" />
+              <path d="M7 12 L10 15 L17 8" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </g>
+          </g>
+
+          {/* Arrow: Checkpoint 1 -> Insight Analyst */}
+          <path d="M 315 150 L 345 150" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+
+          {/* ===== AGENT 2: INSIGHT ANALYST ===== */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedStep(processSteps[1])}
           >
             <rect
-              x="230" y="50" width="160" height="90"
-              rx="10"
-              fill={stageColors.discovery.fill}
-              stroke={stageColors.discovery.stroke}
-              strokeWidth="3"
-            />
-            <text x="310" y="80" textAnchor="middle" fill={colors.textPrimary} fontSize="15" fontWeight="700">
-              Triage
-            </text>
-            <text x="310" y="100" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
-              GO / NO-GO gate
-            </text>
-            {/* Decision badges */}
-            <rect x="250" y="112" width="35" height="18" rx="4" fill="#22c55e" fillOpacity="0.3" />
-            <text x="267" y="125" textAnchor="middle" fill="#22c55e" fontSize="10" fontWeight="600">GO</text>
-            <rect x="292" y="112" width="50" height="18" rx="4" fill="#ef4444" fillOpacity="0.3" />
-            <text x="317" y="125" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="600">NO-GO</text>
-            <rect x="349" y="112" width="30" height="18" rx="4" fill="#f59e0b" fillOpacity="0.3" />
-            <text x="364" y="125" textAnchor="middle" fill="#f59e0b" fontSize="9" fontWeight="600">?</text>
-            {/* Human icon - decision validation (inset into box) */}
-            <g transform="translate(355, 58)">
-              <circle cx="6" cy="4" r="4" fill="#f59e0b" />
-              <path d="M0 16 Q6 10 12 16" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
-            </g>
-          </g>
-
-          {/* Arrow: Triage -> Discovery Planner (down and left) */}
-          <path d="M 310 140 L 310 200 L 115 200 L 115 275" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
-
-          {/* Discovery Planner */}
-          <g
-            className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedStep(processSteps[2])}
-          >
-            <rect
-              x="50" y="280" width="130" height="70"
-              rx="8"
-              fill={stageColors.discovery.fill}
-              stroke={stageColors.discovery.stroke}
-              strokeWidth="2"
-            />
-            <text x="115" y="310" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
-              Discovery Planner
-            </text>
-            <text x="115" y="330" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              Session agendas
-            </text>
-          </g>
-
-          {/* Arrow: Planner -> Discovery Workshop */}
-          <path d="M 180 315 L 210 315" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
-
-          {/* Discovery Workshop - Human stakeholder sessions */}
-          <g>
-            <rect
-              x="220" y="265" width="180" height="100"
-              rx="10"
-              fill="rgba(100, 116, 139, 0.15)"
-              stroke="#64748b"
-              strokeWidth="2"
-              strokeDasharray="6 3"
-            />
-            <text x="310" y="295" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="700">
-              Discovery Workshop
-            </text>
-            <text x="310" y="315" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              Stakeholder interviews &amp; sessions
-            </text>
-            {/* Multiple human icons to show group activity */}
-            <g transform="translate(255, 330)">
-              <circle cx="6" cy="4" r="4" fill="#64748b" />
-              <path d="M0 16 Q6 10 12 16" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
-            </g>
-            <g transform="translate(285, 330)">
-              <circle cx="6" cy="4" r="4" fill="#64748b" />
-              <path d="M0 16 Q6 10 12 16" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
-            </g>
-            <g transform="translate(315, 330)">
-              <circle cx="6" cy="4" r="4" fill="#64748b" />
-              <path d="M0 16 Q6 10 12 16" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
-            </g>
-            <g transform="translate(345, 330)">
-              <circle cx="6" cy="4" r="4" fill="#64748b" />
-              <path d="M0 16 Q6 10 12 16" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
-            </g>
-          </g>
-
-          {/* Arrow: Workshop -> Coverage Tracker */}
-          <path d="M 400 315 L 430 315" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
-
-          {/* Coverage Tracker */}
-          <g
-            className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedStep(processSteps[3])}
-          >
-            <rect
-              x="440" y="280" width="130" height="70"
-              rx="8"
-              fill={stageColors.discovery.fill}
-              stroke={stageColors.discovery.stroke}
-              strokeWidth="2"
-            />
-            <text x="505" y="310" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
-              Coverage Tracker
-            </text>
-            <text x="505" y="330" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              READY / GAPS
-            </text>
-          </g>
-
-          {/* ===== STAGE 2: INTELLIGENCE (1 agent) ===== */}
-
-          {/* Arrow: Coverage -> Insight Extractor */}
-          <path d="M 570 315 L 585 315" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
-
-          {/* Insight Extractor */}
-          <g
-            className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedStep(processSteps[4])}
-          >
-            <rect
-              x="590" y="265" width="160" height="100"
+              x="350" y="100" width="180" height="100"
               rx="10"
               fill={stageColors.intelligence.fill}
               stroke={stageColors.intelligence.stroke}
               strokeWidth="3"
             />
-            <text x="670" y="300" textAnchor="middle" fill={colors.textPrimary} fontSize="15" fontWeight="700">
-              Insight Extractor
+            <text x="440" y="130" textAnchor="middle" fill="#06b6d4" fontSize="12" fontWeight="700">
+              I: INTELLIGENCE
             </text>
-            <text x="670" y="320" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
-              Patterns with evidence
+            <text x="440" y="155" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="600">
+              Insight Analyst
             </text>
-            <text x="670" y="345" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              from transcripts
+            <text x="440" y="175" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+              Extracts patterns,
+            </text>
+            <text x="440" y="190" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+              creates decision doc
             </text>
           </g>
 
-          {/* ===== STAGE 3: SYNTHESIS (2 agents) ===== */}
+          {/* Arrow: Insight Analyst -> Checkpoint 2 */}
+          <path d="M 530 150 L 560 150" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
-          {/* Arrow: Insight -> Consolidator */}
-          <path d="M 750 315 L 780 315" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Checkpoint 2 */}
+          <g>
+            <rect
+              x="565" y="120" width="60" height="60"
+              rx="8"
+              fill="rgba(100, 116, 139, 0.1)"
+              stroke="#64748b"
+              strokeWidth="2"
+              strokeDasharray="4 2"
+            />
+            <text x="595" y="145" textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="600">
+              CP 2
+            </text>
+            {/* Checkmark icon */}
+            <g transform="translate(583, 152)">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="#64748b" strokeWidth="1.5" />
+              <path d="M7 12 L10 15 L17 8" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </g>
+          </g>
 
-          {/* Consolidator */}
+          {/* Arrow: Checkpoint 2 -> Initiative Builder */}
+          <path d="M 625 150 L 655 150" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+
+          {/* ===== AGENT 3: INITIATIVE BUILDER ===== */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedStep(processSteps[5])}
+            onClick={() => setSelectedStep(processSteps[2])}
           >
             <rect
-              x="790" y="280" width="140" height="70"
-              rx="8"
+              x="660" y="100" width="180" height="100"
+              rx="10"
               fill={stageColors.synthesis.fill}
               stroke={stageColors.synthesis.stroke}
-              strokeWidth="2"
+              strokeWidth="3"
             />
-            <text x="860" y="310" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
-              Consolidator
+            <text x="750" y="130" textAnchor="middle" fill="#22c55e" fontSize="12" fontWeight="700">
+              S: SYNTHESIS
             </text>
-            <text x="860" y="330" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              Decision document
+            <text x="750" y="155" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="600">
+              Initiative Builder
+            </text>
+            <text x="750" y="175" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+              Clusters insights into
+            </text>
+            <text x="750" y="190" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+              scored bundles
             </text>
           </g>
 
-          {/* Arrow: Consolidator -> Strategist (down) */}
-          <path d="M 860 350 L 860 385" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Initiative Builder -> Checkpoint 3 (down) */}
+          <path d="M 750 200 L 750 240 L 750 270" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
-          {/* Strategist */}
-          <g
-            className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedStep(processSteps[6])}
-          >
+          {/* Checkpoint 3 */}
+          <g>
             <rect
-              x="790" y="395" width="140" height="70"
+              x="720" y="275" width="60" height="60"
               rx="8"
-              fill={stageColors.synthesis.fill}
-              stroke={stageColors.synthesis.stroke}
+              fill="rgba(100, 116, 139, 0.1)"
+              stroke="#64748b"
               strokeWidth="2"
+              strokeDasharray="4 2"
             />
-            <text x="860" y="425" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
-              Strategist
+            <text x="750" y="300" textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="600">
+              CP 3
             </text>
-            <text x="860" y="445" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              Feature bundles
-            </text>
+            {/* Checkmark icon */}
+            <g transform="translate(738, 307)">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="#64748b" strokeWidth="1.5" />
+              <path d="M7 12 L10 15 L17 8" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </g>
           </g>
 
-          {/* ===== STAGE 4: CAPABILITIES (2 agents) ===== */}
+          {/* Arrow: Checkpoint 3 -> Requirements Generator (left) */}
+          <path d="M 720 305 L 530 305" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
-          {/* PRD Generator */}
+          {/* ===== AGENT 4: REQUIREMENTS GENERATOR ===== */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedStep(processSteps[7])}
+            onClick={() => setSelectedStep(processSteps[3])}
           >
             <rect
-              x="990" y="395" width="140" height="70"
-              rx="8"
+              x="350" y="255" width="180" height="100"
+              rx="10"
               fill={stageColors.capabilities.fill}
               stroke={stageColors.capabilities.stroke}
-              strokeWidth="2"
+              strokeWidth="3"
             />
-            <text x="1060" y="425" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
-              PRD Generator
+            <text x="440" y="285" textAnchor="middle" fill="#f43f5e" fontSize="12" fontWeight="700">
+              C: CAPABILITIES
             </text>
-            <text x="1060" y="445" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              Product requirements
+            <text x="440" y="310" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="600">
+              Requirements Generator
+            </text>
+            <text x="440" y="330" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+              PRD with tech
+            </text>
+            <text x="440" y="345" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+              recommendations
             </text>
           </g>
 
-          {/* Tech Evaluation */}
-          <g
-            className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedStep(processSteps[8])}
-          >
+          {/* Arrow: Requirements Generator -> Checkpoint 4 */}
+          <path d="M 350 305 L 315 305" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+
+          {/* Checkpoint 4 */}
+          <g>
             <rect
-              x="990" y="280" width="140" height="70"
+              x="255" y="275" width="60" height="60"
               rx="8"
-              fill={stageColors.capabilities.fill}
-              stroke={stageColors.capabilities.stroke}
+              fill="rgba(100, 116, 139, 0.1)"
+              stroke="#64748b"
               strokeWidth="2"
+              strokeDasharray="4 2"
             />
-            <text x="1060" y="310" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
-              Tech Evaluation
+            <text x="285" y="300" textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="600">
+              CP 4
             </text>
-            <text x="1060" y="330" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              Technical feasibility
-            </text>
+            {/* Checkmark icon */}
+            <g transform="translate(273, 307)">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="#64748b" strokeWidth="1.5" />
+              <path d="M7 12 L10 15 L17 8" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </g>
           </g>
 
-          {/* Arrow: Tech Evaluation -> PRD Generator (down) */}
-          <path d="M 1060 350 L 1060 390" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Checkpoint 4 -> PRD Output */}
+          <path d="M 255 305 L 220 305" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+
+          {/* Final Output: PRD */}
+          <g>
+            <rect
+              x="40" y="265" width="180" height="80"
+              rx="10"
+              fill="rgba(34, 197, 94, 0.15)"
+              stroke="#22c55e"
+              strokeWidth="3"
+            />
+            <text x="130" y="295" textAnchor="middle" fill="#22c55e" fontSize="14" fontWeight="700">
+              PRD Document
+            </text>
+            <text x="130" y="315" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+              Complete product spec
+            </text>
+            <text x="130" y="330" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+              ready for development
+            </text>
+          </g>
 
           {/* ===== DOCUMENTS INPUT ===== */}
           <g>
             <rect
-              x="50" y="150" width="90" height="40"
+              x="70" y="230" width="120" height="30"
               rx="6"
               fill="rgba(100, 116, 139, 0.1)"
               stroke="#64748b"
               strokeWidth="1"
               strokeDasharray="4 2"
             />
-            <text x="95" y="167" textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="500">
-              Documents
-            </text>
-            <text x="95" y="180" textAnchor="middle" fill="#64748b" fontSize="9">
-              (uploaded)
+            <text x="130" y="250" textAnchor="middle" fill="#64748b" fontSize="11" fontWeight="500">
+              Documents Input
             </text>
           </g>
 
-          {/* Arrow: Documents -> Prep */}
-          <path d="M 95 150 L 95 130 L 95 130" fill="none" stroke="#64748b" strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Documents -> Discovery Guide (up) */}
+          <path d="M 130 230 L 130 200" fill="none" stroke="#64748b" strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
 
-          {/* ===== OUTPUTS ===== */}
-
-          {/* Approved Bundles - Human in the loop (positioned between Strategist and PRD Generator) */}
+          {/* ===== DISCOVERY WORKSHOP LOOP ===== */}
           <g>
             <rect
-              x="920" y="480" width="80" height="55"
-              rx="6"
-              fill="rgba(139, 92, 246, 0.1)"
-              stroke="#8b5cf6"
+              x="840" y="210" width="140" height="90"
+              rx="10"
+              fill="rgba(100, 116, 139, 0.1)"
+              stroke="#64748b"
               strokeWidth="2"
-              strokeDasharray="4 2"
+              strokeDasharray="6 3"
             />
-            <text x="960" y="500" textAnchor="middle" fill="#8b5cf6" fontSize="10" fontWeight="500">
-              Approved
+            <text x="910" y="240" textAnchor="middle" fill={colors.textPrimary} fontSize="12" fontWeight="600">
+              Discovery Sessions
             </text>
-            <text x="960" y="512" textAnchor="middle" fill="#8b5cf6" fontSize="10" fontWeight="500">
-              Bundles
+            <text x="910" y="258" textAnchor="middle" fill={colors.textSecondary} fontSize="10">
+              Stakeholder interviews
             </text>
-            {/* Human icon - inset into box */}
-            <g transform="translate(942, 518)">
-              <circle cx="6" cy="4" r="4" fill="#8b5cf6" />
-              <path d="M0 14 Q6 9 12 14" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" />
+            {/* Human icons */}
+            <g transform="translate(870, 268)">
+              <circle cx="6" cy="4" r="4" fill="#64748b" />
+              <path d="M0 14 Q6 9 12 14" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
+            </g>
+            <g transform="translate(895, 268)">
+              <circle cx="6" cy="4" r="4" fill="#64748b" />
+              <path d="M0 14 Q6 9 12 14" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
+            </g>
+            <g transform="translate(920, 268)">
+              <circle cx="6" cy="4" r="4" fill="#64748b" />
+              <path d="M0 14 Q6 9 12 14" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
             </g>
           </g>
 
-          {/* Arrow: Strategist -> Approved Bundles */}
-          <path d="M 930 430 L 960 430 L 960 475" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Discovery Guide -> Workshop */}
+          <path d="M 220 175 L 260 175 L 260 220 L 840 220 L 840 255" fill="none" stroke="#64748b" strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
 
-          {/* Arrow: Approved Bundles -> Tech Evaluation (up) */}
-          <path d="M 1000 480 L 1000 350" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowhead)" />
-
-          {/* Final Output: PRD */}
-          <g>
-            <rect
-              x="1010" y="545" width="100" height="45"
-              rx="6"
-              fill="rgba(34, 197, 94, 0.15)"
-              stroke="#22c55e"
-              strokeWidth="2"
-            />
-            <text x="1060" y="565" textAnchor="middle" fill="#22c55e" fontSize="11" fontWeight="600">
-              PRD Document
-            </text>
-            <text x="1060" y="580" textAnchor="middle" fill="#22c55e" fontSize="10">
-              Ready for dev
-            </text>
-          </g>
-
-          {/* Arrow: PRD Generator -> PRD Output */}
-          <path d="M 1060 465 L 1060 540" fill="none" stroke="#22c55e" strokeWidth="2" markerEnd="url(#arrowhead)" />
-
-          {/* ===== STAGE 5: OPERATIONALIZE ===== */}
-
-          {/* Arrow: PRD Output -> Operationalize */}
-          <path d="M 1060 590 L 1060 610" fill="none" stroke="#ec4899" strokeWidth="2" markerEnd="url(#arrowhead)" />
-
-          {/* Operationalize */}
-          <g
-            className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedStep(processSteps[9])}
-          >
-            <rect
-              x="990" y="620" width="140" height="60"
-              rx="8"
-              fill={stageColors.operationalize.fill}
-              stroke={stageColors.operationalize.stroke}
-              strokeWidth="3"
-            />
-            <text x="1060" y="647" textAnchor="middle" fill={colors.textPrimary} fontSize="14" fontWeight="700">
-              Operationalize
-            </text>
-            <text x="1060" y="667" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              Handoff to dev
-            </text>
-          </g>
-
-          {/* ===== CLICK INSTRUCTION (top right) ===== */}
-          <g transform="translate(880, 50)">
-            <rect x="0" y="0" width="220" height="35" rx="8" fill="rgba(96, 165, 250, 0.15)" stroke="#60a5fa" strokeWidth="2" />
-            <text x="110" y="23" textAnchor="middle" fill="#60a5fa" fontSize="14" fontWeight="600">Click any box for details</text>
-          </g>
+          {/* Arrow: Workshop -> Insight Analyst (feedback) */}
+          <path d="M 840 255 L 840 175 L 660 175 L 660 150 L 530 150" fill="none" stroke="#64748b" strokeWidth="1" strokeDasharray="4 2" />
+          <text x="700" y="165" fill="#64748b" fontSize="9">transcripts</text>
 
           {/* ===== LEGEND (bottom) ===== */}
-          <g transform="translate(50, 690)">
-            <text x="0" y="0" fill={colors.textSecondary} fontSize="14" fontWeight="700">Legend</text>
+          <g transform="translate(40, 420)">
+            <text x="0" y="0" fill={colors.textSecondary} fontSize="13" fontWeight="700">Legend</text>
 
-            {/* Row 1 */}
-            <rect x="70" y="-12" width="20" height="14" rx="3" fill={stageColors.discovery.fill} stroke={stageColors.discovery.stroke} strokeWidth="2" />
-            <text x="96" y="0" fill={colors.textSecondary} fontSize="12">D - Discovery</text>
+            {/* Stage colors */}
+            <rect x="70" y="-12" width="18" height="14" rx="3" fill={stageColors.discovery.fill} stroke={stageColors.discovery.stroke} strokeWidth="2" />
+            <text x="94" y="0" fill={colors.textSecondary} fontSize="11">Discovery</text>
 
-            <rect x="210" y="-12" width="20" height="14" rx="3" fill={stageColors.intelligence.fill} stroke={stageColors.intelligence.stroke} strokeWidth="2" />
-            <text x="236" y="0" fill={colors.textSecondary} fontSize="12">I - Intelligence</text>
+            <rect x="170" y="-12" width="18" height="14" rx="3" fill={stageColors.intelligence.fill} stroke={stageColors.intelligence.stroke} strokeWidth="2" />
+            <text x="194" y="0" fill={colors.textSecondary} fontSize="11">Intelligence</text>
 
-            <rect x="355" y="-12" width="20" height="14" rx="3" fill={stageColors.synthesis.fill} stroke={stageColors.synthesis.stroke} strokeWidth="2" />
-            <text x="381" y="0" fill={colors.textSecondary} fontSize="12">S - Synthesis</text>
+            <rect x="280" y="-12" width="18" height="14" rx="3" fill={stageColors.synthesis.fill} stroke={stageColors.synthesis.stroke} strokeWidth="2" />
+            <text x="304" y="0" fill={colors.textSecondary} fontSize="11">Synthesis</text>
 
-            {/* Row 2 */}
-            <rect x="70" y="12" width="20" height="14" rx="3" fill={stageColors.capabilities.fill} stroke={stageColors.capabilities.stroke} strokeWidth="2" />
-            <text x="96" y="24" fill={colors.textSecondary} fontSize="12">C - Capabilities</text>
+            <rect x="380" y="-12" width="18" height="14" rx="3" fill={stageColors.capabilities.fill} stroke={stageColors.capabilities.stroke} strokeWidth="2" />
+            <text x="404" y="0" fill={colors.textSecondary} fontSize="11">Capabilities</text>
 
-            <rect x="210" y="12" width="20" height="14" rx="3" fill={stageColors.operationalize.fill} stroke={stageColors.operationalize.stroke} strokeWidth="2" />
-            <text x="236" y="24" fill={colors.textSecondary} fontSize="12">O - Operationalize</text>
+            {/* Checkpoint and human */}
+            <rect x="500" y="-12" width="18" height="14" rx="3" fill="rgba(100, 116, 139, 0.1)" stroke="#64748b" strokeWidth="2" strokeDasharray="3 2" />
+            <text x="524" y="0" fill={colors.textSecondary} fontSize="11">Checkpoint / Human Review</text>
+          </g>
 
-            <rect x="355" y="12" width="20" height="14" rx="3" fill="rgba(100, 116, 139, 0.15)" stroke="#64748b" strokeWidth="2" strokeDasharray="3 2" />
-            <text x="381" y="24" fill={colors.textSecondary} fontSize="12">Workshop / Human</text>
+          {/* Key insight text */}
+          <g transform="translate(40, 460)">
+            <text x="0" y="0" fill={colors.textSecondary} fontSize="11">
+              Each agent produces output reviewed at a checkpoint before the next agent runs.
+            </text>
+            <text x="0" y="18" fill={colors.textSecondary} fontSize="11">
+              Discovery sessions can occur any time, feeding transcripts back into the Insight Analyst.
+            </text>
           </g>
         </svg>
       </div>
@@ -676,6 +516,14 @@ export default function DiscoProcessMap() {
               </li>
             ))}
           </ul>
+          {selectedStep.checkpoint && (
+            <div className="mt-3 pt-3 border-t border-default">
+              <p className="text-xs text-muted flex items-center gap-2">
+                <span className="inline-block w-3 h-3 border-2 border-slate-400 rounded-sm" />
+                {selectedStep.checkpoint}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
