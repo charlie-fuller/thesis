@@ -236,7 +236,7 @@ export default function HelpChat() {
             />
           </svg>
           <h3 className="font-semibold text-base" style={{ color: 'var(--color-text-primary)' }}>
-            {isAdmin ? 'Admin Help' : 'Thesis Assistant'}
+            Thesis Help System
           </h3>
         </div>
 
@@ -342,9 +342,6 @@ export default function HelpChat() {
       >
         {!currentConversation || currentConversation.messages.length === 0 ? (
           <div className="text-center py-8">
-            <div className="text-lg font-medium mb-4" style={{ color: 'var(--color-text-primary)' }}>
-              How can I help?
-            </div>
             <div className="space-y-1 text-sm">
               {contextualQuestions.map((question, index) => (
                 <button
