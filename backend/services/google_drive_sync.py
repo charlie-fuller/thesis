@@ -150,7 +150,7 @@ def get_user_tokens(user_id: str) -> Optional[Dict]:
         return result.data[0]
 
     except Exception as e:
-        raise GoogleDriveSyncError(f"Failed to get user tokens: {e}")
+        raise GoogleDriveSyncError(f"Failed to get user tokens: {e}") from None
 
 
 def get_or_refresh_token(user_id: str) -> Credentials:
@@ -225,9 +225,9 @@ def get_or_refresh_token(user_id: str) -> Credentials:
         return credentials
 
     except OAuthCryptoError as e:
-        raise GoogleDriveSyncError(f"Token decryption failed: {e}")
+        raise GoogleDriveSyncError(f"Token decryption failed: {e}") from None
     except Exception as e:
-        raise GoogleDriveSyncError(f"Token refresh failed: {e}")
+        raise GoogleDriveSyncError(f"Token refresh failed: {e}") from None
 
 
 # ============================================================================
@@ -398,7 +398,7 @@ def create_drive_document(
     except Exception as e:
         logger.error(f"      ❌ Failed to create document: {e}")
         logger.error(f"      Document data: {document_data}")
-        raise GoogleDriveSyncError(f"Failed to create document: {e}")
+        raise GoogleDriveSyncError(f"Failed to create document: {e}") from None
 
 
 def update_drive_document(document_id: str, file_content: bytes, storage_url: str) -> Dict:
@@ -443,7 +443,7 @@ def update_drive_document(document_id: str, file_content: bytes, storage_url: st
         return result.data[0]
 
     except Exception as e:
-        raise GoogleDriveSyncError(f"Failed to update document: {e}")
+        raise GoogleDriveSyncError(f"Failed to update document: {e}") from None
 
 
 # ============================================================================
@@ -514,7 +514,7 @@ def list_folder_files(user_id: str, folder_id: str) -> List[Dict]:
 
     except Exception as e:
         logger.error(f"   ❌ Failed to list folder files: {e}")
-        raise GoogleDriveSyncError(f"Failed to list folder files: {e}")
+        raise GoogleDriveSyncError(f"Failed to list folder files: {e}") from None
 
 
 # ============================================================================
@@ -640,7 +640,7 @@ def create_placeholder_documents(user_id: str, file_ids: List[str]) -> List[Dict
 
     except Exception as e:
         logger.error(f"❌ Failed to create placeholder documents: {e}")
-        raise GoogleDriveSyncError(f"Failed to create placeholder documents: {e}")
+        raise GoogleDriveSyncError(f"Failed to create placeholder documents: {e}") from None
 
 
 def sync_files(
@@ -702,10 +702,10 @@ def sync_files(
                 documents = reader.load_data(file_ids=file_ids)
         except TimeoutError as e:
             logger.error(f"   ⏱️  Document fetch timed out: {e}")
-            raise GoogleDriveSyncError("Document fetch timed out after 10 minutes.")
+            raise GoogleDriveSyncError("Document fetch timed out after 10 minutes.") from None
         except Exception as e:
             logger.warning(f"   ⚠️  Error during document fetch: {e}")
-            raise GoogleDriveSyncError(f"Failed to fetch documents: {e}")
+            raise GoogleDriveSyncError(f"Failed to fetch documents: {e}") from None
 
         logger.info(f"   ✓ Found {len(documents)} documents")
 
@@ -1012,7 +1012,7 @@ def sync_folder(
             logger.error(f"   ⏱️  Document fetch timed out: {e}")
             raise GoogleDriveSyncError(
                 "Document fetch timed out after 10 minutes. Please try syncing a smaller folder."
-            )
+            ) from None
         except Exception as e:
             # Log the error but try to continue with any documents we did get
             logger.warning(
@@ -1020,7 +1020,7 @@ def sync_folder(
             )
             # If we got some documents before the error, we'll process those
             if not documents:
-                raise GoogleDriveSyncError(f"Failed to fetch documents: {e}")
+                raise GoogleDriveSyncError(f"Failed to fetch documents: {e}") from None
 
         logger.info(f"   ✓ Found {len(documents)} documents")
 
@@ -1230,7 +1230,7 @@ def sync_folder(
         _complete_sync_log(sync_log_id, "failed", error_message=error_message)
 
         logger.error(f"\n❌ Sync failed: {e}")
-        raise GoogleDriveSyncError(f"Sync failed: {e}")
+        raise GoogleDriveSyncError(f"Sync failed: {e}") from None
 
 
 def _create_sync_log(user_id: str, folder_id: Optional[str], folder_name: Optional[str]) -> str:
@@ -1375,4 +1375,4 @@ def disconnect_user(user_id: str) -> Dict:
         return {"status": "success", "message": "Google Drive disconnected"}
 
     except Exception as e:
-        raise GoogleDriveSyncError(f"Failed to disconnect: {e}")
+        raise GoogleDriveSyncError(f"Failed to disconnect: {e}") from None

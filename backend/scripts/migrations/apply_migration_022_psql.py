@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 
 try:
     import psycopg2
-    from psycopg2 import sql
 except ImportError:
     print("❌ ERROR: psycopg2 is not installed")
     print("Install it with: pip install psycopg2-binary")

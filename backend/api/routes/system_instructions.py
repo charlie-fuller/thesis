@@ -178,7 +178,7 @@ async def upload_system_instructions(
         try:
             content = file_content.decode("utf-8")
         except UnicodeDecodeError:
-            raise HTTPException(status_code=400, detail="File must be UTF-8 encoded")
+            raise HTTPException(status_code=400, detail="File must be UTF-8 encoded") from None
 
         # Create version record
         version_data = {
@@ -218,7 +218,7 @@ async def upload_system_instructions(
         raise
     except Exception as e:
         logger.error(f"❌ Upload error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}") from None
 
 
 # ============================================================================
@@ -603,7 +603,9 @@ Keep your response professional and focused on actionable insights for the admin
         raise
     except anthropic.APIError as e:
         logger.error(f"❌ Anthropic API error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"AI summary generation failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"AI summary generation failed: {str(e)}"
+        ) from None
     except Exception as e:
         logger.error(f"❌ Summary generation error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

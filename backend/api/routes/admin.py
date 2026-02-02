@@ -2029,7 +2029,7 @@ async def export_conversations(
             except ValueError:
                 raise HTTPException(
                     status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD"
-                )
+                ) from None
 
         if end_date:
             try:
@@ -2040,7 +2040,7 @@ async def export_conversations(
             except ValueError:
                 raise HTTPException(
                     status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD"
-                )
+                ) from None
 
         # Execute query
         result = await asyncio.to_thread(lambda: query.order("created_at", desc=True).execute())

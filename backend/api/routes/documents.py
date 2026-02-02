@@ -250,7 +250,7 @@ async def upload_document(
         raise
     except Exception as e:
         logger.error(f"❌ Upload error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}") from None
 
 
 # ============================================================================
@@ -398,7 +398,7 @@ async def save_from_chat(
         raise
     except Exception as e:
         logger.error(f"❌ Save from chat error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to save: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to save: {str(e)}") from None
 
 
 # ============================================================================
@@ -2287,7 +2287,7 @@ async def update_document_original_date(
             except ValueError:
                 raise HTTPException(
                     status_code=400, detail="Invalid date format. Please use YYYY-MM-DD format."
-                )
+                ) from None
 
         # Update the document
         await asyncio.to_thread(

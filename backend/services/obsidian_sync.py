@@ -728,7 +728,7 @@ def create_vault_config(
         return result.data[0]
 
     except Exception as e:
-        raise ObsidianSyncError(f"Failed to create vault config: {e}")
+        raise ObsidianSyncError(f"Failed to create vault config: {e}") from None
 
 
 def update_vault_config(config_id: str, updates: Dict) -> Dict:
@@ -749,7 +749,7 @@ def update_vault_config(config_id: str, updates: Dict) -> Dict:
         return result.data[0] if result.data else {}
 
     except Exception as e:
-        raise ObsidianSyncError(f"Failed to update vault config: {e}")
+        raise ObsidianSyncError(f"Failed to update vault config: {e}") from None
 
 
 def update_sync_progress(
@@ -848,7 +848,7 @@ def deactivate_vault_config(config_id: str, remove_documents: bool = False) -> D
         return {"status": "success", "config_id": config_id, "documents_removed": documents_removed}
 
     except Exception as e:
-        raise ObsidianSyncError(f"Failed to deactivate vault: {e}")
+        raise ObsidianSyncError(f"Failed to deactivate vault: {e}") from None
 
 
 # ============================================================================
@@ -1395,7 +1395,7 @@ def _create_obsidian_document(
     except ObsidianSyncError:
         raise
     except Exception as e:
-        raise ObsidianSyncError(f"Storage upload failed for {filename}: {e}")
+        raise ObsidianSyncError(f"Storage upload failed for {filename}: {e}") from None
 
     storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
 
@@ -1506,7 +1506,7 @@ def _update_obsidian_document(
     except ObsidianSyncError:
         raise
     except Exception as e:
-        raise ObsidianSyncError(f"Storage update failed for {filename}: {e}")
+        raise ObsidianSyncError(f"Storage update failed for {filename}: {e}") from None
 
     # Delete old embeddings
     _get_db().table("document_chunks").delete().eq("document_id", document_id).execute()
@@ -1899,7 +1899,7 @@ def sync_vault(config: Dict, trigger_source: str = "manual", recent_only: bool =
         # Complete sync log with failure
         complete_sync_log(log_id, "failed", stats, error_message=error_msg)
 
-        raise ObsidianSyncError(f"Vault sync failed: {e}")
+        raise ObsidianSyncError(f"Vault sync failed: {e}") from None
 
 
 # ============================================================================
@@ -2119,7 +2119,7 @@ class ObsidianVaultWatcher:
                         del self._debounce_timers[relative_path]
 
                 # Process ready events
-                for event_type, file_path, relative_path in ready_to_process:
+                for event_type, file_path, _relative_path in ready_to_process:
                     await self._process_file_change(event_type, file_path)
 
                 # Small sleep to avoid busy-waiting
@@ -2206,7 +2206,7 @@ class ObsidianVaultWatcher:
         except ImportError:
             raise ObsidianSyncError(
                 "watchdog library not installed. Install with: pip install watchdog"
-            )
+            ) from None
 
         if self._running:
             return

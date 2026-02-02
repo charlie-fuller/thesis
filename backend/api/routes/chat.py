@@ -2110,4 +2110,6 @@ That's it. Keep it SHORT."""
 
     except Exception:
         logger.exception("Error processing dig deeper section request", exc_info=True)
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(
+            status_code=500, detail="An error occurred. Please try again."
+        ) from None

@@ -320,7 +320,9 @@ If the documentation doesn't cover the user's question, acknowledge this briefly
         error_trace = traceback.format_exc()
         logger.error(f"Error in help chat: {e}")
         logger.error(f"Full traceback: {error_trace}")
-        raise HTTPException(status_code=500, detail=f"Error generating help response: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error generating help response: {str(e)}"
+        ) from None
 
 
 @router.get("/conversations")
@@ -997,4 +999,4 @@ async def index_help_docs_webhook(request: Request, force: bool = True):
 
     except Exception as e:
         logger.error(f"Error in webhook reindexing: {e}")
-        raise HTTPException(status_code=500, detail=f"Indexing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Indexing failed: {str(e)}") from None

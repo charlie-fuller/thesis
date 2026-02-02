@@ -841,7 +841,7 @@ async def scan_document(
             f"Extracted {len(raw_projects)} projects, {len(qualified_projs)} meet Tier 1-2 threshold (score >= {MIN_PROJECT_TOTAL_SCORE})"
         )
 
-        for total_score, proj in qualified_projs:
+        for _total_score, proj in qualified_projs:
             try:
                 proj_title = proj.get("description", "")[:200]
 
@@ -1195,7 +1195,7 @@ async def scan_meeting_documents(
         )
     except Exception as e:
         logger.error(f"Failed to query meeting documents: {e}")
-        raise GranolaScannerError(f"Failed to query documents: {e}")
+        raise GranolaScannerError(f"Failed to query documents: {e}") from None
 
     if not documents:
         logger.info("No unscanned meeting documents found")

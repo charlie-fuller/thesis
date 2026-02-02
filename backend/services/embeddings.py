@@ -35,7 +35,7 @@ def create_embedding(text: str, input_type: str = "document") -> List[float]:
         result = vo.embed(texts=[text], model=EMBEDDING.MODEL_NAME, input_type=input_type)
         return result.embeddings[0]
     except Exception as e:
-        raise Exception(f"Error creating embedding: {e}")
+        raise Exception(f"Error creating embedding: {e}") from None
 
 
 def create_embeddings_batch(texts: List[str], input_type: str = "document") -> List[List[float]]:
@@ -52,7 +52,7 @@ def create_embeddings_batch(texts: List[str], input_type: str = "document") -> L
         result = vo.embed(texts=texts, model=EMBEDDING.MODEL_NAME, input_type=input_type)
         return result.embeddings
     except Exception as e:
-        raise Exception(f"Error creating embeddings batch: {e}")
+        raise Exception(f"Error creating embeddings batch: {e}") from None
 
 
 async def embed_meeting_room_message(supabase_client, message_id: UUID, content: str) -> bool:

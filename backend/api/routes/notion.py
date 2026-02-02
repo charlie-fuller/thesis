@@ -138,7 +138,7 @@ async def list_notion_pages(current_user: dict = Depends(get_current_user)):
         pages = get_accessible_pages(current_user["id"])
         return {"success": True, "pages": pages}
     except NotionSyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"❌ List pages error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -159,7 +159,7 @@ async def sync_notion_pages(
             "message": f"Syncing {len(request.page_ids)} page(s) in background",
         }
     except NotionSyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"❌ Sync error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

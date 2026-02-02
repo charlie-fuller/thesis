@@ -251,7 +251,7 @@ def analyze_help_data(days: int = 90):
             msg_to_question[msg["id"]] = last_user_msg.get(conv_id, "Unknown")
 
     # Map low confidence responses back to questions
-    for resp in low_confidence_responses:
+    for _resp in low_confidence_responses:
         # Find the user question that preceded this response
         for msg in messages:
             if msg["id"] in [m["id"] for m in messages if m.get("role") == "assistant"]:

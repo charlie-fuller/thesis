@@ -228,7 +228,7 @@ async def get_folder_files(folder_id: str, current_user: dict = Depends(get_curr
         files = list_folder_files(current_user["id"], folder_id)
         return {"success": True, "files": files}
     except GoogleDriveSyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"❌ List files error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -258,7 +258,7 @@ async def sync_google_drive(
 
         return {"success": True, "message": message}
     except GoogleDriveSyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"❌ Sync error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -281,7 +281,7 @@ async def sync_single_document(
 
         return {"success": True, "message": f"Document {document_id} sync started in background"}
     except GoogleDriveSyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"❌ Document sync error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

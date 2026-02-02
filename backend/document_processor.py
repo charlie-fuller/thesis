@@ -85,7 +85,7 @@ def _extract_pdf_with_ocr(file_data: bytes, filename: str) -> str:
 
     except Exception as e:
         logger.error(f"❌ OCR failed for {filename}: {str(e)}")
-        raise ValueError(f"OCR failed: {str(e)}")
+        raise ValueError(f"OCR failed: {str(e)}") from None
 
 
 load_dotenv()
@@ -117,7 +117,7 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
         except ImportError:
             raise ValueError(
                 "DOCX support not available - install python-docx: pip install python-docx"
-            )
+            ) from None
 
         try:
             doc = Document(BytesIO(file_data))
@@ -131,7 +131,7 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
             raise
         except Exception as e:
             logger.error(f"Error extracting text from .docx file: {str(e)}")
-            raise ValueError(f"Failed to extract text from Word document: {str(e)}")
+            raise ValueError(f"Failed to extract text from Word document: {str(e)}") from e
 
     elif file_ext == "xlsx":
         # Extract text from Excel spreadsheet
@@ -153,7 +153,7 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
             return text
         except Exception as e:
             logger.error(f"❌ Error extracting text from .xlsx file: {str(e)}")
-            raise ValueError(f"Failed to extract text from Excel file: {str(e)}")
+            raise ValueError(f"Failed to extract text from Excel file: {str(e)}") from e
 
     elif file_ext == "pptx":
         # Extract text from PowerPoint presentation
@@ -175,7 +175,7 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
             return text
         except Exception as e:
             logger.error(f"❌ Error extracting text from .pptx file: {str(e)}")
-            raise ValueError(f"Failed to extract text from PowerPoint file: {str(e)}")
+            raise ValueError(f"Failed to extract text from PowerPoint file: {str(e)}") from e
 
     elif file_ext == "pdf":
         # Extract text from PDF - try text extraction first, then OCR fallback
@@ -206,7 +206,9 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
                 return full_text
 
         except ImportError:
-            raise ValueError("PDF support not available - install pypdf: pip install pypdf")
+            raise ValueError(
+                "PDF support not available - install pypdf: pip install pypdf"
+            ) from None
         except Exception as e:
             # If text extraction failed, try OCR as last resort
             if OCR_SUPPORT and "image-based" not in str(e):
@@ -216,21 +218,23 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
                 except Exception as ocr_error:
                     logger.error(f"❌ OCR also failed for {filename}: {str(ocr_error)}")
             logger.error(f"❌ Error extracting text from .pdf file: {str(e)}")
-            raise ValueError(f"Failed to extract text from PDF: {str(e)}")
+            raise ValueError(f"Failed to extract text from PDF: {str(e)}") from e
 
     elif file_ext == "txt":
         # Decode text file
         try:
             return file_data.decode("utf-8")
         except UnicodeDecodeError as e:
-            raise ValueError(f"Failed to decode text file: {str(e)}")
+            raise ValueError(f"Failed to decode text file: {str(e)}") from None
 
     elif file_ext == "rtf":
         # Extract text from RTF file
         try:
             from striprtf.striprtf import rtf_to_text
         except ImportError:
-            raise ValueError("RTF support not available - install striprtf: pip install striprtf")
+            raise ValueError(
+                "RTF support not available - install striprtf: pip install striprtf"
+            ) from None
 
         try:
             # RTF files are text-based, decode first
@@ -243,7 +247,7 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
             raise
         except Exception as e:
             logger.error(f"❌ Error extracting text from .rtf file: {str(e)}")
-            raise ValueError(f"Failed to extract text from RTF document: {str(e)}")
+            raise ValueError(f"Failed to extract text from RTF document: {str(e)}") from e
 
     else:
         # Try to decode as text (fallback)
@@ -252,7 +256,7 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
         except UnicodeDecodeError:
             raise ValueError(
                 f"Unsupported file type: .{file_ext}. Supported formats: .pdf, .txt, .docx, .xlsx, .pptx, .rtf"
-            )
+            ) from None
 
 
 def chunk_text(
@@ -327,7 +331,7 @@ def _call_voyage_embed_api(batch: List[str], model: str, input_type: str) -> Lis
         return result.embeddings
     except Exception as e:
         # Wrap external service errors with our custom exception
-        raise wrap_external_service_error(e, "Voyage AI", "embedding generation")
+        raise wrap_external_service_error(e, "Voyage AI", "embedding generation") from None
 
 
 def generate_embeddings(
@@ -378,7 +382,7 @@ def generate_embeddings(
         raise EmbeddingGenerationError(
             f"Failed to generate embeddings after retries: {str(e)}",
             details={"batch_count": total_batches, "text_count": len(texts)},
-        )
+        ) from None
 
 
 def process_document(document_id: str) -> Dict:
@@ -822,7 +826,7 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
             logger.error(f"   ⚠️  Rollback failed: {rollback_error}")
 
         # Re-raise the original error with context
-        raise ValueError(f"Failed to add conversation to knowledge base: {str(e)}")
+        raise ValueError(f"Failed to add conversation to knowledge base: {str(e)}") from None
 
 
 def remove_conversation_from_kb(conversation_id: str, user_id: str) -> Dict:
@@ -1174,7 +1178,7 @@ def search_similar_chunks(
                 )
 
                 if docs_result.data:
-                    conversation_doc_ids = list(set([d["document_id"] for d in docs_result.data]))
+                    conversation_doc_ids = list({d["document_id"] for d in docs_result.data})
                     logger.info(
                         f"   Found {len(conversation_doc_ids)} documents referenced in conversation"
                     )

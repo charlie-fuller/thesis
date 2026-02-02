@@ -637,7 +637,7 @@ async def ask_question_about_opportunity(
         return {"response": result["response"], "sources": formatted_sources}
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error answering question about opportunity: {e}")
         raise HTTPException(status_code=500, detail="Failed to process question") from e
@@ -710,7 +710,7 @@ async def taskmaster_chat_for_opportunity(
         return result
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error in Taskmaster chat: {e}")
         raise HTTPException(status_code=500, detail="Failed to process Taskmaster chat") from e
@@ -860,7 +860,7 @@ async def analyze_opportunity_goal_alignment(
             ),
         }
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Failed to analyze goal alignment: {e}")
         raise HTTPException(status_code=500, detail="Failed to analyze goal alignment") from e
@@ -942,7 +942,7 @@ async def create_opportunity(
             raise HTTPException(
                 status_code=409,
                 detail=f"Opportunity code {opportunity.opportunity_code} already exists",
-            )
+            ) from None
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
     created_opp = result.data[0]
@@ -1265,7 +1265,7 @@ async def link_stakeholder_to_opportunity(
         if "duplicate" in str(e).lower():
             raise HTTPException(
                 status_code=409, detail="Stakeholder already linked to this opportunity"
-            )
+            ) from None
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
     return {

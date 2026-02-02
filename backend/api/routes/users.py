@@ -108,7 +108,7 @@ async def create_user(
 
     except Exception as e:
         logger.error(f"❌ Error creating user: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"User creation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"User creation failed: {str(e)}") from None
 
 
 @router.put("/{user_id}")

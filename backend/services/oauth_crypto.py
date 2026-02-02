@@ -55,7 +55,7 @@ def _get_encryption_key() -> bytes:
         fernet_key = base64.urlsafe_b64encode(key_bytes)
         return fernet_key
     except ValueError as e:
-        raise OAuthCryptoError(f"Invalid OAUTH_ENCRYPTION_KEY format: {e}")
+        raise OAuthCryptoError(f"Invalid OAUTH_ENCRYPTION_KEY format: {e}") from None
 
 
 def encrypt_token(plaintext: str) -> str:
@@ -86,7 +86,7 @@ def encrypt_token(plaintext: str) -> str:
         return encrypted_bytes.decode("utf-8")
 
     except Exception as e:
-        raise OAuthCryptoError(f"Encryption failed: {e}")
+        raise OAuthCryptoError(f"Encryption failed: {e}") from None
 
 
 def decrypt_token(ciphertext: str) -> str:
@@ -120,7 +120,7 @@ def decrypt_token(ciphertext: str) -> str:
         raise OAuthCryptoError(
             f"Decryption failed: {e}. "
             "This usually means the encryption key changed or data was tampered with."
-        )
+        ) from None
 
 
 def rotate_encryption(old_ciphertext: str, new_key_hex: str) -> str:

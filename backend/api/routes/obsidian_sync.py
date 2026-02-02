@@ -119,7 +119,7 @@ async def configure_obsidian_vault(
         }
 
     except ObsidianSyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except HTTPException:
         raise
     except Exception as e:
@@ -169,7 +169,7 @@ async def update_obsidian_settings(
     except HTTPException:
         raise
     except ObsidianSyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Update settings error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -215,7 +215,7 @@ async def trigger_obsidian_sync(
     except HTTPException:
         raise
     except ObsidianSyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Sync error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -261,7 +261,7 @@ async def trigger_recent_sync(
     except HTTPException:
         raise
     except ObsidianSyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Recent sync error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -336,7 +336,7 @@ async def disconnect_obsidian(
     except HTTPException:
         raise
     except ObsidianSyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Disconnect error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

@@ -92,7 +92,7 @@ async def get_graph_query_service():
         logger.error(f"Failed to get graph query service: {e}")
         raise HTTPException(
             status_code=503, detail="Graph service unavailable. Check Neo4j connection."
-        )
+        ) from None
 
 
 async def get_graph_sync_service(current_user: dict = Depends(get_current_user)):

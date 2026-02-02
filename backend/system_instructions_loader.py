@@ -307,7 +307,7 @@ def get_system_instructions_for_version(version_id: str, user_data: Optional[Dic
             logger.info(f"✅ Version {version_id} loaded from database")
 
         except Exception as e:
-            raise ValueError(f"Error loading system instruction version: {e}")
+            raise ValueError(f"Error loading system instruction version: {e}") from None
 
     # Apply template variable replacement
     client_id = user_data.get("client_id") or get_default_client_id()

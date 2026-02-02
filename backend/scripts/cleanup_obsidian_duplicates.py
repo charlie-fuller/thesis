@@ -172,7 +172,7 @@ def main():
     deleted = 0
     failed = 0
 
-    for filename, info in duplicates.items():
+    for _filename, info in duplicates.items():
         for doc in info["delete"]:
             if cleanup_document(supabase, doc["id"], dry_run):
                 deleted += 1

@@ -200,14 +200,14 @@ class ImageGenerationService:
         except requests.exceptions.Timeout:
             error_msg = "Request timed out after 60 seconds"
             logger.error(error_msg)
-            raise Exception(error_msg)
+            raise Exception(error_msg) from None
         except requests.exceptions.RequestException as e:
             error_msg = f"Network error: {str(e)}"
             logger.error(error_msg)
-            raise Exception(error_msg)
+            raise Exception(error_msg) from None
         except Exception as e:
             logger.error(f"Error generating image: {str(e)}")
-            raise Exception(f"Failed to generate image: {str(e)}")
+            raise Exception(f"Failed to generate image: {str(e)}") from None
 
     async def generate_multiple_images(
         self, prompts: list[str], model: Optional[str] = None

@@ -141,7 +141,7 @@ async def upload_transcript(
     try:
         text_content = content.decode("utf-8")
     except UnicodeDecodeError:
-        raise HTTPException(status_code=400, detail="File must be UTF-8 encoded text")
+        raise HTTPException(status_code=400, detail="File must be UTF-8 encoded text") from None
 
     # Analyze the transcript
     request = TranscriptAnalysisRequest(

@@ -286,9 +286,9 @@ async def api_update_initiative(
         )
         return {"success": True, "initiative": initiative}
     except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=403, detail=str(e)) from None
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error updating initiative: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -303,7 +303,7 @@ async def api_delete_initiative(
         await delete_initiative(initiative_id, current_user["id"])
         return {"success": True, "message": "Initiative deleted"}
     except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=403, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error deleting initiative: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -360,7 +360,7 @@ async def api_upload_document_file(
         return {"success": True, "document": document}
     except ValueError as e:
         logger.warning(f"[DISCO-DOC] Upload validation error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"[DISCO-DOC] Upload failed: {type(e).__name__}: {e}")
         import traceback
@@ -420,7 +420,7 @@ async def api_delete_document(
         await delete_document(document_id, initiative_id)
         return {"success": True, "message": "Document deleted"}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error deleting document: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -895,7 +895,7 @@ async def api_promote_output(
         document = await promote_output_to_document(output_id, initiative_id)
         return {"success": True, "document": document}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error promoting output: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -1396,9 +1396,9 @@ async def api_add_member(
         )
         return {"success": True, "member": member}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=403, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error adding member: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -1421,9 +1421,9 @@ async def api_update_member_role(
         )
         return {"success": True, "member": member}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=403, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error updating member role: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -1440,9 +1440,9 @@ async def api_remove_member(
         )
         return {"success": True, "message": "Member removed"}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=403, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error removing member: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -1514,9 +1514,9 @@ async def api_get_agent_prompt(agent_type: str, current_user: dict = Depends(req
         prompt = load_agent_prompt(agent_type)
         return {"success": True, "agent_type": agent_type, "prompt": prompt}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error loading agent prompt: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -1762,7 +1762,7 @@ async def api_update_bundle(
     except HTTPException:
         raise
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error updating bundle: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -1865,7 +1865,7 @@ async def api_merge_bundles(
     except HTTPException:
         raise
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error merging bundles: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -1900,7 +1900,7 @@ async def api_split_bundle(
     except HTTPException:
         raise
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error splitting bundle: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

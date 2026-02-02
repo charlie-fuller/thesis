@@ -85,7 +85,7 @@ def get_user_tokens(user_id: str) -> Optional[Dict]:
 
     except Exception as e:
         logger.error(f"   ❌ Error querying tokens: {e}")
-        raise NotionSyncError(f"Failed to get user tokens: {e}")
+        raise NotionSyncError(f"Failed to get user tokens: {e}") from None
 
 
 def get_notion_token(user_id: str) -> str:
@@ -113,9 +113,9 @@ def get_notion_token(user_id: str) -> str:
         return access_token
 
     except OAuthCryptoError as e:
-        raise NotionSyncError(f"Token decryption failed: {e}")
+        raise NotionSyncError(f"Token decryption failed: {e}") from None
     except Exception as e:
-        raise NotionSyncError(f"Failed to get token: {e}")
+        raise NotionSyncError(f"Failed to get token: {e}") from None
 
 
 # ============================================================================
@@ -216,7 +216,7 @@ def create_notion_document(
         return document
 
     except Exception as e:
-        raise NotionSyncError(f"Failed to create document: {e}")
+        raise NotionSyncError(f"Failed to create document: {e}") from None
 
 
 def update_notion_document(
@@ -269,7 +269,7 @@ def update_notion_document(
         return result.data[0]
 
     except Exception as e:
-        raise NotionSyncError(f"Failed to update document: {e}")
+        raise NotionSyncError(f"Failed to update document: {e}") from None
 
 
 # ============================================================================
@@ -377,7 +377,7 @@ def get_accessible_pages(user_id: str) -> List[Dict]:
         raise
     except Exception as e:
         logger.error(f"❌ Failed to fetch accessible pages: {e}")
-        raise NotionSyncError(f"Failed to fetch accessible pages: {e}")
+        raise NotionSyncError(f"Failed to fetch accessible pages: {e}") from None
 
 
 # ============================================================================
@@ -573,7 +573,7 @@ def create_placeholder_documents(user_id: str, page_ids: List[str]) -> List[Dict
 
     except Exception as e:
         logger.error(f"❌ Failed to create placeholder documents: {e}")
-        raise NotionSyncError(f"Failed to create placeholder documents: {e}")
+        raise NotionSyncError(f"Failed to create placeholder documents: {e}") from None
 
 
 def sync_pages(
@@ -781,7 +781,7 @@ def sync_pages(
         _complete_sync_log(sync_log_id, "failed", error_message=error_message)
 
         logger.error(f"\n❌ Sync failed: {e}")
-        raise NotionSyncError(f"Sync failed: {e}")
+        raise NotionSyncError(f"Sync failed: {e}") from None
 
 
 def _create_sync_log(user_id: str, page_ids: Optional[List[str]]) -> str:
@@ -924,7 +924,7 @@ def disconnect_user(user_id: str) -> Dict:
         return {"status": "success", "message": "Notion disconnected"}
 
     except Exception as e:
-        raise NotionSyncError(f"Failed to disconnect: {e}")
+        raise NotionSyncError(f"Failed to disconnect: {e}") from None
 
 
 def get_sync_history(user_id: str, limit: int = 10) -> Dict:

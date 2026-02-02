@@ -692,7 +692,7 @@ async def stream_meeting_chat(
             )
         except Exception as db_err:
             logger.error(f"[Meeting Chat] DB error fetching meeting: {db_err}")
-            raise HTTPException(status_code=500, detail=f"Database error: {str(db_err)}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(db_err)}") from None
 
         if not meeting_result.data:
             raise HTTPException(status_code=404, detail="Meeting room not found")
@@ -711,7 +711,7 @@ async def stream_meeting_chat(
             )
         except Exception as db_err:
             logger.error(f"[Meeting Chat] DB error fetching participants: {db_err}")
-            raise HTTPException(status_code=500, detail=f"Database error: {str(db_err)}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(db_err)}") from None
 
         participants = [
             {
@@ -745,7 +745,7 @@ async def stream_meeting_chat(
             )
         except Exception as db_err:
             logger.error(f"[Meeting Chat] DB error fetching messages: {db_err}")
-            raise HTTPException(status_code=500, detail=f"Database error: {str(db_err)}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(db_err)}") from None
 
         message_history = [
             {
@@ -843,7 +843,9 @@ async def stream_meeting_chat(
             logger.error(
                 f"[Meeting Chat] Failed to import MeetingContext: {import_err}\n{traceback.format_exc()}"
             )
-            raise HTTPException(status_code=500, detail=f"Import error: {str(import_err)}")
+            raise HTTPException(
+                status_code=500, detail=f"Import error: {str(import_err)}"
+            ) from None
 
         meeting_context = MeetingContext(
             user_id=user_id,
@@ -876,7 +878,7 @@ async def stream_meeting_chat(
             logger.error(f"Failed to get orchestrator: {orch_err}\n{traceback.format_exc()}")
             raise HTTPException(
                 status_code=500, detail=f"Orchestrator initialization failed: {str(orch_err)}"
-            )
+            ) from None
 
         async def generate_stream():
             """Generate SSE stream from orchestrator."""

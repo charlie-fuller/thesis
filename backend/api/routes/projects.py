@@ -640,7 +640,7 @@ async def ask_question_about_project(
         return {"response": result["response"], "sources": formatted_sources}
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error answering question about project: {e}")
         raise HTTPException(status_code=500, detail="Failed to process question") from e
@@ -713,7 +713,7 @@ async def taskmaster_chat_for_project(
         return result
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error in Taskmaster chat: {e}")
         raise HTTPException(status_code=500, detail="Failed to process Taskmaster chat") from e
@@ -859,7 +859,7 @@ async def analyze_project_goal_alignment(
             ),
         }
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Failed to analyze goal alignment: {e}")
         raise HTTPException(status_code=500, detail="Failed to analyze goal alignment") from e
@@ -938,7 +938,7 @@ async def create_project(
         if "duplicate" in str(e).lower():
             raise HTTPException(
                 status_code=409, detail=f"Project code {project.project_code} already exists"
-            )
+            ) from None
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
     created_proj = result.data[0]
@@ -1253,7 +1253,7 @@ async def link_stakeholder_to_project(
         if "duplicate" in str(e).lower():
             raise HTTPException(
                 status_code=409, detail="Stakeholder already linked to this project"
-            )
+            ) from None
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
     return {

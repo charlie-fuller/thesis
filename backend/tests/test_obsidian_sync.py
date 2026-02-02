@@ -925,9 +925,7 @@ class TestVaultConfigEdgeCases:
                 )
 
                 # Verify update was called to deactivate old config
-                update_calls = [
-                    call for call in mock_supabase.table.return_value.update.call_args_list
-                ]
+                update_calls = list(mock_supabase.table.return_value.update.call_args_list)
                 assert len(update_calls) >= 1
 
     def test_update_vault_config_raises_on_failure(self):

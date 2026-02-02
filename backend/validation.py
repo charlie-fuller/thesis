@@ -100,7 +100,7 @@ def validate_uuid(value: str, field_name: str = "id") -> str:
     except ValueError:
         raise HTTPException(
             status_code=400, detail=f"Invalid {field_name} format. Must be a valid UUID."
-        )
+        ) from None
 
 
 def validate_file_upload(file: UploadFile) -> None:

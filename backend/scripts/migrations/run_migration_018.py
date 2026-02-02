@@ -22,8 +22,6 @@ print("=" * 80)
 
 # Try using psycopg2 for direct database connection
 try:
-    from urllib.parse import urlparse
-
     import psycopg2
 
     # Get database URL from environment (Supabase provides this)
