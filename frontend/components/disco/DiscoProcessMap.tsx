@@ -114,7 +114,7 @@ export default function DiscoProcessMap() {
   const agentHeight = 70
   const checkpointX = 320
   const checkpointSize = 55
-  const rowSpacing = 100
+  const rowSpacing = 120
   const startY = 70
 
   return (
@@ -122,9 +122,9 @@ export default function DiscoProcessMap() {
       {/* SVG Flowchart - Compact Layout */}
       <div className="overflow-x-auto text-primary">
         <svg
-          viewBox="0 0 450 580"
+          viewBox="0 0 450 670"
           className="w-full max-w-[450px] mx-auto"
-          style={{ maxHeight: '580px' }}
+          style={{ maxHeight: '670px' }}
         >
           {/* Definitions */}
           <defs>
@@ -396,7 +396,7 @@ export default function DiscoProcessMap() {
           </g>
 
           {/* ===== LEGEND (bottom) ===== */}
-          <g transform="translate(30, 555)">
+          <g transform="translate(30, 645)">
             <rect x="0" y="-10" width="14" height="14" rx="3" fill="rgba(100, 116, 139, 0.15)" stroke="#64748b" strokeWidth="1.5" />
             <text x="20" y="2" fill={colors.textSecondary} fontSize="10">= Human-in-the-loop checkpoint</text>
             <text x="250" y="2" fill={colors.textSecondary} fontSize="10">Click agents for details</text>
