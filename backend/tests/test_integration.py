@@ -206,12 +206,35 @@ def test_user_email(real_supabase, test_user_id) -> str:
 
 @pytest.fixture(scope="module")
 def auth_headers(test_user_id, test_user_email) -> dict:
-    """Generate valid JWT auth headers for test user."""
+    """Generate valid JWT auth headers for test user.
+
+    Note: Supabase uses ES256 (asymmetric) JWTs in production, but we can only
+    sign HS256 (symmetric) JWTs in tests. For integration tests, we check if
+    TEST_JWT_SECRET is set (for test environments with HS256), otherwise skip
+    auth-dependent tests when running against production ES256 keys.
+    """
     import jwt
 
-    secret = os.environ.get("SUPABASE_JWT_SECRET", "")
-    if not secret:
-        pytest.skip("SUPABASE_JWT_SECRET not set")
+    # Prefer TEST_JWT_SECRET for integration testing (HS256)
+    # Fall back to SUPABASE_JWT_SECRET only if it's not a JWK
+    test_secret = os.environ.get("TEST_JWT_SECRET", "")
+    supabase_secret = os.environ.get("SUPABASE_JWT_SECRET", "")
+
+    # Determine which secret to use
+    if test_secret:
+        secret = test_secret
+        algorithm = "HS256"
+    elif supabase_secret and not supabase_secret.strip().startswith("{"):
+        # SUPABASE_JWT_SECRET is an HS256 secret (not a JWK)
+        secret = supabase_secret
+        algorithm = "HS256"
+    else:
+        # SUPABASE_JWT_SECRET is a JWK (ES256) - we can't sign these tokens
+        pytest.skip(
+            "Cannot create test JWTs: SUPABASE_JWT_SECRET is a JWK (ES256). "
+            "Set TEST_JWT_SECRET with an HS256 secret for integration tests, "
+            "or configure the backend to accept HS256 tokens in test mode."
+        )
 
     payload = {
         "sub": test_user_id,
@@ -221,7 +244,7 @@ def auth_headers(test_user_id, test_user_email) -> dict:
         "iat": datetime.now(timezone.utc),
     }
 
-    token = jwt.encode(payload, secret, algorithm="HS256")
+    token = jwt.encode(payload, secret, algorithm=algorithm)
     return {"Authorization": f"Bearer {token}"}
 
 
