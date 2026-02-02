@@ -79,7 +79,7 @@ def parse_opportunities_markdown(filepath: str) -> list[dict]:
                 effort = _parse_score(cols[4])
                 strategic = _parse_score(cols[5])
                 readiness = _parse_score(cols[6])
-                total = _parse_score(cols[7]) if len(cols) > 7 else None
+                _parse_score(cols[7]) if len(cols) > 7 else None
                 status = cols[8].strip() if len(cols) > 8 else "identified"
 
                 # Skip if ID doesn't match pattern (e.g., S01, F02, etc.)

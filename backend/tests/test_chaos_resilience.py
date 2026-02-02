@@ -120,7 +120,7 @@ class TestNetworkConditions:
         with patch("services.ai.call_api", new=slow_response):
             start = time.time()
             response = await self._make_request_with_timeout("/api/chat", timeout=10)
-            duration = time.time() - start
+            time.time() - start
 
             # Should complete or timeout gracefully
             assert response["status_code"] in [200, 504, 408]
@@ -212,9 +212,7 @@ class TestResourceExhaustion:
         success_count = sum(
             1 for r in results if isinstance(r, dict) and r.get("status_code") == 200
         )
-        error_count = sum(
-            1 for r in results if isinstance(r, dict) and r.get("status_code") in [429, 503]
-        )
+        sum(1 for r in results if isinstance(r, dict) and r.get("status_code") in [429, 503])
 
         assert success_count > 0, "Some requests should succeed"
         assert all(not isinstance(r, Exception) for r in results), "No unhandled exceptions"
@@ -339,7 +337,7 @@ class TestRecovery:
             assert response1["status_code"] in [503, 500]
 
             # Later calls succeed after reconnection
-            response2 = await self._make_request("/api/test")
+            await self._make_request("/api/test")
             # Should eventually succeed
 
     @pytest.mark.chaos
@@ -371,12 +369,12 @@ class TestRecovery:
         """System recovers from degraded mode."""
         # Start in degraded mode
         with patch("services.cache.available", return_value=False):
-            response1 = await self._make_request("/api/test")
+            await self._make_request("/api/test")
             # Should work in degraded mode
 
         # Service recovers
         with patch("services.cache.available", return_value=True):
-            response2 = await self._make_request("/api/test")
+            await self._make_request("/api/test")
             # Should be back to full functionality
 
     async def _make_request(self, path: str, **kwargs) -> dict:
@@ -406,7 +404,7 @@ class TestDataConsistencyUnderFailure:
             assert response["status_code"] in [500, 503]
 
             # Verify no partial data
-            data = await self._get_data("transactions")
+            await self._get_data("transactions")
             # Data should be in consistent state
 
     @pytest.mark.chaos
@@ -460,9 +458,7 @@ class TestLoadShedding:
     async def test_priority_queue_under_load(self):
         """High priority requests are served under load."""
         # Fill up with low priority requests
-        low_priority_tasks = [
-            self._make_request("/api/batch", headers={"Priority": "low"}) for _ in range(50)
-        ]
+        [self._make_request("/api/batch", headers={"Priority": "low"}) for _ in range(50)]
 
         # High priority request should still be served
         high_priority_response = await self._make_request(

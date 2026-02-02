@@ -62,7 +62,7 @@ def delete_corrupted_chunks():
     """Delete all corrupted chunks for this document."""
     logger.info("\n🗑️  Deleting corrupted chunks...")
 
-    result = supabase.table("document_chunks").delete().eq("document_id", DOC_ID).execute()
+    supabase.table("document_chunks").delete().eq("document_id", DOC_ID).execute()
 
     logger.info("   ✅ Deleted chunks")
     return True

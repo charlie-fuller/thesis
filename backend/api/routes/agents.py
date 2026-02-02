@@ -196,7 +196,7 @@ async def list_agents(
 
     except Exception as e:
         logger.error(f"Failed to list agents: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/{agent_id}/conversations")
@@ -262,7 +262,7 @@ async def get_agent_conversations(
         raise
     except Exception as e:
         logger.error(f"Failed to get conversations for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/{agent_id}")
@@ -348,7 +348,7 @@ async def get_agent(
         raise
     except Exception as e:
         logger.error(f"Failed to get agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("")
@@ -386,7 +386,7 @@ async def create_agent(
         raise
     except Exception as e:
         logger.error(f"Failed to create agent: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.patch("/{agent_id}")
@@ -412,7 +412,7 @@ async def update_agent(
         raise
     except Exception as e:
         logger.error(f"Failed to update agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -440,7 +440,7 @@ async def get_agent_instructions(
 
     except Exception as e:
         logger.error(f"Failed to get instructions for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{agent_id}/instructions")
@@ -493,7 +493,7 @@ async def create_instruction_version(
 
     except Exception as e:
         logger.error(f"Failed to create instruction version for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{agent_id}/instructions/{version_id}/activate")
@@ -541,7 +541,7 @@ async def activate_instruction_version(
         raise
     except Exception as e:
         logger.error(f"Failed to activate version {version_id} for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 class VersionCompareRequest(BaseModel):
@@ -578,7 +578,7 @@ async def get_instruction_version(
         raise
     except Exception as e:
         logger.error(f"Failed to get version {version_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/{agent_id}/instructions/{version_id}")
@@ -606,9 +606,7 @@ async def delete_instruction_version(
         if version.data.get("is_active"):
             raise HTTPException(status_code=400, detail="Cannot delete active version")
 
-        result = (
-            supabase.table("agent_instruction_versions").delete().eq("id", version_id).execute()
-        )
+        (supabase.table("agent_instruction_versions").delete().eq("id", version_id).execute())
 
         return {"success": True, "message": f"Version {version.data['version_number']} deleted"}
 
@@ -616,7 +614,7 @@ async def delete_instruction_version(
         raise
     except Exception as e:
         logger.error(f"Failed to delete version {version_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/{agent_id}/instructions/compare")
@@ -649,7 +647,7 @@ async def compare_instruction_versions(
         raise
     except Exception as e:
         logger.error(f"Failed to compare versions: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{agent_id}/instructions/compare")
@@ -726,7 +724,7 @@ async def compare_versions_detailed(
         raise
     except Exception as e:
         logger.error(f"Failed to compare versions: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{agent_id}/instructions/compare/summary")
@@ -853,7 +851,7 @@ Provide a clear, bulleted summary of the changes (3-7 bullet points).""",
         raise
     except Exception as e:
         logger.error(f"Failed to generate comparison summary: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -899,7 +897,7 @@ async def get_available_documents(
 
     except Exception as e:
         logger.error(f"Failed to get available documents: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/{agent_id}/documents")
@@ -935,7 +933,7 @@ async def get_agent_documents(
 
     except Exception as e:
         logger.error(f"Failed to get documents for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{agent_id}/documents")
@@ -996,7 +994,7 @@ async def link_document_to_agent(
         raise
     except Exception as e:
         logger.error(f"Failed to link document to agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.patch("/{agent_id}/documents/{link_id}")
@@ -1029,7 +1027,7 @@ async def update_document_link(
         raise
     except Exception as e:
         logger.error(f"Failed to update document link {link_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/{agent_id}/documents/{link_id}")
@@ -1058,7 +1056,7 @@ async def unlink_document_from_agent(
         raise
     except Exception as e:
         logger.error(f"Failed to unlink document from agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -1117,7 +1115,7 @@ async def get_xml_instructions(
         raise
     except Exception as e:
         logger.error(f"Failed to get XML instructions for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{agent_id}/sync-from-xml")
@@ -1215,7 +1213,7 @@ async def sync_instructions_from_xml(
         raise
     except Exception as e:
         logger.error(f"Failed to sync XML for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{agent_id}/sync-to-xml")
@@ -1276,7 +1274,7 @@ async def sync_instructions_to_xml(
         raise
     except Exception as e:
         logger.error(f"Failed to sync to XML for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/xml-files")
@@ -1290,7 +1288,7 @@ async def list_xml_instruction_files(current_user: dict = Depends(get_current_us
         return {"success": True, "files": files, "count": len(files)}
     except Exception as e:
         logger.error(f"Failed to list XML files: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -1389,7 +1387,7 @@ async def get_agent_default_instructions(
         raise
     except Exception as e:
         logger.error(f"Failed to get default instructions for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/{agent_id}/stats")
@@ -1425,4 +1423,4 @@ async def get_agent_stats(
 
     except Exception as e:
         logger.error(f"Failed to get stats for agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

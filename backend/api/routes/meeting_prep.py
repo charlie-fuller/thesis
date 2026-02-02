@@ -91,7 +91,7 @@ def _calculate_engagement_status(stakeholder: dict, insights_data: list) -> Stat
 
     # Count recent interactions
     total_interactions = stakeholder.get("total_interactions", 0)
-    last_interaction = stakeholder.get("last_interaction")
+    stakeholder.get("last_interaction")
 
     if total_interactions == 0:
         notes = "No interactions yet"

@@ -981,7 +981,7 @@ class TestCalculationFlow:
         mock_sb.table.return_value.insert.return_value.execute.return_value = Mock()
 
         calculator = EngagementCalculator(supabase=mock_sb)
-        result = await calculator.calculate_for_stakeholder(
+        await calculator.calculate_for_stakeholder(
             stakeholder_id="test-stakeholder", client_id="test-client", calculation_type="manual"
         )
 

@@ -116,7 +116,7 @@ def real_supabase():
 
     # Verify connection works
     try:
-        result = client.table("users").select("id").limit(1).execute()
+        client.table("users").select("id").limit(1).execute()
         # Connection successful
     except Exception as e:
         pytest.skip(f"Cannot connect to real database: {e}")

@@ -162,7 +162,7 @@ async def list_connectors(
         return result.data
     except Exception as e:
         logger.error(f"Error listing connectors: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/categories")
@@ -174,7 +174,7 @@ async def list_categories(supabase: Client = Depends(get_supabase)):
         return sorted(list(categories))
     except Exception as e:
         logger.error(f"Error listing categories: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/check", response_model=list[ConnectorCheckResult])
@@ -218,7 +218,7 @@ async def check_connectors(
         return results
     except Exception as e:
         logger.error(f"Error checking connectors: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/request")
@@ -249,7 +249,7 @@ async def log_connector_request(
         }
     except Exception as e:
         logger.error(f"Error logging connector request: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/gaps", response_model=list[ConnectorGap])
@@ -269,7 +269,7 @@ async def get_connector_gaps(
         return result.data
     except Exception as e:
         logger.error(f"Error getting connector gaps: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/search/{query}")
@@ -288,7 +288,7 @@ async def search_connectors(query: str, supabase: Client = Depends(get_supabase)
         return result.data
     except Exception as e:
         logger.error(f"Error searching connectors: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -368,7 +368,7 @@ async def calculate_disco_score(
         raise
     except Exception as e:
         logger.error(f"Error calculating DISCO score: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/disco/matrix")
@@ -396,7 +396,7 @@ async def get_disco_matrix(
         return result.data
     except Exception as e:
         logger.error(f"Error getting DISCO matrix: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/disco/summary")
@@ -409,4 +409,4 @@ async def get_disco_summary(supabase: Client = Depends(get_supabase)):
         return result.data
     except Exception as e:
         logger.error(f"Error getting DISCO summary: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

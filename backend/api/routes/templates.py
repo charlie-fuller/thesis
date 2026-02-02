@@ -113,7 +113,6 @@ async def get_templates_by_phase(current_user: dict = Depends(get_current_user))
         template_id = 0
 
         for phase_name, prompts in ADDIE_PROMPT_LIBRARY.items():
-            template_id_start = template_id
             templates = []
             categories = set()
 

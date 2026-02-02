@@ -212,7 +212,7 @@ def classify_document_priority(
         'skip' - Should be excluded entirely
     """
     path_to_check = obsidian_path or filename or ""
-    filename_lower = (filename or "").lower()
+    (filename or "").lower()
 
     # Always HIGH priority: Granola folder (known meeting source)
     if GRANOLA_PATH_PATTERN.search(path_to_check):
@@ -440,7 +440,7 @@ def get_document_meeting_date(doc: Dict[str, Any]) -> Optional[date]:
 
     Rejects dates that are in the future (data quality issue).
     """
-    today = date.today()
+    date.today()
 
     # Method 1: Parse from filename (most reliable for Granola naming convention)
     filename = doc.get("filename", "")

@@ -303,7 +303,7 @@ class TestProjectContracts:
 
         # Note: Pydantic doesn't enforce range by default
         # This test documents expected behavior - add validators if needed
-        opp = ProjectContract(**response)
+        ProjectContract(**response)
         # Frontend should validate: assert 0 <= opp.strategic_alignment <= 100
 
 

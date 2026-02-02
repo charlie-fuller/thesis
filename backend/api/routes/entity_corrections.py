@@ -201,4 +201,4 @@ async def batch_apply_corrections(
 
     except Exception as e:
         logger.error(f"Error applying batch corrections: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

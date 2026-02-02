@@ -920,7 +920,7 @@ class TestVaultConfigEdgeCases:
 
         with tempfile.TemporaryDirectory() as vault_dir:
             with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
-                result = create_vault_config(
+                create_vault_config(
                     user_id="user-123", client_id="client-123", vault_path=vault_dir
                 )
 
@@ -994,7 +994,7 @@ class TestSyncStateEdgeCases:
 
         with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             with patch("services.obsidian_sync.get_sync_state", return_value={"id": "state-123"}):
-                result = update_sync_state(
+                update_sync_state(
                     config_id="config-123",
                     file_path="note.md",
                     sync_status="failed",

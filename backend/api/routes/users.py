@@ -59,7 +59,7 @@ async def list_users(request: Request, current_user: dict = Depends(require_admi
 
     except Exception as e:
         logger.error(f"❌ Error listing users: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("")
@@ -145,7 +145,7 @@ async def update_user(
         raise
     except Exception as e:
         logger.error(f"❌ Error updating user: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{user_id}/avatar")
@@ -184,7 +184,7 @@ async def upload_avatar(
         storage_path = f"{user_id}/avatar.{file_ext}"
 
         # Upload to Supabase Storage (upsert to replace existing)
-        upload_result = await asyncio.to_thread(
+        await asyncio.to_thread(
             lambda: supabase.storage.from_("avatars").upload(
                 path=storage_path,
                 file=contents,
@@ -211,7 +211,7 @@ async def upload_avatar(
         raise
     except Exception as e:
         logger.error(f"❌ Error uploading avatar: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/{user_id}/avatar")
@@ -261,7 +261,7 @@ async def delete_avatar(
         raise
     except Exception as e:
         logger.error(f"❌ Error deleting avatar: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{user_id}/resend-invitation")
@@ -294,7 +294,7 @@ async def resend_invitation(
         raise
     except Exception as e:
         logger.error(f"❌ Error resending invitation: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -378,7 +378,7 @@ async def list_user_documents(current_user: dict = Depends(get_current_user)):
         import traceback
 
         logger.error(f"❌ Error listing documents: {str(e)}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/me/storage")
@@ -429,7 +429,7 @@ async def get_storage_info(current_user: dict = Depends(get_current_user)):
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching storage info: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/me/documents/list")
@@ -559,7 +559,7 @@ async def list_user_documents_paginated(
         import traceback
 
         logger.error(f"❌ Error listing documents paginated: {str(e)}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/me/documents/counts")
@@ -626,4 +626,4 @@ async def get_user_document_counts(current_user: dict = Depends(get_current_user
 
     except Exception as e:
         logger.error(f"❌ Error fetching document counts: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

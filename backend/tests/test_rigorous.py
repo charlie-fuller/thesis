@@ -854,7 +854,6 @@ class TestCombinedScenarios:
         assert len(filtered) == 3
 
         # Paginate
-        page_size = 2
         page_1 = filtered[0:2]
         page_2 = filtered[2:4]
 

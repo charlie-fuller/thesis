@@ -25,7 +25,7 @@ class TestMetricsCollection:
     def test_request_metrics_collected(self):
         """Request metrics are properly collected."""
         # Make a test request
-        response = self._make_request("/api/health")
+        self._make_request("/api/health")
 
         # Verify metrics were recorded
         metrics = self._get_recent_metrics("http_requests")
@@ -166,9 +166,9 @@ class TestLogFormatting:
         context_fields = ["request_id", "user_id", "path", "method"]
 
         for field in context_fields:
-            assert field in log or field in log.get(
-                "context", {}
-            ), f"Log missing context field: {field}"
+            assert field in log or field in log.get("context", {}), (
+                f"Log missing context field: {field}"
+            )
 
     def test_sensitive_data_redacted(self):
         """Sensitive data is redacted from logs."""
@@ -205,7 +205,7 @@ class TestLogFormatting:
         }
 
         for level, keywords in log_levels.items():
-            logs = self._get_logs_by_level(level)
+            self._get_logs_by_level(level)
             # Logs at each level should contain appropriate content
 
     # Helper methods
@@ -402,9 +402,9 @@ class TestSLOCompliance:
 
         metrics = self._get_availability_metrics(days=30)
 
-        assert (
-            metrics["availability"] >= target_availability
-        ), f"Availability {metrics['availability']} below SLO {target_availability}"
+        assert metrics["availability"] >= target_availability, (
+            f"Availability {metrics['availability']} below SLO {target_availability}"
+        )
 
     def test_latency_slo(self):
         """System meets latency SLO."""
@@ -413,9 +413,9 @@ class TestSLOCompliance:
 
         metrics = self._get_latency_metrics(days=7)
 
-        assert (
-            metrics["p95_ms"] <= target_p95_ms
-        ), f"P95 latency {metrics['p95_ms']}ms exceeds SLO {target_p95_ms}ms"
+        assert metrics["p95_ms"] <= target_p95_ms, (
+            f"P95 latency {metrics['p95_ms']}ms exceeds SLO {target_p95_ms}ms"
+        )
 
     def test_error_rate_slo(self):
         """System meets error rate SLO."""
@@ -424,9 +424,9 @@ class TestSLOCompliance:
 
         metrics = self._get_error_metrics(days=7)
 
-        assert (
-            metrics["error_rate"] <= target_error_rate
-        ), f"Error rate {metrics['error_rate']} exceeds SLO {target_error_rate}"
+        assert metrics["error_rate"] <= target_error_rate, (
+            f"Error rate {metrics['error_rate']} exceeds SLO {target_error_rate}"
+        )
 
     def test_throughput_slo(self):
         """System meets throughput SLO."""
@@ -435,9 +435,9 @@ class TestSLOCompliance:
 
         metrics = self._get_throughput_metrics()
 
-        assert (
-            metrics["max_rps"] >= target_rps
-        ), f"Max throughput {metrics['max_rps']} below SLO {target_rps}"
+        assert metrics["max_rps"] >= target_rps, (
+            f"Max throughput {metrics['max_rps']} below SLO {target_rps}"
+        )
 
     def test_slo_burn_rate_alert(self):
         """Burn rate alerts are configured for SLOs."""
@@ -475,7 +475,7 @@ class TestDistributedTracing:
     def test_traces_have_correlation_id(self):
         """All traces have correlation ID."""
         # Make request
-        response = self._make_request("/api/test")
+        self._make_request("/api/test")
 
         trace = self._get_recent_trace()
 

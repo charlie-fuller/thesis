@@ -1216,7 +1216,7 @@ class TestAgentProcessIntegration:
         ]
         sample_context.user_message = "What was our previous assessment?"
 
-        response = await glean_agent.process(sample_context)
+        await glean_agent.process(sample_context)
 
         # Verify API was called (meaning memories were processed)
         glean_agent.anthropic.messages.create.assert_called_once()
@@ -1240,7 +1240,7 @@ class TestAgentProcessIntegration:
         ]
         sample_context.user_message = "Help me prepare for my 1:1"
 
-        response = await compass_agent.process(sample_context)
+        await compass_agent.process(sample_context)
 
         # Verify API was called
         compass_agent.anthropic.messages.create.assert_called_once()

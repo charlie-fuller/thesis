@@ -548,7 +548,7 @@ class TestEdgeCases:
         with patch("services.disco.initiative_service.get_supabase", return_value=mock_sb):
             from services.disco.initiative_service import list_initiatives
 
-            result = await list_initiatives("user-123", limit=10, offset=20)
+            await list_initiatives("user-123", limit=10, offset=20)
 
             # Verify range was called with correct parameters
             mock_table.range.assert_called_once_with(20, 29)

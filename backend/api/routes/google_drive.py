@@ -85,7 +85,7 @@ async def google_drive_auth(current_user: dict = Depends(get_current_user)):
 
     except Exception as e:
         logger.error(f"❌ OAuth init error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/callback")
@@ -185,7 +185,7 @@ async def google_drive_callback(code: str, state: str):
 
     except Exception as e:
         logger.error(f"❌ OAuth callback error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/status")
@@ -196,7 +196,7 @@ async def get_google_drive_status(current_user: dict = Depends(get_current_user)
         return {"success": True, **status}
     except Exception as e:
         logger.error(f"❌ Status check error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/picker-token")
@@ -218,7 +218,7 @@ async def get_picker_token(current_user: dict = Depends(get_current_user)):
         }
     except Exception as e:
         logger.error(f"❌ Picker token error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/files/{folder_id}")
@@ -231,7 +231,7 @@ async def get_folder_files(folder_id: str, current_user: dict = Depends(get_curr
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"❌ List files error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/sync")
@@ -261,7 +261,7 @@ async def sync_google_drive(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"❌ Sync error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/sync-document/{document_id}")
@@ -284,7 +284,7 @@ async def sync_single_document(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"❌ Document sync error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/disconnect")
@@ -295,7 +295,7 @@ async def disconnect_google_drive(current_user: dict = Depends(get_current_user)
         return {"success": True, "message": "Google Drive disconnected"}
     except Exception as e:
         logger.error(f"❌ Disconnect error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/sync-history")
@@ -314,7 +314,7 @@ async def get_sync_history(current_user: dict = Depends(get_current_user), limit
         return {"success": True, "history": result.data}
     except Exception as e:
         logger.error(f"❌ Sync history error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/sync-settings")
@@ -337,7 +337,7 @@ async def get_sync_settings(current_user: dict = Depends(get_current_user)):
         raise
     except Exception as e:
         logger.error(f"❌ Get settings error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.patch("/sync-settings")
@@ -360,4 +360,4 @@ async def update_sync_settings(
         return {"success": True, "settings": result.data[0] if result.data else None}
     except Exception as e:
         logger.error(f"❌ Update settings error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

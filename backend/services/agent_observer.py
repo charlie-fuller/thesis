@@ -184,7 +184,7 @@ async def analyze_conversation_for_gaps(conversation_id: str) -> list[KnowledgeG
 
         conv = conv_result.data
         agent_name = conv.get("agent_name") if conv else "unknown"
-        client_id = conv.get("client_id") if conv else None
+        conv.get("client_id") if conv else None
 
         # Analyze message pairs (user question -> agent response)
         for i, msg in enumerate(messages):
@@ -394,7 +394,7 @@ async def get_open_knowledge_gaps(client_id: Optional[str] = None, limit: int = 
 async def get_active_stakeholders(client_id: str, days: int = 30) -> list[dict]:
     """Get stakeholders with recent activity (insights, meetings, etc.)."""
     try:
-        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
         # Get stakeholders with recent insights
         result = (

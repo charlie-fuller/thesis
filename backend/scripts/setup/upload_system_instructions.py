@@ -48,7 +48,7 @@ def upload_file_to_supabase(local_path: Path, storage_path: str) -> bool:
         # Try to update existing file first
         try:
             logger.info(f"   Attempting to update existing file: {storage_path}")
-            result = supabase.storage.from_("system-instructions").update(
+            supabase.storage.from_("system-instructions").update(
                 storage_path, file_content, {"content-type": "text/plain; charset=utf-8"}
             )
             logger.info(f"   ✅ Updated: {storage_path}")
@@ -56,7 +56,7 @@ def upload_file_to_supabase(local_path: Path, storage_path: str) -> bool:
         except Exception:
             # If update fails, try upload (file might not exist yet)
             logger.info(f"   File doesn't exist, uploading new: {storage_path}")
-            result = supabase.storage.from_("system-instructions").upload(
+            supabase.storage.from_("system-instructions").upload(
                 storage_path, file_content, {"content-type": "text/plain; charset=utf-8"}
             )
             logger.info(f"   ✅ Uploaded: {storage_path}")

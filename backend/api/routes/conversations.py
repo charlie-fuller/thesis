@@ -94,7 +94,7 @@ async def create_conversation(
 
     except Exception as e:
         logger.error(f"❌ Error creating conversation: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/{conversation_id}")
@@ -137,7 +137,7 @@ async def get_conversation(conversation_id: str, current_user: dict = Depends(ge
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching conversation: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/{conversation_id}/messages")
@@ -205,7 +205,7 @@ async def get_conversation_messages(
 
     except Exception as e:
         logger.error(f"❌ Error fetching messages: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.patch("/{conversation_id}")
@@ -235,7 +235,7 @@ async def update_conversation(
         raise
     except Exception as e:
         logger.error(f"❌ Error updating conversation: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/{conversation_id}")
@@ -253,7 +253,7 @@ async def delete_conversation(conversation_id: str, current_user: dict = Depends
         )
 
         # Delete conversation
-        result = await asyncio.to_thread(
+        await asyncio.to_thread(
             lambda: supabase.table("conversations").delete().eq("id", conversation_id).execute()
         )
 
@@ -261,7 +261,7 @@ async def delete_conversation(conversation_id: str, current_user: dict = Depends
 
     except Exception as e:
         logger.error(f"❌ Error deleting conversation: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{conversation_id}/generate-title")
@@ -393,7 +393,7 @@ async def list_conversations(
 
     except Exception as e:
         logger.error(f"❌ Error listing conversations: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -422,7 +422,7 @@ async def add_conversation_to_knowledge_base(
 
     except Exception as e:
         logger.error(f"❌ Error adding conversation to KB: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{conversation_id}/remove-from-kb")
@@ -444,7 +444,7 @@ async def remove_conversation_from_knowledge_base(
 
     except Exception as e:
         logger.error(f"❌ Error removing conversation from KB: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -476,7 +476,7 @@ async def archive_conversation(
         raise
     except Exception as e:
         logger.error(f"❌ Error archiving conversation: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{conversation_id}/restore")
@@ -503,4 +503,4 @@ async def restore_conversation(
         raise
     except Exception as e:
         logger.error(f"❌ Error restoring conversation: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

@@ -956,10 +956,10 @@ async def chat_stream(
 
                 try:
                     user_id = current_user.get("id")
-                    raw_prompt = image_request["prompt"]
+                    image_request["prompt"]
                     full_message = chat_request.message  # The complete user message
-                    aspect_ratio = image_request.get("aspect_ratio") or "16:9"
-                    model = image_request.get("model") or "fast"
+                    image_request.get("aspect_ratio") or "16:9"
+                    image_request.get("model") or "fast"
 
                     # Determine the visual type from the original request
                     visual_type = "visual"
@@ -987,7 +987,6 @@ async def chat_stream(
                     message_has_content = _message_has_substantial_content(full_message)
 
                     prompt = None
-                    should_confirm = False
 
                     if message_has_content:
                         # User provided the content - extract prompt and ASK for preferences
@@ -1015,7 +1014,7 @@ Output ONLY the concise image prompt, nothing else."""
 
                         # Instead of generating immediately, send suggestion event for user to choose options
                         # Save the user message first
-                        user_msg_result = (
+                        (
                             supabase.table("messages")
                             .insert(
                                 {
@@ -1176,7 +1175,6 @@ Your response (be specific about what to visualize):"""
 
                         else:
                             # No conversation history - ask user what they want
-                            should_confirm = True
                             no_context_response = f"""I'd like to create a {visual_type} for you, but I need more details about what to include.
 
 Could you tell me what specific content, items, or concepts you'd like me to visualize?"""

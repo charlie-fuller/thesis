@@ -128,7 +128,7 @@ async def upload_document(
         # Upload to Supabase Storage
         logger.info(f"Uploading {file.filename} to storage: {storage_path}")
 
-        upload_result = await asyncio.to_thread(
+        await asyncio.to_thread(
             lambda: supabase.storage.from_("documents").upload(
                 storage_path,
                 file_content,
@@ -187,7 +187,7 @@ async def upload_document(
             for agent_id in parsed_agent_ids:
                 try:
                     validate_uuid(agent_id, "agent_id")
-                    link_result = await asyncio.to_thread(
+                    await asyncio.to_thread(
                         lambda aid=agent_id: supabase.table("agent_knowledge_base")
                         .insert(
                             {
@@ -323,7 +323,7 @@ async def save_from_chat(
         # Upload to Supabase Storage
         logger.info(f"Saving chat response to storage: {storage_path}")
 
-        upload_result = await asyncio.to_thread(
+        await asyncio.to_thread(
             lambda: supabase.storage.from_("documents").upload(
                 storage_path, file_content, file_options={"content-type": "text/markdown"}
             )
@@ -362,7 +362,7 @@ async def save_from_chat(
             for agent_id in parsed_agent_ids:
                 try:
                     validate_uuid(agent_id, "agent_id")
-                    link_result = await asyncio.to_thread(
+                    await asyncio.to_thread(
                         lambda aid=agent_id: supabase.table("agent_knowledge_base")
                         .insert(
                             {
@@ -521,7 +521,7 @@ async def get_all_tags(
 
     except Exception as e:
         logger.error(f"Error getting tags: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 class BatchTagsRequest(BaseModel):
@@ -602,7 +602,7 @@ async def get_tags_batch(request: BatchTagsRequest, current_user: dict = Depends
 
     except Exception as e:
         logger.error(f"Error getting batch tags: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/by-tags")
@@ -724,7 +724,7 @@ async def get_documents_by_tags(
         raise
     except Exception as e:
         logger.error(f"Error getting documents by tags: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 class BulkTagsRequest(BaseModel):
@@ -850,7 +850,7 @@ async def bulk_tag_operation(
         raise
     except Exception as e:
         logger.error(f"Error in bulk tag operation: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/search")
@@ -928,7 +928,7 @@ async def search_documents(
 
     except Exception as e:
         logger.error(f"Error searching documents: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -957,7 +957,7 @@ async def process_document_endpoint(
 
     except Exception as e:
         logger.error(f"❌ Processing error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -981,7 +981,7 @@ async def get_documents_by_folder(folder_path: str, current_user: dict = Depends
 
         folder_path = folder_path.strip()
         # Ensure folder path ends with / for prefix matching (unless it's the root)
-        search_prefix = folder_path if folder_path.endswith("/") else f"{folder_path}/"
+        folder_path if folder_path.endswith("/") else f"{folder_path}/"
 
         # Query documents where obsidian_file_path starts with the folder path
         # Use ilike for case-insensitive matching
@@ -1039,7 +1039,7 @@ async def get_documents_by_folder(folder_path: str, current_user: dict = Depends
         raise
     except Exception as e:
         logger.error(f"Error fetching documents by folder: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/folders")
@@ -1083,7 +1083,7 @@ async def get_obsidian_folders(current_user: dict = Depends(get_current_user)):
 
     except Exception as e:
         logger.error(f"Error fetching Obsidian folders: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/{document_id}")
@@ -1111,7 +1111,7 @@ async def get_document_metadata(document_id: str, current_user: dict = Depends(g
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching document: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/{document_id}/content")
@@ -1174,7 +1174,7 @@ async def get_document_content(document_id: str, current_user: dict = Depends(ge
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching document content: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -1201,7 +1201,7 @@ async def list_all_documents(
 
     except Exception as e:
         logger.error(f"❌ Error listing documents: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/{document_id}/details")
@@ -1238,7 +1238,7 @@ async def get_document_details(document_id: str, current_user: dict = Depends(re
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching document details: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -1361,7 +1361,7 @@ async def delete_document(
         raise
     except Exception as e:
         logger.error(f"❌ Error deleting document: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/bulk")
@@ -1400,7 +1400,7 @@ async def bulk_delete_documents(
 
     except Exception as e:
         logger.error(f"❌ Bulk delete error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -1468,7 +1468,7 @@ async def find_documents_by_path_pattern(
         raise
     except Exception as e:
         logger.error(f"Error finding documents by path pattern: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/cleanup/by-path")
@@ -1568,7 +1568,7 @@ async def delete_documents_by_path_pattern(
         raise
     except Exception as e:
         logger.error(f"Error deleting documents by path pattern: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -1610,7 +1610,7 @@ async def download_document(document_id: str, current_user: dict = Depends(get_c
         raise
     except Exception as e:
         logger.error(f"❌ Error generating download URL: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -1676,7 +1676,7 @@ async def get_document_agents(document_id: str, current_user: dict = Depends(get
         raise
     except Exception as e:
         logger.error(f"Error getting document agents: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 class UpdateDocumentAgentsRequest(BaseModel):
@@ -1790,7 +1790,7 @@ async def update_document_agents(
         raise
     except Exception as e:
         logger.error(f"Error updating document agents: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -1886,7 +1886,7 @@ async def get_document_classification(
         raise
     except Exception as e:
         logger.error(f"Error getting document classification: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 class ConfirmClassificationRequest(BaseModel):
@@ -2018,7 +2018,7 @@ async def confirm_classification(
         raise
     except Exception as e:
         logger.error(f"Error confirming document classification: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -2068,7 +2068,7 @@ async def get_document_tags(document_id: str, current_user: dict = Depends(get_c
         raise
     except Exception as e:
         logger.error(f"Error getting document tags: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 class AddTagRequest(BaseModel):
@@ -2153,7 +2153,7 @@ async def add_document_tag(
         raise
     except Exception as e:
         logger.error(f"Error adding document tag: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/{document_id}/tags/{tag}")
@@ -2229,7 +2229,7 @@ async def remove_document_tag(
         raise
     except Exception as e:
         logger.error(f"Error removing document tag: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -2305,7 +2305,7 @@ async def update_document_original_date(
         raise
     except Exception as e:
         logger.error(f"Error updating document original_date: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.patch("/{document_id}/sync-cadence")
@@ -2361,7 +2361,7 @@ async def update_document_sync_cadence(
         raise
     except Exception as e:
         logger.error(f"Error updating document sync_cadence: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================

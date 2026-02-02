@@ -48,9 +48,9 @@ class TestAccessControl:
     def test_role_based_permissions(self, role: str, resource: str, expected_access: bool):
         """Verify RBAC permissions are correctly enforced."""
         has_access = self._check_permission(role, resource)
-        assert (
-            has_access == expected_access
-        ), f"Role '{role}' should {'have' if expected_access else 'not have'} access to '{resource}'"
+        assert has_access == expected_access, (
+            f"Role '{role}' should {'have' if expected_access else 'not have'} access to '{resource}'"
+        )
 
     def test_principle_of_least_privilege(self):
         """Users should have minimum necessary permissions."""
@@ -68,8 +68,8 @@ class TestAccessControl:
     def test_permission_inheritance(self):
         """Higher roles should inherit lower role permissions appropriately."""
         viewer_perms = set(self._get_role_permissions("viewer"))
-        user_perms = set(self._get_role_permissions("user"))
-        manager_perms = set(self._get_role_permissions("manager"))
+        set(self._get_role_permissions("user"))
+        set(self._get_role_permissions("manager"))
         admin_perms = set(self._get_role_permissions("admin"))
 
         # Admin should have superset of all permissions

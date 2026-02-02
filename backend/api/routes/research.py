@@ -143,7 +143,7 @@ async def list_research_tasks(
 
     except Exception as e:
         logger.error(f"Failed to list research tasks: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/tasks/{task_id}")
@@ -161,7 +161,7 @@ async def get_research_task(task_id: str, current_user: dict = Depends(get_curre
         raise
     except Exception as e:
         logger.error(f"Failed to get research task: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/trigger")
@@ -228,7 +228,7 @@ async def trigger_research(
         raise
     except Exception as e:
         logger.error(f"Failed to trigger research: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -289,7 +289,7 @@ async def get_research_schedule(
 
     except Exception as e:
         logger.error(f"Failed to get schedule: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.put("/schedule/{schedule_id}")
@@ -322,7 +322,7 @@ async def update_schedule_item(
         raise
     except Exception as e:
         logger.error(f"Failed to update schedule: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -353,7 +353,7 @@ async def list_knowledge_gaps(
 
     except Exception as e:
         logger.error(f"Failed to list knowledge gaps: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/gaps/{gap_id}/research")
@@ -416,7 +416,7 @@ async def research_gap(
         raise
     except Exception as e:
         logger.error(f"Failed to research gap: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -468,7 +468,7 @@ async def list_research_sources(
 
     except Exception as e:
         logger.error(f"Failed to list sources: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -505,7 +505,7 @@ async def get_scheduler_status(current_user: dict = Depends(get_current_user)):
 
     except Exception as e:
         logger.error(f"Failed to get scheduler status: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -534,4 +534,4 @@ async def get_recent_insights(limit: int = 10, current_user: dict = Depends(get_
 
     except Exception as e:
         logger.error(f"Failed to get insights: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

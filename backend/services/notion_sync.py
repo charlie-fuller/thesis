@@ -687,7 +687,7 @@ def sync_pages(
                 if existing_doc and not is_placeholder:
                     # Update existing real document (re-sync)
                     logger.info("      📝 Document exists, updating...")
-                    updated_doc = update_notion_document(
+                    update_notion_document(
                         document_id=existing_doc["id"],
                         file_content=file_content,
                         storage_url=existing_doc["storage_url"],

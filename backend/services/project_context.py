@@ -56,7 +56,7 @@ def get_scoring_related_documents(
         List of document chunks with relevance to scoring, formatted for frontend
     """
     title = project.get("title", "")
-    description = project.get("description", "")
+    project.get("description", "")
     department = project.get("department", "")
     current_state = project.get("current_state", "")
     desired_state = project.get("desired_state", "")

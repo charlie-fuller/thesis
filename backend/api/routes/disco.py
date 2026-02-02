@@ -191,7 +191,7 @@ async def api_list_initiatives(
         return {"success": True, **result}
     except Exception as e:
         logger.error(f"Error listing initiatives: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives")
@@ -206,7 +206,7 @@ async def api_create_initiative(
         return {"success": True, "initiative": initiative}
     except Exception as e:
         logger.error(f"Error creating initiative: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/initiatives/as-tags")
@@ -246,7 +246,7 @@ async def api_get_initiatives_as_tags(current_user: dict = Depends(require_disco
 
     except Exception as e:
         logger.error(f"Error getting initiatives as tags: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/initiatives/{initiative_id}")
@@ -263,7 +263,7 @@ async def api_get_initiative(
         raise
     except Exception as e:
         logger.error(f"Error fetching initiative: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.patch("/initiatives/{initiative_id}")
@@ -285,7 +285,7 @@ async def api_update_initiative(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error updating initiative: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/initiatives/{initiative_id}")
@@ -300,7 +300,7 @@ async def api_delete_initiative(
         raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
         logger.error(f"Error deleting initiative: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -326,7 +326,7 @@ async def api_list_documents(
         return {"success": True, **result}
     except Exception as e:
         logger.error(f"Error listing documents: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/documents")
@@ -360,7 +360,7 @@ async def api_upload_document_file(
         import traceback
 
         logger.error(f"[DISCO-DOC] Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/documents/text")
@@ -381,7 +381,7 @@ async def api_upload_document_text(
         return {"success": True, "document": document}
     except Exception as e:
         logger.error(f"Error uploading text document: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/initiatives/{initiative_id}/documents/{document_id}")
@@ -400,7 +400,7 @@ async def api_get_document(
         raise
     except Exception as e:
         logger.error(f"Error fetching document: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/initiatives/{initiative_id}/documents/{document_id}")
@@ -417,7 +417,7 @@ async def api_delete_document(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Error deleting document: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/documents/link")
@@ -533,7 +533,7 @@ async def api_link_kb_documents(
         raise
     except Exception as e:
         logger.error(f"Error linking KB documents: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/initiatives/{initiative_id}/linked-documents")
@@ -614,7 +614,7 @@ async def api_get_linked_kb_documents(
         import traceback
 
         logger.error(f"Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/initiatives/{initiative_id}/linked-documents/{document_id}")
@@ -643,7 +643,7 @@ async def api_unlink_kb_document(
 
     except Exception as e:
         logger.error(f"Error unlinking document: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -663,7 +663,7 @@ async def api_list_runs(
         return {"success": True, "runs": runs}
     except Exception as e:
         logger.error(f"Error listing runs: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/runs")
@@ -758,7 +758,7 @@ async def api_get_run(
         raise
     except Exception as e:
         logger.error(f"Error fetching run: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -788,7 +788,7 @@ async def api_list_outputs(
         return {"success": True, "outputs": result.data or []}
     except Exception as e:
         logger.error(f"Error listing outputs: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/initiatives/{initiative_id}/outputs/{agent_type}")
@@ -817,7 +817,7 @@ async def api_get_latest_output(
         raise
     except Exception as e:
         logger.error(f"Error fetching output: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/initiatives/{initiative_id}/outputs/{agent_type}/versions")
@@ -840,7 +840,7 @@ async def api_list_output_versions(
         return {"success": True, "versions": result.data or []}
     except Exception as e:
         logger.error(f"Error listing output versions: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/initiatives/{initiative_id}/outputs/{output_id}/export")
@@ -875,7 +875,7 @@ async def api_export_output(
         raise
     except Exception as e:
         logger.error(f"Error exporting output: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/outputs/{output_id}/promote")
@@ -892,7 +892,7 @@ async def api_promote_output(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Error promoting output: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/initiatives/{initiative_id}/outputs/{output_id}")
@@ -930,7 +930,7 @@ async def api_delete_output(
         raise
     except Exception as e:
         logger.error(f"Error deleting output: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/outputs/{output_id}/condense")
@@ -1034,7 +1034,7 @@ async def api_list_members(initiative_id: str, current_user: dict = Depends(requ
         return {"success": True, "members": members}
     except Exception as e:
         logger.error(f"Error listing members: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/members")
@@ -1058,7 +1058,7 @@ async def api_add_member(
         raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
         logger.error(f"Error adding member: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.patch("/initiatives/{initiative_id}/members/{user_id}")
@@ -1083,7 +1083,7 @@ async def api_update_member_role(
         raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
         logger.error(f"Error updating member role: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/initiatives/{initiative_id}/members/{user_id}")
@@ -1102,7 +1102,7 @@ async def api_remove_member(
         raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
         logger.error(f"Error removing member: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -1120,7 +1120,7 @@ async def api_get_chat(initiative_id: str, current_user: dict = Depends(require_
         return {"success": True, "conversation": conversation}
     except Exception as e:
         logger.error(f"Error getting conversation: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/chat")
@@ -1140,7 +1140,7 @@ async def api_ask_question(
         return {"success": True, **result}
     except Exception as e:
         logger.error(f"Error processing question: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -1166,7 +1166,7 @@ async def api_get_agent_prompt(agent_type: str, current_user: dict = Depends(req
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Error loading agent prompt: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -1182,7 +1182,7 @@ async def api_list_kb_files(current_user: dict = Depends(require_admin)):
         return {"success": True, "files": files}
     except Exception as e:
         logger.error(f"Error listing KB files: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/system-kb/sync")
@@ -1204,7 +1204,7 @@ async def api_sync_kb(
         return {"success": True, "message": "KB sync started in background"}
     except Exception as e:
         logger.error(f"Error starting KB sync: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/system-kb/search")
@@ -1220,7 +1220,7 @@ async def api_search_kb(
         return {"success": True, "results": chunks}
     except Exception as e:
         logger.error(f"Error searching KB: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -1312,7 +1312,7 @@ async def api_list_bundles(
         raise
     except Exception as e:
         logger.error(f"Error listing bundles: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/bundles")
@@ -1348,7 +1348,7 @@ async def api_create_bundle(
         raise
     except Exception as e:
         logger.error(f"Error creating bundle: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/initiatives/{initiative_id}/bundles/{bundle_id}")
@@ -1374,7 +1374,7 @@ async def api_get_bundle(
         raise
     except Exception as e:
         logger.error(f"Error getting bundle: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.patch("/initiatives/{initiative_id}/bundles/{bundle_id}")
@@ -1412,7 +1412,7 @@ async def api_update_bundle(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error updating bundle: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/bundles/{bundle_id}/approve")
@@ -1445,7 +1445,7 @@ async def api_approve_bundle(
         raise
     except Exception as e:
         logger.error(f"Error approving bundle: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/bundles/{bundle_id}/reject")
@@ -1481,7 +1481,7 @@ async def api_reject_bundle(
         raise
     except Exception as e:
         logger.error(f"Error rejecting bundle: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/bundles/merge")
@@ -1515,7 +1515,7 @@ async def api_merge_bundles(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error merging bundles: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/bundles/{bundle_id}/split")
@@ -1550,7 +1550,7 @@ async def api_split_bundle(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error splitting bundle: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/synthesize")
@@ -1637,7 +1637,7 @@ async def api_run_synthesis(initiative_id: str, current_user: dict = Depends(req
         raise
     except Exception as e:
         logger.error(f"Error running synthesis: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -1672,7 +1672,7 @@ async def api_list_prds(
         raise
     except Exception as e:
         logger.error(f"Error listing PRDs: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/initiatives/{initiative_id}/prds/{prd_id}")
@@ -1695,7 +1695,7 @@ async def api_get_prd(
         raise
     except Exception as e:
         logger.error(f"Error getting PRD: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.patch("/initiatives/{initiative_id}/prds/{prd_id}")
@@ -1727,7 +1727,7 @@ async def api_update_prd(
         raise
     except Exception as e:
         logger.error(f"Error updating PRD: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/prds/{prd_id}/approve")
@@ -1752,7 +1752,7 @@ async def api_approve_prd(
         raise
     except Exception as e:
         logger.error(f"Error approving PRD: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/bundles/{bundle_id}/generate-prd")
@@ -1807,7 +1807,7 @@ async def api_generate_prd(
         raise
     except Exception as e:
         logger.error(f"Error generating PRD: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/initiatives/{initiative_id}/generate-summary")
@@ -1852,7 +1852,7 @@ async def api_generate_executive_summary(
         raise
     except Exception as e:
         logger.error(f"Error generating executive summary: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -1928,4 +1928,4 @@ async def api_disco_usage_analytics(days: int = 30, current_user: dict = Depends
 
     except Exception as e:
         logger.error(f"Error fetching DISCo analytics: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

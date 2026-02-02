@@ -77,7 +77,7 @@ async def get_document_mappings(client_id: str, current_user: dict = Depends(req
         raise
     except Exception as e:
         logger.error(f"❌ Get document mappings error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/api/clients/{client_id}/documents")
@@ -101,7 +101,7 @@ async def get_client_documents(client_id: str, current_user: dict = Depends(requ
         raise
     except Exception as e:
         logger.error(f"❌ Get client documents error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/api/clients/{client_id}/document-mappings")
@@ -157,7 +157,7 @@ async def update_document_mappings(
         raise
     except Exception as e:
         logger.error(f"❌ Update document mappings error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/api/clients/{client_id}/regenerate-instructions")
@@ -208,4 +208,4 @@ async def regenerate_instructions(client_id: str, current_user: dict = Depends(r
         raise
     except Exception as e:
         logger.error(f"❌ Regenerate instructions error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

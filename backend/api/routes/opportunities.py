@@ -640,7 +640,7 @@ async def ask_question_about_opportunity(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Error answering question about opportunity: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process question")
+        raise HTTPException(status_code=500, detail="Failed to process question") from e
 
 
 # ============================================================================
@@ -713,7 +713,7 @@ async def taskmaster_chat_for_opportunity(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Error in Taskmaster chat: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process Taskmaster chat")
+        raise HTTPException(status_code=500, detail="Failed to process Taskmaster chat") from e
 
 
 # ============================================================================
@@ -759,7 +759,7 @@ async def generate_justifications_for_opportunity(
         }
     except Exception as e:
         logger.error(f"Failed to generate justifications: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate justifications")
+        raise HTTPException(status_code=500, detail="Failed to generate justifications") from e
 
 
 @router.post("/generate-all-justifications")
@@ -778,7 +778,7 @@ async def generate_all_opportunity_justifications(
         return result
     except Exception as e:
         logger.error(f"Failed to generate all justifications: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate justifications")
+        raise HTTPException(status_code=500, detail="Failed to generate justifications") from e
 
 
 # ============================================================================
@@ -805,7 +805,7 @@ async def analyze_all_goal_alignment(
         return result
     except Exception as e:
         logger.error(f"Failed to analyze goal alignment: {e}")
-        raise HTTPException(status_code=500, detail="Failed to analyze goal alignment")
+        raise HTTPException(status_code=500, detail="Failed to analyze goal alignment") from e
 
 
 @router.post("/{opportunity_id}/analyze-goal-alignment")
@@ -863,7 +863,7 @@ async def analyze_opportunity_goal_alignment(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to analyze goal alignment: {e}")
-        raise HTTPException(status_code=500, detail="Failed to analyze goal alignment")
+        raise HTTPException(status_code=500, detail="Failed to analyze goal alignment") from e
 
 
 # ============================================================================
@@ -943,7 +943,7 @@ async def create_opportunity(
                 status_code=409,
                 detail=f"Opportunity code {opportunity.opportunity_code} already exists",
             )
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
     created_opp = result.data[0]
 
@@ -1266,7 +1266,7 @@ async def link_stakeholder_to_opportunity(
             raise HTTPException(
                 status_code=409, detail="Stakeholder already linked to this opportunity"
             )
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
     return {
         "id": result.data[0]["id"],
@@ -1565,8 +1565,8 @@ async def accept_opportunity_candidate(
 
     except Exception as e:
         if "duplicate" in str(e).lower():
-            raise HTTPException(status_code=409, detail="Opportunity code already exists")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+            raise HTTPException(status_code=409, detail="Opportunity code already exists") from e
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/candidates/{candidate_id}/reject")
@@ -1727,7 +1727,7 @@ async def evaluate_all_confidence(
         return result
     except Exception as e:
         logger.error(f"Failed to evaluate confidence: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{opportunity_id}/evaluate-confidence")

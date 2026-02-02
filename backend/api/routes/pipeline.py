@@ -468,7 +468,7 @@ async def get_granola_status(
         if status.get("connected") and not status.get("error"):
             try:
                 # Use RPC to avoid PostgREST ilike issues
-                last_doc = supabase.rpc("get_granola_scan_status", {"p_user_id": user_id}).execute()
+                supabase.rpc("get_granola_scan_status", {"p_user_id": user_id}).execute()
                 # Note: last_scan would need a separate RPC or direct query
                 # For now, skip last_scan to avoid the ilike issue
             except Exception as e:
@@ -782,7 +782,7 @@ async def scan_granola_vault(
 
     except Exception as e:
         logger.error(f"Granola scan failed: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/granola/scan/job/{job_id}")

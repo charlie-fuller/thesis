@@ -105,7 +105,7 @@ async def get_graph_sync_service(current_user: dict = Depends(get_current_user))
         return GraphSyncService(supabase, connection)
     except Exception as e:
         logger.error(f"Failed to get graph sync service: {e}")
-        raise HTTPException(status_code=503, detail="Graph sync service unavailable.")
+        raise HTTPException(status_code=503, detail="Graph sync service unavailable.") from e
 
 
 # =============================================================================
@@ -139,7 +139,7 @@ async def init_schema(current_user: dict = Depends(get_current_user)):
         return {"status": "success", "result": result}
     except Exception as e:
         logger.error(f"Schema initialization failed: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/schema/verify")
@@ -151,7 +151,7 @@ async def verify_graph_schema(current_user: dict = Depends(get_current_user)):
         return result
     except Exception as e:
         logger.error(f"Schema verification failed: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/stats")
@@ -165,7 +165,7 @@ async def get_stats(
         return GraphStatsResponse(**stats)
     except Exception as e:
         logger.error(f"Failed to get graph stats: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # =============================================================================
@@ -187,7 +187,7 @@ async def full_sync(
         return SyncResponse(status="completed", client_id=current_user["client_id"], results=result)
     except Exception as e:
         logger.error(f"Full sync failed: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/sync/incremental", response_model=SyncResponse)
@@ -205,7 +205,7 @@ async def incremental_sync(
         return SyncResponse(status="completed", client_id=current_user["client_id"], results=result)
     except Exception as e:
         logger.error(f"Incremental sync failed: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/sync/stakeholders")
@@ -219,7 +219,7 @@ async def sync_stakeholders(
         return {"status": "completed", "result": result}
     except Exception as e:
         logger.error(f"Stakeholder sync failed: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # =============================================================================
@@ -245,7 +245,7 @@ async def get_stakeholder_network(
         return network
     except Exception as e:
         logger.error(f"Failed to get stakeholder network: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/influence/path")
@@ -262,7 +262,7 @@ async def get_influence_path(
         return result
     except Exception as e:
         logger.error(f"Failed to find influence path: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/influence/key-influencers")
@@ -277,7 +277,7 @@ async def get_key_influencers(
         return {"influencers": influencers}
     except Exception as e:
         logger.error(f"Failed to find key influencers: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/influence/chains/{target_id}")
@@ -292,7 +292,7 @@ async def get_influence_chains(
         return {"target_id": target_id, "influence_chains": chains}
     except Exception as e:
         logger.error(f"Failed to find influence chains: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # =============================================================================
@@ -320,7 +320,7 @@ async def get_roi_analysis(
         )
     except Exception as e:
         logger.error(f"Failed to get ROI analysis: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/roi/{opportunity_id}/blockers")
@@ -335,7 +335,7 @@ async def get_roi_blockers(
         return {"opportunity_id": opportunity_id, "blockers": blockers}
     except Exception as e:
         logger.error(f"Failed to get ROI blockers: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/roi/{opportunity_id}/strategy")
@@ -350,7 +350,7 @@ async def get_blocker_strategy(
         return strategy
     except Exception as e:
         logger.error(f"Failed to get blocker strategy: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # =============================================================================
@@ -372,7 +372,7 @@ async def get_shared_concerns(
         return {"shared_concerns": concerns}
     except Exception as e:
         logger.error(f"Failed to find shared concerns: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/stakeholder/{stakeholder_id}/concerns")
@@ -387,7 +387,7 @@ async def get_stakeholder_concerns(
         return {"stakeholder_id": stakeholder_id, "concerns": concerns}
     except Exception as e:
         logger.error(f"Failed to get stakeholder concerns: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # =============================================================================
@@ -407,7 +407,7 @@ async def get_meeting_network(
         return network
     except Exception as e:
         logger.error(f"Failed to get meeting network: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/concepts/{concept_name}/advocates")
@@ -424,7 +424,7 @@ async def get_concept_advocates(
         return {"concept": concept_name, "advocates": advocates}
     except Exception as e:
         logger.error(f"Failed to find concept advocates: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/stakeholder/{stakeholder_id}/aligned")
@@ -440,7 +440,7 @@ async def get_aligned_stakeholders(
         return {"stakeholder_id": stakeholder_id, "aligned": aligned}
     except Exception as e:
         logger.error(f"Failed to find aligned stakeholders: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # =============================================================================
@@ -464,7 +464,7 @@ async def get_agent_routing_suggestion(
         return suggestion
     except Exception as e:
         logger.error(f"Failed to get agent routing suggestion: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/agents/{agent_id}/expertise")
@@ -479,7 +479,7 @@ async def get_agent_expertise(
         return expertise
     except Exception as e:
         logger.error(f"Failed to get agent expertise: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/agents/handoff-patterns")
@@ -496,7 +496,7 @@ async def get_handoff_patterns(
         return {"patterns": patterns}
     except Exception as e:
         logger.error(f"Failed to get handoff patterns: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # =============================================================================
@@ -514,7 +514,7 @@ async def get_relationship_extractor(current_user: dict = Depends(get_current_us
         return RelationshipExtractor(supabase, connection)
     except Exception as e:
         logger.error(f"Failed to get relationship extractor: {e}")
-        raise HTTPException(status_code=503, detail="Relationship extractor unavailable.")
+        raise HTTPException(status_code=503, detail="Relationship extractor unavailable.") from e
 
 
 @router.post("/infer/influences")
@@ -532,7 +532,7 @@ async def infer_influences(
         return {"status": "completed", "client_id": current_user["client_id"], "result": result}
     except Exception as e:
         logger.error(f"Failed to infer influences: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/infer/concepts")
@@ -550,7 +550,7 @@ async def extract_all_concepts(
         return {"status": "completed", "client_id": current_user["client_id"], "result": result}
     except Exception as e:
         logger.error(f"Failed to extract concepts: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/infer/clusters")
@@ -568,7 +568,7 @@ async def detect_stakeholder_clusters(
         return {"status": "completed", "client_id": current_user["client_id"], "result": result}
     except Exception as e:
         logger.error(f"Failed to detect clusters: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/meetings/{meeting_id}/concepts")
@@ -583,7 +583,7 @@ async def extract_meeting_concepts(
         return {"status": "completed", "meeting_id": meeting_id, "result": result}
     except Exception as e:
         logger.error(f"Failed to extract concepts from meeting: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # =============================================================================
@@ -616,7 +616,7 @@ async def trigger_sync(current_user: dict = Depends(get_current_user)):
         return {"success": True, **result}
     except Exception as e:
         logger.error(f"Failed to trigger sync: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # =============================================================================
@@ -713,4 +713,4 @@ async def get_visualization_data(
 
     except Exception as e:
         logger.error(f"Failed to get visualization data: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

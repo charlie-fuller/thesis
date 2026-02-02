@@ -86,7 +86,7 @@ async def analyze_transcript(
         )
 
         # Process the transcript
-        response = await oracle.process(context)
+        await oracle.process(context)
 
         # Get the stored transcript from the database
         result = (
@@ -117,7 +117,7 @@ async def analyze_transcript(
 
     except Exception as e:
         logger.error(f"Transcript analysis failed: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/upload")

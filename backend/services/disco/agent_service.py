@@ -143,7 +143,8 @@ DISCO_MODEL_OPUS = os.environ.get("DISCO_MODEL_OPUS") or os.environ.get(
 )
 
 # Triage uses Sonnet for speed, all others use Opus for quality
-SONNET_AGENTS = {"triage"}
+# Discovery Guide in triage mode also uses Sonnet for speed
+SONNET_AGENTS = {"triage", "discovery_guide_triage"}
 
 # Multi-pass synthesis configuration
 MULTI_PASS_CONFIG = {
@@ -156,8 +157,35 @@ MULTI_PASS_CONFIG = {
         "model": DISCO_MODEL_OPUS,
         "temperature": 0.6,
     },
-    # "consolidator" is the new name (DISCo framework), "synthesizer" kept for backwards compatibility
-    "supported_agents": ["consolidator", "synthesizer"],
+    # Consolidated agents that support multi-pass synthesis
+    # insight_analyst replaces consolidator/synthesizer
+    # initiative_builder replaces strategist
+    "supported_agents": ["consolidator", "synthesizer", "insight_analyst", "initiative_builder"],
+}
+
+# Consolidated DISCo agents (v2.0 - 4 stage-aligned agents)
+# These replace the 13 original agents with checkpoint-gated workflow
+CONSOLIDATED_AGENTS = {
+    "discovery_guide",  # Replaces: discovery_prep, triage, discovery_planner, coverage_tracker
+    "insight_analyst",  # Replaces: insight_extractor, consolidator, meta_consolidator
+    "initiative_builder",  # Replaces: strategist, meta_synthesizer
+    "requirements_generator",  # Replaces: prd_generator, tech_evaluation
+}
+
+# Legacy agents - hidden from UI but still accessible for backwards compatibility
+LEGACY_AGENTS = {
+    "discovery_prep",
+    "triage",
+    "discovery_planner",
+    "coverage_tracker",
+    "insight_extractor",
+    "consolidator",
+    "synthesizer",
+    "strategist",
+    "meta_consolidator",
+    "meta_synthesizer",
+    "prd_generator",
+    "tech_evaluation",
 }
 
 
@@ -168,37 +196,102 @@ def get_model_for_agent(agent_type: str) -> str:
     return DISCO_MODEL_OPUS
 
 
-# Agent file mappings (v4.2 - persona-aligned features, DISCo framework)
+# Agent file mappings (v5.0 - consolidated 4-agent DISCo framework)
 # Note: paths are relative - "agents/" prefix used when DISCO_REPO_PATH is set,
 # otherwise loads directly from bundled disco_agents/ folder
-# Old versions retained: v3.0, v4.0, v4.1 files for rollback
-# DISCo: "consolidator" replaces "synthesizer" (synthesizer kept for backwards compatibility)
+#
+# CONSOLIDATED AGENTS (v2.0 - 4 stage-aligned agents with checkpoints):
+# - discovery_guide: D stage - validates problem, plans discovery, tracks coverage
+# - insight_analyst: I stage - extracts patterns, creates decision document
+# - initiative_builder: S stage - clusters insights into scored bundles
+# - requirements_generator: C stage - produces PRD with technical recommendations
+#
+# LEGACY AGENTS (kept for backwards compatibility - hidden from UI):
+# - discovery_prep, triage, discovery_planner, coverage_tracker
+# - insight_extractor, consolidator, synthesizer, strategist
+# - prd_generator, tech_evaluation, meta_consolidator, meta_synthesizer
 AGENT_FILES = {
+    # === Consolidated Agents (v2.0) ===
+    "discovery_guide": "discovery-guide-v1.0.md",
+    "insight_analyst": "insight-analyst-v1.0.md",
+    "initiative_builder": "initiative-builder-v1.0.md",
+    "requirements_generator": "requirements-generator-v1.0.md",
+    # === Legacy Agents (backwards compatibility) ===
     "triage": "triage-v4.2.md",
     "discovery_prep": "discovery-prep-v1.0.md",
     "discovery_planner": "discovery-planner-v4.1.md",
     "coverage_tracker": "coverage-tracker-v4.1.md",
     "insight_extractor": "insight-extractor-v4.2.md",
-    "consolidator": "consolidator-v4.2.md",  # DISCo: Insights stage - consolidate findings
-    "synthesizer": "synthesizer-v4.2.md",  # Backwards compatibility
-    "strategist": "strategist-v1.0.md",  # DISCo: Synthesis stage - bundle into initiatives
-    "prd_generator": "prd-generator-v1.0.md",  # DISCo: Capabilities stage - generate PRDs
+    "consolidator": "consolidator-v4.2.md",
+    "synthesizer": "synthesizer-v4.2.md",
+    "strategist": "strategist-v1.0.md",
+    "prd_generator": "prd-generator-v1.0.md",
     "tech_evaluation": "tech-evaluation-v4.1.md",
-    "meta_consolidator": "meta-consolidator-v1.0.md",  # DISCo: multi-pass consolidation
-    "meta_synthesizer": "meta-synthesizer-v1.0.md",  # Backwards compatibility
+    "meta_consolidator": "meta-consolidator-v1.0.md",
+    "meta_synthesizer": "meta-synthesizer-v1.0.md",
 }
 
 # Methodology overview file (optional - may not exist in bundled version)
 METHODOLOGY_FILE = "PuRDy-Instructions-v2.7.md"
 
-# Agent descriptions for UI (v4.2 - persona-aligned features, DISCo framework)
+# Agent descriptions for UI (v5.0 - consolidated 4-agent DISCo framework)
+# Primary agents are the 4 consolidated stage-aligned agents
+# Legacy agents are hidden from the main UI but accessible via API
 AGENT_DESCRIPTIONS = {
+    # === Consolidated Agents (Primary - shown in UI) ===
+    "discovery_guide": {
+        "name": "Discovery Guide",
+        "version": "v1.0",
+        "description": "Validates problem worth solving, plans discovery sessions, and tracks coverage. Your single entry point for the Discovery stage.",
+        "estimated_time": "5-15 minutes",
+        "output_type": "discovery_guide_output",
+        "stage": "discovery",
+        "stage_number": 1,
+        "modes": ["triage", "planning", "coverage"],
+        "replaces": ["discovery_prep", "triage", "discovery_planner", "coverage_tracker"],
+    },
+    "insight_analyst": {
+        "name": "Insight Analyst",
+        "version": "v1.0",
+        "description": "Extracts insights from discovery, consolidates into a decision document with leverage point and system dynamics.",
+        "estimated_time": "10-20 minutes",
+        "output_type": "insight_analyst_output",
+        "stage": "insights",
+        "stage_number": 2,
+        "replaces": ["insight_extractor", "consolidator", "meta_consolidator"],
+    },
+    "initiative_builder": {
+        "name": "Initiative Builder",
+        "version": "v1.0",
+        "description": "Clusters insights into scored initiative bundles with impact/feasibility/urgency ratings for human review.",
+        "estimated_time": "10-15 minutes",
+        "output_type": "initiative_builder_output",
+        "stage": "synthesis",
+        "stage_number": 3,
+        "replaces": ["strategist", "meta_synthesizer"],
+    },
+    "requirements_generator": {
+        "name": "Requirements Generator",
+        "version": "v1.0",
+        "description": "Produces comprehensive PRD with technical evaluation, architecture diagrams, and implementation path.",
+        "estimated_time": "15-25 minutes",
+        "output_type": "requirements_generator_output",
+        "stage": "capabilities",
+        "stage_number": 4,
+        "replaces": ["prd_generator", "tech_evaluation"],
+    },
+}
+
+# Legacy agent descriptions (for backwards compatibility - not shown in primary UI)
+LEGACY_AGENT_DESCRIPTIONS = {
     "discovery_prep": {
         "name": "Discovery Prep",
         "version": "v1.0",
         "description": "Synthesizes stakeholder documents into structured meeting preparation guides with scored project candidates, assumption maps, and confirmation questions. Use before Triage when you have raw stakeholder materials.",
         "estimated_time": "5-10 minutes",
         "output_type": "discovery_prep_output",
+        "legacy": True,
+        "replaced_by": "discovery_guide",
     },
     "triage": {
         "name": "Triage",
@@ -206,6 +299,8 @@ AGENT_DESCRIPTIONS = {
         "description": "5-minute GO/NO-GO with Problem Worth Solving gate - validates problem before proceeding",
         "estimated_time": "3-5 minutes",
         "output_type": "triage_output",
+        "legacy": True,
+        "replaced_by": "discovery_guide",
     },
     "discovery_planner": {
         "name": "Discovery Planner",
@@ -213,6 +308,8 @@ AGENT_DESCRIPTIONS = {
         "description": "Design discovery that humans execute - 800-1000 words with cut priority guidance",
         "estimated_time": "5-10 minutes",
         "output_type": "discovery_output",
+        "legacy": True,
+        "replaced_by": "discovery_guide",
     },
     "coverage_tracker": {
         "name": "Coverage Tracker",
@@ -220,6 +317,8 @@ AGENT_DESCRIPTIONS = {
         "description": "Run iteratively during discovery - standardized status codes and next agent routing",
         "estimated_time": "3-5 minutes",
         "output_type": "coverage_output",
+        "legacy": True,
+        "replaced_by": "discovery_guide",
     },
     "insight_extractor": {
         "name": "Insight Extractor",
@@ -227,6 +326,8 @@ AGENT_DESCRIPTIONS = {
         "description": "Distill transcripts into insights - Pattern Library templates and Handoff Protocol",
         "estimated_time": "5-10 minutes",
         "output_type": "insight_output",
+        "legacy": True,
+        "replaced_by": "insight_analyst",
     },
     "consolidator": {
         "name": "Consolidator",
@@ -234,16 +335,26 @@ AGENT_DESCRIPTIONS = {
         "description": "900-word decision document - Metrics Dashboard, intervention reasoning, role blocklist",
         "estimated_time": "10-15 minutes",
         "output_type": "prd_output",
+        "legacy": True,
+        "replaced_by": "insight_analyst",
     },
-    # NOTE: "synthesizer" removed from UI (soft deprecated)
-    # Old synthesizer runs still work via AGENT_FILES mapping
-    # Outputs display under "Consolidator" in frontend
+    "synthesizer": {
+        "name": "Synthesizer",
+        "version": "v4.2",
+        "description": "Legacy synthesizer - use Consolidator instead",
+        "estimated_time": "10-15 minutes",
+        "output_type": "prd_output",
+        "legacy": True,
+        "replaced_by": "insight_analyst",
+    },
     "strategist": {
         "name": "Strategist",
         "version": "v1.0",
         "description": "Cluster insights, score, and propose initiative bundles for human review",
         "estimated_time": "10-15 minutes",
         "output_type": "strategist_output",
+        "legacy": True,
+        "replaced_by": "initiative_builder",
     },
     "prd_generator": {
         "name": "PRD Generator",
@@ -251,6 +362,8 @@ AGENT_DESCRIPTIONS = {
         "description": "Generate complete PRD from an approved initiative bundle",
         "estimated_time": "5-10 minutes",
         "output_type": "prd_output",
+        "legacy": True,
+        "replaced_by": "requirements_generator",
     },
     "tech_evaluation": {
         "name": "Tech Evaluation",
@@ -258,13 +371,41 @@ AGENT_DESCRIPTIONS = {
         "description": "Platform recommendation with architecture diagrams and confidence-tagged estimates",
         "estimated_time": "10-15 minutes",
         "output_type": "tech_eval_output",
+        "legacy": True,
+        "replaced_by": "requirements_generator",
     },
 }
 
 
-def get_agent_types() -> List[Dict]:
-    """Get list of available agent types with metadata."""
-    return [{"type": agent_type, **info} for agent_type, info in AGENT_DESCRIPTIONS.items()]
+def get_agent_types(include_legacy: bool = False) -> List[Dict]:
+    """Get list of available agent types with metadata.
+
+    Args:
+        include_legacy: If True, includes legacy agents (for backwards compatibility).
+                       If False (default), returns only the 4 consolidated agents.
+
+    Returns:
+        List of agent type dicts with metadata
+    """
+    agents = [{"type": agent_type, **info} for agent_type, info in AGENT_DESCRIPTIONS.items()]
+
+    if include_legacy:
+        legacy = [
+            {"type": agent_type, **info} for agent_type, info in LEGACY_AGENT_DESCRIPTIONS.items()
+        ]
+        agents.extend(legacy)
+
+    return agents
+
+
+def get_consolidated_agents() -> List[Dict]:
+    """Get only the 4 consolidated stage-aligned agents.
+
+    Returns them in stage order (1-4) for UI display.
+    """
+    agents = [{"type": agent_type, **info} for agent_type, info in AGENT_DESCRIPTIONS.items()]
+    # Sort by stage_number
+    return sorted(agents, key=lambda x: x.get("stage_number", 99))
 
 
 def _stream_claude_to_queue(
@@ -1259,24 +1400,31 @@ def parse_agent_output(agent_type: str, raw_output: str) -> Dict:
 def get_status_for_agent(agent_type: str) -> Optional[str]:
     """Get the initiative status to set after an agent completes.
 
-    DISCo workflow stages:
-    - D (Discovery): discovery_prep → prep_complete, triage → triaged, then discovery_planner/coverage_tracker → in_discovery
-    - I (Intelligence): insight_extractor/consolidator → consolidated
-    - S (Synthesis): synthesizer/strategist → synthesized
-    - C (Capabilities): prd_generator → documented
-    - O (Operationalize): future stage
+    DISCo workflow stages (consolidated agents):
+    - D (Discovery): discovery_guide → in_discovery (or triaged if triage mode)
+    - I (Insights): insight_analyst → consolidated
+    - S (Synthesis): initiative_builder → synthesized
+    - C (Capabilities): requirements_generator → documented
+
+    Legacy agents maintain backwards compatibility.
     """
     status_map = {
+        # === Consolidated Agents (v2.0) ===
+        "discovery_guide": "in_discovery",  # May be triaged/in_discovery based on mode
+        "insight_analyst": "consolidated",
+        "initiative_builder": "synthesized",
+        "requirements_generator": "documented",
+        # === Legacy Agents (backwards compatibility) ===
         "discovery_prep": "prep_complete",
         "triage": "triaged",
         "discovery_planner": "in_discovery",
         "coverage_tracker": "in_discovery",
-        "insight_extractor": "consolidated",  # DISCo: Intelligence stage complete
-        "consolidator": "consolidated",  # DISCo: Intelligence stage complete
-        "synthesizer": "synthesized",  # DISCo: Synthesis stage complete
-        "strategist": "synthesized",  # DISCo: Synthesis stage complete
-        "prd_generator": "documented",  # DISCo: Capabilities stage complete
-        "tech_evaluation": "documented",  # Stays in Capabilities
+        "insight_extractor": "consolidated",
+        "consolidator": "consolidated",
+        "synthesizer": "synthesized",
+        "strategist": "synthesized",
+        "prd_generator": "documented",
+        "tech_evaluation": "documented",
     }
     return status_map.get(agent_type)
 
@@ -1452,7 +1600,6 @@ Create a unified synthesis that combines the best of all three passes. Follow th
 
         # Stream the meta-synthesis output
         full_response = ""
-        chunk_count = 0
 
         try:
             async for item in stream_with_status_messages(

@@ -124,7 +124,7 @@ async def configure_obsidian_vault(
         raise
     except Exception as e:
         logger.error(f"Configure vault error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/status")
@@ -139,7 +139,7 @@ async def get_obsidian_status(current_user: dict = Depends(get_current_user)):
 
     except Exception as e:
         logger.error(f"Status check error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.patch("/settings")
@@ -172,7 +172,7 @@ async def update_obsidian_settings(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Update settings error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -218,7 +218,7 @@ async def trigger_obsidian_sync(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Sync error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/sync/recent")
@@ -264,7 +264,7 @@ async def trigger_recent_sync(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Recent sync error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/sync/full")
@@ -303,7 +303,7 @@ async def trigger_full_sync(
         raise
     except Exception as e:
         logger.error(f"Full sync error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -339,7 +339,7 @@ async def disconnect_obsidian(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Disconnect error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -370,7 +370,7 @@ async def get_sync_history(current_user: dict = Depends(get_current_user), limit
 
     except Exception as e:
         logger.error(f"Sync history error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -405,7 +405,7 @@ async def get_synced_files(
 
     except Exception as e:
         logger.error(f"Get files error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/files/recent")
@@ -463,7 +463,7 @@ async def get_recent_synced_files(current_user: dict = Depends(get_current_user)
             .limit(100)  # Get top 100 most recently updated vault docs
             .execute()
         )
-        doc_info = {
+        {
             d["id"]: {"original_date": d.get("original_date"), "updated_at": d.get("updated_at")}
             for d in docs_result.data
         }
@@ -521,7 +521,7 @@ async def get_recent_synced_files(current_user: dict = Depends(get_current_user)
 
     except Exception as e:
         logger.error(f"Get recent files error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/files/pending")
@@ -556,7 +556,7 @@ async def get_pending_files(current_user: dict = Depends(get_current_user)):
 
     except Exception as e:
         logger.error(f"Get pending files error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/files/{file_path:path}/retry")
@@ -600,7 +600,7 @@ async def retry_failed_file(
         raise
     except Exception as e:
         logger.error(f"Retry file error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================

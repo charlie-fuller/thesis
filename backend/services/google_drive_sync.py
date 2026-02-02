@@ -814,7 +814,7 @@ def sync_files(
                 if existing_doc and not is_placeholder:
                     # Update existing real document (re-sync)
                     logger.info("      📝 Document exists, updating...")
-                    updated_doc = update_drive_document(
+                    update_drive_document(
                         document_id=existing_doc["id"],
                         file_content=file_content,
                         storage_url=existing_doc["storage_url"],
@@ -1119,7 +1119,7 @@ def sync_folder(
                 if existing_doc:
                     # Update existing document
                     logger.info("      📝 Document exists, updating...")
-                    updated_doc = update_drive_document(
+                    update_drive_document(
                         document_id=existing_doc["id"],
                         file_content=file_content,
                         storage_url=existing_doc["storage_url"],

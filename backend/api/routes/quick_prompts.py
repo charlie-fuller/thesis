@@ -136,7 +136,7 @@ async def generate_prompts_for_user(
         raise
     except Exception as e:
         logger.error(f"[Quick Prompts API] Error generating prompts: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/")
@@ -167,7 +167,7 @@ async def get_quick_prompts(
 
     except Exception as e:
         logger.error(f"[Quick Prompts API] Error fetching prompts: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/")
@@ -215,7 +215,7 @@ async def create_custom_prompt(
         raise
     except Exception as e:
         logger.error(f"[Quick Prompts API] Error creating prompt: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.put("/{prompt_id}")
@@ -258,7 +258,7 @@ async def update_prompt(
         raise
     except Exception as e:
         logger.error(f"[Quick Prompts API] Error updating prompt: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/{prompt_id}")
@@ -287,7 +287,7 @@ async def delete_prompt(prompt_id: str, current_user: dict = Depends(get_current
         raise
     except Exception as e:
         logger.error(f"[Quick Prompts API] Error deleting prompt: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/{prompt_id}/use")
@@ -343,7 +343,7 @@ async def admin_get_user_prompts(
         raise
     except Exception as e:
         logger.error(f"[Quick Prompts API] Admin error fetching prompts: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/admin/stats")
@@ -400,7 +400,7 @@ async def admin_get_prompt_stats(current_user: dict = Depends(require_admin)):
 
     except Exception as e:
         logger.error(f"[Quick Prompts API] Error fetching stats: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -462,7 +462,7 @@ async def generate_addie_prompts_endpoint(
         raise
     except Exception as e:
         logger.error(f"[Quick Prompts API] Error generating ADDIE prompts: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/contextual")
@@ -490,7 +490,7 @@ async def get_contextual_prompts_endpoint(
 
     except Exception as e:
         logger.error(f"[Quick Prompts API] Error getting contextual prompts: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/detect-phase")
@@ -510,4 +510,4 @@ async def detect_phase_endpoint(
 
     except Exception as e:
         logger.error(f"[Quick Prompts API] Error detecting phase: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

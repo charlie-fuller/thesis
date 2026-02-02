@@ -162,7 +162,7 @@ def mark_useable_output(
         turns = calculate_turns_to_message(conversation_id, message_id)
 
         # Update conversation
-        result = (
+        (
             _get_db()
             .table("conversations")
             .update(

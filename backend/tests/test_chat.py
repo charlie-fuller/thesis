@@ -93,7 +93,7 @@ class TestRAGContext:
         # This would be called internally during chat processing
         from document_processor import search_similar_chunks
 
-        results = search_similar_chunks(
+        search_similar_chunks(
             query="What are the key points from my training documents?",
             client_id="test-client",
             limit=5,
@@ -279,18 +279,8 @@ class TestImageGenerationDetection:
     def test_visual_suggestion_detection(self):
         """Test detection of messages that would benefit from images."""
         # Messages that should trigger image suggestions
-        visual_messages = [
-            "Can you show me a diagram of this process?",
-            "Create an infographic for the training flow",
-            "Visualize the organizational structure",
-        ]
 
         # Messages that should not trigger image suggestions
-        text_only_messages = [
-            "What is the definition of learning?",
-            "List the key points",
-            "Explain this concept",
-        ]
 
         # The conversation service detects these patterns
 
@@ -306,22 +296,7 @@ class TestUseableOutputDetection:
     def test_output_artifact_detection(self):
         """Test detection of useable output in responses."""
         # Response with clear deliverable
-        response_with_artifact = """
-        Here's your training outline:
-
-        # Module 1: Introduction
-        - Objective: Learn fundamentals
-        - Duration: 30 minutes
-
-        # Module 2: Deep Dive
-        - Objective: Apply concepts
-        - Duration: 60 minutes
-        """
 
         # Response without deliverable
-        response_without_artifact = """
-        I understand you want to create a training program.
-        Could you tell me more about your target audience?
-        """
 
         # The detector analyzes these patterns

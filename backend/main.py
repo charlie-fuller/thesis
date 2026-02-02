@@ -438,7 +438,7 @@ async def list_client_conversations(
 
     except Exception as e:
         logger.error(f"❌ Error listing client conversations: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @app.get("/api/users/me/storage")
@@ -474,7 +474,7 @@ async def get_user_storage(current_user: dict = Depends(get_current_user)):
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching storage data: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @app.get("/api/users/me/documents")
@@ -494,7 +494,7 @@ async def get_user_documents(current_user: dict = Depends(get_current_user)):
 
     except Exception as e:
         logger.error(f"❌ Error fetching user documents: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================

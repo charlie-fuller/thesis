@@ -303,7 +303,7 @@ async def create_metric(
                 status_code=409,
                 detail=f"Metric '{metric.metric_name}' already exists for this stakeholder",
             )
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
     return _format_metric(result.data[0])
 

@@ -524,7 +524,7 @@ class MeetingOrchestrator:
             if p.get("agent_name", "").lower() not in self.META_AGENT_NAMES
         ]
 
-        participant_names = {p["agent_name"] for p in eligible_participants}
+        {p["agent_name"] for p in eligible_participants}
 
         # Score each eligible agent based on keyword matching
         scores: dict[str, int] = {}
@@ -1398,9 +1398,7 @@ Respond with ONLY the handoff message, nothing else."""
                     f"- **{p_display}**: {self.AGENT_EXPERTISE_DESCRIPTIONS[p_name]}"
                 )
 
-        expertise_directory = (
-            "\n".join(participant_expertise) if participant_expertise else "No other agents."
-        )
+        ("\n".join(participant_expertise) if participant_expertise else "No other agents.")
 
         # Round-specific guidance
         if autonomous_context.current_round == 1:

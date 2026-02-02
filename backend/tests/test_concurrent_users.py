@@ -41,9 +41,9 @@ class TestRaceConditions:
 
         # Each should have unique ID
         conversation_ids = [r["conversation_id"] for r in results]
-        assert len(conversation_ids) == len(
-            set(conversation_ids)
-        ), "Conversation IDs should be unique"
+        assert len(conversation_ids) == len(set(conversation_ids)), (
+            "Conversation IDs should be unique"
+        )
 
     @pytest.mark.concurrent
     async def test_message_ordering(self):
@@ -101,9 +101,9 @@ class TestRaceConditions:
 
         # Verify final count
         final_count = await self._get_counter(counter_id)
-        assert (
-            final_count == increment_count
-        ), f"Counter should be {increment_count}, got {final_count}"
+        assert final_count == increment_count, (
+            f"Counter should be {increment_count}, got {final_count}"
+        )
 
     # Helper methods
     async def _create_conversation(self, user_id: str, title: str) -> dict:
@@ -186,9 +186,7 @@ class TestDeadlocks:
 
         # Run with timeout
         try:
-            results = await asyncio.wait_for(
-                asyncio.gather(transaction_1(), transaction_2()), timeout=10.0
-            )
+            await asyncio.wait_for(asyncio.gather(transaction_1(), transaction_2()), timeout=10.0)
         except asyncio.TimeoutError:
             pytest.fail("Database deadlock detected")
 
@@ -266,7 +264,7 @@ class TestConcurrentDataIntegrity:
             return await self._create_child(parent_id, "new-child")
 
         # Concurrent delete and add
-        results = await asyncio.gather(delete_parent(), add_child(), return_exceptions=True)
+        await asyncio.gather(delete_parent(), add_child(), return_exceptions=True)
 
         # Should not have orphaned children
         children = await self._get_children(parent_id)
@@ -350,9 +348,9 @@ class TestSessionConsistency:
 
         # Each should have correct request_id
         for i, result in enumerate(results):
-            assert (
-                result["request_id"] == request_ids[i]
-            ), f"Request context leaked for {request_ids[i]}"
+            assert result["request_id"] == request_ids[i], (
+                f"Request context leaked for {request_ids[i]}"
+            )
 
     # Helper methods
     async def _set_session_data(self, user_id: str, data: dict) -> None:

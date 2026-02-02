@@ -110,7 +110,7 @@ class TestMeetingOrchestrator:
 
     def test_reporter_generates_synthesis(self):
         """Reporter produces unified summary from discussion."""
-        discussion_history = [
+        [
             {"agent": "atlas", "content": MOCK_AGENT_RESPONSES["atlas"]},
             {"agent": "capital", "content": MOCK_AGENT_RESPONSES["capital"]},
             {"agent": "guardian", "content": MOCK_AGENT_RESPONSES["guardian"]},
@@ -189,7 +189,6 @@ class TestAutonomousMode:
         autonomous_room["autonomous_mode"] = True
 
         # Simulate user interjection
-        user_message = "I have a question about the security concerns."
 
         # Mode should pause
         autonomous_room["autonomous_mode"] = False  # Paused by interjection
@@ -378,6 +377,6 @@ class TestSmartBrevityInMeetings:
 
         for agent, response in MOCK_AGENT_RESPONSES.items():
             for phrase in filler_phrases:
-                assert (
-                    phrase.lower() not in response.lower()
-                ), f"{agent} uses filler phrase: {phrase}"
+                assert phrase.lower() not in response.lower(), (
+                    f"{agent} uses filler phrase: {phrase}"
+                )

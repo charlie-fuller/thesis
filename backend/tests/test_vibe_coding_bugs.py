@@ -231,7 +231,7 @@ class TestAsyncRaceConditions:
             return new_status
 
         # Two concurrent updates
-        results = await asyncio.gather(
+        await asyncio.gather(
             update_status("scoping", 0.01),
             update_status("pilot", 0.02),
         )

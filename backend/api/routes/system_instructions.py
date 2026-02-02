@@ -290,7 +290,7 @@ async def list_versions(
 
     except Exception as e:
         logger.error(f"❌ Error listing versions: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/versions/active")
@@ -316,7 +316,7 @@ async def get_active_version(current_user: dict = Depends(get_current_user)):
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching active version: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/versions/{version_id}")
@@ -351,7 +351,7 @@ async def get_version(version_id: str, current_user: dict = Depends(require_admi
         raise
     except Exception as e:
         logger.error(f"❌ Error fetching version: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -424,7 +424,7 @@ async def activate_version(version_id: str, current_user: dict = Depends(require
         raise
     except Exception as e:
         logger.error(f"❌ Activation error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -486,7 +486,7 @@ async def compare_versions(
         raise
     except Exception as e:
         logger.error(f"❌ Comparison error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/versions/compare/summary")
@@ -606,7 +606,7 @@ Keep your response professional and focused on actionable insights for the admin
         raise HTTPException(status_code=500, detail=f"AI summary generation failed: {str(e)}")
     except Exception as e:
         logger.error(f"❌ Summary generation error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/versions/{version_id}/changelog")
@@ -661,7 +661,7 @@ async def get_version_changelog(version_id: str, current_user: dict = Depends(re
         raise
     except Exception as e:
         logger.error(f"❌ Changelog fetch error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 # ============================================================================
@@ -702,7 +702,7 @@ async def update_version_notes(
         raise
     except Exception as e:
         logger.error(f"❌ Update error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/versions/{version_id}")
@@ -753,7 +753,7 @@ async def delete_version(version_id: str, current_user: dict = Depends(require_a
         raise
     except Exception as e:
         logger.error(f"❌ Delete error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/versions/{version_id}/archive")
@@ -797,4 +797,4 @@ async def archive_version(version_id: str, current_user: dict = Depends(require_
         raise
     except Exception as e:
         logger.error(f"❌ Archive error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

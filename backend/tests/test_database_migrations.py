@@ -50,9 +50,9 @@ class TestMigrationSafety:
             for pattern in destructive_patterns:
                 if pattern in content.upper():
                     # If destructive, should have explicit approval marker
-                    assert (
-                        "-- DESTRUCTIVE: APPROVED" in content
-                    ), f"Migration {migration['name']} contains {pattern} without approval"
+                    assert "-- DESTRUCTIVE: APPROVED" in content, (
+                        f"Migration {migration['name']} contains {pattern} without approval"
+                    )
 
     def test_migration_idempotent(self):
         """Migrations should be idempotent (safe to run multiple times)."""
@@ -66,9 +66,9 @@ class TestMigrationSafety:
             if_not_exists = content.upper().count("IF NOT EXISTS")
 
             if creates > 0:
-                assert (
-                    if_not_exists >= creates
-                ), f"Migration {migration['name']} should use IF NOT EXISTS"
+                assert if_not_exists >= creates, (
+                    f"Migration {migration['name']} should use IF NOT EXISTS"
+                )
 
     def test_migration_transaction_wrapped(self):
         """Migrations should be wrapped in transactions."""
@@ -81,9 +81,9 @@ class TestMigrationSafety:
             has_transaction = "BEGIN" in content.upper() or "TRANSACTION" in content.upper()
             is_non_transactional = "-- NON-TRANSACTIONAL" in content
 
-            assert (
-                has_transaction or is_non_transactional
-            ), f"Migration {migration['name']} should be transactional"
+            assert has_transaction or is_non_transactional, (
+                f"Migration {migration['name']} should be transactional"
+            )
 
     # Helper methods
     def _get_all_migrations(self) -> List[dict]:
@@ -144,9 +144,9 @@ class TestMigrationDataPreservation:
 
         for old_type, new_type, test_value in conversions:
             result = self._simulate_type_conversion(old_type, new_type, test_value)
-            assert (
-                result["conversion_successful"] is True
-            ), f"Failed to convert {old_type} to {new_type}"
+            assert result["conversion_successful"] is True, (
+                f"Failed to convert {old_type} to {new_type}"
+            )
 
     def test_null_handling_in_migrations(self):
         """Migrations should handle NULL values correctly."""
@@ -273,25 +273,25 @@ class TestMigrationPerformance:
         migration_content = self._get_migration_content({"name": "data_migration"})
 
         # Should have LIMIT or batch processing
-        has_batching = "LIMIT" in migration_content.upper() or "BATCH" in migration_content.upper()
+        "LIMIT" in migration_content.upper() or "BATCH" in migration_content.upper()
         # Note: Not all migrations need batching
 
     def test_migration_avoids_table_locks(self):
         """Migrations should minimize table locks."""
         result = self._analyze_migration_locking("add_column_migration")
 
-        assert (
-            result["lock_type"] != "ACCESS EXCLUSIVE" or result["lock_duration"] < 1
-        ), "Migration holds exclusive lock too long"
+        assert result["lock_type"] != "ACCESS EXCLUSIVE" or result["lock_duration"] < 1, (
+            "Migration holds exclusive lock too long"
+        )
 
     def test_concurrent_index_creation(self):
         """Index creation should use CONCURRENTLY when possible."""
         migration_content = self._get_migration_content({"name": "add_index_migration"})
 
         if "CREATE INDEX" in migration_content.upper():
-            assert (
-                "CONCURRENTLY" in migration_content.upper()
-            ), "Index creation should use CONCURRENTLY"
+            assert "CONCURRENTLY" in migration_content.upper(), (
+                "Index creation should use CONCURRENTLY"
+            )
 
     # Helper methods
     def _estimate_migration_time(self, migration: str, table_rows: int) -> dict:
@@ -316,12 +316,12 @@ class TestMigrationDependencies:
             deps = self._get_migration_dependencies(migration)
             for dep in deps:
                 # Dependency should exist and come before this migration
-                assert self._migration_exists(
-                    dep
-                ), f"Missing dependency: {dep} for {migration['name']}"
-                assert self._migration_comes_before(
-                    dep, migration
-                ), f"Dependency {dep} should come before {migration['name']}"
+                assert self._migration_exists(dep), (
+                    f"Missing dependency: {dep} for {migration['name']}"
+                )
+                assert self._migration_comes_before(dep, migration), (
+                    f"Dependency {dep} should come before {migration['name']}"
+                )
 
     def test_no_circular_dependencies(self):
         """Migrations should not have circular dependencies."""

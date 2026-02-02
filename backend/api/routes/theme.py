@@ -158,7 +158,7 @@ async def update_theme_settings(
         raise
     except Exception as e:
         logger.error(f"Error updating theme settings: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/api/theme/reset")
@@ -195,7 +195,7 @@ async def reset_theme_settings(current_user: dict = Depends(get_current_user)):
         raise
     except Exception as e:
         logger.error(f"Error resetting theme settings: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -231,7 +231,7 @@ async def upload_logo(file: UploadFile = File(...), current_user: dict = Depends
         # Upload to Supabase Storage (using documents bucket or create a separate one)
         logger.info(f"Uploading logo to storage: {storage_path}")
 
-        upload_result = await asyncio.to_thread(
+        await asyncio.to_thread(
             lambda: supabase.storage.from_("documents").upload(
                 storage_path, file_content, file_options={"content-type": file.content_type}
             )
@@ -271,7 +271,7 @@ async def upload_logo(file: UploadFile = File(...), current_user: dict = Depends
         raise
     except Exception as e:
         logger.error(f"Error uploading logo: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/api/theme/logo")
@@ -299,7 +299,7 @@ async def delete_logo(current_user: dict = Depends(get_current_user)):
         raise
     except Exception as e:
         logger.error(f"Error removing logo: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 def get_default_theme() -> dict:

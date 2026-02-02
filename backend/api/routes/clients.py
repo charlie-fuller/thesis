@@ -77,7 +77,7 @@ async def list_clients(current_user: dict = Depends(require_admin)):
 
     except Exception as e:
         logger.error(f"❌ Error loading clients: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/{client_id}")
@@ -150,4 +150,4 @@ async def get_client(client_id: str, current_user: dict = Depends(get_current_us
         raise
     except Exception as e:
         logger.error(f"❌ Error loading client: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

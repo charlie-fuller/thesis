@@ -269,7 +269,7 @@ If the documentation doesn't cover the user's question, acknowledge this briefly
 
         # Step 6: Save messages to database
         # Save user message
-        user_msg = (
+        (
             supabase.table("help_messages")
             .insert(
                 {
@@ -357,7 +357,7 @@ async def get_help_conversations(request: Request, current_user: dict = Depends(
 
     except Exception as e:
         logger.error(f"Error fetching help conversations: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/conversations/{conversation_id}")
@@ -396,7 +396,7 @@ async def get_help_conversation(
         raise
     except Exception as e:
         logger.error(f"Error fetching help conversation: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.delete("/conversations/{conversation_id}")
@@ -429,7 +429,7 @@ async def delete_help_conversation(
         raise
     except Exception as e:
         logger.error(f"Error deleting help conversation: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.post("/feedback/{message_id}")
@@ -489,7 +489,7 @@ async def submit_help_feedback(
         raise
     except Exception as e:
         logger.error(f"Error recording feedback: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/search")
@@ -561,7 +561,7 @@ async def search_help_docs(
 
     except Exception as e:
         logger.error(f"Error searching help docs: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/stats")
@@ -613,7 +613,7 @@ async def get_help_stats(request: Request, current_user: dict = Depends(get_curr
 
     except Exception as e:
         logger.error(f"Error fetching help stats: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
 @router.get("/status")

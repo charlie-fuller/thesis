@@ -132,7 +132,7 @@ NEVER let a single expert's view become group consensus unchallenged.
         """
         # Build participant context
         participant_names = [p.get("agent_display_name", p.get("agent_name")) for p in participants]
-        participant_list = ", ".join(participant_names)
+        ", ".join(participant_names)
 
         # Check for greeting patterns
         greeting_patterns = ["hello", "hi", "hey", "good morning", "good afternoon", "good evening"]

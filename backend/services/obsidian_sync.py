@@ -1101,7 +1101,6 @@ def sync_file(config: Dict, file_path: Path, existing_state: Optional[Dict] = No
     # Determine if file is binary based on extension
     # RTF is text-based but needs special processing to extract plain text
     binary_extensions = {".pdf", ".docx", ".xlsx", ".pptx", ".rtf"}
-    text_extensions = {".md", ".txt"}
     file_ext = file_path.suffix.lower()
     is_binary = file_ext in binary_extensions
 
@@ -1181,7 +1180,7 @@ def sync_file(config: Dict, file_path: Path, existing_state: Optional[Dict] = No
         if document_id:
             # Update existing document
             logger.debug(f"      Updating existing document: {document_id}")
-            updated = _update_obsidian_document(
+            _update_obsidian_document(
                 document_id=document_id,
                 file_content=file_content,
                 title=title,

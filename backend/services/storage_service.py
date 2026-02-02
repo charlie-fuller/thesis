@@ -95,7 +95,7 @@ class StorageService:
 
             # Upload to Supabase Storage
             logger.info(f"Uploading image to: {storage_path}")
-            response = self.client.storage.from_(self.bucket_name).upload(
+            self.client.storage.from_(self.bucket_name).upload(
                 path=storage_path,
                 file=image_bytes,
                 file_options={
