@@ -936,8 +936,8 @@ class TestAPIResponseFormat:
             "updated_at",
         ]
 
-        for field in required_fields:
-            assert field in opp
+        for field_name in required_fields:
+            assert field_name in opp
 
     def test_blockers_is_list(self, sample_projects):
         """Blockers field is a list."""
@@ -950,13 +950,13 @@ class TestAPIResponseFormat:
         """All score fields are integers."""
         opp = sample_projects[0]
 
-        for field in [
+        for field_name in [
             "roi_potential",
             "implementation_effort",
             "strategic_alignment",
             "stakeholder_readiness",
         ]:
-            assert isinstance(opp[field], int)
+            assert isinstance(opp[field_name], int)
 
     def test_tier_is_integer_1_to_4(self, sample_projects):
         """Tier is an integer 1-4."""

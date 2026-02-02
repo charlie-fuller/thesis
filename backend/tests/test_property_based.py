@@ -217,7 +217,7 @@ class TestTextProcessing:
             return " ".join(words[:limit]) + "..."
 
         result = enforce_smart_brevity(content, max_words)
-        result_words = len(result.rstrip("...").split())
+        result_words = len(result.removesuffix("...").split())
         assert result_words <= max_words + 1  # +1 for edge case with ellipsis
 
 
