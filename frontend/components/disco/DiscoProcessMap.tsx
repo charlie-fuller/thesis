@@ -221,177 +221,173 @@ export default function DiscoProcessMap() {
           {/* Arrow: Row 1 -> Row 2 (vertical) */}
           <path d={`M ${agentX + agentWidth/2} ${startY + agentHeight} L ${agentX + agentWidth/2} ${startY + rowSpacing - 5}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
-          {/* ===== AGENT 2: INSIGHT ANALYST ===== */}
+          {/* ===== ROW 2: INSIGHT ANALYST + CHECKPOINT 2 ===== */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedStep(processSteps[1])}
           >
             <rect
-              x={centerX - agentWidth/2} y={80 + rowSpacing*2} width={agentWidth} height={agentHeight}
-              rx="12"
+              x={agentX} y={startY + rowSpacing} width={agentWidth} height={agentHeight}
+              rx="10"
               fill={stageColors.intelligence.fill}
               stroke={stageColors.intelligence.stroke}
-              strokeWidth="3"
+              strokeWidth="2"
             />
-            <text x={centerX} y={80 + rowSpacing*2 + 25} textAnchor="middle" fill="#06b6d4" fontSize="11" fontWeight="700">
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing + 18} textAnchor="middle" fill="#06b6d4" fontSize="10" fontWeight="700">
               I: INTELLIGENCE
             </text>
-            <text x={centerX} y={80 + rowSpacing*2 + 45} textAnchor="middle" fill={colors.textPrimary} fontSize="15" fontWeight="600">
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing + 36} textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
               Insight Analyst
             </text>
-            <text x={centerX} y={80 + rowSpacing*2 + 65} textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              Extracts patterns, creates decision document
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing + 52} textAnchor="middle" fill={colors.textSecondary} fontSize="9">
+              Extracts patterns, creates decision doc
             </text>
           </g>
 
-          {/* Arrow: Agent 2 -> Checkpoint 2 */}
-          <path d={`M ${centerX} ${80 + rowSpacing*2 + agentHeight} L ${centerX} ${80 + rowSpacing*2 + agentHeight + 15}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Agent 2 -> Checkpoint 2 (horizontal) */}
+          <path d={`M ${agentX + agentWidth} ${startY + rowSpacing + agentHeight/2} L ${checkpointX - 5} ${startY + rowSpacing + agentHeight/2}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* Checkpoint 2 - Human Review */}
           <g>
             <rect
-              x={centerX - checkpointSize/2} y={80 + rowSpacing*2 + agentHeight + 20}
+              x={checkpointX} y={startY + rowSpacing + (agentHeight - checkpointSize)/2}
               width={checkpointSize} height={checkpointSize}
-              rx="10"
+              rx="8"
               fill="rgba(100, 116, 139, 0.15)"
               stroke="#64748b"
               strokeWidth="2"
             />
-            {/* Large person icon */}
-            <g transform={`translate(${centerX - 15}, ${80 + rowSpacing*2 + agentHeight + 30})`}>
-              <circle cx="15" cy="12" r="10" fill="#64748b" />
-              <path d="M0 45 Q15 30 30 45" fill="none" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />
+            <g transform={`translate(${checkpointX + 14}, ${startY + rowSpacing + (agentHeight - checkpointSize)/2 + 8})`}>
+              <circle cx="13" cy="10" r="8" fill="#64748b" />
+              <path d="M0 35 Q13 22 26 35" fill="none" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
             </g>
-            <text x={centerX} y={80 + rowSpacing*2 + agentHeight + 85} textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="600">
-              CP 2
+            <text x={checkpointX + checkpointSize + 8} y={startY + rowSpacing + agentHeight/2 + 4} fill="#64748b" fontSize="10" fontWeight="600">
+              CP2
             </text>
           </g>
 
-          {/* Arrow: Checkpoint 2 -> Agent 3 */}
-          <path d={`M ${centerX} ${80 + rowSpacing*2 + agentHeight + 20 + checkpointSize} L ${centerX} ${80 + rowSpacing*4 - 5}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Row 2 -> Row 3 (vertical) */}
+          <path d={`M ${agentX + agentWidth/2} ${startY + rowSpacing + agentHeight} L ${agentX + agentWidth/2} ${startY + rowSpacing*2 - 5}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
-          {/* ===== AGENT 3: INITIATIVE BUILDER ===== */}
+          {/* ===== ROW 3: INITIATIVE BUILDER + CHECKPOINT 3 ===== */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedStep(processSteps[2])}
           >
             <rect
-              x={centerX - agentWidth/2} y={80 + rowSpacing*4} width={agentWidth} height={agentHeight}
-              rx="12"
+              x={agentX} y={startY + rowSpacing*2} width={agentWidth} height={agentHeight}
+              rx="10"
               fill={stageColors.synthesis.fill}
               stroke={stageColors.synthesis.stroke}
-              strokeWidth="3"
+              strokeWidth="2"
             />
-            <text x={centerX} y={80 + rowSpacing*4 + 25} textAnchor="middle" fill="#22c55e" fontSize="11" fontWeight="700">
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing*2 + 18} textAnchor="middle" fill="#22c55e" fontSize="10" fontWeight="700">
               S: SYNTHESIS
             </text>
-            <text x={centerX} y={80 + rowSpacing*4 + 45} textAnchor="middle" fill={colors.textPrimary} fontSize="15" fontWeight="600">
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing*2 + 36} textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
               Initiative Builder
             </text>
-            <text x={centerX} y={80 + rowSpacing*4 + 65} textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing*2 + 52} textAnchor="middle" fill={colors.textSecondary} fontSize="9">
               Clusters insights into scored bundles
             </text>
           </g>
 
-          {/* Arrow: Agent 3 -> Checkpoint 3 */}
-          <path d={`M ${centerX} ${80 + rowSpacing*4 + agentHeight} L ${centerX} ${80 + rowSpacing*4 + agentHeight + 15}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Agent 3 -> Checkpoint 3 (horizontal) */}
+          <path d={`M ${agentX + agentWidth} ${startY + rowSpacing*2 + agentHeight/2} L ${checkpointX - 5} ${startY + rowSpacing*2 + agentHeight/2}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* Checkpoint 3 - Human Review */}
           <g>
             <rect
-              x={centerX - checkpointSize/2} y={80 + rowSpacing*4 + agentHeight + 20}
+              x={checkpointX} y={startY + rowSpacing*2 + (agentHeight - checkpointSize)/2}
               width={checkpointSize} height={checkpointSize}
-              rx="10"
+              rx="8"
               fill="rgba(100, 116, 139, 0.15)"
               stroke="#64748b"
               strokeWidth="2"
             />
-            {/* Large person icon */}
-            <g transform={`translate(${centerX - 15}, ${80 + rowSpacing*4 + agentHeight + 30})`}>
-              <circle cx="15" cy="12" r="10" fill="#64748b" />
-              <path d="M0 45 Q15 30 30 45" fill="none" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />
+            <g transform={`translate(${checkpointX + 14}, ${startY + rowSpacing*2 + (agentHeight - checkpointSize)/2 + 8})`}>
+              <circle cx="13" cy="10" r="8" fill="#64748b" />
+              <path d="M0 35 Q13 22 26 35" fill="none" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
             </g>
-            <text x={centerX} y={80 + rowSpacing*4 + agentHeight + 85} textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="600">
-              CP 3
+            <text x={checkpointX + checkpointSize + 8} y={startY + rowSpacing*2 + agentHeight/2 + 4} fill="#64748b" fontSize="10" fontWeight="600">
+              CP3
             </text>
           </g>
 
-          {/* Arrow: Checkpoint 3 -> Agent 4 */}
-          <path d={`M ${centerX} ${80 + rowSpacing*4 + agentHeight + 20 + checkpointSize} L ${centerX} ${80 + rowSpacing*6 - 5}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Row 3 -> Row 4 (vertical) */}
+          <path d={`M ${agentX + agentWidth/2} ${startY + rowSpacing*2 + agentHeight} L ${agentX + agentWidth/2} ${startY + rowSpacing*3 - 5}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
-          {/* ===== AGENT 4: REQUIREMENTS GENERATOR ===== */}
+          {/* ===== ROW 4: REQUIREMENTS GENERATOR + CHECKPOINT 4 ===== */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedStep(processSteps[3])}
           >
             <rect
-              x={centerX - agentWidth/2} y={80 + rowSpacing*6} width={agentWidth} height={agentHeight}
-              rx="12"
+              x={agentX} y={startY + rowSpacing*3} width={agentWidth} height={agentHeight}
+              rx="10"
               fill={stageColors.capabilities.fill}
               stroke={stageColors.capabilities.stroke}
-              strokeWidth="3"
+              strokeWidth="2"
             />
-            <text x={centerX} y={80 + rowSpacing*6 + 25} textAnchor="middle" fill="#f43f5e" fontSize="11" fontWeight="700">
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing*3 + 18} textAnchor="middle" fill="#f43f5e" fontSize="10" fontWeight="700">
               C: CAPABILITIES
             </text>
-            <text x={centerX} y={80 + rowSpacing*6 + 45} textAnchor="middle" fill={colors.textPrimary} fontSize="15" fontWeight="600">
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing*3 + 36} textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
               Requirements Generator
             </text>
-            <text x={centerX} y={80 + rowSpacing*6 + 65} textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing*3 + 52} textAnchor="middle" fill={colors.textSecondary} fontSize="9">
               Produces PRD with tech recommendations
             </text>
           </g>
 
-          {/* Arrow: Agent 4 -> Checkpoint 4 */}
-          <path d={`M ${centerX} ${80 + rowSpacing*6 + agentHeight} L ${centerX} ${80 + rowSpacing*6 + agentHeight + 15}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Agent 4 -> Checkpoint 4 (horizontal) */}
+          <path d={`M ${agentX + agentWidth} ${startY + rowSpacing*3 + agentHeight/2} L ${checkpointX - 5} ${startY + rowSpacing*3 + agentHeight/2}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* Checkpoint 4 - Human Review */}
           <g>
             <rect
-              x={centerX - checkpointSize/2} y={80 + rowSpacing*6 + agentHeight + 20}
+              x={checkpointX} y={startY + rowSpacing*3 + (agentHeight - checkpointSize)/2}
               width={checkpointSize} height={checkpointSize}
-              rx="10"
+              rx="8"
               fill="rgba(100, 116, 139, 0.15)"
               stroke="#64748b"
               strokeWidth="2"
             />
-            {/* Large person icon */}
-            <g transform={`translate(${centerX - 15}, ${80 + rowSpacing*6 + agentHeight + 30})`}>
-              <circle cx="15" cy="12" r="10" fill="#64748b" />
-              <path d="M0 45 Q15 30 30 45" fill="none" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />
+            <g transform={`translate(${checkpointX + 14}, ${startY + rowSpacing*3 + (agentHeight - checkpointSize)/2 + 8})`}>
+              <circle cx="13" cy="10" r="8" fill="#64748b" />
+              <path d="M0 35 Q13 22 26 35" fill="none" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
             </g>
-            <text x={centerX} y={80 + rowSpacing*6 + agentHeight + 85} textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="600">
-              CP 4
+            <text x={checkpointX + checkpointSize + 8} y={startY + rowSpacing*3 + agentHeight/2 + 4} fill="#64748b" fontSize="10" fontWeight="600">
+              CP4
             </text>
           </g>
 
-          {/* Arrow: Checkpoint 4 -> PRD Output */}
-          <path d={`M ${centerX} ${80 + rowSpacing*6 + agentHeight + 20 + checkpointSize} L ${centerX} ${80 + rowSpacing*8 - 5}`} fill="none" stroke="#22c55e" strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Row 4 -> PRD Output (vertical) */}
+          <path d={`M ${agentX + agentWidth/2} ${startY + rowSpacing*3 + agentHeight} L ${agentX + agentWidth/2} ${startY + rowSpacing*4 - 5}`} fill="none" stroke="#22c55e" strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* Final Output: PRD */}
           <g>
             <rect
-              x={centerX - agentWidth/2} y={80 + rowSpacing*8}
-              width={agentWidth} height="60"
-              rx="12"
+              x={agentX} y={startY + rowSpacing*4}
+              width={agentWidth} height="55"
+              rx="10"
               fill="rgba(34, 197, 94, 0.2)"
               stroke="#22c55e"
-              strokeWidth="3"
+              strokeWidth="2"
             />
-            <text x={centerX} y={80 + rowSpacing*8 + 28} textAnchor="middle" fill="#22c55e" fontSize="16" fontWeight="700">
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 24} textAnchor="middle" fill="#22c55e" fontSize="14" fontWeight="700">
               PRD Document
             </text>
-            <text x={centerX} y={80 + rowSpacing*8 + 48} textAnchor="middle" fill={colors.textSecondary} fontSize="11">
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 42} textAnchor="middle" fill={colors.textSecondary} fontSize="10">
               Complete spec ready for development
             </text>
           </g>
 
           {/* ===== LEGEND (bottom) ===== */}
-          <g transform="translate(60, 960)">
-            <rect x="0" y="-12" width="16" height="16" rx="4" fill="rgba(100, 116, 139, 0.15)" stroke="#64748b" strokeWidth="2" />
-            <text x="24" y="2" fill={colors.textSecondary} fontSize="11">= Human checkpoint (approval required)</text>
-
-            <text x="280" y="2" fill={colors.textSecondary} fontSize="11">Click agents for details</text>
+          <g transform="translate(30, 555)">
+            <rect x="0" y="-10" width="14" height="14" rx="3" fill="rgba(100, 116, 139, 0.15)" stroke="#64748b" strokeWidth="1.5" />
+            <text x="20" y="2" fill={colors.textSecondary} fontSize="10">= Human checkpoint</text>
+            <text x="200" y="2" fill={colors.textSecondary} fontSize="10">Click agents for details</text>
           </g>
         </svg>
       </div>
