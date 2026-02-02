@@ -341,6 +341,55 @@ class HTTPSRedirectFixMiddleware:
 # Add HTTPS redirect fix middleware (runs after CORS)
 app.add_middleware(HTTPSRedirectFixMiddleware)
 
+
+# ============================================================================
+# Request ID Middleware for Correlation
+# ============================================================================
+
+
+class RequestIDMiddleware:
+    """Add unique request ID for tracing and correlation.
+
+    Generates a unique ID for each request that can be used to correlate
+    logs across the request lifecycle. The ID is:
+    - Generated for each request (or taken from X-Request-ID header if provided)
+    - Stored in request.state.request_id
+    - Returned in X-Request-ID response header
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        import uuid
+
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # Get or generate request ID
+        headers = dict(scope.get("headers", []))
+        request_id = headers.get(b"x-request-id", b"").decode("utf-8")
+        if not request_id:
+            request_id = str(uuid.uuid4())[:8]  # Short ID for readability
+
+        # Store in scope for later access
+        scope["state"] = scope.get("state", {})
+        scope["state"]["request_id"] = request_id
+
+        async def send_with_request_id(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"x-request-id", request_id.encode()))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_request_id)
+
+
+# Add request ID middleware (runs after HTTPS fix)
+app.add_middleware(RequestIDMiddleware)
+
 # Initialize Supabase connection
 supabase = get_supabase()
 

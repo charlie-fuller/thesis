@@ -343,6 +343,7 @@ async def list_conversations(
     user_id: Optional[str] = None,
     client_id: Optional[str] = None,
     limit: int = 100,
+    offset: int = 0,
     current_user: dict = Depends(get_current_user),
 ):
     """List conversations - all for admins, user-specific for regular users."""
@@ -366,8 +367,8 @@ async def list_conversations(
         if client_id:
             query = query.eq("client_id", client_id)
 
-        # Apply ordering and limit
-        query = query.order("updated_at", desc=True).limit(limit)
+        # Apply ordering and pagination
+        query = query.order("updated_at", desc=True).range(offset, offset + limit - 1)
 
         result = await asyncio.to_thread(lambda: query.execute())
 

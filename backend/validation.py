@@ -13,14 +13,76 @@ from logger_config import get_logger
 logger = get_logger(__name__)
 
 # Try to import python-magic for file signature validation
-# Falls back gracefully if not installed
+# Falls back to basic magic number checks if not installed
 try:
     import magic
 
     MAGIC_AVAILABLE = True
 except ImportError:
     MAGIC_AVAILABLE = False
-    logger.warning("python-magic not installed. File signature validation disabled.")
+    logger.warning(
+        "python-magic not installed. Using basic magic number validation. "
+        "Install python-magic for better file type detection."
+    )
+
+# Basic magic number signatures for fallback validation
+# These are the first bytes of common file types
+BASIC_MAGIC_SIGNATURES = {
+    # Images
+    b"\xff\xd8\xff": "image/jpeg",  # JPEG
+    b"\x89PNG\r\n\x1a\n": "image/png",  # PNG
+    b"RIFF": "image/webp",  # WebP (check for WEBP later in bytes)
+    b"GIF87a": "image/gif",  # GIF87
+    b"GIF89a": "image/gif",  # GIF89
+    # Documents
+    b"%PDF": "application/pdf",  # PDF
+    b"PK\x03\x04": "application/zip",  # ZIP (also DOCX, XLSX, etc.)
+    # Dangerous files to block
+    b"MZ": "application/x-executable",  # Windows EXE/DLL
+    b"\x7fELF": "application/x-executable",  # Linux ELF binary
+}
+
+
+def _detect_mime_basic(file_content: bytes) -> str:
+    """Basic MIME type detection using magic numbers.
+
+    This is a fallback when python-magic is not installed.
+
+    Args:
+        file_content: The file content bytes
+
+    Returns:
+        str: Detected MIME type or 'application/octet-stream' if unknown
+    """
+    if len(file_content) < 8:
+        return "application/octet-stream"
+
+    # Check against known signatures (longest matches first)
+    for signature, mime_type in sorted(BASIC_MAGIC_SIGNATURES.items(), key=lambda x: -len(x[0])):
+        if file_content.startswith(signature):
+            # Special case for WebP - need to check bytes 8-12
+            if signature == b"RIFF" and len(file_content) >= 12:
+                if file_content[8:12] == b"WEBP":
+                    return "image/webp"
+                else:
+                    continue  # Not WebP, might be WAV or AVI
+            return mime_type
+
+    # Check for text-based files
+    try:
+        # Try to decode as UTF-8 - if it works, likely text
+        file_content[:1024].decode("utf-8")
+        # Check for common text patterns
+        if file_content.startswith(b"<?xml"):
+            return "application/xml"
+        if file_content.startswith(b"{") or file_content.startswith(b"["):
+            return "application/json"
+        return "text/plain"
+    except UnicodeDecodeError:
+        pass
+
+    return "application/octet-stream"
+
 
 # File upload constraints (imported from config for consistency)
 MAX_FILE_SIZE = MAX_UPLOAD_SIZE_MB * 1024 * 1024  # Convert MB to bytes
@@ -175,12 +237,18 @@ def validate_file_magic(file_content: bytes, claimed_content_type: Optional[str]
         HTTPException: If file signature doesn't match allowed types or claimed type
     """
     if not MAGIC_AVAILABLE:
-        # If python-magic is not installed, log warning and skip validation
-        logger.debug("Magic validation skipped: python-magic not available")
-        return claimed_content_type or "application/octet-stream"
+        # Use basic magic number detection as fallback
+        detected_mime = _detect_mime_basic(file_content)
+        logger.debug(f"Basic magic detected: {detected_mime}, claimed: {claimed_content_type}")
+
+        # Block known dangerous file types
+        if detected_mime == "application/x-executable":
+            raise HTTPException(status_code=400, detail="Executable files are not allowed.")
+
+        return detected_mime
 
     try:
-        # Detect actual MIME type from file content
+        # Detect actual MIME type from file content using python-magic
         detected_mime = magic.from_buffer(file_content, mime=True)
         logger.debug(f"Magic detected MIME type: {detected_mime}, claimed: {claimed_content_type}")
 
@@ -392,16 +460,30 @@ def validate_image_magic(file_content: bytes, claimed_content_type: Optional[str
     Raises:
         HTTPException: If file is not actually an image
     """
+    valid_image_mimes = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+
     if not MAGIC_AVAILABLE:
-        logger.debug("Image magic validation skipped: python-magic not available")
-        return claimed_content_type or "application/octet-stream"
+        # Use basic magic number detection as fallback
+        detected_mime = _detect_mime_basic(file_content)
+        logger.debug(
+            f"Basic image magic detected: {detected_mime}, claimed: {claimed_content_type}"
+        )
+
+        # Must be an actual image type
+        if detected_mime not in valid_image_mimes:
+            logger.warning(f"Image magic validation failed: '{detected_mime}' is not an image")
+            raise HTTPException(
+                status_code=400,
+                detail=f"File is not a valid image. Detected type: {detected_mime}",
+            )
+
+        return detected_mime
 
     try:
         detected_mime = magic.from_buffer(file_content, mime=True)
         logger.debug(f"Image magic detected: {detected_mime}, claimed: {claimed_content_type}")
 
         # Must be an actual image type
-        valid_image_mimes = {"image/jpeg", "image/png", "image/webp", "image/gif"}
         if detected_mime not in valid_image_mimes:
             logger.warning(f"Image magic validation failed: '{detected_mime}' is not an image")
             raise HTTPException(
@@ -414,4 +496,5 @@ def validate_image_magic(file_content: bytes, claimed_content_type: Optional[str
         raise
     except Exception as e:
         logger.error(f"Error during image magic validation: {e}")
-        return claimed_content_type or "application/octet-stream"
+        # On error, try basic detection
+        return _detect_mime_basic(file_content)

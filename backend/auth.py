@@ -178,11 +178,26 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
             .single()
             .execute()
         )
-        user_role = user_result.data.get("role", "user") if user_result.data else "user"
-        user_client_id = user_result.data.get("client_id") if user_result.data else None
-        user_app_access = user_result.data.get("app_access") if user_result.data else ["thesis"]
+
+        if not user_result.data:
+            # User exists in auth but not in users table - this is a data consistency issue
+            logger.warning(f"User {user_id} exists in auth but not in users table")
+            raise HTTPException(
+                status_code=401,
+                detail="User profile not found. Please contact support.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        user_role = user_result.data.get("role", "user")
+        user_client_id = user_result.data.get("client_id")
+        user_app_access = user_result.data.get("app_access") or ["thesis"]
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.info(f"Warning: Could not fetch user data from database: {e}")
+        # Database error - log warning but allow access with minimal permissions
+        # This prevents total lockout during DB issues
+        logger.warning(f"Database error fetching user data for {user_id}: {e}")
         user_role = "user"
         user_client_id = None
         user_app_access = ["thesis"]
@@ -230,11 +245,26 @@ def get_current_user_optional(
             .single()
             .execute()
         )
-        user_role = user_result.data.get("role", "user") if user_result.data else "user"
-        user_client_id = user_result.data.get("client_id") if user_result.data else None
-        user_app_access = user_result.data.get("app_access") if user_result.data else ["thesis"]
+
+        if not user_result.data:
+            # User exists in auth but not in users table - this is a data consistency issue
+            logger.warning(f"User {user_id} exists in auth but not in users table")
+            raise HTTPException(
+                status_code=401,
+                detail="User profile not found. Please contact support.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        user_role = user_result.data.get("role", "user")
+        user_client_id = user_result.data.get("client_id")
+        user_app_access = user_result.data.get("app_access") or ["thesis"]
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.info(f"Warning: Could not fetch user data from database: {e}")
+        # Database error - log warning but allow access with minimal permissions
+        # This prevents total lockout during DB issues
+        logger.warning(f"Database error fetching user data for {user_id}: {e}")
         user_role = "user"
         user_client_id = None
         user_app_access = ["thesis"]
@@ -318,3 +348,69 @@ def require_app_access(required_apps: list):
 # Convenience dependencies for common app access checks
 require_disco_access = require_app_access(["disco", "purdy"])  # purdy for legacy compatibility
 require_thesis_access = require_app_access(["thesis"])
+
+
+# ============================================================================
+# Ownership Check Utilities
+# ============================================================================
+
+
+def check_owner_or_admin(
+    current_user: dict, resource_user_id: str, resource_name: str = "resource"
+) -> None:
+    """Check if current user is admin or owns the resource.
+
+    Args:
+        current_user: The authenticated user dict
+        resource_user_id: The user_id that owns the resource
+        resource_name: Name of resource for error message
+
+    Raises:
+        HTTPException: 403 if user is not admin and doesn't own the resource
+    """
+    if current_user.get("role") == "admin":
+        return  # Admins can access anything
+
+    if current_user.get("id") != resource_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Not authorized to access this {resource_name}",
+        )
+
+
+def check_client_member_or_admin(
+    current_user: dict, resource_client_id: str, resource_name: str = "resource"
+) -> None:
+    """Check if current user is admin or belongs to the client.
+
+    Args:
+        current_user: The authenticated user dict
+        resource_client_id: The client_id that owns the resource
+        resource_name: Name of resource for error message
+
+    Raises:
+        HTTPException: 403 if user is not admin and doesn't belong to the client
+    """
+    if current_user.get("role") == "admin":
+        return  # Admins can access anything
+
+    if current_user.get("client_id") != resource_client_id:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Not authorized to access this {resource_name}",
+        )
+
+
+def check_self_or_admin(current_user: dict, target_user_id: str) -> None:
+    """Check if current user is admin or is the target user.
+
+    Common pattern for user profile endpoints.
+
+    Args:
+        current_user: The authenticated user dict
+        target_user_id: The user_id being accessed
+
+    Raises:
+        HTTPException: 403 if user is not admin and not the target user
+    """
+    check_owner_or_admin(current_user, target_user_id, "user")

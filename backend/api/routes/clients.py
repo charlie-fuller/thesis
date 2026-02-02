@@ -7,7 +7,7 @@ import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from auth import get_current_user, require_admin
+from auth import check_client_member_or_admin, get_current_user, require_admin
 from database import get_supabase
 from logger_config import get_logger
 from validation import validate_uuid
@@ -18,63 +18,110 @@ supabase = get_supabase()
 
 
 @router.get("")
-async def list_clients(current_user: dict = Depends(require_admin)):
-    """Get all clients.
+async def list_clients(
+    limit: int = 50,
+    offset: int = 0,
+    current_user: dict = Depends(require_admin),
+):
+    """Get all clients with pagination.
 
     Requires: admin role
 
+    Args:
+        limit: Maximum number of clients to return (default 50, max 200)
+        offset: Number of clients to skip (for pagination)
+
     Returns:
-        List of all clients with basic stats
+        List of clients with basic stats
     """
     try:
-        logger.info("\n🏢 Loading all clients")
+        # Clamp limit to prevent abuse
+        limit = min(limit, 200)
 
-        # Fetch clients from database
+        logger.info(f"\n🏢 Loading clients (limit={limit}, offset={offset})")
+
+        # Fetch clients with pagination
         clients_result = await asyncio.to_thread(
-            lambda: supabase.table("clients").select("*").order("created_at", desc=True).execute()
+            lambda: supabase.table("clients")
+            .select("*", count="exact")
+            .order("created_at", desc=True)
+            .range(offset, offset + limit - 1)
+            .execute()
         )
 
         clients = clients_result.data
+        total_count = clients_result.count or 0
 
-        # Enrich each client with stats
-        enriched_clients = []
-        for client in clients:
-            # Count conversations
-            conv_result = await asyncio.to_thread(
-                lambda c=client: supabase.table("conversations")
-                .select("id", count="exact")
-                .eq("client_id", c["id"])
-                .execute()
-            )
+        if not clients:
+            return {
+                "success": True,
+                "clients": [],
+                "count": 0,
+                "total": total_count,
+                "limit": limit,
+                "offset": offset,
+            }
 
-            # Count documents
-            docs_result = await asyncio.to_thread(
-                lambda c=client: supabase.table("documents")
-                .select("id", count="exact")
-                .eq("client_id", c["id"])
-                .execute()
-            )
+        # Batch fetch stats for all clients (avoids N+1 queries)
+        client_ids = [c["id"] for c in clients]
 
-            # Count users
-            users_result = await asyncio.to_thread(
-                lambda c=client: supabase.table("users")
-                .select("id", count="exact")
-                .eq("client_id", c["id"])
-                .execute()
-            )
+        # Get conversation counts grouped by client_id
+        conv_result = await asyncio.to_thread(
+            lambda: supabase.table("conversations")
+            .select("client_id")
+            .in_("client_id", client_ids)
+            .execute()
+        )
+        conv_counts = {}
+        for row in conv_result.data or []:
+            cid = row["client_id"]
+            conv_counts[cid] = conv_counts.get(cid, 0) + 1
 
-            enriched_clients.append(
-                {
-                    **client,
-                    "conversation_count": conv_result.count or 0,
-                    "document_count": docs_result.count or 0,
-                    "user_count": users_result.count or 0,
-                }
-            )
+        # Get document counts grouped by client_id
+        docs_result = await asyncio.to_thread(
+            lambda: supabase.table("documents")
+            .select("client_id")
+            .in_("client_id", client_ids)
+            .execute()
+        )
+        docs_counts = {}
+        for row in docs_result.data or []:
+            cid = row["client_id"]
+            docs_counts[cid] = docs_counts.get(cid, 0) + 1
 
-        logger.info(f"   ✅ Loaded {len(enriched_clients)} clients")
+        # Get user counts grouped by client_id
+        users_result = await asyncio.to_thread(
+            lambda: supabase.table("users")
+            .select("client_id")
+            .in_("client_id", client_ids)
+            .execute()
+        )
+        users_counts = {}
+        for row in users_result.data or []:
+            cid = row["client_id"]
+            users_counts[cid] = users_counts.get(cid, 0) + 1
 
-        return {"success": True, "clients": enriched_clients, "count": len(enriched_clients)}
+        # Enrich clients with stats
+        enriched_clients = [
+            {
+                **client,
+                "conversation_count": conv_counts.get(client["id"], 0),
+                "document_count": docs_counts.get(client["id"], 0),
+                "user_count": users_counts.get(client["id"], 0),
+            }
+            for client in clients
+        ]
+
+        logger.info(f"   ✅ Loaded {len(enriched_clients)} clients (total: {total_count})")
+
+        return {
+            "success": True,
+            "clients": enriched_clients,
+            "count": len(enriched_clients),
+            "total": total_count,
+            "limit": limit,
+            "offset": offset,
+        }
 
     except Exception as e:
         logger.error(f"❌ Error loading clients: {str(e)}")
@@ -99,8 +146,7 @@ async def get_client(client_id: str, current_user: dict = Depends(get_current_us
         logger.info(f"\n🏢 Loading client: {client_id}")
 
         # Verify user has access to this client (unless admin)
-        if current_user["role"] != "admin" and current_user.get("client_id") != client_id:
-            raise HTTPException(status_code=403, detail="Not authorized to access this client")
+        check_client_member_or_admin(current_user, client_id, "client")
 
         # Fetch client from database
         client_result = await asyncio.to_thread(

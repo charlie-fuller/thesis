@@ -11,7 +11,7 @@ from pydantic import BaseModel, EmailStr
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from auth import get_current_user, require_admin
+from auth import check_self_or_admin, get_current_user, require_admin
 from config import get_default_client_id
 from database import get_supabase
 from logger_config import get_logger
@@ -162,8 +162,7 @@ async def upload_avatar(
         validate_uuid(user_id, "user_id")
 
         # Users can only update their own avatar (unless admin)
-        if current_user["role"] != "admin" and current_user["id"] != user_id:
-            raise HTTPException(status_code=403, detail="Not authorized")
+        check_self_or_admin(current_user, user_id)
 
         # Validate file type
         allowed_types = ["image/jpeg", "image/png", "image/gif", "image/webp"]
@@ -225,8 +224,7 @@ async def delete_avatar(
         validate_uuid(user_id, "user_id")
 
         # Users can only delete their own avatar (unless admin)
-        if current_user["role"] != "admin" and current_user["id"] != user_id:
-            raise HTTPException(status_code=403, detail="Not authorized")
+        check_self_or_admin(current_user, user_id)
 
         # Get current avatar URL to determine file path
         user_result = await asyncio.to_thread(

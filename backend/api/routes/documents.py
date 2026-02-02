@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from auth import get_current_user, require_admin
+from auth import check_owner_or_admin, get_current_user, require_admin
 from config import get_default_client_id
 from database import get_supabase
 from document_processor import process_document, process_document_with_classification
@@ -1103,8 +1103,7 @@ async def get_document_metadata(document_id: str, current_user: dict = Depends(g
         document = result.data
 
         # Authorization check: user can only access their own documents (unless admin)
-        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to access this document")
+        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         return {"success": True, "document": document}
 
@@ -1140,8 +1139,7 @@ async def get_document_content(document_id: str, current_user: dict = Depends(ge
         document = doc_result.data
 
         # Authorization check: user can only access their own documents (unless admin)
-        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to access this document")
+        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         # Get all chunks ordered by chunk_index
         chunks_result = await asyncio.to_thread(
@@ -1278,8 +1276,7 @@ async def delete_document(
         document = doc_result.data
 
         # Authorization check
-        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to delete this document")
+        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         # Check for DISCo initiative links
         disco_links = []
@@ -1594,8 +1591,7 @@ async def download_document(document_id: str, current_user: dict = Depends(get_c
         document = doc_result.data
 
         # Authorization check
-        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to download this document")
+        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         # Generate signed URL (1 hour expiry)
         signed_url = await asyncio.to_thread(
@@ -1644,8 +1640,7 @@ async def get_document_agents(document_id: str, current_user: dict = Depends(get
 
         # Authorization check
         document = doc_result.data
-        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to view this document")
+        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         # Get agent links
         links_result = await asyncio.to_thread(
@@ -1717,8 +1712,7 @@ async def update_document_agents(
 
         # Authorization check
         document = doc_result.data
-        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to modify this document")
+        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         user_id = current_user["id"]
 
@@ -1924,8 +1918,7 @@ async def confirm_classification(
 
         # Authorization check
         document = doc_result.data
-        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to modify this document")
+        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         user_id = current_user["id"]
 
@@ -2051,8 +2044,7 @@ async def get_document_tags(document_id: str, current_user: dict = Depends(get_c
 
         # Authorization check
         document = doc_result.data
-        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to view this document")
+        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         # Get tags
         tags_result = await asyncio.to_thread(
@@ -2114,8 +2106,7 @@ async def add_document_tag(
 
         # Authorization check
         document = doc_result.data
-        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to modify this document")
+        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         # Check if tag already exists
         existing = await asyncio.to_thread(
@@ -2191,8 +2182,7 @@ async def remove_document_tag(
 
         # Authorization check
         document = doc_result.data
-        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to modify this document")
+        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         # Check if tag exists and is manual
         existing_tag = await asyncio.to_thread(
@@ -2273,8 +2263,7 @@ async def update_document_original_date(
 
         # Authorization check
         document = doc_result.data
-        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to modify this document")
+        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         # Validate and parse date if provided
         parsed_date = None
@@ -2343,8 +2332,7 @@ async def update_document_sync_cadence(
 
         # Authorization check
         document = doc_result.data
-        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to modify this document")
+        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         # Update the document
         await asyncio.to_thread(
@@ -2399,8 +2387,7 @@ async def get_document_initiative_links(
 
         # Authorization check
         document = doc_result.data
-        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to view this document")
+        check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         # Get linked initiatives from junction table
         links_result = await asyncio.to_thread(

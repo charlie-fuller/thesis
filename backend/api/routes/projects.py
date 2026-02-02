@@ -356,12 +356,14 @@ async def list_projects(
 async def get_projects_by_tier(
     department: Optional[str] = None,
     status: Optional[str] = None,
+    max_per_tier: int = Query(50, ge=1, le=200, description="Max projects per tier"),
     current_user: dict = Depends(get_current_user),
     supabase=Depends(get_supabase),
 ):
     """Get projects grouped by tier.
 
     Returns a dict with tier keys (1-4) and lists of projects.
+    Use max_per_tier to limit results (default 50 per tier, max 200).
     """
     query = supabase.table("ai_projects").select("*").eq("client_id", current_user["client_id"])
 
@@ -370,17 +372,19 @@ async def get_projects_by_tier(
     if status:
         query = query.eq("status", status)
 
-    result = query.order("total_score", desc=True).execute()
+    # Limit total results to prevent OOM (4 tiers * max_per_tier)
+    result = query.order("total_score", desc=True).limit(max_per_tier * 4).execute()
 
     # Get owner names
     proj_ids = [p["id"] for p in result.data]
     owner_names = await _get_owner_names(supabase, proj_ids)
 
-    # Group by tier
+    # Group by tier (respecting max_per_tier limit)
     grouped = {1: [], 2: [], 3: [], 4: []}
     for proj in result.data:
         tier = proj.get("tier", 4)
-        grouped[tier].append(_format_project(proj, owner_names.get(proj["id"])))
+        if len(grouped[tier]) < max_per_tier:
+            grouped[tier].append(_format_project(proj, owner_names.get(proj["id"])))
 
     return {
         "tier_1": grouped[1],

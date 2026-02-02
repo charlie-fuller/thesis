@@ -145,6 +145,7 @@ export default function ChatInterface({
       // No conversation ID means start fresh (new chat)
       setMessages([])
       setError(null)
+      setTotalTokensUsed(0)  // Reset token count for new conversation
     }
   }, [conversationId]) // Only run when conversationId prop changes, not when the flag changes
 
@@ -175,9 +176,16 @@ export default function ChatInterface({
       }))
 
       setMessages(loadedMessages)
+
+      // Estimate token count for loaded conversation (rough estimate: 1 token ≈ 4 chars)
+      const estimatedTokens = loadedMessages.reduce((total, msg) => {
+        return total + Math.ceil(msg.content.length / 4)
+      }, 0)
+      setTotalTokensUsed(estimatedTokens)
     } catch (err) {
       logger.error('Error loading conversation:', err)
       // Don't show error to user, just start with empty conversation
+      setTotalTokensUsed(0)
     }
   }
 
@@ -471,9 +479,9 @@ export default function ChatInterface({
                 })
               } else if (data.type === 'done') {
                 logger.debug('Stream complete:', data.tokens)
-                // Update total tokens used for context window tracking
-                if (data.tokens?.input) {
-                  setTotalTokensUsed(data.tokens.input)
+                // Accumulate tokens for context window tracking
+                if (data.tokens?.total) {
+                  setTotalTokensUsed(prev => prev + data.tokens.total)
                 }
               } else if (data.type === 'error') {
                 throw new Error(data.error)
