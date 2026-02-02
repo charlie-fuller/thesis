@@ -213,8 +213,11 @@ export default function DiscoProcessMap() {
               <circle cx="13" cy="10" r="8" fill="#64748b" />
               <path d="M0 35 Q13 22 26 35" fill="none" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
             </g>
-            <text x={checkpointX + checkpointSize + 8} y={startY + agentHeight/2 + 4} fill="#64748b" fontSize="10" fontWeight="600">
-              CP1
+            <text x={checkpointX + checkpointSize + 8} y={startY + agentHeight/2 - 4} fill="#64748b" fontSize="9" fontWeight="500">
+              Human
+            </text>
+            <text x={checkpointX + checkpointSize + 8} y={startY + agentHeight/2 + 8} fill="#64748b" fontSize="9" fontWeight="600">
+              Checkpoint
             </text>
           </g>
 
@@ -261,8 +264,11 @@ export default function DiscoProcessMap() {
               <circle cx="13" cy="10" r="8" fill="#64748b" />
               <path d="M0 35 Q13 22 26 35" fill="none" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
             </g>
-            <text x={checkpointX + checkpointSize + 8} y={startY + rowSpacing + agentHeight/2 + 4} fill="#64748b" fontSize="10" fontWeight="600">
-              CP2
+            <text x={checkpointX + checkpointSize + 8} y={startY + rowSpacing + agentHeight/2 - 4} fill="#64748b" fontSize="9" fontWeight="500">
+              Human
+            </text>
+            <text x={checkpointX + checkpointSize + 8} y={startY + rowSpacing + agentHeight/2 + 8} fill="#64748b" fontSize="9" fontWeight="600">
+              Checkpoint
             </text>
           </g>
 
@@ -309,8 +315,11 @@ export default function DiscoProcessMap() {
               <circle cx="13" cy="10" r="8" fill="#64748b" />
               <path d="M0 35 Q13 22 26 35" fill="none" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
             </g>
-            <text x={checkpointX + checkpointSize + 8} y={startY + rowSpacing*2 + agentHeight/2 + 4} fill="#64748b" fontSize="10" fontWeight="600">
-              CP3
+            <text x={checkpointX + checkpointSize + 8} y={startY + rowSpacing*2 + agentHeight/2 - 4} fill="#64748b" fontSize="9" fontWeight="500">
+              Human
+            </text>
+            <text x={checkpointX + checkpointSize + 8} y={startY + rowSpacing*2 + agentHeight/2 + 8} fill="#64748b" fontSize="9" fontWeight="600">
+              Checkpoint
             </text>
           </g>
 
@@ -357,8 +366,11 @@ export default function DiscoProcessMap() {
               <circle cx="13" cy="10" r="8" fill="#64748b" />
               <path d="M0 35 Q13 22 26 35" fill="none" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
             </g>
-            <text x={checkpointX + checkpointSize + 8} y={startY + rowSpacing*3 + agentHeight/2 + 4} fill="#64748b" fontSize="10" fontWeight="600">
-              CP4
+            <text x={checkpointX + checkpointSize + 8} y={startY + rowSpacing*3 + agentHeight/2 - 4} fill="#64748b" fontSize="9" fontWeight="500">
+              Human
+            </text>
+            <text x={checkpointX + checkpointSize + 8} y={startY + rowSpacing*3 + agentHeight/2 + 8} fill="#64748b" fontSize="9" fontWeight="600">
+              Checkpoint
             </text>
           </g>
 
@@ -386,8 +398,8 @@ export default function DiscoProcessMap() {
           {/* ===== LEGEND (bottom) ===== */}
           <g transform="translate(30, 555)">
             <rect x="0" y="-10" width="14" height="14" rx="3" fill="rgba(100, 116, 139, 0.15)" stroke="#64748b" strokeWidth="1.5" />
-            <text x="20" y="2" fill={colors.textSecondary} fontSize="10">= Human checkpoint</text>
-            <text x="200" y="2" fill={colors.textSecondary} fontSize="10">Click agents for details</text>
+            <text x="20" y="2" fill={colors.textSecondary} fontSize="10">= Human-in-the-loop checkpoint</text>
+            <text x="250" y="2" fill={colors.textSecondary} fontSize="10">Click agents for details</text>
           </g>
         </svg>
       </div>
