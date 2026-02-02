@@ -67,6 +67,7 @@ class DocumentClassificationResult:
 
 class DocumentClassifier:
     """Classifies documents for agent relevance.
+
     Test implementation that mirrors the real one.
     """
 

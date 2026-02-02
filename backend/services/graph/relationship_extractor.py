@@ -42,7 +42,8 @@ class RelationshipExtractor:
         self.anthropic = anthropic_client or Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
     async def infer_influences(self, client_id: str) -> dict:
-        """Analyze meeting co-attendance and interaction patterns
+        """Analyze meeting co-attendance and interaction patterns.
+
         to infer who influences whom.
 
         Influence is inferred when:
@@ -185,7 +186,8 @@ class RelationshipExtractor:
         return result
 
     async def detect_stakeholder_clusters(self, client_id: str) -> dict:
-        """Identify natural groupings of stakeholders based on
+        """Identify natural groupings of stakeholders based on.
+
         meeting patterns and shared concerns.
 
         Args:

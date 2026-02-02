@@ -1,4 +1,5 @@
-"""Chat endpoint routes
+"""Chat endpoint routes.
+
 Handles AI chat interactions with RAG (Retrieval Augmented Generation).
 """
 
@@ -38,6 +39,7 @@ anthropic_client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 def _get_date_context() -> str:
     """Generate a date context block to prepend to system prompts.
+
     This ensures agents always know the current date.
     """
     current_date = datetime.now(timezone.utc).strftime("%B %d, %Y")  # e.g., "January 29, 2026"
@@ -49,7 +51,8 @@ Today's date: {current_date}
 
 
 def _message_has_substantial_content(message: str) -> bool:
-    """Determine if a message has enough content to generate an image directly
+    """Determine if a message has enough content to generate an image directly.
+
     without needing to pull from conversation history.
 
     Uses multiple heuristics to be more flexible than strict formatting checks:

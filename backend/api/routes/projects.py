@@ -63,6 +63,7 @@ class ProjectCreate(BaseModel):
     follow_up_questions: List[str] = []
     roi_indicators: dict = {}
     source_type: Optional[str] = None
+    source_id: Optional[str] = None  # e.g., initiative_id for initiative_chat source
     source_notes: Optional[str] = None
     scoring_confidence: Optional[int] = Field(
         None, ge=0, le=100, description="Confidence in scoring (0-100)"
@@ -92,6 +93,7 @@ class ProjectUpdate(BaseModel):
     follow_up_questions: Optional[List[str]] = None
     roi_indicators: Optional[dict] = None
     source_type: Optional[str] = None
+    source_id: Optional[str] = None
     source_notes: Optional[str] = None
     scoring_confidence: Optional[int] = Field(None, ge=0, le=100)
     confidence_questions: Optional[List[str]] = None
@@ -131,6 +133,7 @@ class ProjectResponse(BaseModel):
     follow_up_questions: List[str]
     roi_indicators: dict
     source_type: Optional[str]
+    source_id: Optional[str] = None  # Links to initiative, document, etc.
     source_notes: Optional[str]
     created_at: str
     updated_at: str
@@ -252,6 +255,7 @@ def _format_project(proj: dict, owner_name: Optional[str] = None) -> dict:
         "follow_up_questions": proj.get("follow_up_questions") or [],
         "roi_indicators": proj.get("roi_indicators") or {},
         "source_type": proj.get("source_type"),
+        "source_id": proj.get("source_id"),
         "source_notes": proj.get("source_notes"),
         "created_at": proj["created_at"],
         "updated_at": proj.get("updated_at", proj["created_at"]),
@@ -929,6 +933,7 @@ async def create_project(
         "follow_up_questions": project.follow_up_questions,
         "roi_indicators": project.roi_indicators,
         "source_type": project.source_type,
+        "source_id": project.source_id,
         "source_notes": project.source_notes,
     }
 

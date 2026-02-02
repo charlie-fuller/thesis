@@ -1,4 +1,5 @@
-"""Embeddings Service - Voyage AI Integration
+"""Embeddings Service - Voyage AI Integration.
+
 Provides embedding generation for documents, chat messages, and meeting room messages.
 """
 

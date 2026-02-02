@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Script to sync PuRDy System KB from filesystem to database.
+
 Run from backend directory: python scripts/sync_disco_kb.py.
 """
 

@@ -1,4 +1,5 @@
-"""Quick Prompts API Routes
+"""Quick Prompts API Routes.
+
 Handles CRUD operations for user quick prompts (activation shortcuts for AI assistant functions).
 
 Created: November 21, 2025

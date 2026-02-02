@@ -1,4 +1,5 @@
 """Entity Registry API endpoints.
+
 Manage organizations and person names for validation.
 
 Version: 1.0.0

@@ -349,6 +349,7 @@ Be concise. Use bullet points if helpful. End with a question to the user."""
 
     def should_handoff(self, context: AgentContext, response: str) -> Optional[tuple[str, str]]:
         """Facilitator doesn't hand off - it routes to multiple agents.
+
         This method is not used in the standard flow.
         """
         return None

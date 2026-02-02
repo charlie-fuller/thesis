@@ -1,4 +1,5 @@
 """Test Google Gemini image generation using direct HTTP REST calls.
+
 Based on official Google AI documentation.
 """
 

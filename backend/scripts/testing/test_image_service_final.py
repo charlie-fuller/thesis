@@ -1,4 +1,5 @@
 """Final integration test for the updated ImageGenerationService.
+
 Tests the HTTP REST API implementation.
 """
 

@@ -1763,7 +1763,7 @@ export default function KBDocumentsContent() {
             <h3 className="heading-3">Vault</h3>
           </div>
           {(!obsidianStatus || !obsidianStatus.connected) && obsidianExpanded && (
-            <span className="text-sm text-muted">Not configured - run watcher script to connect</span>
+            <span className="text-sm text-muted">Not configured - set VAULT_WATCHER_USER_ID to enable</span>
           )}
         </div>
 

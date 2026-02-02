@@ -1,4 +1,5 @@
-"""Document Mapping Routes
+"""Document Mapping Routes.
+
 Manages the relationship between documents and system instruction template slots.
 """
 

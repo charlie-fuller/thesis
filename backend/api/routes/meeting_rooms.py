@@ -1,4 +1,5 @@
-"""Meeting Room routes
+"""Meeting Room routes.
+
 Handles creation, management, and chat for multi-agent meeting rooms.
 """
 
@@ -1004,6 +1005,7 @@ async def start_autonomous_discussion(
     current_user: dict = Depends(get_current_user),
 ):
     """Start an autonomous discussion in a meeting room.
+
     Agents will discuss the provided topic for the specified number of rounds.
 
     Returns Server-Sent Events (SSE) with the following event types:
@@ -1338,6 +1340,7 @@ async def interject_in_discussion(
     current_user: dict = Depends(get_current_user),
 ):
     """Send a user message during an autonomous discussion.
+
     This will pause the discussion and mark the message as an interjection.
     """
     try:

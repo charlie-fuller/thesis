@@ -127,6 +127,7 @@ def test_validation():
 # Drop-in replacement for google_drive_sync.py
 def is_valid_text_content(text: str, min_printable_ratio: float = 0.70) -> bool:
     """Drop-in replacement for the existing validation function.
+
     Returns only boolean for backwards compatibility.
     """
     is_valid, _ = is_valid_text_content_improved(text, min_printable_ratio)

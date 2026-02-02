@@ -401,6 +401,7 @@ def parse_date_from_iso(date_str: str) -> Optional[date]:
 
 def parse_date_from_filename(filename: str) -> Optional[date]:
     """Extract meeting date from filename.
+
     Supports formats like:
     - 2025-07-27.md
     - Chris __ Charlie-transcript-2026-01-06_09-12-32.md.
@@ -433,6 +434,7 @@ def is_valid_date(d: Optional[date]) -> bool:
 
 def get_document_meeting_date(doc: Dict[str, Any]) -> Optional[date]:
     """Determine the meeting date for a document using multiple methods.
+
     Priority order:
     1. Date parsed from filename (most reliable for Granola)
     2. original_date field (if exists and valid - not in future)
@@ -474,6 +476,7 @@ def get_document_meeting_date(doc: Dict[str, Any]) -> Optional[date]:
 
 def fuzzy_match(str1: str, str2: str) -> float:
     """Calculate fuzzy similarity between two strings.
+
     Returns a score between 0 and 1.
     """
     if not str1 or not str2:
@@ -488,6 +491,7 @@ async def find_matching_project(
     client_id: str, extracted_title: str, extracted_quote: str = ""
 ) -> Optional[Dict[str, Any]]:
     """Check if extracted project matches an existing one.
+
     Uses multi-layer matching: fuzzy title match + vector similarity.
 
     Returns dict with matched_project_id, match_confidence, match_reason
@@ -565,6 +569,7 @@ async def find_matching_project(
 
 async def find_matching_task(client_id: str, extracted_title: str) -> Optional[Dict[str, Any]]:
     """Check if extracted task matches an existing one.
+
     Uses fuzzy title matching.
 
     Returns dict with matched_task_id and match_confidence if found.
@@ -1349,6 +1354,7 @@ async def scan_granola_vault(
     since_date: Optional[date] = None,
 ) -> Dict[str, Any]:
     """Backwards-compatible wrapper for scan_meeting_documents.
+
     The vault_path parameter is ignored - scanning now uses documents from the KB.
     """
     return await scan_meeting_documents(user_id, client_id, force_rescan, since_date)

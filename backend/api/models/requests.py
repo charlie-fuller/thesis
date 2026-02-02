@@ -1,4 +1,5 @@
-"""Request models for API endpoints
+"""Request models for API endpoints.
+
 All Pydantic models for validating incoming requests.
 """
 

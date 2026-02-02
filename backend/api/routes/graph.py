@@ -607,6 +607,7 @@ async def get_scheduler_status(current_user: dict = Depends(get_current_user)):
 @router.post("/sync/trigger")
 async def trigger_sync(current_user: dict = Depends(get_current_user)):
     """Trigger an immediate graph sync for the current user's client.
+
     This runs asynchronously in the background.
     """
     try:

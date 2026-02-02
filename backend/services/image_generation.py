@@ -1,4 +1,5 @@
 """Image generation service using Google's Gemini (Nano Banana) API.
+
 Uses direct HTTP REST API for reliable image generation.
 """
 

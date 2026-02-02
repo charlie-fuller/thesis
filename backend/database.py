@@ -1,4 +1,5 @@
 """Centralized database connection management.
+
 Provides singleton Supabase client to avoid connection pool exhaustion.
 """
 

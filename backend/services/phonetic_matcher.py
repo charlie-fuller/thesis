@@ -1,4 +1,5 @@
 """Phonetic matching service for name comparison.
+
 Uses Double Metaphone algorithm for sound-alike matching.
 
 Version: 1.0.0

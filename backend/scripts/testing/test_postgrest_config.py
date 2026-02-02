@@ -1,4 +1,5 @@
-"""Deep diagnostic for PostgREST API configuration issues
+"""Deep diagnostic for PostgREST API configuration issues.
+
 Tests JWT tokens, API endpoints, and headers.
 """
 

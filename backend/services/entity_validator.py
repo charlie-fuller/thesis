@@ -1,4 +1,5 @@
 """Entity validation service for correcting transcription errors.
+
 Validates person names and organizations against ground truth registries.
 
 Version: 1.0.0
@@ -318,6 +319,7 @@ class EntityValidator:
 
     def calculate_fuzzy_similarity(self, s1: str, s2: str) -> float:
         """Calculate fuzzy similarity between two strings.
+
         Uses SequenceMatcher for Levenshtein-like comparison.
         """
         if not s1 or not s2:

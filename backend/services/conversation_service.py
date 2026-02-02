@@ -1,4 +1,5 @@
-"""Conversation Service
+"""Conversation Service.
+
 Handles conversation context analysis, including image generation suggestions.
 """
 

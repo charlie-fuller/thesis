@@ -1,4 +1,5 @@
-"""Async Supabase Helper Utilities
+"""Async Supabase Helper Utilities.
+
 Reduces code duplication by providing reusable async wrappers for Supabase operations.
 
 This module addresses the repeated pattern of:

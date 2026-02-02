@@ -621,6 +621,7 @@ async def get_help_stats(request: Request, current_user: dict = Depends(get_curr
 @router.get("/status")
 async def help_system_status():
     """Public endpoint to check help system status (no auth required for debugging).
+
     Shows if help documentation has been indexed and database connectivity.
     """
     try:
@@ -705,6 +706,7 @@ async def help_system_status():
 @router.get("/test-search")
 async def test_help_search(query: str = "How do I customize the theme?"):
     """Debug endpoint to test the full search pipeline (no auth required).
+
     Tests embedding generation and vector search with date filtering.
     """
     try:

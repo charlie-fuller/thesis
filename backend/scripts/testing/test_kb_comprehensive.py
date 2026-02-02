@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Comprehensive Knowledge Base Diagnostic Suite
+"""Comprehensive Knowledge Base Diagnostic Suite.
+
 Tests the entire KB search pipeline from database to response.
 """
 

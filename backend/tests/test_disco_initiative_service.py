@@ -515,7 +515,7 @@ class TestEdgeCases:
         with patch("services.disco.initiative_service.get_supabase", return_value=mock_sb):
             from services.disco.initiative_service import create_initiative
 
-            with pytest.raises(Exception):
+            with pytest.raises(ValueError):
                 await create_initiative(name="", user_id="user-123")
 
     @pytest.mark.asyncio

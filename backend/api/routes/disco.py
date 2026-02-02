@@ -4,11 +4,13 @@ Discovery-Insights-Synthesis-Capabilities (DISCo) API endpoints.
 """
 
 import asyncio
+import os
 from typing import List, Optional
 
+import anthropic
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from auth import get_current_user, require_admin
 from database import get_supabase
@@ -1483,6 +1485,225 @@ async def api_ask_question(
         return {"success": True, **result}
     except Exception as e:
         logger.error(f"Error processing question: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+# ============================================================================
+# PROJECT EXTRACTION FROM CHAT
+# ============================================================================
+
+
+class ExtractedField(BaseModel):
+    """A field extracted from chat with confidence level."""
+
+    value: Optional[str] = None
+    confidence: str = Field(default="none", description="Confidence level: high, medium, low, none")
+
+
+class ExtractedScore(BaseModel):
+    """A numeric score (1-5) extracted from chat with confidence level."""
+
+    value: Optional[int] = None
+    confidence: str = Field(default="none", description="Confidence level: high, medium, low, none")
+
+
+class ExtractProjectResponse(BaseModel):
+    """Response from project extraction endpoint."""
+
+    title: ExtractedField
+    description: ExtractedField
+    department: ExtractedField
+    current_state: ExtractedField
+    desired_state: ExtractedField
+    roi_potential: ExtractedScore
+    implementation_effort: ExtractedScore
+    strategic_alignment: ExtractedScore
+    stakeholder_readiness: ExtractedScore
+    source_context: str = Field(description="Formatted chat excerpt for source_notes")
+
+
+PROJECT_EXTRACTION_PROMPT = """You are analyzing a conversation from a DISCo initiative chat to extract project information.
+
+Your task is to identify details that could populate a new AI project record. Extract as much as you can confidently determine from the conversation.
+
+For each field, provide:
+1. The extracted value (or null if not found)
+2. A confidence level: "high" (explicitly stated), "medium" (implied/inferred), "low" (guessed from context), "none" (cannot determine)
+
+IMPORTANT: Pay special attention to the most recent messages (marked with [RECENT]) as they likely contain the most relevant project discussion.
+
+Fields to extract:
+- title: A concise project name (max 100 chars)
+- description: What this project aims to accomplish (2-3 sentences)
+- department: Which department this relates to (finance, legal, hr, it, revops, marketing, sales, operations)
+- current_state: The current situation/pain point
+- desired_state: The target outcome/goal
+- roi_potential: Score 1-5 (5=highest potential ROI)
+- implementation_effort: Score 1-5 (5=easiest to implement)
+- strategic_alignment: Score 1-5 (5=highest strategic value)
+- stakeholder_readiness: Score 1-5 (5=most ready stakeholders)
+
+Respond in this exact JSON format:
+{
+  "title": {"value": "string or null", "confidence": "high|medium|low|none"},
+  "description": {"value": "string or null", "confidence": "high|medium|low|none"},
+  "department": {"value": "string or null", "confidence": "high|medium|low|none"},
+  "current_state": {"value": "string or null", "confidence": "high|medium|low|none"},
+  "desired_state": {"value": "string or null", "confidence": "high|medium|low|none"},
+  "roi_potential": {"value": "number 1-5 or null", "confidence": "high|medium|low|none"},
+  "implementation_effort": {"value": "number 1-5 or null", "confidence": "high|medium|low|none"},
+  "strategic_alignment": {"value": "number 1-5 or null", "confidence": "high|medium|low|none"},
+  "stakeholder_readiness": {"value": "number 1-5 or null", "confidence": "high|medium|low|none"},
+  "source_summary": "A brief 1-2 sentence summary of the key discussion points that led to these extractions"
+}
+
+Return ONLY valid JSON, no markdown formatting."""
+
+
+@router.post("/initiatives/{initiative_id}/extract-project")
+async def api_extract_project_from_chat(
+    initiative_id: str, current_user: dict = Depends(require_disco_access)
+):
+    """Extract project fields from initiative chat conversation using AI.
+
+    Analyzes the full conversation with emphasis on recent messages.
+    Returns extracted fields with confidence levels.
+    """
+    await require_initiative_access(initiative_id, current_user, "viewer")
+
+    try:
+        # Get initiative name for context
+        initiative = await get_initiative(initiative_id, current_user["id"])
+        initiative_name = (
+            initiative.get("name", "Unknown Initiative") if initiative else "Unknown Initiative"
+        )
+
+        # Get conversation
+        conversation = await get_conversation(initiative_id, current_user["id"])
+
+        if not conversation or not conversation.get("messages"):
+            return {
+                "success": False,
+                "error": "No conversation found. Start a chat first to discuss the project.",
+            }
+
+        messages = conversation.get("messages", [])
+        if not messages:
+            return {
+                "success": False,
+                "error": "No messages in conversation. Discuss your project idea first.",
+            }
+
+        # Format conversation for analysis
+        # Mark last 5 messages as [RECENT]
+        formatted_messages = []
+        recent_start = max(0, len(messages) - 5)
+
+        for i, msg in enumerate(messages):
+            role = "User" if msg.get("role") == "user" else "Assistant"
+            content = msg.get("content", "")
+            prefix = "[RECENT] " if i >= recent_start else ""
+            formatted_messages.append(f"{prefix}{role}: {content}")
+
+        conversation_text = "\n\n".join(formatted_messages)
+
+        # Build the prompt
+        full_prompt = f"""Initiative: {initiative_name}
+
+Conversation:
+{conversation_text}
+
+Now extract project information from this conversation."""
+
+        # Call Claude
+        anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        response = anthropic_client.messages.create(
+            model=os.environ.get("DISCO_EXTRACTION_MODEL", "claude-sonnet-4-20250514"),
+            max_tokens=1500,
+            system=PROJECT_EXTRACTION_PROMPT,
+            messages=[{"role": "user", "content": full_prompt}],
+        )
+
+        # Parse response
+        import json
+
+        response_text = response.content[0].text.strip()
+        # Remove any markdown formatting if present
+        if response_text.startswith("```"):
+            response_text = response_text.split("```")[1]
+            if response_text.startswith("json"):
+                response_text = response_text[4:]
+        response_text = response_text.strip()
+
+        try:
+            extracted = json.loads(response_text)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse extraction response: {e}")
+            logger.error(f"Response was: {response_text[:500]}")
+            raise HTTPException(
+                status_code=500, detail="Failed to parse AI extraction response"
+            ) from e
+
+        # Build source context
+        recent_summary = extracted.get("source_summary", "")
+        source_context = f"Created from DISCo initiative '{initiative_name}' chat. {recent_summary}"
+
+        # Format response
+        return {
+            "success": True,
+            "extracted": {
+                "title": {
+                    "value": extracted.get("title", {}).get("value"),
+                    "confidence": extracted.get("title", {}).get("confidence", "none"),
+                },
+                "description": {
+                    "value": extracted.get("description", {}).get("value"),
+                    "confidence": extracted.get("description", {}).get("confidence", "none"),
+                },
+                "department": {
+                    "value": extracted.get("department", {}).get("value"),
+                    "confidence": extracted.get("department", {}).get("confidence", "none"),
+                },
+                "current_state": {
+                    "value": extracted.get("current_state", {}).get("value"),
+                    "confidence": extracted.get("current_state", {}).get("confidence", "none"),
+                },
+                "desired_state": {
+                    "value": extracted.get("desired_state", {}).get("value"),
+                    "confidence": extracted.get("desired_state", {}).get("confidence", "none"),
+                },
+                "roi_potential": {
+                    "value": extracted.get("roi_potential", {}).get("value"),
+                    "confidence": extracted.get("roi_potential", {}).get("confidence", "none"),
+                },
+                "implementation_effort": {
+                    "value": extracted.get("implementation_effort", {}).get("value"),
+                    "confidence": extracted.get("implementation_effort", {}).get(
+                        "confidence", "none"
+                    ),
+                },
+                "strategic_alignment": {
+                    "value": extracted.get("strategic_alignment", {}).get("value"),
+                    "confidence": extracted.get("strategic_alignment", {}).get(
+                        "confidence", "none"
+                    ),
+                },
+                "stakeholder_readiness": {
+                    "value": extracted.get("stakeholder_readiness", {}).get("value"),
+                    "confidence": extracted.get("stakeholder_readiness", {}).get(
+                        "confidence", "none"
+                    ),
+                },
+            },
+            "source_context": source_context,
+            "initiative_id": initiative_id,
+            "initiative_name": initiative_name,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error extracting project from chat: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 

@@ -788,6 +788,7 @@ async def scan_granola_vault(
 @router.get("/granola/scan/job/{job_id}")
 async def get_scan_job_status(job_id: str, current_user: dict = Depends(get_current_user)):
     """Get the status of a background scan job.
+
     Returns job status: starting, running, completed, or failed.
     """
     if job_id not in _scan_jobs:
@@ -814,6 +815,7 @@ async def debug_granola_documents(
     current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
 ):
     """Debug endpoint to check Granola documents and their storage URLs.
+
     Returns info about documents that would be scanned.
     """
     import httpx

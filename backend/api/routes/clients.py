@@ -1,4 +1,5 @@
-"""Client management routes
+"""Client management routes.
+
 Handles listing and retrieving client information.
 """
 
@@ -40,25 +41,25 @@ async def list_clients(current_user: dict = Depends(require_admin)):
         for client in clients:
             # Count conversations
             conv_result = await asyncio.to_thread(
-                lambda: supabase.table("conversations")
+                lambda c=client: supabase.table("conversations")
                 .select("id", count="exact")
-                .eq("client_id", client["id"])
+                .eq("client_id", c["id"])
                 .execute()
             )
 
             # Count documents
             docs_result = await asyncio.to_thread(
-                lambda: supabase.table("documents")
+                lambda c=client: supabase.table("documents")
                 .select("id", count="exact")
-                .eq("client_id", client["id"])
+                .eq("client_id", c["id"])
                 .execute()
             )
 
             # Count users
             users_result = await asyncio.to_thread(
-                lambda: supabase.table("users")
+                lambda c=client: supabase.table("users")
                 .select("id", count="exact")
-                .eq("client_id", client["id"])
+                .eq("client_id", c["id"])
                 .execute()
             )
 

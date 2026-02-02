@@ -188,6 +188,7 @@ class ThesisUser(HttpUser):
 
 class ChatHeavyUser(HttpUser):
     """User that focuses primarily on chat interactions.
+
     Use this to stress test the chat/AI endpoints.
     """
 
@@ -243,6 +244,7 @@ class ChatHeavyUser(HttpUser):
 
 class SearchHeavyUser(HttpUser):
     """User that focuses on search and document operations.
+
     Use this to stress test the RAG pipeline.
     """
 

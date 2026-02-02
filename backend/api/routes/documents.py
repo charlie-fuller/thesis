@@ -1,4 +1,5 @@
-"""Document management routes
+"""Document management routes.
+
 Handles document upload, processing, retrieval, deletion, and save-from-chat.
 """
 
@@ -652,10 +653,10 @@ async def get_documents_by_tags(
             for additional_tag in tag_list[1:]:
                 # Get documents with this tag
                 tag_result = await asyncio.to_thread(
-                    lambda t=additional_tag: supabase.table("document_tags")
+                    lambda t=additional_tag, cids=candidate_ids: supabase.table("document_tags")
                     .select("document_id")
                     .eq("tag", t)
-                    .in_("document_id", candidate_ids)
+                    .in_("document_id", cids)
                     .execute()
                 )
                 # Intersect with candidates
@@ -1380,15 +1381,15 @@ async def bulk_delete_documents(
 
                 # Delete chunks
                 await asyncio.to_thread(
-                    lambda: supabase.table("document_chunks")
+                    lambda did=doc_id: supabase.table("document_chunks")
                     .delete()
-                    .eq("document_id", doc_id)
+                    .eq("document_id", did)
                     .execute()
                 )
 
                 # Delete document
                 await asyncio.to_thread(
-                    lambda: supabase.table("documents").delete().eq("id", doc_id).execute()
+                    lambda did=doc_id: supabase.table("documents").delete().eq("id", did).execute()
                 )
 
                 deleted_count += 1

@@ -1,4 +1,5 @@
-"""Conversation management routes
+"""Conversation management routes.
+
 Handles creation, retrieval, updating, and deletion of conversations.
 """
 
@@ -271,6 +272,7 @@ async def generate_conversation_title(
     current_user: dict = Depends(get_current_user),
 ):
     """Generate a concise title for a conversation based on the initial message.
+
     Uses Claude to create a short, descriptive title (3-6 words).
     Optionally prefixes with agent name if a single agent is being used.
     """

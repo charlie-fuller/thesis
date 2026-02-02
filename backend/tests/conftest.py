@@ -502,6 +502,7 @@ def sample_meeting_messages():
 @pytest.fixture
 def integration_supabase():
     """Real Supabase client for integration tests.
+
     Only used when INTEGRATION_TESTS=true is set.
     """
     import os

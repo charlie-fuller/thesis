@@ -692,3 +692,180 @@ async def debug_vault_scan(current_user: dict = Depends(get_current_user), limit
         import traceback
 
         return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+
+
+# ============================================================================
+# Remote File Upload Endpoint (for local-to-remote sync)
+# ============================================================================
+
+
+class RemoteFileUploadRequest(BaseModel):
+    """Request body for uploading a file from remote client."""
+
+    file_path: str = Field(..., description="Relative path within vault (e.g., 'Notes/meeting.md')")
+    content: str = Field(..., description="File content (text)")
+    content_type: str = Field(default="text/markdown", description="MIME type of content")
+
+
+@router.post("/upload")
+async def upload_remote_file(
+    request: RemoteFileUploadRequest,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+):
+    """Upload a file from a remote client (local machine to Railway backend).
+
+    This endpoint allows a local vault watcher to push file content to the remote
+    backend for processing and storage.
+    """
+    try:
+        from services.document_service import process_document
+        from services.obsidian_sync import (
+            auto_classify_document,
+            extract_date_from_content,
+            parse_obsidian_frontmatter,
+        )
+
+        config = await asyncio.to_thread(get_vault_config, current_user["id"])
+
+        if not config:
+            raise HTTPException(
+                status_code=404,
+                detail="No vault configured. Use POST /api/obsidian/configure first.",
+            )
+
+        file_path = request.file_path
+        content = request.content
+
+        # Get user's client_id
+        user_result = await asyncio.to_thread(
+            lambda: _get_db()
+            .table("users")
+            .select("client_id")
+            .eq("id", current_user["id"])
+            .single()
+            .execute()
+        )
+        client_id = user_result.data.get("client_id") if user_result.data else None
+
+        if not client_id:
+            raise HTTPException(status_code=400, detail="User has no client association")
+
+        # Parse frontmatter
+        frontmatter, clean_content = parse_obsidian_frontmatter(content)
+
+        # Extract title from frontmatter or filename
+        title = frontmatter.get("title") if frontmatter else None
+        if not title:
+            title = file_path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+
+        # Extract date
+        original_date = extract_date_from_content(file_path, frontmatter, clean_content)
+
+        # Auto-classify
+        sync_options = config.get("sync_options", {})
+        doc_type = None
+        if sync_options.get("auto_classify", True):
+            doc_type = auto_classify_document(file_path, frontmatter)
+
+        # Compute hash
+        import hashlib
+
+        content_hash = hashlib.md5(content.encode()).hexdigest()
+
+        # Check if already synced with same hash
+        existing = await asyncio.to_thread(
+            lambda: _get_db()
+            .table("obsidian_sync_state")
+            .select("id, document_id, file_hash")
+            .eq("config_id", config["id"])
+            .eq("file_path", file_path)
+            .execute()
+        )
+
+        if existing.data and existing.data[0].get("file_hash") == content_hash:
+            return {
+                "success": True,
+                "status": "unchanged",
+                "file_path": file_path,
+                "document_id": existing.data[0].get("document_id"),
+            }
+
+        # Create or update document
+        import uuid
+        from datetime import datetime
+
+        doc_id = existing.data[0].get("document_id") if existing.data else str(uuid.uuid4())
+
+        # Upload content to storage
+        storage_path = f"vault/{current_user['id']}/{file_path}"
+
+        await asyncio.to_thread(
+            lambda: _get_db()
+            .storage.from_("documents")
+            .upload(
+                storage_path,
+                content.encode(),
+                {"content-type": request.content_type, "upsert": "true"},
+            )
+        )
+
+        # Upsert document record
+        doc_data = {
+            "id": doc_id,
+            "title": title,
+            "file_type": file_path.rsplit(".", 1)[-1] if "." in file_path else "md",
+            "storage_path": storage_path,
+            "uploaded_by": current_user["id"],
+            "client_id": client_id,
+            "source": "obsidian_vault",
+            "obsidian_file_path": file_path,
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+
+        if original_date:
+            doc_data["original_date"] = original_date.isoformat()
+        if doc_type:
+            doc_data["document_type"] = doc_type
+
+        await asyncio.to_thread(
+            lambda: _get_db().table("documents").upsert(doc_data, on_conflict="id").execute()
+        )
+
+        # Update sync state
+        sync_state = {
+            "config_id": config["id"],
+            "file_path": file_path,
+            "document_id": doc_id,
+            "file_hash": content_hash,
+            "sync_status": "synced",
+            "last_synced_at": datetime.utcnow().isoformat(),
+            "frontmatter": frontmatter,
+        }
+
+        await asyncio.to_thread(
+            lambda: _get_db()
+            .table("obsidian_sync_state")
+            .upsert(sync_state, on_conflict="config_id,file_path")
+            .execute()
+        )
+
+        # Process document for embeddings in background
+        background_tasks.add_task(process_document, doc_id)
+
+        status = "updated" if existing.data else "created"
+        logger.info(f"[Remote Upload] {status}: {file_path}")
+
+        return {
+            "success": True,
+            "status": status,
+            "file_path": file_path,
+            "document_id": doc_id,
+            "title": title,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Remote upload error: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

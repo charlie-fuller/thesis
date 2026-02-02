@@ -1,4 +1,5 @@
-"""Template Library Routes
+"""Template Library Routes.
+
 Exposes the ADDIE prompt library as browsable templates.
 """
 

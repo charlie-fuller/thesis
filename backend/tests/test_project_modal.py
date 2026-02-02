@@ -227,8 +227,8 @@ class TestPydanticModels:
         req = AskQuestionRequest(question="What is the ROI?")
         assert req.question == "What is the ROI?"
 
-        # Empty question should fail
-        with pytest.raises(Exception):
+        # Empty question should fail (Pydantic validation)
+        with pytest.raises(ValueError):
             AskQuestionRequest(question="")
 
     def test_conversation_response_model(self):

@@ -1,4 +1,5 @@
-"""Notion integration routes
+"""Notion integration routes.
+
 Handles OAuth, page sync, and workspace management.
 """
 

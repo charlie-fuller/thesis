@@ -80,6 +80,7 @@ class BatchCache:
 
 def fuzzy_match(str1: str, str2: str) -> float:
     """Calculate fuzzy similarity between two strings.
+
     Returns a score between 0 and 1.
     """
     if not str1 or not str2:
@@ -674,6 +675,7 @@ class EntityDeduplicator:
 
     def _name_similarity(self, name1: str, name2: str) -> float:
         """Calculate name similarity score.
+
         Handles case differences, partial names, name ordering.
         """
         if not name1 or not name2:
@@ -763,6 +765,7 @@ class EntityDeduplicator:
 
     def update_batch_cache_id(self, entity_type: str, batch_id: str, title: str, actual_id: str):
         """Update the batch cache with the actual ID after insertion.
+
         Call this after successfully inserting a candidate.
         """
         cache_key = normalize_for_cache_key(title)

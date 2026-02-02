@@ -493,6 +493,7 @@ async def search_linked_kb_docs(
 
 async def get_all_initiative_content(initiative_id: str) -> str:
     """Get all document content for an initiative as a single string.
+
     Used for building agent context.
 
     Fetches content from linked KB documents (via disco_initiative_documents junction table).

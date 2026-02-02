@@ -1,4 +1,5 @@
 """Entity registry management service.
+
 Handles CRUD operations and learning from corrections.
 
 Version: 1.0.0

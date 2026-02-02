@@ -1,4 +1,5 @@
-"""Sample Data Generator for KPI Testing
+"""Sample Data Generator for KPI Testing.
+
 Creates realistic test data for Ideation Velocity and Correction Loop KPIs.
 
 Usage:

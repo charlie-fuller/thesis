@@ -1,4 +1,5 @@
-"""Test the chat endpoint with RAG integration
+"""Test the chat endpoint with RAG integration.
+
 Tests:
 1. Chat with document context (RAG enabled)
 2. Chat without RAG

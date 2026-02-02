@@ -311,14 +311,17 @@ The Obsidian Vault Sync feature was completed after the initial release notes we
 
 **Files**:
 - Backend: `/backend/services/obsidian_sync.py`
+- Scheduler: `/backend/services/vault_watcher_scheduler.py`
 - API: `/backend/api/routes/obsidian_sync.py`
-- CLI: `/backend/scripts/obsidian_watcher.py`
+- CLI: `/backend/scripts/vault_watcher.py`
 - Migration: `021_obsidian_sync.sql`
 - Documentation: `/docs/obsidian-sync-readme.md`
 
-**Usage**:
+**Usage** (automatic with backend):
 ```bash
-python -m scripts.obsidian_watcher --user-id <uuid>
+# Add to .env
+VAULT_WATCHER_USER_ID=<uuid>
+# Watcher starts automatically with backend server
 ```
 
 ---

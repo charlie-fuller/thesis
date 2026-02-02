@@ -1,4 +1,5 @@
-"""Google Drive integration routes
+"""Google Drive integration routes.
+
 Handles OAuth, sync, and folder management.
 """
 

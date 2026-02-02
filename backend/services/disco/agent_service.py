@@ -539,6 +539,7 @@ def _collect_claude_response(
     max_tokens: int = 16000,
 ) -> Tuple[str, Dict]:
     """Collect Claude response synchronously (for use in thread).
+
     Returns (full_response, token_usage).
     """
     full_response = ""
@@ -868,10 +869,10 @@ async def _fetch_kb_tagged_documents(tags: List[str], user_id: str) -> str:
         if len(tags) > 1:
             for additional_tag in tags[1:]:
                 tag_result = await asyncio.to_thread(
-                    lambda t=additional_tag: supabase.table("document_tags")
+                    lambda t=additional_tag, cids=candidate_ids: supabase.table("document_tags")
                     .select("document_id")
                     .eq("tag", t)
-                    .in_("document_id", candidate_ids)
+                    .in_("document_id", cids)
                     .execute()
                 )
                 # Intersect with candidates

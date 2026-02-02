@@ -1,4 +1,5 @@
-"""Pagination utilities
+"""Pagination utilities.
+
 Helpers for paginating list endpoints.
 """
 

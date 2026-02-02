@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Quick script to verify document status in the database.
+
 Shows recent documents and their processing status.
 
 Usage:

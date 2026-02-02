@@ -1,4 +1,5 @@
-"""Error handling utilities
+"""Error handling utilities.
+
 Helpers for consistent error handling across routes.
 """
 

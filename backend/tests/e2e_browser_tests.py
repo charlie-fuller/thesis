@@ -1460,6 +1460,7 @@ Follow-up meeting scheduled for February 1st to review progress. Chris emphasize
 
 def get_granola_e2e_test_file_path() -> str:
     """Get the file path for the Granola E2E test meeting file.
+
     Uses current timestamp to ensure uniqueness.
     """
     from datetime import datetime
@@ -1470,6 +1471,7 @@ def get_granola_e2e_test_file_path() -> str:
 
 def get_granola_e2e_test_content() -> str:
     """Get the content for the Granola E2E test meeting file.
+
     Replaces {timestamp} placeholder with current timestamp.
     """
     from datetime import datetime

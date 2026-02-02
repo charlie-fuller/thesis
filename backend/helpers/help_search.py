@@ -1,4 +1,5 @@
-"""Help documentation search module
+"""Help documentation search module.
+
 Handles vector search and RAG over help documentation.
 """
 

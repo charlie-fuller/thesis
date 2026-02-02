@@ -380,6 +380,7 @@ class CoordinatorAgent(BaseAgent):
 
     async def reload_specialist_instruction(self, name: str) -> bool:
         """Reload a specialist's instruction from the database.
+
         Used for hot-reloading after instruction updates in admin UI.
         Returns True if reload was successful.
         """
@@ -391,6 +392,7 @@ class CoordinatorAgent(BaseAgent):
 
     async def reload_all_instructions(self) -> dict[str, bool]:
         """Reload instructions for all specialists.
+
         Returns dict of agent_name -> success.
         """
         results = {}

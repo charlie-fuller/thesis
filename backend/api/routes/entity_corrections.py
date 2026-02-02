@@ -1,4 +1,5 @@
 """Entity Corrections API endpoints.
+
 Record and retrieve correction history.
 
 Version: 1.0.0

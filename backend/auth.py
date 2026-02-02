@@ -26,6 +26,7 @@ def _get_jwt_secret() -> str:
 
 def _parse_jwt_key(key_data: str):
     """Parse JWT key from various formats (PEM, JWK, or raw secret).
+
     Returns tuple of (key, is_public_key, algorithm_family).
     """
     key_data = key_data.strip()

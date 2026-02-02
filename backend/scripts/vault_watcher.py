@@ -1,25 +1,28 @@
 #!/usr/bin/env python3
-"""Obsidian Vault Watcher.
+"""Vault Watcher.
 
-Standalone script to run the Obsidian file watcher as a background process.
-Monitors configured vault directories for .md file changes and syncs them
+Standalone script to run the vault file watcher as a background process.
+Monitors configured vault directories for file changes and syncs them
 to the Thesis Knowledge Base.
+
+NOTE: The vault watcher now starts automatically with the backend server
+when VAULT_WATCHER_USER_ID is configured. This script is for manual/standalone use.
 
 Usage:
     cd backend
     source venv/bin/activate
 
     # Watch vault for a specific user
-    python -m scripts.obsidian_watcher --user-id <uuid>
+    python -m scripts.vault_watcher --user-id <uuid>
 
     # Watch vault from environment variable
-    OBSIDIAN_VAULT_PATH=/path/to/vault python -m scripts.obsidian_watcher --user-id <uuid>
+    VAULT_PATH=/path/to/vault python -m scripts.vault_watcher --user-id <uuid>
 
     # Run with verbose logging
-    python -m scripts.obsidian_watcher --user-id <uuid> --verbose
+    python -m scripts.vault_watcher --user-id <uuid> --verbose
 
 Environment Variables:
-    OBSIDIAN_VAULT_PATH - Override vault path (optional)
+    VAULT_PATH - Override vault path (optional)
     SUPABASE_URL - Supabase URL (required)
     SUPABASE_SERVICE_ROLE_KEY - Supabase service key (required)
 
@@ -46,7 +49,7 @@ load_dotenv()
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Watch an Obsidian vault and sync changes to Thesis KB",
+        description="Watch a vault and sync changes to Thesis KB",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -55,7 +58,7 @@ def parse_args():
 
     parser.add_argument(
         "--vault-path",
-        help="Override vault path (default: from database config or OBSIDIAN_VAULT_PATH env)",
+        help="Override vault path (default: from database config or VAULT_PATH env)",
     )
 
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
@@ -124,9 +127,11 @@ async def run_watcher(args):
     logger = get_logger(__name__)
 
     user_id = args.user_id
-    vault_path_override = args.vault_path or os.getenv("OBSIDIAN_VAULT_PATH")
+    vault_path_override = (
+        args.vault_path or os.getenv("VAULT_PATH") or os.getenv("OBSIDIAN_VAULT_PATH")
+    )
 
-    logger.info("Starting Obsidian Vault Watcher")
+    logger.info("Starting Vault Watcher")
     logger.info(f"User ID: {user_id}")
 
     # Get or create vault config
@@ -161,7 +166,7 @@ async def run_watcher(args):
             sys.exit(1)
 
     if not config:
-        logger.error("No Obsidian vault configured for this user")
+        logger.error("No vault configured for this user")
         logger.error("Configure a vault first using the API: POST /api/obsidian/configure")
         sys.exit(1)
 

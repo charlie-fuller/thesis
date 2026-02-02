@@ -8,10 +8,12 @@ import {
   Loader2,
   FileText,
   ExternalLink,
-  Trash2
+  Trash2,
+  FolderPlus
 } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 import ReactMarkdown from 'react-markdown'
+import CreateProjectFromChatModal from './CreateProjectFromChatModal'
 
 interface Source {
   type: 'document' | 'system_kb'
@@ -35,15 +37,17 @@ interface Conversation {
 
 interface InitiativeChatProps {
   initiativeId: string
+  initiativeName?: string
 }
 
-export default function InitiativeChat({ initiativeId }: InitiativeChatProps) {
+export default function InitiativeChat({ initiativeId, initiativeName = 'Initiative' }: InitiativeChatProps) {
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showCreateProject, setShowCreateProject] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -270,7 +274,29 @@ export default function InitiativeChat({ initiativeId }: InitiativeChatProps) {
             )}
           </button>
         </div>
+
+        {/* Create Project button */}
+        {messages.length > 0 && (
+          <div className="flex justify-end mt-3">
+            <button
+              type="button"
+              onClick={() => setShowCreateProject(true)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+            >
+              <FolderPlus className="w-4 h-4" />
+              Create Project from Chat
+            </button>
+          </div>
+        )}
       </form>
+
+      {/* Create Project Modal */}
+      <CreateProjectFromChatModal
+        open={showCreateProject}
+        onClose={() => setShowCreateProject(false)}
+        initiativeId={initiativeId}
+        initiativeName={initiativeName}
+      />
     </div>
   )
 }

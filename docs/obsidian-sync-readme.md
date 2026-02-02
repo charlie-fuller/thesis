@@ -47,14 +47,29 @@ curl http://localhost:8000/api/obsidian/status \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### 4. Run File Watcher (Optional)
+### 4. Enable Vault Watcher (Automatic)
 
-For real-time sync, run the watcher as a background process:
+The vault watcher starts automatically with the backend server when configured.
+
+Add to your `.env` file:
+```bash
+VAULT_WATCHER_USER_ID=<your-user-uuid>
+```
+
+The watcher will:
+- Start automatically when the backend server starts
+- Perform an initial sync on startup
+- Watch for file changes in real-time
+- Stop gracefully when the server shuts down
+
+#### Manual/Standalone Mode (Optional)
+
+For standalone usage without the backend server:
 
 ```bash
 cd backend
 source venv/bin/activate
-python -m scripts.obsidian_watcher --user-id <your-user-uuid>
+python -m scripts.vault_watcher --user-id <your-user-uuid>
 ```
 
 Options:
@@ -177,14 +192,15 @@ History of sync operations:
 ```
 /backend
   /services
-    obsidian_sync.py       # Core sync service and file watcher
+    obsidian_sync.py           # Core sync service and file watcher
+    vault_watcher_scheduler.py # Auto-start watcher with backend
   /api/routes
-    obsidian_sync.py       # API endpoints
+    obsidian_sync.py           # API endpoints
   /scripts
-    obsidian_watcher.py    # CLI watcher script
+    vault_watcher.py           # CLI watcher script (standalone)
 
 /database/migrations
-  021_obsidian_sync.sql    # Database schema
+  021_obsidian_sync.sql        # Database schema
 ```
 
 ## Troubleshooting

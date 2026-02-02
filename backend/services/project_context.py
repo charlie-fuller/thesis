@@ -169,6 +169,7 @@ def get_related_documents(
     min_similarity: float = 0.3,
 ) -> List[Dict]:
     """Find documents related to a project using vector search.
+
     (Legacy function - prefer get_scoring_related_documents for detail modal).
 
     Builds a search query from the project's title and description,
@@ -247,7 +248,8 @@ def get_related_documents(
 
 
 def build_project_context(project: Dict, related_documents: List[Dict]) -> str:
-    """Build a context string for Claude containing project details
+    """Build a context string for Claude containing project details.
+
     and related document content.
 
     Args:

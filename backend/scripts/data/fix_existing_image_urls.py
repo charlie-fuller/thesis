@@ -1,4 +1,5 @@
-"""Fix existing image URLs in database that point to gygax-files.com
+"""Fix existing image URLs in database that point to gygax-files.com.
+
 Update them to use direct Supabase storage URLs.
 """
 

@@ -39,6 +39,7 @@ async def _execute_full_sync(client_id: str) -> dict:
 
 def process_graph_sync():
     """Main job function that executes graph sync for all active clients.
+
     Runs daily via APScheduler.
     """
     import asyncio
@@ -185,6 +186,7 @@ def get_graph_scheduler_status() -> dict:
 
 def trigger_manual_sync():
     """Trigger an immediate graph sync (for manual/on-demand sync).
+
     Returns immediately after starting the sync in a background thread.
     """
     import threading

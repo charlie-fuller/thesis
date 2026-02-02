@@ -478,6 +478,7 @@ def _fetch_page_title(page_id: str, integration_token: str) -> str:
 
 def create_placeholder_documents(user_id: str, page_ids: List[str]) -> List[Dict]:
     """Create placeholder document records immediately for selected pages.
+
     This allows documents to appear in the UI with "Processing" status
     before the full content is downloaded.
 
@@ -912,6 +913,7 @@ def get_connection_status(user_id: str) -> Dict:
 
 def disconnect_user(user_id: str) -> Dict:
     """Disconnect user's Notion (revoke tokens).
+
     Note: Does not delete synced documents.
     """
     try:

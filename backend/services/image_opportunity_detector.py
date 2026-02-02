@@ -1,4 +1,5 @@
-"""Image Opportunity Detector Service
+"""Image Opportunity Detector Service.
+
 Detects when visual content would enhance L&D conversations.
 """
 

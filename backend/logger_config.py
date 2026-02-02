@@ -1,4 +1,5 @@
 """Centralized logging configuration for the application.
+
 Replaces print() statements with proper Python logging.
 """
 

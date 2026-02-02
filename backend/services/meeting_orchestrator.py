@@ -1606,6 +1606,7 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
         speaking_order: str = "priority",
     ) -> AsyncGenerator[dict, None]:
         """Run autonomous discussion for configured rounds.
+
         Yields SSE events as agents discuss.
 
         Events yielded:
@@ -1974,6 +1975,7 @@ async def get_meeting_orchestrator(
     supabase: Client, anthropic_client: anthropic.Anthropic
 ) -> MeetingOrchestrator:
     """Factory function to create a MeetingOrchestrator with all agents loaded.
+
     Includes the Facilitator and Reporter meta-agents which are always present in meetings.
     - Facilitator: Orchestrates conversation flow, routes to agents
     - Reporter: Synthesizes discussions into unified summaries.

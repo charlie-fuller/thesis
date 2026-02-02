@@ -1,4 +1,5 @@
-"""System Instructions Version Management Routes
+"""System Instructions Version Management Routes.
+
 Handles upload, versioning, activation, and comparison of global system instructions.
 Admin-only endpoints for managing system instruction versions.
 """
@@ -234,6 +235,7 @@ async def list_versions(
     current_user: dict = Depends(require_admin),
 ):
     """List all system instruction versions with metadata.
+
     Ordered by created_at descending (newest first).
     """
     try:
@@ -296,6 +298,7 @@ async def list_versions(
 @router.get("/versions/active")
 async def get_active_version(current_user: dict = Depends(get_current_user)):
     """Get the currently active system instruction version.
+
     Available to all authenticated users.
     """
     try:
@@ -437,6 +440,7 @@ async def compare_versions(
     request: VersionCompareRequest, current_user: dict = Depends(require_admin)
 ):
     """Generate a diff between two versions.
+
     Returns unified diff format with statistics.
     """
     try:
@@ -494,6 +498,7 @@ async def compare_versions_with_summary(
     request: VersionCompareRequest, current_user: dict = Depends(require_admin)
 ):
     """Generate an AI-powered narrative summary comparing two versions.
+
     Uses Claude to analyze the differences and provide human-readable insights.
     """
     try:
@@ -614,6 +619,7 @@ Keep your response professional and focused on actionable insights for the admin
 @router.get("/versions/{version_id}/changelog")
 async def get_version_changelog(version_id: str, current_user: dict = Depends(require_admin)):
     """Fetch the changelog file for a specific version if it exists.
+
     Looks for files like v1.1-update-log.md or v1.3-changelog.md.
     """
     from pathlib import Path
@@ -761,6 +767,7 @@ async def delete_version(version_id: str, current_user: dict = Depends(require_a
 @router.post("/versions/{version_id}/archive")
 async def archive_version(version_id: str, current_user: dict = Depends(require_admin)):
     """Archive a version (soft delete).
+
     Archived versions remain in the database but are not shown in the default list.
     """
     try:

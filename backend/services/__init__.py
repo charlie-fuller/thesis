@@ -1,4 +1,5 @@
-"""Services module for Thesis
+"""Services module for Thesis.
+
 Contains business logic and external API integrations.
 """
 

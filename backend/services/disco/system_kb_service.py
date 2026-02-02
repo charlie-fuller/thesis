@@ -53,6 +53,7 @@ KB_CATEGORIES = {
 
 async def sync_kb_from_filesystem() -> Dict:
     """Sync KB files from filesystem to database.
+
     Creates or updates KB entries and regenerates embeddings.
 
     Returns:
@@ -119,14 +120,18 @@ async def sync_kb_from_filesystem() -> Dict:
                 description = extract_description(content)
 
                 await asyncio.to_thread(
-                    lambda: supabase.table("disco_system_kb")
+                    lambda kid=kb_id,
+                    fn=filename,
+                    c=content,
+                    cat=category,
+                    desc=description: supabase.table("disco_system_kb")
                     .insert(
                         {
-                            "id": kb_id,
-                            "filename": filename,
-                            "content": content,
-                            "category": category,
-                            "description": description,
+                            "id": kid,
+                            "filename": fn,
+                            "content": c,
+                            "category": cat,
+                            "description": desc,
                         }
                     )
                     .execute()
@@ -297,6 +302,7 @@ async def get_kb_by_category(category: str) -> List[Dict]:
 
 def extract_description(content: str) -> str:
     """Extract description from KB file content.
+
     Uses first paragraph or first N characters.
     """
     # Split into paragraphs

@@ -246,6 +246,7 @@ def invalidate_user_cache(user_id: str):
 
 def invalidate_all_system_instructions():
     """Invalidate ALL system instruction caches (Redis + lru_cache).
+
     Use this when system instructions have been updated or a new version is activated.
     """
     # Clear Redis sys_inst namespace (user-specific caches)

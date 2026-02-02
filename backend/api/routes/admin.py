@@ -1,4 +1,5 @@
-"""Admin dashboard routes
+"""Admin dashboard routes.
+
 Handles statistics, analytics, and administrative operations.
 """
 
@@ -574,6 +575,7 @@ async def clear_system_instructions_cache(
     request: Request, current_user: dict = Depends(require_admin)
 ):
     """Clear all system instructions cache (Redis + lru_cache).
+
     Use this when system instructions have been updated.
     Requires admin role.
     """
@@ -597,6 +599,7 @@ async def clear_system_instructions_cache(
 @limiter.limit("10/minute")
 async def clear_search_cache(request: Request, current_user: dict = Depends(require_admin)):
     """Clear all RAG search cache (Redis).
+
     Use this when documents have been uploaded/updated and cached search results are stale.
     Requires admin role.
     """
@@ -616,6 +619,7 @@ async def clear_search_cache(request: Request, current_user: dict = Depends(requ
 @router.get("/analytics/upload-health")
 async def get_upload_health(current_user: dict = Depends(require_admin)):
     """Get document upload health metrics.
+
     Returns success rates, failure breakdown, and stuck documents.
     """
     try:
@@ -767,6 +771,7 @@ async def get_upload_health(current_user: dict = Depends(require_admin)):
 @limiter.limit("10/minute")
 async def clear_upload_issues(request: Request, current_user: dict = Depends(require_admin)):
     """Clear stuck documents and recent failures from the upload health panel.
+
     - Stuck documents: marked as 'failed' with explanation
     - Recent failures: deleted from database.
     """
@@ -839,6 +844,7 @@ async def clear_upload_issues(request: Request, current_user: dict = Depends(req
 @router.get("/analytics/interface-health")
 async def get_interface_health(current_user: dict = Depends(require_admin)):
     """Get interface health metrics.
+
     Returns response length stats, image generation stats, and workflow metrics.
     """
     try:
@@ -1037,6 +1043,7 @@ async def get_help_document(document_id: str, current_user: dict = Depends(requi
 @router.get("/help-documents")
 async def get_help_documents(current_user: dict = Depends(require_admin)):
     """Get all help documents with their metadata.
+
     Returns documents grouped by category (user/admin).
     """
     try:
@@ -1080,6 +1087,7 @@ async def reindex_help_document(
     request: Request, document_id: str, current_user: dict = Depends(require_admin)
 ):
     """Reindex a single help document by its ID.
+
     Deletes existing chunks and recreates them with fresh embeddings.
     """
     try:
@@ -1246,6 +1254,7 @@ async def update_help_document(
     document_id: str, request: Request, current_user: dict = Depends(require_admin)
 ):
     """Update a help document's title and/or content.
+
     Automatically triggers reindexing after update.
     """
     try:
@@ -1430,6 +1439,7 @@ async def get_help_analytics(
     days: int = Query(30, ge=1, le=90, description="Number of days to analyze"),
 ):
     """Get analytics for the help system.
+
     Returns questions asked, low confidence responses, and feedback breakdown.
 
     The confidence metric is derived from the vector similarity scores of the
@@ -1588,6 +1598,7 @@ async def export_help_conversations(
     format: str = Query("json", description="Export format: json or csv"),
 ):
     """Export all help conversations with messages for analysis.
+
     Returns conversations with their full message history.
     """
     try:
@@ -1685,6 +1696,7 @@ async def export_help_conversations(
 @router.get("/analytics/keyword-trends")
 async def get_keyword_trends(current_user: dict = Depends(require_admin), days: int = 30):
     """Analyze keyword trends from user messages.
+
     Returns top keywords, questions asked, and suggested FAQs.
     """
     import re

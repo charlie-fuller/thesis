@@ -524,6 +524,7 @@ def list_folder_files(user_id: str, folder_id: str) -> List[Dict]:
 
 def create_placeholder_documents(user_id: str, file_ids: List[str]) -> List[Dict]:
     """Create placeholder document records immediately for selected files.
+
     This allows documents to appear in the UI with "Processing" status
     before the full content is downloaded.
 
@@ -1366,6 +1367,7 @@ def get_connection_status(user_id: str) -> Dict:
 
 def disconnect_user(user_id: str) -> Dict:
     """Disconnect user's Google Drive (delete tokens).
+
     Note: Does not delete synced documents.
     """
     try:

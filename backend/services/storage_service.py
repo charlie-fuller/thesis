@@ -1,4 +1,5 @@
-"""Supabase Storage Service
+"""Supabase Storage Service.
+
 Handles uploading, downloading, and managing files in Supabase Storage.
 """
 

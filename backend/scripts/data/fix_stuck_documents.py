@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Fix stuck documents that are in 'pending' status
+"""Fix stuck documents that are in 'pending' status.
+
 Triggers processing for all documents with processing_status = 'pending'.
 """
 

@@ -1,4 +1,5 @@
 """Application Configuration Constants.
+
 Centralizes magic numbers and configuration values for better maintainability.
 
 This module extracts hardcoded values from across the codebase into

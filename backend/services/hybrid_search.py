@@ -288,7 +288,8 @@ async def get_hybrid_context_for_chat(
     conversation_id: Optional[str] = None,
     agent_ids: Optional[list[str]] = None,
 ) -> tuple[str, list[dict[str, Any]]]:
-    """Convenience function for chat routes - returns formatted context string
+    """Convenience function for chat routes - returns formatted context string.
+
     and source document list.
 
     Args:

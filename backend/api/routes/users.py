@@ -1,4 +1,5 @@
-"""User management routes
+"""User management routes.
+
 Handles user CRUD, prompts, and profile operations.
 """
 

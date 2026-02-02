@@ -76,6 +76,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Warning: Could not start engagement scheduler: {e}")
 
+    # Start Vault Watcher (if VAULT_WATCHER_USER_ID is configured)
+    try:
+        from services.vault_watcher_scheduler import start_vault_watcher
+
+        if start_vault_watcher(initial_sync=True):
+            logger.info("Vault watcher started")
+        # If not started, start_vault_watcher logs the reason
+    except Exception as e:
+        logger.error(f"Warning: Could not start vault watcher: {e}")
+
     logger.info("Application startup complete")
 
     yield  # Application is running
@@ -108,6 +118,13 @@ async def lifespan(app: FastAPI):
         stop_engagement_scheduler()
     except Exception as e:
         logger.error(f"Warning during engagement scheduler shutdown: {e}")
+
+    try:
+        from services.vault_watcher_scheduler import stop_vault_watcher
+
+        stop_vault_watcher()
+    except Exception as e:
+        logger.error(f"Warning during vault watcher shutdown: {e}")
 
     try:
         from services.graph import close_neo4j_connection
@@ -197,6 +214,7 @@ logger.info(f"CORS allowed origins: {allowed_origins}")
 
 class CustomCORSMiddleware:
     """Pure ASGI CORS middleware that handles preflight requests directly.
+
     This ensures CORS headers are always added, even when exceptions occur.
 
     Note: Using pure ASGI instead of BaseHTTPMiddleware to avoid

@@ -1,4 +1,5 @@
-"""Useable Output Detection Service
+"""Useable Output Detection Service.
+
 Blended approach using multiple signals to detect when AI output becomes useable.
 """
 

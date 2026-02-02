@@ -1,4 +1,5 @@
 """Standalone test for Google Gemini image generation (Nano Banana).
+
 No dependencies on other services.
 """
 

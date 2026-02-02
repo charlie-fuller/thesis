@@ -48,6 +48,7 @@ def calculate_next_sync_time(frequency: str) -> datetime:
 
 def process_automatic_syncs():
     """Main job function that checks for and executes due syncs.
+
     Runs periodically via APScheduler.
     """
     try:

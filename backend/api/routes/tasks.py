@@ -1,4 +1,5 @@
-"""Task management routes
+"""Task management routes.
+
 Handles task CRUD, Kanban board operations, and task extraction from transcripts.
 """
 
@@ -845,6 +846,7 @@ async def clear_task_candidates(
     current_user=Depends(get_current_user),
 ):
     """Clear task candidates. By default clears pending candidates only.
+
     Use status=all to clear all candidates.
     """
     try:

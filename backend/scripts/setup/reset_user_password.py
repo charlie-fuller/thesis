@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Reset user password via Supabase Admin API
+"""Reset user password via Supabase Admin API.
+
 Usage: python reset_user_password.py <email> <new_password>.
 """
 

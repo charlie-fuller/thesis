@@ -182,6 +182,7 @@ async def check_connectors(
     request: ConnectorCheckRequest, supabase: Client = Depends(get_supabase)
 ):
     """Check availability of multiple connectors by name.
+
     Returns availability status for each requested connector.
     """
     try:
@@ -226,6 +227,7 @@ async def log_connector_request(
     request: ConnectorRequestInput, supabase: Client = Depends(get_supabase)
 ):
     """Log a connector request for gap tracking.
+
     Increments request_count if connector was already requested.
     """
     try:
@@ -257,6 +259,7 @@ async def get_connector_gaps(
     priority: Optional[str] = None, limit: int = 20, supabase: Client = Depends(get_supabase)
 ):
     """Get prioritized list of connector gaps/requests.
+
     Use this to understand what connectors are being requested most.
     """
     try:
@@ -275,6 +278,7 @@ async def get_connector_gaps(
 @router.get("/search/{query}")
 async def search_connectors(query: str, supabase: Client = Depends(get_supabase)):
     """Search connectors by name or display name.
+
     Returns matching connectors across all types.
     """
     try:
@@ -377,7 +381,8 @@ async def get_disco_matrix(
     contentful_status: Optional[str] = None,
     supabase: Client = Depends(get_supabase),
 ):
-    """Get the DISCO integration matrix showing all connectors with their
+    """Get the DISCO integration matrix showing all connectors with their.
+
     Contentful deployment status and feasibility scores.
 
     Filter options:
@@ -402,6 +407,7 @@ async def get_disco_matrix(
 @router.get("/disco/summary")
 async def get_disco_summary(supabase: Client = Depends(get_supabase)):
     """Get a summary of connectors grouped by Contentful status and DISCO score.
+
     Useful for quick overview of integration capabilities.
     """
     try:

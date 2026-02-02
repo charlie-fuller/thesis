@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Seed historical system instruction versions (1.0 and 1.1) for version comparison feature.
+
 Run this script after 039_seed_initial_system_instruction.py.
 """
 

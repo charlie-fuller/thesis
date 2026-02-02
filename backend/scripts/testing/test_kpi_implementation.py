@@ -1,4 +1,5 @@
-"""Test script for KPI Dashboard implementation
+"""Test script for KPI Dashboard implementation.
+
 Tests database access, query logic, and data flow.
 """
 

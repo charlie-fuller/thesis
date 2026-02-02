@@ -475,7 +475,7 @@ export default function InitiativeDetailPage() {
 
         {/* Chat Tab */}
         {activeTab === 'chat' && (
-          <InitiativeChat initiativeId={initiativeId} />
+          <InitiativeChat initiativeId={initiativeId} initiativeName={initiative?.name} />
         )}
       </div>
 

@@ -96,6 +96,7 @@ class BaseAgent(ABC):
 
     async def initialize(self) -> None:
         """Initialize the agent by loading its configuration from the database.
+
         Called once when the agent is first loaded.
         """
         try:
@@ -169,6 +170,7 @@ class BaseAgent(ABC):
 
     async def reload_instruction(self) -> bool:
         """Reload the system instruction from the database.
+
         Called when instructions are updated via the admin UI.
         This hot-reloads from agent_instruction_versions (single source of truth).
         Returns True if reload was successful.
