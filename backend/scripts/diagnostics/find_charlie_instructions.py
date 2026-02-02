@@ -8,15 +8,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from scripts.lib.credentials import get_credentials
 
 creds = get_credentials()
-SUPABASE_URL = creds['supabase_url']
-SUPABASE_SERVICE_ROLE_KEY = creds['supabase_key']
+SUPABASE_URL = creds["supabase_url"]
+SUPABASE_SERVICE_ROLE_KEY = creds["supabase_key"]
 CHARLIE_USER_ID = "d3ba5354-873a-435a-a36a-853373c4f6e5"
 CHARLIE_CLIENT_ID = "4e94bfa4-d02c-4e52-b4d5-f0701f5c320b"
 
 headers = {
     "apikey": SUPABASE_SERVICE_ROLE_KEY,
     "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
 
 # Try extractions table
@@ -26,7 +26,7 @@ params = {
     "client_id": f"eq.{CHARLIE_CLIENT_ID}",
     "select": "id,status,generated_instructions,selected_functions,created_at",
     "order": "created_at.desc",
-    "limit": 5
+    "limit": 5,
 }
 
 response = requests.get(url, headers=headers, params=params)
@@ -40,15 +40,15 @@ if response.status_code == 200:
             print(f"   Status: {ext.get('status', 'N/A')}")
             print(f"   Created: {ext.get('created_at', 'N/A')}")
 
-            if ext.get('selected_functions'):
-                funcs = ext.get('selected_functions')
+            if ext.get("selected_functions"):
+                funcs = ext.get("selected_functions")
                 if isinstance(funcs, list):
                     print(f"   Functions: {', '.join(funcs[:5])}")
                 else:
                     print(f"   Functions: {funcs}")
 
-            if ext.get('generated_instructions'):
-                instructions = ext.get('generated_instructions')
+            if ext.get("generated_instructions"):
+                instructions = ext.get("generated_instructions")
                 # Extract function names from instructions
                 functions = re.findall(r'<function name="([^"]+)"', instructions)
                 if functions:
@@ -61,10 +61,7 @@ else:
 # Also check clients table again more carefully
 print("\n\n🔍 Re-checking clients table...")
 url = f"{SUPABASE_URL}/rest/v1/clients"
-params = {
-    "id": f"eq.{CHARLIE_CLIENT_ID}",
-    "select": "*"
-}
+params = {"id": f"eq.{CHARLIE_CLIENT_ID}", "select": "*"}
 
 response = requests.get(url, headers=headers, params=params)
 
@@ -75,8 +72,8 @@ if response.status_code == 200:
         print("✅ Client found:")
         print(f"   Name: {client.get('name')}")
         print(f"   Email: {client.get('email')}")
-        if client.get('system_instructions'):
-            instructions = client['system_instructions']
+        if client.get("system_instructions"):
+            instructions = client["system_instructions"]
             functions = re.findall(r'<function name="([^"]+)"', instructions)
             print(f"   📋 Functions: {', '.join(functions) if functions else 'None found'}")
             print(f"   Instructions length: {len(instructions)} characters")

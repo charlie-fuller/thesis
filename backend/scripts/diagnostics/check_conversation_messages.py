@@ -7,29 +7,29 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from scripts.lib.credentials import get_credentials
 
 creds = get_credentials()
-SUPABASE_URL = creds['supabase_url']
-SUPABASE_SERVICE_ROLE_KEY = creds['supabase_key']
+SUPABASE_URL = creds["supabase_url"]
+SUPABASE_SERVICE_ROLE_KEY = creds["supabase_key"]
 
 # Get recent conversations
 conv_url = f"{SUPABASE_URL}/rest/v1/conversations"
 headers = {
     "apikey": SUPABASE_SERVICE_ROLE_KEY,
     "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
 
 params = {
     "user_id": "eq.d3ba5354-873a-435a-a36a-853373c4f6e5",
     "select": "id,title,created_at",
     "order": "created_at.desc",
-    "limit": 15
+    "limit": 15,
 }
 
 conv_response = requests.get(conv_url, headers=headers, params=params)
 conversations = conv_response.json()
 
 print(f"📊 Checking messages for {len(conversations)} conversations\n")
-print("="*80)
+print("=" * 80)
 
 for i, conv in enumerate(conversations[:10], 1):
     # Get messages for this conversation
@@ -37,7 +37,7 @@ for i, conv in enumerate(conversations[:10], 1):
     msg_params = {
         "conversation_id": f"eq.{conv['id']}",
         "select": "role,content,timestamp",
-        "order": "timestamp.asc"
+        "order": "timestamp.asc",
     }
 
     msg_response = requests.get(msg_url, headers=headers, params=msg_params)
@@ -50,17 +50,25 @@ for i, conv in enumerate(conversations[:10], 1):
     if len(messages) > 0:
         print("   First message preview:")
         first_msg = messages[0]
-        content_preview = first_msg['content'][:150] + "..." if len(first_msg['content']) > 150 else first_msg['content']
+        content_preview = (
+            first_msg["content"][:150] + "..."
+            if len(first_msg["content"]) > 150
+            else first_msg["content"]
+        )
         print(f"      [{first_msg['role']}] {content_preview}")
 
         if len(messages) > 1:
             print("   Last message preview:")
             last_msg = messages[-1]
-            content_preview = last_msg['content'][:150] + "..." if len(last_msg['content']) > 150 else last_msg['content']
+            content_preview = (
+                last_msg["content"][:150] + "..."
+                if len(last_msg["content"]) > 150
+                else last_msg["content"]
+            )
             print(f"      [{last_msg['role']}] {content_preview}")
     else:
         print("   ⚠️  NO MESSAGES FOUND")
 
-    print("-"*80)
+    print("-" * 80)
 
 print("\n✅ Check complete")

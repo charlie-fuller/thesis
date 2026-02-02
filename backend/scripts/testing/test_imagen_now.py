@@ -1,6 +1,5 @@
-"""
-Test script for Google Gemini image generation (Nano Banana).
-"""
+"""Test script for Google Gemini image generation (Nano Banana)."""
+
 import asyncio
 import base64
 import os
@@ -48,7 +47,7 @@ async def test_image_generation():
 
             # Save image to file for verification
             output_path = Path(__file__).parent / "test_output_image.png"
-            image_bytes = base64.b64decode(result['image_data'])
+            image_bytes = base64.b64decode(result["image_data"])
             output_path.write_bytes(image_bytes)
             print(f"\n💾 Image saved to: {output_path}")
             print(f"   File size: {len(image_bytes)} bytes")
@@ -61,6 +60,7 @@ async def test_image_generation():
     except Exception as e:
         print(f"\n❌ ERROR: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -74,10 +74,7 @@ async def test_batch_generation():
     try:
         service = ImageGenerationService()
 
-        prompts = [
-            "A simple red circle on white background",
-            "A blue square with rounded corners"
-        ]
+        prompts = ["A simple red circle on white background", "A blue square with rounded corners"]
 
         print(f"\n🖼️  Generating {len(prompts)} images...")
         results = await service.generate_multiple_images(prompts)
@@ -87,9 +84,9 @@ async def test_batch_generation():
 
         for i, result in enumerate(results):
             if result.get("success"):
-                print(f"   ✓ Image {i+1}: Generated successfully")
+                print(f"   ✓ Image {i + 1}: Generated successfully")
             else:
-                print(f"   ✗ Image {i+1}: {result.get('error', 'Unknown error')}")
+                print(f"   ✗ Image {i + 1}: {result.get('error', 'Unknown error')}")
 
         return successful == len(prompts)
 
@@ -109,8 +106,8 @@ async def main():
         with open(env_file) as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
                     os.environ[key.strip()] = value.strip()
     else:
         print("⚠️  No .env file found, using system environment variables")

@@ -1,5 +1,4 @@
-"""
-Nexus Agent - Systems Thinking & Interconnection Analysis
+"""Nexus Agent - Systems Thinking & Interconnection Analysis
 
 The Nexus agent specializes in:
 - Systems thinking methodology and frameworks
@@ -16,16 +15,16 @@ import logging
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class NexusAgent(BaseAgent):
-    """
-    Nexus - The Systems Thinking agent.
+    """Nexus - The Systems Thinking agent.
 
     Specializes in helping teams understand complex systems,
     identify leverage points, and avoid unintended consequences
@@ -34,10 +33,7 @@ class NexusAgent(BaseAgent):
 
     def __init__(self, supabase: Client, anthropic_client: anthropic.Anthropic):
         super().__init__(
-            name="nexus",
-            display_name="Nexus",
-            supabase=supabase,
-            anthropic_client=anthropic_client
+            name="nexus", display_name="Nexus", supabase=supabase, anthropic_client=anthropic_client
         )
 
     def _get_default_instruction(self) -> str:
@@ -631,8 +627,8 @@ Your role is to help people see the system they're in so they can work with it r
         if context.stakeholders:
             stakeholder_context = "\n\nKey actors in this system:\n"
             for stakeholder in context.stakeholders[:5]:
-                sentiment = stakeholder.get('sentiment_score', 0)
-                concerns = stakeholder.get('concerns', [])
+                sentiment = stakeholder.get("sentiment_score", 0)
+                concerns = stakeholder.get("concerns", [])
                 stakeholder_context += f"- {stakeholder.get('name', 'Unknown')}: "
                 stakeholder_context += f"Sentiment {sentiment:+.2f}"
                 if concerns:
@@ -644,7 +640,7 @@ Your role is to help people see the system they're in so they can work with it r
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -657,16 +653,28 @@ Your role is to help people see the system they're in so they can work with it r
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Systems insight: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Systems insight: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         # Save interactions that reveal important systems insights
         important_indicators = [
-            "feedback loop", "reinforcing", "balancing", "leverage point",
-            "unintended consequence", "archetype", "system", "delay",
-            "stock", "flow", "mental model", "paradigm", "boundary"
+            "feedback loop",
+            "reinforcing",
+            "balancing",
+            "leverage point",
+            "unintended consequence",
+            "archetype",
+            "system",
+            "delay",
+            "stock",
+            "flow",
+            "mental model",
+            "paradigm",
+            "boundary",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -685,7 +693,10 @@ Your role is to help people see the system they're in so they can work with it r
         message_lower = context.user_message.lower()
 
         # Hand off to Sage for people-focused concerns
-        if any(word in message_lower for word in ["burnout", "fear", "resistance", "change management", "employee"]):
+        if any(
+            word in message_lower
+            for word in ["burnout", "fear", "resistance", "change management", "employee"]
+        ):
             return ("sage", "Query has significant people/change dimensions")
 
         # Hand off to Atlas for research needs
@@ -697,15 +708,22 @@ Your role is to help people see the system they're in so they can work with it r
             return ("capital", "Query requires financial analysis")
 
         # Hand off to Guardian for governance/security
-        if any(word in message_lower for word in ["security", "compliance", "governance", "policy"]):
+        if any(
+            word in message_lower for word in ["security", "compliance", "governance", "policy"]
+        ):
             return ("guardian", "Query requires governance expertise")
 
         # Hand off to Architect for technical architecture
-        if any(word in message_lower for word in ["architecture", "integration", "technical design"]):
+        if any(
+            word in message_lower for word in ["architecture", "integration", "technical design"]
+        ):
             return ("architect", "Query requires technical architecture expertise")
 
         # Hand off to Strategist for executive strategy
-        if any(word in message_lower for word in ["executive", "c-suite", "board", "strategic direction"]):
+        if any(
+            word in message_lower
+            for word in ["executive", "c-suite", "board", "strategic direction"]
+        ):
             return ("strategist", "Query requires executive strategy expertise")
 
         return None

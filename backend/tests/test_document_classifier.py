@@ -1,5 +1,4 @@
-"""
-Tests for Document Classifier Service
+"""Tests for Document Classifier Service
 
 Tests the hybrid keyword + LLM classification system for auto-tagging
 documents to relevant agents.
@@ -8,14 +7,13 @@ Note: This test file uses direct module loading to avoid import chain issues
 with llama_index dependencies on Python 3.9.
 """
 
-import sys
-import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock
-from dataclasses import dataclass, field
-from typing import Optional
 import re
 import time
+from dataclasses import dataclass, field
+from typing import Optional
+from unittest.mock import Mock
 
+import pytest
 
 # ============================================================================
 # Note: This test file uses self-contained models and service classes for testing.
@@ -40,9 +38,11 @@ mock_anthropic_module = Mock()
 # (This avoids the import chain that pulls in llama_index)
 # ============================================================================
 
+
 @dataclass
 class AgentClassification:
     """Classification result for a single agent."""
+
     agent_id: str
     agent_name: str
     confidence: float
@@ -53,6 +53,7 @@ class AgentClassification:
 @dataclass
 class DocumentClassificationResult:
     """Full classification result for a document."""
+
     document_id: str
     detected_type: str
     classifications: list = field(default_factory=list)
@@ -65,8 +66,7 @@ class DocumentClassificationResult:
 
 
 class DocumentClassifier:
-    """
-    Classifies documents for agent relevance.
+    """Classifies documents for agent relevance.
     Test implementation that mirrors the real one.
     """
 
@@ -76,122 +76,326 @@ class DocumentClassifier:
 
     AGENT_KEYWORDS = {
         "atlas": [
-            r"\bresearch\b", r"\bstudy\b", r"\bstudies\b", r"\bcase study\b",
-            r"\bconsulting\b", r"\bmckinsey\b", r"\bbcg\b", r"\bbain\b",
-            r"\baccenture\b", r"\bdeloitte\b", r"\bkpmg\b", r"\bpwc\b", r"\bey\b",
-            r"\bgartner\b", r"\bforrester\b", r"\bidc\b",
-            r"\bwhitepaper\b", r"\breport\b", r"\banalysis\b", r"\btrend\b",
-            r"\bbest practice\b", r"\bindustry\b", r"\bcompetitor\b",
-            r"\bai implementation\b", r"\bgenai\b", r"\bgen ai\b",
-            r"\bbenchmark\b", r"\bleading practice\b", r"\bmarket research\b",
+            r"\bresearch\b",
+            r"\bstudy\b",
+            r"\bstudies\b",
+            r"\bcase study\b",
+            r"\bconsulting\b",
+            r"\bmckinsey\b",
+            r"\bbcg\b",
+            r"\bbain\b",
+            r"\baccenture\b",
+            r"\bdeloitte\b",
+            r"\bkpmg\b",
+            r"\bpwc\b",
+            r"\bey\b",
+            r"\bgartner\b",
+            r"\bforrester\b",
+            r"\bidc\b",
+            r"\bwhitepaper\b",
+            r"\breport\b",
+            r"\banalysis\b",
+            r"\btrend\b",
+            r"\bbest practice\b",
+            r"\bindustry\b",
+            r"\bcompetitor\b",
+            r"\bai implementation\b",
+            r"\bgenai\b",
+            r"\bgen ai\b",
+            r"\bbenchmark\b",
+            r"\bleading practice\b",
+            r"\bmarket research\b",
         ],
         "capital": [
-            r"\broi\b", r"\breturn on investment\b", r"\bcost\b", r"\bbudget\b",
-            r"\bfinance\b", r"\bfinancial\b", r"\bcfo\b", r"\bcontroller\b",
-            r"\bsaving\b", r"\bexpense\b", r"\binvestment\b", r"\bspend\b",
-            r"\bjustify\b", r"\bjustification\b", r"\bbusiness case\b",
-            r"\bpayback\b", r"\bbreakeven\b", r"\bvalue\b", r"\bprofit\b",
-            r"\binvoice\b", r"\bquote\b", r"\bproposal\b", r"\bpurchase order\b",
-            r"\bbalance sheet\b", r"\bincome statement\b", r"\bcash flow\b",
-            r"\bprofit.?loss\b", r"\bp&l\b", r"\baudit\b",
+            r"\broi\b",
+            r"\breturn on investment\b",
+            r"\bcost\b",
+            r"\bbudget\b",
+            r"\bfinance\b",
+            r"\bfinancial\b",
+            r"\bcfo\b",
+            r"\bcontroller\b",
+            r"\bsaving\b",
+            r"\bexpense\b",
+            r"\binvestment\b",
+            r"\bspend\b",
+            r"\bjustify\b",
+            r"\bjustification\b",
+            r"\bbusiness case\b",
+            r"\bpayback\b",
+            r"\bbreakeven\b",
+            r"\bvalue\b",
+            r"\bprofit\b",
+            r"\binvoice\b",
+            r"\bquote\b",
+            r"\bproposal\b",
+            r"\bpurchase order\b",
+            r"\bbalance sheet\b",
+            r"\bincome statement\b",
+            r"\bcash flow\b",
+            r"\bprofit.?loss\b",
+            r"\bp&l\b",
+            r"\baudit\b",
         ],
         "guardian": [
-            r"\bsecurity\b", r"\bgovernance\b", r"\bcompliance\b", r"\brisk\b",
-            r"\bit\b", r"\binfrastructure\b", r"\barchitecture\b",
-            r"\bpolicy\b", r"\bpolicies\b", r"\bstandard\b", r"\bframework\b",
-            r"\bdata protection\b", r"\bprivacy\b", r"\bgdpr\b", r"\bccpa\b",
-            r"\baudit\b", r"\bcontrol\b", r"\baccess\b", r"\bpermission\b",
-            r"\bciso\b", r"\bcio\b", r"\bsoc2\b", r"\biso\b", r"\bhipaa\b",
-            r"\bnetwork\b", r"\bserver\b", r"\bfirewall\b", r"\bvpn\b",
-            r"\bencryption\b", r"\bcyber\b", r"\bvulnerability\b",
+            r"\bsecurity\b",
+            r"\bgovernance\b",
+            r"\bcompliance\b",
+            r"\brisk\b",
+            r"\bit\b",
+            r"\binfrastructure\b",
+            r"\barchitecture\b",
+            r"\bpolicy\b",
+            r"\bpolicies\b",
+            r"\bstandard\b",
+            r"\bframework\b",
+            r"\bdata protection\b",
+            r"\bprivacy\b",
+            r"\bgdpr\b",
+            r"\bccpa\b",
+            r"\baudit\b",
+            r"\bcontrol\b",
+            r"\baccess\b",
+            r"\bpermission\b",
+            r"\bciso\b",
+            r"\bcio\b",
+            r"\bsoc2\b",
+            r"\biso\b",
+            r"\bhipaa\b",
+            r"\bnetwork\b",
+            r"\bserver\b",
+            r"\bfirewall\b",
+            r"\bvpn\b",
+            r"\bencryption\b",
+            r"\bcyber\b",
+            r"\bvulnerability\b",
         ],
         "counselor": [
-            r"\blegal\b", r"\bcontract\b", r"\bagreement\b", r"\bterms\b",
-            r"\blicense\b", r"\blicensing\b", r"\bip\b", r"\bintellectual property\b",
-            r"\bpatent\b", r"\bcopyright\b", r"\btrademark\b",
-            r"\bliability\b", r"\bindemnity\b", r"\bwarranty\b",
-            r"\blawyer\b", r"\battorney\b", r"\bcounsel\b",
-            r"\bnda\b", r"\bmsa\b", r"\bsow\b", r"\bsla\b",
-            r"\bstatement of work\b", r"\bmaster service\b",
-            r"\bterms of service\b", r"\bprivacy policy\b",
+            r"\blegal\b",
+            r"\bcontract\b",
+            r"\bagreement\b",
+            r"\bterms\b",
+            r"\blicense\b",
+            r"\blicensing\b",
+            r"\bip\b",
+            r"\bintellectual property\b",
+            r"\bpatent\b",
+            r"\bcopyright\b",
+            r"\btrademark\b",
+            r"\bliability\b",
+            r"\bindemnity\b",
+            r"\bwarranty\b",
+            r"\blawyer\b",
+            r"\battorney\b",
+            r"\bcounsel\b",
+            r"\bnda\b",
+            r"\bmsa\b",
+            r"\bsow\b",
+            r"\bsla\b",
+            r"\bstatement of work\b",
+            r"\bmaster service\b",
+            r"\bterms of service\b",
+            r"\bprivacy policy\b",
         ],
         "oracle": [
-            r"\btranscript\b", r"\bmeeting\b", r"\bcall\b", r"\bconversation\b",
-            r"\battendee\b", r"\bparticipant\b", r"\bspeaker\b",
-            r"\bsentiment\b", r"\bfeedback\b", r"\breaction\b",
-            r"\bgranola\b", r"\botter\b", r"\bzoom\b", r"\bteams\b",
-            r"\binterview\b", r"\bnotes\b", r"\bminutes\b",
-            r"\bstakeholder\b", r"\bdiscussion\b",
+            r"\btranscript\b",
+            r"\bmeeting\b",
+            r"\bcall\b",
+            r"\bconversation\b",
+            r"\battendee\b",
+            r"\bparticipant\b",
+            r"\bspeaker\b",
+            r"\bsentiment\b",
+            r"\bfeedback\b",
+            r"\breaction\b",
+            r"\bgranola\b",
+            r"\botter\b",
+            r"\bzoom\b",
+            r"\bteams\b",
+            r"\binterview\b",
+            r"\bnotes\b",
+            r"\bminutes\b",
+            r"\bstakeholder\b",
+            r"\bdiscussion\b",
         ],
         "sage": [
-            r"\bpeople\b", r"\bchange management\b", r"\badoption\b", r"\bresistance\b",
-            r"\bfear\b", r"\banxiety\b", r"\bburnout\b", r"\bchampion\b",
-            r"\bculture\b", r"\bhuman\b", r"\bflourishing\b", r"\bpsychology\b",
-            r"\bsafety\b", r"\bmorale\b", r"\bengagement\b", r"\bemployee\b",
-            r"\bteam\b", r"\bpeople-first\b", r"\bhuman-centered\b",
-            r"\bjob description\b", r"\bperformance review\b", r"\borganization chart\b",
-            r"\bhr policy\b", r"\bbenefits\b", r"\bonboarding\b",
+            r"\bpeople\b",
+            r"\bchange management\b",
+            r"\badoption\b",
+            r"\bresistance\b",
+            r"\bfear\b",
+            r"\banxiety\b",
+            r"\bburnout\b",
+            r"\bchampion\b",
+            r"\bculture\b",
+            r"\bhuman\b",
+            r"\bflourishing\b",
+            r"\bpsychology\b",
+            r"\bsafety\b",
+            r"\bmorale\b",
+            r"\bengagement\b",
+            r"\bemployee\b",
+            r"\bteam\b",
+            r"\bpeople-first\b",
+            r"\bhuman-centered\b",
+            r"\bjob description\b",
+            r"\bperformance review\b",
+            r"\borganization chart\b",
+            r"\bhr policy\b",
+            r"\bbenefits\b",
+            r"\bonboarding\b",
         ],
         "strategist": [
-            r"\bexecutive\b", r"\bc-suite\b", r"\bceo\b", r"\bboard\b", r"\bsponsor\b",
-            r"\bstakeholder management\b", r"\bcoalition\b", r"\bpolitics\b",
-            r"\bgovernance structure\b", r"\bstrategic alignment\b", r"\btransformation\b",
-            r"\bleadership\b", r"\bbuy-in\b",
-            r"\bstrategic plan\b", r"\broadmap\b", r"\bvision\b", r"\bmission\b",
-            r"\bboard presentation\b", r"\bexecutive summary\b",
+            r"\bexecutive\b",
+            r"\bc-suite\b",
+            r"\bceo\b",
+            r"\bboard\b",
+            r"\bsponsor\b",
+            r"\bstakeholder management\b",
+            r"\bcoalition\b",
+            r"\bpolitics\b",
+            r"\bgovernance structure\b",
+            r"\bstrategic alignment\b",
+            r"\btransformation\b",
+            r"\bleadership\b",
+            r"\bbuy-in\b",
+            r"\bstrategic plan\b",
+            r"\broadmap\b",
+            r"\bvision\b",
+            r"\bmission\b",
+            r"\bboard presentation\b",
+            r"\bexecutive summary\b",
         ],
         "architect": [
-            r"\barchitecture\b", r"\bintegration\b", r"\bapi\b", r"\btechnical design\b",
-            r"\bbuild vs buy\b", r"\brag\b", r"\bvector\b", r"\bembedding\b",
-            r"\bmlops\b", r"\bdevops\b", r"\bmicroservices\b", r"\bdata pipeline\b",
-            r"\bsystem design\b", r"\btechnical\b",
-            r"\barchitecture diagram\b", r"\bapi documentation\b", r"\bsequence diagram\b",
-            r"\ber diagram\b", r"\bdata model\b", r"\btechnical spec\b",
+            r"\barchitecture\b",
+            r"\bintegration\b",
+            r"\bapi\b",
+            r"\btechnical design\b",
+            r"\bbuild vs buy\b",
+            r"\brag\b",
+            r"\bvector\b",
+            r"\bembedding\b",
+            r"\bmlops\b",
+            r"\bdevops\b",
+            r"\bmicroservices\b",
+            r"\bdata pipeline\b",
+            r"\bsystem design\b",
+            r"\btechnical\b",
+            r"\barchitecture diagram\b",
+            r"\bapi documentation\b",
+            r"\bsequence diagram\b",
+            r"\ber diagram\b",
+            r"\bdata model\b",
+            r"\btechnical spec\b",
         ],
         "operator": [
-            r"\bprocess\b", r"\bworkflow\b", r"\bautomation\b", r"\bmetrics\b",
-            r"\bkpi\b", r"\bbaseline\b", r"\bexception\b", r"\bsop\b",
-            r"\boperations\b", r"\befficiency\b", r"\bthroughput\b",
-            r"\bbottleneck\b", r"\bfrontline\b", r"\bday-to-day\b",
-            r"\bstandard operating procedure\b", r"\bprocess map\b",
-            r"\bworkflow diagram\b", r"\brunbook\b", r"\bplaybook\b",
+            r"\bprocess\b",
+            r"\bworkflow\b",
+            r"\bautomation\b",
+            r"\bmetrics\b",
+            r"\bkpi\b",
+            r"\bbaseline\b",
+            r"\bexception\b",
+            r"\bsop\b",
+            r"\boperations\b",
+            r"\befficiency\b",
+            r"\bthroughput\b",
+            r"\bbottleneck\b",
+            r"\bfrontline\b",
+            r"\bday-to-day\b",
+            r"\bstandard operating procedure\b",
+            r"\bprocess map\b",
+            r"\bworkflow diagram\b",
+            r"\brunbook\b",
+            r"\bplaybook\b",
         ],
         "pioneer": [
-            r"\bemerging\b", r"\binnovation\b", r"\br&d\b", r"\bnew technology\b",
-            r"\bcutting edge\b", r"\bexperimental\b", r"\bprototype\b",
-            r"\bhype\b", r"\bmaturity\b", r"\breadiness\b",
-            r"\bquantum\b", r"\bfuture\b", r"\bhorizon\b",
-            r"\bpoc\b", r"\bproof of concept\b", r"\btechnology assessment\b",
+            r"\bemerging\b",
+            r"\binnovation\b",
+            r"\br&d\b",
+            r"\bnew technology\b",
+            r"\bcutting edge\b",
+            r"\bexperimental\b",
+            r"\bprototype\b",
+            r"\bhype\b",
+            r"\bmaturity\b",
+            r"\breadiness\b",
+            r"\bquantum\b",
+            r"\bfuture\b",
+            r"\bhorizon\b",
+            r"\bpoc\b",
+            r"\bproof of concept\b",
+            r"\btechnology assessment\b",
             r"\binnovation brief\b",
         ],
         "catalyst": [
-            r"\binternal communications\b", r"\bmessaging\b", r"\bnarrative\b",
-            r"\bemployee engagement\b", r"\bannouncement\b", r"\ball-hands\b",
-            r"\btown hall\b", r"\binternal marketing\b", r"\bai anxiety\b",
-            r"\btransparency\b", r"\bemail\b",
-            r"\bcommunication plan\b", r"\bmessaging template\b", r"\bfaq\b",
+            r"\binternal communications\b",
+            r"\bmessaging\b",
+            r"\bnarrative\b",
+            r"\bemployee engagement\b",
+            r"\bannouncement\b",
+            r"\ball-hands\b",
+            r"\btown hall\b",
+            r"\binternal marketing\b",
+            r"\bai anxiety\b",
+            r"\btransparency\b",
+            r"\bemail\b",
+            r"\bcommunication plan\b",
+            r"\bmessaging template\b",
+            r"\bfaq\b",
         ],
         "scholar": [
-            r"\btraining\b", r"\blearning\b", r"\bl&d\b", r"\benablement\b",
-            r"\bcurriculum\b", r"\bcourse\b", r"\bworkshop\b", r"\bcertification\b",
-            r"\bchampion program\b", r"\bskill development\b", r"\badult learning\b",
-            r"\bcapability building\b", r"\bonboarding\b",
-            r"\btraining material\b", r"\bcourse outline\b", r"\blearning path\b",
-            r"\bquiz\b", r"\bassessment\b",
+            r"\btraining\b",
+            r"\blearning\b",
+            r"\bl&d\b",
+            r"\benablement\b",
+            r"\bcurriculum\b",
+            r"\bcourse\b",
+            r"\bworkshop\b",
+            r"\bcertification\b",
+            r"\bchampion program\b",
+            r"\bskill development\b",
+            r"\badult learning\b",
+            r"\bcapability building\b",
+            r"\bonboarding\b",
+            r"\btraining material\b",
+            r"\bcourse outline\b",
+            r"\blearning path\b",
+            r"\bquiz\b",
+            r"\bassessment\b",
         ],
         "echo": [
-            r"\bbrand voice\b", r"\bstyle\b", r"\btone\b", r"\bvoice analysis\b",
-            r"\bai emulation\b", r"\bwriting style\b", r"\bvoice profile\b",
-            r"\bbrand guidelines\b", r"\btone of voice\b", r"\bstyle guide\b",
-            r"\bcommunication style\b", r"\bbrand consistency\b",
+            r"\bbrand voice\b",
+            r"\bstyle\b",
+            r"\btone\b",
+            r"\bvoice analysis\b",
+            r"\bai emulation\b",
+            r"\bwriting style\b",
+            r"\bvoice profile\b",
+            r"\bbrand guidelines\b",
+            r"\btone of voice\b",
+            r"\bstyle guide\b",
+            r"\bcommunication style\b",
+            r"\bbrand consistency\b",
         ],
         "nexus": [
-            r"\bsystems thinking\b", r"\bfeedback loop\b", r"\bleverage point\b",
-            r"\bunintended consequence\b", r"\binterconnection\b", r"\bcomplexity\b",
-            r"\bsecond-order effect\b", r"\bsystem dynamics\b", r"\barchetype\b",
-            r"\breinforcing loop\b", r"\bbalancing loop\b", r"\bmental model\b",
-            r"\broot cause\b", r"\bholistic\b", r"\bripple effect\b",
-            r"\bcausal loop\b", r"\bsystem map\b",
+            r"\bsystems thinking\b",
+            r"\bfeedback loop\b",
+            r"\bleverage point\b",
+            r"\bunintended consequence\b",
+            r"\binterconnection\b",
+            r"\bcomplexity\b",
+            r"\bsecond-order effect\b",
+            r"\bsystem dynamics\b",
+            r"\barchetype\b",
+            r"\breinforcing loop\b",
+            r"\bbalancing loop\b",
+            r"\bmental model\b",
+            r"\broot cause\b",
+            r"\bholistic\b",
+            r"\bripple effect\b",
+            r"\bcausal loop\b",
+            r"\bsystem map\b",
         ],
     }
 
@@ -268,15 +472,16 @@ class DocumentClassifier:
         if len(sorted_scores) == 1:
             return sorted_scores[0] >= self.MEDIUM_CONFIDENCE_THRESHOLD
 
-        return sorted_scores[0] >= self.HIGH_CONFIDENCE_THRESHOLD and \
-               sorted_scores[0] - sorted_scores[1] >= 0.20
+        return (
+            sorted_scores[0] >= self.HIGH_CONFIDENCE_THRESHOLD
+            and sorted_scores[0] - sorted_scores[1] >= 0.20
+        )
 
     def _build_llm_prompt(self, sample_text: str) -> str:
         """Build the LLM classification prompt."""
-        agent_list = "\n".join([
-            f"- {name}: {desc}"
-            for name, desc in self.AGENT_DESCRIPTIONS.items()
-        ])
+        agent_list = "\n".join(
+            [f"- {name}: {desc}" for name, desc in self.AGENT_DESCRIPTIONS.items()]
+        )
 
         return f"""You are classifying a document to determine which Thesis agents should have access to it.
 
@@ -301,7 +506,7 @@ Analyze the document sample and determine which agents would find this document 
             response = self.anthropic.messages.create(
                 model="claude-3-5-haiku-20241022",
                 max_tokens=500,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             result_text = response.content[0].text.strip()
@@ -309,6 +514,7 @@ Analyze the document sample and determine which agents would find this document 
 
             # Parse JSON response
             import json
+
             if "```json" in result_text:
                 result_text = result_text.split("```json")[1].split("```")[0]
             elif "```" in result_text:
@@ -320,7 +526,10 @@ Analyze the document sample and determine which agents would find this document 
             for agent_info in data.get("agents", []):
                 agent_name = agent_info.get("name", "").lower()
                 confidence = float(agent_info.get("confidence", 0.0))
-                if agent_name in self.AGENT_KEYWORDS and confidence >= self.LOW_CONFIDENCE_THRESHOLD:
+                if (
+                    agent_name in self.AGENT_KEYWORDS
+                    and confidence >= self.LOW_CONFIDENCE_THRESHOLD
+                ):
                     scores[agent_name] = confidence
 
             detected_type = data.get("document_type", "unknown")
@@ -372,7 +581,9 @@ Analyze the document sample and determine which agents would find this document 
                 final_scores[agent] = score
 
         classifications = []
-        for agent_name, confidence in sorted(final_scores.items(), key=lambda x: x[1], reverse=True):
+        for agent_name, confidence in sorted(
+            final_scores.items(), key=lambda x: x[1], reverse=True
+        ):
             if confidence < self.LOW_CONFIDENCE_THRESHOLD:
                 continue
 
@@ -380,13 +591,15 @@ Analyze the document sample and determine which agents would find this document 
             if not agent_id:
                 continue
 
-            classifications.append(AgentClassification(
-                agent_id=agent_id,
-                agent_name=agent_name,
-                confidence=confidence,
-                relevance_score=confidence,
-                reason=f"Matched via {method} classification"
-            ))
+            classifications.append(
+                AgentClassification(
+                    agent_id=agent_id,
+                    agent_name=agent_name,
+                    confidence=confidence,
+                    relevance_score=confidence,
+                    reason=f"Matched via {method} classification",
+                )
+            )
 
         classifications = classifications[:3]
 
@@ -403,7 +616,7 @@ Analyze the document sample and determine which agents would find this document 
             classification_method=method,
             model_used="claude-3-5-haiku-20241022" if method == "hybrid" else None,
             tokens_used=tokens_used,
-            processing_time_ms=processing_time_ms
+            processing_time_ms=processing_time_ms,
         )
 
     async def store_classification(self, result, auto_link_agents: bool = True):
@@ -431,7 +644,7 @@ Analyze the document sample and determine which agents would find this document 
                         await self._link_agent_to_document(
                             document_id=result.document_id,
                             classification=classification,
-                            source=result.classification_method
+                            source=result.classification_method,
                         )
 
             return True
@@ -442,31 +655,37 @@ Analyze the document sample and determine which agents would find this document 
     async def _link_agent_to_document(self, document_id, classification, source):
         """Create agent_knowledge_base link with relevance scoring."""
         try:
-            existing = self.supabase.table("agent_knowledge_base")\
-                .select("id")\
-                .eq("document_id", document_id)\
-                .eq("agent_id", classification.agent_id)\
+            existing = (
+                self.supabase.table("agent_knowledge_base")
+                .select("id")
+                .eq("document_id", document_id)
+                .eq("agent_id", classification.agent_id)
                 .execute()
+            )
 
             if existing.data:
-                self.supabase.table("agent_knowledge_base").update({
-                    "relevance_score": classification.relevance_score,
-                    "classification_source": f"auto_{source}",
-                    "classification_confidence": classification.confidence,
-                    "classification_reason": classification.reason,
-                    "user_confirmed": False,
-                }).eq("id", existing.data[0]["id"]).execute()
+                self.supabase.table("agent_knowledge_base").update(
+                    {
+                        "relevance_score": classification.relevance_score,
+                        "classification_source": f"auto_{source}",
+                        "classification_confidence": classification.confidence,
+                        "classification_reason": classification.reason,
+                        "user_confirmed": False,
+                    }
+                ).eq("id", existing.data[0]["id"]).execute()
             else:
-                self.supabase.table("agent_knowledge_base").insert({
-                    "document_id": document_id,
-                    "agent_id": classification.agent_id,
-                    "relevance_score": classification.relevance_score,
-                    "classification_source": f"auto_{source}",
-                    "classification_confidence": classification.confidence,
-                    "classification_reason": classification.reason,
-                    "user_confirmed": False,
-                    "priority": 0,
-                }).execute()
+                self.supabase.table("agent_knowledge_base").insert(
+                    {
+                        "document_id": document_id,
+                        "agent_id": classification.agent_id,
+                        "relevance_score": classification.relevance_score,
+                        "classification_source": f"auto_{source}",
+                        "classification_confidence": classification.confidence,
+                        "classification_reason": classification.reason,
+                        "user_confirmed": False,
+                        "priority": 0,
+                    }
+                ).execute()
 
             return True
 
@@ -477,6 +696,7 @@ Analyze the document sample and determine which agents would find this document 
 # ============================================================================
 # Test Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def classifier():
@@ -489,7 +709,11 @@ def mock_anthropic_client():
     """Mock Anthropic client for LLM classification."""
     client = Mock()
     response = Mock()
-    response.content = [Mock(text='{"agents": [{"name": "atlas", "confidence": 0.85, "reason": "Research content"}], "document_type": "research report"}')]
+    response.content = [
+        Mock(
+            text='{"agents": [{"name": "atlas", "confidence": 0.85, "reason": "Research content"}], "document_type": "research report"}'
+        )
+    ]
     response.usage = Mock(input_tokens=100, output_tokens=50)
     client.messages.create.return_value = response
     return client
@@ -505,12 +729,15 @@ def classifier_with_llm(mock_anthropic_client):
 # Test: Keyword Scoring
 # ============================================================================
 
+
 class TestKeywordScoring:
     """Test keyword-based scoring logic."""
 
     def test_financial_keywords_match_capital_agent(self, classifier):
         """Financial keywords should score high for Capital agent."""
-        text = "The ROI analysis shows a 15% return on investment. Budget allocation for Q2 is $500K."
+        text = (
+            "The ROI analysis shows a 15% return on investment. Budget allocation for Q2 is $500K."
+        )
         scores = classifier._score_keywords(text)
 
         assert "capital" in scores
@@ -624,13 +851,16 @@ class TestClearWinnerDetection:
 # Test: LLM Classification
 # ============================================================================
 
+
 class TestLLMClassification:
     """Test LLM-based classification."""
 
     @pytest.mark.asyncio
     async def test_llm_classification_parses_response(self, classifier_with_llm):
         """LLM classification should parse valid JSON response."""
-        scores, doc_type, tokens = await classifier_with_llm._classify_with_llm("Sample research text")
+        scores, doc_type, tokens = await classifier_with_llm._classify_with_llm(
+            "Sample research text"
+        )
 
         assert "atlas" in scores
         assert scores["atlas"] == 0.85
@@ -649,9 +879,9 @@ class TestLLMClassification:
     @pytest.mark.asyncio
     async def test_llm_handles_markdown_code_blocks(self, mock_anthropic_client):
         """LLM classification handles JSON wrapped in markdown code blocks."""
-        mock_anthropic_client.messages.create.return_value.content[0].text = '''```json
+        mock_anthropic_client.messages.create.return_value.content[0].text = """```json
 {"agents": [{"name": "capital", "confidence": 0.9, "reason": "Financial"}], "document_type": "invoice"}
-```'''
+```"""
         classifier = DocumentClassifier(anthropic_client=mock_anthropic_client)
 
         scores, doc_type, tokens = await classifier._classify_with_llm("Invoice text")
@@ -662,10 +892,10 @@ class TestLLMClassification:
     @pytest.mark.asyncio
     async def test_llm_filters_low_confidence_agents(self, mock_anthropic_client):
         """LLM classification filters out low confidence agents."""
-        mock_anthropic_client.messages.create.return_value.content[0].text = '''{"agents": [
+        mock_anthropic_client.messages.create.return_value.content[0].text = """{"agents": [
             {"name": "atlas", "confidence": 0.85, "reason": "High"},
             {"name": "capital", "confidence": 0.3, "reason": "Low"}
-        ], "document_type": "mixed"}'''
+        ], "document_type": "mixed"}"""
         classifier = DocumentClassifier(anthropic_client=mock_anthropic_client)
 
         scores, _, _ = await classifier._classify_with_llm("Test text")
@@ -689,14 +919,13 @@ class TestLLMClassification:
 # Test: Review Determination
 # ============================================================================
 
+
 class TestReviewDetermination:
     """Test user review requirement logic."""
 
     def test_high_confidence_no_review(self, classifier):
         """High confidence classification needs no review."""
-        classifications = [
-            AgentClassification("id1", "atlas", 0.85, 0.85, "High match")
-        ]
+        classifications = [AgentClassification("id1", "atlas", 0.85, 0.85, "High match")]
         needs_review, reason = classifier._determine_review_needed(classifications)
 
         assert not needs_review
@@ -713,7 +942,7 @@ class TestReviewDetermination:
         """Close confidence scores need review."""
         classifications = [
             AgentClassification("id1", "atlas", 0.75, 0.75, "Match"),
-            AgentClassification("id2", "capital", 0.72, 0.72, "Match")
+            AgentClassification("id2", "capital", 0.72, 0.72, "Match"),
         ]
         needs_review, reason = classifier._determine_review_needed(classifications)
 
@@ -722,18 +951,14 @@ class TestReviewDetermination:
 
     def test_medium_confidence_single_no_review(self, classifier):
         """Medium confidence single match auto-tags without review."""
-        classifications = [
-            AgentClassification("id1", "atlas", 0.65, 0.65, "Match")
-        ]
+        classifications = [AgentClassification("id1", "atlas", 0.65, 0.65, "Match")]
         needs_review, reason = classifier._determine_review_needed(classifications)
 
         assert not needs_review
 
     def test_low_confidence_needs_review(self, classifier):
         """Low confidence classification needs review."""
-        classifications = [
-            AgentClassification("id1", "atlas", 0.45, 0.45, "Low match")
-        ]
+        classifications = [AgentClassification("id1", "atlas", 0.45, 0.45, "Low match")]
         needs_review, reason = classifier._determine_review_needed(classifications)
 
         assert needs_review
@@ -744,6 +969,7 @@ class TestReviewDetermination:
 # Test: Full Classification Flow
 # ============================================================================
 
+
 class TestClassifyDocument:
     """Test full document classification flow."""
 
@@ -753,7 +979,7 @@ class TestClassifyDocument:
         chunks = [
             "McKinsey research shows GenAI adoption trends.",
             "Gartner study recommends AI implementation best practices.",
-            "Consulting firms report on enterprise AI strategy."
+            "Consulting firms report on enterprise AI strategy.",
         ]
 
         result = await classifier.classify("doc-123", chunks)
@@ -769,7 +995,7 @@ class TestClassifyDocument:
         chunks = [
             "General business document with no clear keywords.",
             "Some content that could apply to multiple areas.",
-            "Vague references to various topics."
+            "Vague references to various topics.",
         ]
 
         result = await classifier_with_llm.classify("doc-456", chunks)
@@ -783,7 +1009,7 @@ class TestClassifyDocument:
         chunks = [
             "ROI analysis of security compliance for training program.",
             "Budget for IT governance and employee learning curriculum.",
-            "Financial audit of certification course costs and risk assessment."
+            "Financial audit of certification course costs and risk assessment.",
         ]
 
         result = await classifier.classify("doc-789", chunks)
@@ -802,6 +1028,7 @@ class TestClassifyDocument:
 # Test: Database Storage
 # ============================================================================
 
+
 class TestStoreClassification:
     """Test classification result storage."""
 
@@ -810,18 +1037,18 @@ class TestStoreClassification:
         """Storing classification creates database record."""
         mock_sb = Mock()
         mock_sb.table.return_value.insert.return_value.execute.return_value = Mock(data=[])
-        mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = Mock(data=[])
+        mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = Mock(
+            data=[]
+        )
 
         classifier = DocumentClassifier(supabase_client=mock_sb)
 
         result = DocumentClassificationResult(
             document_id="doc-store-1",
             detected_type="research report",
-            classifications=[
-                AgentClassification("agent-1", "atlas", 0.85, 0.85, "Match")
-            ],
+            classifications=[AgentClassification("agent-1", "atlas", 0.85, 0.85, "Match")],
             requires_user_review=False,
-            classification_method="keyword"
+            classification_method="keyword",
         )
 
         success = await classifier.store_classification(result)
@@ -834,18 +1061,18 @@ class TestStoreClassification:
         """Confident classifications auto-link to agents."""
         mock_sb = Mock()
         mock_sb.table.return_value.insert.return_value.execute.return_value = Mock(data=[])
-        mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = Mock(data=[])
+        mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = Mock(
+            data=[]
+        )
 
         classifier = DocumentClassifier(supabase_client=mock_sb)
 
         result = DocumentClassificationResult(
             document_id="doc-link-1",
             detected_type="financial",
-            classifications=[
-                AgentClassification("agent-1", "capital", 0.90, 0.90, "High match")
-            ],
+            classifications=[AgentClassification("agent-1", "capital", 0.90, 0.90, "High match")],
             requires_user_review=False,
-            classification_method="keyword"
+            classification_method="keyword",
         )
 
         await classifier.store_classification(result, auto_link_agents=True)
@@ -857,6 +1084,7 @@ class TestStoreClassification:
 # ============================================================================
 # Test: Edge Cases
 # ============================================================================
+
 
 class TestEdgeCases:
     """Test edge cases and error handling."""
@@ -902,6 +1130,7 @@ class TestEdgeCases:
 # ============================================================================
 # Test: Agent Keyword Coverage
 # ============================================================================
+
 
 class TestAgentKeywordCoverage:
     """Ensure all agents have working keyword patterns."""

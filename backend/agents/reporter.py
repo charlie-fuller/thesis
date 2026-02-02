@@ -1,5 +1,4 @@
-"""
-Reporter Agent - Meeting Synthesis and Documentation
+"""Reporter Agent - Meeting Synthesis and Documentation
 
 The Reporter agent specializes in:
 - Synthesizing multi-agent discussions into clear summaries
@@ -16,16 +15,16 @@ import logging
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class ReporterAgent(BaseAgent):
-    """
-    Reporter - The Synthesis and Documentation meta-agent.
+    """Reporter - The Synthesis and Documentation meta-agent.
 
     Provides unified documentation of multi-agent discussions.
     Responds to summary, recap, and action item requests.
@@ -37,7 +36,7 @@ class ReporterAgent(BaseAgent):
             name="reporter",
             display_name="Reporter",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -112,23 +111,25 @@ You respond when the user asks for:
         messages = self._build_messages(context)
 
         # Add meeting context if available
-        if hasattr(context, 'meeting_history') and context.meeting_history:
+        if hasattr(context, "meeting_history") and context.meeting_history:
             meeting_context = "\n\nMeeting discussion to synthesize:\n"
             for msg in context.meeting_history:
-                agent = msg.get('agent_display_name', msg.get('agent_name', 'Unknown'))
-                content = msg.get('content', '')
-                role = msg.get('role', 'user')
-                if role == 'agent':
+                agent = msg.get("agent_display_name", msg.get("agent_name", "Unknown"))
+                content = msg.get("content", "")
+                role = msg.get("role", "user")
+                if role == "agent":
                     meeting_context += f"\n**{agent}**: {content}\n"
-                elif role == 'user':
+                elif role == "user":
                     meeting_context += f"\n**User**: {content}\n"
-            messages[0]["content"] = meeting_context + "\n\nUser request:\n" + messages[0]["content"]
+            messages[0]["content"] = (
+                meeting_context + "\n\nUser request:\n" + messages[0]["content"]
+            )
 
         response = self.anthropic.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=2048,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -138,7 +139,7 @@ You respond when the user asks for:
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=False,
-            memory_content=None
+            memory_content=None,
         )
 
     def is_summary_request(self, message: str) -> bool:
@@ -146,23 +147,43 @@ You respond when the user asks for:
         message_lower = message.lower().strip()
 
         summary_patterns = [
-            'summary', 'summarize', 'summarise', 'sum up',
-            'recap', 'recapitulate',
-            'takeaway', 'take away', 'takeaways',
-            'action item', 'action items', 'next step', 'next steps',
-            'what did we', 'what have we',
-            'wrap up', 'wrap-up',
-            'highlight', 'highlights',
-            'key point', 'key points',
-            'conclude', 'conclusion',
-            'document', 'documentation',
-            'brief', 'briefing',
-            'share with', 'send to', 'forward to',
-            'bottom line', 'bottomline',
-            'tldr', 'tl;dr',
-            'give me the',
-            'what should i take',
-            'what do i need to know'
+            "summary",
+            "summarize",
+            "summarise",
+            "sum up",
+            "recap",
+            "recapitulate",
+            "takeaway",
+            "take away",
+            "takeaways",
+            "action item",
+            "action items",
+            "next step",
+            "next steps",
+            "what did we",
+            "what have we",
+            "wrap up",
+            "wrap-up",
+            "highlight",
+            "highlights",
+            "key point",
+            "key points",
+            "conclude",
+            "conclusion",
+            "document",
+            "documentation",
+            "brief",
+            "briefing",
+            "share with",
+            "send to",
+            "forward to",
+            "bottom line",
+            "bottomline",
+            "tldr",
+            "tl;dr",
+            "give me the",
+            "what should i take",
+            "what do i need to know",
         ]
 
         for pattern in summary_patterns:

@@ -1,5 +1,4 @@
-"""
-Vibe-Coding Bug Tests
+"""Vibe-Coding Bug Tests
 
 These tests target the common failure modes in AI-assisted codebases:
 - Array/List edge cases
@@ -18,16 +17,16 @@ Combined with test_projects.py tests for:
 Total coverage targets 90%+ of vibe-coding bugs.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
-from datetime import datetime, timedelta, timezone
-from uuid import uuid4
 import asyncio
+from datetime import datetime, timezone
+from uuid import uuid4
 
+import pytest
 
 # ============================================================================
 # CATEGORY 3: ARRAY/LIST EDGE CASES
 # ============================================================================
+
 
 class TestArrayListEdgeCases:
     """Tests for empty arrays, single items, and pagination boundaries."""
@@ -39,7 +38,13 @@ class TestArrayListEdgeCases:
             "tier_2": [],
             "tier_3": [],
             "tier_4": [],
-            "summary": {"tier_1_count": 0, "tier_2_count": 0, "tier_3_count": 0, "tier_4_count": 0, "total": 0}
+            "summary": {
+                "tier_1_count": 0,
+                "tier_2_count": 0,
+                "tier_3_count": 0,
+                "tier_4_count": 0,
+                "total": 0,
+            },
         }
         # Each tier should be an empty list, not None or missing
         assert response["tier_1"] == []
@@ -56,12 +61,9 @@ class TestArrayListEdgeCases:
 
     def test_empty_blockers_array_serializes_correctly(self):
         """Empty blockers array should serialize as [], not null."""
-        project = {
-            "id": str(uuid4()),
-            "blockers": [],
-            "follow_up_questions": []
-        }
+        project = {"id": str(uuid4()), "blockers": [], "follow_up_questions": []}
         import json
+
         serialized = json.dumps(project)
         deserialized = json.loads(serialized)
         assert deserialized["blockers"] == []
@@ -72,7 +74,7 @@ class TestArrayListEdgeCases:
         all_items = [{"id": i} for i in range(5)]
         page_size = 10
         offset = 20  # Way beyond our 5 items
-        page = all_items[offset:offset + page_size]
+        page = all_items[offset : offset + page_size]
         assert page == []
 
     def test_negative_offset_handled(self):
@@ -81,7 +83,7 @@ class TestArrayListEdgeCases:
         offset = -5
         # Should either clamp to 0 or be rejected
         safe_offset = max(0, offset)
-        page = all_items[safe_offset:safe_offset + 10]
+        page = all_items[safe_offset : safe_offset + 10]
         assert len(page) == 5
 
     def test_tags_array_can_be_none_or_empty(self):
@@ -100,12 +102,14 @@ class TestArrayListEdgeCases:
 # CATEGORY 4: TYPE COERCION BUGS
 # ============================================================================
 
+
 class TestTypeCoercionBugs:
     """Tests for string/int/UUID/boolean type handling."""
 
     def test_uuid_string_equality(self):
         """UUID objects and their string representations should be comparable."""
         from uuid import UUID
+
         uuid_obj = uuid4()
         uuid_str = str(uuid_obj)
 
@@ -152,7 +156,8 @@ class TestTypeCoercionBugs:
         assert tier_config[tier_int] == "Tier 1"
 
     def test_null_vs_empty_string_in_optional_fields(self):
-        """null and '' should both be treated as 'no value'."""
+        """Null and '' should both be treated as 'no value'."""
+
         def is_empty(val):
             return val is None or val == ""
 
@@ -186,6 +191,7 @@ class TestTypeCoercionBugs:
 # ============================================================================
 # CATEGORY 5: ASYNC RACE CONDITIONS
 # ============================================================================
+
 
 class TestAsyncRaceConditions:
     """Tests for double-submit, concurrent updates, and stale state."""
@@ -258,13 +264,15 @@ class TestAsyncRaceConditions:
         await update_task
 
         # Read should have consistent state
-        assert (read_result["title"] == "Original" and read_result["score"] == 10) or \
-               (read_result["title"] == "Updated" and read_result["score"] == 20)
+        assert (read_result["title"] == "Original" and read_result["score"] == 10) or (
+            read_result["title"] == "Updated" and read_result["score"] == 20
+        )
 
 
 # ============================================================================
 # CATEGORY 6: ERROR MESSAGE PROPAGATION
 # ============================================================================
+
 
 class TestErrorMessagePropagation:
     """Tests for meaningful error messages reaching the frontend."""
@@ -277,11 +285,11 @@ class TestErrorMessagePropagation:
             title: str
             tier: int
 
-            @field_validator('tier')
+            @field_validator("tier")
             @classmethod
             def tier_must_be_valid(cls, v):
                 if v < 1 or v > 4:
-                    raise ValueError('Tier must be between 1 and 4')
+                    raise ValueError("Tier must be between 1 and 4")
                 return v
 
         with pytest.raises(ValidationError) as exc_info:
@@ -293,6 +301,7 @@ class TestErrorMessagePropagation:
 
     def test_not_found_error_includes_resource_type(self):
         """404 errors should say what wasn't found."""
+
         def get_project(opp_id: str):
             # Simulate not found
             raise ValueError(f"Project {opp_id} not found")
@@ -305,6 +314,7 @@ class TestErrorMessagePropagation:
 
     def test_duplicate_error_message_is_clear(self):
         """Duplicate key errors should be user-friendly."""
+
         def create_with_duplicate_code():
             # Simulate unique constraint violation
             raise ValueError("Project with code OPP-001 already exists")
@@ -317,6 +327,7 @@ class TestErrorMessagePropagation:
 
     def test_permission_error_doesnt_leak_info(self):
         """Permission errors shouldn't reveal existence of resources."""
+
         def check_access(user_id: str, resource_id: str):
             # Bad: "You don't have access to Project X"
             # Good: "Resource not found or access denied"
@@ -332,6 +343,7 @@ class TestErrorMessagePropagation:
 # ============================================================================
 # CATEGORY 7: DEFAULT VALUE CONSISTENCY
 # ============================================================================
+
 
 class TestDefaultValueConsistency:
     """Tests for frontend/backend default value alignment."""
@@ -350,6 +362,7 @@ class TestDefaultValueConsistency:
 
     def test_project_default_tier_calculation(self):
         """Default tier based on null scores should be tier 4."""
+
         def calculate_tier(total_score: int) -> int:
             if total_score >= 17:
                 return 1
@@ -396,6 +409,7 @@ class TestDefaultValueConsistency:
 # ============================================================================
 # CATEGORY 9: PERMISSION/ISOLATION BUGS
 # ============================================================================
+
 
 class TestPermissionIsolation:
     """Tests for multi-tenant data isolation."""
@@ -469,6 +483,7 @@ class TestPermissionIsolation:
 # ============================================================================
 # CATEGORY 10: UI STATE SYNC EXPECTATIONS
 # ============================================================================
+
 
 class TestUIStateSyncExpectations:
     """Tests for data that frontend expects after mutations."""
@@ -550,6 +565,7 @@ class TestUIStateSyncExpectations:
 # INTEGRATION: FULL FLOW TESTS
 # ============================================================================
 
+
 class TestFullFlowIntegration:
     """End-to-end flow tests combining multiple bug categories."""
 
@@ -581,16 +597,25 @@ class TestFullFlowIntegration:
 
         # Frontend display requirements
         required_display_fields = [
-            "id", "project_code", "title", "status", "tier",
-            "total_score", "created_at"
+            "id",
+            "project_code",
+            "title",
+            "status",
+            "tier",
+            "total_score",
+            "created_at",
         ]
 
         for field in required_display_fields:
             assert field in created, f"Missing required field: {field}"
 
         # Score fields can be null but must exist
-        score_fields = ["roi_potential", "implementation_effort",
-                       "strategic_alignment", "stakeholder_readiness"]
+        score_fields = [
+            "roi_potential",
+            "implementation_effort",
+            "strategic_alignment",
+            "stakeholder_readiness",
+        ]
         for field in score_fields:
             assert field in created, f"Missing score field: {field}"
 

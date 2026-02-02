@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/disco/chat_service.py
+# hypothesis_version: 6.151.3
+
+[2048, '\n---\n', '*', '*, disco_messages(*)', 'ANTHROPIC_API_KEY', 'Document', 'KB Document', 'Methodology', 'PURDY_CHAT_MODEL', 'Unknown', 'assistant', 'content', 'conversation_id', 'created_at', 'disco_conversations', 'disco_messages', 'document', 'document_id', 'filename', 'id', 'initiative_id', 'kb_id', 'linked_kb', 'messages', 'name', 'response', 'role', 'role, content', 'similarity', 'sources', 'system_kb', 'title', 'type', 'user', 'user_id']

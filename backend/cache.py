@@ -1,5 +1,4 @@
-"""
-Redis Cache Utility
+"""Redis Cache Utility
 
 Provides caching layer for frequently accessed data with graceful fallback.
 If Redis is not available, operations silently fail and data is fetched normally.
@@ -33,6 +32,7 @@ logger = get_logger(__name__)
 # Try to import Redis - graceful fallback if not available
 try:
     import redis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -40,6 +40,7 @@ except ImportError:
 
 # Initialize Redis client
 _redis_client: Optional[Any] = None
+
 
 def _get_redis_client():
     """Get or create Redis client with connection pooling"""
@@ -65,7 +66,7 @@ def _get_redis_client():
             socket_connect_timeout=2,
             socket_timeout=2,
             retry_on_timeout=True,
-            health_check_interval=30
+            health_check_interval=30,
         )
 
         # Test connection
@@ -80,8 +81,7 @@ def _get_redis_client():
 
 
 def cache_get(key: str, namespace: str = "default") -> Optional[Any]:
-    """
-    Get value from cache.
+    """Get value from cache.
 
     Args:
         key: Cache key
@@ -110,8 +110,7 @@ def cache_get(key: str, namespace: str = "default") -> Optional[Any]:
 
 
 def cache_set(key: str, value: Any, ttl: int = 300, namespace: str = "default") -> bool:
-    """
-    Set value in cache with TTL.
+    """Set value in cache with TTL.
 
     Args:
         key: Cache key
@@ -142,8 +141,7 @@ def cache_set(key: str, value: Any, ttl: int = 300, namespace: str = "default") 
 
 
 def cache_delete(key: str, namespace: str = "default") -> bool:
-    """
-    Delete value from cache.
+    """Delete value from cache.
 
     Args:
         key: Cache key
@@ -167,8 +165,7 @@ def cache_delete(key: str, namespace: str = "default") -> bool:
 
 
 def cache_invalidate_pattern(pattern: str, namespace: str = "default") -> int:
-    """
-    Invalidate all keys matching a pattern.
+    """Invalidate all keys matching a pattern.
 
     Args:
         pattern: Pattern to match (e.g., "user:*")
@@ -195,8 +192,7 @@ def cache_invalidate_pattern(pattern: str, namespace: str = "default") -> int:
 
 
 def hash_cache_key(*args, **kwargs) -> str:
-    """
-    Generate a deterministic cache key from arguments.
+    """Generate a deterministic cache key from arguments.
 
     Args:
         *args: Positional arguments to hash
@@ -208,7 +204,7 @@ def hash_cache_key(*args, **kwargs) -> str:
     # Combine args and kwargs into a stable string
     key_data = {
         "args": args,
-        "kwargs": sorted(kwargs.items())  # Sort for deterministic ordering
+        "kwargs": sorted(kwargs.items()),  # Sort for deterministic ordering
     }
 
     key_str = json.dumps(key_data, sort_keys=True)
@@ -217,6 +213,7 @@ def hash_cache_key(*args, **kwargs) -> str:
 
 
 # Convenience functions for common cache patterns
+
 
 def cache_system_instructions(user_id: str, instructions: str, ttl: int = 3600):
     """Cache system instructions for a user (1 hour default TTL)"""
@@ -248,8 +245,7 @@ def invalidate_user_cache(user_id: str):
 
 
 def invalidate_all_system_instructions():
-    """
-    Invalidate ALL system instruction caches (Redis + lru_cache).
+    """Invalidate ALL system instruction caches (Redis + lru_cache).
     Use this when system instructions have been updated or a new version is activated.
     """
     # Clear Redis sys_inst namespace (user-specific caches)
@@ -263,6 +259,7 @@ def invalidate_all_system_instructions():
     # Clear the lru_cache on the loader function
     try:
         from system_instructions_loader import load_user_system_instructions
+
         load_user_system_instructions.cache_clear()
         logger.info("Cleared lru_cache for system instructions loader")
     except Exception as e:
@@ -278,24 +275,17 @@ def invalidate_search_cache(client_id: str):
 
 # Health check
 def cache_health_check() -> dict:
-    """
-    Check Redis connection health.
+    """Check Redis connection health.
 
     Returns:
         dict with status and details
     """
     if not REDIS_AVAILABLE:
-        return {
-            "status": "unavailable",
-            "reason": "Redis library not installed"
-        }
+        return {"status": "unavailable", "reason": "Redis library not installed"}
 
     client = _get_redis_client()
     if client is None:
-        return {
-            "status": "disabled",
-            "reason": "REDIS_URL not configured or connection failed"
-        }
+        return {"status": "disabled", "reason": "REDIS_URL not configured or connection failed"}
 
     try:
         client.ping()
@@ -304,13 +294,10 @@ def cache_health_check() -> dict:
             "status": "healthy",
             "total_commands_processed": info.get("total_commands_processed", 0),
             "keyspace_hits": info.get("keyspace_hits", 0),
-            "keyspace_misses": info.get("keyspace_misses", 0)
+            "keyspace_misses": info.get("keyspace_misses", 0),
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "reason": str(e)
-        }
+        return {"status": "error", "reason": str(e)}
 
 
 # For testing

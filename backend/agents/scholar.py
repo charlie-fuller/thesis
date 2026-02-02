@@ -1,5 +1,4 @@
-"""
-Scholar Agent - Learning & Development Partner
+"""Scholar Agent - Learning & Development Partner
 
 The Scholar agent specializes in:
 - AI training program design
@@ -14,16 +13,16 @@ from pathlib import Path
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class ScholarAgent(BaseAgent):
-    """
-    Scholar - The Learning & Development Partner.
+    """Scholar - The Learning & Development Partner.
 
     Specializes in AI training programs, champion enablement,
     skill development, and adult learning methodology.
@@ -34,7 +33,7 @@ class ScholarAgent(BaseAgent):
             name="scholar",
             display_name="Scholar",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -71,7 +70,7 @@ Help design effective, sustainable AI learning programs."""
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -84,14 +83,22 @@ Help design effective, sustainable AI learning programs."""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"L&D insight: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"L&D insight: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         important_indicators = [
-            "training", "learning", "curriculum", "program",
-            "champion", "enablement", "skill", "development"
+            "training",
+            "learning",
+            "curriculum",
+            "program",
+            "champion",
+            "enablement",
+            "skill",
+            "development",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -110,11 +117,17 @@ Help design effective, sustainable AI learning programs."""
         message_lower = context.user_message.lower()
 
         # Hand off to Sage for community and people strategy
-        if any(word in message_lower for word in ["community", "burnout", "resistance", "psychological safety"]):
+        if any(
+            word in message_lower
+            for word in ["community", "burnout", "resistance", "psychological safety"]
+        ):
             return ("sage", "Query requires people/change management expertise")
 
         # Hand off to Catalyst for communications
-        if any(word in message_lower for word in ["announcement", "messaging", "internal comms", "email"]):
+        if any(
+            word in message_lower
+            for word in ["announcement", "messaging", "internal comms", "email"]
+        ):
             return ("catalyst", "Query requires internal communications expertise")
 
         # Hand off to Atlas for research on learning effectiveness

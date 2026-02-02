@@ -1,5 +1,4 @@
-"""
-Chat Endpoint and RAG Tests
+"""Chat Endpoint and RAG Tests
 
 Tests for the chat API endpoint, RAG context retrieval, and streaming responses.
 """
@@ -10,6 +9,7 @@ from unittest.mock import MagicMock, patch
 # Chat Request Validation Tests
 # ============================================================================
 
+
 class TestChatRequestValidation:
     """Tests for chat request validation."""
 
@@ -19,7 +19,9 @@ class TestChatRequestValidation:
         """Test chat with a valid message."""
         # Setup mocks
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
+            data=[]
+        )
         mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
             data=[{"id": "msg-123"}]
         )
@@ -35,8 +37,8 @@ class TestChatRequestValidation:
             json={
                 "conversation_id": "conv-123",
                 "message": "Hello, how are you?",
-                "use_rag": False
-            }
+                "use_rag": False,
+            },
         )
 
         # Should return streaming response (200 OK)
@@ -45,11 +47,7 @@ class TestChatRequestValidation:
     def test_chat_without_authentication(self, test_client):
         """Test that unauthenticated requests are rejected."""
         response = test_client.post(
-            "/api/chat",
-            json={
-                "conversation_id": "conv-123",
-                "message": "Hello"
-            }
+            "/api/chat", json={"conversation_id": "conv-123", "message": "Hello"}
         )
 
         assert response.status_code == 403
@@ -57,11 +55,7 @@ class TestChatRequestValidation:
     def test_chat_with_empty_message(self, authenticated_client):
         """Test that empty messages are rejected."""
         response = authenticated_client.post(
-            "/api/chat",
-            json={
-                "conversation_id": "conv-123",
-                "message": ""
-            }
+            "/api/chat", json={"conversation_id": "conv-123", "message": ""}
         )
 
         assert response.status_code == 422  # Validation error
@@ -71,23 +65,14 @@ class TestChatRequestValidation:
         long_message = "a" * 10001
 
         response = authenticated_client.post(
-            "/api/chat",
-            json={
-                "conversation_id": "conv-123",
-                "message": long_message
-            }
+            "/api/chat", json={"conversation_id": "conv-123", "message": long_message}
         )
 
         assert response.status_code == 422  # Validation error
 
     def test_chat_without_conversation_id(self, authenticated_client):
         """Test that missing conversation_id is handled."""
-        response = authenticated_client.post(
-            "/api/chat",
-            json={
-                "message": "Hello"
-            }
-        )
+        response = authenticated_client.post("/api/chat", json={"message": "Hello"})
 
         assert response.status_code == 422  # Missing required field
 
@@ -95,6 +80,7 @@ class TestChatRequestValidation:
 # ============================================================================
 # RAG Context Tests
 # ============================================================================
+
 
 class TestRAGContext:
     """Tests for RAG context retrieval."""
@@ -110,7 +96,7 @@ class TestRAGContext:
         results = search_similar_chunks(
             query="What are the key points from my training documents?",
             client_id="test-client",
-            limit=5
+            limit=5,
         )
 
         mock_search.assert_called_once()
@@ -124,8 +110,17 @@ class TestRAGContext:
         for msg in simple_messages:
             # The chat endpoint logic checks for simple messages
             is_simple = msg.lower().strip() in {
-                'hello', 'hi', 'hey', 'greetings', 'good morning',
-                'thanks', 'thank you', 'bye', 'goodbye', 'ok', 'okay'
+                "hello",
+                "hi",
+                "hey",
+                "greetings",
+                "good morning",
+                "thanks",
+                "thank you",
+                "bye",
+                "goodbye",
+                "ok",
+                "okay",
             }
             assert is_simple, f"'{msg}' should be detected as simple message"
 
@@ -136,16 +131,14 @@ class TestRAGContext:
             {
                 "content": "Training best practices include...",
                 "document_id": "doc-123",
-                "similarity": 0.85
+                "similarity": 0.85,
             }
         ]
 
         from document_processor import search_similar_chunks
 
         results = search_similar_chunks(
-            query="What are training best practices?",
-            client_id="test-client",
-            limit=5
+            query="What are training best practices?", client_id="test-client", limit=5
         )
 
         assert len(results) == 1
@@ -155,6 +148,7 @@ class TestRAGContext:
 # ============================================================================
 # Streaming Response Tests
 # ============================================================================
+
 
 class TestStreamingResponse:
     """Tests for streaming response functionality."""
@@ -181,6 +175,7 @@ class TestStreamingResponse:
 # Conversation Context Tests
 # ============================================================================
 
+
 class TestConversationContext:
     """Tests for conversation history context."""
 
@@ -191,13 +186,20 @@ class TestConversationContext:
         mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(
             data=[
                 {"role": "user", "content": "Previous question"},
-                {"role": "assistant", "content": "Previous answer"}
+                {"role": "assistant", "content": "Previous answer"},
             ]
         )
         mock_get_supabase.return_value = mock_supabase
 
         # Verify conversation history retrieval
-        result = mock_supabase.table("messages").select("*").eq("conversation_id", "conv-123").order("created_at").limit(10).execute()
+        result = (
+            mock_supabase.table("messages")
+            .select("*")
+            .eq("conversation_id", "conv-123")
+            .order("created_at")
+            .limit(10)
+            .execute()
+        )
 
         assert len(result.data) == 2
         assert result.data[0]["role"] == "user"
@@ -208,11 +210,11 @@ class TestConversationContext:
             data=[{"id": "msg-new", "content": "New message"}]
         )
 
-        result = mock_supabase.table("messages").insert({
-            "conversation_id": "conv-123",
-            "role": "user",
-            "content": "New message"
-        }).execute()
+        result = (
+            mock_supabase.table("messages")
+            .insert({"conversation_id": "conv-123", "role": "user", "content": "New message"})
+            .execute()
+        )
 
         assert result.data[0]["content"] == "New message"
 
@@ -221,12 +223,15 @@ class TestConversationContext:
 # Error Handling Tests
 # ============================================================================
 
+
 class TestChatErrorHandling:
     """Tests for chat endpoint error handling."""
 
     @patch("database.get_supabase")
     @patch("api.routes.chat.anthropic_client")
-    def test_anthropic_api_error_handled(self, mock_anthropic, mock_get_supabase, authenticated_client):
+    def test_anthropic_api_error_handled(
+        self, mock_anthropic, mock_get_supabase, authenticated_client
+    ):
         """Test handling of Anthropic API errors."""
         mock_anthropic.messages.stream.side_effect = Exception("API Error")
 
@@ -247,6 +252,7 @@ class TestChatErrorHandling:
 # Rate Limiting Tests
 # ============================================================================
 
+
 class TestChatRateLimiting:
     """Tests for chat endpoint rate limiting."""
 
@@ -266,12 +272,12 @@ class TestChatRateLimiting:
 # Image Generation Detection Tests
 # ============================================================================
 
+
 class TestImageGenerationDetection:
     """Tests for automatic image generation suggestion."""
 
     def test_visual_suggestion_detection(self):
         """Test detection of messages that would benefit from images."""
-
         # Messages that should trigger image suggestions
         visual_messages = [
             "Can you show me a diagram of this process?",
@@ -293,12 +299,12 @@ class TestImageGenerationDetection:
 # Useable Output Detection Tests
 # ============================================================================
 
+
 class TestUseableOutputDetection:
     """Tests for useable output detection (KPI tracking)."""
 
     def test_output_artifact_detection(self):
         """Test detection of useable output in responses."""
-
         # Response with clear deliverable
         response_with_artifact = """
         Here's your training outline:

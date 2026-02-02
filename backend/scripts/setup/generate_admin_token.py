@@ -29,7 +29,7 @@ payload = {
     "role": "authenticated",
     "user_metadata": {"role": role},  # Admin role in metadata
     "iat": int(now.timestamp()),
-    "exp": int(exp.timestamp())
+    "exp": int(exp.timestamp()),
 }
 
 # Generate token

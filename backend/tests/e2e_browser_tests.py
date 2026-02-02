@@ -1,5 +1,4 @@
-"""
-E2E Browser Tests for Thesis Platform
+"""E2E Browser Tests for Thesis Platform
 
 This file contains test scenario definitions for Chrome DevTools MCP-based E2E testing.
 These tests are meant to be executed by Claude Code using the Chrome DevTools MCP tools.
@@ -65,6 +64,7 @@ class TestType(Enum):
 @dataclass
 class E2ETestScenario:
     """Represents a single E2E test scenario."""
+
     id: str
     category: TestCategory
     test_type: TestType
@@ -99,7 +99,6 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="User is logged in and redirected to /chat",
     ),
-
     "auth_login_invalid_email": E2ETestScenario(
         id="auth_login_invalid_email",
         category=TestCategory.AUTH,
@@ -114,7 +113,6 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Error message 'Invalid email' displayed",
     ),
-
     "auth_login_wrong_password": E2ETestScenario(
         id="auth_login_wrong_password",
         category=TestCategory.AUTH,
@@ -130,7 +128,6 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Error message about invalid credentials shown",
     ),
-
     "auth_login_empty_fields": E2ETestScenario(
         id="auth_login_empty_fields",
         category=TestCategory.AUTH,
@@ -143,7 +140,6 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Required field errors shown for email and password",
     ),
-
     "auth_logout": E2ETestScenario(
         id="auth_logout",
         category=TestCategory.AUTH,
@@ -159,7 +155,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="User is logged out and redirected to login page",
         prerequisites=["auth_login_success"],
     ),
-
     "auth_session_persistence": E2ETestScenario(
         id="auth_session_persistence",
         category=TestCategory.AUTH,
@@ -175,7 +170,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Session maintained after refresh",
         prerequisites=["auth_login_success"],
     ),
-
     "auth_protected_route": E2ETestScenario(
         id="auth_protected_route",
         category=TestCategory.AUTH,
@@ -188,7 +182,6 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Redirected to login page",
     ),
-
     "auth_expired_session": E2ETestScenario(
         id="auth_expired_session",
         category=TestCategory.AUTH,
@@ -203,7 +196,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="User prompted to re-authenticate",
         prerequisites=["auth_login_success"],
     ),
-
     # =========================================================================
     # CHAT (10 tests)
     # =========================================================================
@@ -224,7 +216,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Message sent and AI response received",
         prerequisites=["auth_login_success"],
     ),
-
     "chat_empty_message_blocked": E2ETestScenario(
         id="chat_empty_message_blocked",
         category=TestCategory.CHAT,
@@ -239,7 +230,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Send blocked, no API call made",
         prerequisites=["auth_login_success"],
     ),
-
     "chat_multiline_input": E2ETestScenario(
         id="chat_multiline_input",
         category=TestCategory.CHAT,
@@ -254,7 +244,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Multiline message displayed correctly",
         prerequisites=["auth_login_success"],
     ),
-
     "chat_at_mention_routing": E2ETestScenario(
         id="chat_at_mention_routing",
         category=TestCategory.CHAT,
@@ -269,7 +258,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Atlas agent specifically responds to query",
         prerequisites=["auth_login_success"],
     ),
-
     "chat_conversation_history": E2ETestScenario(
         id="chat_conversation_history",
         category=TestCategory.CHAT,
@@ -285,7 +273,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Conversation history preserved",
         prerequisites=["auth_login_success"],
     ),
-
     "chat_new_conversation": E2ETestScenario(
         id="chat_new_conversation",
         category=TestCategory.CHAT,
@@ -300,7 +287,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="New empty conversation started",
         prerequisites=["auth_login_success"],
     ),
-
     "chat_empty_state": E2ETestScenario(
         id="chat_empty_state",
         category=TestCategory.CHAT,
@@ -315,7 +301,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Appropriate empty state shown",
         prerequisites=["auth_login_success"],
     ),
-
     "chat_loading_state": E2ETestScenario(
         id="chat_loading_state",
         category=TestCategory.CHAT,
@@ -331,7 +316,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Loading state shown during API call",
         prerequisites=["auth_login_success"],
     ),
-
     "chat_api_error_handling": E2ETestScenario(
         id="chat_api_error_handling",
         category=TestCategory.CHAT,
@@ -346,7 +330,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Error displayed with recovery option",
         prerequisites=["auth_login_success"],
     ),
-
     "chat_long_message": E2ETestScenario(
         id="chat_long_message",
         category=TestCategory.CHAT,
@@ -361,7 +344,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Long message handled appropriately",
         prerequisites=["auth_login_success"],
     ),
-
     # =========================================================================
     # KNOWLEDGE BASE (12 tests)
     # =========================================================================
@@ -379,7 +361,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Document list displayed with metadata",
         prerequisites=["auth_login_success"],
     ),
-
     "kb_upload_pdf": E2ETestScenario(
         id="kb_upload_pdf",
         category=TestCategory.KB,
@@ -396,7 +377,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="PDF uploaded and appears in document list",
         prerequisites=["auth_login_success"],
     ),
-
     "kb_upload_invalid_type": E2ETestScenario(
         id="kb_upload_invalid_type",
         category=TestCategory.KB,
@@ -411,7 +391,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Error: Unsupported file type",
         prerequisites=["auth_login_success"],
     ),
-
     "kb_upload_large_file": E2ETestScenario(
         id="kb_upload_large_file",
         category=TestCategory.KB,
@@ -425,7 +404,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Large file handled appropriately",
         prerequisites=["auth_login_success"],
     ),
-
     "kb_search_documents": E2ETestScenario(
         id="kb_search_documents",
         category=TestCategory.KB,
@@ -440,7 +418,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Search filters documents correctly",
         prerequisites=["auth_login_success"],
     ),
-
     "kb_filter_by_tag": E2ETestScenario(
         id="kb_filter_by_tag",
         category=TestCategory.KB,
@@ -455,7 +432,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Documents filtered by selected tag",
         prerequisites=["auth_login_success"],
     ),
-
     "kb_document_preview": E2ETestScenario(
         id="kb_document_preview",
         category=TestCategory.KB,
@@ -470,7 +446,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Document preview shows content",
         prerequisites=["auth_login_success"],
     ),
-
     "kb_edit_document_tags": E2ETestScenario(
         id="kb_edit_document_tags",
         category=TestCategory.KB,
@@ -486,7 +461,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Tags updated and persisted",
         prerequisites=["auth_login_success"],
     ),
-
     "kb_delete_document": E2ETestScenario(
         id="kb_delete_document",
         category=TestCategory.KB,
@@ -503,7 +477,6 @@ E2E_TEST_SCENARIOS = {
         prerequisites=["auth_login_success"],
         cleanup=["Re-upload test document if needed"],
     ),
-
     "kb_empty_state": E2ETestScenario(
         id="kb_empty_state",
         category=TestCategory.KB,
@@ -518,7 +491,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Empty state with upload prompt",
         prerequisites=["auth_login_success"],
     ),
-
     "kb_upload_error_recovery": E2ETestScenario(
         id="kb_upload_error_recovery",
         category=TestCategory.KB,
@@ -533,7 +505,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Error shown with retry option",
         prerequisites=["auth_login_success"],
     ),
-
     "kb_bulk_upload": E2ETestScenario(
         id="kb_bulk_upload",
         category=TestCategory.KB,
@@ -547,7 +518,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="All files uploaded successfully",
         prerequisites=["auth_login_success"],
     ),
-
     # =========================================================================
     # TASKS (10 tests)
     # =========================================================================
@@ -565,7 +535,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Kanban board displays with tasks",
         prerequisites=["auth_login_success"],
     ),
-
     "tasks_create": E2ETestScenario(
         id="tasks_create",
         category=TestCategory.TASKS,
@@ -584,7 +553,6 @@ E2E_TEST_SCENARIOS = {
         prerequisites=["auth_login_success"],
         cleanup=["Delete test task"],
     ),
-
     "tasks_create_empty_title": E2ETestScenario(
         id="tasks_create_empty_title",
         category=TestCategory.TASKS,
@@ -600,7 +568,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Validation error prevents save",
         prerequisites=["auth_login_success"],
     ),
-
     "tasks_edit": E2ETestScenario(
         id="tasks_edit",
         category=TestCategory.TASKS,
@@ -616,7 +583,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Task updated successfully",
         prerequisites=["auth_login_success"],
     ),
-
     "tasks_drag_drop": E2ETestScenario(
         id="tasks_drag_drop",
         category=TestCategory.TASKS,
@@ -632,7 +598,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Task moved and status updated",
         prerequisites=["auth_login_success"],
     ),
-
     "tasks_delete": E2ETestScenario(
         id="tasks_delete",
         category=TestCategory.TASKS,
@@ -648,7 +613,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Task deleted and removed from UI",
         prerequisites=["auth_login_success", "tasks_create"],
     ),
-
     "tasks_empty_state": E2ETestScenario(
         id="tasks_empty_state",
         category=TestCategory.TASKS,
@@ -663,7 +627,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Empty state with create prompt",
         prerequisites=["auth_login_success"],
     ),
-
     "tasks_status_update": E2ETestScenario(
         id="tasks_status_update",
         category=TestCategory.TASKS,
@@ -678,7 +641,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Task status updated via dropdown",
         prerequisites=["auth_login_success"],
     ),
-
     "tasks_save_error": E2ETestScenario(
         id="tasks_save_error",
         category=TestCategory.TASKS,
@@ -693,7 +655,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Error shown, data preserved",
         prerequisites=["auth_login_success"],
     ),
-
     "tasks_filter": E2ETestScenario(
         id="tasks_filter",
         category=TestCategory.TASKS,
@@ -707,7 +668,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Tasks filtered correctly",
         prerequisites=["auth_login_success"],
     ),
-
     # =========================================================================
     # OPPORTUNITIES (12 tests)
     # =========================================================================
@@ -724,7 +684,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Pipeline displays with projects",
         prerequisites=["auth_login_success"],
     ),
-
     "opps_create": E2ETestScenario(
         id="opps_create",
         category=TestCategory.OPPORTUNITIES,
@@ -742,7 +701,6 @@ E2E_TEST_SCENARIOS = {
         prerequisites=["auth_login_success"],
         cleanup=["Delete test project"],
     ),
-
     "opps_create_missing_required": E2ETestScenario(
         id="opps_create_missing_required",
         category=TestCategory.OPPORTUNITIES,
@@ -757,7 +715,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Validation error prevents save",
         prerequisites=["auth_login_success"],
     ),
-
     "opps_score_validation": E2ETestScenario(
         id="opps_score_validation",
         category=TestCategory.OPPORTUNITIES,
@@ -771,7 +728,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Invalid score rejected",
         prerequisites=["auth_login_success"],
     ),
-
     "opps_tier_calculation": E2ETestScenario(
         id="opps_tier_calculation",
         category=TestCategory.OPPORTUNITIES,
@@ -786,7 +742,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Tier calculated correctly from scores",
         prerequisites=["auth_login_success"],
     ),
-
     "opps_edit": E2ETestScenario(
         id="opps_edit",
         category=TestCategory.OPPORTUNITIES,
@@ -801,7 +756,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Project updated successfully",
         prerequisites=["auth_login_success"],
     ),
-
     "opps_drag_between_stages": E2ETestScenario(
         id="opps_drag_between_stages",
         category=TestCategory.OPPORTUNITIES,
@@ -816,7 +770,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Project stage updated",
         prerequisites=["auth_login_success"],
     ),
-
     "opps_delete": E2ETestScenario(
         id="opps_delete",
         category=TestCategory.OPPORTUNITIES,
@@ -831,7 +784,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Project deleted",
         prerequisites=["auth_login_success", "opps_create"],
     ),
-
     "opps_empty_state": E2ETestScenario(
         id="opps_empty_state",
         category=TestCategory.OPPORTUNITIES,
@@ -845,7 +797,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Empty state displayed",
         prerequisites=["auth_login_success"],
     ),
-
     "opps_filter_by_tier": E2ETestScenario(
         id="opps_filter_by_tier",
         category=TestCategory.OPPORTUNITIES,
@@ -859,7 +810,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Filtered by tier correctly",
         prerequisites=["auth_login_success"],
     ),
-
     "opps_search": E2ETestScenario(
         id="opps_search",
         category=TestCategory.OPPORTUNITIES,
@@ -873,7 +823,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Search returns correct results",
         prerequisites=["auth_login_success"],
     ),
-
     "opps_link_stakeholder": E2ETestScenario(
         id="opps_link_stakeholder",
         category=TestCategory.OPPORTUNITIES,
@@ -889,7 +838,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Stakeholder linked to project",
         prerequisites=["auth_login_success"],
     ),
-
     # =========================================================================
     # MEETING ROOMS (8 tests)
     # =========================================================================
@@ -905,7 +853,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Meeting rooms displayed",
         prerequisites=["auth_login_success"],
     ),
-
     "meeting_create": E2ETestScenario(
         id="meeting_create",
         category=TestCategory.MEETING,
@@ -922,7 +869,6 @@ E2E_TEST_SCENARIOS = {
         prerequisites=["auth_login_success"],
         cleanup=["Delete test room"],
     ),
-
     "meeting_create_no_agents": E2ETestScenario(
         id="meeting_create_no_agents",
         category=TestCategory.MEETING,
@@ -937,7 +883,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Validation error shown",
         prerequisites=["auth_login_success"],
     ),
-
     "meeting_send_message": E2ETestScenario(
         id="meeting_send_message",
         category=TestCategory.MEETING,
@@ -952,7 +897,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Agents respond to user message",
         prerequisites=["auth_login_success", "meeting_create"],
     ),
-
     "meeting_autonomous_mode": E2ETestScenario(
         id="meeting_autonomous_mode",
         category=TestCategory.MEETING,
@@ -967,7 +911,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Agents discuss autonomously",
         prerequisites=["auth_login_success", "meeting_create"],
     ),
-
     "meeting_delete": E2ETestScenario(
         id="meeting_delete",
         category=TestCategory.MEETING,
@@ -982,7 +925,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Meeting room deleted",
         prerequisites=["auth_login_success", "meeting_create"],
     ),
-
     "meeting_empty_state": E2ETestScenario(
         id="meeting_empty_state",
         category=TestCategory.MEETING,
@@ -996,7 +938,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Empty state displayed",
         prerequisites=["auth_login_success"],
     ),
-
     "meeting_synthesis": E2ETestScenario(
         id="meeting_synthesis",
         category=TestCategory.MEETING,
@@ -1011,7 +952,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Synthesis report generated",
         prerequisites=["auth_login_success", "meeting_send_message"],
     ),
-
     # =========================================================================
     # PERFORMANCE & QUALITY (6 tests)
     # =========================================================================
@@ -1029,7 +969,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Core Web Vitals within targets",
         prerequisites=["auth_login_success"],
     ),
-
     "perf_kb_with_many_docs": E2ETestScenario(
         id="perf_kb_with_many_docs",
         category=TestCategory.PERFORMANCE,
@@ -1044,7 +983,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="KB performs well with many docs",
         prerequisites=["auth_login_success"],
     ),
-
     "console_no_errors": E2ETestScenario(
         id="console_no_errors",
         category=TestCategory.QUALITY,
@@ -1058,7 +996,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="No JS errors in console",
         prerequisites=["auth_login_success"],
     ),
-
     "network_api_calls": E2ETestScenario(
         id="network_api_calls",
         category=TestCategory.QUALITY,
@@ -1073,7 +1010,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="All API calls successful",
         prerequisites=["auth_login_success"],
     ),
-
     "responsive_mobile": E2ETestScenario(
         id="responsive_mobile",
         category=TestCategory.QUALITY,
@@ -1088,7 +1024,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="UI responsive on mobile",
         prerequisites=["auth_login_success"],
     ),
-
     "concurrent_operations": E2ETestScenario(
         id="concurrent_operations",
         category=TestCategory.QUALITY,
@@ -1102,7 +1037,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Concurrent edits handled safely",
         prerequisites=["auth_login_success"],
     ),
-
     # =========================================================================
     # HELP SYSTEM (8 tests)
     # =========================================================================
@@ -1122,7 +1056,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Help panel opens with search and categories",
         prerequisites=["auth_login_success"],
     ),
-
     "help_panel_close": E2ETestScenario(
         id="help_panel_close",
         category=TestCategory.HELP,
@@ -1137,7 +1070,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Help panel closes cleanly",
         prerequisites=["auth_login_success", "help_panel_open"],
     ),
-
     "help_search_agents": E2ETestScenario(
         id="help_search_agents",
         category=TestCategory.HELP,
@@ -1153,7 +1085,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Search returns relevant agent help topics",
         prerequisites=["auth_login_success"],
     ),
-
     "help_search_disco": E2ETestScenario(
         id="help_search_disco",
         category=TestCategory.HELP,
@@ -1169,7 +1100,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Search returns DISCo-related help content",
         prerequisites=["auth_login_success"],
     ),
-
     "help_search_discovery_inbox": E2ETestScenario(
         id="help_search_discovery_inbox",
         category=TestCategory.HELP,
@@ -1185,7 +1115,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Search returns Discovery Inbox help content",
         prerequisites=["auth_login_success"],
     ),
-
     "help_search_no_results": E2ETestScenario(
         id="help_search_no_results",
         category=TestCategory.HELP,
@@ -1201,7 +1130,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="No results message displayed gracefully",
         prerequisites=["auth_login_success"],
     ),
-
     "help_navigate_to_doc": E2ETestScenario(
         id="help_navigate_to_doc",
         category=TestCategory.HELP,
@@ -1217,7 +1145,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Full help content displayed for selected topic",
         prerequisites=["auth_login_success"],
     ),
-
     "help_contextual": E2ETestScenario(
         id="help_contextual",
         category=TestCategory.HELP,
@@ -1234,7 +1161,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Help suggestions relevant to current page context",
         prerequisites=["auth_login_success"],
     ),
-
     # =========================================================================
     # DISCO INITIATIVES (10 tests)
     # =========================================================================
@@ -1253,7 +1179,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="DISCo page loads with initiatives list",
         prerequisites=["auth_login_success"],
     ),
-
     "disco_create_initiative": E2ETestScenario(
         id="disco_create_initiative",
         category=TestCategory.DISCO,
@@ -1274,7 +1199,6 @@ E2E_TEST_SCENARIOS = {
         prerequisites=["auth_login_success"],
         cleanup=["Delete test initiative"],
     ),
-
     "disco_create_missing_name": E2ETestScenario(
         id="disco_create_missing_name",
         category=TestCategory.DISCO,
@@ -1291,7 +1215,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Validation prevents creation without name",
         prerequisites=["auth_login_success"],
     ),
-
     "disco_initiative_tabs": E2ETestScenario(
         id="disco_initiative_tabs",
         category=TestCategory.DISCO,
@@ -1309,7 +1232,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="All four tabs present and functional",
         prerequisites=["auth_login_success", "disco_create_initiative"],
     ),
-
     "disco_upload_document": E2ETestScenario(
         id="disco_upload_document",
         category=TestCategory.DISCO,
@@ -1326,7 +1248,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Document uploaded to initiative",
         prerequisites=["auth_login_success", "disco_create_initiative"],
     ),
-
     "disco_run_agent": E2ETestScenario(
         id="disco_run_agent",
         category=TestCategory.DISCO,
@@ -1344,7 +1265,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Agent runs and output displayed",
         prerequisites=["auth_login_success", "disco_create_initiative", "disco_upload_document"],
     ),
-
     "disco_view_outputs": E2ETestScenario(
         id="disco_view_outputs",
         category=TestCategory.DISCO,
@@ -1360,7 +1280,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Agent outputs viewable in Outputs tab",
         prerequisites=["auth_login_success", "disco_run_agent"],
     ),
-
     "disco_status_badges": E2ETestScenario(
         id="disco_status_badges",
         category=TestCategory.DISCO,
@@ -1377,7 +1296,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Status badge reflects workflow progress",
         prerequisites=["auth_login_success", "disco_create_initiative"],
     ),
-
     "disco_share_initiative": E2ETestScenario(
         id="disco_share_initiative",
         category=TestCategory.DISCO,
@@ -1395,7 +1313,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Initiative shared with specified user",
         prerequisites=["auth_login_success", "disco_create_initiative"],
     ),
-
     "disco_empty_state": E2ETestScenario(
         id="disco_empty_state",
         category=TestCategory.DISCO,
@@ -1410,7 +1327,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Empty state with create prompt",
         prerequisites=["auth_login_success"],
     ),
-
     # =========================================================================
     # GRANOLA SYNC (3 tests)
     # =========================================================================
@@ -1440,9 +1356,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="File synced, task/project/stakeholder candidates created from meeting content",
         prerequisites=["auth_login_success"],
-        cleanup=["Delete test file E2E-Test-Meeting-{timestamp}.md from Granola/Transcripts folder"],
+        cleanup=[
+            "Delete test file E2E-Test-Meeting-{timestamp}.md from Granola/Transcripts folder"
+        ],
     ),
-
     "granola_sync_activity_display": E2ETestScenario(
         id="granola_sync_activity_display",
         category=TestCategory.GRANOLA,
@@ -1460,7 +1377,6 @@ E2E_TEST_SCENARIOS = {
         expected_result="Sync activity indicator shows during sync and completion message appears",
         prerequisites=["auth_login_success"],
     ),
-
     "granola_scan_panel_status": E2ETestScenario(
         id="granola_scan_panel_status",
         category=TestCategory.GRANOLA,
@@ -1492,7 +1408,7 @@ E2E_TEST_SCENARIOS = {
 # - 1 strategic task (from Chris Baumgartner to Charlie)
 # - 1 Tier-1 project (high scores, exec sponsorship)
 # - 1 new stakeholder (VP with role, concerns, interests)
-GRANOLA_E2E_TEST_MEETING_CONTENT = '''## Granola Notes
+GRANOLA_E2E_TEST_MEETING_CONTENT = """## Granola Notes
 ## E2E Test - Quantum Computing Strategy Session
 **Granola ID:** e2e-test-{timestamp}
 **Created:** 2026-01-28T10:00:00.000Z
@@ -1539,25 +1455,25 @@ Marcus Chen confirmed engineering readiness and integration path with existing i
 ### Next Steps
 
 Follow-up meeting scheduled for February 1st to review progress. Chris emphasized this initiative has full executive backing and should be prioritized accordingly.
-'''
+"""
 
 
 def get_granola_e2e_test_file_path() -> str:
-    """
-    Get the file path for the Granola E2E test meeting file.
+    """Get the file path for the Granola E2E test meeting file.
     Uses current timestamp to ensure uniqueness.
     """
     from datetime import datetime
+
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     return f"~/vaults/Contentful/Granola/Transcripts/E2E-Test-Meeting-{timestamp}.md"
 
 
 def get_granola_e2e_test_content() -> str:
-    """
-    Get the content for the Granola E2E test meeting file.
+    """Get the content for the Granola E2E test meeting file.
     Replaces {timestamp} placeholder with current timestamp.
     """
     from datetime import datetime
+
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     return GRANOLA_E2E_TEST_MEETING_CONTENT.replace("{timestamp}", timestamp)
 
@@ -1566,20 +1482,15 @@ def get_granola_e2e_test_content() -> str:
 # TEST EXECUTION HELPERS
 # =============================================================================
 
+
 def get_tests_by_category(category: TestCategory) -> dict:
     """Get all tests for a specific category."""
-    return {
-        k: v for k, v in E2E_TEST_SCENARIOS.items()
-        if v.category == category
-    }
+    return {k: v for k, v in E2E_TEST_SCENARIOS.items() if v.category == category}
 
 
 def get_tests_by_type(test_type: TestType) -> dict:
     """Get all tests of a specific type."""
-    return {
-        k: v for k, v in E2E_TEST_SCENARIOS.items()
-        if v.test_type == test_type
-    }
+    return {k: v for k, v in E2E_TEST_SCENARIOS.items() if v.test_type == test_type}
 
 
 def get_happy_path_tests() -> dict:

@@ -8,14 +8,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from scripts.lib.credentials import get_credentials
 
 creds = get_credentials()
-SUPABASE_URL = creds['supabase_url']
-SUPABASE_SERVICE_ROLE_KEY = creds['supabase_key']
+SUPABASE_URL = creds["supabase_url"]
+SUPABASE_SERVICE_ROLE_KEY = creds["supabase_key"]
 CHARLIE_USER_ID = "d3ba5354-873a-435a-a36a-853373c4f6e5"
 
 headers = {
     "apikey": SUPABASE_SERVICE_ROLE_KEY,
     "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
 
 # Get all conversations for Charlie (past 30 days)
@@ -27,7 +27,7 @@ params = {
     "user_id": f"eq.{CHARLIE_USER_ID}",
     "select": "id,title,created_at",
     "gte": f"created_at.{start_date.isoformat()}",
-    "order": "created_at.desc"
+    "order": "created_at.desc",
 }
 
 response = requests.get(url, headers=headers, params=params)
@@ -38,28 +38,35 @@ if response.status_code == 200:
 
     # Check strategic keywords
     strategic_keywords = [
-        'conceptual', 'model', 'framework', 'strategy',
-        'plan', 'draft', 'report', 'brief', 'memo'
+        "conceptual",
+        "model",
+        "framework",
+        "strategy",
+        "plan",
+        "draft",
+        "report",
+        "brief",
+        "memo",
     ]
 
     strategic_count = 0
     unique_convos = set()
 
     # Get all messages for these conversations
-    conversation_ids = [c['id'] for c in conversations]
+    conversation_ids = [c["id"] for c in conversations]
 
     msgs_url = f"{SUPABASE_URL}/rest/v1/messages"
     msgs_params = {
         "select": "id,conversation_id,role,content,timestamp",
         "eq": "role.user",
-        "order": "timestamp.asc"
+        "order": "timestamp.asc",
     }
 
     # Query messages in batches
     all_strategic_convos = set()
 
     for conv in conversations:
-        conv_id = conv['id']
+        conv_id = conv["id"]
 
         # Get first user message for this conversation
         msg_params = {
@@ -67,14 +74,14 @@ if response.status_code == 200:
             "role": "eq.user",
             "select": "content",
             "order": "timestamp.asc",
-            "limit": "1"
+            "limit": "1",
         }
 
         msg_response = requests.get(msgs_url, headers=headers, params=msg_params)
 
         if msg_response.status_code == 200 and msg_response.json():
             first_msg = msg_response.json()[0]
-            content_lower = first_msg['content'].lower()
+            content_lower = first_msg["content"].lower()
 
             # Check for keywords
             has_keyword = any(kw in content_lower for kw in strategic_keywords)
@@ -95,11 +102,7 @@ if response.status_code == 200:
 
     for conv_id in all_strategic_convos:
         # Count user messages in this conversation
-        turn_params = {
-            "conversation_id": f"eq.{conv_id}",
-            "role": "eq.user",
-            "select": "id"
-        }
+        turn_params = {"conversation_id": f"eq.{conv_id}", "role": "eq.user", "select": "id"}
 
         turn_response = requests.get(msgs_url, headers=headers, params=turn_params)
 

@@ -1,5 +1,4 @@
-"""
-Goal Alignment Analyzer Service
+"""Goal Alignment Analyzer Service
 
 Analyzes AI projects against IS team FY27 strategic goals.
 Produces a 0-100 alignment score across 4 pillars (25 points each):
@@ -32,12 +31,12 @@ IS_GOALS = {
             "Accelerate Customer Deployment (Product Sold/Usage, Digital Touch Model, Customer Lifecycle Communications)",
             "Personalization Everywhere",
             "Accelerate Wall to Wall Enterprise Adoption (Strategic Account Planning)",
-            "100% of customers trackable from first touch to churn in shared model"
+            "100% of customers trackable from first touch to churn in shared model",
         ],
         "kpis": [
             "100% customers trackable first-touch-to-churn (Sales, CX, Marketing, Product, Finance)",
-            "2+ critical GTM motions with journey-level insights/playbooks adopted by business"
-        ]
+            "2+ critical GTM motions with journey-level insights/playbooks adopted by business",
+        ],
     },
     "maximize_value": {
         "name": "Maximize Value from Core Business Systems and AI",
@@ -46,12 +45,12 @@ IS_GOALS = {
             "Next Gen Platform - ExO launch",
             "Billing System Optimization",
             "New v5 P&P with new pricing structures",
-            "Contract entitlements integrated with adoption/consumption signals"
+            "Contract entitlements integrated with adoption/consumption signals",
         ],
         "kpis": [
             "v5 P&P launched with new pricing structures",
-            "All contract entitlements integrated with adoption/consumption signals"
-        ]
+            "All contract entitlements integrated with adoption/consumption signals",
+        ],
     },
     "data_first_digital_workforce": {
         "name": "Data First Digital Workforce",
@@ -61,14 +60,14 @@ IS_GOALS = {
             "IT Forward - tickets/requests treated as product signals",
             "AI Enabled Business Platforms",
             "AI Program with measurable ROI",
-            "50%+ employee lifecycle scenarios fully automated"
+            "50%+ employee lifecycle scenarios fully automated",
         ],
         "kpis": [
             "100% sources support cross-functional initiatives in Insight 360",
             "Defined defect backlog with quarterly reduction targets",
             "50%+ common employee lifecycle scenarios fully automated end-to-end",
-            "AI Program ROI measured/reported on 2+ strategic projects"
-        ]
+            "AI Program ROI measured/reported on 2+ strategic projects",
+        ],
     },
     "high_trust_culture": {
         "name": "High-Trust and Communicative IS Culture",
@@ -77,20 +76,19 @@ IS_GOALS = {
             "Ways of Working improvements",
             "Winning Culture initiatives",
             "Overall Delivery Targets met",
-            "Documented communication model executed consistently"
+            "Documented communication model executed consistently",
         ],
         "kpis": [
             "Stakeholder sentiment scores improving on IS communication/partnership",
             "Employee engagement improving on 'information I need to do my job'",
-            "Development plans in place with clear internal mobility paths"
-        ]
-    }
+            "Development plans in place with clear internal mobility paths",
+        ],
+    },
 }
 
 
 def _build_analysis_prompt(project: dict) -> str:
     """Build the prompt for analyzing goal alignment."""
-
     title = project.get("title", "Untitled")
     description = project.get("description") or "No description provided"
     current_state = project.get("current_state") or "Not specified"
@@ -103,8 +101,8 @@ def _build_analysis_prompt(project: dict) -> str:
         outcomes = ", ".join(pillar["key_outcomes"])
         kpis = ", ".join(pillar["kpis"])
         pillar_text += f"""
-{i}. {pillar['name']} (0-25 pts)
-   - {pillar['description']}
+{i}. {pillar["name"]} (0-25 pts)
+   - {pillar["description"]}
    - Outcomes: {outcomes}
    - KPIs: {kpis}
 """
@@ -145,12 +143,11 @@ SUMMARY: [1-2 sentences summarizing overall strategic alignment]"""
 
 def _parse_analysis_response(response_text: str) -> tuple[int, dict]:
     """Parse the Claude response into score and details."""
-
     pillar_keys = [
         "customer_prospect_journey",
         "maximize_value",
         "data_first_digital_workforce",
-        "high_trust_culture"
+        "high_trust_culture",
     ]
 
     pillar_scores = {}
@@ -177,24 +174,25 @@ def _parse_analysis_response(response_text: str) -> tuple[int, dict]:
             start = response_text.find(rationale_marker) + len(rationale_marker)
             # Find the next section marker or end
             end = len(response_text)
-            for next_marker in [f"PILLAR_{i+1}_SCORE:", "KPI_IMPACTS:", "SUMMARY:"]:
+            for next_marker in [f"PILLAR_{i + 1}_SCORE:", "KPI_IMPACTS:", "SUMMARY:"]:
                 if next_marker in response_text[start:]:
                     potential_end = response_text.find(next_marker, start)
                     if potential_end < end:
                         end = potential_end
             rationale = response_text[start:end].strip()
 
-        pillar_scores[key] = {
-            "score": score,
-            "rationale": rationale
-        }
+        pillar_scores[key] = {"score": score, "rationale": rationale}
         total_score += score
 
     # Parse KPI impacts
     kpi_impacts = []
     if "KPI_IMPACTS:" in response_text:
         start = response_text.find("KPI_IMPACTS:") + len("KPI_IMPACTS:")
-        end = response_text.find("SUMMARY:", start) if "SUMMARY:" in response_text[start:] else len(response_text)
+        end = (
+            response_text.find("SUMMARY:", start)
+            if "SUMMARY:" in response_text[start:]
+            else len(response_text)
+        )
         impacts_text = response_text[start:end].strip()
         if impacts_text and impacts_text.lower() != "none":
             kpi_impacts = [kpi.strip() for kpi in impacts_text.split(",") if kpi.strip()]
@@ -209,7 +207,7 @@ def _parse_analysis_response(response_text: str) -> tuple[int, dict]:
         "pillar_scores": pillar_scores,
         "kpi_impacts": kpi_impacts,
         "summary": summary,
-        "analyzed_at": datetime.now(timezone.utc).isoformat()
+        "analyzed_at": datetime.now(timezone.utc).isoformat(),
     }
 
     return total_score, details
@@ -219,8 +217,7 @@ async def analyze_goal_alignment(
     project_id: str,
     client_id: Optional[str] = None,
 ) -> tuple[int, dict]:
-    """
-    Analyze a project's alignment with IS team strategic goals.
+    """Analyze a project's alignment with IS team strategic goals.
 
     Args:
         project_id: The project UUID
@@ -253,24 +250,18 @@ async def analyze_goal_alignment(
 
     try:
         response = client.messages.create(
-            model=MODEL,
-            max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}]
+            model=MODEL, max_tokens=1024, messages=[{"role": "user", "content": prompt}]
         )
 
         response_text = response.content[0].text
         score, details = _parse_analysis_response(response_text)
 
         # Update the project in database
-        supabase.table("ai_projects").update({
-            "goal_alignment_score": score,
-            "goal_alignment_details": details
-        }).eq("id", project_id).execute()
+        supabase.table("ai_projects").update(
+            {"goal_alignment_score": score, "goal_alignment_details": details}
+        ).eq("id", project_id).execute()
 
-        logger.info(
-            f"Analyzed goal alignment for project {project_id}: "
-            f"score={score}/100"
-        )
+        logger.info(f"Analyzed goal alignment for project {project_id}: score={score}/100")
 
         return score, details
 
@@ -280,8 +271,7 @@ async def analyze_goal_alignment(
 
 
 async def batch_analyze_all(client_id: str) -> dict:
-    """
-    Analyze goal alignment for all projects belonging to a client.
+    """Analyze goal alignment for all projects belonging to a client.
 
     Returns:
         Dict with counts and statistics
@@ -289,10 +279,7 @@ async def batch_analyze_all(client_id: str) -> dict:
     supabase = get_supabase()
 
     # Get all projects for client
-    result = supabase.table("ai_projects") \
-        .select("id, title") \
-        .eq("client_id", client_id) \
-        .execute()
+    result = supabase.table("ai_projects").select("id, title").eq("client_id", client_id).execute()
 
     projects = result.data
     success_count = 0
@@ -317,7 +304,7 @@ async def batch_analyze_all(client_id: str) -> dict:
         "high": len([s for s in scores if s >= 80]),
         "moderate": len([s for s in scores if 60 <= s < 80]),
         "low": len([s for s in scores if 40 <= s < 60]),
-        "minimal": len([s for s in scores if s < 40])
+        "minimal": len([s for s in scores if s < 40]),
     }
 
     return {

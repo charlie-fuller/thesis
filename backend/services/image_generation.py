@@ -1,7 +1,7 @@
-"""
-Image generation service using Google's Gemini (Nano Banana) API.
+"""Image generation service using Google's Gemini (Nano Banana) API.
 Uses direct HTTP REST API for reliable image generation.
 """
+
 import logging
 import os
 from typing import Any, Dict, Optional
@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional
 import requests
 
 logger = logging.getLogger(__name__)
+
 
 class ImageGenerationService:
     """Service for generating images using Google's Gemini image models."""
@@ -19,14 +20,14 @@ class ImageGenerationService:
             "name": "gemini-2.5-flash-image",
             "display_name": "Fast ⚡",
             "description": "Quick generation, good quality",
-            "speed": "fast"
+            "speed": "fast",
         },
         "quality": {
             "name": "gemini-3-pro-image-preview",
             "display_name": "Quality 🎨",
             "description": "Higher quality, slower generation",
-            "speed": "slow"
-        }
+            "speed": "slow",
+        },
     }
 
     # Aspect ratio configurations
@@ -34,7 +35,7 @@ class ImageGenerationService:
         "1:1": {"width": 1024, "height": 1024, "description": "Square"},
         "16:9": {"width": 1536, "height": 864, "description": "Landscape (presentation)"},
         "9:16": {"width": 864, "height": 1536, "description": "Portrait (mobile)"},
-        "4:3": {"width": 1280, "height": 960, "description": "Standard"}
+        "4:3": {"width": 1280, "height": 960, "description": "Standard"},
     }
 
     def __init__(self):
@@ -48,8 +49,7 @@ class ImageGenerationService:
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
 
     def _enhance_prompt_with_aspect_ratio(self, prompt: str, aspect_ratio: str) -> str:
-        """
-        Enhance the prompt with aspect ratio information.
+        """Enhance the prompt with aspect ratio information.
 
         Args:
             prompt: Original user prompt
@@ -73,18 +73,13 @@ class ImageGenerationService:
         return {
             "models": self.MODELS,
             "aspect_ratios": self.ASPECT_RATIOS,
-            "default_model": self.default_model
+            "default_model": self.default_model,
         }
 
     async def generate_image(
-        self,
-        prompt: str,
-        model: Optional[str] = None,
-        aspect_ratio: str = "16:9",
-        **kwargs
+        self, prompt: str, model: Optional[str] = None, aspect_ratio: str = "16:9", **kwargs
     ) -> Dict[str, Any]:
-        """
-        Generate an image from a text prompt using HTTP REST API.
+        """Generate an image from a text prompt using HTTP REST API.
 
         Args:
             prompt: Text description of the image to generate
@@ -132,19 +127,10 @@ class ImageGenerationService:
             url = f"{self.base_url}/models/{model_name}:generateContent"
 
             # Prepare headers
-            headers = {
-                "x-goog-api-key": self.api_key,
-                "Content-Type": "application/json"
-            }
+            headers = {"x-goog-api-key": self.api_key, "Content-Type": "application/json"}
 
             # Prepare request payload
-            payload = {
-                "contents": [{
-                    "parts": [
-                        {"text": enhanced_prompt}
-                    ]
-                }]
-            }
+            payload = {"contents": [{"parts": [{"text": enhanced_prompt}]}]}
 
             # Make HTTP request
             response = requests.post(url, headers=headers, json=payload, timeout=60)
@@ -208,7 +194,7 @@ class ImageGenerationService:
                 "model": model_name,
                 "model_key": model_key,
                 "aspect_ratio": aspect_ratio,
-                "success": True
+                "success": True,
             }
 
         except requests.exceptions.Timeout:
@@ -224,12 +210,9 @@ class ImageGenerationService:
             raise Exception(f"Failed to generate image: {str(e)}")
 
     async def generate_multiple_images(
-        self,
-        prompts: list[str],
-        model: Optional[str] = None
+        self, prompts: list[str], model: Optional[str] = None
     ) -> list[Dict[str, Any]]:
-        """
-        Generate multiple images from a list of prompts.
+        """Generate multiple images from a list of prompts.
 
         Args:
             prompts: List of text descriptions
@@ -245,17 +228,14 @@ class ImageGenerationService:
                 results.append(result)
             except Exception as e:
                 logger.error(f"Failed to generate image for prompt '{prompt}': {str(e)}")
-                results.append({
-                    "error": str(e),
-                    "prompt": prompt,
-                    "success": False
-                })
+                results.append({"error": str(e), "prompt": prompt, "success": False})
 
         return results
 
 
 # Global instance
 _image_service: Optional[ImageGenerationService] = None
+
 
 def get_image_generation_service() -> ImageGenerationService:
     """Get or create the global image generation service instance."""

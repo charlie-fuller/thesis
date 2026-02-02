@@ -1,10 +1,9 @@
-"""
-Embeddings Service - Voyage AI Integration
+"""Embeddings Service - Voyage AI Integration
 Provides embedding generation for documents, chat messages, and meeting room messages
 """
 
-import os
 import logging
+import os
 from typing import List, Optional
 from uuid import UUID
 
@@ -23,8 +22,7 @@ vo = voyageai.Client(api_key=VOYAGE_API_KEY)
 
 
 def create_embedding(text: str, input_type: str = "document") -> List[float]:
-    """
-    Create embedding for a single text using Voyage AI
+    """Create embedding for a single text using Voyage AI
 
     Args:
         text: Text to embed
@@ -34,19 +32,14 @@ def create_embedding(text: str, input_type: str = "document") -> List[float]:
         List of floats representing the embedding vector (1024 dimensions for voyage-3)
     """
     try:
-        result = vo.embed(
-            texts=[text],
-            model=EMBEDDING.MODEL_NAME,
-            input_type=input_type
-        )
+        result = vo.embed(texts=[text], model=EMBEDDING.MODEL_NAME, input_type=input_type)
         return result.embeddings[0]
     except Exception as e:
         raise Exception(f"Error creating embedding: {e}")
 
 
 def create_embeddings_batch(texts: List[str], input_type: str = "document") -> List[List[float]]:
-    """
-    Create embeddings for multiple texts in a single batch
+    """Create embeddings for multiple texts in a single batch
 
     Args:
         texts: List of texts to embed
@@ -56,23 +49,14 @@ def create_embeddings_batch(texts: List[str], input_type: str = "document") -> L
         List of embedding vectors
     """
     try:
-        result = vo.embed(
-            texts=texts,
-            model=EMBEDDING.MODEL_NAME,
-            input_type=input_type
-        )
+        result = vo.embed(texts=texts, model=EMBEDDING.MODEL_NAME, input_type=input_type)
         return result.embeddings
     except Exception as e:
         raise Exception(f"Error creating embeddings batch: {e}")
 
 
-async def embed_meeting_room_message(
-    supabase_client,
-    message_id: UUID,
-    content: str
-) -> bool:
-    """
-    Create and store embedding for a meeting room message.
+async def embed_meeting_room_message(supabase_client, message_id: UUID, content: str) -> bool:
+    """Create and store embedding for a meeting room message.
 
     Args:
         supabase_client: Authenticated Supabase client
@@ -87,10 +71,12 @@ async def embed_meeting_room_message(
         embedding = create_embedding(content, input_type=EMBEDDING.INPUT_TYPE_DOCUMENT)
 
         # Update message with embedding
-        result = supabase_client.table("meeting_room_messages").update({
-            "embedding": embedding,
-            "embedding_status": "completed"
-        }).eq("id", str(message_id)).execute()
+        result = (
+            supabase_client.table("meeting_room_messages")
+            .update({"embedding": embedding, "embedding_status": "completed"})
+            .eq("id", str(message_id))
+            .execute()
+        )
 
         if result.data:
             logger.info(f"Embedded meeting room message {message_id}")
@@ -103,21 +89,18 @@ async def embed_meeting_room_message(
         logger.error(f"Error embedding message {message_id}: {e}")
         # Mark as failed
         try:
-            supabase_client.table("meeting_room_messages").update({
-                "embedding_status": "failed"
-            }).eq("id", str(message_id)).execute()
+            supabase_client.table("meeting_room_messages").update(
+                {"embedding_status": "failed"}
+            ).eq("id", str(message_id)).execute()
         except Exception:
             pass
         return False
 
 
 async def embed_pending_meeting_messages(
-    supabase_client,
-    limit: int = 50,
-    meeting_room_id: Optional[UUID] = None
+    supabase_client, limit: int = 50, meeting_room_id: Optional[UUID] = None
 ) -> int:
-    """
-    Process pending meeting room messages that need embedding.
+    """Process pending meeting room messages that need embedding.
 
     Args:
         supabase_client: Authenticated Supabase client
@@ -129,10 +112,12 @@ async def embed_pending_meeting_messages(
     """
     try:
         # Query for pending messages
-        query = supabase_client.table("meeting_room_messages")\
-            .select("id, content")\
-            .eq("embedding_status", "pending")\
+        query = (
+            supabase_client.table("meeting_room_messages")
+            .select("id, content")
+            .eq("embedding_status", "pending")
             .limit(limit)
+        )
 
         if meeting_room_id:
             query = query.eq("meeting_room_id", str(meeting_room_id))
@@ -148,19 +133,20 @@ async def embed_pending_meeting_messages(
         embedded_count = 0
 
         for i in range(0, len(messages), batch_size):
-            batch = messages[i:i + batch_size]
+            batch = messages[i : i + batch_size]
             texts = [m["content"] for m in batch]
             ids = [m["id"] for m in batch]
 
             try:
-                embeddings = create_embeddings_batch(texts, input_type=EMBEDDING.INPUT_TYPE_DOCUMENT)
+                embeddings = create_embeddings_batch(
+                    texts, input_type=EMBEDDING.INPUT_TYPE_DOCUMENT
+                )
 
                 # Update each message with its embedding
-                for msg_id, embedding in zip(ids, embeddings):
-                    supabase_client.table("meeting_room_messages").update({
-                        "embedding": embedding,
-                        "embedding_status": "completed"
-                    }).eq("id", msg_id).execute()
+                for msg_id, embedding in zip(ids, embeddings, strict=False):
+                    supabase_client.table("meeting_room_messages").update(
+                        {"embedding": embedding, "embedding_status": "completed"}
+                    ).eq("id", msg_id).execute()
                     embedded_count += 1
 
             except Exception as e:
@@ -168,9 +154,9 @@ async def embed_pending_meeting_messages(
                 # Mark batch as failed
                 for msg_id in ids:
                     try:
-                        supabase_client.table("meeting_room_messages").update({
-                            "embedding_status": "failed"
-                        }).eq("id", msg_id).execute()
+                        supabase_client.table("meeting_room_messages").update(
+                            {"embedding_status": "failed"}
+                        ).eq("id", msg_id).execute()
                     except Exception:
                         pass
 
@@ -189,10 +175,9 @@ async def search_meeting_room_messages(
     match_count: int = 10,
     client_id: Optional[UUID] = None,
     user_id: Optional[UUID] = None,
-    meeting_room_id: Optional[UUID] = None
+    meeting_room_id: Optional[UUID] = None,
 ) -> List[dict]:
-    """
-    Search meeting room messages using semantic similarity.
+    """Search meeting room messages using semantic similarity.
 
     Args:
         supabase_client: Authenticated Supabase client
@@ -211,14 +196,17 @@ async def search_meeting_room_messages(
         query_embedding = create_embedding(query, input_type=EMBEDDING.INPUT_TYPE_QUERY)
 
         # Call the vector search function
-        result = supabase_client.rpc("match_meeting_room_messages", {
-            "query_embedding": query_embedding,
-            "match_threshold": match_threshold,
-            "match_count": match_count,
-            "p_client_id": str(client_id) if client_id else None,
-            "p_user_id": str(user_id) if user_id else None,
-            "p_meeting_room_id": str(meeting_room_id) if meeting_room_id else None
-        }).execute()
+        result = supabase_client.rpc(
+            "match_meeting_room_messages",
+            {
+                "query_embedding": query_embedding,
+                "match_threshold": match_threshold,
+                "match_count": match_count,
+                "p_client_id": str(client_id) if client_id else None,
+                "p_user_id": str(user_id) if user_id else None,
+                "p_meeting_room_id": str(meeting_room_id) if meeting_room_id else None,
+            },
+        ).execute()
 
         return result.data or []
 

@@ -1,5 +1,4 @@
-"""
-Discovery API Routes
+"""Discovery API Routes
 
 Unified endpoints for the Discovery Inbox feature.
 Provides counts and data across all candidate types (tasks, opportunities, stakeholders).
@@ -32,6 +31,7 @@ router = APIRouter(prefix="/api/discovery", tags=["discovery"])
 
 class DiscoveryCounts(BaseModel):
     """Counts of pending candidates across all types."""
+
     tasks: int
     projects: int
     opportunities: Optional[int] = None  # Backward compatibility alias
@@ -41,6 +41,7 @@ class DiscoveryCounts(BaseModel):
 
 class ScanningStatus(BaseModel):
     """Status of document scanning for discovery extraction."""
+
     active: bool
     pending_documents: int = 0
     message: Optional[str] = None
@@ -49,6 +50,7 @@ class ScanningStatus(BaseModel):
 
 class TaskCandidateItem(BaseModel):
     """Task candidate for discovery panel."""
+
     id: str
     title: str
     description: Optional[str]
@@ -62,6 +64,7 @@ class TaskCandidateItem(BaseModel):
 
 class ProjectCandidateItem(BaseModel):
     """Project candidate for discovery panel."""
+
     id: str
     title: str
     description: Optional[str]
@@ -79,6 +82,7 @@ class ProjectCandidateItem(BaseModel):
 
 class StakeholderCandidateItem(BaseModel):
     """Stakeholder candidate for discovery panel."""
+
     id: str
     name: str
     role: Optional[str]
@@ -92,6 +96,7 @@ class StakeholderCandidateItem(BaseModel):
 
 class DiscoveryAllResponse(BaseModel):
     """All pending candidates for inline review."""
+
     tasks: List[TaskCandidateItem]
     projects: List[ProjectCandidateItem]
     opportunities: Optional[List[ProjectCandidateItem]] = None  # Backward compatibility alias
@@ -107,11 +112,9 @@ class DiscoveryAllResponse(BaseModel):
 
 @router.get("/counts", response_model=DiscoveryCounts)
 async def get_discovery_counts(
-    current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
 ):
-    """
-    Get counts of pending candidates across all types.
+    """Get counts of pending candidates across all types.
 
     Used for dashboard badge display showing total pending items.
     """
@@ -120,40 +123,48 @@ async def get_discovery_counts(
         raise HTTPException(status_code=400, detail="User has no client_id assigned")
 
     # Only show candidates from the last N weeks
-    cutoff_date = (datetime.now(timezone.utc) - timedelta(weeks=DISCOVERY_MAX_AGE_WEEKS)).isoformat()
+    cutoff_date = (
+        datetime.now(timezone.utc) - timedelta(weeks=DISCOVERY_MAX_AGE_WEEKS)
+    ).isoformat()
 
     # Get task candidates count
-    tasks_result = supabase.table("task_candidates") \
-        .select("id", count="exact") \
-        .eq("client_id", client_id) \
-        .eq("status", "pending") \
-        .gte("created_at", cutoff_date) \
+    tasks_result = (
+        supabase.table("task_candidates")
+        .select("id", count="exact")
+        .eq("client_id", client_id)
+        .eq("status", "pending")
+        .gte("created_at", cutoff_date)
         .execute()
+    )
     tasks_count = tasks_result.count or 0
 
     # Get project candidates count
-    opps_result = supabase.table("project_candidates") \
-        .select("id", count="exact") \
-        .eq("client_id", client_id) \
-        .eq("status", "pending") \
-        .gte("created_at", cutoff_date) \
+    opps_result = (
+        supabase.table("project_candidates")
+        .select("id", count="exact")
+        .eq("client_id", client_id)
+        .eq("status", "pending")
+        .gte("created_at", cutoff_date)
         .execute()
+    )
     opps_count = opps_result.count or 0
 
     # Get stakeholder candidates count
-    stakeholders_result = supabase.table("stakeholder_candidates") \
-        .select("id", count="exact") \
-        .eq("client_id", client_id) \
-        .eq("status", "pending") \
-        .gte("created_at", cutoff_date) \
+    stakeholders_result = (
+        supabase.table("stakeholder_candidates")
+        .select("id", count="exact")
+        .eq("client_id", client_id)
+        .eq("status", "pending")
+        .gte("created_at", cutoff_date)
         .execute()
+    )
     stakeholders_count = stakeholders_result.count or 0
 
     return {
         "tasks": tasks_count,
         "projects": opps_count,
         "stakeholders": stakeholders_count,
-        "total": tasks_count + opps_count + stakeholders_count
+        "total": tasks_count + opps_count + stakeholders_count,
     }
 
 
@@ -161,10 +172,9 @@ async def get_discovery_counts(
 async def get_all_pending_candidates(
     limit: int = Query(20, ge=1, le=100),
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
-    """
-    Get all pending candidates for inline review.
+    """Get all pending candidates for inline review.
 
     Returns tasks, projects, and stakeholders with their counts.
     Used by the unified discovery panel for carousel-style review.
@@ -174,17 +184,21 @@ async def get_all_pending_candidates(
         raise HTTPException(status_code=400, detail="User has no client_id assigned")
 
     # Only show candidates from the last N weeks
-    cutoff_date = (datetime.now(timezone.utc) - timedelta(weeks=DISCOVERY_MAX_AGE_WEEKS)).isoformat()
+    cutoff_date = (
+        datetime.now(timezone.utc) - timedelta(weeks=DISCOVERY_MAX_AGE_WEEKS)
+    ).isoformat()
 
     # Get pending task candidates
-    tasks_result = supabase.table("task_candidates") \
-        .select("*") \
-        .eq("client_id", client_id) \
-        .eq("status", "pending") \
-        .gte("created_at", cutoff_date) \
-        .order("created_at", desc=True) \
-        .limit(limit) \
+    tasks_result = (
+        supabase.table("task_candidates")
+        .select("*")
+        .eq("client_id", client_id)
+        .eq("status", "pending")
+        .gte("created_at", cutoff_date)
+        .order("created_at", desc=True)
+        .limit(limit)
         .execute()
+    )
 
     tasks = [
         {
@@ -202,14 +216,16 @@ async def get_all_pending_candidates(
     ]
 
     # Get pending project candidates
-    opps_result = supabase.table("project_candidates") \
-        .select("*") \
-        .eq("client_id", client_id) \
-        .eq("status", "pending") \
-        .gte("created_at", cutoff_date) \
-        .order("created_at", desc=True) \
-        .limit(limit) \
+    opps_result = (
+        supabase.table("project_candidates")
+        .select("*")
+        .eq("client_id", client_id)
+        .eq("status", "pending")
+        .gte("created_at", cutoff_date)
+        .order("created_at", desc=True)
+        .limit(limit)
         .execute()
+    )
 
     projects = [
         {
@@ -231,14 +247,16 @@ async def get_all_pending_candidates(
     ]
 
     # Get pending stakeholder candidates
-    stakeholders_result = supabase.table("stakeholder_candidates") \
-        .select("*") \
-        .eq("client_id", client_id) \
-        .eq("status", "pending") \
-        .gte("created_at", cutoff_date) \
-        .order("created_at", desc=True) \
-        .limit(limit) \
+    stakeholders_result = (
+        supabase.table("stakeholder_candidates")
+        .select("*")
+        .eq("client_id", client_id)
+        .eq("status", "pending")
+        .gte("created_at", cutoff_date)
+        .order("created_at", desc=True)
+        .limit(limit)
         .execute()
+    )
 
     stakeholders = [
         {
@@ -256,45 +274,52 @@ async def get_all_pending_candidates(
     ]
 
     # Get actual counts (not limited)
-    tasks_count_result = supabase.table("task_candidates") \
-        .select("id", count="exact") \
-        .eq("client_id", client_id) \
-        .eq("status", "pending") \
-        .gte("created_at", cutoff_date) \
+    tasks_count_result = (
+        supabase.table("task_candidates")
+        .select("id", count="exact")
+        .eq("client_id", client_id)
+        .eq("status", "pending")
+        .gte("created_at", cutoff_date)
         .execute()
+    )
     tasks_count = tasks_count_result.count or 0
 
-    opps_count_result = supabase.table("project_candidates") \
-        .select("id", count="exact") \
-        .eq("client_id", client_id) \
-        .eq("status", "pending") \
-        .gte("created_at", cutoff_date) \
+    opps_count_result = (
+        supabase.table("project_candidates")
+        .select("id", count="exact")
+        .eq("client_id", client_id)
+        .eq("status", "pending")
+        .gte("created_at", cutoff_date)
         .execute()
+    )
     opps_count = opps_count_result.count or 0
 
-    stakeholders_count_result = supabase.table("stakeholder_candidates") \
-        .select("id", count="exact") \
-        .eq("client_id", client_id) \
-        .eq("status", "pending") \
-        .gte("created_at", cutoff_date) \
+    stakeholders_count_result = (
+        supabase.table("stakeholder_candidates")
+        .select("id", count="exact")
+        .eq("client_id", client_id)
+        .eq("status", "pending")
+        .gte("created_at", cutoff_date)
         .execute()
+    )
     stakeholders_count = stakeholders_count_result.count or 0
 
     # Check for pending Granola documents (synced but not yet scanned for extraction)
     scanning_status = None
     try:
         from services.granola_scanner import get_scan_status
+
         user_id = current_user["id"]
 
         # Use Granola scanner's status function to get accurate pending count
         granola_status = get_scan_status(user_id)
-        pending_count = granola_status.get('pending_files', 0)
+        pending_count = granola_status.get("pending_files", 0)
 
         if pending_count > 0:
-            next_doc = granola_status.get('next_document')
+            next_doc = granola_status.get("next_document")
             if next_doc:
                 # Truncate long filenames
-                display_name = next_doc[:40] + '...' if len(next_doc) > 40 else next_doc
+                display_name = next_doc[:40] + "..." if len(next_doc) > 40 else next_doc
                 message = f"Analyzing: {display_name}"
             else:
                 message = f"Analyzing {pending_count} meeting{'s' if pending_count != 1 else ''}..."
@@ -302,7 +327,7 @@ async def get_all_pending_candidates(
                 active=True,
                 pending_documents=pending_count,
                 message=message,
-                current_document=next_doc
+                current_document=next_doc,
             )
         else:
             scanning_status = ScanningStatus(active=False, pending_documents=0)
@@ -320,7 +345,7 @@ async def get_all_pending_candidates(
             "projects": opps_count,
             "opportunities": opps_count,  # Backward compatibility
             "stakeholders": stakeholders_count,
-            "total": tasks_count + opps_count + stakeholders_count
+            "total": tasks_count + opps_count + stakeholders_count,
         },
-        "scanning": scanning_status
+        "scanning": scanning_status,
     }

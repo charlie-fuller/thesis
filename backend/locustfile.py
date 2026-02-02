@@ -1,5 +1,4 @@
-"""
-Thesis Load Testing with Locust
+"""Thesis Load Testing with Locust
 
 Run with:
   locust -f locustfile.py --host=http://localhost:8000
@@ -9,11 +8,10 @@ For headless mode:
 """
 
 import os
-import json
 import random
-from locust import HttpUser, task, between, events
-from locust.runners import MasterRunner
 
+from locust import HttpUser, between, events, task
+from locust.runners import MasterRunner
 
 # Test configuration
 TEST_EMAIL = os.getenv("LOADTEST_EMAIL", "loadtest@thesis.ai")
@@ -47,8 +45,7 @@ SAMPLE_SEARCHES = [
 
 
 class ThesisUser(HttpUser):
-    """
-    Simulates a typical Thesis user workflow.
+    """Simulates a typical Thesis user workflow.
 
     Tasks are weighted to represent realistic usage patterns:
     - Most common: listing/reading (weight 10)
@@ -67,10 +64,13 @@ class ThesisUser(HttpUser):
 
     def login(self):
         """Authenticate and store the JWT token."""
-        response = self.client.post("/api/auth/login", json={
-            "email": TEST_EMAIL,
-            "password": TEST_PASSWORD,
-        })
+        response = self.client.post(
+            "/api/auth/login",
+            json={
+                "email": TEST_EMAIL,
+                "password": TEST_PASSWORD,
+            },
+        )
 
         if response.status_code == 200:
             data = response.json()
@@ -84,7 +84,7 @@ class ThesisUser(HttpUser):
     @property
     def auth_headers(self):
         """Return authorization headers."""
-        return self.headers if hasattr(self, 'headers') else {}
+        return self.headers if hasattr(self, "headers") else {}
 
     # ==================== Conversation Tasks ====================
 
@@ -187,8 +187,7 @@ class ThesisUser(HttpUser):
 
 
 class ChatHeavyUser(HttpUser):
-    """
-    User that focuses primarily on chat interactions.
+    """User that focuses primarily on chat interactions.
     Use this to stress test the chat/AI endpoints.
     """
 
@@ -197,10 +196,13 @@ class ChatHeavyUser(HttpUser):
 
     def on_start(self):
         """Login at start."""
-        response = self.client.post("/api/auth/login", json={
-            "email": TEST_EMAIL,
-            "password": TEST_PASSWORD,
-        })
+        response = self.client.post(
+            "/api/auth/login",
+            json={
+                "email": TEST_EMAIL,
+                "password": TEST_PASSWORD,
+            },
+        )
 
         if response.status_code == 200:
             data = response.json()
@@ -240,8 +242,7 @@ class ChatHeavyUser(HttpUser):
 
 
 class SearchHeavyUser(HttpUser):
-    """
-    User that focuses on search and document operations.
+    """User that focuses on search and document operations.
     Use this to stress test the RAG pipeline.
     """
 
@@ -250,10 +251,13 @@ class SearchHeavyUser(HttpUser):
 
     def on_start(self):
         """Login at start."""
-        response = self.client.post("/api/auth/login", json={
-            "email": TEST_EMAIL,
-            "password": TEST_PASSWORD,
-        })
+        response = self.client.post(
+            "/api/auth/login",
+            json={
+                "email": TEST_EMAIL,
+                "password": TEST_PASSWORD,
+            },
+        )
 
         if response.status_code == 200:
             data = response.json()

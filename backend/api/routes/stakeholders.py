@@ -1,16 +1,15 @@
-"""
-Stakeholders API Routes
+"""Stakeholders API Routes
 
 Endpoints for managing stakeholders, their insights, and stakeholder candidates.
 """
 
 import logging
 import os
-from typing import Optional
 from datetime import datetime, timezone
+from typing import Optional
 
 import anthropic
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
 from auth import get_current_user
@@ -23,6 +22,7 @@ router = APIRouter(prefix="/api/stakeholders", tags=["stakeholders"])
 
 class StakeholderCreate(BaseModel):
     """Create a new stakeholder."""
+
     name: str
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -44,6 +44,7 @@ class StakeholderCreate(BaseModel):
 
 class StakeholderUpdate(BaseModel):
     """Update a stakeholder."""
+
     name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -67,6 +68,7 @@ class StakeholderUpdate(BaseModel):
 
 class StakeholderResponse(BaseModel):
     """Stakeholder response model."""
+
     id: str
     name: str
     email: Optional[str]
@@ -99,6 +101,7 @@ class StakeholderResponse(BaseModel):
 
 class StakeholderInsightResponse(BaseModel):
     """Stakeholder insight response."""
+
     id: str
     insight_type: str
     content: str
@@ -112,6 +115,7 @@ class StakeholderInsightResponse(BaseModel):
 
 class InsightResolve(BaseModel):
     """Resolve an insight."""
+
     resolution_notes: Optional[str] = None
 
 
@@ -119,8 +123,10 @@ class InsightResolve(BaseModel):
 # STAKEHOLDER CANDIDATE MODELS
 # ============================================================================
 
+
 class StakeholderCandidateResponse(BaseModel):
     """Stakeholder candidate response."""
+
     id: str
     name: str
     role: Optional[str]
@@ -147,6 +153,7 @@ class StakeholderCandidateResponse(BaseModel):
 
 class CandidateAccept(BaseModel):
     """Accept a stakeholder candidate."""
+
     # Override extracted values if needed
     name: Optional[str] = None
     role: Optional[str] = None
@@ -158,11 +165,13 @@ class CandidateAccept(BaseModel):
 
 class CandidateReject(BaseModel):
     """Reject a stakeholder candidate."""
+
     reason: Optional[str] = None
 
 
 class CandidateMerge(BaseModel):
     """Merge candidate into existing stakeholder."""
+
     target_stakeholder_id: str
     update_concerns: bool = True
     update_interests: bool = True
@@ -170,6 +179,7 @@ class CandidateMerge(BaseModel):
 
 class ScanDocumentsRequest(BaseModel):
     """Request to scan documents for stakeholders."""
+
     force_rescan: bool = False
     since_days: int = 90
     limit: int = 20
@@ -182,16 +192,14 @@ async def list_stakeholders(
     limit: int = 50,
     offset: int = 0,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """List all stakeholders for the current client."""
     client_id = current_user.get("client_id")
     if not client_id:
         raise HTTPException(status_code=400, detail="User has no client_id assigned")
 
-    query = supabase.table("stakeholders") \
-        .select("*") \
-        .eq("client_id", client_id)
+    query = supabase.table("stakeholders").select("*").eq("client_id", client_id)
 
     if department:
         query = query.eq("department", department)
@@ -208,14 +216,12 @@ async def list_stakeholders(
 # ============================================================================
 # NOTE: Static routes must be defined before parameterized routes (/{stakeholder_id})
 
+
 @router.get("/engagement/trends")
 async def get_engagement_trends(
-    days: int = 90,
-    current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    days: int = 90, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
 ):
-    """
-    Get engagement level distribution over time for trend analytics.
+    """Get engagement level distribution over time for trend analytics.
 
     Returns data suitable for a stacked area chart showing how engagement
     levels have changed over time.
@@ -234,12 +240,14 @@ async def get_engagement_trends(
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
     # Get engagement history for the period
-    result = supabase.table("engagement_level_history") \
-        .select("engagement_level, calculated_at") \
-        .eq("client_id", client_id) \
-        .gte("calculated_at", start_date.isoformat()) \
-        .order("calculated_at") \
+    result = (
+        supabase.table("engagement_level_history")
+        .select("engagement_level, calculated_at")
+        .eq("client_id", client_id)
+        .gte("calculated_at", start_date.isoformat())
+        .order("calculated_at")
         .execute()
+    )
 
     if not result.data:
         # Return empty trends if no history
@@ -248,13 +256,9 @@ async def get_engagement_trends(
     # Group by week and count engagement levels
     from collections import defaultdict
 
-    weekly_data = defaultdict(lambda: {
-        "champion": 0,
-        "supporter": 0,
-        "neutral": 0,
-        "skeptic": 0,
-        "blocker": 0
-    })
+    weekly_data = defaultdict(
+        lambda: {"champion": 0, "supporter": 0, "neutral": 0, "skeptic": 0, "blocker": 0}
+    )
 
     for record in result.data:
         # Get week start (Monday)
@@ -267,22 +271,16 @@ async def get_engagement_trends(
             weekly_data[week_key][level] += 1
 
     # Convert to sorted list
-    trends = [
-        {"date": date, **counts}
-        for date, counts in sorted(weekly_data.items())
-    ]
+    trends = [{"date": date, **counts} for date, counts in sorted(weekly_data.items())]
 
     return trends
 
 
 @router.get("/engagement/changes")
 async def get_engagement_changes(
-    days: int = 30,
-    current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    days: int = 30, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
 ):
-    """
-    Get recent engagement level changes (who moved up/down).
+    """Get recent engagement level changes (who moved up/down).
 
     Returns stakeholders whose engagement level changed recently,
     with direction indicators.
@@ -299,24 +297,27 @@ async def get_engagement_changes(
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
     # Get history records where level changed (previous_level is not null)
-    result = supabase.table("engagement_level_history") \
-        .select("stakeholder_id, engagement_level, previous_level, calculation_reason, calculated_at") \
-        .eq("client_id", client_id) \
-        .gte("calculated_at", start_date.isoformat()) \
-        .not_.is_("previous_level", "null") \
-        .order("calculated_at", desc=True) \
-        .limit(50) \
+    result = (
+        supabase.table("engagement_level_history")
+        .select(
+            "stakeholder_id, engagement_level, previous_level, calculation_reason, calculated_at"
+        )
+        .eq("client_id", client_id)
+        .gte("calculated_at", start_date.isoformat())
+        .not_.is_("previous_level", "null")
+        .order("calculated_at", desc=True)
+        .limit(50)
         .execute()
+    )
 
     if not result.data:
         return []
 
     # Get stakeholder names
     stakeholder_ids = list(set(r["stakeholder_id"] for r in result.data))
-    stakeholders = supabase.table("stakeholders") \
-        .select("id, name") \
-        .in_("id", stakeholder_ids) \
-        .execute()
+    stakeholders = (
+        supabase.table("stakeholders").select("id, name").in_("id", stakeholder_ids).execute()
+    )
 
     name_map = {s["id"]: s["name"] for s in stakeholders.data}
 
@@ -334,26 +335,26 @@ async def get_engagement_changes(
 
     changes = []
     for record in result.data:
-        changes.append({
-            "stakeholder_id": record["stakeholder_id"],
-            "name": name_map.get(record["stakeholder_id"], "Unknown"),
-            "previous_level": record["previous_level"],
-            "new_level": record["engagement_level"],
-            "direction": get_direction(record["previous_level"], record["engagement_level"]),
-            "change_date": record["calculated_at"],
-            "reason": record["calculation_reason"]
-        })
+        changes.append(
+            {
+                "stakeholder_id": record["stakeholder_id"],
+                "name": name_map.get(record["stakeholder_id"], "Unknown"),
+                "previous_level": record["previous_level"],
+                "new_level": record["engagement_level"],
+                "direction": get_direction(record["previous_level"], record["engagement_level"]),
+                "change_date": record["calculated_at"],
+                "reason": record["calculation_reason"],
+            }
+        )
 
     return changes
 
 
 @router.post("/engagement/recalculate")
 async def trigger_engagement_recalculation(
-    current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
 ):
-    """
-    Manually trigger engagement recalculation for the current client.
+    """Manually trigger engagement recalculation for the current client.
 
     This is an admin function for testing or forcing an immediate update.
     """
@@ -369,7 +370,7 @@ async def trigger_engagement_recalculation(
             "changed": result.get("changed", 0),
             "promotions": result.get("promotions", 0),
             "demotions": result.get("demotions", 0),
-            "errors": result.get("errors", 0)
+            "errors": result.get("errors", 0),
         }
     except Exception as e:
         logger.error(f"Engagement recalculation failed: {e}")
@@ -378,11 +379,9 @@ async def trigger_engagement_recalculation(
 
 @router.get("/dashboard")
 async def get_stakeholder_dashboard(
-    current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
 ):
-    """
-    Get dashboard metrics for stakeholders.
+    """Get dashboard metrics for stakeholders.
 
     Returns:
     - Sentiment trends
@@ -393,19 +392,18 @@ async def get_stakeholder_dashboard(
     client_id = current_user["client_id"]
 
     # Get all stakeholders
-    stakeholders = supabase.table("stakeholders") \
-        .select("*") \
-        .eq("client_id", client_id) \
-        .execute()
+    stakeholders = supabase.table("stakeholders").select("*").eq("client_id", client_id).execute()
 
     # Get recent unresolved concerns
-    concerns = supabase.table("stakeholder_insights") \
-        .select("*, stakeholders(name)") \
-        .eq("insight_type", "concern") \
-        .eq("is_resolved", False) \
-        .order("created_at", desc=True) \
-        .limit(10) \
+    concerns = (
+        supabase.table("stakeholder_insights")
+        .select("*, stakeholders(name)")
+        .eq("insight_type", "concern")
+        .eq("is_resolved", False)
+        .order("created_at", desc=True)
+        .limit(10)
         .execute()
+    )
 
     # Calculate metrics
     total = len(stakeholders.data)
@@ -416,7 +414,7 @@ async def get_stakeholder_dashboard(
             "average_sentiment": 0,
             "average_alignment": 0,
             "recent_concerns": [],
-            "stakeholders_needing_attention": []
+            "stakeholders_needing_attention": [],
         }
 
     # Engagement distribution
@@ -431,7 +429,8 @@ async def get_stakeholder_dashboard(
 
     # Stakeholders needing attention (negative sentiment or low engagement)
     needs_attention = [
-        _format_stakeholder(s) for s in stakeholders.data
+        _format_stakeholder(s)
+        for s in stakeholders.data
         if s.get("sentiment_score", 0) < -0.2 or s.get("engagement_level") in ["skeptic", "blocker"]
     ]
 
@@ -443,13 +442,15 @@ async def get_stakeholder_dashboard(
         "recent_concerns": [
             {
                 "id": c["id"],
-                "stakeholder_name": c["stakeholders"]["name"] if c.get("stakeholders") else "Unknown",
+                "stakeholder_name": c["stakeholders"]["name"]
+                if c.get("stakeholders")
+                else "Unknown",
                 "content": c["content"],
-                "created_at": c["created_at"]
+                "created_at": c["created_at"],
             }
             for c in concerns.data
         ],
-        "stakeholders_needing_attention": needs_attention[:5]
+        "stakeholders_needing_attention": needs_attention[:5],
     }
 
 
@@ -458,18 +459,21 @@ async def get_stakeholder_dashboard(
 # ============================================================================
 # NOTE: These static routes must be defined before parameterized routes (/{stakeholder_id})
 
+
 @router.get("/candidates", response_model=list[StakeholderCandidateResponse])
 async def list_stakeholder_candidates(
     status: Optional[str] = "pending",
     limit: int = 50,
     offset: int = 0,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """List stakeholder candidates for review."""
-    query = supabase.table("stakeholder_candidates") \
-        .select("*") \
+    query = (
+        supabase.table("stakeholder_candidates")
+        .select("*")
         .eq("client_id", current_user["client_id"])
+    )
 
     if status:
         query = query.eq("status", status)
@@ -483,11 +487,13 @@ async def list_stakeholder_candidates(
 
         # Get match name if there's a potential match
         if c.get("potential_match_stakeholder_id"):
-            match = supabase.table("stakeholders") \
-                .select("name") \
-                .eq("id", c["potential_match_stakeholder_id"]) \
-                .single() \
+            match = (
+                supabase.table("stakeholders")
+                .select("name")
+                .eq("id", c["potential_match_stakeholder_id"])
+                .single()
                 .execute()
+            )
             if match.data:
                 formatted["potential_match_name"] = match.data["name"]
 
@@ -498,15 +504,16 @@ async def list_stakeholder_candidates(
 
 @router.get("/candidates/count")
 async def get_candidate_count(
-    current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
 ):
     """Get count of pending stakeholder candidates."""
-    result = supabase.table("stakeholder_candidates") \
-        .select("id", count="exact") \
-        .eq("client_id", current_user["client_id"]) \
-        .eq("status", "pending") \
+    result = (
+        supabase.table("stakeholder_candidates")
+        .select("id", count="exact")
+        .eq("client_id", current_user["client_id"])
+        .eq("status", "pending")
         .execute()
+    )
 
     return {"count": result.count if result.count else 0}
 
@@ -516,17 +523,19 @@ async def accept_stakeholder_candidate(
     candidate_id: str,
     accept: CandidateAccept = CandidateAccept(),
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Accept a stakeholder candidate and create the stakeholder."""
     # Get the candidate
-    candidate = supabase.table("stakeholder_candidates") \
-        .select("*") \
-        .eq("id", candidate_id) \
-        .eq("client_id", current_user["client_id"]) \
-        .eq("status", "pending") \
-        .single() \
+    candidate = (
+        supabase.table("stakeholder_candidates")
+        .select("*")
+        .eq("id", candidate_id)
+        .eq("client_id", current_user["client_id"])
+        .eq("status", "pending")
+        .single()
         .execute()
+    )
 
     if not candidate.data:
         raise HTTPException(status_code=404, detail="Candidate not found or already processed")
@@ -544,7 +553,7 @@ async def accept_stakeholder_candidate(
         "key_concerns": c.get("key_concerns", []),
         "interests": c.get("interests", []),
         "notes": accept.notes,
-        "first_interaction": datetime.now(timezone.utc).date().isoformat()
+        "first_interaction": datetime.now(timezone.utc).date().isoformat(),
     }
 
     # Set initial sentiment-based engagement
@@ -573,20 +582,20 @@ async def accept_stakeholder_candidate(
 
     if opportunity_ids or task_ids:
         from services.stakeholder_linker import link_stakeholder_to_entities
+
         await link_stakeholder_to_entities(
             supabase, new_stakeholder["id"], opportunity_ids, task_ids
         )
 
     # Update candidate status
-    supabase.table("stakeholder_candidates") \
-        .update({
+    supabase.table("stakeholder_candidates").update(
+        {
             "status": "accepted",
             "accepted_at": datetime.now(timezone.utc).isoformat(),
             "accepted_by": current_user["id"],
-            "created_stakeholder_id": new_stakeholder["id"]
-        }) \
-        .eq("id", candidate_id) \
-        .execute()
+            "created_stakeholder_id": new_stakeholder["id"],
+        }
+    ).eq("id", candidate_id).execute()
 
     return _format_stakeholder(new_stakeholder)
 
@@ -596,19 +605,23 @@ async def reject_stakeholder_candidate(
     candidate_id: str,
     reject: CandidateReject = CandidateReject(),
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Reject a stakeholder candidate."""
-    result = supabase.table("stakeholder_candidates") \
-        .update({
-            "status": "rejected",
-            "rejection_reason": reject.reason,
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        }) \
-        .eq("id", candidate_id) \
-        .eq("client_id", current_user["client_id"]) \
-        .eq("status", "pending") \
+    result = (
+        supabase.table("stakeholder_candidates")
+        .update(
+            {
+                "status": "rejected",
+                "rejection_reason": reject.reason,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        .eq("id", candidate_id)
+        .eq("client_id", current_user["client_id"])
+        .eq("status", "pending")
         .execute()
+    )
 
     if not result.data:
         raise HTTPException(status_code=404, detail="Candidate not found or already processed")
@@ -621,17 +634,19 @@ async def merge_stakeholder_candidate(
     candidate_id: str,
     merge: CandidateMerge,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Merge a candidate into an existing stakeholder."""
     # Get the candidate
-    candidate = supabase.table("stakeholder_candidates") \
-        .select("*") \
-        .eq("id", candidate_id) \
-        .eq("client_id", current_user["client_id"]) \
-        .eq("status", "pending") \
-        .single() \
+    candidate = (
+        supabase.table("stakeholder_candidates")
+        .select("*")
+        .eq("id", candidate_id)
+        .eq("client_id", current_user["client_id"])
+        .eq("status", "pending")
+        .single()
         .execute()
+    )
 
     if not candidate.data:
         raise HTTPException(status_code=404, detail="Candidate not found or already processed")
@@ -639,12 +654,14 @@ async def merge_stakeholder_candidate(
     c = candidate.data
 
     # Get the target stakeholder
-    target = supabase.table("stakeholders") \
-        .select("*") \
-        .eq("id", merge.target_stakeholder_id) \
-        .eq("client_id", current_user["client_id"]) \
-        .single() \
+    target = (
+        supabase.table("stakeholders")
+        .select("*")
+        .eq("id", merge.target_stakeholder_id)
+        .eq("client_id", current_user["client_id"])
+        .single()
         .execute()
+    )
 
     if not target.data:
         raise HTTPException(status_code=404, detail="Target stakeholder not found")
@@ -675,10 +692,9 @@ async def merge_stakeholder_candidate(
         update_data["interests"] = existing_interests
 
     # Update target stakeholder
-    supabase.table("stakeholders") \
-        .update(update_data) \
-        .eq("id", merge.target_stakeholder_id) \
-        .execute()
+    supabase.table("stakeholders").update(update_data).eq(
+        "id", merge.target_stakeholder_id
+    ).execute()
 
     # Link to related entities
     opportunity_ids = c.get("related_opportunity_ids", [])
@@ -686,20 +702,20 @@ async def merge_stakeholder_candidate(
 
     if opportunity_ids or task_ids:
         from services.stakeholder_linker import link_stakeholder_to_entities
+
         await link_stakeholder_to_entities(
             supabase, merge.target_stakeholder_id, opportunity_ids, task_ids
         )
 
     # Update candidate status
-    supabase.table("stakeholder_candidates") \
-        .update({
+    supabase.table("stakeholder_candidates").update(
+        {
             "status": "merged",
             "accepted_at": datetime.now(timezone.utc).isoformat(),
             "accepted_by": current_user["id"],
-            "merged_into_stakeholder_id": merge.target_stakeholder_id
-        }) \
-        .eq("id", candidate_id) \
-        .execute()
+            "merged_into_stakeholder_id": merge.target_stakeholder_id,
+        }
+    ).eq("id", candidate_id).execute()
 
     return {"message": "Candidate merged into existing stakeholder"}
 
@@ -709,7 +725,7 @@ async def bulk_process_candidates(
     candidate_ids: list[str],
     action: str,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Bulk accept or reject candidates."""
     if action not in ("accept", "reject"):
@@ -721,17 +737,11 @@ async def bulk_process_candidates(
         try:
             if action == "accept":
                 await accept_stakeholder_candidate(
-                    candidate_id,
-                    CandidateAccept(),
-                    current_user,
-                    supabase
+                    candidate_id, CandidateAccept(), current_user, supabase
                 )
             else:
                 await reject_stakeholder_candidate(
-                    candidate_id,
-                    CandidateReject(),
-                    current_user,
-                    supabase
+                    candidate_id, CandidateReject(), current_user, supabase
                 )
             results["processed"] += 1
         except HTTPException as e:
@@ -747,10 +757,9 @@ async def scan_documents_for_stakeholders(
     request: ScanDocumentsRequest = ScanDocumentsRequest(),
     background_tasks: BackgroundTasks = None,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
-    """
-    Manually trigger stakeholder extraction from meeting documents.
+    """Manually trigger stakeholder extraction from meeting documents.
 
     Scans meeting summaries and transcripts for stakeholder mentions,
     creates candidates for review.
@@ -772,7 +781,7 @@ async def scan_documents_for_stakeholders(
         user_id=current_user["id"],
         force_rescan=request.force_rescan,
         since_days=request.since_days,
-        limit=request.limit
+        limit=request.limit,
     )
 
     return {
@@ -781,7 +790,7 @@ async def scan_documents_for_stakeholders(
         "stakeholders_found": result["stakeholders_found"],
         "candidates_created": result["candidates_created"],
         "duplicates_found": result["duplicates_found"],
-        "errors": result["errors"]
+        "errors": result["errors"],
     }
 
 
@@ -789,7 +798,7 @@ async def scan_documents_for_stakeholders(
 async def create_stakeholder(
     stakeholder: StakeholderCreate,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Create a new stakeholder."""
     data = {
@@ -801,7 +810,7 @@ async def create_stakeholder(
         "department": stakeholder.department,
         "organization": stakeholder.organization,
         "notes": stakeholder.notes,
-        "first_interaction": datetime.now(timezone.utc).date().isoformat()
+        "first_interaction": datetime.now(timezone.utc).date().isoformat(),
     }
 
     result = supabase.table("stakeholders").insert(data).execute()
@@ -816,15 +825,17 @@ async def create_stakeholder(
 async def get_stakeholder(
     stakeholder_id: str,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Get a specific stakeholder."""
-    result = supabase.table("stakeholders") \
-        .select("*") \
-        .eq("id", stakeholder_id) \
-        .eq("client_id", current_user["client_id"]) \
-        .single() \
+    result = (
+        supabase.table("stakeholders")
+        .select("*")
+        .eq("id", stakeholder_id)
+        .eq("client_id", current_user["client_id"])
+        .single()
         .execute()
+    )
 
     if not result.data:
         raise HTTPException(status_code=404, detail="Stakeholder not found")
@@ -837,18 +848,20 @@ async def update_stakeholder(
     stakeholder_id: str,
     update: StakeholderUpdate,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Update a stakeholder."""
     # Build update data, excluding None values
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-    result = supabase.table("stakeholders") \
-        .update(update_data) \
-        .eq("id", stakeholder_id) \
-        .eq("client_id", current_user["client_id"]) \
+    result = (
+        supabase.table("stakeholders")
+        .update(update_data)
+        .eq("id", stakeholder_id)
+        .eq("client_id", current_user["client_id"])
         .execute()
+    )
 
     if not result.data:
         raise HTTPException(status_code=404, detail="Stakeholder not found")
@@ -860,14 +873,16 @@ async def update_stakeholder(
 async def delete_stakeholder(
     stakeholder_id: str,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Delete a stakeholder."""
-    result = supabase.table("stakeholders") \
-        .delete() \
-        .eq("id", stakeholder_id) \
-        .eq("client_id", current_user["client_id"]) \
+    result = (
+        supabase.table("stakeholders")
+        .delete()
+        .eq("id", stakeholder_id)
+        .eq("client_id", current_user["client_id"])
         .execute()
+    )
 
     if not result.data:
         raise HTTPException(status_code=404, detail="Stakeholder not found")
@@ -880,10 +895,9 @@ async def get_stakeholder_engagement_history(
     stakeholder_id: str,
     limit: int = 20,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
-    """
-    Get engagement level history for a specific stakeholder.
+    """Get engagement level history for a specific stakeholder.
 
     Returns the history of engagement level calculations, including
     the signals that drove each calculation.
@@ -896,23 +910,29 @@ async def get_stakeholder_engagement_history(
         List of engagement history records
     """
     # Verify stakeholder belongs to client
-    stakeholder = supabase.table("stakeholders") \
-        .select("id, name") \
-        .eq("id", stakeholder_id) \
-        .eq("client_id", current_user["client_id"]) \
-        .single() \
+    stakeholder = (
+        supabase.table("stakeholders")
+        .select("id, name")
+        .eq("id", stakeholder_id)
+        .eq("client_id", current_user["client_id"])
+        .single()
         .execute()
+    )
 
     if not stakeholder.data:
         raise HTTPException(status_code=404, detail="Stakeholder not found")
 
     # Get engagement history
-    result = supabase.table("engagement_level_history") \
-        .select("engagement_level, previous_level, calculation_reason, signals, calculated_at, calculation_type") \
-        .eq("stakeholder_id", stakeholder_id) \
-        .order("calculated_at", desc=True) \
-        .limit(limit) \
+    result = (
+        supabase.table("engagement_level_history")
+        .select(
+            "engagement_level, previous_level, calculation_reason, signals, calculated_at, calculation_type"
+        )
+        .eq("stakeholder_id", stakeholder_id)
+        .order("calculated_at", desc=True)
+        .limit(limit)
         .execute()
+    )
 
     return {
         "stakeholder_id": stakeholder_id,
@@ -924,10 +944,10 @@ async def get_stakeholder_engagement_history(
                 "reason": h.get("calculation_reason"),
                 "signals": h.get("signals", {}),
                 "calculated_at": h["calculated_at"],
-                "calculation_type": h.get("calculation_type", "scheduled")
+                "calculation_type": h.get("calculation_type", "scheduled"),
             }
             for h in result.data
-        ]
+        ],
     }
 
 
@@ -937,24 +957,28 @@ async def get_stakeholder_insights(
     insight_type: Optional[str] = None,
     include_resolved: bool = False,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Get all insights for a stakeholder."""
     # Verify stakeholder belongs to client
-    stakeholder = supabase.table("stakeholders") \
-        .select("id") \
-        .eq("id", stakeholder_id) \
-        .eq("client_id", current_user["client_id"]) \
-        .single() \
+    stakeholder = (
+        supabase.table("stakeholders")
+        .select("id")
+        .eq("id", stakeholder_id)
+        .eq("client_id", current_user["client_id"])
+        .single()
         .execute()
+    )
 
     if not stakeholder.data:
         raise HTTPException(status_code=404, detail="Stakeholder not found")
 
     # Get insights with meeting info
-    query = supabase.table("stakeholder_insights") \
-        .select("*, meeting_transcripts(title, meeting_date)") \
+    query = (
+        supabase.table("stakeholder_insights")
+        .select("*, meeting_transcripts(title, meeting_date)")
         .eq("stakeholder_id", stakeholder_id)
+    )
 
     if insight_type:
         query = query.eq("insight_type", insight_type)
@@ -971,9 +995,13 @@ async def get_stakeholder_insights(
             quote=i.get("extracted_quote"),
             confidence=i.get("confidence", 0.8),
             is_resolved=i.get("is_resolved", False),
-            meeting_title=i["meeting_transcripts"]["title"] if i.get("meeting_transcripts") else None,
-            meeting_date=i["meeting_transcripts"]["meeting_date"] if i.get("meeting_transcripts") else None,
-            created_at=i["created_at"]
+            meeting_title=i["meeting_transcripts"]["title"]
+            if i.get("meeting_transcripts")
+            else None,
+            meeting_date=i["meeting_transcripts"]["meeting_date"]
+            if i.get("meeting_transcripts")
+            else None,
+            created_at=i["created_at"],
         )
         for i in result.data
     ]
@@ -985,31 +1013,37 @@ async def resolve_insight(
     insight_id: str,
     resolve: InsightResolve,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Mark an insight as resolved."""
     # Verify stakeholder belongs to client
-    stakeholder = supabase.table("stakeholders") \
-        .select("id") \
-        .eq("id", stakeholder_id) \
-        .eq("client_id", current_user["client_id"]) \
-        .single() \
+    stakeholder = (
+        supabase.table("stakeholders")
+        .select("id")
+        .eq("id", stakeholder_id)
+        .eq("client_id", current_user["client_id"])
+        .single()
         .execute()
+    )
 
     if not stakeholder.data:
         raise HTTPException(status_code=404, detail="Stakeholder not found")
 
     # Update insight
-    result = supabase.table("stakeholder_insights") \
-        .update({
-            "is_resolved": True,
-            "resolved_at": datetime.now(timezone.utc).isoformat(),
-            "resolution_notes": resolve.resolution_notes,
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        }) \
-        .eq("id", insight_id) \
-        .eq("stakeholder_id", stakeholder_id) \
+    result = (
+        supabase.table("stakeholder_insights")
+        .update(
+            {
+                "is_resolved": True,
+                "resolved_at": datetime.now(timezone.utc).isoformat(),
+                "resolution_notes": resolve.resolution_notes,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        .eq("id", insight_id)
+        .eq("stakeholder_id", stakeholder_id)
         .execute()
+    )
 
     if not result.data:
         raise HTTPException(status_code=404, detail="Insight not found")
@@ -1075,5 +1109,5 @@ def _format_candidate(c: dict) -> dict:
         "potential_match_stakeholder_id": c.get("potential_match_stakeholder_id"),
         "potential_match_name": None,  # Will be populated by endpoint
         "match_confidence": c.get("match_confidence"),
-        "created_at": c["created_at"]
+        "created_at": c["created_at"],
     }

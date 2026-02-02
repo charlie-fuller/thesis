@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Sync all XML instruction files to the database.
+"""Sync all XML instruction files to the database.
 
 This script reads all XML files from backend/system_instructions/agents/
 and creates initial versions in agent_instruction_versions table.
@@ -13,20 +12,18 @@ Usage:
 
 import os
 import sys
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
-from supabase import create_client, Client
-from services.instruction_loader import (
-    load_instruction_from_file,
-    list_available_instruction_files
-)
+from services.instruction_loader import list_available_instruction_files, load_instruction_from_file
+from supabase import Client, create_client
 
 
 def main():
@@ -48,7 +45,7 @@ def main():
     try:
         agents_result = supabase.table("agents").select("id, name, display_name").execute()
     except Exception as e:
-        print(f"ERROR: Could not fetch agents table. Have you run the migrations?")
+        print("ERROR: Could not fetch agents table. Have you run the migrations?")
         print(f"Error: {e}")
         return 1
 
@@ -78,12 +75,14 @@ def main():
             continue
 
         # Check if agent already has an active version
-        versions = supabase.table("agent_instruction_versions")\
-            .select("id, instructions")\
-            .eq("agent_id", agent_id)\
-            .eq("is_active", True)\
-            .limit(1)\
+        versions = (
+            supabase.table("agent_instruction_versions")
+            .select("id, instructions")
+            .eq("agent_id", agent_id)
+            .eq("is_active", True)
+            .limit(1)
             .execute()
+        )
 
         if versions.data and len(versions.data) > 0:
             existing = versions.data[0]
@@ -91,23 +90,23 @@ def main():
 
             # Check if existing is a placeholder (starts with "--" or is very short)
             is_placeholder = (
-                existing_instructions.startswith("--") or
-                len(existing_instructions) < 200
+                existing_instructions.startswith("--") or len(existing_instructions) < 200
             )
 
             if is_placeholder:
                 # Update the placeholder with real XML content
                 try:
-                    supabase.table("agent_instruction_versions")\
-                        .update({
+                    supabase.table("agent_instruction_versions").update(
+                        {
                             "instructions": content,
                             "description": "Updated from XML file (replaced placeholder)",
                             "activated_at": datetime.now(timezone.utc).isoformat(),
-                        })\
-                        .eq("id", existing["id"])\
-                        .execute()
+                        }
+                    ).eq("id", existing["id"]).execute()
 
-                    print(f"  ✅ UPDATED: {agent_name} - Replaced placeholder with XML ({len(content)} chars)")
+                    print(
+                        f"  ✅ UPDATED: {agent_name} - Replaced placeholder with XML ({len(content)} chars)"
+                    )
                     synced += 1
                     continue
                 except Exception as e:
@@ -116,26 +115,29 @@ def main():
                     continue
             else:
                 # Real content already exists
-                print(f"  SKIP: {agent_name} - Already has real instructions ({len(existing_instructions)} chars)")
+                print(
+                    f"  SKIP: {agent_name} - Already has real instructions ({len(existing_instructions)} chars)"
+                )
                 skipped += 1
                 continue
 
         # No active version exists - create initial version
         try:
-            supabase.table("agent_instruction_versions").insert({
-                "agent_id": agent_id,
-                "version_number": "1.0",
-                "instructions": content,
-                "description": "Initial version from XML file",
-                "is_active": True,
-                "activated_at": datetime.now(timezone.utc).isoformat(),
-            }).execute()
+            supabase.table("agent_instruction_versions").insert(
+                {
+                    "agent_id": agent_id,
+                    "version_number": "1.0",
+                    "instructions": content,
+                    "description": "Initial version from XML file",
+                    "is_active": True,
+                    "activated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            ).execute()
 
             # Update agent timestamp
-            supabase.table("agents")\
-                .update({"updated_at": datetime.now(timezone.utc).isoformat()})\
-                .eq("id", agent_id)\
-                .execute()
+            supabase.table("agents").update(
+                {"updated_at": datetime.now(timezone.utc).isoformat()}
+            ).eq("id", agent_id).execute()
 
             print(f"  ✅ SYNCED: {agent_name} - Created version 1.0 ({len(content)} chars)")
             synced += 1
@@ -145,7 +147,7 @@ def main():
             errors += 1
 
     print("\n" + "=" * 60)
-    print(f"Summary:")
+    print("Summary:")
     print(f"  Synced:  {synced}")
     print(f"  Skipped: {skipped}")
     print(f"  Errors:  {errors}")

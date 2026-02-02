@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Fix the White Rabbit Document
+"""Fix the White Rabbit Document
 
 This script:
 1. Identifies the corrupted "white rabbits" document
@@ -23,8 +22,8 @@ logger = get_logger(__name__)
 supabase = get_supabase()
 
 # The problematic document
-DOC_ID = '1ccc278a-57f0-473a-a640-99bb1bb9f48d'
-DOC_NAME = 'all about white rabbits'
+DOC_ID = "1ccc278a-57f0-473a-a640-99bb1bb9f48d"
+DOC_NAME = "all about white rabbits"
 
 
 def analyze_document():
@@ -32,20 +31,26 @@ def analyze_document():
     logger.info(f"\n🔍 Analyzing document: {DOC_NAME}")
 
     # Get document info
-    doc = supabase.table('documents').select('*').eq('id', DOC_ID).execute().data[0]
+    doc = supabase.table("documents").select("*").eq("id", DOC_ID).execute().data[0]
 
     logger.info(f"   Status: processed={doc['processed']}, status={doc.get('processing_status')}")
     logger.info(f"   Chunk count: {doc.get('chunk_count')}")
     logger.info(f"   Error: {doc.get('processing_error')}")
 
     # Check chunks
-    chunks = supabase.table('document_chunks').select('id, content').eq('document_id', DOC_ID).limit(3).execute()
+    chunks = (
+        supabase.table("document_chunks")
+        .select("id, content")
+        .eq("document_id", DOC_ID)
+        .limit(3)
+        .execute()
+    )
 
     logger.info(f"\n   Sample chunks (first 3 of {doc.get('chunk_count')}):")
     for i, chunk in enumerate(chunks.data, 1):
-        content = chunk['content']
+        content = chunk["content"]
         printable_ratio = sum(1 for c in content if c.isprintable() or c.isspace()) / len(content)
-        is_binary = content.startswith('PK') or '<' in content[:50]
+        is_binary = content.startswith("PK") or "<" in content[:50]
 
         logger.info(f"   {i}. Printable: {printable_ratio:.1%}, Binary markers: {is_binary}")
         logger.info(f"      Preview: {content[:80]}...")
@@ -57,7 +62,7 @@ def delete_corrupted_chunks():
     """Delete all corrupted chunks for this document."""
     logger.info("\n🗑️  Deleting corrupted chunks...")
 
-    result = supabase.table('document_chunks').delete().eq('document_id', DOC_ID).execute()
+    result = supabase.table("document_chunks").delete().eq("document_id", DOC_ID).execute()
 
     logger.info("   ✅ Deleted chunks")
     return True
@@ -67,13 +72,15 @@ def reset_document_status():
     """Reset document processing status to trigger reprocessing."""
     logger.info("\n🔄 Resetting document status...")
 
-    supabase.table('documents').update({
-        'processed': False,
-        'processing_status': 'pending',
-        'processing_error': None,
-        'chunk_count': 0,
-        'processed_at': None
-    }).eq('id', DOC_ID).execute()
+    supabase.table("documents").update(
+        {
+            "processed": False,
+            "processing_status": "pending",
+            "processing_error": None,
+            "chunk_count": 0,
+            "processed_at": None,
+        }
+    ).eq("id", DOC_ID).execute()
 
     logger.info("   ✅ Document status reset to pending")
     return True
@@ -101,7 +108,7 @@ def verify_fix():
     logger.info("\n✓ Verifying fix...")
 
     # Get updated document
-    doc = supabase.table('documents').select('*').eq('id', DOC_ID).execute().data[0]
+    doc = supabase.table("documents").select("*").eq("id", DOC_ID).execute().data[0]
 
     logger.info(f"   Status: {doc.get('processing_status')}")
     logger.info(f"   Chunk count: {doc.get('chunk_count')}")
@@ -110,10 +117,7 @@ def verify_fix():
     from document_processor import search_similar_chunks
 
     results = search_similar_chunks(
-        query='white rabbits',
-        client_id=doc['client_id'],
-        limit=3,
-        min_similarity=0.0
+        query="white rabbits", client_id=doc["client_id"], limit=3, min_similarity=0.0
     )
 
     logger.info("\n   Search test for 'white rabbits':")
@@ -129,9 +133,9 @@ def verify_fix():
 
 def main(auto_confirm=False):
     """Main execution."""
-    logger.info("="*80)
+    logger.info("=" * 80)
     logger.info("FIX WHITE RABBIT DOCUMENT")
-    logger.info("="*80)
+    logger.info("=" * 80)
 
     # Step 1: Analyze
     doc = analyze_document()
@@ -144,7 +148,7 @@ def main(auto_confirm=False):
 
     if not auto_confirm:
         response = input("\n   Continue? (yes/no): ")
-        if response.lower() != 'yes':
+        if response.lower() != "yes":
             logger.info("   ❌ Aborted")
             return
     else:
@@ -163,19 +167,20 @@ def main(auto_confirm=False):
         # Step 6: Verify
         search_works = verify_fix()
 
-        logger.info("\n" + "="*80)
+        logger.info("\n" + "=" * 80)
         if search_works:
             logger.info("✅ SUCCESS! Document fixed and searchable!")
         else:
             logger.info("⚠️  Document reprocessed but search may need time to update")
-        logger.info("="*80)
+        logger.info("=" * 80)
     else:
-        logger.info("\n" + "="*80)
+        logger.info("\n" + "=" * 80)
         logger.info("❌ FAILED - Check errors above")
-        logger.info("="*80)
+        logger.info("=" * 80)
 
 
 if __name__ == "__main__":
     import sys
-    auto_confirm = '--yes' in sys.argv or '-y' in sys.argv
+
+    auto_confirm = "--yes" in sys.argv or "-y" in sys.argv
     main(auto_confirm=auto_confirm)

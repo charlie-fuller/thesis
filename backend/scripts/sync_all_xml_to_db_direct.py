@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Sync all XML instruction files to the database using direct PostgreSQL connection.
+"""Sync all XML instruction files to the database using direct PostgreSQL connection.
 
 This bypasses the Supabase REST API schema cache issue.
 
@@ -12,21 +11,20 @@ Usage:
 
 import os
 import sys
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from services.instruction_loader import (
-    load_instruction_from_file,
-    list_available_instruction_files
-)
+
+from services.instruction_loader import list_available_instruction_files, load_instruction_from_file
 
 
 def get_postgres_url():
@@ -42,7 +40,8 @@ def get_postgres_url():
 
     if supabase_url and password:
         import re
-        match = re.search(r'https://([^.]+)\.supabase\.co', supabase_url)
+
+        match = re.search(r"https://([^.]+)\.supabase\.co", supabase_url)
         if match:
             project_ref = match.group(1)
             return f"postgresql://postgres.{project_ref}:{password}@aws-0-us-west-1.pooler.supabase.com:6543/postgres"
@@ -114,11 +113,14 @@ def main():
             continue
 
         # Check if agent already has an active version
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT id, instructions FROM agent_instruction_versions
             WHERE agent_id = %s AND is_active = TRUE
             LIMIT 1
-        """, (agent_id,))
+        """,
+            (agent_id,),
+        )
         existing = cursor.fetchone()
 
         if existing:
@@ -126,23 +128,27 @@ def main():
 
             # Check if existing is a placeholder (starts with "--" or is very short)
             is_placeholder = (
-                existing_instructions.startswith("--") or
-                len(existing_instructions) < 200
+                existing_instructions.startswith("--") or len(existing_instructions) < 200
             )
 
             if is_placeholder:
                 # Update the placeholder with real XML content
                 try:
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         UPDATE agent_instruction_versions
                         SET instructions = %s,
                             description = 'Updated from XML file (replaced placeholder)',
                             activated_at = %s
                         WHERE id = %s
-                    """, (content, datetime.now(timezone.utc), existing["id"]))
+                    """,
+                        (content, datetime.now(timezone.utc), existing["id"]),
+                    )
                     conn.commit()
 
-                    print(f"  ✅ UPDATED: {agent_name} - Replaced placeholder with XML ({len(content)} chars)")
+                    print(
+                        f"  ✅ UPDATED: {agent_name} - Replaced placeholder with XML ({len(content)} chars)"
+                    )
                     synced += 1
                     continue
                 except Exception as e:
@@ -152,21 +158,29 @@ def main():
                     continue
             else:
                 # Real content already exists
-                print(f"  SKIP: {agent_name} - Already has real instructions ({len(existing_instructions)} chars)")
+                print(
+                    f"  SKIP: {agent_name} - Already has real instructions ({len(existing_instructions)} chars)"
+                )
                 skipped += 1
                 continue
 
         # No active version exists - create initial version
         try:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO agent_instruction_versions
                 (agent_id, version_number, instructions, description, is_active, activated_at)
                 VALUES (%s, '1.0', %s, 'Initial version from XML file', TRUE, %s)
-            """, (agent_id, content, datetime.now(timezone.utc)))
+            """,
+                (agent_id, content, datetime.now(timezone.utc)),
+            )
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE agents SET updated_at = %s WHERE id = %s
-            """, (datetime.now(timezone.utc), agent_id))
+            """,
+                (datetime.now(timezone.utc), agent_id),
+            )
 
             conn.commit()
 
@@ -181,7 +195,7 @@ def main():
     conn.close()
 
     print("\n" + "=" * 60)
-    print(f"Summary:")
+    print("Summary:")
     print(f"  Synced:  {synced}")
     print(f"  Skipped: {skipped}")
     print(f"  Errors:  {errors}")

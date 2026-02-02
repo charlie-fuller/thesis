@@ -1,5 +1,4 @@
-"""
-Neo4j Connection Management
+"""Neo4j Connection Management
 
 Provides async-compatible connection handling for Neo4j Aura.
 Uses the official neo4j Python driver with connection pooling.
@@ -11,12 +10,12 @@ event loops (important for FastAPI with background tasks).
 import asyncio
 import logging
 import os
+from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from typing import Any, Optional
-from contextlib import asynccontextmanager
 
-from neo4j import AsyncGraphDatabase, AsyncDriver
-from neo4j.exceptions import ServiceUnavailable, AuthError, SessionExpired
+from neo4j import AsyncDriver, AsyncGraphDatabase
+from neo4j.exceptions import AuthError, ServiceUnavailable, SessionExpired
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +31,7 @@ _connection_loop_var: ContextVar[Optional[asyncio.AbstractEventLoop]] = ContextV
 
 
 class Neo4jConnection:
-    """
-    Manages Neo4j database connections with async support.
+    """Manages Neo4j database connections with async support.
 
     Uses connection pooling and provides both query execution
     and transaction support.
@@ -45,10 +43,9 @@ class Neo4jConnection:
         password: str,
         username: str = "neo4j",
         database: str = "neo4j",
-        max_connection_pool_size: int = 50
+        max_connection_pool_size: int = 50,
     ):
-        """
-        Initialize Neo4j connection.
+        """Initialize Neo4j connection.
 
         Args:
             uri: Neo4j connection URI (e.g., neo4j+s://xxx.databases.neo4j.io)
@@ -101,13 +98,9 @@ class Neo4jConnection:
             logger.info("Neo4j connection closed")
 
     async def execute_query(
-        self,
-        cypher: str,
-        params: Optional[dict] = None,
-        database: Optional[str] = None
+        self, cypher: str, params: Optional[dict] = None, database: Optional[str] = None
     ) -> list[dict[str, Any]]:
-        """
-        Execute a Cypher query and return results.
+        """Execute a Cypher query and return results.
 
         Args:
             cypher: Cypher query string
@@ -153,13 +146,9 @@ class Neo4jConnection:
         raise RuntimeError("Query execution failed after all retries")
 
     async def execute_write(
-        self,
-        cypher: str,
-        params: Optional[dict] = None,
-        database: Optional[str] = None
+        self, cypher: str, params: Optional[dict] = None, database: Optional[str] = None
     ) -> list[dict[str, Any]]:
-        """
-        Execute a write transaction (CREATE, MERGE, DELETE, etc.).
+        """Execute a write transaction (CREATE, MERGE, DELETE, etc.).
 
         Args:
             cypher: Cypher query string
@@ -187,7 +176,9 @@ class Neo4jConnection:
                     return records
             except (ServiceUnavailable, SessionExpired) as e:
                 if attempt == 0:
-                    logger.warning(f"Connection error on write (attempt {attempt + 1}), reconnecting: {e}")
+                    logger.warning(
+                        f"Connection error on write (attempt {attempt + 1}), reconnecting: {e}"
+                    )
                     await self.close()
                     await self.connect()
                 else:
@@ -206,8 +197,7 @@ class Neo4jConnection:
 
     @asynccontextmanager
     async def session(self, database: Optional[str] = None):
-        """
-        Get a Neo4j session for multiple operations.
+        """Get a Neo4j session for multiple operations.
 
         Usage:
             async with connection.session() as session:
@@ -224,8 +214,7 @@ class Neo4jConnection:
             await session.close()
 
     async def health_check(self) -> dict[str, Any]:
-        """
-        Check Neo4j connection health.
+        """Check Neo4j connection health.
 
         Returns:
             Dict with status, version, and database info
@@ -243,20 +232,19 @@ class Neo4jConnection:
                 "status": "healthy",
                 "uri": self.uri,
                 "database": self.database,
-                "components": result
+                "components": result,
             }
         except Exception as e:
             return {
                 "status": "unhealthy",
                 "error": str(e),
                 "uri": self.uri,
-                "database": self.database
+                "database": self.database,
             }
 
 
 async def get_neo4j_connection() -> Neo4jConnection:
-    """
-    Get or create a Neo4j connection for the current event loop.
+    """Get or create a Neo4j connection for the current event loop.
 
     Uses environment variables:
         NEO4J_URI: Connection URI
@@ -301,10 +289,7 @@ async def get_neo4j_connection() -> Neo4jConnection:
         raise ValueError("NEO4J_URI and NEO4J_PASSWORD environment variables are required")
 
     new_connection = Neo4jConnection(
-        uri=uri,
-        password=password,
-        username=username,
-        database=database
+        uri=uri, password=password, username=username, database=database
     )
     await new_connection.connect()
 

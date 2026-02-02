@@ -10,7 +10,7 @@ database_url = os.getenv("DATABASE_URL")
 print("🔄 Running storage limits migration...\n")
 
 # Read the migration file
-with open('migrations/017_add_storage_limits.sql', 'r') as f:
+with open("migrations/017_add_storage_limits.sql", "r") as f:
     migration_sql = f.read()
 
 # Connect to database

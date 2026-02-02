@@ -1,5 +1,4 @@
-"""
-Meeting Orchestrator Tests
+"""Meeting Orchestrator Tests
 
 Tests for multi-agent meeting room orchestration including:
 - Agent selection based on topic
@@ -10,10 +9,10 @@ Tests for multi-agent meeting room orchestration including:
 - Reporter synthesis
 """
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
 from datetime import datetime
+from unittest.mock import MagicMock
 
+import pytest
 
 # Mock agent responses
 MOCK_AGENT_RESPONSES = {
@@ -58,9 +57,7 @@ class TestMeetingOrchestrator:
         topic = "What are the financial and security considerations for AI implementation?"
 
         # Mock the agent selection logic
-        orchestrator.select_agents_for_topic = MagicMock(
-            return_value=["capital", "guardian"]
-        )
+        orchestrator.select_agents_for_topic = MagicMock(return_value=["capital", "guardian"])
 
         selected = orchestrator.select_agents_for_topic(topic)
 
@@ -72,10 +69,7 @@ class TestMeetingOrchestrator:
         participants = ["sage", "atlas", "capital"]
 
         # Sort by priority
-        sorted_agents = sorted(
-            participants,
-            key=lambda a: orchestrator.agents[a].priority
-        )
+        sorted_agents = sorted(participants, key=lambda a: orchestrator.agents[a].priority)
 
         assert sorted_agents[0] == "atlas", "Atlas (priority 1) should speak first"
         assert sorted_agents[1] == "capital", "Capital (priority 2) should speak second"
@@ -94,7 +88,9 @@ class TestMeetingOrchestrator:
         on_topic_message = "Let's discuss the ROI projections for the AI initiative."
         off_topic_message = "Did you see the game last night?"
 
-        orchestrator.is_on_topic = MagicMock(side_effect=lambda msg, topic: "AI" in msg or "ROI" in msg)
+        orchestrator.is_on_topic = MagicMock(
+            side_effect=lambda msg, topic: "AI" in msg or "ROI" in msg
+        )
 
         topic = "AI implementation strategy"
 
@@ -322,10 +318,12 @@ class TestMeetingRoomMessages:
         messages = []
 
         for i in range(5):
-            messages.append({
-                "id": f"msg-{i}",
-                "timestamp": datetime.now().isoformat(),
-            })
+            messages.append(
+                {
+                    "id": f"msg-{i}",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
         # Messages should be in order
         for i in range(len(messages) - 1):
@@ -337,11 +335,13 @@ class TestMeetingRoomMessages:
         agents = ["atlas", "capital", "guardian"]
 
         for agent in agents:
-            messages.append({
-                "role": "assistant",
-                "agent_id": agent,
-                "content": MOCK_AGENT_RESPONSES.get(agent, "Response"),
-            })
+            messages.append(
+                {
+                    "role": "assistant",
+                    "agent_id": agent,
+                    "content": MOCK_AGENT_RESPONSES.get(agent, "Response"),
+                }
+            )
 
         agent_sequence = [m["agent_id"] for m in messages if m["role"] == "assistant"]
         assert agent_sequence == agents
@@ -378,6 +378,6 @@ class TestSmartBrevityInMeetings:
 
         for agent, response in MOCK_AGENT_RESPONSES.items():
             for phrase in filler_phrases:
-                assert phrase.lower() not in response.lower(), (
-                    f"{agent} uses filler phrase: {phrase}"
-                )
+                assert (
+                    phrase.lower() not in response.lower()
+                ), f"{agent} uses filler phrase: {phrase}"

@@ -1,5 +1,4 @@
-"""
-Generate a test JWT token for testing purposes
+"""Generate a test JWT token for testing purposes
 
 This script creates a valid JWT token using the Supabase JWT secret
 from the .env file. The token can be used for testing API endpoints.
@@ -23,9 +22,9 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+
 def generate_test_token(user_id: str = None, email: str = None, expires_in_hours: int = 24):
-    """
-    Generate a test JWT token
+    """Generate a test JWT token
 
     Args:
         user_id: User ID (UUID) - if None, uses a default test ID
@@ -36,7 +35,7 @@ def generate_test_token(user_id: str = None, email: str = None, expires_in_hours
         str: Encoded JWT token
     """
     # Get JWT secret from environment
-    jwt_secret = os.getenv('SUPABASE_JWT_SECRET')
+    jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
 
     if not jwt_secret:
         print("❌ Error: SUPABASE_JWT_SECRET not found in environment variables")
@@ -49,21 +48,22 @@ def generate_test_token(user_id: str = None, email: str = None, expires_in_hours
 
     # Calculate expiration
     import time
+
     now_timestamp = int(time.time())  # Use current Unix timestamp
     exp_timestamp = now_timestamp + (expires_in_hours * 3600)
 
     # Create JWT payload (mimicking Supabase JWT structure)
     payload = {
-        'sub': user_id,  # Subject (user ID)
-        'email': email,
-        'aud': 'authenticated',  # Audience
-        'role': 'authenticated',
-        'iat': now_timestamp,  # Issued at (current time)
-        'exp': exp_timestamp,  # Expiration
+        "sub": user_id,  # Subject (user ID)
+        "email": email,
+        "aud": "authenticated",  # Audience
+        "role": "authenticated",
+        "iat": now_timestamp,  # Issued at (current time)
+        "exp": exp_timestamp,  # Expiration
     }
 
     # Encode the token
-    token = jwt.encode(payload, jwt_secret, algorithm='HS256')
+    token = jwt.encode(payload, jwt_secret, algorithm="HS256")
 
     return token
 

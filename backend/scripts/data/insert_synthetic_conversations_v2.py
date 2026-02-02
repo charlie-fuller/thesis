@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Insert synthetic conversations for charlie@sickofancy.ai based on actual configured functions
+"""Insert synthetic conversations for charlie@sickofancy.ai based on actual configured functions
 
 This script creates 10 synthetic conversations spread across 1 week (7 days) to test
 the Bradbury Impact Loop metrics. Uses Charlie's actual 5 configured functions:
@@ -31,8 +30,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from scripts.lib.credentials import get_credentials
 
 creds = get_credentials()
-SUPABASE_URL = creds['supabase_url']
-SUPABASE_SERVICE_ROLE_KEY = creds['supabase_key']
+SUPABASE_URL = creds["supabase_url"]
+SUPABASE_SERVICE_ROLE_KEY = creds["supabase_key"]
 
 # Charlie's user info
 CHARLIE_USER_ID = "d3ba5354-873a-435a-a36a-853373c4f6e5"
@@ -47,7 +46,7 @@ def create_conversation(title: str, created_at: datetime, user_id: str, client_i
         "apikey": SUPABASE_SERVICE_ROLE_KEY,
         "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
         "Content-Type": "application/json",
-        "Prefer": "return=representation"
+        "Prefer": "return=representation",
     }
 
     data = {
@@ -56,7 +55,7 @@ def create_conversation(title: str, created_at: datetime, user_id: str, client_i
         "title": title,
         "created_at": created_at.isoformat(),
         "updated_at": created_at.isoformat(),
-        "in_knowledge_base": False
+        "in_knowledge_base": False,
     }
 
     response = requests.post(url, headers=headers, json=data)
@@ -76,7 +75,7 @@ def create_message(conversation_id: str, role: str, content: str, timestamp: dat
     headers = {
         "apikey": SUPABASE_SERVICE_ROLE_KEY,
         "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     # Match actual messages table schema: id, conversation_id, role, content, timestamp
@@ -84,7 +83,7 @@ def create_message(conversation_id: str, role: str, content: str, timestamp: dat
         "conversation_id": conversation_id,
         "role": role,
         "content": content,
-        "timestamp": timestamp.isoformat()
+        "timestamp": timestamp.isoformat(),
     }
 
     response = requests.post(url, headers=headers, json=data)
@@ -101,7 +100,7 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(script_dir, "synthetic_conversations_charlie_v2.json")
 
-    with open(json_path, 'r') as f:
+    with open(json_path, "r") as f:
         conversations = json.load(f)
 
     # Date distribution: Spread 10 conversations across 7 days (past week)
@@ -112,45 +111,41 @@ def main():
     # Day 1: 2 convos, Day 2: 1 convo, Day 3: 2 convos, Day 4: 1 convo, Day 5: 2 convos, Day 6: 1 convo, Day 7: 1 convo
     date_schedule = [
         # Day 1 (7 days ago): 2 conversations
-        base_date + timedelta(days=0, hours=10),   # Morning
-        base_date + timedelta(days=0, hours=15),   # Afternoon
-
+        base_date + timedelta(days=0, hours=10),  # Morning
+        base_date + timedelta(days=0, hours=15),  # Afternoon
         # Day 2 (6 days ago): 1 conversation
-        base_date + timedelta(days=1, hours=11),   # Late morning
-
+        base_date + timedelta(days=1, hours=11),  # Late morning
         # Day 3 (5 days ago): 2 conversations
-        base_date + timedelta(days=2, hours=9),    # Morning
-        base_date + timedelta(days=2, hours=16),   # Afternoon
-
+        base_date + timedelta(days=2, hours=9),  # Morning
+        base_date + timedelta(days=2, hours=16),  # Afternoon
         # Day 4 (4 days ago): 1 conversation
-        base_date + timedelta(days=3, hours=14),   # Afternoon
-
+        base_date + timedelta(days=3, hours=14),  # Afternoon
         # Day 5 (3 days ago): 2 conversations
-        base_date + timedelta(days=4, hours=10),   # Morning
-        base_date + timedelta(days=4, hours=15),   # Afternoon
-
+        base_date + timedelta(days=4, hours=10),  # Morning
+        base_date + timedelta(days=4, hours=15),  # Afternoon
         # Day 6 (2 days ago): 1 conversation
-        base_date + timedelta(days=5, hours=13),   # Midday
-
+        base_date + timedelta(days=5, hours=13),  # Midday
         # Day 7 (yesterday): 1 conversation
-        base_date + timedelta(days=6, hours=11),   # Late morning
+        base_date + timedelta(days=6, hours=11),  # Late morning
     ]
 
     print(f"🚀 Inserting {len(conversations)} synthetic conversations for {CHARLIE_EMAIL}")
-    print(f"📅 Date range: {date_schedule[0].strftime('%Y-%m-%d')} to {date_schedule[-1].strftime('%Y-%m-%d')}")
+    print(
+        f"📅 Date range: {date_schedule[0].strftime('%Y-%m-%d')} to {date_schedule[-1].strftime('%Y-%m-%d')}"
+    )
     print("📊 Based on Charlie's actual configured functions:")
     print("   - Conceptual_Modeler (2 convos)")
     print("   - Independence_Identifier (2 convos)")
     print("   - Report_Builder (2 convos)")
     print("   - Signal_Analyzer (2 convos)")
     print("   - Meeting_Optimizer (2 convos)")
-    print(f"📈 Expected Ideation Velocity: {len(conversations)/1:.1f} drafts/week (goal: ≥2) ✅")
+    print(f"📈 Expected Ideation Velocity: {len(conversations) / 1:.1f} drafts/week (goal: ≥2) ✅")
     print()
 
     for idx, conv_data in enumerate(conversations):
         created_at = date_schedule[idx]
 
-        print(f"[{idx+1}/10] Creating conversation: {conv_data['title']}")
+        print(f"[{idx + 1}/10] Creating conversation: {conv_data['title']}")
         print(f"  Function: {conv_data['function']}")
         print(f"  Date: {created_at.strftime('%Y-%m-%d %A %I:%M%p')}")
         print(f"  Expected turns: {conv_data['expected_turns']}")
@@ -158,10 +153,10 @@ def main():
 
         # Create conversation (same as real user conversation creation)
         conversation_id = create_conversation(
-            title=conv_data['title'],
+            title=conv_data["title"],
             created_at=created_at,
             user_id=CHARLIE_USER_ID,
-            client_id=CHARLIE_CLIENT_ID
+            client_id=CHARLIE_CLIENT_ID,
         )
 
         print(f"  ✅ Created conversation: {conversation_id}")
@@ -171,25 +166,25 @@ def main():
         message_count = 0
 
         # Interleave messages
-        for i in range(max(len(conv_data['user_messages']), len(conv_data['assistant_messages']))):
+        for i in range(max(len(conv_data["user_messages"]), len(conv_data["assistant_messages"]))):
             # User message
-            if i < len(conv_data['user_messages']):
+            if i < len(conv_data["user_messages"]):
                 create_message(
                     conversation_id=conversation_id,
-                    role=conv_data['user_messages'][i]['role'],
-                    content=conv_data['user_messages'][i]['content'],
-                    timestamp=current_time
+                    role=conv_data["user_messages"][i]["role"],
+                    content=conv_data["user_messages"][i]["content"],
+                    timestamp=current_time,
                 )
                 message_count += 1
                 current_time += timedelta(seconds=30)  # 30 second delay
 
             # Assistant message
-            if i < len(conv_data['assistant_messages']):
+            if i < len(conv_data["assistant_messages"]):
                 create_message(
                     conversation_id=conversation_id,
-                    role=conv_data['assistant_messages'][i]['role'],
-                    content=conv_data['assistant_messages'][i]['content'],
-                    timestamp=current_time
+                    role=conv_data["assistant_messages"][i]["role"],
+                    content=conv_data["assistant_messages"][i]["content"],
+                    timestamp=current_time,
                 )
                 message_count += 1
                 current_time += timedelta(seconds=60)  # 60 second delay
@@ -202,8 +197,10 @@ def main():
     print("📊 Bradbury Impact Loop Test Data:")
     print(f"  - Total conversations: {len(conversations)}")
     print("  - Date span: 7 days (1 week)")
-    print(f"  - Ideation Velocity: {len(conversations)/1:.1f} drafts/week (goal: ≥2) ✅")
-    print(f"  - Average expected turns: {sum(c['expected_turns'] for c in conversations) / len(conversations):.1f} (goal: <2) ✅")
+    print(f"  - Ideation Velocity: {len(conversations) / 1:.1f} drafts/week (goal: ≥2) ✅")
+    print(
+        f"  - Average expected turns: {sum(c['expected_turns'] for c in conversations) / len(conversations):.1f} (goal: <2) ✅"
+    )
     print("  - Functions covered: All 5 of Charlie's configured functions")
     print()
     print("🔍 Next steps:")
@@ -220,5 +217,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Error: {str(e)}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

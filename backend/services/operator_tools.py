@@ -1,39 +1,38 @@
-"""
-Operator Tools Service
+"""Operator Tools Service
 
 Provides data retrieval functions for the Operator agent to access
 project-triage data: opportunities, metrics, stakeholder information.
 """
 
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
+
 from supabase import Client
 
 logger = logging.getLogger(__name__)
 
 
 class OperatorTools:
-    """
-    Service class providing triage data access for the Operator agent.
-    """
+    """Service class providing triage data access for the Operator agent."""
 
     def __init__(self, supabase: Client, client_id: str):
         self.supabase = supabase
         self.client_id = client_id
 
     def get_opportunity_summary(self) -> Dict[str, Any]:
-        """
-        Get a high-level summary of the AI opportunity pipeline.
+        """Get a high-level summary of the AI opportunity pipeline.
 
         Returns:
             Summary dict with tier counts, status breakdown, top opportunities.
         """
         try:
-            result = self.supabase.table("ai_projects") \
-                .select("id, opportunity_code, title, total_score, tier, status, department") \
-                .eq("client_id", self.client_id) \
-                .order("total_score", desc=True) \
+            result = (
+                self.supabase.table("ai_projects")
+                .select("id, opportunity_code, title, total_score, tier, status, department")
+                .eq("client_id", self.client_id)
+                .order("total_score", desc=True)
                 .execute()
+            )
 
             opportunities = result.data or []
 
@@ -70,11 +69,16 @@ class OperatorTools:
 
         except Exception as e:
             logger.error(f"Error getting opportunity summary: {e}")
-            return {"total": 0, "by_tier": {}, "by_status": {}, "top_opportunities": [], "error": str(e)}
+            return {
+                "total": 0,
+                "by_tier": {},
+                "by_status": {},
+                "top_opportunities": [],
+                "error": str(e),
+            }
 
     def get_opportunities_by_department(self, department: str) -> List[Dict[str, Any]]:
-        """
-        Get opportunities for a specific department.
+        """Get opportunities for a specific department.
 
         Args:
             department: Department name (e.g., 'finance', 'legal', 'hr')
@@ -83,12 +87,16 @@ class OperatorTools:
             List of opportunities for that department.
         """
         try:
-            result = self.supabase.table("ai_projects") \
-                .select("id, opportunity_code, title, total_score, tier, status, current_state, desired_state, next_step") \
-                .eq("client_id", self.client_id) \
-                .eq("department", department.lower()) \
-                .order("total_score", desc=True) \
+            result = (
+                self.supabase.table("ai_projects")
+                .select(
+                    "id, opportunity_code, title, total_score, tier, status, current_state, desired_state, next_step"
+                )
+                .eq("client_id", self.client_id)
+                .eq("department", department.lower())
+                .order("total_score", desc=True)
                 .execute()
+            )
 
             return result.data or []
 
@@ -97,18 +105,19 @@ class OperatorTools:
             return []
 
     def get_blocked_opportunities(self) -> List[Dict[str, Any]]:
-        """
-        Get all blocked opportunities that need attention.
+        """Get all blocked opportunities that need attention.
 
         Returns:
             List of blocked opportunities with blockers.
         """
         try:
-            result = self.supabase.table("ai_projects") \
-                .select("id, opportunity_code, title, department, total_score, blockers, next_step") \
-                .eq("client_id", self.client_id) \
-                .eq("status", "blocked") \
+            result = (
+                self.supabase.table("ai_projects")
+                .select("id, opportunity_code, title, department, total_score, blockers, next_step")
+                .eq("client_id", self.client_id)
+                .eq("status", "blocked")
                 .execute()
+            )
 
             return result.data or []
 
@@ -117,18 +126,19 @@ class OperatorTools:
             return []
 
     def get_metrics_validation_gaps(self) -> Dict[str, Any]:
-        """
-        Get metrics that need validation (red or yellow status).
+        """Get metrics that need validation (red or yellow status).
 
         Returns:
             Dict with unvalidated metrics grouped by stakeholder.
         """
         try:
-            result = self.supabase.table("stakeholder_metrics") \
-                .select("*, stakeholders(id, name, department)") \
-                .eq("client_id", self.client_id) \
-                .in_("validation_status", ["red", "yellow"]) \
+            result = (
+                self.supabase.table("stakeholder_metrics")
+                .select("*, stakeholders(id, name, department)")
+                .eq("client_id", self.client_id)
+                .in_("validation_status", ["red", "yellow"])
                 .execute()
+            )
 
             metrics = result.data or []
 
@@ -139,11 +149,13 @@ class OperatorTools:
                 s_name = stakeholder.get("name", "Unknown") if stakeholder else "Unknown"
                 if s_name not in by_stakeholder:
                     by_stakeholder[s_name] = []
-                by_stakeholder[s_name].append({
-                    "metric": m["metric_name"],
-                    "status": m["validation_status"],
-                    "questions": m.get("questions_to_confirm") or [],
-                })
+                by_stakeholder[s_name].append(
+                    {
+                        "metric": m["metric_name"],
+                        "status": m["validation_status"],
+                        "questions": m.get("questions_to_confirm") or [],
+                    }
+                )
 
             # Count by status
             red_count = sum(1 for m in metrics if m.get("validation_status") == "red")
@@ -158,11 +170,16 @@ class OperatorTools:
 
         except Exception as e:
             logger.error(f"Error getting metrics validation gaps: {e}")
-            return {"total_unvalidated": 0, "red_count": 0, "yellow_count": 0, "by_stakeholder": {}, "error": str(e)}
+            return {
+                "total_unvalidated": 0,
+                "red_count": 0,
+                "yellow_count": 0,
+                "by_stakeholder": {},
+                "error": str(e),
+            }
 
     def get_stakeholder_meeting_prep(self, stakeholder_name: str) -> Optional[Dict[str, Any]]:
-        """
-        Get meeting prep context for a stakeholder by name.
+        """Get meeting prep context for a stakeholder by name.
 
         Args:
             stakeholder_name: Name of the stakeholder (partial match supported)
@@ -172,12 +189,14 @@ class OperatorTools:
         """
         try:
             # Find stakeholder by name (partial match)
-            stakeholder_result = self.supabase.table("stakeholders") \
-                .select("*") \
-                .eq("client_id", self.client_id) \
-                .ilike("name", f"%{stakeholder_name}%") \
-                .limit(1) \
+            stakeholder_result = (
+                self.supabase.table("stakeholders")
+                .select("*")
+                .eq("client_id", self.client_id)
+                .ilike("name", f"%{stakeholder_name}%")
+                .limit(1)
                 .execute()
+            )
 
             if not stakeholder_result.data:
                 return None
@@ -186,32 +205,42 @@ class OperatorTools:
             stakeholder_id = stakeholder["id"]
 
             # Get metrics
-            metrics_result = self.supabase.table("stakeholder_metrics") \
-                .select("metric_name, current_value, target_value, validation_status, unit") \
-                .eq("stakeholder_id", stakeholder_id) \
+            metrics_result = (
+                self.supabase.table("stakeholder_metrics")
+                .select("metric_name, current_value, target_value, validation_status, unit")
+                .eq("stakeholder_id", stakeholder_id)
                 .execute()
+            )
 
             # Get linked opportunities
-            opps_result = self.supabase.table("opportunity_stakeholder_link") \
-                .select("role, ai_projects(opportunity_code, title, total_score, tier, status, next_step)") \
-                .eq("stakeholder_id", stakeholder_id) \
+            opps_result = (
+                self.supabase.table("opportunity_stakeholder_link")
+                .select(
+                    "role, ai_projects(opportunity_code, title, total_score, tier, status, next_step)"
+                )
+                .eq("stakeholder_id", stakeholder_id)
                 .execute()
+            )
 
             # Also get owned opportunities
-            owned_opps_result = self.supabase.table("ai_projects") \
-                .select("opportunity_code, title, total_score, tier, status, next_step") \
-                .eq("owner_stakeholder_id", stakeholder_id) \
+            owned_opps_result = (
+                self.supabase.table("ai_projects")
+                .select("opportunity_code, title, total_score, tier, status, next_step")
+                .eq("owner_stakeholder_id", stakeholder_id)
                 .execute()
+            )
 
             # Format response
             linked_opps = []
             for link in opps_result.data or []:
                 opp = link.get("ai_projects")
                 if opp:
-                    linked_opps.append({
-                        **opp,
-                        "role": link.get("role", "involved"),
-                    })
+                    linked_opps.append(
+                        {
+                            **opp,
+                            "role": link.get("role", "involved"),
+                        }
+                    )
 
             for opp in owned_opps_result.data or []:
                 if not any(lo["opportunity_code"] == opp["opportunity_code"] for lo in linked_opps):
@@ -241,7 +270,9 @@ class OperatorTools:
                     }
                     for m in (metrics_result.data or [])
                 ],
-                "opportunities": sorted(linked_opps, key=lambda x: x.get("total_score", 0), reverse=True),
+                "opportunities": sorted(
+                    linked_opps, key=lambda x: x.get("total_score", 0), reverse=True
+                ),
             }
 
         except Exception as e:
@@ -249,19 +280,20 @@ class OperatorTools:
             return None
 
     def get_tier1_focus_areas(self) -> Dict[str, Any]:
-        """
-        Get Tier 1 strategic priorities for focus.
+        """Get Tier 1 strategic priorities for focus.
 
         Returns:
             Dict with Tier 1 opportunities and their next steps.
         """
         try:
-            result = self.supabase.table("ai_projects") \
-                .select("*, stakeholders:owner_stakeholder_id(name)") \
-                .eq("client_id", self.client_id) \
-                .eq("tier", 1) \
-                .order("total_score", desc=True) \
+            result = (
+                self.supabase.table("ai_projects")
+                .select("*, stakeholders:owner_stakeholder_id(name)")
+                .eq("client_id", self.client_id)
+                .eq("tier", 1)
+                .order("total_score", desc=True)
                 .execute()
+            )
 
             opportunities = result.data or []
 
@@ -272,7 +304,9 @@ class OperatorTools:
                         "code": o["opportunity_code"],
                         "title": o["title"],
                         "department": o.get("department"),
-                        "owner": o.get("stakeholders", {}).get("name") if o.get("stakeholders") else None,
+                        "owner": o.get("stakeholders", {}).get("name")
+                        if o.get("stakeholders")
+                        else None,
                         "status": o.get("status"),
                         "score": o.get("total_score"),
                         "next_step": o.get("next_step"),
@@ -287,8 +321,7 @@ class OperatorTools:
             return {"count": 0, "opportunities": [], "error": str(e)}
 
     def format_context_injection(self) -> str:
-        """
-        Format triage data as context injection for the Operator agent.
+        """Format triage data as context injection for the Operator agent.
 
         Returns:
             Formatted string to inject into agent context.

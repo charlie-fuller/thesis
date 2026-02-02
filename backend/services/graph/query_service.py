@@ -1,5 +1,4 @@
-"""
-Graph Query Service
+"""Graph Query Service
 
 Provides high-level graph queries for agents and API endpoints.
 Focuses on relationship traversal, influence networks, and pattern matching.
@@ -14,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class GraphQueryService:
-    """
-    Service for executing graph queries.
+    """Service for executing graph queries.
 
     Provides methods for:
     - Influence network analysis
@@ -26,8 +24,7 @@ class GraphQueryService:
     """
 
     def __init__(self, neo4j: Neo4jConnection):
-        """
-        Initialize the query service.
+        """Initialize the query service.
 
         Args:
             neo4j: Neo4j connection instance
@@ -39,13 +36,9 @@ class GraphQueryService:
     # =========================================================================
 
     async def get_influence_path(
-        self,
-        from_id: str,
-        to_id: str,
-        max_depth: int = 5
+        self, from_id: str, to_id: str, max_depth: int = 5
     ) -> dict[str, Any]:
-        """
-        Find the influence path between two stakeholders.
+        """Find the influence path between two stakeholders.
 
         Args:
             from_id: Source stakeholder ID
@@ -55,7 +48,8 @@ class GraphQueryService:
         Returns:
             Dict with path nodes and relationships
         """
-        result = await self.neo4j.execute_query(f"""
+        result = await self.neo4j.execute_query(
+            f"""
             MATCH path = shortestPath(
                 (a:Stakeholder {{id: $from_id}})-[:INFLUENCES|REPORTS_TO*..{max_depth}]-(b:Stakeholder {{id: $to_id}})
             )
@@ -72,25 +66,16 @@ class GraphQueryService:
                     influence_type: r.influence_type
                 }}] as relationships,
                 length(path) as path_length
-        """, {"from_id": from_id, "to_id": to_id})
+        """,
+            {"from_id": from_id, "to_id": to_id},
+        )
 
         if result:
-            return {
-                "found": True,
-                "path": result[0]
-            }
-        return {
-            "found": False,
-            "message": "No influence path found between stakeholders"
-        }
+            return {"found": True, "path": result[0]}
+        return {"found": False, "message": "No influence path found between stakeholders"}
 
-    async def get_stakeholder_network(
-        self,
-        stakeholder_id: str,
-        depth: int = 2
-    ) -> dict[str, Any]:
-        """
-        Get the full network around a stakeholder.
+    async def get_stakeholder_network(self, stakeholder_id: str, depth: int = 2) -> dict[str, Any]:
+        """Get the full network around a stakeholder.
 
         Args:
             stakeholder_id: Center stakeholder ID
@@ -99,7 +84,8 @@ class GraphQueryService:
         Returns:
             Dict with center node, connected nodes, and relationships
         """
-        result = await self.neo4j.execute_query(f"""
+        result = await self.neo4j.execute_query(
+            f"""
             MATCH (center:Stakeholder {{id: $stakeholder_id}})
             OPTIONAL MATCH (center)-[r:INFLUENCES|REPORTS_TO*1..{depth}]-(connected:Stakeholder)
             WITH center, collect(DISTINCT connected) as connected_list,
@@ -121,19 +107,16 @@ class GraphQueryService:
                 }}],
                 connection_count: size(connected_list)
             }} as network
-        """, {"stakeholder_id": stakeholder_id})
+        """,
+            {"stakeholder_id": stakeholder_id},
+        )
 
         if result:
             return result[0]["network"]
         return {"center": None, "connected": [], "connection_count": 0}
 
-    async def find_key_influencers(
-        self,
-        client_id: str,
-        limit: int = 10
-    ) -> list[dict[str, Any]]:
-        """
-        Find the most influential stakeholders based on network centrality.
+    async def find_key_influencers(self, client_id: str, limit: int = 10) -> list[dict[str, Any]]:
+        """Find the most influential stakeholders based on network centrality.
 
         Args:
             client_id: Client ID to filter by
@@ -142,7 +125,8 @@ class GraphQueryService:
         Returns:
             List of stakeholders with influence metrics
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             MATCH (s:Stakeholder {client_id: $client_id})
             OPTIONAL MATCH (s)-[out:INFLUENCES]->()
             OPTIONAL MATCH ()-[in:INFLUENCES]->(s)
@@ -164,18 +148,16 @@ class GraphQueryService:
             } as stakeholder
             ORDER BY stakeholder.influence_score DESC
             LIMIT $limit
-        """, {"client_id": client_id, "limit": limit})
+        """,
+            {"client_id": client_id, "limit": limit},
+        )
 
         return [r["stakeholder"] for r in result]
 
     async def find_influence_chains(
-        self,
-        client_id: str,
-        target_id: str,
-        min_path_length: int = 2
+        self, client_id: str, target_id: str, min_path_length: int = 2
     ) -> list[dict[str, Any]]:
-        """
-        Find all stakeholders who can influence a target through chains.
+        """Find all stakeholders who can influence a target through chains.
 
         Args:
             client_id: Client ID
@@ -185,7 +167,8 @@ class GraphQueryService:
         Returns:
             List of influence chains
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             MATCH path = (source:Stakeholder {client_id: $client_id})
                          -[:INFLUENCES*2..4]->
                          (target:Stakeholder {id: $target_id})
@@ -205,7 +188,9 @@ class GraphQueryService:
             } as chain
             ORDER BY length(path) ASC
             LIMIT 20
-        """, {"client_id": client_id, "target_id": target_id})
+        """,
+            {"client_id": client_id, "target_id": target_id},
+        )
 
         return [r["chain"] for r in result]
 
@@ -213,12 +198,8 @@ class GraphQueryService:
     # ROI & Blocker Queries
     # =========================================================================
 
-    async def get_roi_blockers(
-        self,
-        opportunity_id: str
-    ) -> list[dict[str, Any]]:
-        """
-        Find all stakeholders blocking an ROI opportunity.
+    async def get_roi_blockers(self, opportunity_id: str) -> list[dict[str, Any]]:
+        """Find all stakeholders blocking an ROI opportunity.
 
         Args:
             opportunity_id: ROI opportunity ID
@@ -226,7 +207,8 @@ class GraphQueryService:
         Returns:
             List of blockers with reasons and influence info
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             MATCH (s:Stakeholder)-[r:BLOCKS]->(o:ROIOpportunity {id: $opportunity_id})
             OPTIONAL MATCH ()-[influence:INFLUENCES]->(s)
             WITH s, r, count(influence) as influenced_by_count
@@ -247,16 +229,14 @@ class GraphQueryService:
                 END
             } as blocker
             ORDER BY blocker.priority DESC, influenced_by_count DESC
-        """, {"opportunity_id": opportunity_id})
+        """,
+            {"opportunity_id": opportunity_id},
+        )
 
         return [r["blocker"] for r in result]
 
-    async def get_roi_supporters(
-        self,
-        opportunity_id: str
-    ) -> list[dict[str, Any]]:
-        """
-        Find all stakeholders supporting an ROI opportunity.
+    async def get_roi_supporters(self, opportunity_id: str) -> list[dict[str, Any]]:
+        """Find all stakeholders supporting an ROI opportunity.
 
         Args:
             opportunity_id: ROI opportunity ID
@@ -264,7 +244,8 @@ class GraphQueryService:
         Returns:
             List of supporters with commitment levels
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             MATCH (s:Stakeholder)-[r:SUPPORTS]->(o:ROIOpportunity {id: $opportunity_id})
             OPTIONAL MATCH (s)-[influence:INFLUENCES]->()
             WITH s, r, count(influence) as influences_count
@@ -280,16 +261,14 @@ class GraphQueryService:
                 influences_count: influences_count
             } as supporter
             ORDER BY supporter.commitment_level DESC, influences_count DESC
-        """, {"opportunity_id": opportunity_id})
+        """,
+            {"opportunity_id": opportunity_id},
+        )
 
         return [r["supporter"] for r in result]
 
-    async def suggest_blocker_strategy(
-        self,
-        opportunity_id: str
-    ) -> dict[str, Any]:
-        """
-        Suggest strategy for addressing ROI blockers.
+    async def suggest_blocker_strategy(self, opportunity_id: str) -> dict[str, Any]:
+        """Suggest strategy for addressing ROI blockers.
 
         Finds supporters who can influence blockers.
 
@@ -299,7 +278,8 @@ class GraphQueryService:
         Returns:
             Strategy with supporter-blocker influence paths
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             // Find blockers and supporters
             MATCH (blocker:Stakeholder)-[:BLOCKS]->(o:ROIOpportunity {id: $opportunity_id})
             MATCH (supporter:Stakeholder)-[:SUPPORTS]->(o)
@@ -326,24 +306,20 @@ class GraphQueryService:
                     can_influence: path IS NOT NULL
                 })
             } as strategy
-        """, {"opportunity_id": opportunity_id})
+        """,
+            {"opportunity_id": opportunity_id},
+        )
 
-        return {
-            "opportunity_id": opportunity_id,
-            "strategies": [r["strategy"] for r in result]
-        }
+        return {"opportunity_id": opportunity_id, "strategies": [r["strategy"] for r in result]}
 
     # =========================================================================
     # Concern Analysis Queries
     # =========================================================================
 
     async def find_shared_concerns(
-        self,
-        client_id: str,
-        min_stakeholders: int = 2
+        self, client_id: str, min_stakeholders: int = 2
     ) -> list[dict[str, Any]]:
-        """
-        Find concerns shared by multiple stakeholders.
+        """Find concerns shared by multiple stakeholders.
 
         Args:
             client_id: Client ID
@@ -352,7 +328,8 @@ class GraphQueryService:
         Returns:
             List of shared concerns with stakeholder details
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             MATCH (s:Stakeholder {client_id: $client_id})-[:RAISED_CONCERN]->(c:Concern)
             WITH c, collect({
                 id: s.id,
@@ -370,16 +347,14 @@ class GraphQueryService:
                 stakeholder_count: size(stakeholders)
             } as shared_concern
             ORDER BY shared_concern.stakeholder_count DESC
-        """, {"client_id": client_id, "min_stakeholders": min_stakeholders})
+        """,
+            {"client_id": client_id, "min_stakeholders": min_stakeholders},
+        )
 
         return [r["shared_concern"] for r in result]
 
-    async def get_stakeholder_concerns(
-        self,
-        stakeholder_id: str
-    ) -> list[dict[str, Any]]:
-        """
-        Get all concerns raised by a stakeholder.
+    async def get_stakeholder_concerns(self, stakeholder_id: str) -> list[dict[str, Any]]:
+        """Get all concerns raised by a stakeholder.
 
         Args:
             stakeholder_id: Stakeholder ID
@@ -387,7 +362,8 @@ class GraphQueryService:
         Returns:
             List of concerns with meeting context
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             MATCH (s:Stakeholder {id: $stakeholder_id})-[r:RAISED_CONCERN]->(c:Concern)
             OPTIONAL MATCH (s)-[:ATTENDED]->(m:Meeting)
             WITH c, r, collect(DISTINCT {
@@ -404,7 +380,9 @@ class GraphQueryService:
                 quote: r.quote,
                 related_meetings: meetings
             } as concern_detail
-        """, {"stakeholder_id": stakeholder_id})
+        """,
+            {"stakeholder_id": stakeholder_id},
+        )
 
         return [r["concern_detail"] for r in result]
 
@@ -412,12 +390,8 @@ class GraphQueryService:
     # Meeting & Concept Queries
     # =========================================================================
 
-    async def get_meeting_network(
-        self,
-        meeting_id: str
-    ) -> dict[str, Any]:
-        """
-        Get the stakeholder network from a meeting.
+    async def get_meeting_network(self, meeting_id: str) -> dict[str, Any]:
+        """Get the stakeholder network from a meeting.
 
         Args:
             meeting_id: Meeting ID
@@ -425,7 +399,8 @@ class GraphQueryService:
         Returns:
             Meeting details with attendees and their relationships
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             MATCH (m:Meeting {id: $meeting_id})
             OPTIONAL MATCH (s:Stakeholder)-[a:ATTENDED]->(m)
             WITH m, collect({
@@ -448,19 +423,18 @@ class GraphQueryService:
                 attendees: attendees,
                 attendee_count: size(attendees)
             } as meeting_network
-        """, {"meeting_id": meeting_id})
+        """,
+            {"meeting_id": meeting_id},
+        )
 
         if result:
             return result[0]["meeting_network"]
         return {"meeting": None, "attendees": [], "attendee_count": 0}
 
     async def find_concept_advocates(
-        self,
-        concept_name: str,
-        client_id: str
+        self, concept_name: str, client_id: str
     ) -> list[dict[str, Any]]:
-        """
-        Find stakeholders who advocate for a concept based on meeting participation.
+        """Find stakeholders who advocate for a concept based on meeting participation.
 
         Args:
             concept_name: Concept name (e.g., "AI", "Security")
@@ -469,7 +443,8 @@ class GraphQueryService:
         Returns:
             List of stakeholders with advocacy metrics
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             MATCH (c:Concept {name: $concept_name})
             MATCH (m:Meeting)-[:DISCUSSES]->(c)
             MATCH (s:Stakeholder {client_id: $client_id})-[a:ATTENDED]->(m)
@@ -485,7 +460,9 @@ class GraphQueryService:
                 advocacy_score: meeting_count * coalesce(avg_sentiment, 0.5)
             } as advocate
             ORDER BY advocate.advocacy_score DESC
-        """, {"concept_name": concept_name, "client_id": client_id})
+        """,
+            {"concept_name": concept_name, "client_id": client_id},
+        )
 
         return [r["advocate"] for r in result]
 
@@ -494,12 +471,9 @@ class GraphQueryService:
     # =========================================================================
 
     async def find_aligned_stakeholders(
-        self,
-        stakeholder_id: str,
-        min_shared_meetings: int = 2
+        self, stakeholder_id: str, min_shared_meetings: int = 2
     ) -> list[dict[str, Any]]:
-        """
-        Find stakeholders who are aligned (attend same meetings, similar sentiment).
+        """Find stakeholders who are aligned (attend same meetings, similar sentiment).
 
         Args:
             stakeholder_id: Source stakeholder ID
@@ -508,7 +482,8 @@ class GraphQueryService:
         Returns:
             List of aligned stakeholders
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             MATCH (s1:Stakeholder {id: $stakeholder_id})-[:ATTENDED]->(m:Meeting)<-[:ATTENDED]-(s2:Stakeholder)
             WHERE s1 <> s2
             WITH s1, s2, count(m) as shared_meetings,
@@ -527,7 +502,9 @@ class GraphQueryService:
                 alignment_score: shared_meetings * (1 - sentiment_diff)
             } as aligned
             ORDER BY aligned.alignment_score DESC
-        """, {"stakeholder_id": stakeholder_id, "min_shared_meetings": min_shared_meetings})
+        """,
+            {"stakeholder_id": stakeholder_id, "min_shared_meetings": min_shared_meetings},
+        )
 
         return [r["aligned"] for r in result]
 
@@ -536,8 +513,7 @@ class GraphQueryService:
     # =========================================================================
 
     async def get_graph_stats(self, client_id: str) -> dict[str, Any]:
-        """
-        Get summary statistics for a client's graph.
+        """Get summary statistics for a client's graph.
 
         Args:
             client_id: Client ID
@@ -549,12 +525,13 @@ class GraphQueryService:
                 relationships: { total: int, by_type: { type: count, ... } }
             }
         """
+
         # Helper to extract integer from Neo4j result (handles {low, high} format)
         def to_int(val) -> int:
             if val is None:
                 return 0
-            if isinstance(val, dict) and 'low' in val:
-                return val['low']
+            if isinstance(val, dict) and "low" in val:
+                return val["low"]
             return int(val)
 
         # Get all node labels and their counts
@@ -566,8 +543,8 @@ class GraphQueryService:
 
         by_label = {}
         for record in node_result:
-            label = record.get('label')
-            count = to_int(record.get('count', 0))
+            label = record.get("label")
+            count = to_int(record.get("count", 0))
             if label and count > 0:
                 by_label[label] = count
 
@@ -580,20 +557,14 @@ class GraphQueryService:
 
         by_type = {}
         for record in rel_result:
-            rel_type = record.get('rel_type')
-            count = to_int(record.get('count', 0))
+            rel_type = record.get("rel_type")
+            count = to_int(record.get("count", 0))
             if rel_type and count > 0:
                 by_type[rel_type] = count
 
         return {
-            "nodes": {
-                "total": sum(by_label.values()),
-                "by_label": by_label
-            },
-            "relationships": {
-                "total": sum(by_type.values()),
-                "by_type": by_type
-            }
+            "nodes": {"total": sum(by_label.values()), "by_label": by_label},
+            "relationships": {"total": sum(by_type.values()), "by_type": by_type},
         }
 
     # =========================================================================
@@ -601,12 +572,9 @@ class GraphQueryService:
     # =========================================================================
 
     async def get_agent_for_concepts(
-        self,
-        concepts: list[str],
-        limit: int = 1
+        self, concepts: list[str], limit: int = 1
     ) -> list[dict[str, Any]]:
-        """
-        Find the best agent(s) to handle a question based on concepts.
+        """Find the best agent(s) to handle a question based on concepts.
 
         Uses the EXPERT_IN relationships to match agents to topics.
 
@@ -618,7 +586,8 @@ class GraphQueryService:
             List of agents with relevance scores
         """
         # Match against both Expertise nodes (from agent sync) and Concept nodes (from document extraction)
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             MATCH (a:Agent)-[e:EXPERT_IN]->(exp)
             WHERE (exp:Expertise OR exp:Concept)
               AND toLower(exp.name) IN $concepts
@@ -633,13 +602,14 @@ class GraphQueryService:
             } as agent
             ORDER BY relevance DESC
             LIMIT $limit
-        """, {"concepts": [c.lower() for c in concepts], "limit": limit})
+        """,
+            {"concepts": [c.lower() for c in concepts], "limit": limit},
+        )
 
         return [r["agent"] for r in result]
 
     async def get_agent_expertise(self, agent_id: str) -> dict[str, Any]:
-        """
-        Get the expertise areas for an agent.
+        """Get the expertise areas for an agent.
 
         Args:
             agent_id: Agent ID
@@ -647,7 +617,8 @@ class GraphQueryService:
         Returns:
             Dict with agent info and expertise concepts
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             MATCH (a:Agent {id: $agent_id})
             OPTIONAL MATCH (a)-[e:EXPERT_IN]->(c:Concept)
             WITH a, collect({
@@ -662,15 +633,16 @@ class GraphQueryService:
                 description: a.description,
                 expertise: expertise
             } as agent
-        """, {"agent_id": agent_id})
+        """,
+            {"agent_id": agent_id},
+        )
 
         if result:
             return result[0]["agent"]
         return {}
 
     async def get_agent_handoff_patterns(self) -> list[dict[str, Any]]:
-        """
-        Analyze agent handoff patterns to understand collaboration flows.
+        """Analyze agent handoff patterns to understand collaboration flows.
 
         Returns:
             List of handoff patterns with frequency
@@ -699,12 +671,9 @@ class GraphQueryService:
         return [r["pattern"] for r in result]
 
     async def suggest_agent_for_question(
-        self,
-        question: str,
-        current_agent_id: Optional[str] = None
+        self, question: str, current_agent_id: Optional[str] = None
     ) -> dict[str, Any]:
-        """
-        Suggest the best agent to handle a question.
+        """Suggest the best agent to handle a question.
 
         Extracts keywords and matches against agent expertise.
 
@@ -722,10 +691,7 @@ class GraphQueryService:
         agents = await self.get_agent_for_concepts(keywords, limit=3)
 
         if not agents:
-            return {
-                "suggestion": None,
-                "reason": "No matching agent found for the question topics"
-            }
+            return {"suggestion": None, "reason": "No matching agent found for the question topics"}
 
         # Filter out current agent if provided
         if current_agent_id:
@@ -734,19 +700,18 @@ class GraphQueryService:
         if not agents:
             return {
                 "suggestion": None,
-                "reason": "Current agent is the best match for this question"
+                "reason": "Current agent is the best match for this question",
             }
 
         top_agent = agents[0]
         return {
             "suggestion": top_agent,
             "reason": f"Agent '{top_agent['display_name']}' is expert in: {', '.join(top_agent['matched_concepts'])}",
-            "alternatives": agents[1:] if len(agents) > 1 else []
+            "alternatives": agents[1:] if len(agents) > 1 else [],
         }
 
     def _extract_keywords(self, text: str) -> list[str]:
-        """
-        Extract potential topic keywords from text.
+        """Extract potential topic keywords from text.
 
         Maps common question terms to expertise areas in the graph.
         """
@@ -777,7 +742,11 @@ class GraphQueryService:
             "data privacy": ["privacy", "gdpr", "data protection", "pii"],
             "policy": ["policy", "policies"],
             # Sage (People/Change)
-            "change management": ["change management", "change resistance", "organizational change"],
+            "change management": [
+                "change management",
+                "change resistance",
+                "organizational change",
+            ],
             "adoption": ["adoption", "adopt", "rollout", "implementation"],
             "culture": ["culture", "cultural"],
             "people": ["people", "employees", "staff", "workforce"],
@@ -790,7 +759,15 @@ class GraphQueryService:
             "development": ["development", "develop skills"],
             # Atlas (Research)
             "research": ["research", "study", "analysis", "findings"],
-            "genai": ["ai", "genai", "artificial intelligence", "machine learning", "llm", "gpt", "claude"],
+            "genai": [
+                "ai",
+                "genai",
+                "artificial intelligence",
+                "machine learning",
+                "llm",
+                "gpt",
+                "claude",
+            ],
             "benchmarking": ["benchmark", "compare", "best practice"],
             "consulting": ["consulting", "consultant", "advisory"],
             "thought leadership": ["thought leadership", "insights"],
@@ -870,13 +847,9 @@ class GraphQueryService:
     # =========================================================================
 
     async def get_meeting_context(
-        self,
-        query: str,
-        client_id: str,
-        limit: int = 5
+        self, query: str, client_id: str, limit: int = 5
     ) -> dict[str, Any]:
-        """
-        Get relevant graph context for a meeting room discussion.
+        """Get relevant graph context for a meeting room discussion.
 
         Searches for:
         - Related stakeholders and their concerns
@@ -901,12 +874,13 @@ class GraphQueryService:
             "roi_opportunities": [],
             "relationships": [],
             "stakeholder_documents": [],
-            "agent_suggestions": []
+            "agent_suggestions": [],
         }
 
         try:
             # Get relevant stakeholders based on keywords
-            stakeholders_result = await self.neo4j.execute_query("""
+            stakeholders_result = await self.neo4j.execute_query(
+                """
                 MATCH (s:Stakeholder {client_id: $client_id})
                 WHERE any(keyword IN $keywords WHERE
                     toLower(s.name) CONTAINS keyword OR
@@ -921,12 +895,15 @@ class GraphQueryService:
                     sentiment_score: s.sentiment_score
                 } as stakeholder
                 LIMIT $limit
-            """, {"client_id": client_id, "keywords": keywords, "limit": limit})
+            """,
+                {"client_id": client_id, "keywords": keywords, "limit": limit},
+            )
 
             result["stakeholders"] = [r["stakeholder"] for r in stakeholders_result]
 
             # Get shared concerns related to keywords
-            concerns_result = await self.neo4j.execute_query("""
+            concerns_result = await self.neo4j.execute_query(
+                """
                 MATCH (s:Stakeholder {client_id: $client_id})-[:RAISED_CONCERN]->(c:Concern)
                 WHERE any(keyword IN $keywords WHERE toLower(c.content) CONTAINS keyword)
                 WITH c, collect(DISTINCT {name: s.name, role: s.role}) as stakeholders
@@ -937,12 +914,15 @@ class GraphQueryService:
                 } as concern
                 ORDER BY c.severity DESC
                 LIMIT $limit
-            """, {"client_id": client_id, "keywords": keywords, "limit": limit})
+            """,
+                {"client_id": client_id, "keywords": keywords, "limit": limit},
+            )
 
             result["concerns"] = [r["concern"] for r in concerns_result]
 
             # Get ROI opportunities related to keywords
-            roi_result = await self.neo4j.execute_query("""
+            roi_result = await self.neo4j.execute_query(
+                """
                 MATCH (o:ROIOpportunity)
                 WHERE any(keyword IN $keywords WHERE
                     toLower(coalesce(o.name, '')) CONTAINS keyword OR
@@ -963,12 +943,15 @@ class GraphQueryService:
                     supporters: supporters
                 } as opportunity
                 LIMIT $limit
-            """, {"keywords": keywords, "limit": limit})
+            """,
+                {"keywords": keywords, "limit": limit},
+            )
 
             result["roi_opportunities"] = [r["opportunity"] for r in roi_result]
 
             # Get influence relationships between stakeholders
-            relationships_result = await self.neo4j.execute_query("""
+            relationships_result = await self.neo4j.execute_query(
+                """
                 MATCH (s1:Stakeholder {client_id: $client_id})-[r:INFLUENCES|REPORTS_TO]->(s2:Stakeholder)
                 WHERE any(keyword IN $keywords WHERE
                     toLower(s1.name) CONTAINS keyword OR
@@ -985,7 +968,9 @@ class GraphQueryService:
                     strength: coalesce(r.strength, 0.5)
                 } as relationship
                 LIMIT $limit
-            """, {"client_id": client_id, "keywords": keywords, "limit": limit})
+            """,
+                {"client_id": client_id, "keywords": keywords, "limit": limit},
+            )
 
             result["relationships"] = [r["relationship"] for r in relationships_result]
 
@@ -994,7 +979,8 @@ class GraphQueryService:
             if result["stakeholders"]:
                 stakeholder_ids = [s["id"] for s in result["stakeholders"] if s.get("id")]
                 if stakeholder_ids:
-                    docs_result = await self.neo4j.execute_query("""
+                    docs_result = await self.neo4j.execute_query(
+                        """
                         UNWIND $stakeholder_ids as sid
                         MATCH (s:Stakeholder {id: sid})-[r:MENTIONED_IN|PROVIDED|ABOUT]->(d:Document)
                         WITH d, s, type(r) as rel_type, r.mention_count as mentions
@@ -1011,7 +997,9 @@ class GraphQueryService:
                         } as result
                         ORDER BY result.mention_count DESC
                         LIMIT $limit
-                    """, {"stakeholder_ids": stakeholder_ids, "limit": limit})
+                    """,
+                        {"stakeholder_ids": stakeholder_ids, "limit": limit},
+                    )
                     result["stakeholder_documents"] = [r["result"] for r in docs_result]
 
             # Get agent suggestions based on keywords
@@ -1029,13 +1017,9 @@ class GraphQueryService:
     # =========================================================================
 
     async def get_stakeholder_documents(
-        self,
-        stakeholder_id: str,
-        relationship_type: Optional[str] = None,
-        limit: int = 10
+        self, stakeholder_id: str, relationship_type: Optional[str] = None, limit: int = 10
     ) -> list[dict[str, Any]]:
-        """
-        Get all documents related to a stakeholder.
+        """Get all documents related to a stakeholder.
 
         Args:
             stakeholder_id: Stakeholder ID
@@ -1047,7 +1031,8 @@ class GraphQueryService:
         """
         rel_filter = f"[r:{relationship_type}]" if relationship_type else "[r]"
 
-        result = await self.neo4j.execute_query(f"""
+        result = await self.neo4j.execute_query(
+            f"""
             MATCH (s:Stakeholder {{id: $stakeholder_id}})-{rel_filter}->(d:Document)
             RETURN {{
                 document: {{
@@ -1066,18 +1051,16 @@ class GraphQueryService:
             }} as result
             ORDER BY r.updated_at DESC
             LIMIT $limit
-        """, {"stakeholder_id": stakeholder_id, "limit": limit})
+        """,
+            {"stakeholder_id": stakeholder_id, "limit": limit},
+        )
 
         return [r["result"] for r in result]
 
     async def get_documents_mentioning_stakeholder(
-        self,
-        stakeholder_name: str,
-        client_id: str,
-        limit: int = 10
+        self, stakeholder_name: str, client_id: str, limit: int = 10
     ) -> list[dict[str, Any]]:
-        """
-        Find documents that mention a stakeholder by name.
+        """Find documents that mention a stakeholder by name.
 
         Searches both existing MENTIONED_IN relationships and
         document titles/content for name matches.
@@ -1090,7 +1073,8 @@ class GraphQueryService:
         Returns:
             List of documents with mention context
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             // First, try to find by existing relationships
             MATCH (s:Stakeholder {client_id: $client_id})
             WHERE toLower(s.name) CONTAINS toLower($stakeholder_name)
@@ -1114,17 +1098,16 @@ class GraphQueryService:
             } as result
             ORDER BY r.mention_count DESC
             LIMIT $limit
-        """, {"stakeholder_name": stakeholder_name, "client_id": client_id, "limit": limit})
+        """,
+            {"stakeholder_name": stakeholder_name, "client_id": client_id, "limit": limit},
+        )
 
         return [r["result"] for r in result]
 
     async def get_stakeholder_document_network(
-        self,
-        client_id: str,
-        limit: int = 50
+        self, client_id: str, limit: int = 50
     ) -> dict[str, Any]:
-        """
-        Get the full stakeholder-document network for visualization.
+        """Get the full stakeholder-document network for visualization.
 
         Returns all stakeholders and their document relationships.
 
@@ -1135,7 +1118,8 @@ class GraphQueryService:
         Returns:
             Dict with nodes (stakeholders, documents) and edges
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             MATCH (s:Stakeholder {client_id: $client_id})-[r:MENTIONED_IN|PROVIDED|ABOUT]->(d:Document)
             WITH s, d, type(r) as rel_type, r.mention_count as mentions
             RETURN {
@@ -1154,7 +1138,9 @@ class GraphQueryService:
                 mention_count: mentions
             } as edge
             LIMIT $limit
-        """, {"client_id": client_id, "limit": limit})
+        """,
+            {"client_id": client_id, "limit": limit},
+        )
 
         # Transform into nodes and edges for visualization
         stakeholders = {}
@@ -1168,26 +1154,24 @@ class GraphQueryService:
 
             stakeholders[s["id"]] = s
             documents[d["id"]] = d
-            edges.append({
-                "source": s["id"],
-                "target": d["id"],
-                "type": edge["relationship_type"],
-                "weight": edge.get("mention_count", 1)
-            })
+            edges.append(
+                {
+                    "source": s["id"],
+                    "target": d["id"],
+                    "type": edge["relationship_type"],
+                    "weight": edge.get("mention_count", 1),
+                }
+            )
 
         return {
             "stakeholders": list(stakeholders.values()),
             "documents": list(documents.values()),
             "edges": edges,
-            "total_relationships": len(edges)
+            "total_relationships": len(edges),
         }
 
-    async def find_stakeholders_in_document(
-        self,
-        document_id: str
-    ) -> list[dict[str, Any]]:
-        """
-        Find all stakeholders mentioned in or related to a document.
+    async def find_stakeholders_in_document(self, document_id: str) -> list[dict[str, Any]]:
+        """Find all stakeholders mentioned in or related to a document.
 
         Args:
             document_id: Document ID
@@ -1195,7 +1179,8 @@ class GraphQueryService:
         Returns:
             List of stakeholders with their relationship to the document
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             MATCH (s:Stakeholder)-[r]->(d:Document {id: $document_id})
             WHERE type(r) IN ['MENTIONED_IN', 'PROVIDED', 'ABOUT']
             RETURN {
@@ -1214,17 +1199,16 @@ class GraphQueryService:
                 }
             } as result
             ORDER BY r.mention_count DESC
-        """, {"document_id": document_id})
+        """,
+            {"document_id": document_id},
+        )
 
         return [r["result"] for r in result]
 
     async def get_related_documents_for_stakeholders(
-        self,
-        stakeholder_ids: list[str],
-        limit_per_stakeholder: int = 3
+        self, stakeholder_ids: list[str], limit_per_stakeholder: int = 3
     ) -> list[dict[str, Any]]:
-        """
-        Get relevant documents for a list of stakeholders.
+        """Get relevant documents for a list of stakeholders.
 
         Useful for meeting context - get docs for all meeting participants.
 
@@ -1235,7 +1219,8 @@ class GraphQueryService:
         Returns:
             Deduplicated list of documents with stakeholder associations
         """
-        result = await self.neo4j.execute_query("""
+        result = await self.neo4j.execute_query(
+            """
             UNWIND $stakeholder_ids as sid
             MATCH (s:Stakeholder {id: sid})-[r:MENTIONED_IN|PROVIDED|ABOUT]->(d:Document)
             WITH d, collect(DISTINCT {
@@ -1256,16 +1241,17 @@ class GraphQueryService:
             } as result
             ORDER BY result.total_stakeholders DESC
             LIMIT $limit
-        """, {"stakeholder_ids": stakeholder_ids, "limit": limit_per_stakeholder * len(stakeholder_ids)})
+        """,
+            {
+                "stakeholder_ids": stakeholder_ids,
+                "limit": limit_per_stakeholder * len(stakeholder_ids),
+            },
+        )
 
         return [r["result"] for r in result]
 
-    def format_context_for_prompt(
-        self,
-        context: dict[str, Any]
-    ) -> str:
-        """
-        Format graph context into a readable prompt section.
+    def format_context_for_prompt(self, context: dict[str, Any]) -> str:
+        """Format graph context into a readable prompt section.
 
         Args:
             context: Result from get_meeting_context
@@ -1279,7 +1265,9 @@ class GraphQueryService:
             stakeholder_lines = []
             for s in context["stakeholders"]:
                 sentiment = s.get("sentiment_score") or 0.5
-                sentiment_label = "positive" if sentiment > 0.6 else "neutral" if sentiment > 0.4 else "cautious"
+                sentiment_label = (
+                    "positive" if sentiment > 0.6 else "neutral" if sentiment > 0.4 else "cautious"
+                )
                 stakeholder_lines.append(
                     f"- {s['name']} ({s.get('role', 'Unknown role')}) - {sentiment_label}"
                 )
@@ -1300,7 +1288,9 @@ class GraphQueryService:
                 value = o.get("estimated_value", "TBD")
                 status = o.get("status", "unknown")
                 blockers = ", ".join([b for b in (o.get("blockers") or []) if b][:3]) or "none"
-                roi_lines.append(f"- {o.get('name', 'Unnamed')}: ${value} ({status}) - blockers: {blockers}")
+                roi_lines.append(
+                    f"- {o.get('name', 'Unnamed')}: ${value} ({status}) - blockers: {blockers}"
+                )
             sections.append("ROI OPPORTUNITIES:\n" + "\n".join(roi_lines))
 
         if context.get("relationships"):

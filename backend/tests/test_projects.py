@@ -1,5 +1,4 @@
-"""
-Tests for Projects Pipeline API
+"""Tests for Projects Pipeline API
 
 Tests the AI implementation projects with 4-dimension scoring:
 - roi_potential (1-5)
@@ -11,14 +10,13 @@ Note: This test file uses direct module loading to avoid import chain issues
 with llama_index dependencies on Python 3.9+.
 """
 
-import sys
-import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
-from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
-from datetime import datetime, timezone
 import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+from unittest.mock import AsyncMock, Mock
 
+import pytest
 
 # ============================================================================
 # Note: This test file uses self-contained models and service classes for testing.
@@ -36,10 +34,9 @@ mock_project_context = Mock()
 mock_project_context.get_scoring_related_documents = Mock(return_value=[])
 
 mock_project_chat = Mock()
-mock_project_chat.ask_about_project = AsyncMock(return_value={
-    "response": "Test response",
-    "sources": []
-})
+mock_project_chat.ask_about_project = AsyncMock(
+    return_value={"response": "Test response", "sources": []}
+)
 mock_project_chat.get_project_conversations = AsyncMock(return_value=[])
 
 
@@ -47,9 +44,11 @@ mock_project_chat.get_project_conversations = AsyncMock(return_value=[])
 # Re-implement the core models and logic for isolated testing
 # ============================================================================
 
+
 @dataclass
 class Project:
     """Project data model for testing."""
+
     id: str
     client_id: str
     project_code: str
@@ -97,14 +96,7 @@ def calculate_tier(total_score: int) -> int:
         return 4  # Backlog
 
 
-VALID_STATUSES = [
-    "identified",
-    "scoping",
-    "pilot",
-    "scaling",
-    "completed",
-    "blocked"
-]
+VALID_STATUSES = ["identified", "scoping", "pilot", "scaling", "completed", "blocked"]
 
 STATUS_TRANSITIONS = {
     "identified": ["scoping", "blocked"],
@@ -115,13 +107,7 @@ STATUS_TRANSITIONS = {
     "blocked": ["identified", "scoping", "pilot", "scaling"],  # Can unblock to any active state
 }
 
-STAKEHOLDER_LINK_ROLES = [
-    "owner",
-    "champion",
-    "involved",
-    "blocker",
-    "approver"
-]
+STAKEHOLDER_LINK_ROLES = ["owner", "champion", "involved", "blocker", "approver"]
 
 
 class ProjectService:
@@ -131,15 +117,16 @@ class ProjectService:
         self.supabase = supabase
         self.client_id = client_id
 
-    def validate_scores(self, roi: int = None, effort: int = None,
-                       alignment: int = None, readiness: int = None) -> List[str]:
+    def validate_scores(
+        self, roi: int = None, effort: int = None, alignment: int = None, readiness: int = None
+    ) -> List[str]:
         """Validate scoring dimensions are within 1-5 range."""
         errors = []
         for name, value in [
             ("roi_potential", roi),
             ("implementation_effort", effort),
             ("strategic_alignment", alignment),
-            ("stakeholder_readiness", readiness)
+            ("stakeholder_readiness", readiness),
         ]:
             if value is not None:
                 if not isinstance(value, int) or value < 1 or value > 5:
@@ -223,7 +210,9 @@ class OperatorContextInjector:
             "total": len(projects),
             "by_tier": tier_counts,
             "by_status": status_counts,
-            "top_projects": sorted(projects, key=lambda x: x.get("total_score", 0), reverse=True)[:5]
+            "top_projects": sorted(projects, key=lambda x: x.get("total_score", 0), reverse=True)[
+                :5
+            ],
         }
 
     def get_blocked_projects(self, projects: List[dict]) -> List[dict]:
@@ -262,6 +251,7 @@ class OperatorContextInjector:
 # Test Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def test_client_id():
     """Test client ID."""
@@ -271,11 +261,7 @@ def test_client_id():
 @pytest.fixture
 def test_user(test_client_id):
     """Test user dict."""
-    return {
-        "id": str(uuid.uuid4()),
-        "client_id": test_client_id,
-        "email": "test@example.com"
-    }
+    return {"id": str(uuid.uuid4()), "client_id": test_client_id, "email": "test@example.com"}
 
 
 @pytest.fixture
@@ -284,12 +270,22 @@ def mock_supabase_client():
     client = Mock()
 
     # Default chain returns
-    client.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(data=[])
-    client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = Mock(data=[])
-    client.table.return_value.select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value = Mock(data=None)
+    client.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(
+        data=[]
+    )
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = Mock(
+        data=[]
+    )
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value = Mock(
+        data=None
+    )
     client.table.return_value.insert.return_value.execute.return_value = Mock(data=[])
-    client.table.return_value.update.return_value.eq.return_value.execute.return_value = Mock(data=[])
-    client.table.return_value.delete.return_value.eq.return_value.execute.return_value = Mock(data=[])
+    client.table.return_value.update.return_value.eq.return_value.execute.return_value = Mock(
+        data=[]
+    )
+    client.table.return_value.delete.return_value.eq.return_value.execute.return_value = Mock(
+        data=[]
+    )
 
     return client
 
@@ -416,6 +412,7 @@ def sample_stakeholder(test_client_id):
 # Test: Project Creation with Tier Scoring
 # ============================================================================
 
+
 class TestProjectCreation:
     """Test project creation and 4-dimension scoring."""
 
@@ -509,14 +506,13 @@ class TestProjectCreation:
 # Test: Score Validation
 # ============================================================================
 
+
 class TestScoreValidation:
     """Test score validation (1-5 range)."""
 
     def test_valid_scores_pass_validation(self, project_service):
         """Scores within 1-5 range pass validation."""
-        errors = project_service.validate_scores(
-            roi=5, effort=4, alignment=3, readiness=2
-        )
+        errors = project_service.validate_scores(roi=5, effort=4, alignment=3, readiness=2)
         assert errors == []
 
     def test_score_below_1_fails(self, project_service):
@@ -551,6 +547,7 @@ class TestScoreValidation:
 # Test: Score Updates and Tier Recalculation
 # ============================================================================
 
+
 class TestScoreUpdates:
     """Test score updates and tier recalculation."""
 
@@ -558,10 +555,13 @@ class TestScoreUpdates:
         """Updating scores recalculates total_score."""
         opp = sample_projects[2]  # Tier 3, score 11
 
-        updated = project_service.update_scores(opp, {
-            "roi_potential": 5,
-            "implementation_effort": 5,
-        })
+        updated = project_service.update_scores(
+            opp,
+            {
+                "roi_potential": 5,
+                "implementation_effort": 5,
+            },
+        )
 
         expected_score = 5 + 5 + 3 + 2  # Updated roi/effort + original alignment/readiness
         assert updated["total_score"] == expected_score
@@ -570,12 +570,15 @@ class TestScoreUpdates:
         """Updating scores recalculates tier."""
         opp = sample_projects[2]  # Tier 3, score 11
 
-        updated = project_service.update_scores(opp, {
-            "roi_potential": 5,
-            "implementation_effort": 5,
-            "strategic_alignment": 5,
-            "stakeholder_readiness": 5,
-        })
+        updated = project_service.update_scores(
+            opp,
+            {
+                "roi_potential": 5,
+                "implementation_effort": 5,
+                "strategic_alignment": 5,
+                "stakeholder_readiness": 5,
+            },
+        )
 
         assert updated["total_score"] == 20
         assert updated["tier"] == 1
@@ -593,6 +596,7 @@ class TestScoreUpdates:
 # ============================================================================
 # Test: Status Progression
 # ============================================================================
+
 
 class TestStatusProgression:
     """Test project status progression (identified -> completed)."""
@@ -648,6 +652,7 @@ class TestStatusProgression:
 # ============================================================================
 # Test: Filtering by Tier, Department, Status
 # ============================================================================
+
 
 class TestFiltering:
     """Test project filtering."""
@@ -708,6 +713,7 @@ class TestFiltering:
 # Test: Stakeholder Linkage
 # ============================================================================
 
+
 class TestStakeholderLinkage:
     """Test project-stakeholder linking."""
 
@@ -736,6 +742,7 @@ class TestStakeholderLinkage:
 # ============================================================================
 # Test: Operator Context Injection
 # ============================================================================
+
 
 class TestOperatorContextInjection:
     """Test Operator agent context injection for triage."""
@@ -812,6 +819,7 @@ class TestOperatorContextInjection:
 # Test: Tier Calculation Edge Cases
 # ============================================================================
 
+
 class TestTierCalculationEdgeCases:
     """Test tier calculation boundary conditions."""
 
@@ -851,6 +859,7 @@ class TestTierCalculationEdgeCases:
 # ============================================================================
 # Test: Total Score Calculation
 # ============================================================================
+
 
 class TestTotalScoreCalculation:
     """Test total score calculation from 4 dimensions."""
@@ -902,6 +911,7 @@ class TestTotalScoreCalculation:
 # Test: API Response Format
 # ============================================================================
 
+
 class TestAPIResponseFormat:
     """Test expected API response formats."""
 
@@ -910,10 +920,20 @@ class TestAPIResponseFormat:
         opp = sample_projects[0]
 
         required_fields = [
-            "id", "project_code", "title", "description", "department",
-            "roi_potential", "implementation_effort", "strategic_alignment",
-            "stakeholder_readiness", "total_score", "tier", "status",
-            "created_at", "updated_at"
+            "id",
+            "project_code",
+            "title",
+            "description",
+            "department",
+            "roi_potential",
+            "implementation_effort",
+            "strategic_alignment",
+            "stakeholder_readiness",
+            "total_score",
+            "tier",
+            "status",
+            "created_at",
+            "updated_at",
         ]
 
         for field in required_fields:
@@ -930,7 +950,12 @@ class TestAPIResponseFormat:
         """All score fields are integers."""
         opp = sample_projects[0]
 
-        for field in ["roi_potential", "implementation_effort", "strategic_alignment", "stakeholder_readiness"]:
+        for field in [
+            "roi_potential",
+            "implementation_effort",
+            "strategic_alignment",
+            "stakeholder_readiness",
+        ]:
             assert isinstance(opp[field], int)
 
     def test_tier_is_integer_1_to_4(self, sample_projects):
@@ -944,6 +969,7 @@ class TestAPIResponseFormat:
 # DETAIL MODAL TESTS - Related Documents, Q&A Chat, Conversations
 # ============================================================================
 
+
 class TestRelatedDocuments:
     """Tests for project-related document retrieval."""
 
@@ -954,7 +980,7 @@ class TestRelatedDocuments:
             project={"id": "test-id", "title": "Test Project"},
             client_id="test-client",
             limit=8,
-            min_similarity=0.25
+            min_similarity=0.25,
         )
         assert isinstance(result, list)
 
@@ -970,13 +996,12 @@ class TestRelatedDocuments:
                 "filename": "Test Document.md",
                 "page_number": None,
                 "source_type": "upload",
-                "storage_path": "/uploads/test.md"
-            }
+                "storage_path": "/uploads/test.md",
+            },
         }
         mock_project_context.get_scoring_related_documents.return_value = [sample_doc]
         result = mock_project_context.get_scoring_related_documents(
-            project={"id": "test-id"},
-            client_id="test-client"
+            project={"id": "test-id"}, client_id="test-client"
         )
         assert len(result) == 1
         doc = result[0]
@@ -1006,9 +1031,7 @@ class TestRelatedDocuments:
             {"chunk_id": str(i)} for i in range(5)
         ]
         result = mock_project_context.get_scoring_related_documents(
-            project={"id": "test-id"},
-            client_id="test-client",
-            limit=5
+            project={"id": "test-id"}, client_id="test-client", limit=5
         )
         assert len(result) <= 5
 
@@ -1029,8 +1052,7 @@ class TestRelatedDocuments:
         """Empty project context returns empty results gracefully."""
         mock_project_context.get_scoring_related_documents.return_value = []
         result = mock_project_context.get_scoring_related_documents(
-            project={"id": "test-id", "title": "", "description": None},
-            client_id="test-client"
+            project={"id": "test-id", "title": "", "description": None}, client_id="test-client"
         )
         assert result == []
 
@@ -1043,13 +1065,13 @@ class TestProjectQA:
         """Ask endpoint returns a response with sources."""
         mock_project_chat.ask_about_project.return_value = {
             "response": "Based on the documents, this project has high ROI potential.",
-            "sources": []
+            "sources": [],
         }
         result = await mock_project_chat.ask_about_project(
             project_id="test-opp-id",
             question="Why is ROI rated 5?",
             client_id="test-client",
-            user_id="test-user"
+            user_id="test-user",
         )
         assert "response" in result
         assert "sources" in result
@@ -1067,15 +1089,15 @@ class TestProjectQA:
                     "document_id": "doc-1",
                     "document_name": "Business Case.pdf",
                     "relevance_score": 0.92,
-                    "snippet": "Expected annual savings of $2M..."
+                    "snippet": "Expected annual savings of $2M...",
                 }
-            ]
+            ],
         }
         result = await mock_project_chat.ask_about_project(
             project_id="test-opp-id",
             question="Why is ROI rated 5?",
             client_id="test-client",
-            user_id="test-user"
+            user_id="test-user",
         )
         assert len(result["sources"]) == 1
         assert result["sources"][0]["document_name"] == "Business Case.pdf"
@@ -1110,8 +1132,7 @@ class TestProjectConversations:
         """Conversations endpoint returns a list."""
         mock_project_chat.get_project_conversations.return_value = []
         result = await mock_project_chat.get_project_conversations(
-            project_id="test-opp-id",
-            client_id="test-client"
+            project_id="test-opp-id", client_id="test-client"
         )
         assert isinstance(result, list)
 
@@ -1122,15 +1143,12 @@ class TestProjectConversations:
             "id": str(uuid.uuid4()),
             "question": "What is the implementation timeline?",
             "response": "Based on the assessment, implementation would take 3-6 months.",
-            "source_documents": [
-                {"document_id": "doc-1", "document_name": "Timeline.pdf"}
-            ],
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "source_documents": [{"document_id": "doc-1", "document_name": "Timeline.pdf"}],
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
         mock_project_chat.get_project_conversations.return_value = [sample_convo]
         result = await mock_project_chat.get_project_conversations(
-            project_id="test-opp-id",
-            client_id="test-client"
+            project_id="test-opp-id", client_id="test-client"
         )
         assert len(result) == 1
         convo = result[0]
@@ -1177,7 +1195,7 @@ class TestScoreJustification:
             2: "Minor improvement",
             3: "Moderate impact",
             4: "Significant impact",
-            5: "Transformative impact"
+            5: "Transformative impact",
         }
         for level in range(1, 6):
             assert level in roi_descriptions
@@ -1189,7 +1207,7 @@ class TestScoreJustification:
             "roi_potential",
             "implementation_effort",
             "strategic_alignment",
-            "stakeholder_readiness"
+            "stakeholder_readiness",
         ]
         assert len(dimensions) == 4
         for dim in dimensions:
@@ -1210,6 +1228,7 @@ class TestScoreJustification:
 
     def test_score_color_coding(self):
         """Scores map to appropriate colors."""
+
         def get_score_color(score: int) -> str:
             if score >= 4:
                 return "green"

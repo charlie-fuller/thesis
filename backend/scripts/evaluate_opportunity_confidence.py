@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Evaluate confidence scores for all opportunities.
+"""Evaluate confidence scores for all opportunities.
 
 Usage:
     cd backend
@@ -26,7 +25,6 @@ Rubric (100 points max):
 - Blockers documented: +2
 """
 
-import asyncio
 import os
 import sys
 
@@ -34,6 +32,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from database import get_supabase
@@ -81,10 +80,12 @@ def main():
 
         # Update in database
         try:
-            supabase.table("ai_opportunities").update({
-                "scoring_confidence": confidence,
-                "confidence_questions": questions,
-            }).eq("id", opp_id).execute()
+            supabase.table("ai_opportunities").update(
+                {
+                    "scoring_confidence": confidence,
+                    "confidence_questions": questions,
+                }
+            ).eq("id", opp_id).execute()
             updated += 1
             print(f"  [{confidence:3d}%] {level:8s} | {title}... ({len(questions)} questions)")
         except Exception as e:
@@ -92,13 +93,13 @@ def main():
 
     # Summary
     avg_confidence = sum(all_confidences) / len(all_confidences) if all_confidences else 0
-    print(f"\n{'='*60}")
-    print(f"SUMMARY")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("SUMMARY")
+    print(f"{'=' * 60}")
     print(f"Total opportunities: {len(opportunities)}")
     print(f"Successfully updated: {updated}")
     print(f"Average confidence: {avg_confidence:.1f}%")
-    print(f"\nDistribution:")
+    print("\nDistribution:")
     print(f"  High (80-100%):     {by_level['high']:3d}")
     print(f"  Moderate (60-79%):  {by_level['moderate']:3d}")
     print(f"  Low (40-59%):       {by_level['low']:3d}")

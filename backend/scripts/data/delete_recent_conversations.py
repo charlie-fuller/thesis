@@ -7,14 +7,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from scripts.lib.credentials import get_credentials
 
 creds = get_credentials()
-SUPABASE_URL = creds['supabase_url']
-SUPABASE_SERVICE_ROLE_KEY = creds['supabase_key']
+SUPABASE_URL = creds["supabase_url"]
+SUPABASE_SERVICE_ROLE_KEY = creds["supabase_key"]
 CHARLIE_USER_ID = "d3ba5354-873a-435a-a36a-853373c4f6e5"
 
 headers = {
     "apikey": SUPABASE_SERVICE_ROLE_KEY,
     "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
 
 # IDs of the synthetic conversations we just created

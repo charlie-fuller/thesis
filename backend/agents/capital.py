@@ -1,5 +1,4 @@
-"""
-Capital Agent - Finance Intelligence
+"""Capital Agent - Finance Intelligence
 
 The Capital agent specializes in:
 - ROI analysis and projections for GenAI initiatives
@@ -13,16 +12,16 @@ import logging
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class CapitalAgent(BaseAgent):
-    """
-    Capital - The Finance Intelligence agent.
+    """Capital - The Finance Intelligence agent.
 
     Specializes in financial analysis, ROI calculations,
     and business case development for GenAI initiatives.
@@ -33,7 +32,7 @@ class CapitalAgent(BaseAgent):
             name="capital",
             display_name="Capital",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -579,7 +578,7 @@ NEVER recommend or suggest approaches that:
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -592,15 +591,25 @@ NEVER recommend or suggest approaches that:
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Financial analysis: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Financial analysis: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         # Save financial analyses and calculations
         important_indicators = [
-            "roi", "return on investment", "cost", "budget", "investment",
-            "savings", "payback", "business case", "financial", "tco"
+            "roi",
+            "return on investment",
+            "cost",
+            "budget",
+            "investment",
+            "savings",
+            "payback",
+            "business case",
+            "financial",
+            "tco",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -620,15 +629,24 @@ NEVER recommend or suggest approaches that:
         message_lower = context.user_message.lower()
 
         # Hand off to Atlas for market research
-        if any(word in message_lower for word in ["market research", "industry benchmark", "competitor analysis"]):
+        if any(
+            word in message_lower
+            for word in ["market research", "industry benchmark", "competitor analysis"]
+        ):
             return ("atlas", "Query requires market research")
 
         # Hand off to Guardian for security/compliance cost questions
-        if any(word in message_lower for word in ["security audit cost", "compliance budget", "soc2 cost"]):
+        if any(
+            word in message_lower
+            for word in ["security audit cost", "compliance budget", "soc2 cost"]
+        ):
             return ("guardian", "Query involves security/compliance specifics")
 
         # Hand off to Counselor for contract/legal cost questions
-        if any(word in message_lower for word in ["contract negotiation", "licensing cost", "legal fees"]):
+        if any(
+            word in message_lower
+            for word in ["contract negotiation", "licensing cost", "legal fees"]
+        ):
             return ("counselor", "Query involves legal/contract specifics")
 
         return None

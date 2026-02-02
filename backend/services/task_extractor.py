@@ -1,5 +1,4 @@
-"""
-Task Extractor Service
+"""Task Extractor Service
 
 Extracts potential tasks from KB documents and meeting transcripts.
 Supports both explicit patterns ("I will...") and inferred patterns
@@ -20,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ExtractedTask:
     """A potential task extracted from content."""
+
     title: str
     priority: int  # 1-5
     priority_label: str
@@ -40,7 +40,7 @@ class ExtractedTask:
 
 
 # Task verb pattern for task-like content detection
-TASK_VERB_PATTERN = r'\b(?:send|create|write|prepare|review|complete|finish|submit|deliver|schedule|set\s+up|follow[\s-]?up|update|check|confirm|arrange|book|draft|finalize|investigate|research|analyze|compile|document|share|circulate|distribute|forward|reach\s+out|contact|call|email|message|post|publish|upload|download|fix|resolve|address|handle|process|implement|deploy|clean|organize|plan|design|test|validate|notify|remind|track|monitor)\b'
+TASK_VERB_PATTERN = r"\b(?:send|create|write|prepare|review|complete|finish|submit|deliver|schedule|set\s+up|follow[\s-]?up|update|check|confirm|arrange|book|draft|finalize|investigate|research|analyze|compile|document|share|circulate|distribute|forward|reach\s+out|contact|call|email|message|post|publish|upload|download|fix|resolve|address|handle|process|implement|deploy|clean|organize|plan|design|test|validate|notify|remind|track|monitor)\b"
 
 # Explicit patterns (high confidence)
 EXPLICIT_PATTERNS = [
@@ -63,7 +63,10 @@ EXPLICIT_PATTERNS = [
 # Inferred patterns (medium confidence)
 INFERRED_PATTERNS = [
     # "[name] mentioned they would [action]"
-    (r"(\w+(?:\s+\w+)?)\s+(?:mentioned|said)\s+(?:they|he|she)\s+would\s+(.{10,100}?)(?:\.|$)", "mentioned_would"),
+    (
+        r"(\w+(?:\s+\w+)?)\s+(?:mentioned|said)\s+(?:they|he|she)\s+would\s+(.{10,100}?)(?:\.|$)",
+        "mentioned_would",
+    ),
     # "We agreed that [name] will [action]"
     (r"[Ww]e\s+agreed\s+that\s+(\w+(?:\s+\w+)?)\s+will\s+(.{10,100}?)(?:\.|$)", "agreed_will"),
     # "[name] is responsible for [deliverable]"
@@ -92,13 +95,13 @@ DUE_DATE_PATTERNS = [
 
 # Priority signal patterns
 PRIORITY_SIGNALS = {
-    'high': [
-        r'\b(urgent|ASAP|critical|immediately|high\s*priority|P1|blocking)\b',
-        r'\b(must|need\s+to|have\s+to)\b',
+    "high": [
+        r"\b(urgent|ASAP|critical|immediately|high\s*priority|P1|blocking)\b",
+        r"\b(must|need\s+to|have\s+to)\b",
     ],
-    'low': [
-        r'\b(when\s+you\s+(?:get\s+a\s+)?chance|low\s*priority|P4|P5|nice\s+to\s+have)\b',
-        r'\b(if\s+(?:you\s+)?possible|eventually|someday)\b',
+    "low": [
+        r"\b(when\s+you\s+(?:get\s+a\s+)?chance|low\s*priority|P4|P5|nice\s+to\s+have)\b",
+        r"\b(if\s+(?:you\s+)?possible|eventually|someday)\b",
     ],
 }
 
@@ -134,13 +137,51 @@ FALSE_POSITIVE_PATTERNS = [
 
 # Verbs that typically indicate real tasks
 TASK_VERBS = [
-    'send', 'create', 'write', 'prepare', 'review', 'complete', 'finish',
-    'submit', 'deliver', 'schedule', 'set up', 'follow up', 'follow-up',
-    'update', 'check', 'confirm', 'arrange', 'book', 'draft', 'finalize',
-    'investigate', 'research', 'analyze', 'compile', 'document', 'share',
-    'circulate', 'distribute', 'forward', 'reach out', 'contact', 'call',
-    'email', 'message', 'post', 'publish', 'upload', 'download', 'fix',
-    'resolve', 'address', 'handle', 'process', 'implement', 'deploy',
+    "send",
+    "create",
+    "write",
+    "prepare",
+    "review",
+    "complete",
+    "finish",
+    "submit",
+    "deliver",
+    "schedule",
+    "set up",
+    "follow up",
+    "follow-up",
+    "update",
+    "check",
+    "confirm",
+    "arrange",
+    "book",
+    "draft",
+    "finalize",
+    "investigate",
+    "research",
+    "analyze",
+    "compile",
+    "document",
+    "share",
+    "circulate",
+    "distribute",
+    "forward",
+    "reach out",
+    "contact",
+    "call",
+    "email",
+    "message",
+    "post",
+    "publish",
+    "upload",
+    "download",
+    "fix",
+    "resolve",
+    "address",
+    "handle",
+    "process",
+    "implement",
+    "deploy",
 ]
 
 
@@ -155,10 +196,9 @@ class TaskExtractor:
         text: str,
         source_document: str,
         user_name: Optional[str] = None,
-        include_inferred: bool = True
+        include_inferred: bool = True,
     ) -> list[ExtractedTask]:
-        """
-        Extract potential tasks from text content.
+        """Extract potential tasks from text content.
 
         Args:
             text: The text content to scan
@@ -175,9 +215,7 @@ class TaskExtractor:
         for pattern, pattern_name in EXPLICIT_PATTERNS:
             matches = re.finditer(pattern, text, re.IGNORECASE | re.MULTILINE)
             for match in matches:
-                task = self._process_match(
-                    match, pattern_name, source_document, 'high', user_name
-                )
+                task = self._process_match(match, pattern_name, source_document, "high", user_name)
                 if task:
                     tasks.append(task)
 
@@ -187,7 +225,7 @@ class TaskExtractor:
                 matches = re.finditer(pattern, text, re.IGNORECASE | re.MULTILINE)
                 for match in matches:
                     task = self._process_match(
-                        match, pattern_name, source_document, 'medium', user_name
+                        match, pattern_name, source_document, "medium", user_name
                     )
                     if task:
                         tasks.append(task)
@@ -203,10 +241,9 @@ class TaskExtractor:
         source_document: str,
         user_name: Optional[str] = None,
         document_date: Optional[str] = None,
-        use_fast_model: bool = False
+        use_fast_model: bool = False,
     ) -> list[ExtractedTask]:
-        """
-        Use LLM to extract tasks for complex or ambiguous content.
+        """Use LLM to extract tasks for complex or ambiguous content.
 
         Args:
             use_fast_model: If True, uses Haiku for speed (manual scans).
@@ -215,6 +252,7 @@ class TaskExtractor:
         Falls back to regex extraction if LLM is not available.
         """
         import json
+
         if not self.anthropic:
             logger.info("No Anthropic client, falling back to regex extraction")
             return self.extract_from_text(text, source_document, user_name)
@@ -262,9 +300,7 @@ DOCUMENT CONTENT:
             logger.info(f"Using {model} for task extraction (fast_mode={use_fast_model})")
 
             response = self.anthropic.messages.create(
-                model=model,
-                max_tokens=2048,
-                messages=[{"role": "user", "content": prompt}]
+                model=model, max_tokens=2048, messages=[{"role": "user", "content": prompt}]
             )
 
             response_text = response.content[0].text.strip()
@@ -319,25 +355,27 @@ DOCUMENT CONTENT:
                     # Get assignee - try both field names for compatibility
                     assignee = item.get("assignee_name") or item.get("assignee")
 
-                    tasks.append(ExtractedTask(
-                        title=title[:200],
-                        priority=priority,
-                        priority_label=self._priority_label(priority),
-                        due_date=due_date,
-                        due_date_text=due_date_text,
-                        assignee_name=assignee,
-                        source_document=source_document,
-                        source_text=item.get("source_text", "")[:300],
-                        confidence=item.get("confidence", "high"),
-                        extraction_pattern="llm",
-                        # Rich context fields
-                        description=item.get("description"),
-                        meeting_context=item.get("meeting_context"),
-                        team=item.get("team"),
-                        stakeholder_name=item.get("stakeholder_name"),
-                        value_proposition=item.get("value_proposition"),
-                        topics=topics
-                    ))
+                    tasks.append(
+                        ExtractedTask(
+                            title=title[:200],
+                            priority=priority,
+                            priority_label=self._priority_label(priority),
+                            due_date=due_date,
+                            due_date_text=due_date_text,
+                            assignee_name=assignee,
+                            source_document=source_document,
+                            source_text=item.get("source_text", "")[:300],
+                            confidence=item.get("confidence", "high"),
+                            extraction_pattern="llm",
+                            # Rich context fields
+                            description=item.get("description"),
+                            meeting_context=item.get("meeting_context"),
+                            team=item.get("team"),
+                            stakeholder_name=item.get("stakeholder_name"),
+                            value_proposition=item.get("value_proposition"),
+                            topics=topics,
+                        )
+                    )
 
                 logger.info(f"LLM extracted {len(tasks)} tasks from {source_document}")
                 return tasks
@@ -356,18 +394,33 @@ DOCUMENT CONTENT:
         pattern_name: str,
         source_document: str,
         confidence: str,
-        user_name: Optional[str]
+        user_name: Optional[str],
     ) -> Optional[ExtractedTask]:
         """Process a regex match into an ExtractedTask."""
         groups = match.groups()
         source_text = match.group(0)
 
         # Extract assignee and action based on pattern type
-        if pattern_name in ['i_will', 'todo', 'next_step', 'checkbox_unchecked', 'bullet_item', 'numbered_item']:
+        if pattern_name in [
+            "i_will",
+            "todo",
+            "next_step",
+            "checkbox_unchecked",
+            "bullet_item",
+            "numbered_item",
+        ]:
             assignee = user_name  # "I will" or checklist items are the user's tasks
             action = groups[0].strip()
-        elif pattern_name in ['action_to', 'follow_up', 'owns', 'mentioned_would',
-                              'agreed_will', 'responsible_for', 'needs_to', 'should']:
+        elif pattern_name in [
+            "action_to",
+            "follow_up",
+            "owns",
+            "mentioned_would",
+            "agreed_will",
+            "responsible_for",
+            "needs_to",
+            "should",
+        ]:
             assignee = groups[0].strip() if len(groups) > 1 else None
             action = groups[1].strip() if len(groups) > 1 else groups[0].strip()
         else:
@@ -381,7 +434,7 @@ DOCUMENT CONTENT:
             user_lower = user_name.lower()
             if not (user_lower in assignee_lower or assignee_lower in user_lower):
                 # Also check for "I" which implies the user
-                if assignee_lower not in ['i', 'me', 'my']:
+                if assignee_lower not in ["i", "me", "my"]:
                     return None
 
         # Clean up the action text
@@ -410,7 +463,7 @@ DOCUMENT CONTENT:
             source_document=source_document,
             source_text=source_text[:300],
             confidence=confidence,
-            extraction_pattern=pattern_name
+            extraction_pattern=pattern_name,
         )
 
     def _extract_due_date(self, text: str) -> tuple[Optional[date], Optional[str]]:
@@ -425,11 +478,16 @@ DOCUMENT CONTENT:
                 if isinstance(offset, int):
                     return today + timedelta(days=offset), date_text
 
-                if offset == 'weekday':
+                if offset == "weekday":
                     # Calculate days until the mentioned weekday
                     weekdays = {
-                        'monday': 0, 'tuesday': 1, 'wednesday': 2,
-                        'thursday': 3, 'friday': 4, 'saturday': 5, 'sunday': 6
+                        "monday": 0,
+                        "tuesday": 1,
+                        "wednesday": 2,
+                        "thursday": 3,
+                        "friday": 4,
+                        "saturday": 5,
+                        "sunday": 6,
                     }
                     target_day = weekdays.get(date_text.lower())
                     if target_day is not None:
@@ -438,14 +496,14 @@ DOCUMENT CONTENT:
                             days_ahead += 7
                         return today + timedelta(days=days_ahead), date_text
 
-                if offset == 'eow':
+                if offset == "eow":
                     # End of week (Friday)
                     days_until_friday = (4 - today.weekday()) % 7
                     if days_until_friday == 0:
                         days_until_friday = 7
                     return today + timedelta(days=days_until_friday), date_text
 
-                if offset == 'eom':
+                if offset == "eom":
                     # End of month
                     if today.month == 12:
                         eom = date(today.year + 1, 1, 1) - timedelta(days=1)
@@ -453,15 +511,15 @@ DOCUMENT CONTENT:
                         eom = date(today.year, today.month + 1, 1) - timedelta(days=1)
                     return eom, date_text
 
-                if offset == 'date':
+                if offset == "date":
                     # Try to parse the date
                     try:
                         # Handle various date formats
-                        for fmt in ['%m/%d/%Y', '%m/%d/%y', '%m/%d']:
+                        for fmt in ["%m/%d/%Y", "%m/%d/%y", "%m/%d"]:
                             try:
                                 parsed = date.today().replace(
-                                    month=int(date_text.split('/')[0]),
-                                    day=int(date_text.split('/')[1])
+                                    month=int(date_text.split("/")[0]),
+                                    day=int(date_text.split("/")[1]),
                                 )
                                 return parsed, date_text
                             except (ValueError, IndexError):
@@ -476,12 +534,12 @@ DOCUMENT CONTENT:
         text_lower = text.lower()
 
         # Check for high priority signals
-        for pattern in PRIORITY_SIGNALS['high']:
+        for pattern in PRIORITY_SIGNALS["high"]:
             if re.search(pattern, text_lower):
                 return 2  # High
 
         # Check for low priority signals
-        for pattern in PRIORITY_SIGNALS['low']:
+        for pattern in PRIORITY_SIGNALS["low"]:
             if re.search(pattern, text_lower):
                 return 4  # Low
 
@@ -495,7 +553,7 @@ DOCUMENT CONTENT:
     def _clean_action_text(self, text: str) -> str:
         """Clean up extracted action text."""
         # Remove leading/trailing whitespace and punctuation
-        text = text.strip().strip('.,;:')
+        text = text.strip().strip(".,;:")
 
         # Capitalize first letter
         if text:
@@ -513,7 +571,7 @@ DOCUMENT CONTENT:
                 return True
 
         # Check if "be off/away/traveling" appears anywhere (status statements)
-        if re.search(r'\bbe\s+(?:off|out|away|traveling|back|there|here)\b', action_lower):
+        if re.search(r"\bbe\s+(?:off|out|away|traveling|back|there|here)\b", action_lower):
             return True
 
         # Check if it contains a real task verb
@@ -525,7 +583,7 @@ DOCUMENT CONTENT:
             return True
 
         # If starts with a fragment or incomplete word (like "Be." from bad extraction)
-        if re.match(r'^[a-z]{1,3}\.\s', action_lower):
+        if re.match(r"^[a-z]{1,3}\.\s", action_lower):
             return True
 
         return False
@@ -562,7 +620,7 @@ def format_extracted_tasks_for_display(tasks: list[ExtractedTask]) -> str:
     parts = [f"**{len(tasks)} potential task(s) found:**\n"]
 
     for i, task in enumerate(tasks, 1):
-        confidence_marker = "" if task.confidence == 'high' else " (inferred)"
+        confidence_marker = "" if task.confidence == "high" else " (inferred)"
         due_str = f"\n   Due: {task.due_date_text}" if task.due_date_text else ""
         assignee_str = f"\n   Assignee: {task.assignee_name}" if task.assignee_name else ""
 
@@ -572,6 +630,6 @@ def format_extracted_tasks_for_display(tasks: list[ExtractedTask]) -> str:
             f"{due_str}{assignee_str}\n"
         )
 
-    parts.append("\nCreate any of these? (e.g., \"create 1 and 3\" or \"create all\")")
+    parts.append('\nCreate any of these? (e.g., "create 1 and 3" or "create all")')
 
     return "\n".join(parts)

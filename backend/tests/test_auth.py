@@ -1,5 +1,4 @@
-"""
-Authentication and Authorization Tests
+"""Authentication and Authorization Tests
 
 Tests for JWT validation, user authentication, and role-based access control.
 """
@@ -14,6 +13,7 @@ import pytest
 # ============================================================================
 # JWT Token Validation Tests
 # ============================================================================
+
 
 class TestJWTValidation:
     """Tests for JWT token decoding and validation."""
@@ -51,9 +51,13 @@ class TestJWTValidation:
 
         # Create token with different secret
         wrong_token = jwt.encode(
-            {"sub": "test-user", "aud": "authenticated", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+            {
+                "sub": "test-user",
+                "aud": "authenticated",
+                "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            },
             "wrong-secret",
-            algorithm="HS256"
+            algorithm="HS256",
         )
 
         payload = decode_jwt(wrong_token)
@@ -69,10 +73,10 @@ class TestJWTValidation:
             {
                 "sub": "test-user",
                 "aud": "wrong-audience",
-                "exp": datetime.now(timezone.utc) + timedelta(hours=1)
+                "exp": datetime.now(timezone.utc) + timedelta(hours=1),
             },
             os.environ["SUPABASE_JWT_SECRET"],
-            algorithm="HS256"
+            algorithm="HS256",
         )
 
         payload = decode_jwt(wrong_aud_token)
@@ -83,6 +87,7 @@ class TestJWTValidation:
 # ============================================================================
 # get_current_user Tests
 # ============================================================================
+
 
 class TestGetCurrentUser:
     """Tests for the get_current_user dependency."""
@@ -134,7 +139,9 @@ class TestGetCurrentUser:
 
         # Mock database error
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.single.return_value.execute.side_effect = Exception("DB Error")
+        mock_supabase.table.return_value.select.return_value.eq.return_value.single.return_value.execute.side_effect = Exception(
+            "DB Error"
+        )
         mock_get_supabase.return_value = mock_supabase
 
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=valid_jwt_token)
@@ -150,6 +157,7 @@ class TestGetCurrentUser:
 # ============================================================================
 # Role-Based Access Control Tests
 # ============================================================================
+
 
 class TestRoleBasedAccess:
     """Tests for role-based access control."""
@@ -193,6 +201,7 @@ class TestRoleBasedAccess:
 # API Authentication Tests
 # ============================================================================
 
+
 class TestAPIAuthentication:
     """Tests for API endpoint authentication."""
 
@@ -205,14 +214,15 @@ class TestAPIAuthentication:
     def test_protected_endpoint_with_invalid_token(self, test_client):
         """Test that invalid tokens are rejected."""
         response = test_client.get(
-            "/api/conversations",
-            headers={"Authorization": "Bearer invalid-token"}
+            "/api/conversations", headers={"Authorization": "Bearer invalid-token"}
         )
 
         assert response.status_code == 401
 
     @patch("database.get_supabase")
-    def test_protected_endpoint_with_valid_token(self, mock_get_supabase, test_client, valid_jwt_token):
+    def test_protected_endpoint_with_valid_token(
+        self, mock_get_supabase, test_client, valid_jwt_token
+    ):
         """Test that valid tokens are accepted."""
         # Mock supabase
         mock_supabase = MagicMock()
@@ -225,8 +235,7 @@ class TestAPIAuthentication:
         mock_get_supabase.return_value = mock_supabase
 
         response = test_client.get(
-            "/api/conversations",
-            headers={"Authorization": f"Bearer {valid_jwt_token}"}
+            "/api/conversations", headers={"Authorization": f"Bearer {valid_jwt_token}"}
         )
 
         # Should not be 401 or 403
@@ -236,6 +245,7 @@ class TestAPIAuthentication:
 # ============================================================================
 # Edge Cases
 # ============================================================================
+
 
 class TestAuthEdgeCases:
     """Edge case tests for authentication."""
@@ -252,9 +262,13 @@ class TestAuthEdgeCases:
 
         # Create token without 'sub'
         token = jwt.encode(
-            {"email": "test@example.com", "aud": "authenticated", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+            {
+                "email": "test@example.com",
+                "aud": "authenticated",
+                "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            },
             os.environ["SUPABASE_JWT_SECRET"],
-            algorithm="HS256"
+            algorithm="HS256",
         )
 
         payload = decode_jwt(token)

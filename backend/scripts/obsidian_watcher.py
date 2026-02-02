@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Obsidian Vault Watcher
+"""Obsidian Vault Watcher
 
 Standalone script to run the Obsidian file watcher as a background process.
 Monitors configured vault directories for .md file changes and syncs them
@@ -40,6 +39,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 
@@ -48,30 +48,20 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Watch an Obsidian vault and sync changes to Thesis KB",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
     )
 
-    parser.add_argument(
-        "--user-id",
-        required=True,
-        help="UUID of the user whose vault to watch"
-    )
+    parser.add_argument("--user-id", required=True, help="UUID of the user whose vault to watch")
 
     parser.add_argument(
         "--vault-path",
-        help="Override vault path (default: from database config or OBSIDIAN_VAULT_PATH env)"
+        help="Override vault path (default: from database config or OBSIDIAN_VAULT_PATH env)",
     )
 
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Enable verbose logging"
-    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
 
     parser.add_argument(
-        "--initial-sync",
-        action="store_true",
-        help="Perform initial sync before starting watcher"
+        "--initial-sync", action="store_true", help="Perform initial sync before starting watcher"
     )
 
     return parser.parse_args()
@@ -86,7 +76,7 @@ def setup_logging(verbose: bool = False):
     logging.basicConfig(
         level=level,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     # Reduce noise from other loggers
@@ -108,15 +98,21 @@ def validate_environment():
 
 def on_sync_complete(file_path: str, stats: dict):
     """Callback for sync completion."""
-    action = "added" if stats.get("files_added") else \
-             "updated" if stats.get("files_updated") else \
-             "deleted" if stats.get("files_deleted") else \
-             "skipped"
+    action = (
+        "added"
+        if stats.get("files_added")
+        else "updated"
+        if stats.get("files_updated")
+        else "deleted"
+        if stats.get("files_deleted")
+        else "skipped"
+    )
     print(f"  Synced: {file_path} ({action})")
 
 
 async def run_watcher(args):
     """Main watcher loop."""
+    from logger_config import get_logger
     from services.obsidian_sync import (
         ObsidianSyncError,
         ObsidianVaultWatcher,
@@ -124,7 +120,6 @@ async def run_watcher(args):
         get_vault_config,
         sync_vault,
     )
-    from logger_config import get_logger
 
     logger = get_logger(__name__)
 
@@ -143,14 +138,13 @@ async def run_watcher(args):
             logger.info(f"Vault path override: {vault_path_override}")
 
             from database import get_supabase
+
             supabase = get_supabase()
 
             # Get user's client_id
-            user_result = supabase.table("users") \
-                .select("client_id") \
-                .eq("id", user_id) \
-                .single() \
-                .execute()
+            user_result = (
+                supabase.table("users").select("client_id").eq("id", user_id).single().execute()
+            )
 
             if not user_result.data or not user_result.data.get("client_id"):
                 logger.error("User not found or has no client association")
@@ -159,9 +153,7 @@ async def run_watcher(args):
             client_id = user_result.data["client_id"]
 
             config = create_vault_config(
-                user_id=user_id,
-                client_id=client_id,
-                vault_path=vault_path_override
+                user_id=user_id, client_id=client_id, vault_path=vault_path_override
             )
         elif not config:
             logger.error("No vault configured and no override path provided")
@@ -189,18 +181,17 @@ async def run_watcher(args):
         logger.info("Performing initial sync...")
         try:
             result = sync_vault(config, trigger_source="watcher_init")
-            logger.info(f"Initial sync complete: {result['files_added']} added, "
-                       f"{result['files_updated']} updated, "
-                       f"{result['files_skipped']} skipped")
+            logger.info(
+                f"Initial sync complete: {result['files_added']} added, "
+                f"{result['files_updated']} updated, "
+                f"{result['files_skipped']} skipped"
+            )
         except ObsidianSyncError as e:
             logger.error(f"Initial sync failed: {e}")
             # Continue with watcher anyway
 
     # Create and start watcher
-    watcher = ObsidianVaultWatcher(
-        config=config,
-        on_sync_complete=on_sync_complete
-    )
+    watcher = ObsidianVaultWatcher(config=config, on_sync_complete=on_sync_complete)
 
     # Set up signal handlers for graceful shutdown
     stop_event = asyncio.Event()

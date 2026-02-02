@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Quick fix for UUID type cast error in match_document_chunks"""
+
 import os
 import sys
 
@@ -78,7 +79,7 @@ try:
     print("\n🔄 Executing SQL fix...")
 
     # Execute the SQL using RPC or direct query
-    result = supabase.rpc('exec_sql', {'sql': sql}).execute()
+    result = supabase.rpc("exec_sql", {"sql": sql}).execute()
 
     print("✅ Migration executed successfully!")
     print("\n" + "=" * 80)

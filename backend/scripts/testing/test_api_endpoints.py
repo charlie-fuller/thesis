@@ -1,5 +1,4 @@
-"""
-Test the complete API workflow:
+"""Test the complete API workflow:
 1. Upload document
 2. Process document
 3. Search for content
@@ -8,6 +7,7 @@ Test the complete API workflow:
 import requests
 
 API_BASE = "http://localhost:8000"
+
 
 def test_complete_workflow():
     print("=" * 60)
@@ -44,12 +44,12 @@ def test_complete_workflow():
     """
 
     # Save test file
-    with open('test_executive_doc.txt', 'w') as f:
+    with open("test_executive_doc.txt", "w") as f:
         f.write(test_content)
 
     # Upload
-    with open('test_executive_doc.txt', 'rb') as f:
-        files = {'file': ('executive_leadership.txt', f, 'text/plain')}
+    with open("test_executive_doc.txt", "rb") as f:
+        files = {"file": ("executive_leadership.txt", f, "text/plain")}
         response = requests.post(f"{API_BASE}/api/documents/upload", files=files)
 
     if response.status_code != 200:
@@ -57,7 +57,7 @@ def test_complete_workflow():
         return
 
     upload_result = response.json()
-    document_id = upload_result['document_id']
+    document_id = upload_result["document_id"]
     print(f"✅ Uploaded! Document ID: {document_id}")
 
     # Step 2: Process the document
@@ -82,16 +82,13 @@ def test_complete_workflow():
         "innovation and creativity",
         "efficiency and optimization",
         "PB_Magic framework for leadership",
-        "OKR and ICE frameworks"
+        "OKR and ICE frameworks",
     ]
 
     for query in queries:
         print(f"\n   Query: '{query}'")
 
-        response = requests.post(
-            f"{API_BASE}/api/search",
-            params={'query': query, 'limit': 2}
-        )
+        response = requests.post(f"{API_BASE}/api/search", params={"query": query, "limit": 2})
 
         if response.status_code != 200:
             print(f"   ❌ Search failed: {response.text}")
@@ -100,14 +97,15 @@ def test_complete_workflow():
         search_result = response.json()
         print(f"   Found {search_result['count']} results")
 
-        for i, result in enumerate(search_result['results'], 1):
+        for i, result in enumerate(search_result["results"], 1):
             print(f"\n   Result {i}:")
             print(f"      Similarity: {result['similarity']:.4f}")
             print(f"      Content: {result['content'][:80]}...")
 
     # Cleanup
     import os
-    os.remove('test_executive_doc.txt')
+
+    os.remove("test_executive_doc.txt")
 
     print("\n" + "=" * 60)
     print("✅ Complete workflow test passed!")
@@ -119,6 +117,7 @@ def test_complete_workflow():
     print("\n🎉 RAG pipeline fully operational via API!")
     print("=" * 60)
 
+
 if __name__ == "__main__":
     try:
         test_complete_workflow()
@@ -128,4 +127,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Error: {str(e)}")
         import traceback
+
         traceback.print_exc()

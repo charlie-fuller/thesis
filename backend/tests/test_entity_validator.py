@@ -1,5 +1,4 @@
-"""
-Tests for Entity Validation System
+"""Tests for Entity Validation System
 
 Tests the phonetic matching, entity validation, and registry management services.
 
@@ -7,9 +6,9 @@ Version: 1.0.0
 Created: 2026-01-23
 """
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock
 
+import pytest
 
 # ============================================================================
 # PhoneticMatcher Tests
@@ -23,6 +22,7 @@ class TestPhoneticMatcher:
         """Test metaphone codes for a simple name."""
         try:
             from services.phonetic_matcher import PhoneticMatcher
+
             matcher = PhoneticMatcher()
 
             codes = matcher.get_metaphone_codes("Charlie")
@@ -34,6 +34,7 @@ class TestPhoneticMatcher:
         """Test metaphone codes for empty input."""
         try:
             from services.phonetic_matcher import PhoneticMatcher
+
             matcher = PhoneticMatcher()
 
             codes = matcher.get_metaphone_codes("")
@@ -48,6 +49,7 @@ class TestPhoneticMatcher:
         """Test getting codes for first and last name separately."""
         try:
             from services.phonetic_matcher import PhoneticMatcher
+
             matcher = PhoneticMatcher()
 
             first_codes, last_codes = matcher.get_name_codes("Charlie Fuller")
@@ -60,6 +62,7 @@ class TestPhoneticMatcher:
         """Test getting codes for single name."""
         try:
             from services.phonetic_matcher import PhoneticMatcher
+
             matcher = PhoneticMatcher()
 
             first_codes, last_codes = matcher.get_name_codes("Charlie")
@@ -72,6 +75,7 @@ class TestPhoneticMatcher:
         """Test comparing names that sound alike."""
         try:
             from services.phonetic_matcher import PhoneticMatcher
+
             matcher = PhoneticMatcher()
 
             # Charlie vs Charley - should sound the same
@@ -85,6 +89,7 @@ class TestPhoneticMatcher:
         """Test comparing names that sound different."""
         try:
             from services.phonetic_matcher import PhoneticMatcher
+
             matcher = PhoneticMatcher()
 
             # Charlie vs Robert - should not match
@@ -97,6 +102,7 @@ class TestPhoneticMatcher:
         """Test comparing full names."""
         try:
             from services.phonetic_matcher import PhoneticMatcher
+
             matcher = PhoneticMatcher()
 
             # Same person, different spelling
@@ -114,6 +120,7 @@ class TestPhoneticMatcher:
         """Test finding best match from candidates."""
         try:
             from services.phonetic_matcher import PhoneticMatcher
+
             matcher = PhoneticMatcher()
 
             candidates = ["Charlie Fuller", "Robert Smith", "Sara Chen"]
@@ -129,6 +136,7 @@ class TestPhoneticMatcher:
         """Test find_best_match when no good match exists."""
         try:
             from services.phonetic_matcher import PhoneticMatcher
+
             matcher = PhoneticMatcher()
 
             candidates = ["Robert Smith", "Sara Chen"]
@@ -157,6 +165,7 @@ class TestEntityValidator:
     def validator(self, mock_supabase):
         """Create EntityValidator instance."""
         from services.entity_validator import EntityValidator
+
         return EntityValidator(mock_supabase)
 
     def test_validation_result_to_candidate_status(self):
@@ -169,7 +178,7 @@ class TestEntityValidator:
             status=ValidationStatus.EXACT_MATCH,
             suggested_value="Charlie",
             confidence=1.0,
-            match_reason="Exact match"
+            match_reason="Exact match",
         )
         assert result.to_candidate_status() == "validated"
 
@@ -179,7 +188,7 @@ class TestEntityValidator:
             status=ValidationStatus.FUZZY_MATCH,
             suggested_value="Charlie",
             confidence=0.9,
-            match_reason="Similar"
+            match_reason="Similar",
         )
         assert result.to_candidate_status() == "suggested_correction"
 
@@ -189,7 +198,7 @@ class TestEntityValidator:
             status=ValidationStatus.NEW_ENTITY,
             suggested_value=None,
             confidence=1.0,
-            match_reason="New"
+            match_reason="New",
         )
         assert result.to_candidate_status() == "new"
 
@@ -199,7 +208,7 @@ class TestEntityValidator:
             status=ValidationStatus.POTENTIAL_ERROR,
             suggested_value=None,
             confidence=0.3,
-            match_reason="Unclear"
+            match_reason="Unclear",
         )
         assert result.to_candidate_status() == "potential_error"
 
@@ -216,13 +225,15 @@ class TestEntityValidator:
         """Test validating name with exact match in registry."""
         # Mock the RPC response
         mock_supabase.rpc.return_value.execute.return_value = MagicMock(
-            data=[{
-                "id": "reg123",
-                "canonical_name": "Charlie Fuller",
-                "aliases": [],
-                "match_type": "exact",
-                "similarity": 1.0
-            }]
+            data=[
+                {
+                    "id": "reg123",
+                    "canonical_name": "Charlie Fuller",
+                    "aliases": [],
+                    "match_type": "exact",
+                    "similarity": 1.0,
+                }
+            ]
         )
 
         result = await validator.validate_person_name("Charlie Fuller", "client123")
@@ -253,13 +264,15 @@ class TestEntityValidator:
     async def test_validate_organization_alias_match(self, validator, mock_supabase):
         """Test validating organization with alias match."""
         mock_supabase.rpc.return_value.execute.return_value = MagicMock(
-            data=[{
-                "id": "org123",
-                "canonical_name": "Contentful",
-                "aliases": ["Content Full", "Contentfull"],
-                "match_type": "alias",
-                "similarity": 0.95
-            }]
+            data=[
+                {
+                    "id": "org123",
+                    "canonical_name": "Contentful",
+                    "aliases": ["Content Full", "Contentfull"],
+                    "match_type": "alias",
+                    "similarity": 0.95,
+                }
+            ]
         )
 
         result = await validator.validate_organization("Content Full", "client123")
@@ -304,6 +317,7 @@ class TestEntityRegistryManager:
     def manager(self, mock_supabase):
         """Create EntityRegistryManager instance."""
         from services.entity_registry_manager import EntityRegistryManager
+
         return EntityRegistryManager(mock_supabase)
 
     @pytest.mark.asyncio
@@ -314,9 +328,7 @@ class TestEntityRegistryManager:
         )
 
         result = await manager.add_organization(
-            client_id="client123",
-            canonical_name="Contentful",
-            aliases=["Content Full"]
+            client_id="client123", canonical_name="Contentful", aliases=["Content Full"]
         )
 
         assert result == "org123"
@@ -329,10 +341,7 @@ class TestEntityRegistryManager:
             "duplicate key value"
         )
 
-        result = await manager.add_organization(
-            client_id="client123",
-            canonical_name="Contentful"
-        )
+        result = await manager.add_organization(client_id="client123", canonical_name="Contentful")
 
         assert result is None
 
@@ -343,10 +352,7 @@ class TestEntityRegistryManager:
             data=[{"id": "person123"}]
         )
 
-        result = await manager.add_person(
-            client_id="client123",
-            canonical_name="Charlie Fuller"
-        )
+        result = await manager.add_person(client_id="client123", canonical_name="Charlie Fuller")
 
         assert result == "person123"
 
@@ -359,8 +365,7 @@ class TestEntityRegistryManager:
 
         assert result is True
         mock_supabase.rpc.assert_called_with(
-            "add_organization_alias",
-            {"p_org_id": "org123", "p_alias": "Content Full"}
+            "add_organization_alias", {"p_org_id": "org123", "p_alias": "Content Full"}
         )
 
     @pytest.mark.asyncio
@@ -380,7 +385,7 @@ class TestEntityRegistryManager:
                 "stakeholder_id": None,
                 "notes": None,
                 "created_at": "2026-01-23T00:00:00Z",
-                "updated_at": "2026-01-23T00:00:00Z"
+                "updated_at": "2026-01-23T00:00:00Z",
             }
         )
 
@@ -394,7 +399,7 @@ class TestEntityRegistryManager:
             client_id="client123",
             entity_type="person",
             original_value="Charley Fuller",
-            corrected_value="Charlie Fuller"
+            corrected_value="Charlie Fuller",
         )
 
         assert result is True
@@ -405,8 +410,13 @@ class TestEntityRegistryManager:
         # Mock stakeholder query
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
             data=[
-                {"id": "sh1", "name": "Charlie Fuller", "organization": "Contentful", "title": "Engineer"},
-                {"id": "sh2", "name": "Sara Chen", "organization": "Contentful", "title": "VP"}
+                {
+                    "id": "sh1",
+                    "name": "Charlie Fuller",
+                    "organization": "Contentful",
+                    "title": "Engineer",
+                },
+                {"id": "sh2", "name": "Sara Chen", "organization": "Contentful", "title": "VP"},
             ]
         )
 
@@ -450,14 +460,16 @@ class TestEntityValidationIntegration:
 
         mock_supabase = MagicMock()
         mock_supabase.rpc.return_value.execute.return_value = MagicMock(
-            data=[{
-                "id": "reg123",
-                "canonical_name": "Charlie Fuller",
-                "aliases": [],
-                "stakeholder_id": None,
-                "match_type": "fuzzy",
-                "similarity": 0.9
-            }]
+            data=[
+                {
+                    "id": "reg123",
+                    "canonical_name": "Charlie Fuller",
+                    "aliases": [],
+                    "stakeholder_id": None,
+                    "match_type": "fuzzy",
+                    "similarity": 0.9,
+                }
+            ]
         )
 
         validator = EntityValidator(mock_supabase)

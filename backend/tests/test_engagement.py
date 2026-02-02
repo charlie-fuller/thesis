@@ -1,5 +1,4 @@
-"""
-Tests for Stakeholder Engagement Calculator Service
+"""Tests for Stakeholder Engagement Calculator Service
 
 Tests the engagement level calculation system including:
 - Engagement level determination (Champion, Supporter, Neutral, Skeptic, Blocker)
@@ -12,14 +11,13 @@ Note: This test file uses direct module loading to avoid import chain issues
 with llama_index dependencies on Python 3.9.
 """
 
-import sys
-import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Optional
-from datetime import datetime, timezone, timedelta
+from unittest.mock import Mock
 from uuid import uuid4
 
+import pytest
 
 # ============================================================================
 # Note: This test file uses self-contained models and service classes for testing.
@@ -46,9 +44,11 @@ mock_logger_config.get_logger = Mock(return_value=mock_logger)
 # (This avoids the import chain that pulls in llama_index)
 # ============================================================================
 
+
 @dataclass
 class EngagementSignals:
     """Signals collected for engagement level calculation."""
+
     stakeholder_id: str
     current_level: str
 
@@ -106,6 +106,7 @@ class EngagementSignals:
 @dataclass
 class EngagementResult:
     """Result of an engagement level calculation."""
+
     stakeholder_id: str
     new_level: str
     previous_level: str
@@ -137,8 +138,7 @@ def is_demotion(old_level: str, new_level: str) -> bool:
 
 
 class EngagementCalculator:
-    """
-    Calculates stakeholder engagement levels based on interaction signals.
+    """Calculates stakeholder engagement levels based on interaction signals.
 
     Uses "sticky" level logic:
     - Promotion requires positive signals (interactions + positive insights)
@@ -150,19 +150,20 @@ class EngagementCalculator:
         self.supabase = supabase or mock_supabase
 
     async def collect_signals(self, stakeholder_id: str) -> EngagementSignals:
-        """
-        Collect all signals for engagement calculation.
+        """Collect all signals for engagement calculation.
 
         Queries:
         - stakeholders table for current level and interaction metrics
         - stakeholder_insights table for insight type counts
         """
         # Get stakeholder data
-        stakeholder_result = self.supabase.table("stakeholders")\
-            .select("engagement_level, total_interactions, last_interaction")\
-            .eq("id", stakeholder_id)\
-            .single()\
+        stakeholder_result = (
+            self.supabase.table("stakeholders")
+            .select("engagement_level, total_interactions, last_interaction")
+            .eq("id", stakeholder_id)
+            .single()
             .execute()
+        )
 
         if not stakeholder_result.data:
             raise ValueError(f"Stakeholder {stakeholder_id} not found")
@@ -183,10 +184,12 @@ class EngagementCalculator:
                 pass
 
         # Count insights by type
-        insights_result = self.supabase.table("stakeholder_insights")\
-            .select("insight_type, is_resolved")\
-            .eq("stakeholder_id", stakeholder_id)\
+        insights_result = (
+            self.supabase.table("stakeholder_insights")
+            .select("insight_type, is_resolved")
+            .eq("stakeholder_id", stakeholder_id)
             .execute()
+        )
 
         insights = insights_result.data or []
 
@@ -233,8 +236,7 @@ class EngagementCalculator:
         )
 
     def calculate_level(self, signals: EngagementSignals) -> tuple[str, str]:
-        """
-        Calculate engagement level from signals using sticky rules.
+        """Calculate engagement level from signals using sticky rules.
 
         Returns:
             tuple: (new_level, reason)
@@ -270,7 +272,10 @@ class EngagementCalculator:
         if signals.unresolved_objection_count >= 1:
             # Allow demotion to skeptic from any level
             if current_rank > level_rank("skeptic"):
-                return "skeptic", f"Unresolved objection detected ({signals.unresolved_objection_count})"
+                return (
+                    "skeptic",
+                    f"Unresolved objection detected ({signals.unresolved_objection_count})",
+                )
             # Keep at skeptic if already there or lower
             if current_rank <= level_rank("skeptic"):
                 return current, "Maintaining current level"
@@ -282,12 +287,18 @@ class EngagementCalculator:
         # Check for demotion from SUPPORTER/CHAMPION to NEUTRAL
         if current_rank >= level_rank("supporter"):
             if signals.unresolved_concern_count >= 2:
-                return "neutral", f"Multiple unresolved concerns ({signals.unresolved_concern_count})"
+                return (
+                    "neutral",
+                    f"Multiple unresolved concerns ({signals.unresolved_concern_count})",
+                )
 
         # Check for demotion from CHAMPION to SUPPORTER
         if current == "champion":
             if signals.objection_count > signals.support_count:
-                return "supporter", f"Objections ({signals.objection_count}) exceed support ({signals.support_count})"
+                return (
+                    "supporter",
+                    f"Objections ({signals.objection_count}) exceed support ({signals.support_count})",
+                )
 
         # Check for promotion to CHAMPION
         if signals.total_interactions >= 5:
@@ -303,19 +314,18 @@ class EngagementCalculator:
         # Check for promotion to SUPPORTER
         if signals.total_interactions >= 3 and signals.positive_ratio > 0.5:
             if current_rank < level_rank("supporter"):
-                return "supporter", f"Regular engagement with {signals.positive_ratio:.0%} positive signals"
+                return (
+                    "supporter",
+                    f"Regular engagement with {signals.positive_ratio:.0%} positive signals",
+                )
 
         # No change - maintain current level
         return current, "Maintaining current level (no qualifying signals for change)"
 
     async def calculate_for_stakeholder(
-        self,
-        stakeholder_id: str,
-        client_id: str,
-        calculation_type: str = "scheduled"
+        self, stakeholder_id: str, client_id: str, calculation_type: str = "scheduled"
     ) -> EngagementResult:
-        """
-        Calculate and update engagement for a single stakeholder.
+        """Calculate and update engagement for a single stakeholder.
 
         Args:
             stakeholder_id: UUID of stakeholder
@@ -335,28 +345,34 @@ class EngagementCalculator:
 
         # Update stakeholder if changed
         if changed:
-            self.supabase.table("stakeholders").update({
-                "engagement_level": new_level,
-                "last_engagement_calculated": datetime.now(timezone.utc).isoformat(),
-            }).eq("id", stakeholder_id).execute()
+            self.supabase.table("stakeholders").update(
+                {
+                    "engagement_level": new_level,
+                    "last_engagement_calculated": datetime.now(timezone.utc).isoformat(),
+                }
+            ).eq("id", stakeholder_id).execute()
 
         else:
             # Update timestamp even if no change
-            self.supabase.table("stakeholders").update({
-                "last_engagement_calculated": datetime.now(timezone.utc).isoformat(),
-            }).eq("id", stakeholder_id).execute()
+            self.supabase.table("stakeholders").update(
+                {
+                    "last_engagement_calculated": datetime.now(timezone.utc).isoformat(),
+                }
+            ).eq("id", stakeholder_id).execute()
 
         # Record in history (always, for trend tracking)
-        self.supabase.table("engagement_level_history").insert({
-            "id": str(uuid4()),
-            "stakeholder_id": stakeholder_id,
-            "client_id": client_id,
-            "engagement_level": new_level,
-            "previous_level": previous_level if changed else None,
-            "calculation_reason": reason,
-            "signals": signals.to_dict(),
-            "calculation_type": calculation_type,
-        }).execute()
+        self.supabase.table("engagement_level_history").insert(
+            {
+                "id": str(uuid4()),
+                "stakeholder_id": stakeholder_id,
+                "client_id": client_id,
+                "engagement_level": new_level,
+                "previous_level": previous_level if changed else None,
+                "calculation_reason": reason,
+                "signals": signals.to_dict(),
+                "calculation_type": calculation_type,
+            }
+        ).execute()
 
         return EngagementResult(
             stakeholder_id=stakeholder_id,
@@ -368,21 +384,17 @@ class EngagementCalculator:
         )
 
     async def calculate_for_client(
-        self,
-        client_id: str,
-        calculation_type: str = "scheduled"
+        self, client_id: str, calculation_type: str = "scheduled"
     ) -> dict:
-        """
-        Calculate engagement for all stakeholders in a client.
+        """Calculate engagement for all stakeholders in a client.
 
         Returns:
             dict with summary: {total, changed, promotions, demotions, errors}
         """
         # Get all stakeholders for client
-        result = self.supabase.table("stakeholders")\
-            .select("id")\
-            .eq("client_id", client_id)\
-            .execute()
+        result = (
+            self.supabase.table("stakeholders").select("id").eq("client_id", client_id).execute()
+        )
 
         stakeholders = result.data or []
 
@@ -414,12 +426,14 @@ class EngagementCalculator:
                     elif is_demotion(eng_result.previous_level, eng_result.new_level):
                         summary["demotions"] += 1
 
-                    summary["changes"].append({
-                        "stakeholder_id": stakeholder_id,
-                        "previous_level": eng_result.previous_level,
-                        "new_level": eng_result.new_level,
-                        "reason": eng_result.reason,
-                    })
+                    summary["changes"].append(
+                        {
+                            "stakeholder_id": stakeholder_id,
+                            "previous_level": eng_result.previous_level,
+                            "new_level": eng_result.new_level,
+                            "reason": eng_result.reason,
+                        }
+                    )
 
             except Exception:
                 summary["errors"] += 1
@@ -430,6 +444,7 @@ class EngagementCalculator:
 # ============================================================================
 # Test Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def calculator():
@@ -459,6 +474,7 @@ def neutral_signals():
 # ============================================================================
 # Test: EngagementSignals Data Class
 # ============================================================================
+
 
 class TestEngagementSignals:
     """Test EngagementSignals data class and derived properties."""
@@ -548,6 +564,7 @@ class TestEngagementSignals:
 # Test: Level Hierarchy Functions
 # ============================================================================
 
+
 class TestLevelHierarchy:
     """Test engagement level hierarchy functions."""
 
@@ -598,6 +615,7 @@ class TestLevelHierarchy:
 # ============================================================================
 # Test: Engagement Level Calculation
 # ============================================================================
+
 
 class TestEngagementLevelCalculation:
     """Test the core engagement level calculation logic."""
@@ -767,6 +785,7 @@ class TestEngagementLevelCalculation:
 # Test: Sticky Level Behavior
 # ============================================================================
 
+
 class TestStickyLevelBehavior:
     """Test that levels are 'sticky' - only demote on explicit negative signals."""
 
@@ -853,6 +872,7 @@ class TestStickyLevelBehavior:
 # Test: Signal Collection
 # ============================================================================
 
+
 class TestSignalCollection:
     """Test signal collection from database."""
 
@@ -917,7 +937,9 @@ class TestSignalCollection:
                 "last_interaction": None,
             }
         )
-        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(data=[])
+        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(
+            data=[]
+        )
 
         calculator = EngagementCalculator(supabase=mock_sb)
         signals = await calculator.collect_signals("test-stakeholder")
@@ -928,6 +950,7 @@ class TestSignalCollection:
 # ============================================================================
 # Test: Full Calculation Flow
 # ============================================================================
+
 
 class TestCalculationFlow:
     """Test full calculation flow including database updates."""
@@ -959,13 +982,13 @@ class TestCalculationFlow:
 
         calculator = EngagementCalculator(supabase=mock_sb)
         result = await calculator.calculate_for_stakeholder(
-            stakeholder_id="test-stakeholder",
-            client_id="test-client",
-            calculation_type="manual"
+            stakeholder_id="test-stakeholder", client_id="test-client", calculation_type="manual"
         )
 
         # Verify history was recorded
-        insert_calls = [c for c in mock_sb.table.call_args_list if "engagement_level_history" in str(c)]
+        insert_calls = [
+            c for c in mock_sb.table.call_args_list if "engagement_level_history" in str(c)
+        ]
         assert len(insert_calls) > 0
 
     @pytest.mark.asyncio
@@ -1009,6 +1032,7 @@ class TestCalculationFlow:
 # Test: Client Batch Calculation
 # ============================================================================
 
+
 class TestClientBatchCalculation:
     """Test batch calculation for all stakeholders in a client."""
 
@@ -1027,17 +1051,21 @@ class TestClientBatchCalculation:
                 select_mock = Mock()
 
                 # For the list query (no single())
-                list_execute = Mock(data=[
-                    {"id": "stakeholder-1"},
-                    {"id": "stakeholder-2"},
-                ])
+                list_execute = Mock(
+                    data=[
+                        {"id": "stakeholder-1"},
+                        {"id": "stakeholder-2"},
+                    ]
+                )
 
                 # For individual queries (with single())
-                individual_execute = Mock(data={
-                    "engagement_level": "neutral",
-                    "total_interactions": 5,
-                    "last_interaction": "2024-01-15T10:00:00Z",
-                })
+                individual_execute = Mock(
+                    data={
+                        "engagement_level": "neutral",
+                        "total_interactions": 5,
+                        "last_interaction": "2024-01-15T10:00:00Z",
+                    }
+                )
 
                 select_mock.return_value.eq.return_value.execute.return_value = list_execute
                 select_mock.return_value.eq.return_value.single.return_value.execute.return_value = individual_execute
@@ -1074,7 +1102,9 @@ class TestClientBatchCalculation:
     async def test_calculate_for_client_empty_stakeholders(self):
         """Client with no stakeholders returns empty summary."""
         mock_sb = Mock()
-        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(data=[])
+        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(
+            data=[]
+        )
 
         calculator = EngagementCalculator(supabase=mock_sb)
         summary = await calculator.calculate_for_client(client_id="empty-client")
@@ -1087,6 +1117,7 @@ class TestClientBatchCalculation:
 # ============================================================================
 # Test: Edge Cases
 # ============================================================================
+
 
 class TestEdgeCases:
     """Test edge cases and boundary conditions."""

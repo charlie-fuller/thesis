@@ -1,5 +1,4 @@
-"""
-Pioneer Agent - Innovation/R&D Partner
+"""Pioneer Agent - Innovation/R&D Partner
 
 The Pioneer agent specializes in:
 - Emerging technology scouting and evaluation
@@ -14,16 +13,16 @@ from pathlib import Path
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class PioneerAgent(BaseAgent):
-    """
-    Pioneer - The Innovation/R&D Partner.
+    """Pioneer - The Innovation/R&D Partner.
 
     Specializes in emerging technology evaluation, hype filtering,
     maturity assessment, and innovation portfolio strategy.
@@ -34,7 +33,7 @@ class PioneerAgent(BaseAgent):
             name="pioneer",
             display_name="Pioneer",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -71,7 +70,7 @@ Provide clear-eyed, hype-free guidance on emerging AI technologies."""
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -84,14 +83,22 @@ Provide clear-eyed, hype-free guidance on emerging AI technologies."""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Innovation assessment: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Innovation assessment: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         important_indicators = [
-            "emerging", "innovation", "new technology", "maturity",
-            "evaluation", "assessment", "hype", "experimental"
+            "emerging",
+            "innovation",
+            "new technology",
+            "maturity",
+            "evaluation",
+            "assessment",
+            "hype",
+            "experimental",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -110,15 +117,21 @@ Provide clear-eyed, hype-free guidance on emerging AI technologies."""
         message_lower = context.user_message.lower()
 
         # Hand off to Architect for implementation architecture
-        if any(word in message_lower for word in ["implement", "architecture", "integrate", "build"]):
+        if any(
+            word in message_lower for word in ["implement", "architecture", "integrate", "build"]
+        ):
             return ("architect", "Query requires technical architecture expertise")
 
         # Hand off to Atlas for research and case studies
-        if any(word in message_lower for word in ["research", "case study", "benchmark", "evidence"]):
+        if any(
+            word in message_lower for word in ["research", "case study", "benchmark", "evidence"]
+        ):
             return ("atlas", "Query requires research intelligence")
 
         # Hand off to Strategist for executive positioning
-        if any(word in message_lower for word in ["executive", "board", "business case", "justify"]):
+        if any(
+            word in message_lower for word in ["executive", "board", "business case", "justify"]
+        ):
             return ("strategist", "Query requires executive strategy expertise")
 
         return None

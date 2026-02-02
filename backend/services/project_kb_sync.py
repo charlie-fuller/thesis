@@ -1,5 +1,4 @@
-"""
-Project KB Sync Service
+"""Project KB Sync Service
 
 Detects when knowledge base changes are relevant to projects
 and triggers re-evaluation of scores/justifications.
@@ -10,8 +9,7 @@ This service runs after document upload/processing to:
 """
 
 import logging
-from typing import List, Optional
-import os
+from typing import List
 
 from database import get_supabase
 from services.project_justification import generate_project_justifications
@@ -27,8 +25,7 @@ async def find_projects_affected_by_document(
     client_id: str,
     min_similarity: float = MIN_RELEVANCE_THRESHOLD,
 ) -> List[dict]:
-    """
-    Find projects that might be affected by a new/updated document.
+    """Find projects that might be affected by a new/updated document.
 
     Uses vector similarity between document chunks and project context
     to identify projects that should be re-evaluated.
@@ -38,20 +35,24 @@ async def find_projects_affected_by_document(
     supabase = get_supabase()
 
     # Get the document's chunks
-    chunks_result = supabase.table("document_chunks") \
-        .select("id, embedding, content") \
-        .eq("document_id", document_id) \
+    chunks_result = (
+        supabase.table("document_chunks")
+        .select("id, embedding, content")
+        .eq("document_id", document_id)
         .execute()
+    )
 
     if not chunks_result.data:
         logger.info(f"No chunks found for document {document_id}")
         return []
 
     # Get all projects for this client
-    projects_result = supabase.table("ai_projects") \
-        .select("id, title, description, current_state, desired_state, department") \
-        .eq("client_id", client_id) \
+    projects_result = (
+        supabase.table("ai_projects")
+        .select("id, title, description, current_state, desired_state, department")
+        .eq("client_id", client_id)
         .execute()
+    )
 
     if not projects_result.data:
         return []
@@ -62,13 +63,18 @@ async def find_projects_affected_by_document(
 
     for project in projects_result.data:
         # Build project context for matching
-        project_context = " ".join(filter(None, [
-            project.get("title", ""),
-            project.get("description", ""),
-            project.get("current_state", ""),
-            project.get("desired_state", ""),
-            project.get("department", ""),
-        ])).lower()
+        project_context = " ".join(
+            filter(
+                None,
+                [
+                    project.get("title", ""),
+                    project.get("description", ""),
+                    project.get("current_state", ""),
+                    project.get("desired_state", ""),
+                    project.get("department", ""),
+                ],
+            )
+        ).lower()
 
         # Check each chunk for relevance
         max_relevance = 0.0
@@ -83,7 +89,9 @@ async def find_projects_affected_by_document(
             if project_words and chunk_words:
                 overlap = len(project_words & chunk_words)
                 # Normalize by smaller set size
-                relevance = overlap / min(len(project_words), len(chunk_words)) if overlap > 0 else 0
+                relevance = (
+                    overlap / min(len(project_words), len(chunk_words)) if overlap > 0 else 0
+                )
 
                 # Boost for department matches
                 dept = (project.get("department") or "").lower()
@@ -93,18 +101,18 @@ async def find_projects_affected_by_document(
                 max_relevance = max(max_relevance, relevance)
 
         if max_relevance >= min_similarity:
-            affected.append({
-                "id": project["id"],
-                "title": project["title"],
-                "relevance": max_relevance,
-            })
+            affected.append(
+                {
+                    "id": project["id"],
+                    "title": project["title"],
+                    "relevance": max_relevance,
+                }
+            )
 
     # Sort by relevance
     affected.sort(key=lambda x: x["relevance"], reverse=True)
 
-    logger.info(
-        f"Found {len(affected)} projects potentially affected by document {document_id}"
-    )
+    logger.info(f"Found {len(affected)} projects potentially affected by document {document_id}")
     return affected
 
 
@@ -114,8 +122,7 @@ async def sync_projects_after_document_change(
     regenerate_justifications: bool = True,
     max_projects: int = 10,
 ) -> dict:
-    """
-    Called after a document is added/updated to sync affected projects.
+    """Called after a document is added/updated to sync affected projects.
 
     Args:
         document_id: The document that changed
@@ -165,25 +172,24 @@ async def sync_projects_after_document_change(
         "document_id": document_id,
         "projects_checked": len(affected),
         "projects_updated": updated_count,
-        "projects": [{"id": p["id"], "title": p["title"], "relevance": p["relevance"]} for p in to_update],
+        "projects": [
+            {"id": p["id"], "title": p["title"], "relevance": p["relevance"]} for p in to_update
+        ],
         "errors": errors if errors else None,
     }
 
 
 async def check_and_sync_projects_for_document(document_id: str):
-    """
-    Background task wrapper that finds the client_id and syncs projects.
+    """Background task wrapper that finds the client_id and syncs projects.
 
     This is the function to call from document processing background tasks.
     """
     supabase = get_supabase()
 
     # Get document's client_id
-    doc_result = supabase.table("documents") \
-        .select("client_id") \
-        .eq("id", document_id) \
-        .single() \
-        .execute()
+    doc_result = (
+        supabase.table("documents").select("client_id").eq("id", document_id).single().execute()
+    )
 
     if not doc_result.data:
         logger.warning(f"Document {document_id} not found for project sync")

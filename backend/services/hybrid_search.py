@@ -1,5 +1,4 @@
-"""
-Hybrid Search Service - Combines Vector Search + Graph Context
+"""Hybrid Search Service - Combines Vector Search + Graph Context
 
 This service enhances RAG (Retrieval Augmented Generation) by combining:
 1. Vector similarity search (PostgreSQL + Voyage AI embeddings)
@@ -23,6 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class HybridSearchResult:
     """Result of hybrid vector + graph search."""
+
     # Vector search results (document chunks)
     vector_chunks: list[dict[str, Any]] = field(default_factory=list)
 
@@ -44,10 +44,10 @@ class HybridSearchResult:
     @property
     def has_graph_context(self) -> bool:
         return (
-            len(self.stakeholders) > 0 or
-            len(self.concerns) > 0 or
-            len(self.roi_opportunities) > 0 or
-            len(self.relationships) > 0
+            len(self.stakeholders) > 0
+            or len(self.concerns) > 0
+            or len(self.roi_opportunities) > 0
+            or len(self.relationships) > 0
         )
 
     def to_context_string(self) -> str:
@@ -58,14 +58,16 @@ class HybridSearchResult:
         if self.vector_chunks:
             kb_parts = []
             for i, chunk in enumerate(self.vector_chunks):
-                source_info = f"[Source {i+1}"
-                metadata = chunk.get('metadata', {})
-                if metadata.get('filename'):
+                source_info = f"[Source {i + 1}"
+                metadata = chunk.get("metadata", {})
+                if metadata.get("filename"):
                     source_info += f" - {metadata['filename']}"
                 source_info += f" - Relevance: {chunk.get('similarity', 0):.2f}]"
                 kb_parts.append(f"{source_info}:\n{chunk['content']}")
 
-            sections.append("<knowledge_base_context>\n" + "\n\n".join(kb_parts) + "\n</knowledge_base_context>")
+            sections.append(
+                "<knowledge_base_context>\n" + "\n\n".join(kb_parts) + "\n</knowledge_base_context>"
+            )
 
         # Graph context
         graph_parts = []
@@ -74,7 +76,9 @@ class HybridSearchResult:
             stakeholder_lines = []
             for s in self.stakeholders[:5]:
                 sentiment = s.get("sentiment_score") or 0.5
-                sentiment_label = "positive" if sentiment > 0.6 else "neutral" if sentiment > 0.4 else "cautious"
+                sentiment_label = (
+                    "positive" if sentiment > 0.6 else "neutral" if sentiment > 0.4 else "cautious"
+                )
                 stakeholder_lines.append(
                     f"- {s['name']} ({s.get('role', 'Unknown role')}) - {sentiment_label}"
                 )
@@ -95,7 +99,9 @@ class HybridSearchResult:
                 value = o.get("estimated_value", "TBD")
                 status = o.get("status", "unknown")
                 blockers = ", ".join([b for b in (o.get("blockers") or []) if b][:3]) or "none"
-                roi_lines.append(f"- {o.get('name', 'Unnamed')}: ${value} ({status}) - blockers: {blockers}")
+                roi_lines.append(
+                    f"- {o.get('name', 'Unnamed')}: ${value} ({status}) - blockers: {blockers}"
+                )
             graph_parts.append("ROI OPPORTUNITIES:\n" + "\n".join(roi_lines))
 
         if self.relationships:
@@ -112,8 +118,7 @@ class HybridSearchResult:
 
 
 def should_use_graph_context(query: str) -> bool:
-    """
-    Determine if a query would benefit from graph context.
+    """Determine if a query would benefit from graph context.
 
     Graph context is useful for:
     - Stakeholder-related queries
@@ -126,23 +131,55 @@ def should_use_graph_context(query: str) -> bool:
     # Keywords that suggest graph context would help
     graph_keywords = [
         # Stakeholder-related
-        "stakeholder", "person", "people", "who", "team", "department",
-        "manager", "executive", "lead", "champion", "sponsor", "blocker",
-
+        "stakeholder",
+        "person",
+        "people",
+        "who",
+        "team",
+        "department",
+        "manager",
+        "executive",
+        "lead",
+        "champion",
+        "sponsor",
+        "blocker",
         # Relationship-related
-        "influence", "relationship", "network", "connected", "reports to",
-        "works with", "collaborates", "aligned", "opposed",
-
+        "influence",
+        "relationship",
+        "network",
+        "connected",
+        "reports to",
+        "works with",
+        "collaborates",
+        "aligned",
+        "opposed",
         # ROI/opportunity-related
-        "roi", "opportunity", "initiative", "project", "budget", "cost",
-        "value", "benefit", "investment", "savings",
-
+        "roi",
+        "opportunity",
+        "initiative",
+        "project",
+        "budget",
+        "cost",
+        "value",
+        "benefit",
+        "investment",
+        "savings",
         # Concern-related
-        "concern", "risk", "issue", "problem", "challenge", "objection",
-        "resistance", "worried", "skeptic",
-
+        "concern",
+        "risk",
+        "issue",
+        "problem",
+        "challenge",
+        "objection",
+        "resistance",
+        "worried",
+        "skeptic",
         # Sentiment-related
-        "sentiment", "feeling", "attitude", "support", "opposition"
+        "sentiment",
+        "feeling",
+        "attitude",
+        "support",
+        "opposition",
     ]
 
     for keyword in graph_keywords:
@@ -163,10 +200,9 @@ async def hybrid_search(
     conversation_id: Optional[str] = None,
     agent_ids: Optional[list[str]] = None,
     use_graph_context: Optional[bool] = None,  # None = auto-detect
-    graph_limit: int = 5
+    graph_limit: int = 5,
 ) -> HybridSearchResult:
-    """
-    Perform hybrid search combining vector similarity and graph context.
+    """Perform hybrid search combining vector similarity and graph context.
 
     Args:
         query: The search query
@@ -197,7 +233,7 @@ async def hybrid_search(
         user_id=user_id,
         document_ids=document_ids,
         conversation_id=conversation_id,
-        agent_ids=agent_ids
+        agent_ids=agent_ids,
     )
     result.vector_chunks = vector_results
     logger.info(f"[Hybrid Search] Found {len(vector_results)} vector results")
@@ -216,9 +252,7 @@ async def hybrid_search(
 
             # Get graph context using the existing get_meeting_context method
             graph_context = await graph_service.get_meeting_context(
-                query=query,
-                client_id=client_id,
-                limit=graph_limit
+                query=query, client_id=client_id, limit=graph_limit
             )
 
             result.keywords_detected = graph_context.get("keywords_detected", [])
@@ -229,10 +263,10 @@ async def hybrid_search(
             result.stakeholder_documents = graph_context.get("stakeholder_documents", [])
 
             total_graph = (
-                len(result.stakeholders) +
-                len(result.concerns) +
-                len(result.roi_opportunities) +
-                len(result.relationships)
+                len(result.stakeholders)
+                + len(result.concerns)
+                + len(result.roi_opportunities)
+                + len(result.relationships)
             )
             logger.info(f"[Hybrid Search] Found {total_graph} graph context items")
 
@@ -252,10 +286,9 @@ async def get_hybrid_context_for_chat(
     user_id: Optional[str] = None,
     document_ids: Optional[list[str]] = None,
     conversation_id: Optional[str] = None,
-    agent_ids: Optional[list[str]] = None
+    agent_ids: Optional[list[str]] = None,
 ) -> tuple[str, list[dict[str, Any]]]:
-    """
-    Convenience function for chat routes - returns formatted context string
+    """Convenience function for chat routes - returns formatted context string
     and source document list.
 
     Args:
@@ -271,35 +304,41 @@ async def get_hybrid_context_for_chat(
         user_id=user_id,
         document_ids=document_ids,
         conversation_id=conversation_id,
-        agent_ids=agent_ids
+        agent_ids=agent_ids,
     )
 
     # Build source documents list for frontend
     source_documents = []
     for i, chunk in enumerate(result.vector_chunks):
-        metadata = chunk.get('metadata', {})
-        source_documents.append({
-            'chunk_id': chunk.get('id', f"chunk_{i}"),
-            'document_id': chunk.get('document_id', ''),
-            'document_name': metadata.get('filename', metadata.get('conversation_title', 'Unknown')),
-            'relevance_score': chunk.get('similarity', 0),
-            'snippet': chunk.get('content', '')[:500],
-            'metadata': metadata,
-            'source_type': 'vector'
-        })
+        metadata = chunk.get("metadata", {})
+        source_documents.append(
+            {
+                "chunk_id": chunk.get("id", f"chunk_{i}"),
+                "document_id": chunk.get("document_id", ""),
+                "document_name": metadata.get(
+                    "filename", metadata.get("conversation_title", "Unknown")
+                ),
+                "relevance_score": chunk.get("similarity", 0),
+                "snippet": chunk.get("content", "")[:500],
+                "metadata": metadata,
+                "source_type": "vector",
+            }
+        )
 
     # Add stakeholder documents from graph as additional sources
     for doc in result.stakeholder_documents:
-        doc_info = doc.get('document', {})
-        source_documents.append({
-            'chunk_id': f"graph_{doc_info.get('id', 'unknown')}",
-            'document_id': doc_info.get('id', ''),
-            'document_name': doc_info.get('title') or doc_info.get('filename', 'Unknown'),
-            'relevance_score': 0.0,  # Graph docs don't have similarity scores
-            'snippet': f"Related to stakeholder: {doc.get('stakeholder_name', 'Unknown')}",
-            'metadata': doc_info,
-            'source_type': 'graph',
-            'stakeholder_name': doc.get('stakeholder_name')
-        })
+        doc_info = doc.get("document", {})
+        source_documents.append(
+            {
+                "chunk_id": f"graph_{doc_info.get('id', 'unknown')}",
+                "document_id": doc_info.get("id", ""),
+                "document_name": doc_info.get("title") or doc_info.get("filename", "Unknown"),
+                "relevance_score": 0.0,  # Graph docs don't have similarity scores
+                "snippet": f"Related to stakeholder: {doc.get('stakeholder_name', 'Unknown')}",
+                "metadata": doc_info,
+                "source_type": "graph",
+                "stakeholder_name": doc.get("stakeholder_name"),
+            }
+        )
 
     return result.to_context_string(), source_documents

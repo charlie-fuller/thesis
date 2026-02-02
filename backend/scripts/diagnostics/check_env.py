@@ -9,19 +9,10 @@ required_vars = {
         "SUPABASE_URL",
         "SUPABASE_KEY",
         "SUPABASE_SERVICE_ROLE_KEY",
-        "SUPABASE_JWT_SECRET"
+        "SUPABASE_JWT_SECRET",
     ],
-    "AI Services": [
-        "ANTHROPIC_API_KEY",
-        "VOYAGE_API_KEY",
-        "GOOGLE_GENERATIVE_AI_API_KEY"
-    ],
-    "Configuration": [
-        "FRONTEND_URL",
-        "DEFAULT_CLIENT_ID",
-        "CLIENT_NAME",
-        "ASSISTANT_NAME"
-    ]
+    "AI Services": ["ANTHROPIC_API_KEY", "VOYAGE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"],
+    "Configuration": ["FRONTEND_URL", "DEFAULT_CLIENT_ID", "CLIENT_NAME", "ASSISTANT_NAME"],
 }
 
 print("Environment Configuration Status:\n")

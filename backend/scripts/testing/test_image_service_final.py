@@ -1,7 +1,7 @@
-"""
-Final integration test for the updated ImageGenerationService.
+"""Final integration test for the updated ImageGenerationService.
 Tests the HTTP REST API implementation.
 """
+
 import asyncio
 import base64
 import os
@@ -17,8 +17,8 @@ if env_file.exists():
     with open(env_file) as f:
         for line in f:
             line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                key, value = line.split('=', 1)
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
                 os.environ[key.strip()] = value.strip().strip('"').strip("'")
 
 from services.image_generation import ImageGenerationService
@@ -47,7 +47,7 @@ async def test_single_image():
             print(f"   Data size: {len(result['image_data'])} chars (base64)")
 
             # Save image
-            image_bytes = base64.b64decode(result['image_data'])
+            image_bytes = base64.b64decode(result["image_data"])
             output_path = Path(__file__).parent / "test_single_output.png"
             output_path.write_bytes(image_bytes)
 
@@ -75,7 +75,7 @@ async def test_batch_images():
 
         prompts = [
             "A happy robot holding a lightbulb, cartoon style",
-            "A peaceful zen garden with cherry blossoms, watercolor style"
+            "A peaceful zen garden with cherry blossoms, watercolor style",
         ]
 
         print(f"\n📝 Generating {len(prompts)} images...")
@@ -92,7 +92,7 @@ async def test_batch_images():
                 successful += 1
 
                 # Save image
-                image_bytes = base64.b64decode(result['image_data'])
+                image_bytes = base64.b64decode(result["image_data"])
                 output_path = Path(__file__).parent / f"test_batch_{i}.png"
                 output_path.write_bytes(image_bytes)
                 print(f"   💾 Saved: {output_path}")

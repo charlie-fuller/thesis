@@ -1,5 +1,4 @@
-"""
-Concurrent User Testing
+"""Concurrent User Testing
 
 Tests for race conditions, deadlocks, and data integrity
 when multiple users access the system simultaneously.
@@ -7,21 +6,20 @@ when multiple users access the system simultaneously.
 NOTE: These tests are marked as xfail because optimistic locking
 and proper concurrency controls are not yet fully implemented.
 """
+
 import pytest
 
 # Mark all tests as expected failures until concurrency controls are implemented
 pytestmark = pytest.mark.xfail(reason="Concurrency controls not yet implemented")
 import asyncio
-from typing import List, Dict, Any
-from concurrent.futures import ThreadPoolExecutor
-import threading
-import time
 import random
-
+import time
+from typing import List
 
 # =============================================================================
 # Race Condition Tests
 # =============================================================================
+
 
 class TestRaceConditions:
     """Tests for race conditions in concurrent operations."""
@@ -43,8 +41,9 @@ class TestRaceConditions:
 
         # Each should have unique ID
         conversation_ids = [r["conversation_id"] for r in results]
-        assert len(conversation_ids) == len(set(conversation_ids)), \
-            "Conversation IDs should be unique"
+        assert len(conversation_ids) == len(
+            set(conversation_ids)
+        ), "Conversation IDs should be unique"
 
     @pytest.mark.concurrent
     async def test_message_ordering(self):
@@ -102,8 +101,9 @@ class TestRaceConditions:
 
         # Verify final count
         final_count = await self._get_counter(counter_id)
-        assert final_count == increment_count, \
-            f"Counter should be {increment_count}, got {final_count}"
+        assert (
+            final_count == increment_count
+        ), f"Counter should be {increment_count}, got {final_count}"
 
     # Helper methods
     async def _create_conversation(self, user_id: str, title: str) -> dict:
@@ -135,6 +135,7 @@ class TestRaceConditions:
 # Deadlock Tests
 # =============================================================================
 
+
 class TestDeadlocks:
     """Tests for deadlock detection and prevention."""
 
@@ -158,10 +159,7 @@ class TestDeadlocks:
 
         # Run with timeout to detect deadlock
         try:
-            results = await asyncio.wait_for(
-                asyncio.gather(task_1(), task_2()),
-                timeout=5.0
-            )
+            results = await asyncio.wait_for(asyncio.gather(task_1(), task_2()), timeout=5.0)
             assert len(results) == 2
         except asyncio.TimeoutError:
             pytest.fail("Deadlock detected - tasks did not complete")
@@ -169,23 +167,27 @@ class TestDeadlocks:
     @pytest.mark.concurrent
     async def test_database_transaction_no_deadlock(self):
         """Database transactions don't deadlock under concurrent access."""
+
         async def transaction_1():
-            return await self._run_transaction([
-                ("UPDATE users SET name = 'A' WHERE id = 1", None),
-                ("UPDATE users SET name = 'B' WHERE id = 2", None),
-            ])
+            return await self._run_transaction(
+                [
+                    ("UPDATE users SET name = 'A' WHERE id = 1", None),
+                    ("UPDATE users SET name = 'B' WHERE id = 2", None),
+                ]
+            )
 
         async def transaction_2():
-            return await self._run_transaction([
-                ("UPDATE users SET name = 'C' WHERE id = 2", None),
-                ("UPDATE users SET name = 'D' WHERE id = 1", None),
-            ])
+            return await self._run_transaction(
+                [
+                    ("UPDATE users SET name = 'C' WHERE id = 2", None),
+                    ("UPDATE users SET name = 'D' WHERE id = 1", None),
+                ]
+            )
 
         # Run with timeout
         try:
             results = await asyncio.wait_for(
-                asyncio.gather(transaction_1(), transaction_2()),
-                timeout=10.0
+                asyncio.gather(transaction_1(), transaction_2()), timeout=10.0
             )
         except asyncio.TimeoutError:
             pytest.fail("Database deadlock detected")
@@ -198,6 +200,7 @@ class TestDeadlocks:
 # Data Integrity Tests
 # =============================================================================
 
+
 class TestConcurrentDataIntegrity:
     """Tests for data integrity under concurrent access."""
 
@@ -209,11 +212,7 @@ class TestConcurrentDataIntegrity:
 
         async def update_document(user_id: str, version: int):
             # Simulate read-modify-write with version check
-            return await self._update_with_version(
-                document_id,
-                f"Content from {user_id}",
-                version
-            )
+            return await self._update_with_version(document_id, f"Content from {user_id}", version)
 
         # Two users try to update same document
         results = await asyncio.gather(
@@ -267,11 +266,7 @@ class TestConcurrentDataIntegrity:
             return await self._create_child(parent_id, "new-child")
 
         # Concurrent delete and add
-        results = await asyncio.gather(
-            delete_parent(),
-            add_child(),
-            return_exceptions=True
-        )
+        results = await asyncio.gather(delete_parent(), add_child(), return_exceptions=True)
 
         # Should not have orphaned children
         children = await self._get_children(parent_id)
@@ -305,12 +300,14 @@ class TestConcurrentDataIntegrity:
 # Session Consistency Tests
 # =============================================================================
 
+
 class TestSessionConsistency:
     """Tests for session consistency across concurrent requests."""
 
     @pytest.mark.concurrent
     async def test_session_isolation(self):
         """User sessions are isolated from each other."""
+
         async def user_session(user_id: str):
             # Set session data
             await self._set_session_data(user_id, {"user_id": user_id})
@@ -329,12 +326,12 @@ class TestSessionConsistency:
 
         # Each session should have correct user_id
         for i, result in enumerate(results):
-            assert result["user_id"] == user_ids[i], \
-                f"Session data corrupted for {user_ids[i]}"
+            assert result["user_id"] == user_ids[i], f"Session data corrupted for {user_ids[i]}"
 
     @pytest.mark.concurrent
     async def test_request_context_isolation(self):
         """Request contexts don't leak between concurrent requests."""
+
         async def make_request(request_id: str):
             # Set request context
             await self._set_request_context({"request_id": request_id})
@@ -353,8 +350,9 @@ class TestSessionConsistency:
 
         # Each should have correct request_id
         for i, result in enumerate(results):
-            assert result["request_id"] == request_ids[i], \
-                f"Request context leaked for {request_ids[i]}"
+            assert (
+                result["request_id"] == request_ids[i]
+            ), f"Request context leaked for {request_ids[i]}"
 
     # Helper methods
     async def _set_session_data(self, user_id: str, data: dict) -> None:
@@ -374,6 +372,7 @@ class TestSessionConsistency:
 # Concurrent API Tests
 # =============================================================================
 
+
 class TestConcurrentAPI:
     """Tests for API behavior under concurrent load."""
 
@@ -388,9 +387,7 @@ class TestConcurrentAPI:
 
             for i in range(messages_per_user):
                 await self._send_chat_message(
-                    user_id,
-                    conversation_id,
-                    f"Message {i} from {user_id}"
+                    user_id, conversation_id, f"Message {i} from {user_id}"
                 )
                 await asyncio.sleep(random.uniform(0, 0.05))
 
@@ -411,9 +408,7 @@ class TestConcurrentAPI:
 
         async def upload_document(user_id: str):
             return await self._upload_document(
-                user_id,
-                f"document_{user_id}.pdf",
-                b"PDF content here"
+                user_id, f"document_{user_id}.pdf", b"PDF content here"
             )
 
         tasks = [upload_document(f"user-{i}") for i in range(upload_count)]
@@ -462,6 +457,7 @@ class TestConcurrentAPI:
 # Load Test Scenarios
 # =============================================================================
 
+
 class TestLoadScenarios:
     """Realistic load test scenarios."""
 
@@ -473,10 +469,10 @@ class TestLoadScenarios:
         users = 20
 
         activities = {
-            "chat": 0.5,      # 50% chatting
-            "browse": 0.3,   # 30% browsing
-            "upload": 0.1,   # 10% uploading
-            "search": 0.1,   # 10% searching
+            "chat": 0.5,  # 50% chatting
+            "browse": 0.3,  # 30% browsing
+            "upload": 0.1,  # 10% uploading
+            "search": 0.1,  # 10% searching
         }
 
         async def simulate_user(user_id: str):
@@ -485,8 +481,7 @@ class TestLoadScenarios:
 
             while time.time() < end_time:
                 activity = random.choices(
-                    list(activities.keys()),
-                    weights=list(activities.values())
+                    list(activities.keys()), weights=list(activities.values())
                 )[0]
 
                 if activity == "chat":

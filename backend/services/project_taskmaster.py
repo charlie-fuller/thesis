@@ -1,5 +1,4 @@
-"""
-Project Taskmaster Service
+"""Project Taskmaster Service
 
 Handles Taskmaster chat within project context.
 Extracts tasks from conversation and creates them as task_candidates
@@ -14,6 +13,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
 logger = logging.getLogger(__name__)
@@ -26,8 +26,7 @@ async def chat_with_taskmaster(
     user_id: str,
     supabase: Client,
 ) -> dict:
-    """
-    Chat with Taskmaster about a project.
+    """Chat with Taskmaster about a project.
 
     Taskmaster will:
     1. Respond to the user's message with task suggestions
@@ -45,10 +44,17 @@ async def chat_with_taskmaster(
         dict with response, tasks_created count, and task_titles
     """
     # Get project details for context
-    project_result = supabase.table("ai_projects").select(
-        "id, title, description, project_name, project_description, current_state, "
-        "desired_state, next_step, department, status"
-    ).eq("id", project_id).eq("client_id", client_id).single().execute()
+    project_result = (
+        supabase.table("ai_projects")
+        .select(
+            "id, title, description, project_name, project_description, current_state, "
+            "desired_state, next_step, department, status"
+        )
+        .eq("id", project_id)
+        .eq("client_id", client_id)
+        .single()
+        .execute()
+    )
 
     if not project_result.data:
         raise ValueError(f"Project {project_id} not found")
@@ -60,33 +66,35 @@ async def chat_with_taskmaster(
         f"Project: {project.get('project_name') or project['title']}",
     ]
 
-    if project.get('project_description'):
+    if project.get("project_description"):
         context_parts.append(f"Project Description: {project['project_description']}")
-    elif project.get('description'):
+    elif project.get("description"):
         context_parts.append(f"Description: {project['description']}")
 
-    if project.get('current_state'):
+    if project.get("current_state"):
         context_parts.append(f"Current State: {project['current_state']}")
 
-    if project.get('desired_state'):
+    if project.get("desired_state"):
         context_parts.append(f"Desired State: {project['desired_state']}")
 
-    if project.get('next_step'):
+    if project.get("next_step"):
         context_parts.append(f"Next Step Already Identified: {project['next_step']}")
 
-    if project.get('department'):
+    if project.get("department"):
         context_parts.append(f"Department: {project['department']}")
 
     project_context = "\n".join(context_parts)
 
     # Get user name for task assignment
-    user_result = supabase.table("users").select("full_name, email").eq(
-        "id", user_id
-    ).single().execute()
+    user_result = (
+        supabase.table("users").select("full_name, email").eq("id", user_id).single().execute()
+    )
 
     user_name = None
     if user_result.data:
-        user_name = user_result.data.get("full_name") or user_result.data.get("email", "").split("@")[0]
+        user_name = (
+            user_result.data.get("full_name") or user_result.data.get("email", "").split("@")[0]
+        )
 
     # Call Taskmaster via Anthropic
     api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -126,7 +134,7 @@ After listing tasks, always ask if they want to proceed with creating these task
         model="claude-sonnet-4-20250514",
         max_tokens=2048,
         system=system_prompt,
-        messages=[{"role": "user", "content": message}]
+        messages=[{"role": "user", "content": message}],
     )
 
     response_text = response.content[0].text
@@ -136,7 +144,7 @@ After listing tasks, always ask if they want to proceed with creating these task
     task_titles = []
 
     # Parse task blocks from response
-    task_pattern = r'\[TASK\](.*?)\[/TASK\]'
+    task_pattern = r"\[TASK\](.*?)\[/TASK\]"
     task_blocks = re.findall(task_pattern, response_text, re.DOTALL)
 
     for block in task_blocks:

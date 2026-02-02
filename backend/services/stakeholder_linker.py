@@ -1,5 +1,4 @@
-"""
-Stakeholder Linker Service
+"""Stakeholder Linker Service
 
 Links extracted stakeholders to related opportunities and tasks based on:
 - Department/role keyword matching
@@ -8,7 +7,6 @@ Links extracted stakeholders to related opportunities and tasks based on:
 """
 
 import logging
-from typing import Optional
 
 from services.stakeholder_extractor import ExtractedStakeholder
 
@@ -22,12 +20,9 @@ class StakeholderLinker:
         self.supabase = supabase_client
 
     async def find_related_entities(
-        self,
-        stakeholder: ExtractedStakeholder,
-        client_id: str
+        self, stakeholder: ExtractedStakeholder, client_id: str
     ) -> tuple[list[str], list[str]]:
-        """
-        Find opportunities and tasks related to this stakeholder.
+        """Find opportunities and tasks related to this stakeholder.
 
         Args:
             stakeholder: The extracted stakeholder
@@ -42,9 +37,7 @@ class StakeholderLinker:
         return opportunity_ids, task_ids
 
     async def _find_related_opportunities(
-        self,
-        stakeholder: ExtractedStakeholder,
-        client_id: str
+        self, stakeholder: ExtractedStakeholder, client_id: str
     ) -> list[str]:
         """Find opportunities related to this stakeholder."""
         opportunity_ids = []
@@ -52,22 +45,26 @@ class StakeholderLinker:
         try:
             # Search by department if available
             if stakeholder.department:
-                dept_result = self.supabase.table("ai_projects") \
-                    .select("id") \
-                    .eq("client_id", client_id) \
-                    .ilike("department", f"%{stakeholder.department}%") \
+                dept_result = (
+                    self.supabase.table("ai_projects")
+                    .select("id")
+                    .eq("client_id", client_id)
+                    .ilike("department", f"%{stakeholder.department}%")
                     .execute()
+                )
 
                 if dept_result.data:
                     opportunity_ids.extend([o["id"] for o in dept_result.data])
 
             # Search by stakeholder name in owner_name
             if stakeholder.name:
-                name_result = self.supabase.table("ai_projects") \
-                    .select("id") \
-                    .eq("client_id", client_id) \
-                    .ilike("owner_name", f"%{stakeholder.name}%") \
+                name_result = (
+                    self.supabase.table("ai_projects")
+                    .select("id")
+                    .eq("client_id", client_id)
+                    .ilike("owner_name", f"%{stakeholder.name}%")
                     .execute()
+                )
 
                 if name_result.data:
                     for o in name_result.data:
@@ -81,12 +78,14 @@ class StakeholderLinker:
                     if len(keyword) < 3:
                         continue
 
-                    role_result = self.supabase.table("ai_projects") \
-                        .select("id") \
-                        .eq("client_id", client_id) \
-                        .or_(f"title.ilike.%{keyword}%,description.ilike.%{keyword}%") \
-                        .limit(5) \
+                    role_result = (
+                        self.supabase.table("ai_projects")
+                        .select("id")
+                        .eq("client_id", client_id)
+                        .or_(f"title.ilike.%{keyword}%,description.ilike.%{keyword}%")
+                        .limit(5)
                         .execute()
+                    )
 
                     if role_result.data:
                         for o in role_result.data:
@@ -101,9 +100,7 @@ class StakeholderLinker:
             return []
 
     async def _find_related_tasks(
-        self,
-        stakeholder: ExtractedStakeholder,
-        client_id: str
+        self, stakeholder: ExtractedStakeholder, client_id: str
     ) -> list[str]:
         """Find tasks related to this stakeholder."""
         task_ids = []
@@ -118,12 +115,14 @@ class StakeholderLinker:
                     if len(name_part) < 3:
                         continue
 
-                    assignee_result = self.supabase.table("project_tasks") \
-                        .select("id") \
-                        .eq("client_id", client_id) \
-                        .ilike("assignee_name", f"%{name_part}%") \
-                        .limit(10) \
+                    assignee_result = (
+                        self.supabase.table("project_tasks")
+                        .select("id")
+                        .eq("client_id", client_id)
+                        .ilike("assignee_name", f"%{name_part}%")
+                        .limit(10)
                         .execute()
+                    )
 
                     if assignee_result.data:
                         for t in assignee_result.data:
@@ -132,12 +131,14 @@ class StakeholderLinker:
 
             # Search by stakeholder_name field in task_candidates that were accepted
             if stakeholder.name:
-                stakeholder_result = self.supabase.table("project_tasks") \
-                    .select("id") \
-                    .eq("client_id", client_id) \
-                    .ilike("stakeholder_name", f"%{stakeholder.name}%") \
-                    .limit(10) \
+                stakeholder_result = (
+                    self.supabase.table("project_tasks")
+                    .select("id")
+                    .eq("client_id", client_id)
+                    .ilike("stakeholder_name", f"%{stakeholder.name}%")
+                    .limit(10)
                     .execute()
+                )
 
                 if stakeholder_result.data:
                     for t in stakeholder_result.data:
@@ -158,63 +159,98 @@ class StakeholderLinker:
 
         # Common stop words to filter out
         stop_words = {
-            'the', 'a', 'an', 'of', 'to', 'for', 'and', 'or', 'in', 'on',
-            'at', 'by', 'with', 'from', 'as', 'is', 'are', 'was', 'were',
-            'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
-            'will', 'would', 'could', 'should', 'may', 'might', 'must',
-            'vp', 'svp', 'evp', 'avp', 'director', 'manager', 'lead', 'head',
-            'senior', 'junior', 'chief', 'officer', 'executive'
+            "the",
+            "a",
+            "an",
+            "of",
+            "to",
+            "for",
+            "and",
+            "or",
+            "in",
+            "on",
+            "at",
+            "by",
+            "with",
+            "from",
+            "as",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "must",
+            "vp",
+            "svp",
+            "evp",
+            "avp",
+            "director",
+            "manager",
+            "lead",
+            "head",
+            "senior",
+            "junior",
+            "chief",
+            "officer",
+            "executive",
         }
 
         # Split and filter
         words = text.lower().split()
         keywords = [
-            w.strip('.,;:-()[]') for w in words
-            if w.lower() not in stop_words and len(w) > 2
+            w.strip(".,;:-()[]") for w in words if w.lower() not in stop_words and len(w) > 2
         ]
 
         return keywords
 
 
 async def link_stakeholder_to_entities(
-    supabase_client,
-    stakeholder_id: str,
-    opportunity_ids: list[str],
-    task_ids: list[str]
+    supabase_client, stakeholder_id: str, opportunity_ids: list[str], task_ids: list[str]
 ) -> dict:
-    """
-    Create actual links between a stakeholder and opportunities/tasks.
+    """Create actual links between a stakeholder and opportunities/tasks.
 
     Called when a stakeholder candidate is accepted.
     Uses the opportunity_stakeholder_link table for opportunity linking
     and adds stakeholder_id to tasks.
     """
-    results = {
-        "opportunities_linked": 0,
-        "tasks_linked": 0,
-        "errors": []
-    }
+    results = {"opportunities_linked": 0, "tasks_linked": 0, "errors": []}
 
     # Link to opportunities using the link table
     for opp_id in opportunity_ids:
         try:
             # Check if link already exists
-            existing = supabase_client.table("opportunity_stakeholder_link") \
-                .select("id") \
-                .eq("opportunity_id", opp_id) \
-                .eq("stakeholder_id", stakeholder_id) \
+            existing = (
+                supabase_client.table("opportunity_stakeholder_link")
+                .select("id")
+                .eq("opportunity_id", opp_id)
+                .eq("stakeholder_id", stakeholder_id)
                 .execute()
+            )
 
             if not existing.data:
                 # Create new link
-                supabase_client.table("opportunity_stakeholder_link") \
-                    .insert({
+                supabase_client.table("opportunity_stakeholder_link").insert(
+                    {
                         "opportunity_id": opp_id,
                         "stakeholder_id": stakeholder_id,
                         "role": "stakeholder",
-                        "notes": "Auto-linked from meeting extraction"
-                    }) \
-                    .execute()
+                        "notes": "Auto-linked from meeting extraction",
+                    }
+                ).execute()
 
                 results["opportunities_linked"] += 1
 
@@ -226,11 +262,9 @@ async def link_stakeholder_to_entities(
     for task_id in task_ids:
         try:
             # Check if task has stakeholder_id column
-            supabase_client.table("project_tasks") \
-                .update({"stakeholder_id": stakeholder_id}) \
-                .eq("id", task_id) \
-                .is_("stakeholder_id", None) \
-                .execute()
+            supabase_client.table("project_tasks").update({"stakeholder_id": stakeholder_id}).eq(
+                "id", task_id
+            ).is_("stakeholder_id", None).execute()
 
             results["tasks_linked"] += 1
 

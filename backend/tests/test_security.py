@@ -1,16 +1,14 @@
-"""
-Security Tests
+"""Security Tests
 
 Tests for authentication, authorization, and input validation.
 """
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from fastapi.testclient import TestClient
-import jwt
 import time
 from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock
 
+import jwt
+import pytest
 
 # Mock JWT secret for testing
 TEST_JWT_SECRET = "test-secret-key-for-testing-only"
@@ -163,10 +161,7 @@ class TestAuthorizationBoundaries:
     def test_user_cannot_modify_other_user_data(self, user_a_client, user_b_task):
         """User A should not be able to modify User B's tasks."""
         user_a_client.patch.return_value = MagicMock(status_code=403)
-        response = user_a_client.patch(
-            f"/api/tasks/{user_b_task['id']}",
-            json={"title": "Hacked!"}
-        )
+        response = user_a_client.patch(f"/api/tasks/{user_b_task['id']}", json={"title": "Hacked!"})
         assert response.status_code in [403, 404]
 
     def test_user_cannot_delete_other_user_data(self, user_a_client, user_b_task):
@@ -204,49 +199,54 @@ class TestInputFuzzing:
         """Authentication headers for requests."""
         return {"Authorization": f"Bearer {create_test_token(TEST_USER_ID)}"}
 
-    @pytest.mark.parametrize("malicious_input", [
-        "'; DROP TABLE users; --",  # SQL injection
-        "'; DELETE FROM users; --",
-        "1; UPDATE users SET role='admin'",
-        "UNION SELECT * FROM users",
-    ])
+    @pytest.mark.parametrize(
+        "malicious_input",
+        [
+            "'; DROP TABLE users; --",  # SQL injection
+            "'; DELETE FROM users; --",
+            "1; UPDATE users SET role='admin'",
+            "UNION SELECT * FROM users",
+        ],
+    )
     def test_sql_injection_prevented(self, client, auth_headers, malicious_input):
         """SQL injection attempts should not cause 500 errors."""
         # Mocking - the actual test would send this to real endpoints
         client.post.return_value = MagicMock(status_code=400)
         response = client.post(
-            "/api/chat/send",
-            json={"message": malicious_input},
-            headers=auth_headers
+            "/api/chat/send", json={"message": malicious_input}, headers=auth_headers
         )
         # Should return 200 (handled safely) or 400 (validation error), never 500
         assert response.status_code in [200, 400, 422]
 
-    @pytest.mark.parametrize("xss_payload", [
-        "<script>alert('xss')</script>",
-        "<img src=x onerror=alert('xss')>",
-        "javascript:alert('xss')",
-        "<svg onload=alert('xss')>",
-        "'-alert('xss')-'",
-    ])
+    @pytest.mark.parametrize(
+        "xss_payload",
+        [
+            "<script>alert('xss')</script>",
+            "<img src=x onerror=alert('xss')>",
+            "javascript:alert('xss')",
+            "<svg onload=alert('xss')>",
+            "'-alert('xss')-'",
+        ],
+    )
     def test_xss_prevented(self, client, auth_headers, xss_payload):
         """XSS payloads should be handled safely."""
         client.post.return_value = MagicMock(status_code=200)
         response = client.post(
-            "/api/chat/send",
-            json={"message": xss_payload},
-            headers=auth_headers
+            "/api/chat/send", json={"message": xss_payload}, headers=auth_headers
         )
         # Should not cause server error
         assert response.status_code in [200, 400, 422]
 
-    @pytest.mark.parametrize("path_traversal", [
-        "../../../etc/passwd",
-        "..\\..\\..\\windows\\system32\\config\\sam",
-        "/etc/passwd",
-        "....//....//....//etc/passwd",
-        "%2e%2e%2f%2e%2e%2fetc/passwd",
-    ])
+    @pytest.mark.parametrize(
+        "path_traversal",
+        [
+            "../../../etc/passwd",
+            "..\\..\\..\\windows\\system32\\config\\sam",
+            "/etc/passwd",
+            "....//....//....//etc/passwd",
+            "%2e%2e%2f%2e%2e%2fetc/passwd",
+        ],
+    )
     def test_path_traversal_prevented(self, client, auth_headers, path_traversal):
         """Path traversal attempts should be blocked."""
         # Test in document upload filename
@@ -254,24 +254,25 @@ class TestInputFuzzing:
         response = client.post(
             "/api/documents/upload",
             files={"file": (path_traversal, b"test content")},
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code in [400, 422]
 
-    @pytest.mark.parametrize("template_injection", [
-        "{{7*7}}",
-        "${7*7}",
-        "{{constructor.constructor('return this')()}}",
-        "{{config.items()}}",
-        "{{''.__class__.__mro__[2].__subclasses__()}}",
-    ])
+    @pytest.mark.parametrize(
+        "template_injection",
+        [
+            "{{7*7}}",
+            "${7*7}",
+            "{{constructor.constructor('return this')()}}",
+            "{{config.items()}}",
+            "{{''.__class__.__mro__[2].__subclasses__()}}",
+        ],
+    )
     def test_template_injection_prevented(self, client, auth_headers, template_injection):
         """Template injection attempts should be handled safely."""
         client.post.return_value = MagicMock(status_code=200)
         response = client.post(
-            "/api/chat/send",
-            json={"message": template_injection},
-            headers=auth_headers
+            "/api/chat/send", json={"message": template_injection}, headers=auth_headers
         )
         assert response.status_code in [200, 400, 422]
 
@@ -279,11 +280,7 @@ class TestInputFuzzing:
         """Very large inputs should be rejected."""
         huge_input = "A" * 1_000_000  # 1MB of text
         client.post.return_value = MagicMock(status_code=413)
-        response = client.post(
-            "/api/chat/send",
-            json={"message": huge_input},
-            headers=auth_headers
-        )
+        response = client.post("/api/chat/send", json={"message": huge_input}, headers=auth_headers)
         # Should return 413 (payload too large) or 400 (validation error)
         assert response.status_code in [400, 413, 422]
 
@@ -291,11 +288,7 @@ class TestInputFuzzing:
         """Null bytes in input should be handled safely."""
         null_input = "test\x00message"
         client.post.return_value = MagicMock(status_code=200)
-        response = client.post(
-            "/api/chat/send",
-            json={"message": null_input},
-            headers=auth_headers
-        )
+        response = client.post("/api/chat/send", json={"message": null_input}, headers=auth_headers)
         assert response.status_code in [200, 400, 422]
 
     def test_unicode_handling(self, client, auth_headers):
@@ -310,9 +303,7 @@ class TestInputFuzzing:
         for unicode_input in unicode_inputs:
             client.post.return_value = MagicMock(status_code=200)
             response = client.post(
-                "/api/chat/send",
-                json={"message": unicode_input},
-                headers=auth_headers
+                "/api/chat/send", json={"message": unicode_input}, headers=auth_headers
             )
             assert response.status_code in [200, 400, 422]
 
@@ -341,9 +332,7 @@ class TestRateLimiting:
             else:
                 client.post.return_value = MagicMock(status_code=429)
             response = client.post(
-                "/api/chat/send",
-                json={"message": f"Test {i}"},
-                headers=auth_headers
+                "/api/chat/send", json={"message": f"Test {i}"}, headers=auth_headers
             )
             responses.append(response.status_code)
 
@@ -360,11 +349,7 @@ class TestRateLimiting:
         }
         client.post.return_value = mock_response
 
-        response = client.post(
-            "/api/chat/send",
-            json={"message": "Test"},
-            headers=auth_headers
-        )
+        response = client.post("/api/chat/send", json={"message": "Test"}, headers=auth_headers)
 
         # Verify rate limit headers are present
         assert "X-RateLimit-Limit" in response.headers or True  # Mock may not have headers

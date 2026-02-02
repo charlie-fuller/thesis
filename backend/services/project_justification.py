@@ -1,5 +1,4 @@
-"""
-Project Justification Generation Service
+"""Project Justification Generation Service
 
 Generates AI-powered justifications for project scores using Claude.
 Produces:
@@ -12,6 +11,7 @@ Produces:
 import logging
 import os
 from typing import Optional
+
 import anthropic
 
 from database import get_supabase
@@ -25,7 +25,6 @@ MODEL = "claude-3-5-haiku-20241022"
 
 def _build_generation_prompt(project: dict) -> str:
     """Build the prompt for generating justifications."""
-
     # Extract project details
     title = project.get("title", "Untitled")
     description = project.get("description") or "No description provided"
@@ -57,10 +56,10 @@ PROJECT:
 - Desired State: {desired_state}{roi_details}
 
 SCORES (1-5 scale, where 5 is best):
-- ROI Potential: {roi if roi else 'Not scored'}/5 (revenue, cost savings, time impact)
-- Implementation Ease: {effort if effort else 'Not scored'}/5 (5=plug-and-play, 1=very complex)
-- Strategic Alignment: {alignment if alignment else 'Not scored'}/5 (fit with business priorities)
-- Stakeholder Readiness: {readiness if readiness else 'Not scored'}/5 (champion, data, team eagerness)
+- ROI Potential: {roi if roi else "Not scored"}/5 (revenue, cost savings, time impact)
+- Implementation Ease: {effort if effort else "Not scored"}/5 (5=plug-and-play, 1=very complex)
+- Strategic Alignment: {alignment if alignment else "Not scored"}/5 (fit with business priorities)
+- Stakeholder Readiness: {readiness if readiness else "Not scored"}/5 (champion, data, team eagerness)
 
 Write brief justifications (2-4 sentences each) for:
 1. What this project is and its business impact
@@ -118,8 +117,7 @@ async def generate_project_justifications(
     project_id: str,
     client_id: Optional[str] = None,
 ) -> dict:
-    """
-    Generate justifications for a project's scores.
+    """Generate justifications for a project's scores.
 
     Args:
         project_id: The project UUID
@@ -152,9 +150,7 @@ async def generate_project_justifications(
 
     try:
         response = client.messages.create(
-            model=MODEL,
-            max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}]
+            model=MODEL, max_tokens=1024, messages=[{"role": "user", "content": prompt}]
         )
 
         response_text = response.content[0].text
@@ -164,19 +160,22 @@ async def generate_project_justifications(
         supabase.table("ai_projects").update(justifications).eq("id", project_id).execute()
 
         # Re-fetch the project to get updated data for confidence calculation
-        updated_result = supabase.table("ai_projects").select("*").eq("id", project_id).single().execute()
+        updated_result = (
+            supabase.table("ai_projects").select("*").eq("id", project_id).single().execute()
+        )
         updated_project = updated_result.data
 
         # Calculate and save confidence score
         confidence, questions = evaluate_project_confidence(updated_project)
-        supabase.table("ai_projects").update({
-            "scoring_confidence": confidence,
-            "confidence_questions": questions,
-        }).eq("id", project_id).execute()
+        supabase.table("ai_projects").update(
+            {
+                "scoring_confidence": confidence,
+                "confidence_questions": questions,
+            }
+        ).eq("id", project_id).execute()
 
         logger.info(
-            f"Generated justifications for project {project_id} "
-            f"(confidence: {confidence}%)"
+            f"Generated justifications for project {project_id} (confidence: {confidence}%)"
         )
 
         # Include confidence in return value
@@ -191,8 +190,7 @@ async def generate_project_justifications(
 
 
 async def generate_all_justifications(client_id: str) -> dict:
-    """
-    Generate justifications for all projects belonging to a client.
+    """Generate justifications for all projects belonging to a client.
 
     Returns:
         Dict with counts of success/failure
@@ -200,10 +198,7 @@ async def generate_all_justifications(client_id: str) -> dict:
     supabase = get_supabase()
 
     # Get all projects for client
-    result = supabase.table("ai_projects") \
-        .select("id, title") \
-        .eq("client_id", client_id) \
-        .execute()
+    result = supabase.table("ai_projects").select("id, title").eq("client_id", client_id).execute()
 
     projects = result.data
     success_count = 0
@@ -234,8 +229,7 @@ async def regenerate_if_scores_changed(
     new_scores: dict,
     client_id: Optional[str] = None,
 ) -> bool:
-    """
-    Check if scores changed and regenerate justifications if so.
+    """Check if scores changed and regenerate justifications if so.
 
     Args:
         project_id: The project UUID

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""
-Directly process stuck documents without going through the API
-"""
+"""Directly process stuck documents without going through the API"""
+
 from dotenv import load_dotenv
 
 from database import get_supabase
@@ -9,15 +8,18 @@ from document_processor import process_document
 
 load_dotenv()
 
+
 def process_stuck_documents():
     """Find and process all pending documents directly"""
     supabase = get_supabase()
 
     # Find all documents stuck in 'pending' status
-    result = supabase.table('documents')\
-        .select('id, filename')\
-        .eq('processing_status', 'pending')\
+    result = (
+        supabase.table("documents")
+        .select("id, filename")
+        .eq("processing_status", "pending")
         .execute()
+    )
 
     pending_docs = result.data
 
@@ -34,12 +36,13 @@ def process_stuck_documents():
     for doc in pending_docs:
         try:
             print(f"\n   Processing: {doc['filename']}")
-            process_document(doc['id'])
+            process_document(doc["id"])
             print(f"   ✅ Processed: {doc['filename']}")
         except Exception as e:
             print(f"   ❌ Error processing {doc['filename']}: {e}")
 
     print("\n✅ Done! All documents processed.")
+
 
 if __name__ == "__main__":
     process_stuck_documents()

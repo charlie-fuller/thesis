@@ -1,5 +1,4 @@
-"""
-Centralized Error Handling Utilities
+"""Centralized Error Handling Utilities
 
 Provides custom exception classes, standardized error responses, and
 FastAPI exception handlers for consistent error handling across the application.
@@ -35,7 +34,7 @@ def get_cors_headers(request: Request) -> dict:
     for url in frontend_url.split(","):
         url = url.strip()
         if url and url not in allowed_origins:
-            if not url.startswith(('http://', 'https://')):
+            if not url.startswith(("http://", "https://")):
                 url = f"https://{url}"
             allowed_origins.append(url)
 
@@ -51,6 +50,7 @@ def get_cors_headers(request: Request) -> dict:
 # Custom Exception Classes
 # ============================================================================
 
+
 class ThesisError(Exception):
     """Base exception for all Thesis errors"""
 
@@ -58,7 +58,7 @@ class ThesisError(Exception):
         self,
         message: str,
         error_code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
     ):
         self.message = message
         self.error_code = error_code or self.__class__.__name__
@@ -69,116 +69,138 @@ class ThesisError(Exception):
 # Authentication & Authorization Errors
 class AuthenticationError(ThesisError):
     """Raised when authentication fails"""
+
     pass
 
 
 class AuthorizationError(ThesisError):
     """Raised when user lacks permission for an action"""
+
     pass
 
 
 class TokenExpiredError(AuthenticationError):
     """Raised when authentication token has expired"""
+
     pass
 
 
 # Document Processing Errors
 class DocumentProcessingError(ThesisError):
     """Base class for document processing errors"""
+
     pass
 
 
 class DocumentNotFoundError(DocumentProcessingError):
     """Raised when a document cannot be found"""
+
     pass
 
 
 class TextExtractionError(DocumentProcessingError):
     """Raised when text extraction from a file fails"""
+
     pass
 
 
 class UnsupportedFileTypeError(DocumentProcessingError):
     """Raised when file type is not supported"""
+
     pass
 
 
 class FileSizeLimitError(DocumentProcessingError):
     """Raised when file exceeds size limit"""
+
     pass
 
 
 # Embedding & Vector Search Errors
 class EmbeddingError(ThesisError):
     """Base class for embedding-related errors"""
+
     pass
 
 
 class EmbeddingGenerationError(EmbeddingError):
     """Raised when embedding generation fails"""
+
     pass
 
 
 class VectorSearchError(EmbeddingError):
     """Raised when vector search fails"""
+
     pass
 
 
 # External Service Errors
 class ExternalServiceError(ThesisError):
     """Base class for external service errors"""
+
     pass
 
 
 class GoogleDriveError(ExternalServiceError):
     """Raised when Google Drive operations fail"""
+
     pass
 
 
 class NotionError(ExternalServiceError):
     """Raised when Notion operations fail"""
+
     pass
 
 
 class AnthropicAPIError(ExternalServiceError):
     """Raised when Anthropic API calls fail"""
+
     pass
 
 
 class VoyageAPIError(ExternalServiceError):
     """Raised when Voyage AI API calls fail"""
+
     pass
 
 
 # Database Errors
 class DatabaseError(ThesisError):
     """Base class for database errors"""
+
     pass
 
 
 class DatabaseConnectionError(DatabaseError):
     """Raised when database connection fails"""
+
     pass
 
 
 class QueryExecutionError(DatabaseError):
     """Raised when database query execution fails"""
+
     pass
 
 
 # Validation Errors
 class ValidationError(ThesisError):
     """Base class for validation errors"""
+
     pass
 
 
 class InvalidInputError(ValidationError):
     """Raised when input validation fails"""
+
     pass
 
 
 class RateLimitError(ThesisError):
     """Raised when rate limit is exceeded"""
+
     pass
 
 
@@ -186,13 +208,13 @@ class RateLimitError(ThesisError):
 # Error Response Formatting
 # ============================================================================
 
+
 def create_error_response(
     error: Exception,
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
-    include_details: bool = True
+    include_details: bool = True,
 ) -> Dict[str, Any]:
-    """
-    Create a standardized error response dictionary.
+    """Create a standardized error response dictionary.
 
     Args:
         error: The exception that occurred
@@ -206,7 +228,7 @@ def create_error_response(
         "error": {
             "type": error.__class__.__name__,
             "message": str(error),
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     }
 
@@ -222,8 +244,7 @@ def create_error_response(
 
 
 def get_status_code_for_exception(error: Exception) -> int:
-    """
-    Determine appropriate HTTP status code for an exception.
+    """Determine appropriate HTTP status code for an exception.
 
     Args:
         error: The exception to evaluate
@@ -271,12 +292,9 @@ def get_status_code_for_exception(error: Exception) -> int:
 # FastAPI Exception Handlers
 # ============================================================================
 
-async def thesis_error_handler(
-    request: Request,
-    exc: ThesisError
-) -> JSONResponse:
-    """
-    Handle Thesis custom exceptions.
+
+async def thesis_error_handler(request: Request, exc: ThesisError) -> JSONResponse:
+    """Handle Thesis custom exceptions.
 
     Logs the error with context and returns standardized JSON response.
     """
@@ -292,35 +310,28 @@ async def thesis_error_handler(
             "details": exc.details,
             "path": request.url.path,
             "method": request.method,
-            "status_code": status_code
-        }
+            "status_code": status_code,
+        },
     )
 
     # Create standardized response
     response_data = create_error_response(exc, status_code)
 
     return JSONResponse(
-        status_code=status_code,
-        content=response_data,
-        headers=get_cors_headers(request)
+        status_code=status_code, content=response_data, headers=get_cors_headers(request)
     )
 
 
-async def http_exception_handler(
-    request: Request,
-    exc: HTTPException
-) -> JSONResponse:
-    """
-    Handle FastAPI HTTPException with standardized format.
-    """
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """Handle FastAPI HTTPException with standardized format."""
     logger.warning(
         f"HTTP exception: {exc.status_code}",
         extra={
             "status_code": exc.status_code,
             "detail": exc.detail,
             "path": request.url.path,
-            "method": request.method
-        }
+            "method": request.method,
+        },
     )
 
     return JSONResponse(
@@ -330,19 +341,15 @@ async def http_exception_handler(
                 "type": "HTTPException",
                 "message": exc.detail,
                 "status_code": exc.status_code,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         },
-        headers=get_cors_headers(request)
+        headers=get_cors_headers(request),
     )
 
 
-async def generic_exception_handler(
-    request: Request,
-    exc: Exception
-) -> JSONResponse:
-    """
-    Handle unexpected exceptions with logging and generic error message.
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Handle unexpected exceptions with logging and generic error message.
 
     This is a catch-all handler for exceptions that don't have specific handlers.
     It logs the full exception but returns a generic message to avoid leaking
@@ -354,9 +361,9 @@ async def generic_exception_handler(
         extra={
             "error_type": exc.__class__.__name__,
             "path": request.url.path,
-            "method": request.method
+            "method": request.method,
         },
-        exc_info=True
+        exc_info=True,
     )
 
     # Return generic error message (don't leak implementation details)
@@ -366,10 +373,10 @@ async def generic_exception_handler(
             "error": {
                 "type": "InternalServerError",
                 "message": "An unexpected error occurred. Please try again later.",
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         },
-        headers=get_cors_headers(request)
+        headers=get_cors_headers(request),
     )
 
 
@@ -377,9 +384,9 @@ async def generic_exception_handler(
 # Error Context Manager
 # ============================================================================
 
+
 class ErrorContext:
-    """
-    Context manager for adding error handling context.
+    """Context manager for adding error handling context.
 
     Usage:
         with ErrorContext("Processing document", document_id=doc_id):
@@ -399,7 +406,7 @@ class ErrorContext:
             logger.error(
                 f"Error in {self.operation}: {exc_val}",
                 extra={**self.context, "error_type": exc_type.__name__},
-                exc_info=True
+                exc_info=True,
             )
         else:
             logger.debug(f"Completed: {self.operation}", extra=self.context)
@@ -412,13 +419,11 @@ class ErrorContext:
 # Helper Functions
 # ============================================================================
 
+
 def wrap_external_service_error(
-    error: Exception,
-    service_name: str,
-    operation: str
+    error: Exception, service_name: str, operation: str
 ) -> ExternalServiceError:
-    """
-    Wrap external service errors with context.
+    """Wrap external service errors with context.
 
     Args:
         error: The original exception
@@ -431,27 +436,27 @@ def wrap_external_service_error(
     if "anthropic" in service_name.lower():
         return AnthropicAPIError(
             f"{service_name} {operation} failed: {str(error)}",
-            details={"service": service_name, "operation": operation}
+            details={"service": service_name, "operation": operation},
         )
     elif "voyage" in service_name.lower():
         return VoyageAPIError(
             f"{service_name} {operation} failed: {str(error)}",
-            details={"service": service_name, "operation": operation}
+            details={"service": service_name, "operation": operation},
         )
     elif "google" in service_name.lower() or "drive" in service_name.lower():
         return GoogleDriveError(
             f"{service_name} {operation} failed: {str(error)}",
-            details={"service": service_name, "operation": operation}
+            details={"service": service_name, "operation": operation},
         )
     elif "notion" in service_name.lower():
         return NotionError(
             f"{service_name} {operation} failed: {str(error)}",
-            details={"service": service_name, "operation": operation}
+            details={"service": service_name, "operation": operation},
         )
     else:
         return ExternalServiceError(
             f"{service_name} {operation} failed: {str(error)}",
-            details={"service": service_name, "operation": operation}
+            details={"service": service_name, "operation": operation},
         )
 
 
@@ -461,42 +466,42 @@ def wrap_external_service_error(
 
 __all__ = [
     # Base exceptions
-    'ThesisError',
+    "ThesisError",
     # Authentication
-    'AuthenticationError',
-    'AuthorizationError',
-    'TokenExpiredError',
+    "AuthenticationError",
+    "AuthorizationError",
+    "TokenExpiredError",
     # Document processing
-    'DocumentProcessingError',
-    'DocumentNotFoundError',
-    'TextExtractionError',
-    'UnsupportedFileTypeError',
-    'FileSizeLimitError',
+    "DocumentProcessingError",
+    "DocumentNotFoundError",
+    "TextExtractionError",
+    "UnsupportedFileTypeError",
+    "FileSizeLimitError",
     # Embeddings
-    'EmbeddingError',
-    'EmbeddingGenerationError',
-    'VectorSearchError',
+    "EmbeddingError",
+    "EmbeddingGenerationError",
+    "VectorSearchError",
     # External services
-    'ExternalServiceError',
-    'GoogleDriveError',
-    'NotionError',
-    'AnthropicAPIError',
-    'VoyageAPIError',
+    "ExternalServiceError",
+    "GoogleDriveError",
+    "NotionError",
+    "AnthropicAPIError",
+    "VoyageAPIError",
     # Database
-    'DatabaseError',
-    'DatabaseConnectionError',
-    'QueryExecutionError',
+    "DatabaseError",
+    "DatabaseConnectionError",
+    "QueryExecutionError",
     # Validation
-    'ValidationError',
-    'InvalidInputError',
-    'RateLimitError',
+    "ValidationError",
+    "InvalidInputError",
+    "RateLimitError",
     # Utilities
-    'create_error_response',
-    'get_status_code_for_exception',
-    'ErrorContext',
-    'wrap_external_service_error',
+    "create_error_response",
+    "get_status_code_for_exception",
+    "ErrorContext",
+    "wrap_external_service_error",
     # Exception handlers
-    'thesis_error_handler',
-    'http_exception_handler',
-    'generic_exception_handler',
+    "thesis_error_handler",
+    "http_exception_handler",
+    "generic_exception_handler",
 ]

@@ -1,7 +1,7 @@
-"""
-Standalone test for Google Gemini image generation (Nano Banana).
+"""Standalone test for Google Gemini image generation (Nano Banana).
 No dependencies on other services.
 """
+
 import asyncio
 import base64
 import os
@@ -22,8 +22,8 @@ async def test_image_generation():
         with open(env_file) as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
                     os.environ[key.strip()] = value.strip().strip('"').strip("'")
     else:
         print("⚠️  No .env file found")
@@ -74,14 +74,14 @@ async def test_image_generation():
 
         for i, part in enumerate(candidate.content.parts):
             print(f"\n   Part {i}: {type(part)}")
-            if hasattr(part, 'inline_data'):
+            if hasattr(part, "inline_data"):
                 print("      ✓ Found inline_data")
                 image_data = part.inline_data.data
                 mime_type = part.inline_data.mime_type
                 print(f"      MIME type: {mime_type}")
                 print(f"      Data size: {len(image_data)} bytes")
                 break
-            elif hasattr(part, 'text'):
+            elif hasattr(part, "text"):
                 print(f"      Text part: {part.text[:100]}...")
 
         if not image_data:
@@ -109,6 +109,7 @@ async def test_image_generation():
     except Exception as e:
         print(f"\n❌ ERROR: {str(e)}")
         import traceback
+
         print("\nFull traceback:")
         traceback.print_exc()
         return False

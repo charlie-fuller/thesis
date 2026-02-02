@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """Describe oauth_states table structure by inspecting insert attempt"""
+
 import os
 
 from dotenv import load_dotenv
+
 from supabase import create_client
 
 load_dotenv()
 
-supabase = create_client(
-    os.environ.get("SUPABASE_URL"),
-    os.environ.get("SUPABASE_KEY")
-)
+supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_KEY"))
 
 print("\n📋 oauth_states Table Structure\n")
 print("=" * 60)
@@ -22,7 +21,7 @@ schema = {
     "redirect_uri": "VARCHAR - URI to redirect after OAuth",
     "created_at": "TIMESTAMPTZ - Timestamp when state was created",
     "expires_at": "TIMESTAMPTZ - Expiration timestamp for state",
-    "used": "BOOLEAN - Whether state has been used"
+    "used": "BOOLEAN - Whether state has been used",
 }
 
 print("\nColumns:")
@@ -35,7 +34,7 @@ print("\n📊 Current Records:")
 print("-" * 60)
 
 try:
-    result = supabase.table('oauth_states').select('*').execute()
+    result = supabase.table("oauth_states").select("*").execute()
 
     if result.data:
         print(f"\nFound {len(result.data)} record(s):\n")

@@ -1,6 +1,5 @@
-"""
-Test with explicit image generation request using generation_config.
-"""
+"""Test with explicit image generation request using generation_config."""
+
 import asyncio
 import base64
 import os
@@ -20,8 +19,8 @@ async def test_with_config():
         with open(env_file) as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
                     os.environ[key.strip()] = value.strip().strip('"').strip("'")
 
     api_key = os.getenv("GOOGLE_GENERATIVE_AI_API_KEY")
@@ -40,39 +39,38 @@ async def test_with_config():
                 "name": "Experimental Image Generation Model",
                 "model": "gemini-2.0-flash-exp-image-generation",
                 "prompt": "Generate an image: A cute robot assistant named Thesis",
-                "config": None
+                "config": None,
             },
             {
                 "name": "With explicit image request",
                 "model": "gemini-2.0-flash-exp-image-generation",
                 "prompt": "[IMAGE] A cute robot assistant named Thesis with a friendly smile",
-                "config": None
+                "config": None,
             },
             {
                 "name": "Standard model with image input",
                 "model": "gemini-2.0-flash",
                 "prompt": "Create a detailed image of a cute robot assistant",
-                "config": None
-            }
+                "config": None,
+            },
         ]
 
         for i, test in enumerate(test_cases):
-            print(f"\n{'='*70}")
-            print(f"Test {i+1}: {test['name']}")
-            print(f"{'='*70}")
+            print(f"\n{'=' * 70}")
+            print(f"Test {i + 1}: {test['name']}")
+            print(f"{'=' * 70}")
             print(f"Model: {test['model']}")
             print(f"Prompt: {test['prompt']}")
 
             try:
-                model = genai.GenerativeModel(test['model'])
+                model = genai.GenerativeModel(test["model"])
 
-                if test['config']:
+                if test["config"]:
                     response = model.generate_content(
-                        test['prompt'],
-                        generation_config=test['config']
+                        test["prompt"], generation_config=test["config"]
                     )
                 else:
-                    response = model.generate_content(test['prompt'])
+                    response = model.generate_content(test["prompt"])
 
                 print("\n✓ Response received")
 
@@ -81,14 +79,14 @@ async def test_with_config():
                 if response.candidates:
                     for candidate in response.candidates:
                         for part in candidate.content.parts:
-                            if hasattr(part, 'inline_data') and part.inline_data:
-                                if hasattr(part.inline_data, 'data') and part.inline_data.data:
+                            if hasattr(part, "inline_data") and part.inline_data:
+                                if hasattr(part.inline_data, "data") and part.inline_data.data:
                                     found_image = True
                                     image_data = part.inline_data.data
                                     print(f"✅ FOUND IMAGE DATA! ({len(image_data)} bytes)")
 
                                     # Save it
-                                    output_path = Path(__file__).parent / f"test_{i+1}_image.png"
+                                    output_path = Path(__file__).parent / f"test_{i + 1}_image.png"
                                     if isinstance(image_data, str):
                                         image_bytes = base64.b64decode(image_data)
                                     else:
@@ -101,15 +99,15 @@ async def test_with_config():
                     # Show what we got instead
                     if response.candidates and response.candidates[0].content.parts:
                         first_part = response.candidates[0].content.parts[0]
-                        if hasattr(first_part, 'text'):
+                        if hasattr(first_part, "text"):
                             print(f"❌ Got text instead: {first_part.text[:100]}...")
 
             except Exception as e:
                 print(f"❌ Error: {str(e)}")
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("🔍 Summary: No image data found in any test")
-        print("="*70)
+        print("=" * 70)
 
         # Additional investigation
         print("\n💡 Checking if model requires special prompt format...")
@@ -123,6 +121,7 @@ async def test_with_config():
     except Exception as e:
         print(f"\n❌ Fatal error: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -132,9 +131,9 @@ async def main():
     success = await test_with_config()
 
     if not success:
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("📝 RECOMMENDATION")
-        print("="*70)
+        print("=" * 70)
         print("Gemini API may not support direct image generation yet.")
         print("You may need to:")
         print("  1. Use Vertex AI Imagen 3 API instead")

@@ -1,14 +1,23 @@
-"""
-Document management routes
+"""Document management routes
 Handles document upload, processing, retrieval, deletion, and save-from-chat
 """
+
 import asyncio
 import json
 import os
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -40,10 +49,12 @@ async def retry_supabase_operation(operation, max_retries: int = 3, base_delay: 
         except Exception as e:
             error_str = str(e)
             # Retry on connection errors
-            if 'ConnectionTerminated' in error_str or 'RemoteProtocolError' in error_str:
+            if "ConnectionTerminated" in error_str or "RemoteProtocolError" in error_str:
                 last_error = e
-                delay = base_delay * (2 ** attempt)  # Exponential backoff
-                logger.warning(f"Supabase connection error (attempt {attempt + 1}/{max_retries}), retrying in {delay}s: {error_str}")
+                delay = base_delay * (2**attempt)  # Exponential backoff
+                logger.warning(
+                    f"Supabase connection error (attempt {attempt + 1}/{max_retries}), retrying in {delay}s: {error_str}"
+                )
                 await asyncio.sleep(delay)
             else:
                 # Non-retryable error
@@ -56,6 +67,7 @@ async def retry_supabase_operation(operation, max_retries: int = 3, base_delay: 
 # Document Upload & Processing
 # ============================================================================
 
+
 @router.post("/upload")
 @limiter.limit("30/minute")
 async def upload_document(
@@ -63,9 +75,13 @@ async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     agent_ids: Optional[str] = Form(None),  # JSON array of agent IDs, or empty for global
-    auto_classify: Optional[str] = Form("true"),  # Enable auto-classification when no agents specified
-    original_date: Optional[str] = Form(None),  # Original document date (e.g., meeting date) in YYYY-MM-DD format
-    current_user: dict = Depends(get_current_user)
+    auto_classify: Optional[str] = Form(
+        "true"
+    ),  # Enable auto-classification when no agents specified
+    original_date: Optional[str] = Form(
+        None
+    ),  # Original document date (e.g., meeting date) in YYYY-MM-DD format
+    current_user: dict = Depends(get_current_user),
 ):
     """Upload a document to Supabase Storage and create database record.
 
@@ -101,11 +117,11 @@ async def upload_document(
                 parsed_agent_ids = [agent_ids] if agent_ids else []
 
         # Auto-assign default client
-        client_id = current_user.get('client_id') or get_default_client_id()
-        user_id = current_user['id']
+        client_id = current_user.get("client_id") or get_default_client_id()
+        user_id = current_user["id"]
 
         # Generate unique filename
-        file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'txt'
+        file_ext = file.filename.split(".")[-1] if "." in file.filename else "txt"
         unique_filename = f"{uuid.uuid4()}.{file_ext}"
         storage_path = f"{client_id}/{unique_filename}"
 
@@ -113,10 +129,10 @@ async def upload_document(
         logger.info(f"Uploading {file.filename} to storage: {storage_path}")
 
         upload_result = await asyncio.to_thread(
-            lambda: supabase.storage.from_('documents').upload(
+            lambda: supabase.storage.from_("documents").upload(
                 storage_path,
                 file_content,
-                file_options={"content-type": file.content_type or "application/octet-stream"}
+                file_options={"content-type": file.content_type or "application/octet-stream"},
             )
         )
 
@@ -129,34 +145,39 @@ async def upload_document(
             try:
                 # Validate date format (YYYY-MM-DD)
                 from datetime import datetime
-                parsed_original_date = datetime.strptime(original_date.strip(), '%Y-%m-%d').date().isoformat()
+
+                parsed_original_date = (
+                    datetime.strptime(original_date.strip(), "%Y-%m-%d").date().isoformat()
+                )
             except ValueError:
-                logger.warning(f"Invalid original_date format: {original_date}, expected YYYY-MM-DD")
+                logger.warning(
+                    f"Invalid original_date format: {original_date}, expected YYYY-MM-DD"
+                )
 
         # Create database record
         # Note: If document is linked to specific agents, it's agent-specific.
         # If not linked to any agent (parsed_agent_ids empty), it's global (available to all).
         doc_record = {
-            'client_id': client_id,
-            'uploaded_by': user_id,
-            'filename': file.filename,
-            'storage_path': storage_path,
-            'storage_url': storage_url,
-            'mime_type': file.content_type or "application/octet-stream",
-            'file_size': len(file_content),
-            'processed': False  # Will be set to True after processing completes
+            "client_id": client_id,
+            "uploaded_by": user_id,
+            "filename": file.filename,
+            "storage_path": storage_path,
+            "storage_url": storage_url,
+            "mime_type": file.content_type or "application/octet-stream",
+            "file_size": len(file_content),
+            "processed": False,  # Will be set to True after processing completes
         }
 
         # Add original_date if provided
         if parsed_original_date:
-            doc_record['original_date'] = parsed_original_date
+            doc_record["original_date"] = parsed_original_date
 
         result = await asyncio.to_thread(
-            lambda: supabase.table('documents').insert(doc_record).execute()
+            lambda: supabase.table("documents").insert(doc_record).execute()
         )
 
         document = result.data[0]
-        document_id = document['id']
+        document_id = document["id"]
 
         logger.info(f"Document uploaded: {document_id}")
 
@@ -167,12 +188,16 @@ async def upload_document(
                 try:
                     validate_uuid(agent_id, "agent_id")
                     link_result = await asyncio.to_thread(
-                        lambda aid=agent_id: supabase.table('agent_knowledge_base').insert({
-                            'agent_id': aid,
-                            'document_id': document_id,
-                            'added_by': user_id,
-                            'priority': 0
-                        }).execute()
+                        lambda aid=agent_id: supabase.table("agent_knowledge_base")
+                        .insert(
+                            {
+                                "agent_id": aid,
+                                "document_id": document_id,
+                                "added_by": user_id,
+                                "priority": 0,
+                            }
+                        )
+                        .execute()
                     )
                     linked_agents.append(agent_id)
                     logger.info(f"Linked document {document_id} to agent {agent_id}")
@@ -182,9 +207,7 @@ async def upload_document(
         # Determine if auto-classification should run
         # Only auto-classify if no agents specified AND auto_classify is enabled
         should_auto_classify = (
-            len(parsed_agent_ids) == 0 and
-            auto_classify and
-            auto_classify.lower() == "true"
+            len(parsed_agent_ids) == 0 and auto_classify and auto_classify.lower() == "true"
         )
 
         # Automatically trigger processing in background
@@ -192,6 +215,7 @@ async def upload_document(
             # Use sync wrapper for async processing with classification
             def process_with_classify_sync():
                 import asyncio
+
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
@@ -212,14 +236,14 @@ async def upload_document(
         is_global = len(parsed_agent_ids) == 0
 
         return {
-            'success': True,
-            'document_id': document_id,
-            'filename': file.filename,
-            'is_global': is_global,
-            'linked_agents': linked_agents,
-            'auto_classify': should_auto_classify,
-            'message': 'Document uploaded successfully. Processing started in background.' +
-                       (' Auto-classification enabled.' if should_auto_classify else '')
+            "success": True,
+            "document_id": document_id,
+            "filename": file.filename,
+            "is_global": is_global,
+            "linked_agents": linked_agents,
+            "auto_classify": should_auto_classify,
+            "message": "Document uploaded successfully. Processing started in background."
+            + (" Auto-classification enabled." if should_auto_classify else ""),
         }
 
     except HTTPException:
@@ -235,8 +259,10 @@ async def upload_document(
 # NOTE: This endpoint MUST be defined BEFORE any /{document_id}/* routes
 # to avoid the path parameter capturing "save-from-chat" as a document_id
 
+
 class SaveFromChatRequest(BaseModel):
     """Request body for saving a chat response to the knowledge base."""
+
     title: str
     content: str
     message_id: Optional[str] = None
@@ -250,7 +276,7 @@ async def save_from_chat(
     request: Request,
     save_data: SaveFromChatRequest,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     """Save a chat response as a markdown document in the knowledge base.
 
@@ -274,8 +300,8 @@ async def save_from_chat(
         if not save_data.title or not save_data.title.strip():
             raise HTTPException(status_code=400, detail="Title cannot be empty")
 
-        client_id = current_user.get('client_id') or get_default_client_id()
-        user_id = current_user['id']
+        client_id = current_user.get("client_id") or get_default_client_id()
+        user_id = current_user["id"]
 
         # Create markdown content with metadata header
         markdown_content = f"""# {save_data.title}
@@ -283,25 +309,23 @@ async def save_from_chat(
 {save_data.content}
 
 ---
-*Saved from chat on {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M')}*
+*Saved from chat on {__import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M")}*
 """
 
         # Generate unique filename
-        safe_title = "".join(c if c.isalnum() or c in ' -_' else '_' for c in save_data.title)[:50]
+        safe_title = "".join(c if c.isalnum() or c in " -_" else "_" for c in save_data.title)[:50]
         unique_filename = f"{safe_title}_{uuid.uuid4().hex[:8]}.md"
         storage_path = f"{client_id}/{unique_filename}"
 
         # Convert content to bytes
-        file_content = markdown_content.encode('utf-8')
+        file_content = markdown_content.encode("utf-8")
 
         # Upload to Supabase Storage
         logger.info(f"Saving chat response to storage: {storage_path}")
 
         upload_result = await asyncio.to_thread(
-            lambda: supabase.storage.from_('documents').upload(
-                storage_path,
-                file_content,
-                file_options={"content-type": "text/markdown"}
+            lambda: supabase.storage.from_("documents").upload(
+                storage_path, file_content, file_options={"content-type": "text/markdown"}
             )
         )
 
@@ -310,23 +334,23 @@ async def save_from_chat(
 
         # Create database record with title for display
         doc_record = {
-            'client_id': client_id,
-            'uploaded_by': user_id,
-            'title': save_data.title.strip(),  # Store original title for display
-            'filename': unique_filename,
-            'storage_path': storage_path,
-            'storage_url': storage_url,
-            'mime_type': 'text/markdown',
-            'file_size': len(file_content),
-            'processed': False
+            "client_id": client_id,
+            "uploaded_by": user_id,
+            "title": save_data.title.strip(),  # Store original title for display
+            "filename": unique_filename,
+            "storage_path": storage_path,
+            "storage_url": storage_url,
+            "mime_type": "text/markdown",
+            "file_size": len(file_content),
+            "processed": False,
         }
 
         result = await asyncio.to_thread(
-            lambda: supabase.table('documents').insert(doc_record).execute()
+            lambda: supabase.table("documents").insert(doc_record).execute()
         )
 
         document = result.data[0]
-        document_id = document['id']
+        document_id = document["id"]
 
         logger.info(f"Chat response saved as document: {document_id}")
 
@@ -339,12 +363,16 @@ async def save_from_chat(
                 try:
                     validate_uuid(agent_id, "agent_id")
                     link_result = await asyncio.to_thread(
-                        lambda aid=agent_id: supabase.table('agent_knowledge_base').insert({
-                            'agent_id': aid,
-                            'document_id': document_id,
-                            'added_by': user_id,
-                            'priority': 0
-                        }).execute()
+                        lambda aid=agent_id: supabase.table("agent_knowledge_base")
+                        .insert(
+                            {
+                                "agent_id": aid,
+                                "document_id": document_id,
+                                "added_by": user_id,
+                                "priority": 0,
+                            }
+                        )
+                        .execute()
                     )
                     linked_agents.append(agent_id)
                     logger.info(f"Linked document {document_id} to agent {agent_id}")
@@ -358,12 +386,12 @@ async def save_from_chat(
         is_global = len(parsed_agent_ids) == 0
 
         return {
-            'success': True,
-            'document_id': document_id,
-            'filename': unique_filename,
-            'is_global': is_global,
-            'linked_agents': linked_agents,
-            'message': 'Chat response saved to knowledge base. Processing started.'
+            "success": True,
+            "document_id": document_id,
+            "filename": unique_filename,
+            "is_global": is_global,
+            "linked_agents": linked_agents,
+            "message": "Chat response saved to knowledge base. Processing started.",
         }
 
     except HTTPException:
@@ -377,10 +405,9 @@ async def save_from_chat(
 # Static Routes (must be before parameterized routes)
 # ============================================================================
 
+
 @router.get("/pending-reviews")
-async def get_pending_classification_reviews(
-    current_user: dict = Depends(get_current_user)
-):
+async def get_pending_classification_reviews(current_user: dict = Depends(get_current_user)):
     """Get all documents with pending classification reviews for the current user.
 
     Returns documents that were auto-classified but need user confirmation.
@@ -388,55 +415,52 @@ async def get_pending_classification_reviews(
     try:
         # Get documents with pending reviews
         result = await asyncio.to_thread(
-            lambda: supabase.table('document_classifications')
-                .select('document_id, detected_type, review_reason, raw_scores, created_at, documents(id, filename, uploaded_by)')
-                .eq('requires_user_review', True)
-                .eq('status', 'needs_review')
-                .order('created_at', desc=True)
-                .execute()
+            lambda: supabase.table("document_classifications")
+            .select(
+                "document_id, detected_type, review_reason, raw_scores, created_at, documents(id, filename, uploaded_by)"
+            )
+            .eq("requires_user_review", True)
+            .eq("status", "needs_review")
+            .order("created_at", desc=True)
+            .execute()
         )
 
         pending_reviews = []
         for item in result.data or []:
-            doc = item.get('documents')
+            doc = item.get("documents")
             if not doc:
                 continue
 
-            pending_reviews.append({
-                'document_id': item['document_id'],
-                'filename': doc.get('filename'),
-                'detected_type': item.get('detected_type'),
-                'review_reason': item.get('review_reason'),
-                'suggested_agents': item.get('raw_scores', {}),
-                'created_at': item.get('created_at')
-            })
+            pending_reviews.append(
+                {
+                    "document_id": item["document_id"],
+                    "filename": doc.get("filename"),
+                    "detected_type": item.get("detected_type"),
+                    "review_reason": item.get("review_reason"),
+                    "suggested_agents": item.get("raw_scores", {}),
+                    "created_at": item.get("created_at"),
+                }
+            )
 
-        return {
-            'success': True,
-            'pending_reviews': pending_reviews,
-            'count': len(pending_reviews)
-        }
+        return {"success": True, "pending_reviews": pending_reviews, "count": len(pending_reviews)}
 
     except Exception as e:
         # Log but return empty - this is a non-critical feature
         logger.warning(f"Error getting pending reviews (returning empty): {e}")
-        return {
-            'success': True,
-            'pending_reviews': [],
-            'count': 0
-        }
+        return {"success": True, "pending_reviews": [], "count": 0}
 
 
 # ============================================================================
 # Tag-Based Document Selection (for DISCo/Initiatives)
 # ============================================================================
 
+
 @router.get("/tags")
 async def get_all_tags(
     search: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     """Get all tags with document counts, with optional search and pagination.
 
@@ -454,52 +478,46 @@ async def get_all_tags(
     try:
         from collections import Counter
 
-        user_id = current_user['id']
+        user_id = current_user["id"]
 
         # Single query using tags_cache JSONB column
         # This replaces the previous N+1 pattern that batched document_tags queries
         docs_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('tags_cache')
-                .eq('uploaded_by', user_id)
-                .execute()
+            lambda: supabase.table("documents")
+            .select("tags_cache")
+            .eq("uploaded_by", user_id)
+            .execute()
         )
 
         if not docs_result.data:
             logger.info(f"No documents found for user {user_id}")
-            return {
-                'success': True,
-                'tags': [],
-                'hasMore': False
-            }
+            return {"success": True, "tags": [], "hasMore": False}
 
         # Aggregate tag counts from tags_cache arrays
         tag_counts: Counter = Counter()
         for doc in docs_result.data:
-            tags_list = doc.get('tags_cache') or []
+            tags_list = doc.get("tags_cache") or []
             for tag in tags_list:
                 # Apply search filter if provided
                 if search and search.lower() not in tag.lower():
                     continue
                 tag_counts[tag] += 1
 
-        logger.info(f"Found {sum(tag_counts.values())} tag entries for user {user_id} across {len(docs_result.data)} documents")
+        logger.info(
+            f"Found {sum(tag_counts.values())} tag entries for user {user_id} across {len(docs_result.data)} documents"
+        )
 
         # Sort alphabetically and paginate
         sorted_tags = sorted(tag_counts.items(), key=lambda x: x[0].lower())
-        paginated = sorted_tags[offset:offset + limit + 1]
+        paginated = sorted_tags[offset : offset + limit + 1]
 
         has_more = len(paginated) > limit
         if has_more:
             paginated = paginated[:limit]
 
-        tags = [{'tag': t[0], 'count': t[1]} for t in paginated]
+        tags = [{"tag": t[0], "count": t[1]} for t in paginated]
 
-        return {
-            'success': True,
-            'tags': tags,
-            'hasMore': has_more
-        }
+        return {"success": True, "tags": tags, "hasMore": has_more}
 
     except Exception as e:
         logger.error(f"Error getting tags: {e}")
@@ -508,14 +526,12 @@ async def get_all_tags(
 
 class BatchTagsRequest(BaseModel):
     """Request body for fetching tags for multiple documents."""
+
     document_ids: List[str]
 
 
 @router.post("/tags/batch")
-async def get_tags_batch(
-    request: BatchTagsRequest,
-    current_user: dict = Depends(get_current_user)
-):
+async def get_tags_batch(request: BatchTagsRequest, current_user: dict = Depends(get_current_user)):
     """Get tags for multiple documents in a single request.
 
     Optimized endpoint for lazy-loading tags after initial document list load.
@@ -528,12 +544,9 @@ async def get_tags_batch(
     """
     try:
         if not request.document_ids:
-            return {
-                'success': True,
-                'tags': {}
-            }
+            return {"success": True, "tags": {}}
 
-        user_id = current_user['id']
+        user_id = current_user["id"]
 
         # Validate UUIDs
         valid_doc_ids = []
@@ -545,59 +558,47 @@ async def get_tags_batch(
                 continue
 
         if not valid_doc_ids:
-            return {
-                'success': True,
-                'tags': {}
-            }
+            return {"success": True, "tags": {}}
 
         # Batch fetch tags - limit to 100 documents per request
         valid_doc_ids = valid_doc_ids[:100]
 
         # First verify user owns these documents (for security)
         docs_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id')
-                .eq('uploaded_by', user_id)
-                .in_('id', valid_doc_ids)
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id")
+            .eq("uploaded_by", user_id)
+            .in_("id", valid_doc_ids)
+            .execute()
         )
 
-        owned_doc_ids = [doc['id'] for doc in (docs_result.data or [])]
+        owned_doc_ids = [doc["id"] for doc in (docs_result.data or [])]
 
         if not owned_doc_ids:
-            return {
-                'success': True,
-                'tags': {}
-            }
+            return {"success": True, "tags": {}}
 
         # Fetch tags for owned documents
         tags_result = await asyncio.to_thread(
-            lambda: supabase.table('document_tags')
-                .select('document_id, tag, source')
-                .in_('document_id', owned_doc_ids)
-                .execute()
+            lambda: supabase.table("document_tags")
+            .select("document_id, tag, source")
+            .in_("document_id", owned_doc_ids)
+            .execute()
         )
 
         # Group tags by document_id
         tags_by_doc: dict = {}
         for tag_record in tags_result.data or []:
-            doc_id = tag_record['document_id']
+            doc_id = tag_record["document_id"]
             if doc_id not in tags_by_doc:
                 tags_by_doc[doc_id] = []
-            tags_by_doc[doc_id].append({
-                'tag': tag_record['tag'],
-                'source': tag_record['source']
-            })
+            tags_by_doc[doc_id].append({"tag": tag_record["tag"], "source": tag_record["source"]})
 
         # Ensure all requested (and owned) docs have an entry
         for doc_id in owned_doc_ids:
             if doc_id not in tags_by_doc:
                 tags_by_doc[doc_id] = []
 
-        return {
-            'success': True,
-            'tags': tags_by_doc
-        }
+        return {"success": True, "tags": tags_by_doc}
 
     except Exception as e:
         logger.error(f"Error getting batch tags: {e}")
@@ -607,7 +608,7 @@ async def get_tags_batch(
 @router.get("/by-tags")
 async def get_documents_by_tags(
     tags: str,  # Comma-separated tags
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     """Get documents that have ALL specified tags (AND logic).
 
@@ -621,8 +622,8 @@ async def get_documents_by_tags(
         if not tags or not tags.strip():
             raise HTTPException(status_code=400, detail="At least one tag is required")
 
-        user_id = current_user['id']
-        tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+        user_id = current_user["id"]
+        tag_list = [t.strip() for t in tags.split(",") if t.strip()]
 
         if not tag_list:
             raise HTTPException(status_code=400, detail="At least one valid tag is required")
@@ -633,103 +634,90 @@ async def get_documents_by_tags(
 
         # Get documents with the first tag
         result = await asyncio.to_thread(
-            lambda: supabase.table('document_tags')
-                .select('document_id, documents!inner(id, filename, title, uploaded_by)')
-                .eq('tag', first_tag)
-                .eq('documents.uploaded_by', user_id)
-                .execute()
+            lambda: supabase.table("document_tags")
+            .select("document_id, documents!inner(id, filename, title, uploaded_by)")
+            .eq("tag", first_tag)
+            .eq("documents.uploaded_by", user_id)
+            .execute()
         )
 
         if not result.data:
-            return {
-                'success': True,
-                'tags': tag_list,
-                'count': 0,
-                'documents': []
-            }
+            return {"success": True, "tags": tag_list, "count": 0, "documents": []}
 
         # Get candidate document IDs
-        candidate_ids = [row['document_id'] for row in result.data]
+        candidate_ids = [row["document_id"] for row in result.data]
 
         # For AND logic: filter documents that have ALL tags
         if len(tag_list) > 1:
             for additional_tag in tag_list[1:]:
                 # Get documents with this tag
                 tag_result = await asyncio.to_thread(
-                    lambda t=additional_tag: supabase.table('document_tags')
-                        .select('document_id')
-                        .eq('tag', t)
-                        .in_('document_id', candidate_ids)
-                        .execute()
+                    lambda t=additional_tag: supabase.table("document_tags")
+                    .select("document_id")
+                    .eq("tag", t)
+                    .in_("document_id", candidate_ids)
+                    .execute()
                 )
                 # Intersect with candidates
-                tag_doc_ids = {row['document_id'] for row in (tag_result.data or [])}
+                tag_doc_ids = {row["document_id"] for row in (tag_result.data or [])}
                 candidate_ids = [did for did in candidate_ids if did in tag_doc_ids]
 
                 if not candidate_ids:
-                    return {
-                        'success': True,
-                        'tags': tag_list,
-                        'count': 0,
-                        'documents': []
-                    }
+                    return {"success": True, "tags": tag_list, "count": 0, "documents": []}
 
         # Batch fetch all data in 2 queries (uses tags_cache instead of document_tags)
         from collections import defaultdict
 
         # 1. Batch fetch all documents with tags_cache
         docs_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id, filename, title, obsidian_file_path, uploaded_at, tags_cache')
-                .in_('id', candidate_ids)
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id, filename, title, obsidian_file_path, uploaded_at, tags_cache")
+            .in_("id", candidate_ids)
+            .execute()
         )
 
         if not docs_result.data:
-            return {
-                'success': True,
-                'tags': tag_list,
-                'count': 0,
-                'documents': []
-            }
+            return {"success": True, "tags": tag_list, "count": 0, "documents": []}
 
         # 2. Batch fetch all chunks for these documents
         chunks_result = await asyncio.to_thread(
-            lambda: supabase.table('document_chunks')
-                .select('document_id, content, chunk_index')
-                .in_('document_id', candidate_ids)
-                .order('chunk_index')
-                .execute()
+            lambda: supabase.table("document_chunks")
+            .select("document_id, content, chunk_index")
+            .in_("document_id", candidate_ids)
+            .order("chunk_index")
+            .execute()
         )
 
         # Group chunks by document_id
         chunks_by_doc: dict = defaultdict(list)
-        for chunk in (chunks_result.data or []):
-            chunks_by_doc[chunk['document_id']].append(chunk)
+        for chunk in chunks_result.data or []:
+            chunks_by_doc[chunk["document_id"]].append(chunk)
 
         # Build response with content from chunks and tags from tags_cache
         docs_with_content = []
         for doc in docs_result.data:
-            doc_chunks = chunks_by_doc.get(doc['id'], [])
+            doc_chunks = chunks_by_doc.get(doc["id"], [])
             # Sort chunks by index just in case they're not ordered
-            doc_chunks.sort(key=lambda c: c['chunk_index'])
-            content = '\n'.join([c['content'] for c in doc_chunks])
+            doc_chunks.sort(key=lambda c: c["chunk_index"])
+            content = "\n".join([c["content"] for c in doc_chunks])
 
-            docs_with_content.append({
-                'id': doc['id'],
-                'filename': doc.get('filename'),
-                'title': doc.get('title'),
-                'obsidian_file_path': doc.get('obsidian_file_path'),
-                'uploaded_at': doc.get('uploaded_at'),
-                'content': content,
-                'tags': doc.get('tags_cache') or []
-            })
+            docs_with_content.append(
+                {
+                    "id": doc["id"],
+                    "filename": doc.get("filename"),
+                    "title": doc.get("title"),
+                    "obsidian_file_path": doc.get("obsidian_file_path"),
+                    "uploaded_at": doc.get("uploaded_at"),
+                    "content": content,
+                    "tags": doc.get("tags_cache") or [],
+                }
+            )
 
         return {
-            'success': True,
-            'tags': tag_list,
-            'count': len(docs_with_content),
-            'documents': docs_with_content
+            "success": True,
+            "tags": tag_list,
+            "count": len(docs_with_content),
+            "documents": docs_with_content,
         }
 
     except HTTPException:
@@ -741,6 +729,7 @@ async def get_documents_by_tags(
 
 class BulkTagsRequest(BaseModel):
     """Request body for bulk tag operations."""
+
     document_ids: List[str]
     tags: List[str]
     operation: str  # 'add' or 'remove'
@@ -748,8 +737,7 @@ class BulkTagsRequest(BaseModel):
 
 @router.post("/bulk-tags")
 async def bulk_tag_operation(
-    request: BulkTagsRequest,
-    current_user: dict = Depends(get_current_user)
+    request: BulkTagsRequest, current_user: dict = Depends(get_current_user)
 ):
     """Add or remove tags from multiple documents.
 
@@ -762,7 +750,7 @@ async def bulk_tag_operation(
         Summary of operations performed
     """
     try:
-        if request.operation not in ['add', 'remove']:
+        if request.operation not in ["add", "remove"]:
             raise HTTPException(status_code=400, detail="Operation must be 'add' or 'remove'")
 
         if not request.document_ids:
@@ -771,8 +759,8 @@ async def bulk_tag_operation(
         if not request.tags:
             raise HTTPException(status_code=400, detail="At least one tag is required")
 
-        user_id = current_user['id']
-        results = {'success': 0, 'failed': 0, 'errors': []}
+        user_id = current_user["id"]
+        results = {"success": 0, "failed": 0, "errors": []}
 
         for doc_id in request.document_ids:
             try:
@@ -780,21 +768,21 @@ async def bulk_tag_operation(
 
                 # Verify user owns document
                 doc_result = await asyncio.to_thread(
-                    lambda d=doc_id: supabase.table('documents')
-                        .select('id, uploaded_by')
-                        .eq('id', d)
-                        .single()
-                        .execute()
+                    lambda d=doc_id: supabase.table("documents")
+                    .select("id, uploaded_by")
+                    .eq("id", d)
+                    .single()
+                    .execute()
                 )
 
                 if not doc_result.data:
-                    results['failed'] += 1
-                    results['errors'].append({'document_id': doc_id, 'error': 'Not found'})
+                    results["failed"] += 1
+                    results["errors"].append({"document_id": doc_id, "error": "Not found"})
                     continue
 
-                if current_user['role'] != 'admin' and doc_result.data['uploaded_by'] != user_id:
-                    results['failed'] += 1
-                    results['errors'].append({'document_id': doc_id, 'error': 'Not authorized'})
+                if current_user["role"] != "admin" and doc_result.data["uploaded_by"] != user_id:
+                    results["failed"] += 1
+                    results["errors"].append({"document_id": doc_id, "error": "Not authorized"})
                     continue
 
                 # Perform operation for each tag
@@ -803,55 +791,59 @@ async def bulk_tag_operation(
                     if not tag:
                         continue
 
-                    if request.operation == 'add':
+                    if request.operation == "add":
                         # Insert tag - use insert instead of upsert for better reliability
                         # Check if tag already exists first
                         existing = await asyncio.to_thread(
-                            lambda d=doc_id, t=tag: supabase.table('document_tags')
-                                .select('id')
-                                .eq('document_id', d)
-                                .eq('tag', t)
-                                .execute()
+                            lambda d=doc_id, t=tag: supabase.table("document_tags")
+                            .select("id")
+                            .eq("document_id", d)
+                            .eq("tag", t)
+                            .execute()
                         )
                         if not existing.data:
                             insert_result = await asyncio.to_thread(
-                                lambda d=doc_id, t=tag: supabase.table('document_tags')
-                                    .insert({
-                                        'document_id': d,
-                                        'tag': t,
-                                        'source': 'manual'
-                                    })
-                                    .execute()
+                                lambda d=doc_id, t=tag: supabase.table("document_tags")
+                                .insert({"document_id": d, "tag": t, "source": "manual"})
+                                .execute()
                             )
-                            logger.info(f"Tag insert for doc {doc_id}, tag '{tag}': data={insert_result.data}")
+                            logger.info(
+                                f"Tag insert for doc {doc_id}, tag '{tag}': data={insert_result.data}"
+                            )
                         else:
-                            logger.info(f"Tag already exists for doc {doc_id}, tag '{tag}': skipping")
+                            logger.info(
+                                f"Tag already exists for doc {doc_id}, tag '{tag}': skipping"
+                            )
                     else:  # remove
                         # Only remove manual tags
                         delete_result = await asyncio.to_thread(
-                            lambda d=doc_id, t=tag: supabase.table('document_tags')
-                                .delete()
-                                .eq('document_id', d)
-                                .eq('tag', t)
-                                .eq('source', 'manual')
-                                .execute()
+                            lambda d=doc_id, t=tag: supabase.table("document_tags")
+                            .delete()
+                            .eq("document_id", d)
+                            .eq("tag", t)
+                            .eq("source", "manual")
+                            .execute()
                         )
-                        logger.info(f"Tag delete for doc {doc_id}, tag '{tag}': data={delete_result.data}")
+                        logger.info(
+                            f"Tag delete for doc {doc_id}, tag '{tag}': data={delete_result.data}"
+                        )
 
-                results['success'] += 1
+                results["success"] += 1
 
             except Exception as doc_error:
-                results['failed'] += 1
-                results['errors'].append({'document_id': doc_id, 'error': str(doc_error)})
+                results["failed"] += 1
+                results["errors"].append({"document_id": doc_id, "error": str(doc_error)})
 
-        logger.info(f"Bulk tag operation: {request.operation} {request.tags} on {len(request.document_ids)} docs - "
-                    f"success: {results['success']}, failed: {results['failed']}")
+        logger.info(
+            f"Bulk tag operation: {request.operation} {request.tags} on {len(request.document_ids)} docs - "
+            f"success: {results['success']}, failed: {results['failed']}"
+        )
 
         return {
-            'success': True,
-            'operation': request.operation,
-            'tags': request.tags,
-            'results': results
+            "success": True,
+            "operation": request.operation,
+            "tags": request.tags,
+            "results": results,
         }
 
     except HTTPException:
@@ -867,7 +859,7 @@ async def search_documents(
     tags: Optional[str] = None,  # Comma-separated
     limit: int = 20,
     offset: int = 0,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     """Search KB documents by filename, title, content, and/or tags.
 
@@ -881,14 +873,19 @@ async def search_documents(
         Matching documents with metadata and tags
     """
     try:
-        user_id = current_user['id']
+        user_id = current_user["id"]
 
         # Build base query with count for pagination
         # Using count='exact' returns total matching rows in response
-        query = supabase.table('documents')\
-            .select('id, filename, title, obsidian_file_path, uploaded_at, source_platform, tags_cache', count='exact')\
-            .eq('uploaded_by', user_id)\
-            .order('uploaded_at', desc=True)
+        query = (
+            supabase.table("documents")
+            .select(
+                "id, filename, title, obsidian_file_path, uploaded_at, source_platform, tags_cache",
+                count="exact",
+            )
+            .eq("uploaded_by", user_id)
+            .order("uploaded_at", desc=True)
+        )
 
         # Apply text search if provided
         if q and q.strip():
@@ -900,10 +897,10 @@ async def search_documents(
         # This uses the GIN index on tags_cache for fast lookups
         # Note: contains() requires JSON-serialized array for Supabase Python client
         if tags:
-            tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+            tag_list = [t.strip() for t in tags.split(",") if t.strip()]
             for tag in tag_list:
                 # Each tag must be contained in tags_cache (AND logic)
-                query = query.contains('tags_cache', json.dumps([tag]))
+                query = query.contains("tags_cache", json.dumps([tag]))
 
         # Apply pagination at database level (much faster than fetching all then slicing)
         query = query.range(offset, offset + limit - 1)
@@ -915,18 +912,18 @@ async def search_documents(
         # Use tags_cache for display (already fetched, no extra query needed)
         for doc in documents:
             # tags_cache is already a list from JSONB, use it directly
-            doc['tags'] = doc.get('tags_cache') or []
+            doc["tags"] = doc.get("tags_cache") or []
             # Remove tags_cache from response (internal field)
-            doc.pop('tags_cache', None)
+            doc.pop("tags_cache", None)
 
         return {
-            'success': True,
-            'query': q,
-            'tag_filter': tags,
-            'total_count': total_count,
-            'count': len(documents),
-            'documents': documents,
-            'hasMore': offset + limit < total_count
+            "success": True,
+            "query": q,
+            "tag_filter": tags,
+            "total_count": total_count,
+            "count": len(documents),
+            "documents": documents,
+            "hasMore": offset + limit < total_count,
         }
 
     except Exception as e:
@@ -938,11 +935,12 @@ async def search_documents(
 # Document Processing
 # ============================================================================
 
+
 @router.post("/{document_id}/process")
 async def process_document_endpoint(
     document_id: str,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     """Trigger document processing (chunking and embedding)"""
     try:
@@ -952,9 +950,9 @@ async def process_document_endpoint(
         background_tasks.add_task(process_document, document_id)
 
         return {
-            'success': True,
-            'message': 'Document processing started',
-            'document_id': document_id
+            "success": True,
+            "message": "Document processing started",
+            "document_id": document_id,
         }
 
     except Exception as e:
@@ -966,11 +964,9 @@ async def process_document_endpoint(
 # Document Retrieval
 # ============================================================================
 
+
 @router.get("/by-folder")
-async def get_documents_by_folder(
-    folder_path: str,
-    current_user: dict = Depends(get_current_user)
-):
+async def get_documents_by_folder(folder_path: str, current_user: dict = Depends(get_current_user)):
     """Get all KB documents from a specific Obsidian folder path.
 
     Args:
@@ -985,64 +981,58 @@ async def get_documents_by_folder(
 
         folder_path = folder_path.strip()
         # Ensure folder path ends with / for prefix matching (unless it's the root)
-        search_prefix = folder_path if folder_path.endswith('/') else f"{folder_path}/"
+        search_prefix = folder_path if folder_path.endswith("/") else f"{folder_path}/"
 
         # Query documents where obsidian_file_path starts with the folder path
         # Use ilike for case-insensitive matching
         result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id, filename, title, obsidian_file_path, source_platform, uploaded_at, storage_url')
-                .eq('source_platform', 'obsidian')
-                .eq('uploaded_by', current_user['id'])
-                .ilike('obsidian_file_path', f'{folder_path}%')
-                .order('obsidian_file_path')
-                .execute()
+            lambda: supabase.table("documents")
+            .select(
+                "id, filename, title, obsidian_file_path, source_platform, uploaded_at, storage_url"
+            )
+            .eq("source_platform", "obsidian")
+            .eq("uploaded_by", current_user["id"])
+            .ilike("obsidian_file_path", f"{folder_path}%")
+            .order("obsidian_file_path")
+            .execute()
         )
 
         documents = result.data or []
 
         if not documents:
-            return {
-                'success': True,
-                'folder_path': folder_path,
-                'count': 0,
-                'documents': []
-            }
+            return {"success": True, "folder_path": folder_path, "count": 0, "documents": []}
 
         # Batch fetch all chunks for all documents in a single query
         from collections import defaultdict
 
-        doc_ids = [d['id'] for d in documents]
+        doc_ids = [d["id"] for d in documents]
         chunks_result = await asyncio.to_thread(
-            lambda: supabase.table('document_chunks')
-                .select('document_id, content, chunk_index')
-                .in_('document_id', doc_ids)
-                .order('chunk_index')
-                .execute()
+            lambda: supabase.table("document_chunks")
+            .select("document_id, content, chunk_index")
+            .in_("document_id", doc_ids)
+            .order("chunk_index")
+            .execute()
         )
 
         # Group chunks by document_id
         chunks_by_doc: dict = defaultdict(list)
-        for chunk in (chunks_result.data or []):
-            chunks_by_doc[chunk['document_id']].append(chunk)
+        for chunk in chunks_result.data or []:
+            chunks_by_doc[chunk["document_id"]].append(chunk)
 
         # Build response with content from chunks
         docs_with_content = []
         for doc in documents:
-            doc_chunks = chunks_by_doc.get(doc['id'], [])
+            doc_chunks = chunks_by_doc.get(doc["id"], [])
             # Sort chunks by index just in case they're not ordered
-            doc_chunks.sort(key=lambda c: c['chunk_index'])
-            content = '\n'.join([c['content'] for c in doc_chunks])
-            docs_with_content.append({
-                **doc,
-                'content': content
-            })
+            doc_chunks.sort(key=lambda c: c["chunk_index"])
+            content = "\n".join([c["content"] for c in doc_chunks])
+            docs_with_content.append({**doc, "content": content})
 
         return {
-            'success': True,
-            'folder_path': folder_path,
-            'count': len(docs_with_content),
-            'documents': docs_with_content
+            "success": True,
+            "folder_path": folder_path,
+            "count": len(docs_with_content),
+            "documents": docs_with_content,
         }
 
     except HTTPException:
@@ -1053,9 +1043,7 @@ async def get_documents_by_folder(
 
 
 @router.get("/folders")
-async def get_obsidian_folders(
-    current_user: dict = Depends(get_current_user)
-):
+async def get_obsidian_folders(current_user: dict = Depends(get_current_user)):
     """Get unique Obsidian folder paths for the current user.
 
     Returns:
@@ -1064,37 +1052,34 @@ async def get_obsidian_folders(
     try:
         # Get all obsidian documents for this user
         result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('obsidian_file_path')
-                .eq('source_platform', 'obsidian')
-                .eq('uploaded_by', current_user['id'])
-                .not_.is_('obsidian_file_path', 'null')
-                .execute()
+            lambda: supabase.table("documents")
+            .select("obsidian_file_path")
+            .eq("source_platform", "obsidian")
+            .eq("uploaded_by", current_user["id"])
+            .not_.is_("obsidian_file_path", "null")
+            .execute()
         )
 
         # Extract unique folder paths, excluding GitHub folders
         folders = set()
-        for doc in (result.data or []):
-            path = doc.get('obsidian_file_path', '')
-            if path and '/' in path:
+        for doc in result.data or []:
+            path = doc.get("obsidian_file_path", "")
+            if path and "/" in path:
                 # Skip paths containing 'github' (case-insensitive)
-                if 'github' in path.lower():
+                if "github" in path.lower():
                     continue
                 # Get all parent folders
-                parts = path.split('/')
+                parts = path.split("/")
                 for i in range(1, len(parts)):
-                    folder_path = '/'.join(parts[:i])
+                    folder_path = "/".join(parts[:i])
                     # Also skip if any parent folder contains 'github'
-                    if 'github' not in folder_path.lower():
+                    if "github" not in folder_path.lower():
                         folders.add(folder_path)
 
         # Sort folders alphabetically
         sorted_folders = sorted(folders)
 
-        return {
-            'success': True,
-            'folders': sorted_folders
-        }
+        return {"success": True, "folders": sorted_folders}
 
     except Exception as e:
         logger.error(f"Error fetching Obsidian folders: {e}")
@@ -1102,20 +1087,13 @@ async def get_obsidian_folders(
 
 
 @router.get("/{document_id}")
-async def get_document_metadata(
-    document_id: str,
-    current_user: dict = Depends(get_current_user)
-):
+async def get_document_metadata(document_id: str, current_user: dict = Depends(get_current_user)):
     """Get document metadata"""
     try:
         validate_uuid(document_id, "document_id")
 
         result = await asyncio.to_thread(
-            lambda: supabase.table('documents')\
-                .select('*')\
-                .eq('id', document_id)\
-                .single()\
-                .execute()
+            lambda: supabase.table("documents").select("*").eq("id", document_id).single().execute()
         )
 
         if not result.data:
@@ -1124,13 +1102,10 @@ async def get_document_metadata(
         document = result.data
 
         # Authorization check: user can only access their own documents (unless admin)
-        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
             raise HTTPException(status_code=403, detail="Not authorized to access this document")
 
-        return {
-            'success': True,
-            'document': document
-        }
+        return {"success": True, "document": document}
 
     except HTTPException:
         raise
@@ -1140,10 +1115,7 @@ async def get_document_metadata(
 
 
 @router.get("/{document_id}/content")
-async def get_document_content(
-    document_id: str,
-    current_user: dict = Depends(get_current_user)
-):
+async def get_document_content(document_id: str, current_user: dict = Depends(get_current_user)):
     """Get document content by reconstructing from chunks.
 
     Returns the full document content by concatenating all chunks in order.
@@ -1154,11 +1126,11 @@ async def get_document_content(
 
         # Get document metadata
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')\
-                .select('id, filename, title, mime_type, uploaded_by, storage_path')\
-                .eq('id', document_id)\
-                .single()\
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id, filename, title, mime_type, uploaded_by, storage_path")
+            .eq("id", document_id)
+            .single()
+            .execute()
         )
 
         if not doc_result.data:
@@ -1167,35 +1139,35 @@ async def get_document_content(
         document = doc_result.data
 
         # Authorization check: user can only access their own documents (unless admin)
-        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
             raise HTTPException(status_code=403, detail="Not authorized to access this document")
 
         # Get all chunks ordered by chunk_index
         chunks_result = await asyncio.to_thread(
-            lambda: supabase.table('document_chunks')\
-                .select('content, chunk_index')\
-                .eq('document_id', document_id)\
-                .order('chunk_index')\
-                .execute()
+            lambda: supabase.table("document_chunks")
+            .select("content, chunk_index")
+            .eq("document_id", document_id)
+            .order("chunk_index")
+            .execute()
         )
 
         # Reconstruct content from chunks
         if chunks_result.data:
             # Join chunks with double newlines to preserve readability
-            content = "\n\n".join(chunk['content'] for chunk in chunks_result.data)
+            content = "\n\n".join(chunk["content"] for chunk in chunks_result.data)
         else:
             content = ""
 
         return {
-            'success': True,
-            'document': {
-                'id': document['id'],
-                'filename': document.get('filename'),
-                'title': document.get('title'),
-                'mime_type': document.get('mime_type'),
+            "success": True,
+            "document": {
+                "id": document["id"],
+                "filename": document.get("filename"),
+                "title": document.get("title"),
+                "mime_type": document.get("mime_type"),
             },
-            'content': content,
-            'chunk_count': len(chunks_result.data) if chunks_result.data else 0
+            "content": content,
+            "chunk_count": len(chunks_result.data) if chunks_result.data else 0,
         }
 
     except HTTPException:
@@ -1209,29 +1181,23 @@ async def get_document_content(
 # Admin Document Management
 # ============================================================================
 
+
 @router.get("")
 async def list_all_documents(
-    current_user: dict = Depends(require_admin),
-    limit: int = 50,
-    offset: int = 0
+    current_user: dict = Depends(require_admin), limit: int = 50, offset: int = 0
 ):
     """List all documents (admin only)"""
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table('documents')\
-                .select('*, clients(name), users!documents_user_id_fkey(email)')\
-                .order('uploaded_at', desc=True)\
-                .limit(limit)\
-                .offset(offset)\
-                .execute()
+            lambda: supabase.table("documents")
+            .select("*, clients(name), users!documents_user_id_fkey(email)")
+            .order("uploaded_at", desc=True)
+            .limit(limit)
+            .offset(offset)
+            .execute()
         )
 
-        return {
-            'success': True,
-            'documents': result.data,
-            'limit': limit,
-            'offset': offset
-        }
+        return {"success": True, "documents": result.data, "limit": limit, "offset": offset}
 
     except Exception as e:
         logger.error(f"❌ Error listing documents: {str(e)}")
@@ -1239,21 +1205,14 @@ async def list_all_documents(
 
 
 @router.get("/{document_id}/details")
-async def get_document_details(
-    document_id: str,
-    current_user: dict = Depends(require_admin)
-):
+async def get_document_details(document_id: str, current_user: dict = Depends(require_admin)):
     """Get detailed document information including chunks (admin only)"""
     try:
         validate_uuid(document_id, "document_id")
 
         # Get document
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')\
-                .select('*')\
-                .eq('id', document_id)\
-                .single()\
-                .execute()
+            lambda: supabase.table("documents").select("*").eq("id", document_id).single().execute()
         )
 
         if not doc_result.data:
@@ -1261,18 +1220,18 @@ async def get_document_details(
 
         # Get chunks
         chunks_result = await asyncio.to_thread(
-            lambda: supabase.table('document_chunks')\
-                .select('id, chunk_index, content')\
-                .eq('document_id', document_id)\
-                .order('chunk_index')\
-                .execute()
+            lambda: supabase.table("document_chunks")
+            .select("id, chunk_index, content")
+            .eq("document_id", document_id)
+            .order("chunk_index")
+            .execute()
         )
 
         return {
-            'success': True,
-            'document': doc_result.data,
-            'chunks': chunks_result.data,
-            'chunk_count': len(chunks_result.data)
+            "success": True,
+            "document": doc_result.data,
+            "chunks": chunks_result.data,
+            "chunk_count": len(chunks_result.data),
         }
 
     except HTTPException:
@@ -1286,13 +1245,14 @@ async def get_document_details(
 # Document Deletion
 # ============================================================================
 
+
 @router.delete("/{document_id}")
 @limiter.limit("30/minute")
 async def delete_document(
     request: Request,
     document_id: str,
     check_only: bool = False,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     """Delete a document and all its chunks.
 
@@ -1308,11 +1268,7 @@ async def delete_document(
 
         # Get document to check ownership (with retry)
         doc_result = await retry_supabase_operation(
-            lambda: supabase.table('documents')
-                .select('*')
-                .eq('id', document_id)
-                .single()
-                .execute()
+            lambda: supabase.table("documents").select("*").eq("id", document_id).single().execute()
         )
 
         if not doc_result.data:
@@ -1321,25 +1277,27 @@ async def delete_document(
         document = doc_result.data
 
         # Authorization check
-        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
             raise HTTPException(status_code=403, detail="Not authorized to delete this document")
 
         # Check for DISCo initiative links
         disco_links = []
         try:
             links_result = await retry_supabase_operation(
-                lambda: supabase.table('disco_initiative_documents')
-                    .select('initiative_id, disco_initiatives(id, name)')
-                    .eq('document_id', document_id)
-                    .execute()
+                lambda: supabase.table("disco_initiative_documents")
+                .select("initiative_id, disco_initiatives(id, name)")
+                .eq("document_id", document_id)
+                .execute()
             )
             if links_result.data:
                 for link in links_result.data:
-                    if link.get('disco_initiatives'):
-                        disco_links.append({
-                            'initiative_id': link['initiative_id'],
-                            'initiative_name': link['disco_initiatives']['name']
-                        })
+                    if link.get("disco_initiatives"):
+                        disco_links.append(
+                            {
+                                "initiative_id": link["initiative_id"],
+                                "initiative_name": link["disco_initiatives"]["name"],
+                            }
+                        )
         except Exception as e:
             # Table might not exist in some environments
             logger.debug(f"Could not check DISCo links: {e}")
@@ -1347,57 +1305,56 @@ async def delete_document(
         # If check_only, return the DISCo usage info without deleting
         if check_only:
             return {
-                'success': True,
-                'document_id': document_id,
-                'filename': document.get('filename'),
-                'disco_initiatives': disco_links,
-                'has_disco_usage': len(disco_links) > 0
+                "success": True,
+                "document_id": document_id,
+                "filename": document.get("filename"),
+                "disco_initiatives": disco_links,
+                "has_disco_usage": len(disco_links) > 0,
             }
 
         # Delete DISCo initiative links explicitly (CASCADE should also handle this)
         if disco_links:
             try:
                 await retry_supabase_operation(
-                    lambda: supabase.table('disco_initiative_documents')
-                        .delete()
-                        .eq('document_id', document_id)
-                        .execute()
+                    lambda: supabase.table("disco_initiative_documents")
+                    .delete()
+                    .eq("document_id", document_id)
+                    .execute()
                 )
-                logger.info(f"Removed {len(disco_links)} DISCo initiative links for document {document_id}")
+                logger.info(
+                    f"Removed {len(disco_links)} DISCo initiative links for document {document_id}"
+                )
             except Exception as e:
                 logger.warning(f"Could not delete DISCo links: {e}")
 
         # Delete chunks first (with retry)
         await retry_supabase_operation(
-            lambda: supabase.table('document_chunks')
-                .delete()
-                .eq('document_id', document_id)
-                .execute()
+            lambda: supabase.table("document_chunks")
+            .delete()
+            .eq("document_id", document_id)
+            .execute()
         )
 
         # Delete from storage (with retry)
-        if document.get('storage_path'):
+        if document.get("storage_path"):
             try:
                 await retry_supabase_operation(
-                    lambda: supabase.storage.from_('documents').remove([document['storage_path']])
+                    lambda: supabase.storage.from_("documents").remove([document["storage_path"]])
                 )
             except Exception as e:
                 logger.warning(f"Could not delete from storage: {e}")
 
         # Delete document record (with retry)
         await retry_supabase_operation(
-            lambda: supabase.table('documents')
-                .delete()
-                .eq('id', document_id)
-                .execute()
+            lambda: supabase.table("documents").delete().eq("id", document_id).execute()
         )
 
         logger.info(f"✅ Document deleted: {document_id}")
 
         return {
-            'success': True,
-            'message': 'Document deleted successfully',
-            'disco_initiatives_unlinked': disco_links if disco_links else None
+            "success": True,
+            "message": "Document deleted successfully",
+            "disco_initiatives_unlinked": disco_links if disco_links else None,
         }
 
     except HTTPException:
@@ -1410,9 +1367,7 @@ async def delete_document(
 @router.delete("/bulk")
 @limiter.limit("10/minute")
 async def bulk_delete_documents(
-    request: Request,
-    document_ids: List[str],
-    current_user: dict = Depends(require_admin)
+    request: Request, document_ids: List[str], current_user: dict = Depends(require_admin)
 ):
     """Delete multiple documents (admin only)"""
     try:
@@ -1425,30 +1380,23 @@ async def bulk_delete_documents(
 
                 # Delete chunks
                 await asyncio.to_thread(
-                    lambda: supabase.table('document_chunks')\
-                        .delete()\
-                        .eq('document_id', doc_id)\
-                        .execute()
+                    lambda: supabase.table("document_chunks")
+                    .delete()
+                    .eq("document_id", doc_id)
+                    .execute()
                 )
 
                 # Delete document
                 await asyncio.to_thread(
-                    lambda: supabase.table('documents')\
-                        .delete()\
-                        .eq('id', doc_id)\
-                        .execute()
+                    lambda: supabase.table("documents").delete().eq("id", doc_id).execute()
                 )
 
                 deleted_count += 1
 
             except Exception as e:
-                errors.append({'document_id': doc_id, 'error': str(e)})
+                errors.append({"document_id": doc_id, "error": str(e)})
 
-        return {
-            'success': True,
-            'deleted_count': deleted_count,
-            'errors': errors
-        }
+        return {"success": True, "deleted_count": deleted_count, "errors": errors}
 
     except Exception as e:
         logger.error(f"❌ Bulk delete error: {str(e)}")
@@ -1459,11 +1407,10 @@ async def bulk_delete_documents(
 # Document Cleanup by Path Pattern (Admin)
 # ============================================================================
 
+
 @router.get("/cleanup/by-path")
 async def find_documents_by_path_pattern(
-    pattern: str,
-    current_user: dict = Depends(require_admin),
-    limit: int = 100
+    pattern: str, current_user: dict = Depends(require_admin), limit: int = 100
 ):
     """Find documents whose obsidian_file_path contains the given pattern (admin only).
 
@@ -1482,11 +1429,11 @@ async def find_documents_by_path_pattern(
 
         # Find documents with path containing the pattern
         result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id, filename, title, obsidian_file_path, uploaded_at')
-                .ilike('obsidian_file_path', f'%{pattern}%')
-                .limit(limit)
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id, filename, title, obsidian_file_path, uploaded_at")
+            .ilike("obsidian_file_path", f"%{pattern}%")
+            .limit(limit)
+            .execute()
         )
 
         documents = result.data or []
@@ -1494,27 +1441,27 @@ async def find_documents_by_path_pattern(
         # Get tags for each document
         for doc in documents:
             tags_result = await asyncio.to_thread(
-                lambda d=doc['id']: supabase.table('document_tags')
-                    .select('tag, source')
-                    .eq('document_id', d)
-                    .execute()
+                lambda d=doc["id"]: supabase.table("document_tags")
+                .select("tag, source")
+                .eq("document_id", d)
+                .execute()
             )
-            doc['tags'] = [t['tag'] for t in (tags_result.data or [])]
+            doc["tags"] = [t["tag"] for t in (tags_result.data or [])]
 
         # Get total count (may be more than limit)
         count_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id', count='exact')
-                .ilike('obsidian_file_path', f'%{pattern}%')
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id", count="exact")
+            .ilike("obsidian_file_path", f"%{pattern}%")
+            .execute()
         )
 
         return {
-            'success': True,
-            'pattern': pattern,
-            'total_count': count_result.count,
-            'returned_count': len(documents),
-            'documents': documents
+            "success": True,
+            "pattern": pattern,
+            "total_count": count_result.count,
+            "returned_count": len(documents),
+            "documents": documents,
         }
 
     except HTTPException:
@@ -1526,9 +1473,7 @@ async def find_documents_by_path_pattern(
 
 @router.delete("/cleanup/by-path")
 async def delete_documents_by_path_pattern(
-    pattern: str,
-    current_user: dict = Depends(require_admin),
-    dry_run: bool = True
+    pattern: str, current_user: dict = Depends(require_admin), dry_run: bool = True
 ):
     """Delete documents whose obsidian_file_path contains the given pattern (admin only).
 
@@ -1547,36 +1492,39 @@ async def delete_documents_by_path_pattern(
 
         # Find documents with path containing the pattern
         result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id, filename, obsidian_file_path')
-                .ilike('obsidian_file_path', f'%{pattern}%')
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id, filename, obsidian_file_path")
+            .ilike("obsidian_file_path", f"%{pattern}%")
+            .execute()
         )
 
         documents = result.data or []
-        doc_ids = [d['id'] for d in documents]
+        doc_ids = [d["id"] for d in documents]
 
         # Get unique tags that will be affected
         affected_tags = set()
         for doc_id in doc_ids:
             tags_result = await asyncio.to_thread(
-                lambda d=doc_id: supabase.table('document_tags')
-                    .select('tag')
-                    .eq('document_id', d)
-                    .execute()
+                lambda d=doc_id: supabase.table("document_tags")
+                .select("tag")
+                .eq("document_id", d)
+                .execute()
             )
-            for t in (tags_result.data or []):
-                affected_tags.add(t['tag'])
+            for t in tags_result.data or []:
+                affected_tags.add(t["tag"])
 
         if dry_run:
             return {
-                'success': True,
-                'dry_run': True,
-                'pattern': pattern,
-                'would_delete_count': len(documents),
-                'affected_tags': sorted(affected_tags),
-                'documents': [{'id': d['id'], 'filename': d['filename'], 'path': d['obsidian_file_path']} for d in documents[:50]],
-                'message': f"Would delete {len(documents)} documents. Set dry_run=false to actually delete."
+                "success": True,
+                "dry_run": True,
+                "pattern": pattern,
+                "would_delete_count": len(documents),
+                "affected_tags": sorted(affected_tags),
+                "documents": [
+                    {"id": d["id"], "filename": d["filename"], "path": d["obsidian_file_path"]}
+                    for d in documents[:50]
+                ],
+                "message": f"Would delete {len(documents)} documents. Set dry_run=false to actually delete.",
             }
 
         # Actually delete
@@ -1587,34 +1535,33 @@ async def delete_documents_by_path_pattern(
             try:
                 # Delete chunks first
                 await asyncio.to_thread(
-                    lambda d=doc_id: supabase.table('document_chunks')
-                        .delete()
-                        .eq('document_id', d)
-                        .execute()
+                    lambda d=doc_id: supabase.table("document_chunks")
+                    .delete()
+                    .eq("document_id", d)
+                    .execute()
                 )
 
                 # Delete document (tags deleted via CASCADE)
                 await asyncio.to_thread(
-                    lambda d=doc_id: supabase.table('documents')
-                        .delete()
-                        .eq('id', d)
-                        .execute()
+                    lambda d=doc_id: supabase.table("documents").delete().eq("id", d).execute()
                 )
 
                 deleted_count += 1
 
             except Exception as e:
-                errors.append({'document_id': doc_id, 'error': str(e)})
+                errors.append({"document_id": doc_id, "error": str(e)})
 
-        logger.info(f"Deleted {deleted_count} documents matching pattern '{pattern}' by admin {current_user['id']}")
+        logger.info(
+            f"Deleted {deleted_count} documents matching pattern '{pattern}' by admin {current_user['id']}"
+        )
 
         return {
-            'success': True,
-            'dry_run': False,
-            'pattern': pattern,
-            'deleted_count': deleted_count,
-            'affected_tags': sorted(affected_tags),
-            'errors': errors if errors else None
+            "success": True,
+            "dry_run": False,
+            "pattern": pattern,
+            "deleted_count": deleted_count,
+            "affected_tags": sorted(affected_tags),
+            "errors": errors if errors else None,
         }
 
     except HTTPException:
@@ -1628,22 +1575,16 @@ async def delete_documents_by_path_pattern(
 # Document Download
 # ============================================================================
 
+
 @router.get("/{document_id}/download")
-async def download_document(
-    document_id: str,
-    current_user: dict = Depends(get_current_user)
-):
+async def download_document(document_id: str, current_user: dict = Depends(get_current_user)):
     """Generate a signed URL for document download"""
     try:
         validate_uuid(document_id, "document_id")
 
         # Get document
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')\
-                .select('*')\
-                .eq('id', document_id)\
-                .single()\
-                .execute()
+            lambda: supabase.table("documents").select("*").eq("id", document_id).single().execute()
         )
 
         if not doc_result.data:
@@ -1652,22 +1593,18 @@ async def download_document(
         document = doc_result.data
 
         # Authorization check
-        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
             raise HTTPException(status_code=403, detail="Not authorized to download this document")
 
         # Generate signed URL (1 hour expiry)
         signed_url = await asyncio.to_thread(
-            lambda: supabase.storage.from_('documents').create_signed_url(
-                document['storage_path'],
-                3600  # 1 hour
+            lambda: supabase.storage.from_("documents").create_signed_url(
+                document["storage_path"],
+                3600,  # 1 hour
             )
         )
 
-        return {
-            'success': True,
-            'download_url': signed_url['signedURL'],
-            'expires_in': 3600
-        }
+        return {"success": True, "download_url": signed_url["signedURL"], "expires_in": 3600}
 
     except HTTPException:
         raise
@@ -1680,11 +1617,9 @@ async def download_document(
 # Document Agent Assignments
 # ============================================================================
 
+
 @router.get("/{document_id}/agents")
-async def get_document_agents(
-    document_id: str,
-    current_user: dict = Depends(get_current_user)
-):
+async def get_document_agents(document_id: str, current_user: dict = Depends(get_current_user)):
     """Get the agents linked to a document.
 
     Returns:
@@ -1696,11 +1631,11 @@ async def get_document_agents(
 
         # Verify document exists and user has access
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id, uploaded_by')
-                .eq('id', document_id)
-                .single()
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id, uploaded_by")
+            .eq("id", document_id)
+            .single()
+            .execute()
         )
 
         if not doc_result.data:
@@ -1708,31 +1643,33 @@ async def get_document_agents(
 
         # Authorization check
         document = doc_result.data
-        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
             raise HTTPException(status_code=403, detail="Not authorized to view this document")
 
         # Get agent links
         links_result = await asyncio.to_thread(
-            lambda: supabase.table('agent_knowledge_base')
-                .select('agent_id, agents(id, name, display_name)')
-                .eq('document_id', document_id)
-                .execute()
+            lambda: supabase.table("agent_knowledge_base")
+            .select("agent_id, agents(id, name, display_name)")
+            .eq("document_id", document_id)
+            .execute()
         )
 
         linked_agents = []
         for link in links_result.data or []:
-            if link.get('agents'):
-                linked_agents.append({
-                    'id': link['agents']['id'],
-                    'name': link['agents']['name'],
-                    'display_name': link['agents']['display_name']
-                })
+            if link.get("agents"):
+                linked_agents.append(
+                    {
+                        "id": link["agents"]["id"],
+                        "name": link["agents"]["name"],
+                        "display_name": link["agents"]["display_name"],
+                    }
+                )
 
         return {
-            'success': True,
-            'document_id': document_id,
-            'is_global': len(linked_agents) == 0,
-            'linked_agents': linked_agents
+            "success": True,
+            "document_id": document_id,
+            "is_global": len(linked_agents) == 0,
+            "linked_agents": linked_agents,
         }
 
     except HTTPException:
@@ -1744,6 +1681,7 @@ async def get_document_agents(
 
 class UpdateDocumentAgentsRequest(BaseModel):
     """Request body for updating document agent assignments."""
+
     agent_ids: List[str]  # Empty list = global (remove all links)
 
 
@@ -1751,7 +1689,7 @@ class UpdateDocumentAgentsRequest(BaseModel):
 async def update_document_agents(
     document_id: str,
     request: UpdateDocumentAgentsRequest,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     """Update the agents linked to a document.
 
@@ -1766,11 +1704,11 @@ async def update_document_agents(
 
         # Verify document exists and user has access
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id, uploaded_by')
-                .eq('id', document_id)
-                .single()
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id, uploaded_by")
+            .eq("id", document_id)
+            .single()
+            .execute()
         )
 
         if not doc_result.data:
@@ -1778,17 +1716,17 @@ async def update_document_agents(
 
         # Authorization check
         document = doc_result.data
-        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
             raise HTTPException(status_code=403, detail="Not authorized to modify this document")
 
-        user_id = current_user['id']
+        user_id = current_user["id"]
 
         # Delete all existing links for this document
         await asyncio.to_thread(
-            lambda: supabase.table('agent_knowledge_base')
-                .delete()
-                .eq('document_id', document_id)
-                .execute()
+            lambda: supabase.table("agent_knowledge_base")
+            .delete()
+            .eq("document_id", document_id)
+            .execute()
         )
 
         # Create new links
@@ -1799,11 +1737,11 @@ async def update_document_agents(
 
                 # Verify agent exists
                 agent_result = await asyncio.to_thread(
-                    lambda aid=agent_id: supabase.table('agents')
-                        .select('id, name, display_name')
-                        .eq('id', aid)
-                        .single()
-                        .execute()
+                    lambda aid=agent_id: supabase.table("agents")
+                    .select("id, name, display_name")
+                    .eq("id", aid)
+                    .single()
+                    .execute()
                 )
 
                 if not agent_result.data:
@@ -1812,19 +1750,25 @@ async def update_document_agents(
 
                 # Create link
                 await asyncio.to_thread(
-                    lambda aid=agent_id: supabase.table('agent_knowledge_base').insert({
-                        'agent_id': aid,
-                        'document_id': document_id,
-                        'added_by': user_id,
-                        'priority': 0
-                    }).execute()
+                    lambda aid=agent_id: supabase.table("agent_knowledge_base")
+                    .insert(
+                        {
+                            "agent_id": aid,
+                            "document_id": document_id,
+                            "added_by": user_id,
+                            "priority": 0,
+                        }
+                    )
+                    .execute()
                 )
 
-                linked_agents.append({
-                    'id': agent_result.data['id'],
-                    'name': agent_result.data['name'],
-                    'display_name': agent_result.data['display_name']
-                })
+                linked_agents.append(
+                    {
+                        "id": agent_result.data["id"],
+                        "name": agent_result.data["name"],
+                        "display_name": agent_result.data["display_name"],
+                    }
+                )
                 logger.info(f"Linked document {document_id} to agent {agent_id}")
 
             except Exception as link_error:
@@ -1833,11 +1777,13 @@ async def update_document_agents(
         is_global = len(linked_agents) == 0
 
         return {
-            'success': True,
-            'document_id': document_id,
-            'is_global': is_global,
-            'linked_agents': linked_agents,
-            'message': 'Global (all agents)' if is_global else f'Linked to {len(linked_agents)} agent(s)'
+            "success": True,
+            "document_id": document_id,
+            "is_global": is_global,
+            "linked_agents": linked_agents,
+            "message": "Global (all agents)"
+            if is_global
+            else f"Linked to {len(linked_agents)} agent(s)",
         }
 
     except HTTPException:
@@ -1851,10 +1797,10 @@ async def update_document_agents(
 # Document Classification Endpoints
 # ============================================================================
 
+
 @router.get("/{document_id}/classification")
 async def get_document_classification(
-    document_id: str,
-    current_user: dict = Depends(get_current_user)
+    document_id: str, current_user: dict = Depends(get_current_user)
 ):
     """Get classification results for a document.
 
@@ -1865,11 +1811,11 @@ async def get_document_classification(
 
         # Verify document exists
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id, filename')
-                .eq('id', document_id)
-                .single()
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id, filename")
+            .eq("id", document_id)
+            .single()
+            .execute()
         )
 
         if not doc_result.data:
@@ -1877,59 +1823,63 @@ async def get_document_classification(
 
         # Get latest classification
         classification_result = await asyncio.to_thread(
-            lambda: supabase.table('document_classifications')
-                .select('*')
-                .eq('document_id', document_id)
-                .order('created_at', desc=True)
-                .limit(1)
-                .execute()
+            lambda: supabase.table("document_classifications")
+            .select("*")
+            .eq("document_id", document_id)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
         )
 
         if not classification_result.data:
             return {
-                'success': True,
-                'document_id': document_id,
-                'classification': None,
-                'message': 'No classification found for this document'
+                "success": True,
+                "document_id": document_id,
+                "classification": None,
+                "message": "No classification found for this document",
             }
 
         classification = classification_result.data[0]
 
         # Get current agent links with relevance scores
         links_result = await asyncio.to_thread(
-            lambda: supabase.table('agent_knowledge_base')
-                .select('agent_id, relevance_score, classification_source, classification_confidence, user_confirmed, agents(id, name, display_name)')
-                .eq('document_id', document_id)
-                .execute()
+            lambda: supabase.table("agent_knowledge_base")
+            .select(
+                "agent_id, relevance_score, classification_source, classification_confidence, user_confirmed, agents(id, name, display_name)"
+            )
+            .eq("document_id", document_id)
+            .execute()
         )
 
         linked_agents = []
         for link in links_result.data or []:
-            if link.get('agents'):
-                linked_agents.append({
-                    'id': link['agents']['id'],
-                    'name': link['agents']['name'],
-                    'display_name': link['agents']['display_name'],
-                    'relevance_score': link.get('relevance_score', 0),
-                    'classification_source': link.get('classification_source', 'manual'),
-                    'confidence': link.get('classification_confidence'),
-                    'user_confirmed': link.get('user_confirmed', False)
-                })
+            if link.get("agents"):
+                linked_agents.append(
+                    {
+                        "id": link["agents"]["id"],
+                        "name": link["agents"]["name"],
+                        "display_name": link["agents"]["display_name"],
+                        "relevance_score": link.get("relevance_score", 0),
+                        "classification_source": link.get("classification_source", "manual"),
+                        "confidence": link.get("classification_confidence"),
+                        "user_confirmed": link.get("user_confirmed", False),
+                    }
+                )
 
         return {
-            'success': True,
-            'document_id': document_id,
-            'classification': {
-                'id': classification['id'],
-                'detected_type': classification.get('detected_type'),
-                'method': classification.get('classification_method'),
-                'status': classification.get('status'),
-                'requires_user_review': classification.get('requires_user_review', False),
-                'review_reason': classification.get('review_reason'),
-                'raw_scores': classification.get('raw_scores', {}),
-                'created_at': classification.get('created_at')
+            "success": True,
+            "document_id": document_id,
+            "classification": {
+                "id": classification["id"],
+                "detected_type": classification.get("detected_type"),
+                "method": classification.get("classification_method"),
+                "status": classification.get("status"),
+                "requires_user_review": classification.get("requires_user_review", False),
+                "review_reason": classification.get("review_reason"),
+                "raw_scores": classification.get("raw_scores", {}),
+                "created_at": classification.get("created_at"),
             },
-            'linked_agents': linked_agents
+            "linked_agents": linked_agents,
         }
 
     except HTTPException:
@@ -1941,6 +1891,7 @@ async def get_document_classification(
 
 class ConfirmClassificationRequest(BaseModel):
     """Request body for confirming/modifying document classification."""
+
     agent_ids: List[str]  # Agent IDs to link (user's confirmed selection)
     relevance_scores: Optional[dict] = None  # Optional {agent_id: score} overrides
 
@@ -1949,7 +1900,7 @@ class ConfirmClassificationRequest(BaseModel):
 async def confirm_classification(
     document_id: str,
     request: ConfirmClassificationRequest,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     """Confirm or modify auto-classification for a document.
 
@@ -1960,11 +1911,11 @@ async def confirm_classification(
 
         # Verify document exists
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id, uploaded_by')
-                .eq('id', document_id)
-                .single()
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id, uploaded_by")
+            .eq("id", document_id)
+            .single()
+            .execute()
         )
 
         if not doc_result.data:
@@ -1972,17 +1923,17 @@ async def confirm_classification(
 
         # Authorization check
         document = doc_result.data
-        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
             raise HTTPException(status_code=403, detail="Not authorized to modify this document")
 
-        user_id = current_user['id']
+        user_id = current_user["id"]
 
         # Delete all existing auto-classified links (keep manual ones)
         await asyncio.to_thread(
-            lambda: supabase.table('agent_knowledge_base')
-                .delete()
-                .eq('document_id', document_id)
-                .execute()
+            lambda: supabase.table("agent_knowledge_base")
+            .delete()
+            .eq("document_id", document_id)
+            .execute()
         )
 
         # Create confirmed links
@@ -1998,11 +1949,11 @@ async def confirm_classification(
 
                 # Verify agent exists
                 agent_result = await asyncio.to_thread(
-                    lambda aid=agent_id: supabase.table('agents')
-                        .select('id, name, display_name')
-                        .eq('id', aid)
-                        .single()
-                        .execute()
+                    lambda aid=agent_id: supabase.table("agents")
+                    .select("id, name, display_name")
+                    .eq("id", aid)
+                    .single()
+                    .execute()
                 )
 
                 if not agent_result.data:
@@ -2011,24 +1962,30 @@ async def confirm_classification(
 
                 # Create link with user confirmation
                 await asyncio.to_thread(
-                    lambda aid=agent_id, rs=relevance_score: supabase.table('agent_knowledge_base').insert({
-                        'agent_id': aid,
-                        'document_id': document_id,
-                        'added_by': user_id,
-                        'priority': 0,
-                        'relevance_score': rs,
-                        'classification_source': 'user_confirmed',
-                        'classification_confidence': rs,
-                        'user_confirmed': True
-                    }).execute()
+                    lambda aid=agent_id, rs=relevance_score: supabase.table("agent_knowledge_base")
+                    .insert(
+                        {
+                            "agent_id": aid,
+                            "document_id": document_id,
+                            "added_by": user_id,
+                            "priority": 0,
+                            "relevance_score": rs,
+                            "classification_source": "user_confirmed",
+                            "classification_confidence": rs,
+                            "user_confirmed": True,
+                        }
+                    )
+                    .execute()
                 )
 
-                linked_agents.append({
-                    'id': agent_result.data['id'],
-                    'name': agent_result.data['name'],
-                    'display_name': agent_result.data['display_name'],
-                    'relevance_score': relevance_score
-                })
+                linked_agents.append(
+                    {
+                        "id": agent_result.data["id"],
+                        "name": agent_result.data["name"],
+                        "display_name": agent_result.data["display_name"],
+                        "relevance_score": relevance_score,
+                    }
+                )
                 logger.info(f"User confirmed document {document_id} link to agent {agent_id}")
 
             except Exception as link_error:
@@ -2036,23 +1993,25 @@ async def confirm_classification(
 
         # Update classification status to reviewed
         await asyncio.to_thread(
-            lambda: supabase.table('document_classifications')
-                .update({
-                    'status': 'reviewed',
-                    'requires_user_review': False,
-                    'reviewed_at': 'now()',
-                    'reviewed_by': user_id
-                })
-                .eq('document_id', document_id)
-                .execute()
+            lambda: supabase.table("document_classifications")
+            .update(
+                {
+                    "status": "reviewed",
+                    "requires_user_review": False,
+                    "reviewed_at": "now()",
+                    "reviewed_by": user_id,
+                }
+            )
+            .eq("document_id", document_id)
+            .execute()
         )
 
         return {
-            'success': True,
-            'document_id': document_id,
-            'is_global': len(linked_agents) == 0,
-            'linked_agents': linked_agents,
-            'message': f'Classification confirmed with {len(linked_agents)} agent(s)'
+            "success": True,
+            "document_id": document_id,
+            "is_global": len(linked_agents) == 0,
+            "linked_agents": linked_agents,
+            "message": f"Classification confirmed with {len(linked_agents)} agent(s)",
         }
 
     except HTTPException:
@@ -2066,11 +2025,9 @@ async def confirm_classification(
 # Document Tags
 # ============================================================================
 
+
 @router.get("/{document_id}/tags")
-async def get_document_tags(
-    document_id: str,
-    current_user: dict = Depends(get_current_user)
-):
+async def get_document_tags(document_id: str, current_user: dict = Depends(get_current_user)):
     """Get all tags for a document.
 
     Returns:
@@ -2081,11 +2038,11 @@ async def get_document_tags(
 
         # Verify document exists and user has access
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id, uploaded_by')
-                .eq('id', document_id)
-                .single()
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id, uploaded_by")
+            .eq("id", document_id)
+            .single()
+            .execute()
         )
 
         if not doc_result.data:
@@ -2093,23 +2050,19 @@ async def get_document_tags(
 
         # Authorization check
         document = doc_result.data
-        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
             raise HTTPException(status_code=403, detail="Not authorized to view this document")
 
         # Get tags
         tags_result = await asyncio.to_thread(
-            lambda: supabase.table('document_tags')
-                .select('id, tag, source, created_at')
-                .eq('document_id', document_id)
-                .order('created_at')
-                .execute()
+            lambda: supabase.table("document_tags")
+            .select("id, tag, source, created_at")
+            .eq("document_id", document_id)
+            .order("created_at")
+            .execute()
         )
 
-        return {
-            'success': True,
-            'document_id': document_id,
-            'tags': tags_result.data or []
-        }
+        return {"success": True, "document_id": document_id, "tags": tags_result.data or []}
 
     except HTTPException:
         raise
@@ -2120,14 +2073,13 @@ async def get_document_tags(
 
 class AddTagRequest(BaseModel):
     """Request body for adding a tag to a document."""
+
     tag: str
 
 
 @router.post("/{document_id}/tags")
 async def add_document_tag(
-    document_id: str,
-    request: AddTagRequest,
-    current_user: dict = Depends(get_current_user)
+    document_id: str, request: AddTagRequest, current_user: dict = Depends(get_current_user)
 ):
     """Add a manual tag to a document.
 
@@ -2149,11 +2101,11 @@ async def add_document_tag(
 
         # Verify document exists and user has access
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id, uploaded_by')
-                .eq('id', document_id)
-                .single()
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id, uploaded_by")
+            .eq("id", document_id)
+            .single()
+            .execute()
         )
 
         if not doc_result.data:
@@ -2161,44 +2113,40 @@ async def add_document_tag(
 
         # Authorization check
         document = doc_result.data
-        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
             raise HTTPException(status_code=403, detail="Not authorized to modify this document")
 
         # Check if tag already exists
         existing = await asyncio.to_thread(
-            lambda: supabase.table('document_tags')
-                .select('id, tag, source')
-                .eq('document_id', document_id)
-                .eq('tag', tag)
-                .execute()
+            lambda: supabase.table("document_tags")
+            .select("id, tag, source")
+            .eq("document_id", document_id)
+            .eq("tag", tag)
+            .execute()
         )
 
         if existing.data:
             logger.info(f"Tag '{tag}' already exists on document {document_id}")
             return {
-                'success': True,
-                'document_id': document_id,
-                'tag': existing.data[0],
-                'already_exists': True
+                "success": True,
+                "document_id": document_id,
+                "tag": existing.data[0],
+                "already_exists": True,
             }
 
         # Insert new tag
         tag_result = await asyncio.to_thread(
-            lambda: supabase.table('document_tags')
-                .insert({
-                    'document_id': document_id,
-                    'tag': tag,
-                    'source': 'manual'
-                })
-                .execute()
+            lambda: supabase.table("document_tags")
+            .insert({"document_id": document_id, "tag": tag, "source": "manual"})
+            .execute()
         )
 
         logger.info(f"Added tag '{tag}' to document {document_id}: {tag_result.data}")
 
         return {
-            'success': True,
-            'document_id': document_id,
-            'tag': tag_result.data[0] if tag_result.data else {'tag': tag, 'source': 'manual'}
+            "success": True,
+            "document_id": document_id,
+            "tag": tag_result.data[0] if tag_result.data else {"tag": tag, "source": "manual"},
         }
 
     except HTTPException:
@@ -2210,9 +2158,7 @@ async def add_document_tag(
 
 @router.delete("/{document_id}/tags/{tag}")
 async def remove_document_tag(
-    document_id: str,
-    tag: str,
-    current_user: dict = Depends(get_current_user)
+    document_id: str, tag: str, current_user: dict = Depends(get_current_user)
 ):
     """Remove a tag from a document.
 
@@ -2232,11 +2178,11 @@ async def remove_document_tag(
 
         # Verify document exists and user has access
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id, uploaded_by')
-                .eq('id', document_id)
-                .single()
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id, uploaded_by")
+            .eq("id", document_id)
+            .single()
+            .execute()
         )
 
         if not doc_result.data:
@@ -2244,44 +2190,40 @@ async def remove_document_tag(
 
         # Authorization check
         document = doc_result.data
-        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
             raise HTTPException(status_code=403, detail="Not authorized to modify this document")
 
         # Check if tag exists and is manual
         existing_tag = await asyncio.to_thread(
-            lambda: supabase.table('document_tags')
-                .select('id, source')
-                .eq('document_id', document_id)
-                .eq('tag', tag)
-                .single()
-                .execute()
+            lambda: supabase.table("document_tags")
+            .select("id, source")
+            .eq("document_id", document_id)
+            .eq("tag", tag)
+            .single()
+            .execute()
         )
 
         if not existing_tag.data:
             raise HTTPException(status_code=404, detail="Tag not found")
 
-        if existing_tag.data['source'] == 'frontmatter':
+        if existing_tag.data["source"] == "frontmatter":
             raise HTTPException(
                 status_code=400,
-                detail="Cannot remove frontmatter tags. Edit the source Obsidian file instead."
+                detail="Cannot remove frontmatter tags. Edit the source Obsidian file instead.",
             )
 
         # Delete the tag
         await asyncio.to_thread(
-            lambda: supabase.table('document_tags')
-                .delete()
-                .eq('document_id', document_id)
-                .eq('tag', tag)
-                .execute()
+            lambda: supabase.table("document_tags")
+            .delete()
+            .eq("document_id", document_id)
+            .eq("tag", tag)
+            .execute()
         )
 
         logger.info(f"Removed tag '{tag}' from document {document_id}")
 
-        return {
-            'success': True,
-            'document_id': document_id,
-            'removed_tag': tag
-        }
+        return {"success": True, "document_id": document_id, "removed_tag": tag}
 
     except HTTPException:
         raise
@@ -2294,6 +2236,7 @@ async def remove_document_tag(
 # Document Metadata Updates
 # ============================================================================
 
+
 class OriginalDateUpdate(BaseModel):
     original_date: Optional[str] = None  # YYYY-MM-DD format or null to clear
 
@@ -2304,9 +2247,7 @@ class SyncCadenceUpdate(BaseModel):
 
 @router.patch("/{document_id}/original-date")
 async def update_document_original_date(
-    document_id: str,
-    request: OriginalDateUpdate,
-    current_user: dict = Depends(get_current_user)
+    document_id: str, request: OriginalDateUpdate, current_user: dict = Depends(get_current_user)
 ):
     """Update the original date for a document (e.g., meeting date for transcripts).
 
@@ -2319,11 +2260,11 @@ async def update_document_original_date(
 
         # Verify document exists and user has access
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id, uploaded_by')
-                .eq('id', document_id)
-                .single()
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id, uploaded_by")
+            .eq("id", document_id)
+            .single()
+            .execute()
         )
 
         if not doc_result.data:
@@ -2331,7 +2272,7 @@ async def update_document_original_date(
 
         # Authorization check
         document = doc_result.data
-        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
             raise HTTPException(status_code=403, detail="Not authorized to modify this document")
 
         # Validate and parse date if provided
@@ -2339,28 +2280,26 @@ async def update_document_original_date(
         if request.original_date and request.original_date.strip():
             try:
                 from datetime import datetime
-                parsed_date = datetime.strptime(request.original_date.strip(), '%Y-%m-%d').date().isoformat()
+
+                parsed_date = (
+                    datetime.strptime(request.original_date.strip(), "%Y-%m-%d").date().isoformat()
+                )
             except ValueError:
                 raise HTTPException(
-                    status_code=400,
-                    detail="Invalid date format. Please use YYYY-MM-DD format."
+                    status_code=400, detail="Invalid date format. Please use YYYY-MM-DD format."
                 )
 
         # Update the document
         await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .update({'original_date': parsed_date})
-                .eq('id', document_id)
-                .execute()
+            lambda: supabase.table("documents")
+            .update({"original_date": parsed_date})
+            .eq("id", document_id)
+            .execute()
         )
 
         logger.info(f"Updated original_date for document {document_id}: {parsed_date}")
 
-        return {
-            'success': True,
-            'document_id': document_id,
-            'original_date': parsed_date
-        }
+        return {"success": True, "document_id": document_id, "original_date": parsed_date}
 
     except HTTPException:
         raise
@@ -2371,9 +2310,7 @@ async def update_document_original_date(
 
 @router.patch("/{document_id}/sync-cadence")
 async def update_document_sync_cadence(
-    document_id: str,
-    request: SyncCadenceUpdate,
-    current_user: dict = Depends(get_current_user)
+    document_id: str, request: SyncCadenceUpdate, current_user: dict = Depends(get_current_user)
 ):
     """Update the sync cadence for a document (for Google Drive/Notion documents).
 
@@ -2384,20 +2321,20 @@ async def update_document_sync_cadence(
         validate_uuid(document_id, "document_id")
 
         # Validate sync_cadence value
-        valid_cadences = ['manual', 'daily', 'weekly', 'monthly']
+        valid_cadences = ["manual", "daily", "weekly", "monthly"]
         if request.sync_cadence not in valid_cadences:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid sync_cadence. Must be one of: {', '.join(valid_cadences)}"
+                detail=f"Invalid sync_cadence. Must be one of: {', '.join(valid_cadences)}",
             )
 
         # Verify document exists and user has access
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id, uploaded_by, source_platform')
-                .eq('id', document_id)
-                .single()
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id, uploaded_by, source_platform")
+            .eq("id", document_id)
+            .single()
+            .execute()
         )
 
         if not doc_result.data:
@@ -2405,24 +2342,20 @@ async def update_document_sync_cadence(
 
         # Authorization check
         document = doc_result.data
-        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
             raise HTTPException(status_code=403, detail="Not authorized to modify this document")
 
         # Update the document
         await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .update({'sync_cadence': request.sync_cadence})
-                .eq('id', document_id)
-                .execute()
+            lambda: supabase.table("documents")
+            .update({"sync_cadence": request.sync_cadence})
+            .eq("id", document_id)
+            .execute()
         )
 
         logger.info(f"Updated sync_cadence for document {document_id}: {request.sync_cadence}")
 
-        return {
-            'success': True,
-            'document_id': document_id,
-            'sync_cadence': request.sync_cadence
-        }
+        return {"success": True, "document_id": document_id, "sync_cadence": request.sync_cadence}
 
     except HTTPException:
         raise
@@ -2435,10 +2368,10 @@ async def update_document_sync_cadence(
 # Initiative Links (for delete protection)
 # ============================================================================
 
+
 @router.get("/{document_id}/initiative-links")
 async def get_document_initiative_links(
-    document_id: str,
-    current_user: dict = Depends(get_current_user)
+    document_id: str, current_user: dict = Depends(get_current_user)
 ):
     """Get DISCo initiatives that link to this document.
 
@@ -2453,11 +2386,11 @@ async def get_document_initiative_links(
 
         # Verify document exists and user has access
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id, uploaded_by')
-                .eq('id', document_id)
-                .single()
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id, uploaded_by")
+            .eq("id", document_id)
+            .single()
+            .execute()
         )
 
         if not doc_result.data:
@@ -2465,32 +2398,34 @@ async def get_document_initiative_links(
 
         # Authorization check
         document = doc_result.data
-        if current_user['role'] != 'admin' and document['uploaded_by'] != current_user['id']:
+        if current_user["role"] != "admin" and document["uploaded_by"] != current_user["id"]:
             raise HTTPException(status_code=403, detail="Not authorized to view this document")
 
         # Get linked initiatives from junction table
         links_result = await asyncio.to_thread(
-            lambda: supabase.table('disco_initiative_documents')
-                .select('initiative_id, disco_initiatives(id, name, status)')
-                .eq('document_id', document_id)
-                .execute()
+            lambda: supabase.table("disco_initiative_documents")
+            .select("initiative_id, disco_initiatives(id, name, status)")
+            .eq("document_id", document_id)
+            .execute()
         )
 
         initiatives = []
-        for link in (links_result.data or []):
-            if link.get('disco_initiatives'):
-                initiative = link['disco_initiatives']
-                initiatives.append({
-                    'id': initiative['id'],
-                    'name': initiative['name'],
-                    'status': initiative.get('status', 'unknown')
-                })
+        for link in links_result.data or []:
+            if link.get("disco_initiatives"):
+                initiative = link["disco_initiatives"]
+                initiatives.append(
+                    {
+                        "id": initiative["id"],
+                        "name": initiative["name"],
+                        "status": initiative.get("status", "unknown"),
+                    }
+                )
 
         return {
-            'success': True,
-            'document_id': document_id,
-            'linked': len(initiatives) > 0,
-            'initiatives': initiatives
+            "success": True,
+            "document_id": document_id,
+            "linked": len(initiatives) > 0,
+            "initiatives": initiatives,
         }
 
     except HTTPException:
@@ -2498,9 +2433,4 @@ async def get_document_initiative_links(
     except Exception as e:
         logger.error(f"Error getting document initiative links: {e}")
         # Return empty rather than error - junction table may not exist yet
-        return {
-            'success': True,
-            'document_id': document_id,
-            'linked': False,
-            'initiatives': []
-        }
+        return {"success": True, "document_id": document_id, "linked": False, "initiatives": []}

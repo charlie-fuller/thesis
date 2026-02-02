@@ -1,5 +1,4 @@
-"""
-Tests for Glean Evaluator and Compass Agents
+"""Tests for Glean Evaluator and Compass Agents
 
 Tests the Glean platform fit assessment and career coaching agents,
 including memory save decisions, handoff logic, and context injection.
@@ -8,12 +7,11 @@ Note: This test file uses direct module loading to avoid import chain issues
 with llama_index dependencies on Python 3.9.
 """
 
-import sys
-import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
+from unittest.mock import AsyncMock, Mock
 
+import pytest
 
 # ============================================================================
 # Note: This test file uses self-contained agent classes for testing.
@@ -26,9 +24,11 @@ from typing import Optional
 # Re-implement Agent Classes for Testing (Isolated from Import Chain)
 # ============================================================================
 
+
 @dataclass
 class AgentContext:
     """Context passed to agents for each interaction."""
+
     user_id: str
     client_id: str
     conversation_id: str
@@ -42,6 +42,7 @@ class AgentContext:
 @dataclass
 class AgentResponse:
     """Response from an agent."""
+
     content: str
     agent_name: str
     agent_display_name: str
@@ -80,8 +81,7 @@ class BaseAgentTestable:
 
 
 class GleanEvaluatorAgent(BaseAgentTestable):
-    """
-    Glean Evaluator - The "Can We Glean This?" Platform Fit Assessor.
+    """Glean Evaluator - The "Can We Glean This?" Platform Fit Assessor.
 
     Test implementation that mirrors the real agent.
     """
@@ -91,7 +91,7 @@ class GleanEvaluatorAgent(BaseAgentTestable):
             name="glean_evaluator",
             display_name="Can We Glean This?",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -126,7 +126,7 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -139,14 +139,23 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Glean assessment: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Glean assessment: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         important_indicators = [
-            "glean", "assessment", "recommendation", "go", "no-go",
-            "alternative", "integration", "platform", "decision"
+            "glean",
+            "assessment",
+            "recommendation",
+            "go",
+            "no-go",
+            "alternative",
+            "integration",
+            "platform",
+            "decision",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -166,15 +175,24 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
         message_lower = context.user_message.lower()
 
         # Hand off to Architect for deep technical architecture questions
-        if any(word in message_lower for word in ["architecture", "rag", "custom build", "technical design"]):
+        if any(
+            word in message_lower
+            for word in ["architecture", "rag", "custom build", "technical design"]
+        ):
             return ("architect", "Query requires deep technical architecture expertise")
 
         # Hand off to Guardian for security/compliance deep-dives
-        if any(word in message_lower for word in ["soc2", "hipaa", "gdpr", "security audit", "compliance"]):
+        if any(
+            word in message_lower
+            for word in ["soc2", "hipaa", "gdpr", "security audit", "compliance"]
+        ):
             return ("guardian", "Query requires security/compliance expertise")
 
         # Hand off to Capital for detailed cost analysis
-        if any(word in message_lower for word in ["budget", "roi", "cost breakdown", "financial analysis"]):
+        if any(
+            word in message_lower
+            for word in ["budget", "roi", "cost breakdown", "financial analysis"]
+        ):
             return ("capital", "Query requires detailed financial analysis")
 
         return None
@@ -185,13 +203,12 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
         query = {
             "table": "glean_connectors",
             "filters": {"name": connector_name},
-            "select": ["name", "type", "status", "sync_frequency", "data_types"]
+            "select": ["name", "type", "status", "sync_frequency", "data_types"],
         }
         return query
 
     def assess_platform_fit(self, requirements: dict) -> dict:
-        """
-        Assess if Glean is appropriate for given requirements.
+        """Assess if Glean is appropriate for given requirements.
 
         Returns assessment with recommendation (GO/NO-GO/MAYBE) and reasoning.
         """
@@ -199,41 +216,63 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
         budget = requirements.get("budget", 0)
         use_case = requirements.get("use_case", "").lower()
 
-        assessment = {
-            "recommendation": "MAYBE",
-            "score": 0.5,
-            "factors": []
-        }
+        assessment = {"recommendation": "MAYBE", "score": 0.5, "factors": []}
 
         # User count assessment
         if user_count >= 500:
-            assessment["factors"].append({"name": "user_count", "impact": "positive", "note": "Strong user base"})
+            assessment["factors"].append(
+                {"name": "user_count", "impact": "positive", "note": "Strong user base"}
+            )
             assessment["score"] += 0.2
         elif user_count >= 100:
-            assessment["factors"].append({"name": "user_count", "impact": "neutral", "note": "Meets minimum"})
+            assessment["factors"].append(
+                {"name": "user_count", "impact": "neutral", "note": "Meets minimum"}
+            )
         else:
-            assessment["factors"].append({"name": "user_count", "impact": "negative", "note": "Below minimum 100 users"})
+            assessment["factors"].append(
+                {"name": "user_count", "impact": "negative", "note": "Below minimum 100 users"}
+            )
             assessment["score"] -= 0.3
 
         # Budget assessment (~$60K minimum)
         if budget >= 80000:
-            assessment["factors"].append({"name": "budget", "impact": "positive", "note": "Strong budget"})
+            assessment["factors"].append(
+                {"name": "budget", "impact": "positive", "note": "Strong budget"}
+            )
             assessment["score"] += 0.2
         elif budget >= 60000:
-            assessment["factors"].append({"name": "budget", "impact": "neutral", "note": "Meets baseline"})
+            assessment["factors"].append(
+                {"name": "budget", "impact": "neutral", "note": "Meets baseline"}
+            )
         else:
-            assessment["factors"].append({"name": "budget", "impact": "negative", "note": "Below $60K baseline"})
+            assessment["factors"].append(
+                {"name": "budget", "impact": "negative", "note": "Below $60K baseline"}
+            )
             assessment["score"] -= 0.3
 
         # Use case assessment
-        enterprise_search_keywords = ["search", "find", "knowledge", "discovery", "information retrieval"]
+        enterprise_search_keywords = [
+            "search",
+            "find",
+            "knowledge",
+            "discovery",
+            "information retrieval",
+        ]
         if any(kw in use_case for kw in enterprise_search_keywords):
-            assessment["factors"].append({"name": "use_case", "impact": "positive", "note": "Strong fit for enterprise search"})
+            assessment["factors"].append(
+                {
+                    "name": "use_case",
+                    "impact": "positive",
+                    "note": "Strong fit for enterprise search",
+                }
+            )
             assessment["score"] += 0.2
 
         content_creation_keywords = ["create", "generate", "write", "author"]
         if any(kw in use_case for kw in content_creation_keywords):
-            assessment["factors"].append({"name": "use_case", "impact": "negative", "note": "Glean doesn't create content"})
+            assessment["factors"].append(
+                {"name": "use_case", "impact": "negative", "note": "Glean doesn't create content"}
+            )
             assessment["score"] -= 0.2
 
         # Determine final recommendation
@@ -248,8 +287,7 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
 
 
 class CompassAgent(BaseAgentTestable):
-    """
-    Compass - The Personal Career Coach agent.
+    """Compass - The Personal Career Coach agent.
 
     Test implementation that mirrors the real agent.
     """
@@ -259,7 +297,7 @@ class CompassAgent(BaseAgentTestable):
             name="compass",
             display_name="Compass",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -284,9 +322,9 @@ You are Compass, a personal career development coach. Your purpose is to help pr
         if context.stakeholders:
             stakeholder_context = "\n\nKey relationships being tracked:\n"
             for stakeholder in context.stakeholders[:5]:
-                name = stakeholder.get('name', 'Unknown')
-                role = stakeholder.get('role', 'Unknown role')
-                engagement = stakeholder.get('engagement_level', 'unknown')
+                name = stakeholder.get("name", "Unknown")
+                role = stakeholder.get("role", "Unknown role")
+                engagement = stakeholder.get("engagement_level", "unknown")
                 stakeholder_context += f"- {name} ({role}): {engagement}\n"
             messages[0]["content"] = stakeholder_context + "\n\n" + messages[0]["content"]
 
@@ -294,7 +332,7 @@ You are Compass, a personal career development coach. Your purpose is to help pr
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -306,16 +344,33 @@ You are Compass, a personal career development coach. Your purpose is to help pr
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Career update: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Career update: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         important_indicators = [
-            "win", "accomplished", "shipped", "launched", "completed",
-            "goal", "check-in", "1:1", "review", "feedback",
-            "promotion", "growth", "skill", "competency", "impact",
-            "stakeholder", "relationship", "manager", "mentor"
+            "win",
+            "accomplished",
+            "shipped",
+            "launched",
+            "completed",
+            "goal",
+            "check-in",
+            "1:1",
+            "review",
+            "feedback",
+            "promotion",
+            "growth",
+            "skill",
+            "competency",
+            "impact",
+            "stakeholder",
+            "relationship",
+            "manager",
+            "mentor",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -334,26 +389,42 @@ You are Compass, a personal career development coach. Your purpose is to help pr
         message_lower = context.user_message.lower()
 
         # Hand off to Sage for deeper change management or people challenges
-        if any(word in message_lower for word in ["team resistance", "burnout", "culture change", "adoption challenge"]):
+        if any(
+            word in message_lower
+            for word in ["team resistance", "burnout", "culture change", "adoption challenge"]
+        ):
             return ("sage", "Query requires people/change management expertise")
 
         # Hand off to Scholar for training program design
-        if any(word in message_lower for word in ["training program", "learning path", "curriculum", "upskilling plan"]):
+        if any(
+            word in message_lower
+            for word in ["training program", "learning path", "curriculum", "upskilling plan"]
+        ):
             return ("scholar", "Query requires L&D expertise")
 
         # Hand off to Strategist for executive-level career strategy
-        if any(word in message_lower for word in ["executive visibility", "c-suite", "board presentation", "organizational politics"]):
+        if any(
+            word in message_lower
+            for word in [
+                "executive visibility",
+                "c-suite",
+                "board presentation",
+                "organizational politics",
+            ]
+        ):
             return ("strategist", "Query requires executive strategy expertise")
 
         # Hand off to Oracle for meeting transcript analysis
-        if any(word in message_lower for word in ["analyze meeting", "transcript", "what did they say", "meeting notes"]):
+        if any(
+            word in message_lower
+            for word in ["analyze meeting", "transcript", "what did they say", "meeting notes"]
+        ):
             return ("oracle", "Query involves transcript analysis")
 
         return None
 
     def detect_win_in_message(self, message: str) -> Optional[dict]:
-        """
-        Detect if a message contains a win/accomplishment to capture.
+        """Detect if a message contains a win/accomplishment to capture.
 
         Returns win details if detected, None otherwise.
         """
@@ -361,10 +432,26 @@ You are Compass, a personal career development coach. Your purpose is to help pr
 
         # Win indicators
         win_keywords = [
-            "shipped", "launched", "completed", "finished", "delivered",
-            "achieved", "accomplished", "won", "closed", "signed",
-            "fixed", "resolved", "improved", "increased", "reduced",
-            "saved", "automated", "built", "created", "implemented"
+            "shipped",
+            "launched",
+            "completed",
+            "finished",
+            "delivered",
+            "achieved",
+            "accomplished",
+            "won",
+            "closed",
+            "signed",
+            "fixed",
+            "resolved",
+            "improved",
+            "increased",
+            "reduced",
+            "saved",
+            "automated",
+            "built",
+            "created",
+            "implemented",
         ]
 
         detected_keyword = None
@@ -378,21 +465,22 @@ You are Compass, a personal career development coach. Your purpose is to help pr
 
         # Extract potential metrics
         import re
+
         metrics = []
 
         # Percentage patterns
-        pct_matches = re.findall(r'(\d+(?:\.\d+)?)\s*%', message)
+        pct_matches = re.findall(r"(\d+(?:\.\d+)?)\s*%", message)
         for match in pct_matches:
             metrics.append({"type": "percentage", "value": float(match)})
 
         # Time savings patterns (supports both "saved 10 hours" and "10 hours saved")
         time_patterns = [
-            (r'(?:saved|reduced)\s*(\d+)\s*hours?', 'hours_saved'),
-            (r'(\d+)\s*hours?\s*(?:saved|reduced)', 'hours_saved'),
-            (r'(?:saved|reduced)\s*(\d+)\s*days?', 'days_saved'),
-            (r'(\d+)\s*days?\s*(?:saved|reduced|faster)', 'days_saved'),
-            (r'(?:saved|reduced)\s*(\d+)\s*minutes?', 'minutes_saved'),
-            (r'(\d+)\s*minutes?\s*(?:saved|reduced)', 'minutes_saved')
+            (r"(?:saved|reduced)\s*(\d+)\s*hours?", "hours_saved"),
+            (r"(\d+)\s*hours?\s*(?:saved|reduced)", "hours_saved"),
+            (r"(?:saved|reduced)\s*(\d+)\s*days?", "days_saved"),
+            (r"(\d+)\s*days?\s*(?:saved|reduced|faster)", "days_saved"),
+            (r"(?:saved|reduced)\s*(\d+)\s*minutes?", "minutes_saved"),
+            (r"(\d+)\s*minutes?\s*(?:saved|reduced)", "minutes_saved"),
         ]
         for pattern, metric_type in time_patterns:
             matches = re.findall(pattern, message_lower)
@@ -400,15 +488,15 @@ You are Compass, a personal career development coach. Your purpose is to help pr
                 metrics.append({"type": metric_type, "value": int(match)})
 
         # Dollar amounts
-        dollar_matches = re.findall(r'\$\s*([\d,]+(?:\.\d{2})?)', message)
+        dollar_matches = re.findall(r"\$\s*([\d,]+(?:\.\d{2})?)", message)
         for match in dollar_matches:
-            metrics.append({"type": "dollars", "value": float(match.replace(',', ''))})
+            metrics.append({"type": "dollars", "value": float(match.replace(",", ""))})
 
         return {
             "detected": True,
             "keyword": detected_keyword,
             "metrics": metrics,
-            "needs_clarification": len(metrics) == 0  # Ask for impact if no metrics found
+            "needs_clarification": len(metrics) == 0,  # Ask for impact if no metrics found
         }
 
     def generate_memory_content(self, win_details: dict, user_message: str) -> str:
@@ -432,7 +520,7 @@ You are Compass, a personal career development coach. Your purpose is to help pr
             for m in metrics:
                 if m["type"] == "percentage":
                     # Format as integer if whole number, otherwise show decimal
-                    val = m['value']
+                    val = m["value"]
                     if val == int(val):
                         metric_strs.append(f"{int(val)}%")
                     else:
@@ -454,15 +542,15 @@ You are Compass, a personal career development coach. Your purpose is to help pr
 
         lines = ["Key relationships being tracked:"]
         for stakeholder in context.stakeholders[:5]:
-            name = stakeholder.get('name', 'Unknown')
-            role = stakeholder.get('role', 'Unknown role')
-            engagement = stakeholder.get('engagement_level', 'unknown')
-            priority = stakeholder.get('priority_level', 'medium')
+            name = stakeholder.get("name", "Unknown")
+            role = stakeholder.get("role", "Unknown role")
+            engagement = stakeholder.get("engagement_level", "unknown")
+            priority = stakeholder.get("priority_level", "medium")
 
             line = f"- {name} ({role}): Engagement={engagement}, Priority={priority}"
 
             # Add win conditions if available
-            win_conditions = stakeholder.get('win_conditions')
+            win_conditions = stakeholder.get("win_conditions")
             if win_conditions:
                 line += f" | Win conditions: {win_conditions[:50]}..."
 
@@ -475,11 +563,14 @@ You are Compass, a personal career development coach. Your purpose is to help pr
 # Test Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_supabase_client():
     """Create mock Supabase client."""
     client = Mock()
-    client.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(data=[])
+    client.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(
+        data=[]
+    )
     client.table.return_value.insert.return_value.execute.return_value = Mock(data=[])
     return client
 
@@ -489,7 +580,11 @@ def mock_anthropic_client():
     """Create mock Anthropic client with default response."""
     client = Mock()
     response = Mock()
-    response.content = [Mock(text="This is a test response from Claude with sufficient length to pass the memory save threshold for testing purposes.")]
+    response.content = [
+        Mock(
+            text="This is a test response from Claude with sufficient length to pass the memory save threshold for testing purposes."
+        )
+    ]
     client.messages.create.return_value = response
     return client
 
@@ -514,13 +609,14 @@ def sample_context():
         client_id="client-456",
         conversation_id="conv-789",
         message_history=[],
-        user_message="Test message"
+        user_message="Test message",
     )
 
 
 # ============================================================================
 # Test: Glean Evaluator Agent - Connector Registry Queries
 # ============================================================================
+
 
 class TestGleanConnectorRegistry:
     """Test Glean Evaluator connector registry query functionality."""
@@ -560,6 +656,7 @@ class TestGleanConnectorRegistry:
 # Test: Glean Evaluator Agent - Platform Fit Assessment
 # ============================================================================
 
+
 class TestGleanPlatformFitAssessment:
     """Test Glean platform fit assessment logic."""
 
@@ -568,7 +665,7 @@ class TestGleanPlatformFitAssessment:
         requirements = {
             "user_count": 500,
             "budget": 100000,
-            "use_case": "enterprise knowledge search and discovery"
+            "use_case": "enterprise knowledge search and discovery",
         }
 
         result = glean_agent.assess_platform_fit(requirements)
@@ -578,11 +675,7 @@ class TestGleanPlatformFitAssessment:
 
     def test_no_go_recommendation_low_users(self, glean_agent):
         """User count below 100 should result in NO-GO."""
-        requirements = {
-            "user_count": 50,
-            "budget": 80000,
-            "use_case": "search"
-        }
+        requirements = {"user_count": 50, "budget": 80000, "use_case": "search"}
 
         result = glean_agent.assess_platform_fit(requirements)
 
@@ -592,11 +685,7 @@ class TestGleanPlatformFitAssessment:
 
     def test_no_go_recommendation_low_budget(self, glean_agent):
         """Budget below $60K should result in negative factor."""
-        requirements = {
-            "user_count": 200,
-            "budget": 30000,
-            "use_case": "search"
-        }
+        requirements = {"user_count": 200, "budget": 30000, "use_case": "search"}
 
         result = glean_agent.assess_platform_fit(requirements)
 
@@ -608,7 +697,7 @@ class TestGleanPlatformFitAssessment:
         requirements = {
             "user_count": 500,
             "budget": 100000,
-            "use_case": "create and generate marketing content"
+            "use_case": "create and generate marketing content",
         }
 
         result = glean_agent.assess_platform_fit(requirements)
@@ -621,7 +710,7 @@ class TestGleanPlatformFitAssessment:
         requirements = {
             "user_count": 300,
             "budget": 70000,
-            "use_case": "enterprise search across all company knowledge"
+            "use_case": "enterprise search across all company knowledge",
         }
 
         result = glean_agent.assess_platform_fit(requirements)
@@ -634,7 +723,7 @@ class TestGleanPlatformFitAssessment:
         requirements = {
             "user_count": 100,
             "budget": 60000,
-            "use_case": "general information lookup"
+            "use_case": "general information lookup",
         }
 
         result = glean_agent.assess_platform_fit(requirements)
@@ -646,6 +735,7 @@ class TestGleanPlatformFitAssessment:
 # Test: Glean Evaluator Agent - Memory Save Decisions
 # ============================================================================
 
+
 class TestGleanMemorySaveDecisions:
     """Test Glean Evaluator memory save decision heuristics."""
 
@@ -653,7 +743,7 @@ class TestGleanMemorySaveDecisions:
         """Should save to memory when 'glean' is mentioned."""
         result = glean_agent._should_save_to_memory(
             "Is Glean right for our use case?",
-            "Based on the analysis, Glean would be a good fit for your enterprise search needs."
+            "Based on the analysis, Glean would be a good fit for your enterprise search needs.",
         )
 
         assert result is True
@@ -662,7 +752,7 @@ class TestGleanMemorySaveDecisions:
         """Should save to memory for assessment-related queries."""
         result = glean_agent._should_save_to_memory(
             "Please assess our platform requirements",
-            "The assessment indicates that your organization meets the criteria."
+            "The assessment indicates that your organization meets the criteria.",
         )
 
         assert result is True
@@ -671,7 +761,7 @@ class TestGleanMemorySaveDecisions:
         """Should save to memory when go/no-go decisions are made."""
         result = glean_agent._should_save_to_memory(
             "Should we proceed with this integration?",
-            "My recommendation is GO - the platform meets all requirements."
+            "My recommendation is GO - the platform meets all requirements.",
         )
 
         assert result is True
@@ -679,8 +769,7 @@ class TestGleanMemorySaveDecisions:
     def test_no_save_for_short_responses(self, glean_agent):
         """Should not save very short responses (clarifying questions)."""
         result = glean_agent._should_save_to_memory(
-            "What is the weather?",
-            "Could you clarify your question?"
+            "What is the weather?", "Could you clarify your question?"
         )
 
         assert result is False
@@ -689,7 +778,7 @@ class TestGleanMemorySaveDecisions:
         """Should save when alternatives are recommended."""
         result = glean_agent._should_save_to_memory(
             "What should we use instead?",
-            "I recommend an alternative solution that better fits your needs."
+            "I recommend an alternative solution that better fits your needs.",
         )
 
         assert result is True
@@ -698,6 +787,7 @@ class TestGleanMemorySaveDecisions:
 # ============================================================================
 # Test: Glean Evaluator Agent - Handoff Triggers
 # ============================================================================
+
 
 class TestGleanHandoffTriggers:
     """Test Glean Evaluator handoff routing logic."""
@@ -762,6 +852,7 @@ class TestGleanHandoffTriggers:
 # ============================================================================
 # Test: Compass Agent - Win Capture Detection
 # ============================================================================
+
 
 class TestCompassWinCapture:
     """Test Compass win capture detection from conversations."""
@@ -834,15 +925,13 @@ class TestCompassWinCapture:
 # Test: Compass Agent - Memory Content Generation
 # ============================================================================
 
+
 class TestCompassMemoryGeneration:
     """Test Compass memory content generation for wins."""
 
     def test_generate_memory_with_keyword(self, compass_agent):
         """Memory content should include the win keyword."""
-        win_details = {
-            "keyword": "shipped",
-            "metrics": []
-        }
+        win_details = {"keyword": "shipped", "metrics": []}
 
         content = compass_agent.generate_memory_content(win_details, "Shipped the new dashboard")
 
@@ -851,10 +940,7 @@ class TestCompassMemoryGeneration:
 
     def test_generate_memory_with_metrics(self, compass_agent):
         """Memory content should include metrics when available."""
-        win_details = {
-            "keyword": "improved",
-            "metrics": [{"type": "percentage", "value": 25.0}]
-        }
+        win_details = {"keyword": "improved", "metrics": [{"type": "percentage", "value": 25.0}]}
 
         content = compass_agent.generate_memory_content(win_details, "Improved API response time")
 
@@ -863,10 +949,7 @@ class TestCompassMemoryGeneration:
 
     def test_generate_memory_truncates_long_messages(self, compass_agent):
         """Memory content should truncate very long messages."""
-        win_details = {
-            "keyword": "completed",
-            "metrics": []
-        }
+        win_details = {"keyword": "completed", "metrics": []}
         long_message = "Completed " + "a" * 200
 
         content = compass_agent.generate_memory_content(win_details, long_message)
@@ -876,10 +959,7 @@ class TestCompassMemoryGeneration:
 
     def test_generate_memory_with_dollar_metrics(self, compass_agent):
         """Memory content should format dollar amounts correctly."""
-        win_details = {
-            "keyword": "closed",
-            "metrics": [{"type": "dollars", "value": 100000.00}]
-        }
+        win_details = {"keyword": "closed", "metrics": [{"type": "dollars", "value": 100000.00}]}
 
         content = compass_agent.generate_memory_content(win_details, "Closed major deal")
 
@@ -889,6 +969,7 @@ class TestCompassMemoryGeneration:
 # ============================================================================
 # Test: Compass Agent - Stakeholder Context Injection
 # ============================================================================
+
 
 class TestCompassStakeholderContext:
     """Test Compass stakeholder context injection."""
@@ -909,7 +990,7 @@ class TestCompassStakeholderContext:
         """Should handle multiple stakeholders."""
         sample_context.stakeholders = [
             {"name": "Alice", "role": "Director", "engagement_level": "engaged"},
-            {"name": "Bob", "role": "Manager", "engagement_level": "neutral"}
+            {"name": "Bob", "role": "Manager", "engagement_level": "neutral"},
         ]
 
         result = compass_agent.inject_stakeholder_context(sample_context)
@@ -924,7 +1005,7 @@ class TestCompassStakeholderContext:
                 "name": "Carol",
                 "role": "CTO",
                 "engagement_level": "champion",
-                "win_conditions": "Reduce technical debt and improve developer velocity"
+                "win_conditions": "Reduce technical debt and improve developer velocity",
             }
         ]
 
@@ -952,8 +1033,7 @@ class TestCompassStakeholderContext:
     def test_limit_to_five_stakeholders(self, compass_agent, sample_context):
         """Should limit context to 5 stakeholders."""
         sample_context.stakeholders = [
-            {"name": f"Person{i}", "role": "Role", "engagement_level": "neutral"}
-            for i in range(10)
+            {"name": f"Person{i}", "role": "Role", "engagement_level": "neutral"} for i in range(10)
         ]
 
         result = compass_agent.inject_stakeholder_context(sample_context)
@@ -965,6 +1045,7 @@ class TestCompassStakeholderContext:
 # ============================================================================
 # Test: Compass Agent - Handoff Routing
 # ============================================================================
+
 
 class TestCompassHandoffRouting:
     """Test Compass handoff routing to other agents."""
@@ -1049,6 +1130,7 @@ class TestCompassHandoffRouting:
 # Test: Compass Agent - Memory Save Decisions
 # ============================================================================
 
+
 class TestCompassMemorySaveDecisions:
     """Test Compass memory save decision heuristics."""
 
@@ -1056,7 +1138,7 @@ class TestCompassMemorySaveDecisions:
         """Should save to memory when win is mentioned."""
         result = compass_agent._should_save_to_memory(
             "I shipped a new feature today",
-            "Great job on shipping that feature! Let me capture that win for you."
+            "Great job on shipping that feature! Let me capture that win for you.",
         )
 
         assert result is True
@@ -1065,7 +1147,7 @@ class TestCompassMemorySaveDecisions:
         """Should save to memory for goal discussions."""
         result = compass_agent._should_save_to_memory(
             "Let's review my Q1 goals",
-            "Looking at your goals, you've made good progress on the key objectives."
+            "Looking at your goals, you've made good progress on the key objectives.",
         )
 
         assert result is True
@@ -1074,7 +1156,7 @@ class TestCompassMemorySaveDecisions:
         """Should save to memory for check-in preparation."""
         result = compass_agent._should_save_to_memory(
             "Help me prepare for my 1:1 with my manager",
-            "For your 1:1 check-in, here are the key points to discuss based on your recent work."
+            "For your 1:1 check-in, here are the key points to discuss based on your recent work.",
         )
 
         assert result is True
@@ -1083,17 +1165,14 @@ class TestCompassMemorySaveDecisions:
         """Should save to memory when feedback is discussed."""
         result = compass_agent._should_save_to_memory(
             "I received some feedback today",
-            "That's valuable feedback. Let me help you document and reflect on it."
+            "That's valuable feedback. Let me help you document and reflect on it.",
         )
 
         assert result is True
 
     def test_no_save_for_short_responses(self, compass_agent):
         """Should not save very short responses."""
-        result = compass_agent._should_save_to_memory(
-            "Hi",
-            "Hello! How can I help?"
-        )
+        result = compass_agent._should_save_to_memory("Hi", "Hello! How can I help?")
 
         assert result is False
 
@@ -1101,7 +1180,8 @@ class TestCompassMemorySaveDecisions:
         """Should not save for topics unrelated to career tracking."""
         result = compass_agent._should_save_to_memory(
             "What's the weather like?",
-            "I'm not able to help with weather questions. Perhaps try a weather service instead." + " " * 200
+            "I'm not able to help with weather questions. Perhaps try a weather service instead."
+            + " " * 200,
         )
 
         # Even though response is long, no important indicators present
@@ -1111,6 +1191,7 @@ class TestCompassMemorySaveDecisions:
 # ============================================================================
 # Test: Agent Process Method Integration
 # ============================================================================
+
 
 class TestAgentProcessIntegration:
     """Test the process method integration for both agents."""
@@ -1131,7 +1212,7 @@ class TestAgentProcessIntegration:
         """Glean process should incorporate memories into context."""
         sample_context.memories = [
             {"content": "Previous Glean assessment recommended GO"},
-            {"content": "Organization has 500+ users"}
+            {"content": "Organization has 500+ users"},
         ]
         sample_context.user_message = "What was our previous assessment?"
 
@@ -1169,14 +1250,21 @@ class TestAgentProcessIntegration:
 # MANUAL AGENT TESTS - Documentation Assistant
 # ============================================================================
 
+
 class ManualAgentTestable(BaseAgentTestable):
     """Manual agent for testing - documentation assistant."""
 
     def __init__(self, supabase, anthropic_client):
         super().__init__("manual", "Manual", supabase, anthropic_client)
         self.help_topics = [
-            "agents", "chat", "meeting-rooms", "knowledge-base",
-            "tasks", "projects", "stakeholders", "faq"
+            "agents",
+            "chat",
+            "meeting-rooms",
+            "knowledge-base",
+            "tasks",
+            "projects",
+            "stakeholders",
+            "faq",
         ]
 
     def detect_help_topic(self, message: str) -> Optional[str]:
@@ -1191,7 +1279,7 @@ class ManualAgentTestable(BaseAgentTestable):
             "projects": ["project", "pipeline", "tier", "score"],
             "tasks": ["task", "kanban", "todo"],
             "stakeholders": ["stakeholder", "contact", "engagement"],
-            "faq": ["faq", "help", "how do i", "how to", "what is"]
+            "faq": ["faq", "help", "how do i", "how to", "what is"],
         }
 
         for topic, keywords in topic_keywords.items():
@@ -1210,7 +1298,7 @@ class ManualAgentTestable(BaseAgentTestable):
             "tasks": "Task management uses a Kanban board...",
             "projects": "Track AI implementation projects...",
             "stakeholders": "Manage stakeholder relationships...",
-            "faq": "Frequently asked questions about Thesis..."
+            "faq": "Frequently asked questions about Thesis...",
         }
         return content_map.get(topic)
 
@@ -1236,9 +1324,9 @@ def manual_agent():
     """Create a Manual agent instance for testing."""
     mock_supabase = Mock()
     mock_anthropic = Mock()
-    mock_anthropic.messages.create = AsyncMock(return_value=Mock(
-        content=[Mock(text="Here's how to use that feature...")]
-    ))
+    mock_anthropic.messages.create = AsyncMock(
+        return_value=Mock(content=[Mock(text="Here's how to use that feature...")])
+    )
     return ManualAgentTestable(mock_supabase, mock_anthropic)
 
 
@@ -1369,8 +1457,14 @@ class TestManualAgentMetadata:
     def test_all_expected_topics_present(self, manual_agent):
         """Agent should have all expected help topics."""
         expected_topics = [
-            "agents", "chat", "meeting-rooms", "knowledge-base",
-            "tasks", "projects", "stakeholders", "faq"
+            "agents",
+            "chat",
+            "meeting-rooms",
+            "knowledge-base",
+            "tasks",
+            "projects",
+            "stakeholders",
+            "faq",
         ]
         for topic in expected_topics:
             assert topic in manual_agent.help_topics

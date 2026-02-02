@@ -1,6 +1,5 @@
-"""
-Direct API test - no imports from services
-"""
+"""Direct API test - no imports from services"""
+
 import base64
 import json
 import os
@@ -14,8 +13,8 @@ if env_file.exists():
     with open(env_file) as f:
         for line in f:
             line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                key, value = line.split('=', 1)
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
                 os.environ[key.strip()] = value.strip().strip('"').strip("'")
 
 api_key = os.getenv("GOOGLE_GENERATIVE_AI_API_KEY")
@@ -28,17 +27,8 @@ prompt = "A happy dog catching a frisbee in a park"
 
 # Construct API call
 url = f"{base_url}/models/{model_name}:generateContent"
-headers = {
-    "x-goog-api-key": api_key,
-    "Content-Type": "application/json"
-}
-payload = {
-    "contents": [{
-        "parts": [
-            {"text": prompt}
-        ]
-    }]
-}
+headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
+payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
 print(f"\nCalling: {url}")
 print(f"Prompt: {prompt}")

@@ -1,5 +1,4 @@
-"""
-Project Chat Service
+"""Project Chat Service
 
 Provides Q&A functionality for AI projects.
 Uses the Operator agent persona to answer questions about specific projects,
@@ -7,13 +6,14 @@ incorporating knowledge base context and storing conversations.
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List
 from uuid import uuid4
 
 import anthropic
-from logger_config import get_logger
+
 from database import get_supabase
-from services.project_context import get_scoring_related_documents, build_project_context
+from logger_config import get_logger
+from services.project_context import build_project_context, get_scoring_related_documents
 
 logger = get_logger(__name__)
 
@@ -39,14 +39,8 @@ When citing information from related documents, reference them as "According to 
 Keep responses focused and actionable. Use bullet points for clarity when listing multiple items."""
 
 
-async def ask_about_project(
-    project_id: str,
-    question: str,
-    client_id: str,
-    user_id: str
-) -> Dict:
-    """
-    Answer a question about a specific project.
+async def ask_about_project(project_id: str, question: str, client_id: str, user_id: str) -> Dict:
+    """Answer a question about a specific project.
 
     Fetches project details, finds related documents via vector search,
     builds context, calls Claude, and stores the conversation.
@@ -63,12 +57,14 @@ async def ask_about_project(
     logger.info(f"Processing question about project {project_id}: {question[:50]}...")
 
     # 1. Fetch the project
-    project_result = supabase.table('ai_projects')\
-        .select('*, stakeholders(name)')\
-        .eq('id', project_id)\
-        .eq('client_id', client_id)\
-        .single()\
+    project_result = (
+        supabase.table("ai_projects")
+        .select("*, stakeholders(name)")
+        .eq("id", project_id)
+        .eq("client_id", client_id)
+        .single()
         .execute()
+    )
 
     if not project_result.data:
         raise ValueError(f"Project not found: {project_id}")
@@ -76,15 +72,12 @@ async def ask_about_project(
     project = project_result.data
 
     # Add owner name from joined data
-    if project.get('stakeholders'):
-        project['owner_name'] = project['stakeholders'].get('name')
+    if project.get("stakeholders"):
+        project["owner_name"] = project["stakeholders"].get("name")
 
     # 2. Get scoring-relevant documents
     related_docs = get_scoring_related_documents(
-        project=project,
-        client_id=client_id,
-        limit=5,
-        min_similarity=0.25
+        project=project, client_id=client_id, limit=5, min_similarity=0.25
     )
 
     # 3. Build context string
@@ -105,9 +98,9 @@ async def ask_about_project(
 
 User question: {question}
 
-Please answer the question based on the project details and any relevant information from the related documents."""
+Please answer the question based on the project details and any relevant information from the related documents.""",
                 }
-            ]
+            ],
         )
 
         answer = response.content[0].text
@@ -122,23 +115,25 @@ Please answer the question based on the project details and any relevant informa
         # Format source documents for storage
         source_docs_json = [
             {
-                'document_id': doc.get('document_id'),
-                'document_name': doc.get('document_name'),
-                'relevance_score': doc.get('relevance_score'),
-                'snippet': doc.get('snippet', '')[:200]  # Limit snippet size
+                "document_id": doc.get("document_id"),
+                "document_name": doc.get("document_name"),
+                "relevance_score": doc.get("relevance_score"),
+                "snippet": doc.get("snippet", "")[:200],  # Limit snippet size
             }
             for doc in related_docs
         ]
 
-        supabase.table('project_conversations').insert({
-            'id': str(uuid4()),
-            'project_id': project_id,
-            'client_id': client_id,
-            'user_id': user_id,
-            'question': question,
-            'response': answer,
-            'source_documents': source_docs_json
-        }).execute()
+        supabase.table("project_conversations").insert(
+            {
+                "id": str(uuid4()),
+                "project_id": project_id,
+                "client_id": client_id,
+                "user_id": user_id,
+                "question": question,
+                "response": answer,
+                "source_documents": source_docs_json,
+            }
+        ).execute()
 
         logger.info(f"Stored conversation for project {project_id}")
 
@@ -147,20 +142,13 @@ Please answer the question based on the project details and any relevant informa
         # Don't fail the request if storage fails
 
     # 6. Return response with sources
-    return {
-        'response': answer,
-        'sources': related_docs
-    }
+    return {"response": answer, "sources": related_docs}
 
 
 async def get_project_conversations(
-    project_id: str,
-    client_id: str,
-    limit: int = 20,
-    offset: int = 0
+    project_id: str, client_id: str, limit: int = 20, offset: int = 0
 ) -> List[Dict]:
-    """
-    Get conversation history for a project.
+    """Get conversation history for a project.
 
     Args:
         project_id: The project UUID
@@ -174,13 +162,15 @@ async def get_project_conversations(
     logger.info(f"Fetching conversations for project {project_id}")
 
     try:
-        result = supabase.table('project_conversations')\
-            .select('id, question, response, source_documents, created_at')\
-            .eq('project_id', project_id)\
-            .eq('client_id', client_id)\
-            .order('created_at', desc=True)\
-            .range(offset, offset + limit - 1)\
+        result = (
+            supabase.table("project_conversations")
+            .select("id, question, response, source_documents, created_at")
+            .eq("project_id", project_id)
+            .eq("client_id", client_id)
+            .order("created_at", desc=True)
+            .range(offset, offset + limit - 1)
             .execute()
+        )
 
         conversations = result.data or []
         logger.info(f"Found {len(conversations)} conversations")

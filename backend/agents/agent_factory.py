@@ -1,5 +1,4 @@
-"""
-Agent Factory - Creates and configures agents for Thesis
+"""Agent Factory - Creates and configures agents for Thesis
 
 Provides factory functions to create fully configured agents
 with proper initialization and specialist registration.
@@ -9,48 +8,54 @@ import logging
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .coordinator import CoordinatorAgent
+from .architect import ArchitectAgent
+
 # Stakeholder Perspective Agents
 from .atlas import AtlasAgent
 from .capital import CapitalAgent
-from .guardian import GuardianAgent
-from .counselor import CounselorAgent
-from .oracle import OracleAgent
-from .sage import SageAgent
-# Consulting/Implementation Agents
-from .strategist import StrategistAgent
-from .architect import ArchitectAgent
-from .operator import OperatorAgent
-from .pioneer import PioneerAgent
+
 # Internal Enablement Agents
 from .catalyst import CatalystAgent
-from .scholar import ScholarAgent
-from .glean_evaluator import GleanEvaluatorAgent
-from .manual import ManualAgent
-# Systems Thinking Agent
-from .nexus import NexusAgent
-# Brand & Voice Agent
-from .echo import EchoAgent
+
 # Personal Development Agent
 from .compass import CompassAgent
-# Personal Productivity Agent
-from .taskmaster import TaskmasterAgent
+from .coordinator import CoordinatorAgent
+from .counselor import CounselorAgent
+
+# Brand & Voice Agent
+from .echo import EchoAgent
+
 # Meta-Agents (always present in meetings)
 from .facilitator import FacilitatorAgent
+from .glean_evaluator import GleanEvaluatorAgent
+from .guardian import GuardianAgent
+from .manual import ManualAgent
+
+# Systems Thinking Agent
+from .nexus import NexusAgent
+from .operator import OperatorAgent
+from .oracle import OracleAgent
+from .pioneer import PioneerAgent
 from .reporter import ReporterAgent
+from .sage import SageAgent
+from .scholar import ScholarAgent
+
+# Consulting/Implementation Agents
+from .strategist import StrategistAgent
+
+# Personal Productivity Agent
+from .taskmaster import TaskmasterAgent
 
 logger = logging.getLogger(__name__)
 
 
 async def create_coordinator(
-    supabase: Client,
-    anthropic_client: anthropic.Anthropic,
-    register_specialists: bool = True
+    supabase: Client, anthropic_client: anthropic.Anthropic, register_specialists: bool = True
 ) -> CoordinatorAgent:
-    """
-    Create and configure a Coordinator agent with all specialists.
+    """Create and configure a Coordinator agent with all specialists.
 
     Args:
         supabase: Supabase client for database operations
@@ -61,10 +66,7 @@ async def create_coordinator(
         Fully configured CoordinatorAgent ready for use
     """
     # Create the coordinator
-    coordinator = CoordinatorAgent(
-        supabase=supabase,
-        anthropic_client=anthropic_client
-    )
+    coordinator = CoordinatorAgent(supabase=supabase, anthropic_client=anthropic_client)
 
     # Initialize coordinator from database
     await coordinator.initialize()
@@ -112,12 +114,9 @@ async def create_coordinator(
 
 
 async def create_specialist(
-    name: str,
-    supabase: Client,
-    anthropic_client: anthropic.Anthropic
+    name: str, supabase: Client, anthropic_client: anthropic.Anthropic
 ) -> Optional[object]:
-    """
-    Create a single specialist agent by name.
+    """Create a single specialist agent by name.
 
     Args:
         name: Name of the specialist (all 14 agents supported)

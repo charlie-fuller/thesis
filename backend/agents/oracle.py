@@ -1,5 +1,4 @@
-"""
-Oracle Agent - Transcript Analyzer
+"""Oracle Agent - Transcript Analyzer
 
 The Oracle agent specializes in:
 - Parsing meeting transcripts (Granola, Otter.ai, plain text)
@@ -12,20 +11,20 @@ The Oracle agent specializes in:
 
 import logging
 import re
-from typing import Optional
 from datetime import datetime, timezone
+from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class OracleAgent(BaseAgent):
-    """
-    Oracle - The Transcript Analyzer agent.
+    """Oracle - The Transcript Analyzer agent.
 
     Specializes in extracting stakeholder insights from meeting transcripts.
     """
@@ -35,12 +34,11 @@ class OracleAgent(BaseAgent):
             name="oracle",
             display_name="Oracle",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
-        """
-        Returns the default Oracle instruction.
+        """Returns the default Oracle instruction.
         This should match the content in system_instructions/agents/oracle.xml
 
         NOTE: The canonical version is in oracle.xml. This is a fallback.
@@ -233,8 +231,7 @@ Every sentiment assessment should be traceable to specific quotes.
         return await self._answer_query(context)
 
     def _looks_like_transcript(self, text: str) -> bool:
-        """
-        Detect if the message contains a transcript.
+        """Detect if the message contains a transcript.
 
         Transcripts typically have:
         - Speaker labels (Name: or [Name])
@@ -263,7 +260,6 @@ Every sentiment assessment should be traceable to specific quotes.
 
     async def _analyze_transcript(self, transcript: str, context: AgentContext) -> AgentResponse:
         """Analyze a meeting transcript and extract insights."""
-
         analysis_prompt = f"""Analyze the following meeting transcript and extract insights.
 
 TRANSCRIPT:
@@ -321,13 +317,14 @@ Respond with ONLY the JSON object, no additional text."""
             response = self.anthropic.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=4096,
-                messages=[{"role": "user", "content": analysis_prompt}]
+                messages=[{"role": "user", "content": analysis_prompt}],
             )
 
             analysis_json = response.content[0].text
 
             # Parse and validate the JSON
             import json
+
             analysis = json.loads(analysis_json)
 
             # Store the analysis in the database
@@ -342,7 +339,7 @@ Respond with ONLY the JSON object, no additional text."""
                 agent_display_name=self.display_name,
                 extracted_data=analysis,
                 save_to_memory=True,
-                memory_content=f"Analyzed meeting transcript: {analysis.get('meeting_summary', '')}"
+                memory_content=f"Analyzed meeting transcript: {analysis.get('meeting_summary', '')}",
             )
 
         except Exception as e:
@@ -350,7 +347,7 @@ Respond with ONLY the JSON object, no additional text."""
             return AgentResponse(
                 content=f"I encountered an error analyzing the transcript: {str(e)}. Please try again or check that the transcript format is correct.",
                 agent_name=self.name,
-                agent_display_name=self.display_name
+                agent_display_name=self.display_name,
             )
 
     async def _store_analysis(self, analysis: dict, raw_text: str, context: AgentContext) -> None:
@@ -360,7 +357,9 @@ Respond with ONLY the JSON object, no additional text."""
             meeting_date = None
             if analysis.get("meeting_date"):
                 try:
-                    meeting_date = datetime.strptime(analysis["meeting_date"], "%Y-%m-%d").date().isoformat()
+                    meeting_date = (
+                        datetime.strptime(analysis["meeting_date"], "%Y-%m-%d").date().isoformat()
+                    )
                 except (ValueError, TypeError):
                     meeting_date = None
 
@@ -375,17 +374,13 @@ Respond with ONLY the JSON object, no additional text."""
                 "attendees": analysis.get("attendees", []),
                 "summary": analysis.get("meeting_summary"),
                 "key_topics": analysis.get("key_topics", []),
-                "sentiment_summary": {
-                    "by_speaker": analysis.get("sentiment_by_speaker", [])
-                },
+                "sentiment_summary": {"by_speaker": analysis.get("sentiment_by_speaker", [])},
                 "action_items": analysis.get("action_items", []),
                 "decisions": analysis.get("decisions", []),
                 "open_questions": analysis.get("open_questions", []),
                 "processing_status": "completed",
                 "processed_at": datetime.now(timezone.utc).isoformat(),
-                "metadata": {
-                    "recommendations": analysis.get("recommendations", [])
-                }
+                "metadata": {"recommendations": analysis.get("recommendations", [])},
             }
 
             result = self.supabase.table("meeting_transcripts").insert(transcript_data).execute()
@@ -397,7 +392,7 @@ Respond with ONLY the JSON object, no additional text."""
                     analysis.get("stakeholder_insights", []),
                     analysis.get("attendees", []),
                     transcript_id,
-                    context
+                    context,
                 )
 
             logger.info(f"Stored transcript analysis with ID: {transcript_id}")
@@ -407,11 +402,7 @@ Respond with ONLY the JSON object, no additional text."""
             # Don't raise - we still want to return the analysis to the user
 
     async def _process_stakeholder_insights(
-        self,
-        insights: list[dict],
-        attendees: list[dict],
-        transcript_id: str,
-        context: AgentContext
+        self, insights: list[dict], attendees: list[dict], transcript_id: str, context: AgentContext
     ) -> None:
         """Process and store stakeholder insights from the analysis."""
         try:
@@ -424,11 +415,13 @@ Respond with ONLY the JSON object, no additional text."""
                     continue
 
                 # Try to find existing stakeholder by name
-                existing = self.supabase.table("stakeholders") \
-                    .select("id") \
-                    .eq("client_id", context.client_id) \
-                    .ilike("name", f"%{name}%") \
+                existing = (
+                    self.supabase.table("stakeholders")
+                    .select("id")
+                    .eq("client_id", context.client_id)
+                    .ilike("name", f"%{name}%")
                     .execute()
+                )
 
                 if existing.data:
                     stakeholder_map[name] = existing.data[0]["id"]
@@ -441,7 +434,7 @@ Respond with ONLY the JSON object, no additional text."""
                         "organization": attendee.get("organization", "Contentful"),
                         "first_interaction": datetime.now(timezone.utc).date().isoformat(),
                         "last_interaction": datetime.now(timezone.utc).isoformat(),
-                        "total_interactions": 1
+                        "total_interactions": 1,
                     }
                     result = self.supabase.table("stakeholders").insert(new_stakeholder).execute()
                     if result.data:
@@ -459,7 +452,7 @@ Respond with ONLY the JSON object, no additional text."""
                         "insight_type": insight.get("insight_type", "concern"),
                         "content": insight.get("content", ""),
                         "extracted_quote": insight.get("quote"),
-                        "confidence": insight.get("confidence", 0.8)
+                        "confidence": insight.get("confidence", 0.8),
                     }
                     self.supabase.table("stakeholder_insights").insert(insight_data).execute()
 
@@ -552,13 +545,13 @@ Respond with ONLY the JSON object, no additional text."""
             model="claude-sonnet-4-20250514",
             max_tokens=2048,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         return AgentResponse(
             content=response.content[0].text,
             agent_name=self.name,
-            agent_display_name=self.display_name
+            agent_display_name=self.display_name,
         )
 
     def should_handoff(self, context: AgentContext, response: str) -> Optional[tuple[str, str]]:
@@ -566,7 +559,9 @@ Respond with ONLY the JSON object, no additional text."""
         message_lower = context.user_message.lower()
 
         # Hand off to Capital for ROI/cost questions
-        if any(word in message_lower for word in ["roi", "cost", "budget", "savings", "investment"]):
+        if any(
+            word in message_lower for word in ["roi", "cost", "budget", "savings", "investment"]
+        ):
             return ("capital", "Query involves financial analysis")
 
         # Hand off to Guardian for security/compliance
@@ -578,7 +573,9 @@ Respond with ONLY the JSON object, no additional text."""
             return ("counselor", "Query involves legal considerations")
 
         # Hand off to Atlas for research
-        if any(word in message_lower for word in ["research", "study", "best practice", "industry"]):
+        if any(
+            word in message_lower for word in ["research", "study", "best practice", "industry"]
+        ):
             return ("atlas", "Query requires research")
 
         return None

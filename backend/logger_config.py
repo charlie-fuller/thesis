@@ -1,5 +1,4 @@
-"""
-Centralized logging configuration for the application.
+"""Centralized logging configuration for the application.
 Replaces print() statements with proper Python logging.
 """
 
@@ -10,19 +9,18 @@ from logging.handlers import RotatingFileHandler
 
 
 def setup_logging(log_level=None):
-    """
-    Set up application-wide logging configuration.
+    """Set up application-wide logging configuration.
 
     Args:
         log_level: Override log level (defaults to environment variable or INFO)
     """
     # Determine log level from environment or parameter
     if log_level is None:
-        log_level_str = os.getenv('LOG_LEVEL', 'INFO').upper()
+        log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
         log_level = getattr(logging, log_level_str, logging.INFO)
 
     # Create logger
-    logger = logging.getLogger('thesis')
+    logger = logging.getLogger("thesis")
     logger.setLevel(log_level)
 
     # Remove existing handlers to avoid duplicates
@@ -34,15 +32,14 @@ def setup_logging(log_level=None):
 
     # Format: timestamp - level - module - message
     formatter = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(name)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        "%(asctime)s - %(levelname)s - %(name)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
     console_handler.setFormatter(formatter)
 
     logger.addHandler(console_handler)
 
     # Optional file handler (only if LOG_FILE is set)
-    log_file = os.getenv('LOG_FILE')
+    log_file = os.getenv("LOG_FILE")
     if log_file:
         # Ensure log directory exists (especially for volume-mounted paths)
         log_dir = os.path.dirname(log_file)
@@ -58,7 +55,7 @@ def setup_logging(log_level=None):
             file_handler = RotatingFileHandler(
                 log_file,
                 maxBytes=10 * 1024 * 1024,  # 10MB
-                backupCount=5
+                backupCount=5,
             )
             file_handler.setLevel(log_level)
             file_handler.setFormatter(formatter)
@@ -69,9 +66,9 @@ def setup_logging(log_level=None):
 
     return logger
 
+
 def get_logger(name: str = None):
-    """
-    Get a logger instance for a specific module.
+    """Get a logger instance for a specific module.
 
     Args:
         name: Module name (usually __name__)
@@ -80,5 +77,5 @@ def get_logger(name: str = None):
         Logger instance
     """
     if name:
-        return logging.getLogger(f'thesis.{name}')
-    return logging.getLogger('thesis')
+        return logging.getLogger(f"thesis.{name}")
+    return logging.getLogger("thesis")

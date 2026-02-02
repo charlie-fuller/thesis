@@ -1,4 +1,5 @@
 """Direct Supabase connection test to debug RLS issues"""
+
 import os
 
 from supabase import create_client
@@ -21,7 +22,7 @@ print()
 print("Testing with SERVICE ROLE key...")
 try:
     client = create_client(supabase_url, service_key)
-    response = client.table('users').select('id, email, role').limit(5).execute()
+    response = client.table("users").select("id, email, role").limit(5).execute()
     print(f"✅ SUCCESS: Found {len(response.data)} users")
     for user in response.data:
         print(f"   - {user.get('email')} ({user.get('role')})")
@@ -34,7 +35,7 @@ print()
 print("Testing with ANON key...")
 try:
     client = create_client(supabase_url, anon_key)
-    response = client.table('users').select('id, email, role').limit(5).execute()
+    response = client.table("users").select("id, email, role").limit(5).execute()
     print(f"✅ SUCCESS: Found {len(response.data)} users")
     for user in response.data:
         print(f"   - {user.get('email')} ({user.get('role')})")

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-AI Quality Evaluation Script for Thesis
+"""AI Quality Evaluation Script for Thesis
 
 This script evaluates the quality of Thesis's AI responses by comparing:
 1. Responses WITH RAG context (using user documents)
@@ -35,9 +34,11 @@ load_dotenv()
 # Configuration
 # ============================================================================
 
+
 @dataclass
 class EvaluationConfig:
     """Configuration for quality evaluation."""
+
     num_test_questions: int = 10
     judge_model: str = "claude-sonnet-4-20250514"
     response_model: str = "claude-sonnet-4-20250514"
@@ -53,62 +54,62 @@ TEST_QUESTIONS = [
         "id": 1,
         "question": "How do I design an effective onboarding program for new sales representatives?",
         "category": "instructional_design",
-        "expected_context": "sales training, onboarding best practices"
+        "expected_context": "sales training, onboarding best practices",
     },
     {
         "id": 2,
         "question": "What are the key principles of adult learning I should apply to my leadership development curriculum?",
         "category": "learning_theory",
-        "expected_context": "adult learning theory, andragogy"
+        "expected_context": "adult learning theory, andragogy",
     },
     {
         "id": 3,
         "question": "Can you help me create learning objectives for a compliance training module?",
         "category": "learning_objectives",
-        "expected_context": "Bloom's taxonomy, measurable objectives"
+        "expected_context": "Bloom's taxonomy, measurable objectives",
     },
     {
         "id": 4,
         "question": "How should I measure the ROI of our training programs?",
         "category": "measurement",
-        "expected_context": "Kirkpatrick model, Phillips ROI"
+        "expected_context": "Kirkpatrick model, Phillips ROI",
     },
     {
         "id": 5,
         "question": "What engagement techniques work best for virtual instructor-led training?",
         "category": "facilitation",
-        "expected_context": "virtual facilitation, engagement strategies"
+        "expected_context": "virtual facilitation, engagement strategies",
     },
     {
         "id": 6,
         "question": "How do I create a facilitator guide for a workshop?",
         "category": "materials_development",
-        "expected_context": "facilitator guides, training materials"
+        "expected_context": "facilitator guides, training materials",
     },
     {
         "id": 7,
         "question": "What are best practices for designing scenario-based learning?",
         "category": "instructional_design",
-        "expected_context": "scenario-based learning, simulations"
+        "expected_context": "scenario-based learning, simulations",
     },
     {
         "id": 8,
         "question": "How can I incorporate spaced repetition into our training programs?",
         "category": "learning_science",
-        "expected_context": "spaced repetition, memory, retention"
+        "expected_context": "spaced repetition, memory, retention",
     },
     {
         "id": 9,
         "question": "What should I include in a needs analysis for a technical skills training?",
         "category": "analysis",
-        "expected_context": "needs analysis, skills gap analysis"
+        "expected_context": "needs analysis, skills gap analysis",
     },
     {
         "id": 10,
         "question": "How do I design microlearning modules that actually drive behavior change?",
         "category": "microlearning",
-        "expected_context": "microlearning, behavior change, nudge theory"
-    }
+        "expected_context": "microlearning, behavior change, nudge theory",
+    },
 ]
 
 
@@ -175,9 +176,11 @@ Return your evaluation as JSON:
 # Evaluation Results
 # ============================================================================
 
+
 @dataclass
 class EvaluationResult:
     """Result of evaluating a single response."""
+
     question_id: int
     question: str
     category: str
@@ -192,6 +195,7 @@ class EvaluationResult:
 @dataclass
 class EvaluationSummary:
     """Summary of all evaluation results."""
+
     timestamp: str
     total_questions: int
     with_context_avg: Dict[str, float]
@@ -204,6 +208,7 @@ class EvaluationSummary:
 # Evaluation Functions
 # ============================================================================
 
+
 async def get_response_with_rag(question: str, client) -> str:
     """Get a response using RAG context."""
     try:
@@ -214,14 +219,16 @@ async def get_response_with_rag(question: str, client) -> str:
         context_chunks = search_similar_chunks(
             query=question,
             client_id="00000000-0000-0000-0000-000000000001",  # Default client
-            limit=5
+            limit=5,
         )
 
         # Build context string
-        context = "\n\n".join([
-            f"[Document Context {i+1}]: {chunk.get('content', '')}"
-            for i, chunk in enumerate(context_chunks)
-        ])
+        context = "\n\n".join(
+            [
+                f"[Document Context {i + 1}]: {chunk.get('content', '')}"
+                for i, chunk in enumerate(context_chunks)
+            ]
+        )
 
         # Get response with context
         system_prompt = """You are Thesis, an AI assistant specialized in Learning & Development.
@@ -235,8 +242,10 @@ async def get_response_with_rag(question: str, client) -> str:
         message = client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=1024,
-            system=system_prompt.format(context=context if context else "No specific context available."),
-            messages=[{"role": "user", "content": question}]
+            system=system_prompt.format(
+                context=context if context else "No specific context available."
+            ),
+            messages=[{"role": "user", "content": question}],
         )
 
         return message.content[0].text
@@ -255,7 +264,7 @@ async def get_response_without_rag(question: str, client) -> str:
             model="claude-sonnet-4-20250514",
             max_tokens=1024,
             system=system_prompt,
-            messages=[{"role": "user", "content": question}]
+            messages=[{"role": "user", "content": question}],
         )
 
         return message.content[0].text
@@ -264,12 +273,7 @@ async def get_response_without_rag(question: str, client) -> str:
         return f"Error generating response without RAG: {str(e)}"
 
 
-async def evaluate_response(
-    question: str,
-    response: str,
-    with_context: bool,
-    judge_client
-) -> Dict:
+async def evaluate_response(question: str, response: str, with_context: bool, judge_client) -> Dict:
     """Use LLM-as-judge to evaluate a response."""
     try:
         evaluation_prompt = f"""
@@ -290,7 +294,7 @@ Provide your JSON evaluation:
         message = judge_client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=1024,
-            messages=[{"role": "user", "content": evaluation_prompt}]
+            messages=[{"role": "user", "content": evaluation_prompt}],
         )
 
         # Parse JSON from response
@@ -315,7 +319,7 @@ Provide your JSON evaluation:
             "overall_score": 0,
             "strengths": "Error during evaluation",
             "weaknesses": str(e),
-            "improvement_suggestions": "Fix evaluation error"
+            "improvement_suggestions": "Fix evaluation error",
         }
 
 
@@ -327,11 +331,15 @@ def calculate_summary(results: List[EvaluationResult]) -> EvaluationSummary:
     def avg_scores(evals: List[EvaluationResult]) -> Dict[str, float]:
         if not evals:
             return {}
-        dimensions = ["specificity", "relevance", "personalization", "accuracy", "actionability", "overall_score"]
-        return {
-            dim: sum(e.scores.get(dim, 0) for e in evals) / len(evals)
-            for dim in dimensions
-        }
+        dimensions = [
+            "specificity",
+            "relevance",
+            "personalization",
+            "accuracy",
+            "actionability",
+            "overall_score",
+        ]
+        return {dim: sum(e.scores.get(dim, 0) for e in evals) / len(evals) for dim in dimensions}
 
     with_avg = avg_scores(with_context)
     without_avg = avg_scores(without_context)
@@ -349,13 +357,14 @@ def calculate_summary(results: List[EvaluationResult]) -> EvaluationSummary:
         with_context_avg=with_avg,
         without_context_avg=without_avg,
         improvement_percentage=improvement,
-        overall_improvement=improvement.get("overall_score", 0)
+        overall_improvement=improvement.get("overall_score", 0),
     )
 
 
 # ============================================================================
 # Main Evaluation Runner
 # ============================================================================
+
 
 async def run_evaluation():
     """Run the complete quality evaluation."""
@@ -374,6 +383,7 @@ async def run_evaluation():
     # Initialize client
     try:
         from anthropic import Anthropic
+
         client = Anthropic(api_key=api_key)
     except ImportError:
         print("ERROR: anthropic package not installed")
@@ -387,44 +397,48 @@ async def run_evaluation():
     print("Comparing WITH vs WITHOUT RAG context")
     print()
 
-    for i, test in enumerate(TEST_QUESTIONS[:config.num_test_questions]):
-        print(f"[{i+1}/{config.num_test_questions}] Evaluating: {test['question'][:50]}...")
+    for i, test in enumerate(TEST_QUESTIONS[: config.num_test_questions]):
+        print(f"[{i + 1}/{config.num_test_questions}] Evaluating: {test['question'][:50]}...")
 
         # Get response WITHOUT context
-        response_no_context = await get_response_without_rag(test['question'], client)
+        response_no_context = await get_response_without_rag(test["question"], client)
         eval_no_context = await evaluate_response(
-            test['question'], response_no_context, False, client
+            test["question"], response_no_context, False, client
         )
 
-        results.append(EvaluationResult(
-            question_id=test['id'],
-            question=test['question'],
-            category=test['category'],
-            with_context=False,
-            response=response_no_context,
-            scores=eval_no_context,
-            strengths=eval_no_context.get('strengths', ''),
-            weaknesses=eval_no_context.get('weaknesses', ''),
-            improvement_suggestions=eval_no_context.get('improvement_suggestions', '')
-        ))
+        results.append(
+            EvaluationResult(
+                question_id=test["id"],
+                question=test["question"],
+                category=test["category"],
+                with_context=False,
+                response=response_no_context,
+                scores=eval_no_context,
+                strengths=eval_no_context.get("strengths", ""),
+                weaknesses=eval_no_context.get("weaknesses", ""),
+                improvement_suggestions=eval_no_context.get("improvement_suggestions", ""),
+            )
+        )
 
         # Get response WITH context
-        response_with_context = await get_response_with_rag(test['question'], client)
+        response_with_context = await get_response_with_rag(test["question"], client)
         eval_with_context = await evaluate_response(
-            test['question'], response_with_context, True, client
+            test["question"], response_with_context, True, client
         )
 
-        results.append(EvaluationResult(
-            question_id=test['id'],
-            question=test['question'],
-            category=test['category'],
-            with_context=True,
-            response=response_with_context,
-            scores=eval_with_context,
-            strengths=eval_with_context.get('strengths', ''),
-            weaknesses=eval_with_context.get('weaknesses', ''),
-            improvement_suggestions=eval_with_context.get('improvement_suggestions', '')
-        ))
+        results.append(
+            EvaluationResult(
+                question_id=test["id"],
+                question=test["question"],
+                category=test["category"],
+                with_context=True,
+                response=response_with_context,
+                scores=eval_with_context,
+                strengths=eval_with_context.get("strengths", ""),
+                weaknesses=eval_with_context.get("weaknesses", ""),
+                improvement_suggestions=eval_with_context.get("improvement_suggestions", ""),
+            )
+        )
 
         print(f"  Without Context: {eval_no_context.get('overall_score', 0):.1f}/5")
         print(f"  With Context:    {eval_with_context.get('overall_score', 0):.1f}/5")
@@ -443,7 +457,14 @@ async def run_evaluation():
     print(f"{'Dimension':<20} {'No Context':>12} {'With Context':>12} {'Improvement':>12}")
     print("-" * 40)
 
-    dimensions = ["specificity", "relevance", "personalization", "accuracy", "actionability", "overall_score"]
+    dimensions = [
+        "specificity",
+        "relevance",
+        "personalization",
+        "accuracy",
+        "actionability",
+        "overall_score",
+    ]
     for dim in dimensions:
         no_ctx = summary.without_context_avg.get(dim, 0)
         with_ctx = summary.with_context_avg.get(dim, 0)
@@ -456,12 +477,9 @@ async def run_evaluation():
     print()
 
     # Save results
-    output = {
-        "summary": asdict(summary),
-        "results": [asdict(r) for r in results]
-    }
+    output = {"summary": asdict(summary), "results": [asdict(r) for r in results]}
 
-    with open(config.output_file, 'w') as f:
+    with open(config.output_file, "w") as f:
         json.dump(output, f, indent=2)
 
     print(f"Results saved to: {config.output_file}")
@@ -473,7 +491,9 @@ async def run_evaluation():
     print("=" * 60)
 
     if summary.overall_improvement > 20:
-        print("✅ RAG is providing significant value (+{:.1f}%)".format(summary.overall_improvement))
+        print(
+            "✅ RAG is providing significant value (+{:.1f}%)".format(summary.overall_improvement)
+        )
     elif summary.overall_improvement > 10:
         print("📊 RAG is providing moderate value (+{:.1f}%)".format(summary.overall_improvement))
     else:

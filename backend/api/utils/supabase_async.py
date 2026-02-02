@@ -1,5 +1,4 @@
-"""
-Async Supabase Helper Utilities
+"""Async Supabase Helper Utilities
 Reduces code duplication by providing reusable async wrappers for Supabase operations.
 
 This module addresses the repeated pattern of:
@@ -26,8 +25,7 @@ supabase = get_supabase()
 
 
 async def async_query(query_func: Callable) -> Any:
-    """
-    Generic async wrapper for any Supabase query operation.
+    """Generic async wrapper for any Supabase query operation.
 
     Args:
         query_func: Lambda or function that returns a Supabase query result
@@ -45,15 +43,14 @@ async def async_query(query_func: Callable) -> Any:
 
 async def async_select(
     table: str,
-    columns: str = '*',
+    columns: str = "*",
     filters: Optional[Dict[str, Any]] = None,
     order_by: Optional[str] = None,
     order_desc: bool = False,
     limit: Optional[int] = None,
-    single: bool = False
+    single: bool = False,
 ) -> Any:
-    """
-    Simplified SELECT query with common filters.
+    """Simplified SELECT query with common filters.
 
     Args:
         table: Table name
@@ -77,6 +74,7 @@ async def async_select(
             limit=10
         )
     """
+
     def query():
         q = supabase.table(table).select(columns)
 
@@ -99,12 +97,9 @@ async def async_select(
 
 
 async def async_insert(
-    table: str,
-    data: List[Dict[str, Any]] | Dict[str, Any],
-    batch_size: int = 500
+    table: str, data: List[Dict[str, Any]] | Dict[str, Any], batch_size: int = 500
 ) -> Any:
-    """
-    Simplified INSERT with automatic batching for large datasets.
+    """Simplified INSERT with automatic batching for large datasets.
 
     Args:
         table: Table name
@@ -128,28 +123,19 @@ async def async_insert(
 
     # If data fits in single batch, insert directly
     if len(data) <= batch_size:
-        return await asyncio.to_thread(
-            lambda: supabase.table(table).insert(data).execute()
-        )
+        return await asyncio.to_thread(lambda: supabase.table(table).insert(data).execute())
 
     # Batch insert for large datasets
     result = None
     for batch_start in range(0, len(data), batch_size):
-        batch = data[batch_start:batch_start + batch_size]
-        result = await asyncio.to_thread(
-            lambda b=batch: supabase.table(table).insert(b).execute()
-        )
+        batch = data[batch_start : batch_start + batch_size]
+        result = await asyncio.to_thread(lambda b=batch: supabase.table(table).insert(b).execute())
 
     return result
 
 
-async def async_update(
-    table: str,
-    data: Dict[str, Any],
-    filters: Dict[str, Any]
-) -> Any:
-    """
-    Simplified UPDATE query with filters.
+async def async_update(table: str, data: Dict[str, Any], filters: Dict[str, Any]) -> Any:
+    """Simplified UPDATE query with filters.
 
     Args:
         table: Table name
@@ -167,6 +153,7 @@ async def async_update(
             filters={'id': 'abc123'}
         )
     """
+
     def query():
         q = supabase.table(table).update(data)
 
@@ -178,12 +165,8 @@ async def async_update(
     return await asyncio.to_thread(query)
 
 
-async def async_delete(
-    table: str,
-    filters: Dict[str, Any]
-) -> Any:
-    """
-    Simplified DELETE query with filters.
+async def async_delete(table: str, filters: Dict[str, Any]) -> Any:
+    """Simplified DELETE query with filters.
 
     Args:
         table: Table name
@@ -199,6 +182,7 @@ async def async_delete(
             filters={'document_id': 'abc123'}
         )
     """
+
     def query():
         q = supabase.table(table).delete()
 
@@ -210,12 +194,8 @@ async def async_delete(
     return await asyncio.to_thread(query)
 
 
-async def async_rpc(
-    function_name: str,
-    params: Optional[Dict[str, Any]] = None
-) -> Any:
-    """
-    Call a PostgreSQL RPC function asynchronously.
+async def async_rpc(function_name: str, params: Optional[Dict[str, Any]] = None) -> Any:
+    """Call a PostgreSQL RPC function asynchronously.
 
     Args:
         function_name: Name of the RPC function
@@ -230,17 +210,15 @@ async def async_rpc(
             params={'p_client_id': '123', 'p_start_date': '2025-01-01'}
         )
     """
-    return await asyncio.to_thread(
-        lambda: supabase.rpc(function_name, params or {}).execute()
-    )
+    return await asyncio.to_thread(lambda: supabase.rpc(function_name, params or {}).execute())
 
 
 # Convenience exports for common patterns
 __all__ = [
-    'async_query',
-    'async_select',
-    'async_insert',
-    'async_update',
-    'async_delete',
-    'async_rpc',
+    "async_query",
+    "async_select",
+    "async_insert",
+    "async_update",
+    "async_delete",
+    "async_rpc",
 ]

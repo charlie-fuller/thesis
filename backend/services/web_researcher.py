@@ -1,5 +1,4 @@
-"""
-Web Researcher Service
+"""Web Researcher Service
 
 Provides web search capabilities for Atlas research with:
 - Credibility-tiered source filtering
@@ -13,7 +12,7 @@ Uses Claude's native web search tool for real-time research.
 import hashlib
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -34,9 +33,7 @@ def get_anthropic_client() -> anthropic.Anthropic:
     """Get or create Anthropic client."""
     global _anthropic_client
     if _anthropic_client is None:
-        _anthropic_client = anthropic.Anthropic(
-            api_key=os.environ.get("ANTHROPIC_API_KEY")
-        )
+        _anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
     return _anthropic_client
 
 
@@ -44,9 +41,11 @@ def get_anthropic_client() -> anthropic.Anthropic:
 # DATA MODELS
 # ============================================================================
 
+
 @dataclass
 class WebSource:
     """A web source with credibility information."""
+
     url: str
     title: str
     snippet: str
@@ -60,6 +59,7 @@ class WebSource:
 @dataclass
 class WebSearchResult:
     """Result of a web search."""
+
     query: str
     sources: list[WebSource]
     total_results: int
@@ -70,6 +70,7 @@ class WebSearchResult:
 @dataclass
 class ResearchWebContext:
     """Web context prepared for Atlas synthesis."""
+
     sources_by_tier: dict[int, list[WebSource]]
     formatted_context: str
     citation_list: list[dict]
@@ -85,13 +86,14 @@ CACHE_TTL_MINUTES = 60
 # CREDIBILITY MANAGEMENT
 # ============================================================================
 
+
 def get_domain_from_url(url: str) -> str:
     """Extract domain from URL."""
     try:
         parsed = urlparse(url)
         domain = parsed.netloc.lower()
         # Remove www. prefix
-        if domain.startswith('www.'):
+        if domain.startswith("www."):
             domain = domain[4:]
         return domain
     except Exception:
@@ -99,24 +101,25 @@ def get_domain_from_url(url: str) -> str:
 
 
 def get_source_credibility(domain: str) -> tuple[int, Optional[str], Optional[str]]:
-    """
-    Get credibility tier for a domain from the database.
+    """Get credibility tier for a domain from the database.
 
     Returns:
         tuple: (credibility_tier, source_type, source_name)
     """
     try:
-        result = supabase.table('research_sources')\
-            .select('credibility_tier, source_type, name')\
-            .eq('domain', domain)\
-            .single()\
+        result = (
+            supabase.table("research_sources")
+            .select("credibility_tier, source_type, name")
+            .eq("domain", domain)
+            .single()
             .execute()
+        )
 
         if result.data:
             return (
-                result.data['credibility_tier'],
-                result.data.get('source_type'),
-                result.data.get('name')
+                result.data["credibility_tier"],
+                result.data.get("source_type"),
+                result.data.get("name"),
             )
     except Exception as e:
         logger.debug(f"No credibility data for {domain}: {e}")
@@ -128,18 +131,18 @@ def get_source_credibility(domain: str) -> tuple[int, Optional[str], Optional[st
 def update_source_citation_count(domain: str):
     """Increment the citation count for a source."""
     try:
-        supabase.table('research_sources')\
-            .update({
-                'times_cited': supabase.table('research_sources')
-                    .select('times_cited')
-                    .eq('domain', domain)
-                    .single()
-                    .execute()
-                    .data.get('times_cited', 0) + 1,
-                'last_cited_at': datetime.now(timezone.utc).isoformat()
-            })\
-            .eq('domain', domain)\
-            .execute()
+        supabase.table("research_sources").update(
+            {
+                "times_cited": supabase.table("research_sources")
+                .select("times_cited")
+                .eq("domain", domain)
+                .single()
+                .execute()
+                .data.get("times_cited", 0)
+                + 1,
+                "last_cited_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ).eq("domain", domain).execute()
     except Exception as e:
         logger.debug(f"Could not update citation count for {domain}: {e}")
 
@@ -148,14 +151,14 @@ def update_source_citation_count(domain: str):
 # WEB SEARCH IMPLEMENTATION (Anthropic Native)
 # ============================================================================
 
+
 async def search_web(
     query: str,
     max_results: int = 10,
     min_credibility_tier: int = 4,
-    preferred_domains: Optional[list[str]] = None
+    preferred_domains: Optional[list[str]] = None,
 ) -> WebSearchResult:
-    """
-    Search the web for research content using Anthropic's web search.
+    """Search the web for research content using Anthropic's web search.
 
     Uses Claude's native web search tool to find and extract information
     from the web in real-time.
@@ -213,7 +216,7 @@ async def search_web(
         sources=filtered_sources,
         total_results=len(filtered_sources),
         cached=False,
-        search_time_ms=search_time_ms
+        search_time_ms=search_time_ms,
     )
 
     # Cache result
@@ -223,8 +226,7 @@ async def search_web(
 
 
 async def _anthropic_web_search(query: str, max_results: int) -> list[WebSource]:
-    """
-    Execute web search using Anthropic's native web search tool.
+    """Execute web search using Anthropic's native web search tool.
 
     Uses Claude with the web_search tool to find relevant sources.
     """
@@ -244,16 +246,8 @@ async def _anthropic_web_search(query: str, max_results: int) -> list[WebSource]
             return client.messages.create(
                 model="claude-3-7-sonnet-20250219",
                 max_tokens=4096,
-                extra_headers={
-                    "anthropic-beta": "web-search-2025-03-05"
-                },
-                tools=[
-                    {
-                        "type": "web_search_20250305",
-                        "name": "web_search",
-                        "max_uses": 5
-                    }
-                ],
+                extra_headers={"anthropic-beta": "web-search-2025-03-05"},
+                tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}],
                 messages=[
                     {
                         "role": "user",
@@ -272,9 +266,9 @@ For each source found, I need:
 - The page title
 - A brief snippet/summary of the relevant content
 
-Please search thoroughly and return the most credible and relevant sources."""
+Please search thoroughly and return the most credible and relevant sources.""",
                     }
-                ]
+                ],
             )
 
         # Run with 60 second timeout to avoid hanging
@@ -282,14 +276,13 @@ Please search thoroughly and return the most credible and relevant sources."""
         logger.info("Starting web search API call with 60s timeout...")
         try:
             response = await asyncio.wait_for(
-                loop.run_in_executor(None, make_web_search_call),
-                timeout=60.0
+                loop.run_in_executor(None, make_web_search_call), timeout=60.0
             )
         except asyncio.TimeoutError:
             logger.error("Web search timed out after 60 seconds")
             return []
 
-        logger.info(f"Web search API call completed, extracting sources...")
+        logger.info("Web search API call completed, extracting sources...")
 
         # Extract sources from the response
         sources = _extract_sources_from_response(response)
@@ -299,11 +292,13 @@ Please search thoroughly and return the most credible and relevant sources."""
 
     except anthropic.APIError as e:
         logger.error(f"Anthropic API error during web search: {e}")
-        logger.error(f"API Error details - status: {getattr(e, 'status_code', 'N/A')}, message: {getattr(e, 'message', str(e))}")
+        logger.error(
+            f"API Error details - status: {getattr(e, 'status_code', 'N/A')}, message: {getattr(e, 'message', str(e))}"
+        )
         return []
     except anthropic.BadRequestError as e:
         logger.error(f"Anthropic BadRequestError: {e}")
-        logger.error(f"This may indicate web search is not enabled for this API key/org")
+        logger.error("This may indicate web search is not enabled for this API key/org")
         return []
     except Exception as e:
         logger.error(f"Web search failed: {type(e).__name__}: {e}", exc_info=True)
@@ -311,8 +306,7 @@ Please search thoroughly and return the most credible and relevant sources."""
 
 
 def _extract_sources_from_response(response) -> list[WebSource]:
-    """
-    Extract WebSource objects from Anthropic API response.
+    """Extract WebSource objects from Anthropic API response.
 
     Parses the response content blocks to find web search results
     and text content with citations.
@@ -322,37 +316,43 @@ def _extract_sources_from_response(response) -> list[WebSource]:
 
     for block in response.content:
         # Handle web search result blocks
-        if hasattr(block, 'type') and block.type == 'web_search_tool_result':
+        if hasattr(block, "type") and block.type == "web_search_tool_result":
             # Extract search results from the tool result
-            if hasattr(block, 'content') and isinstance(block.content, list):
+            if hasattr(block, "content") and isinstance(block.content, list):
                 for result in block.content:
-                    if hasattr(result, 'type') and result.type == 'web_search_result':
-                        url = getattr(result, 'url', '')
+                    if hasattr(result, "type") and result.type == "web_search_result":
+                        url = getattr(result, "url", "")
                         if url and url not in seen_urls:
                             seen_urls.add(url)
                             domain = get_domain_from_url(url)
-                            sources.append(WebSource(
-                                url=url,
-                                title=getattr(result, 'title', 'Unknown'),
-                                snippet=getattr(result, 'snippet', getattr(result, 'content', '')[:500]),
-                                domain=domain
-                            ))
+                            sources.append(
+                                WebSource(
+                                    url=url,
+                                    title=getattr(result, "title", "Unknown"),
+                                    snippet=getattr(
+                                        result, "snippet", getattr(result, "content", "")[:500]
+                                    ),
+                                    domain=domain,
+                                )
+                            )
 
         # Handle text blocks that may contain citations
-        elif hasattr(block, 'type') and block.type == 'text':
+        elif hasattr(block, "type") and block.type == "text":
             # Check for citations in text content
-            if hasattr(block, 'citations') and block.citations:
+            if hasattr(block, "citations") and block.citations:
                 for citation in block.citations:
-                    url = getattr(citation, 'url', '')
+                    url = getattr(citation, "url", "")
                     if url and url not in seen_urls:
                         seen_urls.add(url)
                         domain = get_domain_from_url(url)
-                        sources.append(WebSource(
-                            url=url,
-                            title=getattr(citation, 'title', 'Unknown'),
-                            snippet=getattr(citation, 'cited_text', '')[:500],
-                            domain=domain
-                        ))
+                        sources.append(
+                            WebSource(
+                                url=url,
+                                title=getattr(citation, "title", "Unknown"),
+                                snippet=getattr(citation, "cited_text", "")[:500],
+                                domain=domain,
+                            )
+                        )
 
     return sources
 
@@ -361,9 +361,9 @@ def _extract_sources_from_response(response) -> list[WebSource]:
 # CONTEXT PREPARATION
 # ============================================================================
 
+
 def prepare_web_context(sources: list[WebSource]) -> ResearchWebContext:
-    """
-    Prepare web sources for Atlas synthesis.
+    """Prepare web sources for Atlas synthesis.
 
     Organizes sources by credibility tier and formats them for
     inclusion in the research prompt.
@@ -382,7 +382,7 @@ def prepare_web_context(sources: list[WebSource]) -> ResearchWebContext:
         1: "Tier 1 Sources (Consulting/Research - High Credibility)",
         2: "Tier 2 Sources (Big 4/Major Tech - High Credibility)",
         3: "Tier 3 Sources (Industry Publications - Medium Credibility)",
-        4: "Tier 4 Sources (Blogs/Marketing - Use for Signals Only)"
+        4: "Tier 4 Sources (Blogs/Marketing - Use for Signals Only)",
     }
 
     for tier in [1, 2, 3, 4]:
@@ -399,14 +399,16 @@ def prepare_web_context(sources: list[WebSource]) -> ResearchWebContext:
     # Build citation list
     citation_list = []
     for source in sources:
-        citation_list.append({
-            'url': source.url,
-            'title': source.title,
-            'domain': source.domain,
-            'source_name': source.source_name or source.domain,
-            'credibility_tier': source.credibility_tier,
-            'source_type': source.source_type
-        })
+        citation_list.append(
+            {
+                "url": source.url,
+                "title": source.title,
+                "domain": source.domain,
+                "source_name": source.source_name or source.domain,
+                "credibility_tier": source.credibility_tier,
+                "source_type": source.source_type,
+            }
+        )
 
         # Update citation count
         update_source_citation_count(source.domain)
@@ -415,14 +417,12 @@ def prepare_web_context(sources: list[WebSource]) -> ResearchWebContext:
         sources_by_tier=sources_by_tier,
         formatted_context=formatted_context,
         citation_list=citation_list,
-        total_sources=len(sources)
+        total_sources=len(sources),
     )
 
 
 def format_citations_for_output(citation_list: list[dict]) -> str:
-    """
-    Format citations for inclusion at the end of research output.
-    """
+    """Format citations for inclusion at the end of research output."""
     if not citation_list:
         return ""
 
@@ -431,7 +431,7 @@ def format_citations_for_output(citation_list: list[dict]) -> str:
     # Group by tier
     by_tier: dict[int, list[dict]] = {}
     for cite in citation_list:
-        tier = cite.get('credibility_tier', 4)
+        tier = cite.get("credibility_tier", 4)
         if tier not in by_tier:
             by_tier[tier] = []
         by_tier[tier].append(cite)
@@ -440,7 +440,7 @@ def format_citations_for_output(citation_list: list[dict]) -> str:
         1: "Primary Sources",
         2: "Supporting Sources",
         3: "Industry Sources",
-        4: "Additional References"
+        4: "Additional References",
     }
 
     for tier in sorted(by_tier.keys()):
@@ -456,6 +456,7 @@ def format_citations_for_output(citation_list: list[dict]) -> str:
 # ============================================================================
 # CACHING
 # ============================================================================
+
 
 def _get_cache_key(query: str, max_results: int, min_tier: int) -> str:
     """Generate cache key for search."""
@@ -480,8 +481,9 @@ def _add_to_cache(key: str, result: WebSearchResult):
 
     # Cleanup old entries
     now = datetime.now(timezone.utc)
-    expired = [k for k, (_, t) in _search_cache.items()
-               if now - t > timedelta(minutes=CACHE_TTL_MINUTES)]
+    expired = [
+        k for k, (_, t) in _search_cache.items() if now - t > timedelta(minutes=CACHE_TTL_MINUTES)
+    ]
     for k in expired:
         del _search_cache[k]
 
@@ -496,9 +498,9 @@ def clear_search_cache():
 # SEARCH QUERY GENERATION
 # ============================================================================
 
+
 def generate_search_queries(topic: str, focus_area: str) -> list[str]:
-    """
-    Generate multiple search queries for comprehensive research.
+    """Generate multiple search queries for comprehensive research.
 
     Args:
         topic: The research topic
@@ -514,26 +516,23 @@ def generate_search_queries(topic: str, focus_area: str) -> list[str]:
 
     # Focus-area specific queries
     focus_queries = {
-        'strategic_planning': [
+        "strategic_planning": [
             f"{topic} C-suite governance best practices",
-            f"{topic} strategic planning framework enterprise"
+            f"{topic} strategic planning framework enterprise",
         ],
-        'finance_roi': [
+        "finance_roi": [
             f"{topic} ROI benchmarks finance department",
-            f"{topic} cost reduction metrics case study"
+            f"{topic} cost reduction metrics case study",
         ],
-        'governance_compliance': [
+        "governance_compliance": [
             f"{topic} AI governance framework compliance",
-            f"{topic} regulatory requirements enterprise AI"
+            f"{topic} regulatory requirements enterprise AI",
         ],
-        'change_management': [
+        "change_management": [
             f"{topic} change management adoption patterns",
-            f"{topic} AI implementation failure lessons"
+            f"{topic} AI implementation failure lessons",
         ],
-        'weekly_synthesis': [
-            "GenAI enterprise news this week",
-            "AI implementation trends 2025"
-        ]
+        "weekly_synthesis": ["GenAI enterprise news this week", "AI implementation trends 2025"],
     }
 
     if focus_area in focus_queries:
@@ -549,13 +548,11 @@ def generate_search_queries(topic: str, focus_area: str) -> list[str]:
 # MAIN RESEARCH FUNCTION
 # ============================================================================
 
+
 async def research_topic_with_web(
-    topic: str,
-    focus_area: str = "general",
-    max_sources: int = 10
+    topic: str, focus_area: str = "general", max_sources: int = 10
 ) -> tuple[str, list[dict]]:
-    """
-    Research a topic using web search.
+    """Research a topic using web search.
 
     Args:
         topic: The topic to research
@@ -577,7 +574,7 @@ async def research_topic_with_web(
             result = await search_web(
                 query=query,
                 max_results=5,
-                min_credibility_tier=3  # Only Tier 1-3
+                min_credibility_tier=3,  # Only Tier 1-3
             )
 
             for source in result.sources:

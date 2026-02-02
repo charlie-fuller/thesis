@@ -1,5 +1,4 @@
-"""
-Entity Corrections API endpoints.
+"""Entity Corrections API endpoints.
 Record and retrieve correction history.
 
 Version: 1.0.0
@@ -60,10 +59,9 @@ class CorrectionHistoryResponse(BaseModel):
 async def record_correction(
     request: RecordCorrectionRequest,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
-    """
-    Record a correction and learn from it.
+    """Record a correction and learn from it.
 
     The original value will be added as an alias to the corrected entry.
     If the corrected entry doesn't exist, it will be created.
@@ -76,8 +74,7 @@ async def record_correction(
 
     if request.entity_type not in ("person", "organization"):
         raise HTTPException(
-            status_code=400,
-            detail="entity_type must be 'person' or 'organization'"
+            status_code=400, detail="entity_type must be 'person' or 'organization'"
         )
 
     manager = EntityRegistryManager(supabase)
@@ -89,15 +86,14 @@ async def record_correction(
         source_document_id=request.source_document_id,
         source_candidate_id=request.source_candidate_id,
         corrected_by=user_id,
-        context=request.context
+        context=request.context,
     )
 
     return {
         "success": success,
         "message": (
-            f"Recorded correction: '{request.original_value}' -> "
-            f"'{request.corrected_value}'"
-        )
+            f"Recorded correction: '{request.original_value}' -> '{request.corrected_value}'"
+        ),
     }
 
 
@@ -106,7 +102,7 @@ async def get_correction_history(
     entity_type: Optional[str] = None,
     limit: int = 50,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Get recent correction history."""
     client_id = current_user.get("client_id")
@@ -115,14 +111,11 @@ async def get_correction_history(
 
     if entity_type and entity_type not in ("person", "organization"):
         raise HTTPException(
-            status_code=400,
-            detail="entity_type must be 'person' or 'organization'"
+            status_code=400, detail="entity_type must be 'person' or 'organization'"
         )
 
     manager = EntityRegistryManager(supabase)
-    corrections = await manager.get_correction_history(
-        client_id, entity_type, limit
-    )
+    corrections = await manager.get_correction_history(client_id, entity_type, limit)
 
     return CorrectionHistoryResponse(
         corrections=[
@@ -135,11 +128,11 @@ async def get_correction_history(
                 source_candidate_id=c.get("source_candidate_id"),
                 corrected_by=c.get("corrected_by"),
                 correction_context=c.get("correction_context"),
-                created_at=c["created_at"]
+                created_at=c["created_at"],
             )
             for c in corrections
         ],
-        count=len(corrections)
+        count=len(corrections),
     )
 
 
@@ -149,10 +142,9 @@ async def batch_apply_corrections(
     original_value: str,
     corrected_value: str,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
-    """
-    Apply a correction to all historical instances.
+    """Apply a correction to all historical instances.
 
     This updates existing stakeholders/opportunities that have the
     original (incorrect) value.
@@ -163,8 +155,7 @@ async def batch_apply_corrections(
 
     if entity_type not in ("person", "organization"):
         raise HTTPException(
-            status_code=400,
-            detail="entity_type must be 'person' or 'organization'"
+            status_code=400, detail="entity_type must be 'person' or 'organization'"
         )
 
     updated_count = 0
@@ -172,34 +163,40 @@ async def batch_apply_corrections(
     try:
         if entity_type == "person":
             # Update stakeholder names
-            result = supabase.table("stakeholders") \
-                .update({"name": corrected_value}) \
-                .eq("client_id", client_id) \
-                .eq("name", original_value) \
+            result = (
+                supabase.table("stakeholders")
+                .update({"name": corrected_value})
+                .eq("client_id", client_id)
+                .eq("name", original_value)
                 .execute()
+            )
             updated_count = len(result.data) if result.data else 0
 
         elif entity_type == "organization":
             # Update stakeholder organizations
-            result = supabase.table("stakeholders") \
-                .update({"organization": corrected_value}) \
-                .eq("client_id", client_id) \
-                .eq("organization", original_value) \
+            result = (
+                supabase.table("stakeholders")
+                .update({"organization": corrected_value})
+                .eq("client_id", client_id)
+                .eq("organization", original_value)
                 .execute()
+            )
             updated_count = len(result.data) if result.data else 0
 
             # Also update opportunities department if applicable
-            opp_result = supabase.table("ai_projects") \
-                .update({"department": corrected_value}) \
-                .eq("client_id", client_id) \
-                .eq("department", original_value) \
+            opp_result = (
+                supabase.table("ai_projects")
+                .update({"department": corrected_value})
+                .eq("client_id", client_id)
+                .eq("department", original_value)
                 .execute()
+            )
             updated_count += len(opp_result.data) if opp_result.data else 0
 
         return {
             "success": True,
             "updated_count": updated_count,
-            "message": f"Updated {updated_count} records"
+            "message": f"Updated {updated_count} records",
         }
 
     except Exception as e:

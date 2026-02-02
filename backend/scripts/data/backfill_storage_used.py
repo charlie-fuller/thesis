@@ -1,9 +1,9 @@
-"""
-Backfill storage_used for all users based on their existing documents
-"""
+"""Backfill storage_used for all users based on their existing documents"""
+
 import os
 
 from dotenv import load_dotenv
+
 from supabase import create_client
 
 load_dotenv()
@@ -16,32 +16,27 @@ client = create_client(supabase_url, supabase_key)
 print("🔄 Backfilling storage_used for all users...\n")
 
 # Get all users
-users_result = client.table('users').select('id, email, storage_used').execute()
+users_result = client.table("users").select("id, email, storage_used").execute()
 users = users_result.data
 
 print(f"Found {len(users)} users\n")
 
 for user in users:
-    user_id = user['id']
-    email = user['email']
-    current_storage_used = user.get('storage_used') or 0
+    user_id = user["id"]
+    email = user["email"]
+    current_storage_used = user.get("storage_used") or 0
 
     # Get all documents for this user
-    docs_result = client.table('documents')\
-        .select('file_size')\
-        .eq('uploaded_by', user_id)\
-        .execute()
+    docs_result = client.table("documents").select("file_size").eq("uploaded_by", user_id).execute()
 
     documents = docs_result.data
 
     # Calculate total storage used
-    total_size = sum(doc.get('file_size', 0) for doc in documents)
+    total_size = sum(doc.get("file_size", 0) for doc in documents)
 
     if total_size != current_storage_used:
         # Update user's storage_used
-        client.table('users').update({
-            'storage_used': total_size
-        }).eq('id', user_id).execute()
+        client.table("users").update({"storage_used": total_size}).eq("id", user_id).execute()
 
         print(f"✅ {email}:")
         print(f"   Documents: {len(documents)}")

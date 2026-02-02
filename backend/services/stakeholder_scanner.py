@@ -1,5 +1,4 @@
-"""
-Stakeholder Scanner Service
+"""Stakeholder Scanner Service
 
 Coordinates the stakeholder extraction process:
 1. Identifies meeting documents to scan
@@ -15,8 +14,8 @@ from typing import Optional
 
 import anthropic
 
-from services.stakeholder_extractor import StakeholderExtractor, ExtractedStakeholder
 from services.stakeholder_deduplicator import StakeholderDeduplicator, find_duplicate_candidates
+from services.stakeholder_extractor import ExtractedStakeholder, StakeholderExtractor
 from services.stakeholder_linker import StakeholderLinker
 
 logger = logging.getLogger(__name__)
@@ -37,11 +36,7 @@ MEETING_DOCUMENT_PATTERNS = [
 class StakeholderScanner:
     """Coordinates stakeholder extraction from meeting documents."""
 
-    def __init__(
-        self,
-        supabase_client,
-        anthropic_client: Optional[anthropic.Anthropic] = None
-    ):
+    def __init__(self, supabase_client, anthropic_client: Optional[anthropic.Anthropic] = None):
         self.supabase = supabase_client
         self.anthropic = anthropic_client
         self.extractor = StakeholderExtractor(anthropic_client)
@@ -54,10 +49,9 @@ class StakeholderScanner:
         user_id: str,
         force_rescan: bool = False,
         since_days: int = 90,
-        limit: int = 20
+        limit: int = 20,
     ) -> dict:
-        """
-        Scan meeting documents for stakeholders.
+        """Scan meeting documents for stakeholders.
 
         Args:
             client_id: Client ID to scope documents
@@ -74,7 +68,7 @@ class StakeholderScanner:
             "stakeholders_found": 0,
             "candidates_created": 0,
             "duplicates_found": 0,
-            "errors": []
+            "errors": [],
         }
 
         try:
@@ -91,9 +85,7 @@ class StakeholderScanner:
 
             for doc in documents:
                 try:
-                    doc_results = await self._scan_single_document(
-                        doc, client_id, user_id
-                    )
+                    doc_results = await self._scan_single_document(doc, client_id, user_id)
 
                     results["documents_scanned"] += 1
                     results["stakeholders_found"] += doc_results["found"]
@@ -115,11 +107,7 @@ class StakeholderScanner:
             return results
 
     async def _get_scannable_documents(
-        self,
-        client_id: str,
-        force_rescan: bool,
-        since_days: int,
-        limit: int
+        self, client_id: str, force_rescan: bool, since_days: int, limit: int
     ) -> list[dict]:
         """Get meeting documents that should be scanned."""
         try:
@@ -129,10 +117,12 @@ class StakeholderScanner:
             cutoff = datetime.now(timezone.utc) - timedelta(days=since_days)
 
             # Build query
-            query = self.supabase.table("documents") \
-                .select("id, title, content, file_name, source, created_at, original_date") \
-                .eq("client_id", client_id) \
+            query = (
+                self.supabase.table("documents")
+                .select("id, title, content, file_name, source, created_at, original_date")
+                .eq("client_id", client_id)
                 .gte("created_at", cutoff.isoformat())
+            )
 
             # Filter for unscanned unless force_rescan
             if not force_rescan:
@@ -193,12 +183,7 @@ class StakeholderScanner:
 
         return False
 
-    async def _scan_single_document(
-        self,
-        doc: dict,
-        client_id: str,
-        user_id: str
-    ) -> dict:
+    async def _scan_single_document(self, doc: dict, client_id: str, user_id: str) -> dict:
         """Scan a single document and create candidates."""
         results = {"found": 0, "created": 0, "duplicates": 0}
 
@@ -212,9 +197,7 @@ class StakeholderScanner:
 
         # Extract stakeholders using LLM
         extracted = await self.extractor.extract_with_llm(
-            text=content,
-            source_document=doc_name,
-            document_date=doc_date
+            text=content, source_document=doc_name, document_date=doc_date
         )
 
         results["found"] = len(extracted)
@@ -237,9 +220,7 @@ class StakeholderScanner:
                 continue
 
             # Find related opportunities and tasks
-            opp_ids, task_ids = await self.linker.find_related_entities(
-                stakeholder, client_id
-            )
+            opp_ids, task_ids = await self.linker.find_related_entities(stakeholder, client_id)
 
             # Get match info if available
             match_info = matches.get(idx)
@@ -251,7 +232,7 @@ class StakeholderScanner:
                 doc_id=doc["id"],
                 match_info=match_info,
                 opportunity_ids=opp_ids,
-                task_ids=task_ids
+                task_ids=task_ids,
             )
 
             results["created"] += 1
@@ -265,7 +246,7 @@ class StakeholderScanner:
         doc_id: str,
         match_info,
         opportunity_ids: list[str],
-        task_ids: list[str]
+        task_ids: list[str],
     ):
         """Create a stakeholder candidate record."""
         try:
@@ -287,7 +268,7 @@ class StakeholderScanner:
                 "confidence": stakeholder.confidence,
                 "related_opportunity_ids": opportunity_ids,
                 "related_task_ids": task_ids,
-                "status": "pending"
+                "status": "pending",
             }
 
             # Add match info if found
@@ -304,9 +285,8 @@ class StakeholderScanner:
     async def _mark_document_scanned(self, doc_id: str):
         """Mark a document as scanned for stakeholders."""
         try:
-            self.supabase.table("documents") \
-                .update({"stakeholders_scanned_at": datetime.now(timezone.utc).isoformat()}) \
-                .eq("id", doc_id) \
-                .execute()
+            self.supabase.table("documents").update(
+                {"stakeholders_scanned_at": datetime.now(timezone.utc).isoformat()}
+            ).eq("id", doc_id).execute()
         except Exception as e:
             logger.error(f"Error marking document as scanned: {e}")

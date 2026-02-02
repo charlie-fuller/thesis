@@ -1,5 +1,4 @@
-"""
-Thesis Multi-Agent System
+"""Thesis Multi-Agent System
 
 Core agents for enterprise GenAI strategy implementation:
 
@@ -33,26 +32,26 @@ Personal Development Agent:
 - Compass: Career coach - win capture, check-in prep, strategic alignment, performance tracking
 """
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
-from .agent_router import AgentRouter, RoutingDecision
-from .coordinator import CoordinatorAgent
-from .facilitator import FacilitatorAgent
-from .atlas import AtlasAgent
-from .capital import CapitalAgent
-from .guardian import GuardianAgent
-from .counselor import CounselorAgent
-from .oracle import OracleAgent
-from .sage import SageAgent
-from .strategist import StrategistAgent
-from .architect import ArchitectAgent
-from .operator import OperatorAgent
-from .pioneer import PioneerAgent
-from .catalyst import CatalystAgent
-from .scholar import ScholarAgent
-from .echo import EchoAgent
-from .nexus import NexusAgent
-from .compass import CompassAgent
 from .agent_factory import create_coordinator, create_specialist
+from .agent_router import AgentRouter, RoutingDecision
+from .architect import ArchitectAgent
+from .atlas import AtlasAgent
+from .base_agent import AgentContext, AgentResponse, BaseAgent
+from .capital import CapitalAgent
+from .catalyst import CatalystAgent
+from .compass import CompassAgent
+from .coordinator import CoordinatorAgent
+from .counselor import CounselorAgent
+from .echo import EchoAgent
+from .facilitator import FacilitatorAgent
+from .guardian import GuardianAgent
+from .nexus import NexusAgent
+from .operator import OperatorAgent
+from .oracle import OracleAgent
+from .pioneer import PioneerAgent
+from .sage import SageAgent
+from .scholar import ScholarAgent
+from .strategist import StrategistAgent
 
 __all__ = [
     # Base classes

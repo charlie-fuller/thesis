@@ -21,35 +21,35 @@ security = HTTPBearer()
 
 def _get_jwt_secret() -> str:
     """Get JWT secret fresh from environment (allows dynamic override)."""
-    return os.getenv('SUPABASE_JWT_SECRET', '')
+    return os.getenv("SUPABASE_JWT_SECRET", "")
 
 
 def _parse_jwt_key(key_data: str):
-    """
-    Parse JWT key from various formats (PEM, JWK, or raw secret).
+    """Parse JWT key from various formats (PEM, JWK, or raw secret).
     Returns tuple of (key, is_public_key, algorithm_family).
     """
     key_data = key_data.strip()
 
     # Check if it's a PEM-encoded key
-    if key_data.startswith('-----BEGIN'):
-        return key_data, True, 'ES'
+    if key_data.startswith("-----BEGIN"):
+        return key_data, True, "ES"
 
     # Check if it's a JWK (JSON format)
-    if key_data.startswith('{'):
+    if key_data.startswith("{"):
         try:
             jwk_dict = json.loads(key_data)
             # Use PyJWT's JWK support to load the key
             from jwt import PyJWK
+
             jwk = PyJWK.from_dict(jwk_dict)
-            alg_family = 'ES' if jwk_dict.get('kty') == 'EC' else 'HS'
+            alg_family = "ES" if jwk_dict.get("kty") == "EC" else "HS"
             return jwk.key, True, alg_family
         except Exception as e:
             logger.error(f"Failed to parse JWK: {e}")
-            return key_data, False, 'HS'
+            return key_data, False, "HS"
 
     # Otherwise, treat as raw HMAC secret
-    return key_data, False, 'HS'
+    return key_data, False, "HS"
 
 
 # Cache for parsed key (lazy initialization)
@@ -60,22 +60,21 @@ def _get_parsed_jwt_key():
     """Get parsed JWT key with lazy initialization and cache invalidation on secret change."""
     secret = _get_jwt_secret()
     if not secret:
-        return None, False, 'HS'
+        return None, False, "HS"
 
     # Check if cached key is still valid
-    if _jwt_key_cache.get('secret') != secret:
+    if _jwt_key_cache.get("secret") != secret:
         key, is_public, alg_family = _parse_jwt_key(secret)
-        _jwt_key_cache['secret'] = secret
-        _jwt_key_cache['key'] = key
-        _jwt_key_cache['is_public'] = is_public
-        _jwt_key_cache['alg_family'] = alg_family
+        _jwt_key_cache["secret"] = secret
+        _jwt_key_cache["key"] = key
+        _jwt_key_cache["is_public"] = is_public
+        _jwt_key_cache["alg_family"] = alg_family
 
-    return _jwt_key_cache['key'], _jwt_key_cache['is_public'], _jwt_key_cache['alg_family']
+    return _jwt_key_cache["key"], _jwt_key_cache["is_public"], _jwt_key_cache["alg_family"]
 
 
 def decode_jwt(token: str) -> Optional[dict]:
-    """
-    Decode and validate a Supabase JWT token
+    """Decode and validate a Supabase JWT token
 
     Args:
         token: The JWT token string
@@ -94,22 +93,22 @@ def decode_jwt(token: str) -> Optional[dict]:
     try:
         # First, peek at the token header to see what algorithm is used
         unverified_header = jwt.get_unverified_header(token)
-        token_alg = unverified_header.get('alg', 'HS256')
+        token_alg = unverified_header.get("alg", "HS256")
         logger.info(f"JWT token algorithm: {token_alg}")
 
         # Determine allowed algorithms based on what key type we have
-        if key_alg_family == 'ES':
-            allowed_algorithms = ['ES256', 'ES384', 'ES512']
+        if key_alg_family == "ES":
+            allowed_algorithms = ["ES256", "ES384", "ES512"]
         else:
-            allowed_algorithms = ['HS256', 'HS384', 'HS512']
+            allowed_algorithms = ["HS256", "HS384", "HS512"]
 
         if token_alg not in allowed_algorithms:
-            if token_alg.startswith('ES') and key_alg_family != 'ES':
+            if token_alg.startswith("ES") and key_alg_family != "ES":
                 logger.error(
                     f"JWT uses {token_alg} but SUPABASE_JWT_SECRET is not a public key. "
                     "For ES256, use the JWT Signing Key (JWK format) from Supabase Dashboard -> Settings -> API -> JWT Settings."
                 )
-            elif token_alg.startswith('HS') and key_alg_family == 'ES':
+            elif token_alg.startswith("HS") and key_alg_family == "ES":
                 logger.error(
                     f"JWT uses {token_alg} but SUPABASE_JWT_SECRET is a public key. "
                     "For HS256, use the JWT secret from Supabase Dashboard -> Settings -> API."
@@ -123,7 +122,7 @@ def decode_jwt(token: str) -> Optional[dict]:
             token,
             jwt_key,
             algorithms=allowed_algorithms,
-            audience='authenticated'  # Supabase default audience
+            audience="authenticated",  # Supabase default audience
         )
         return payload
     except jwt.ExpiredSignatureError:
@@ -133,18 +132,17 @@ def decode_jwt(token: str) -> Optional[dict]:
         logger.error("JWT validation error: Invalid audience claim")
         return None
     except jwt.InvalidSignatureError:
-        logger.error("JWT validation error: Signature verification failed - check SUPABASE_JWT_SECRET")
+        logger.error(
+            "JWT validation error: Signature verification failed - check SUPABASE_JWT_SECRET"
+        )
         return None
     except PyJWTError as e:
         logger.error(f"JWT validation error: {type(e).__name__}: {e}")
         return None
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Security(security)
-) -> dict:
-    """
-    Dependency to get the current authenticated user from JWT token
+def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> dict:
+    """Dependency to get the current authenticated user from JWT token
 
     Args:
         credentials: HTTP Bearer credentials from request header
@@ -167,35 +165,40 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_id = payload.get('sub')
+    user_id = payload.get("sub")
 
     # Fetch user role, client_id, and app_access from database using centralized connection
     try:
         supabase = get_supabase()
-        user_result = supabase.table('users').select('role, client_id, app_access').eq('id', user_id).single().execute()
-        user_role = user_result.data.get('role', 'user') if user_result.data else 'user'
-        user_client_id = user_result.data.get('client_id') if user_result.data else None
-        user_app_access = user_result.data.get('app_access') if user_result.data else ['thesis']
+        user_result = (
+            supabase.table("users")
+            .select("role, client_id, app_access")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
+        user_role = user_result.data.get("role", "user") if user_result.data else "user"
+        user_client_id = user_result.data.get("client_id") if user_result.data else None
+        user_app_access = user_result.data.get("app_access") if user_result.data else ["thesis"]
     except Exception as e:
         logger.info(f"Warning: Could not fetch user data from database: {e}")
-        user_role = 'user'
+        user_role = "user"
         user_client_id = None
-        user_app_access = ['thesis']
+        user_app_access = ["thesis"]
 
     return {
-        'id': user_id,
-        'email': payload.get('email'),
-        'role': user_role,
-        'client_id': user_client_id,
-        'app_access': user_app_access or ['thesis'],
+        "id": user_id,
+        "email": payload.get("email"),
+        "role": user_role,
+        "client_id": user_client_id,
+        "app_access": user_app_access or ["thesis"],
     }
 
 
 def get_current_user_optional(
-    credentials: Optional[HTTPAuthorizationCredentials] = Security(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(security),
 ) -> Optional[dict]:
-    """
-    Optional authentication - doesn't raise error if no token
+    """Optional authentication - doesn't raise error if no token
 
     Args:
         credentials: HTTP Bearer credentials (optional)
@@ -214,33 +217,38 @@ def get_current_user_optional(
     if not payload:
         return None
 
-    user_id = payload.get('sub')
+    user_id = payload.get("sub")
 
     # Fetch user role, client_id, and app_access from database using centralized connection
     try:
         supabase = get_supabase()
-        user_result = supabase.table('users').select('role, client_id, app_access').eq('id', user_id).single().execute()
-        user_role = user_result.data.get('role', 'user') if user_result.data else 'user'
-        user_client_id = user_result.data.get('client_id') if user_result.data else None
-        user_app_access = user_result.data.get('app_access') if user_result.data else ['thesis']
+        user_result = (
+            supabase.table("users")
+            .select("role, client_id, app_access")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
+        user_role = user_result.data.get("role", "user") if user_result.data else "user"
+        user_client_id = user_result.data.get("client_id") if user_result.data else None
+        user_app_access = user_result.data.get("app_access") if user_result.data else ["thesis"]
     except Exception as e:
         logger.info(f"Warning: Could not fetch user data from database: {e}")
-        user_role = 'user'
+        user_role = "user"
         user_client_id = None
-        user_app_access = ['thesis']
+        user_app_access = ["thesis"]
 
     return {
-        'id': user_id,
-        'email': payload.get('email'),
-        'role': user_role,
-        'client_id': user_client_id,
-        'app_access': user_app_access or ['thesis'],
+        "id": user_id,
+        "email": payload.get("email"),
+        "role": user_role,
+        "client_id": user_client_id,
+        "app_access": user_app_access or ["thesis"],
     }
 
 
 def require_role(allowed_roles: list):
-    """
-    Dependency factory to require specific roles
+    """Dependency factory to require specific roles
 
     Args:
         allowed_roles: List of allowed role names
@@ -248,15 +256,15 @@ def require_role(allowed_roles: list):
     Returns:
         Function that checks if user has required role
     """
+
     def role_checker(current_user: dict = Security(get_current_user)) -> dict:
         # For now, fetch user role from database
         # In future, we could include role in JWT payload
-        user_role = current_user.get('role', 'user')
+        user_role = current_user.get("role", "user")
 
         if user_role not in allowed_roles:
             raise HTTPException(
-                status_code=403,
-                detail=f"Access denied. Required roles: {', '.join(allowed_roles)}"
+                status_code=403, detail=f"Access denied. Required roles: {', '.join(allowed_roles)}"
             )
 
         return current_user
@@ -265,15 +273,14 @@ def require_role(allowed_roles: list):
 
 
 # Convenience dependencies for common role checks
-require_admin = require_role(['admin'])
+require_admin = require_role(["admin"])
 # Note: In single-tenant mode, client_admin role is deprecated
 # For backward compatibility, require_client_admin now just requires 'admin'
-require_client_admin = require_role(['admin'])
+require_client_admin = require_role(["admin"])
 
 
 def require_app_access(required_apps: list):
-    """
-    Dependency factory to require access to specific apps
+    """Dependency factory to require access to specific apps
 
     Args:
         required_apps: List of required app names (e.g., ['disco', 'thesis'])
@@ -281,16 +288,17 @@ def require_app_access(required_apps: list):
     Returns:
         Function that checks if user has required app access
     """
+
     def app_access_checker(current_user: dict = Security(get_current_user)) -> dict:
-        user_role = current_user.get('role', 'user')
-        user_app_access = current_user.get('app_access', ['thesis'])
+        user_role = current_user.get("role", "user")
+        user_app_access = current_user.get("app_access", ["thesis"])
 
         # Admins have access to everything
-        if user_role == 'admin':
+        if user_role == "admin":
             return current_user
 
         # Check if user has 'all' access
-        if 'all' in user_app_access:
+        if "all" in user_app_access:
             return current_user
 
         # Check if user has any of the required apps
@@ -298,7 +306,7 @@ def require_app_access(required_apps: list):
         if not has_access:
             raise HTTPException(
                 status_code=403,
-                detail=f"Access denied. Required app access: {', '.join(required_apps)}"
+                detail=f"Access denied. Required app access: {', '.join(required_apps)}",
             )
 
         return current_user
@@ -307,5 +315,5 @@ def require_app_access(required_apps: list):
 
 
 # Convenience dependencies for common app access checks
-require_disco_access = require_app_access(['disco', 'purdy'])  # purdy for legacy compatibility
-require_thesis_access = require_app_access(['thesis'])
+require_disco_access = require_app_access(["disco", "purdy"])  # purdy for legacy compatibility
+require_thesis_access = require_app_access(["thesis"])

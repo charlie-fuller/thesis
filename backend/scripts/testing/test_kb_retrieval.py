@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""
-Test script to verify knowledge base retrieval is working
-"""
+"""Test script to verify knowledge base retrieval is working"""
+
 import os
 
 from anthropic import Anthropic
@@ -18,10 +17,10 @@ supabase = get_supabase()
 anthropic_client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 # Test user
-user_id = 'd3ba5354-873a-435a-a36a-853373c4f6e5'
+user_id = "d3ba5354-873a-435a-a36a-853373c4f6e5"
 
 # Get user data
-user_result = supabase.table('users').select('*').eq('id', user_id).execute()
+user_result = supabase.table("users").select("*").eq("id", user_id).execute()
 if not user_result.data:
     print("❌ User not found")
     exit(1)
@@ -70,10 +69,7 @@ print("TEST 2: RAG Retrieval")
 print("=" * 80)
 try:
     context_chunks = search_similar_chunks(
-        test_query,
-        user['client_id'],
-        limit=5,
-        min_similarity=0.40
+        test_query, user["client_id"], limit=5, min_similarity=0.40
     )
 
     print(f"✅ Retrieved {len(context_chunks)} relevant chunks")
@@ -81,7 +77,7 @@ try:
 
     if context_chunks:
         for i, chunk in enumerate(context_chunks):
-            print(f"Chunk {i+1}:")
+            print(f"Chunk {i + 1}:")
             print(f"  Similarity: {chunk['similarity']:.2%}")
             print(f"  Content preview: {chunk['content'][:100]}...")
             print()
@@ -101,10 +97,12 @@ print("=" * 80)
 try:
     # Build context
     if context_chunks:
-        context_text = "\n\n".join([
-            f"[Source {i+1} - Relevance: {chunk['similarity']:.2f}]:\n{chunk['content']}"
-            for i, chunk in enumerate(context_chunks)
-        ])
+        context_text = "\n\n".join(
+            [
+                f"[Source {i + 1} - Relevance: {chunk['similarity']:.2f}]:\n{chunk['content']}"
+                for i, chunk in enumerate(context_chunks)
+            ]
+        )
         user_prompt = f"""You have access to the user's knowledge base. Here are the most relevant excerpts related to their question:
 
 <knowledge_base_context>
@@ -127,7 +125,7 @@ Instructions:
         model="claude-3-haiku-20240307",
         max_tokens=1024,
         system=system_instructions,
-        messages=[{"role": "user", "content": user_prompt}]
+        messages=[{"role": "user", "content": user_prompt}],
     )
 
     response_text = message.content[0].text
@@ -138,12 +136,15 @@ Instructions:
     print(response_text)
     print("-" * 80)
     print()
-    print(f"📊 Tokens used: {message.usage.input_tokens} input, {message.usage.output_tokens} output")
+    print(
+        f"📊 Tokens used: {message.usage.input_tokens} input, {message.usage.output_tokens} output"
+    )
     print(f"📚 Context chunks used: {len(context_chunks)}")
 
 except Exception as e:
     print(f"❌ Error generating response: {e}")
     import traceback
+
     traceback.print_exc()
 
 print()

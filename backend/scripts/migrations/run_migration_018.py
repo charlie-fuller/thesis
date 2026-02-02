@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Apply database migration 018 - Fix storage calculation for external sources"""
+
 import os
 import sys
 
@@ -9,7 +10,7 @@ load_dotenv()
 
 # Read migration file
 migration_file = "migrations/018_fix_storage_external_sources.sql"
-with open(migration_file, 'r') as f:
+with open(migration_file, "r") as f:
     sql = f.read()
 
 print(f"📊 Applying migration: {migration_file}")

@@ -1,25 +1,28 @@
 #!/usr/bin/env python3
 """Check if migration 012 has been applied"""
+
 import os
 
 from dotenv import load_dotenv
+
 from supabase import create_client
 
 load_dotenv()
 
-supabase = create_client(
-    os.environ.get("SUPABASE_URL"),
-    os.environ.get("SUPABASE_KEY")
-)
+supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_KEY"))
 
 print("\n🔍 Checking if migration 012 has been applied...\n")
 
 try:
     # Try to query a record with the new columns
-    result = supabase.table('google_drive_tokens')\
-        .select('sync_frequency, last_auto_sync, next_sync_scheduled, default_folder_id, default_folder_name')\
-        .limit(1)\
+    result = (
+        supabase.table("google_drive_tokens")
+        .select(
+            "sync_frequency, last_auto_sync, next_sync_scheduled, default_folder_id, default_folder_name"
+        )
+        .limit(1)
         .execute()
+    )
 
     print("✅ Migration 012 is ALREADY APPLIED!")
     print("\nColumns found:")
@@ -32,7 +35,7 @@ try:
 
 except Exception as e:
     error_msg = str(e).lower()
-    if 'column' in error_msg or 'does not exist' in error_msg:
+    if "column" in error_msg or "does not exist" in error_msg:
         print("❌ Migration 012 is NOT applied yet")
         print(f"\nError: {e}")
         print("\n📋 You need to apply migration 012 via Supabase SQL Editor:")

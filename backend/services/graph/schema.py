@@ -1,5 +1,4 @@
-"""
-Neo4j Graph Schema Initialization
+"""Neo4j Graph Schema Initialization
 
 Defines and creates the graph schema including:
 - Node constraints and indexes
@@ -8,7 +7,6 @@ Defines and creates the graph schema including:
 """
 
 import logging
-from typing import Optional
 
 from .connection import Neo4jConnection
 
@@ -74,8 +72,7 @@ SCHEMA_INDEXES = [
 
 
 async def initialize_schema(connection: Neo4jConnection) -> dict:
-    """
-    Initialize the Neo4j schema with constraints and indexes.
+    """Initialize the Neo4j schema with constraints and indexes.
 
     Args:
         connection: Neo4j connection instance
@@ -88,7 +85,7 @@ async def initialize_schema(connection: Neo4jConnection) -> dict:
         "constraints_existed": [],
         "indexes_created": [],
         "indexes_existed": [],
-        "errors": []
+        "errors": [],
     }
 
     # Create constraints
@@ -129,38 +126,23 @@ async def initialize_schema(connection: Neo4jConnection) -> dict:
 
 
 async def verify_schema(connection: Neo4jConnection) -> dict:
-    """
-    Verify the current schema state.
+    """Verify the current schema state.
 
     Returns:
         Dict with existing constraints and indexes
     """
     try:
-        constraints = await connection.execute_query(
-            "SHOW CONSTRAINTS"
-        )
-        indexes = await connection.execute_query(
-            "SHOW INDEXES"
-        )
+        constraints = await connection.execute_query("SHOW CONSTRAINTS")
+        indexes = await connection.execute_query("SHOW INDEXES")
 
-        return {
-            "constraints": constraints,
-            "indexes": indexes,
-            "status": "verified"
-        }
+        return {"constraints": constraints, "indexes": indexes, "status": "verified"}
     except Exception as e:
         logger.error(f"Schema verification failed: {e}")
-        return {
-            "constraints": [],
-            "indexes": [],
-            "status": "error",
-            "error": str(e)
-        }
+        return {"constraints": [], "indexes": [], "status": "error", "error": str(e)}
 
 
 async def clear_all_data(connection: Neo4jConnection, confirm: bool = False) -> dict:
-    """
-    Clear all nodes and relationships from the database.
+    """Clear all nodes and relationships from the database.
 
     WARNING: This is destructive and should only be used in development.
 
@@ -178,9 +160,7 @@ async def clear_all_data(connection: Neo4jConnection, confirm: bool = False) -> 
 
     try:
         # Delete all relationships first
-        await connection.execute_write(
-            "MATCH ()-[r]->() DELETE r"
-        )
+        await connection.execute_write("MATCH ()-[r]->() DELETE r")
 
         # Delete all nodes
         result = await connection.execute_write(
@@ -189,16 +169,10 @@ async def clear_all_data(connection: Neo4jConnection, confirm: bool = False) -> 
 
         deleted_count = result[0]["deleted_nodes"] if result else 0
 
-        return {
-            "status": "cleared",
-            "deleted_nodes": deleted_count
-        }
+        return {"status": "cleared", "deleted_nodes": deleted_count}
     except Exception as e:
         logger.error(f"Failed to clear data: {e}")
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
 
 
 # Cypher templates for common operations
@@ -206,7 +180,6 @@ CYPHER_TEMPLATES = {
     # ==========================================================================
     # Core Entity Operations
     # ==========================================================================
-
     # Client operations
     "upsert_client": """
         MERGE (c:Client {id: $id})
@@ -215,7 +188,6 @@ CYPHER_TEMPLATES = {
             c.updated_at = datetime()
         RETURN c
     """,
-
     # User operations
     "upsert_user": """
         MERGE (u:User {id: $id})
@@ -229,7 +201,6 @@ CYPHER_TEMPLATES = {
         MERGE (u)-[:BELONGS_TO]->(c)
         RETURN u
     """,
-
     # Agent operations
     "upsert_agent": """
         MERGE (a:Agent {id: $id})
@@ -241,7 +212,6 @@ CYPHER_TEMPLATES = {
             a.updated_at = datetime()
         RETURN a
     """,
-
     # Document operations
     "upsert_document": """
         MERGE (d:Document {id: $id})
@@ -257,14 +227,12 @@ CYPHER_TEMPLATES = {
         MERGE (d)-[:OWNED_BY]->(c)
         RETURN d
     """,
-
     "link_document_uploader": """
         MATCH (d:Document {id: $document_id})
         MATCH (u:User {id: $user_id})
         MERGE (d)-[:UPLOADED_BY]->(u)
         RETURN d
     """,
-
     # Document chunk operations
     "upsert_chunk": """
         MERGE (ch:Chunk {id: $id})
@@ -276,7 +244,6 @@ CYPHER_TEMPLATES = {
         MERGE (ch)-[:PART_OF]->(d)
         RETURN ch
     """,
-
     # Conversation operations
     "upsert_conversation": """
         MERGE (conv:Conversation {id: $id})
@@ -290,7 +257,6 @@ CYPHER_TEMPLATES = {
         MERGE (conv)-[:OWNED_BY]->(u)
         RETURN conv
     """,
-
     # Message operations
     "upsert_message": """
         MERGE (m:Message {id: $id})
@@ -303,14 +269,12 @@ CYPHER_TEMPLATES = {
         MERGE (m)-[:IN_CONVERSATION]->(conv)
         RETURN m
     """,
-
     "link_message_agent": """
         MATCH (m:Message {id: $message_id})
         MATCH (a:Agent {id: $agent_id})
         MERGE (a)-[:AUTHORED]->(m)
         RETURN m
     """,
-
     # Meeting Room operations
     "upsert_meeting_room": """
         MERGE (mr:MeetingRoom {id: $id})
@@ -321,14 +285,12 @@ CYPHER_TEMPLATES = {
             mr.updated_at = datetime()
         RETURN mr
     """,
-
     "add_meeting_room_participant": """
         MATCH (mr:MeetingRoom {id: $meeting_room_id})
         MATCH (a:Agent {id: $agent_id})
         MERGE (a)-[:PARTICIPATED_IN]->(mr)
         RETURN mr
     """,
-
     "upsert_meeting_room_message": """
         MERGE (mrm:MeetingRoomMessage {id: $id})
         SET mrm.content_preview = $content_preview,
@@ -348,18 +310,15 @@ CYPHER_TEMPLATES = {
         )
         RETURN mrm
     """,
-
     "link_meeting_room_message_response": """
         MATCH (msg:MeetingRoomMessage {id: $message_id})
         MATCH (responded_to:MeetingRoomMessage {id: $responded_to_id})
         MERGE (msg)-[r:RESPONDS_TO]->(responded_to)
         RETURN r
     """,
-
     # ==========================================================================
     # Stakeholder Operations
     # ==========================================================================
-
     "upsert_stakeholder": """
         MERGE (s:Stakeholder {id: $id})
         SET s.name = $name,
@@ -371,14 +330,12 @@ CYPHER_TEMPLATES = {
             s.updated_at = datetime()
         RETURN s
     """,
-
     "create_reports_to": """
         MATCH (a:Stakeholder {id: $from_id})
         MATCH (b:Stakeholder {id: $to_id})
         MERGE (a)-[r:REPORTS_TO]->(b)
         RETURN r
     """,
-
     "create_influences": """
         MATCH (a:Stakeholder {id: $from_id})
         MATCH (b:Stakeholder {id: $to_id})
@@ -387,11 +344,9 @@ CYPHER_TEMPLATES = {
             r.influence_type = $influence_type
         RETURN r
     """,
-
     # ==========================================================================
     # Meeting Operations
     # ==========================================================================
-
     "upsert_meeting": """
         MERGE (m:Meeting {id: $id})
         SET m.title = $title,
@@ -401,7 +356,6 @@ CYPHER_TEMPLATES = {
             m.updated_at = datetime()
         RETURN m
     """,
-
     "create_attended": """
         MATCH (s:Stakeholder {id: $stakeholder_id})
         MATCH (m:Meeting {id: $meeting_id})
@@ -410,11 +364,9 @@ CYPHER_TEMPLATES = {
             r.speaking_time = $speaking_time
         RETURN r
     """,
-
     # ==========================================================================
     # Insight Operations
     # ==========================================================================
-
     "upsert_insight": """
         MERGE (i:Insight {id: $id})
         SET i.insight_type = $insight_type,
@@ -424,25 +376,21 @@ CYPHER_TEMPLATES = {
             i.updated_at = datetime()
         RETURN i
     """,
-
     "link_stakeholder_insight": """
         MATCH (s:Stakeholder {id: $stakeholder_id})
         MATCH (i:Insight {id: $insight_id})
         MERGE (s)-[r:HAS_INSIGHT]->(i)
         RETURN r
     """,
-
     "link_meeting_insight": """
         MATCH (m:Meeting {id: $meeting_id})
         MATCH (i:Insight {id: $insight_id})
         MERGE (m)-[r:GENERATED]->(i)
         RETURN r
     """,
-
     # ==========================================================================
     # ROI Operations
     # ==========================================================================
-
     "upsert_roi_opportunity": """
         MERGE (r:ROIOpportunity {id: $id})
         SET r.title = $title,
@@ -452,7 +400,6 @@ CYPHER_TEMPLATES = {
             r.updated_at = datetime()
         RETURN r
     """,
-
     "create_supports": """
         MATCH (s:Stakeholder {id: $stakeholder_id})
         MATCH (r:ROIOpportunity {id: $roi_id})
@@ -460,7 +407,6 @@ CYPHER_TEMPLATES = {
         SET rel.commitment_level = $commitment_level
         RETURN rel
     """,
-
     "create_blocks": """
         MATCH (s:Stakeholder {id: $stakeholder_id})
         MATCH (r:ROIOpportunity {id: $roi_id})
@@ -468,18 +414,15 @@ CYPHER_TEMPLATES = {
         SET rel.reason = $reason
         RETURN rel
     """,
-
     "link_meeting_roi": """
         MATCH (m:Meeting {id: $meeting_id})
         MATCH (r:ROIOpportunity {id: $roi_id})
         MERGE (m)-[rel:IDENTIFIED]->(r)
         RETURN rel
     """,
-
     # ==========================================================================
     # Agent Knowledge Base Operations
     # ==========================================================================
-
     "link_agent_knowledge": """
         MATCH (a:Agent {id: $agent_id})
         MATCH (d:Document {id: $document_id})
@@ -489,7 +432,6 @@ CYPHER_TEMPLATES = {
             r.updated_at = datetime()
         RETURN r
     """,
-
     "link_agent_expertise": """
         MERGE (e:Expertise {name: $expertise_name})
         SET e.category = $category,
@@ -500,7 +442,6 @@ CYPHER_TEMPLATES = {
         SET r.confidence = $confidence
         RETURN r
     """,
-
     "create_agent_handoff": """
         MATCH (from:Agent {id: $from_agent_id})
         MATCH (to:Agent {id: $to_agent_id})
@@ -511,18 +452,15 @@ CYPHER_TEMPLATES = {
         }]->(to)
         RETURN r
     """,
-
     # ==========================================================================
     # Concept & Semantic Operations
     # ==========================================================================
-
     "upsert_concept": """
         MERGE (c:Concept {name: $name})
         SET c.category = $category,
             c.updated_at = datetime()
         RETURN c
     """,
-
     "create_discusses": """
         MATCH (m:Meeting {id: $meeting_id})
         MATCH (c:Concept {name: $concept_name})
@@ -530,7 +468,6 @@ CYPHER_TEMPLATES = {
         SET r.frequency = coalesce(r.frequency, 0) + $frequency
         RETURN r
     """,
-
     "link_document_concept": """
         MATCH (d:Document {id: $document_id})
         MATCH (c:Concept {name: $concept_name})
@@ -538,7 +475,6 @@ CYPHER_TEMPLATES = {
         SET r.frequency = coalesce(r.frequency, 0) + 1
         RETURN r
     """,
-
     "link_chunk_concept": """
         MATCH (ch:Chunk {id: $chunk_id})
         MERGE (c:Concept {name: $concept_name})
@@ -546,7 +482,6 @@ CYPHER_TEMPLATES = {
         MERGE (ch)-[r:MENTIONS]->(c)
         RETURN r
     """,
-
     "link_conversation_concept": """
         MATCH (conv:Conversation {id: $conversation_id})
         MERGE (c:Concept {name: $concept_name})
@@ -554,7 +489,6 @@ CYPHER_TEMPLATES = {
         MERGE (conv)-[r:ABOUT]->(c)
         RETURN r
     """,
-
     "create_concept_relationship": """
         MATCH (c1:Concept {name: $concept1})
         MATCH (c2:Concept {name: $concept2})
@@ -562,11 +496,9 @@ CYPHER_TEMPLATES = {
         SET r.strength = $strength
         RETURN r
     """,
-
     # ==========================================================================
     # Concern & Action Item Operations
     # ==========================================================================
-
     "upsert_concern": """
         MERGE (c:Concern {id: $id})
         SET c.content = $content,
@@ -574,7 +506,6 @@ CYPHER_TEMPLATES = {
             c.updated_at = datetime()
         RETURN c
     """,
-
     "link_stakeholder_concern": """
         MATCH (s:Stakeholder {id: $stakeholder_id})
         MATCH (c:Concern {id: $concern_id})
@@ -582,7 +513,6 @@ CYPHER_TEMPLATES = {
         SET r.quote = $quote
         RETURN r
     """,
-
     "upsert_action_item": """
         MERGE (a:ActionItem {id: $id})
         SET a.description = $description,
@@ -591,43 +521,36 @@ CYPHER_TEMPLATES = {
             a.updated_at = datetime()
         RETURN a
     """,
-
     "link_stakeholder_action_item": """
         MATCH (s:Stakeholder {id: $stakeholder_id})
         MATCH (a:ActionItem {id: $action_item_id})
         MERGE (s)-[r:ASSIGNED]->(a)
         RETURN r
     """,
-
     # ==========================================================================
     # Cross-Entity Reference Operations
     # ==========================================================================
-
     "link_message_document": """
         MATCH (m:Message {id: $message_id})
         MATCH (d:Document {id: $document_id})
         MERGE (m)-[r:REFERENCES]->(d)
         RETURN r
     """,
-
     "link_conversation_stakeholder": """
         MATCH (conv:Conversation {id: $conversation_id})
         MATCH (s:Stakeholder {id: $stakeholder_id})
         MERGE (conv)-[r:MENTIONS]->(s)
         RETURN r
     """,
-
     "link_document_stakeholder": """
         MATCH (d:Document {id: $document_id})
         MATCH (s:Stakeholder {id: $stakeholder_id})
         MERGE (d)-[r:ABOUT]->(s)
         RETURN r
     """,
-
     # ==========================================================================
     # Stakeholder-Document Relationship Operations
     # ==========================================================================
-
     "link_stakeholder_mentioned_in_document": """
         MATCH (s:Stakeholder {id: $stakeholder_id})
         MATCH (d:Document {id: $document_id})
@@ -637,7 +560,6 @@ CYPHER_TEMPLATES = {
             r.updated_at = datetime()
         RETURN r
     """,
-
     "link_stakeholder_provided_document": """
         MATCH (s:Stakeholder {id: $stakeholder_id})
         MATCH (d:Document {id: $document_id})
@@ -646,7 +568,6 @@ CYPHER_TEMPLATES = {
             r.updated_at = datetime()
         RETURN r
     """,
-
     "link_stakeholder_concern_to_document": """
         MATCH (s:Stakeholder {id: $stakeholder_id})-[:RAISED_CONCERN]->(c:Concern)
         MATCH (d:Document {id: $document_id})
@@ -659,7 +580,6 @@ CYPHER_TEMPLATES = {
         SET r.updated_at = datetime()
         RETURN r
     """,
-
     "get_stakeholder_documents": """
         MATCH (s:Stakeholder {id: $stakeholder_id})
         OPTIONAL MATCH (s)-[mentioned:MENTIONED_IN]->(d1:Document)
@@ -674,7 +594,6 @@ CYPHER_TEMPLATES = {
                provided_docs,
                about_docs
     """,
-
     "get_documents_mentioning_stakeholder": """
         MATCH (s:Stakeholder {id: $stakeholder_id})<-[:ABOUT|MENTIONED_IN]-(d:Document)
         RETURN d.id as id,
@@ -684,7 +603,6 @@ CYPHER_TEMPLATES = {
                d.client_id as client_id
         LIMIT $limit
     """,
-
     "infer_stakeholder_document_links_by_name": """
         MATCH (s:Stakeholder {client_id: $client_id})
         MATCH (d:Document {client_id: $client_id})
@@ -698,7 +616,6 @@ CYPHER_TEMPLATES = {
             r.updated_at = datetime()
         RETURN s.name as stakeholder, d.filename as document
     """,
-
     "link_stakeholder_to_department_documents": """
         MATCH (s:Stakeholder {client_id: $client_id})
         WHERE s.role IS NOT NULL

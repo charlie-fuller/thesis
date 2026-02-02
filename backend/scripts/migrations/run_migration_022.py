@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Apply database migration 022 - Fix UUID type cast in match_document_chunks"""
+
 import os
 import sys
 
@@ -9,7 +10,7 @@ load_dotenv()
 
 # Read migration file
 migration_file = "migrations/022_fix_uuid_type_cast.sql"
-with open(migration_file, 'r') as f:
+with open(migration_file, "r") as f:
     sql = f.read()
 
 print(f"📊 Applying migration: {migration_file}")

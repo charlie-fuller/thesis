@@ -1,17 +1,17 @@
-"""
-Property-Based Testing with Hypothesis
+"""Property-Based Testing with Hypothesis
 
 Tests that verify properties hold for all valid inputs, rather than specific examples.
 Hypothesis generates random inputs to find edge cases we might miss.
 """
-import pytest
-from hypothesis import given, strategies as st, settings, assume, example
-from hypothesis.stateful import RuleBasedStateMachine, rule, invariant, initialize
+
+import json
+import re
 from datetime import datetime, timedelta
 from typing import Optional
-import re
-import json
 
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
+from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, rule
 
 # =============================================================================
 # Strategies for Domain-Specific Types
@@ -24,12 +24,30 @@ uuid_strategy = st.uuids().map(str)
 email_strategy = st.emails()
 
 # Valid agent IDs
-agent_ids = st.sampled_from([
-    "coordinator", "atlas", "capital", "guardian", "counselor",
-    "sage", "oracle", "architect", "sentinel", "compass",
-    "catalyst", "navigator", "broker", "beacon", "translator",
-    "librarian", "reporter", "facilitator", "analyst", "synthesizer"
-])
+agent_ids = st.sampled_from(
+    [
+        "coordinator",
+        "atlas",
+        "capital",
+        "guardian",
+        "counselor",
+        "sage",
+        "oracle",
+        "architect",
+        "sentinel",
+        "compass",
+        "catalyst",
+        "navigator",
+        "broker",
+        "beacon",
+        "translator",
+        "librarian",
+        "reporter",
+        "facilitator",
+        "analyst",
+        "synthesizer",
+    ]
+)
 
 # Task status strategy
 task_status = st.sampled_from(["backlog", "todo", "in_progress", "done"])
@@ -42,18 +60,17 @@ score_strategy = st.integers(min_value=0, max_value=100)
 
 # Message content strategy (realistic chat messages)
 message_content = st.text(
-    alphabet=st.characters(blacklist_categories=('Cs', 'Cc')),
-    min_size=1,
-    max_size=5000
+    alphabet=st.characters(blacklist_categories=("Cs", "Cc")), min_size=1, max_size=5000
 )
 
 # File name strategy
-filename_strategy = st.from_regex(r'[a-zA-Z0-9_\-]+\.(pdf|docx|txt|md)', fullmatch=True)
+filename_strategy = st.from_regex(r"[a-zA-Z0-9_\-]+\.(pdf|docx|txt|md)", fullmatch=True)
 
 
 # =============================================================================
 # Utility Function Tests
 # =============================================================================
+
 
 class TestAgentRouting:
     """Property-based tests for agent routing logic."""
@@ -63,8 +80,14 @@ class TestAgentRouting:
         """Routing any message should return a valid agent ID."""
         # Simulate routing logic
         valid_agents = [
-            "coordinator", "atlas", "capital", "guardian", "counselor",
-            "sage", "oracle", "architect"
+            "coordinator",
+            "atlas",
+            "capital",
+            "guardian",
+            "counselor",
+            "sage",
+            "oracle",
+            "architect",
         ]
 
         # Simple keyword-based routing simulation
@@ -91,7 +114,7 @@ class TestAgentRouting:
         mentioned_message = f"@{agent_id} {message}"
 
         # Extract mention
-        match = re.match(r'^@(\w+)\s', mentioned_message)
+        match = re.match(r"^@(\w+)\s", mentioned_message)
 
         assert match is not None
         assert match.group(1) == agent_id
@@ -105,29 +128,18 @@ class TestAgentRouting:
 class TestScoreCalculations:
     """Property-based tests for score calculations."""
 
-    @given(
-        strategic=score_strategy,
-        revenue=score_strategy,
-        probability=score_strategy
-    )
-    def test_project_score_in_valid_range(
-        self, strategic: int, revenue: int, probability: int
-    ):
+    @given(strategic=score_strategy, revenue=score_strategy, probability=score_strategy)
+    def test_project_score_in_valid_range(self, strategic: int, revenue: int, probability: int):
         """Calculated project score should be 0-100."""
         # Weighted average calculation
         score = (strategic * 0.4) + (revenue * 0.3) + (probability * 0.3)
 
         assert 0 <= score <= 100
 
-    @given(
-        strategic=score_strategy,
-        revenue=score_strategy,
-        probability=score_strategy
-    )
-    def test_tier_calculation_deterministic(
-        self, strategic: int, revenue: int, probability: int
-    ):
+    @given(strategic=score_strategy, revenue=score_strategy, probability=score_strategy)
+    def test_tier_calculation_deterministic(self, strategic: int, revenue: int, probability: int):
         """Same inputs should always produce same tier."""
+
         def calculate_tier(s: int, r: int, p: int) -> str:
             score = (s * 0.4) + (r * 0.3) + (p * 0.3)
             if score >= 80:
@@ -147,6 +159,7 @@ class TestScoreCalculations:
     @given(score=score_strategy)
     def test_score_boundaries(self, score: int):
         """Tier boundaries should be mutually exclusive."""
+
         def get_tier(score: int) -> str:
             if score >= 80:
                 return "A"
@@ -181,7 +194,7 @@ class TestTextProcessing:
         def truncate(t: str, max_len: int) -> str:
             if len(t) <= max_len:
                 return t
-            return t[:max_len-3] + "..."
+            return t[: max_len - 3] + "..."
 
         result = truncate(text, limit)
         assert len(result) <= limit
@@ -220,7 +233,7 @@ class TestDateTimeHandling:
 
     @given(
         start=st.datetimes(min_value=datetime(2020, 1, 1), max_value=datetime(9999, 1, 1)),
-        days=st.integers(min_value=0, max_value=365)
+        days=st.integers(min_value=0, max_value=365),
     )
     def test_due_date_always_after_created(self, start: datetime, days: int):
         """Due date should always be after created date."""
@@ -233,30 +246,33 @@ class TestDateTimeHandling:
 class TestJSONSerialization:
     """Property-based tests for JSON operations."""
 
-    @given(st.dictionaries(
-        keys=st.text(min_size=1, max_size=50),
-        values=st.one_of(
-            st.text(max_size=100),
-            st.integers(),
-            st.floats(allow_nan=False, allow_infinity=False),
-            st.booleans(),
-            st.none()
-        ),
-        max_size=20
-    ))
+    @given(
+        st.dictionaries(
+            keys=st.text(min_size=1, max_size=50),
+            values=st.one_of(
+                st.text(max_size=100),
+                st.integers(),
+                st.floats(allow_nan=False, allow_infinity=False),
+                st.booleans(),
+                st.none(),
+            ),
+            max_size=20,
+        )
+    )
     def test_json_roundtrip(self, data: dict):
         """JSON serialization should roundtrip."""
         json_str = json.dumps(data)
         parsed = json.loads(json_str)
         assert parsed == data
 
-    @given(st.recursive(
-        st.one_of(st.text(max_size=50), st.integers(), st.booleans(), st.none()),
-        lambda children: st.lists(children, max_size=5) | st.dictionaries(
-            st.text(min_size=1, max_size=20), children, max_size=5
-        ),
-        max_leaves=50
-    ))
+    @given(
+        st.recursive(
+            st.one_of(st.text(max_size=50), st.integers(), st.booleans(), st.none()),
+            lambda children: st.lists(children, max_size=5)
+            | st.dictionaries(st.text(min_size=1, max_size=20), children, max_size=5),
+            max_leaves=50,
+        )
+    )
     def test_nested_json_serializable(self, data):
         """Nested structures should serialize."""
         try:
@@ -282,15 +298,17 @@ class TestValidation:
     @given(uuid=uuid_strategy)
     def test_uuid_format(self, uuid: str):
         """UUIDs should match expected format."""
-        pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        pattern = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
         assert re.match(pattern, uuid) is not None
 
     @given(text=st.text(min_size=1, max_size=10000))
     def test_xss_sanitization(self, text: str):
         """XSS sanitization should remove script tags."""
+
         def sanitize(t: str) -> str:
             # Simple sanitization - real implementation would be more robust
             import html
+
             return html.escape(t)
 
         sanitized = sanitize(text)
@@ -306,7 +324,7 @@ class TestPagination:
     @given(
         total=st.integers(min_value=0, max_value=10000),
         page=st.integers(min_value=1, max_value=1000),
-        per_page=st.integers(min_value=1, max_value=100)
+        per_page=st.integers(min_value=1, max_value=100),
     )
     def test_pagination_math(self, total: int, page: int, per_page: int):
         """Pagination calculations should be consistent."""
@@ -330,7 +348,7 @@ class TestPagination:
 
     @given(
         total=st.integers(min_value=0, max_value=10000),
-        per_page=st.integers(min_value=1, max_value=100)
+        per_page=st.integers(min_value=1, max_value=100),
     )
     def test_has_more_calculation(self, total: int, per_page: int):
         """has_more should be correct."""
@@ -350,6 +368,7 @@ class TestPagination:
 # =============================================================================
 # Stateful Testing - Conversation State Machine
 # =============================================================================
+
 
 class ConversationStateMachine(RuleBasedStateMachine):
     """Stateful test for conversation operations."""
@@ -374,7 +393,7 @@ class ConversationStateMachine(RuleBasedStateMachine):
             "id": f"msg-{len(self.messages)}",
             "content": content,
             "agent_id": agent,
-            "conversation_id": self.conversation_id
+            "conversation_id": self.conversation_id,
         }
         self.messages.append(message)
 
@@ -417,11 +436,7 @@ class TaskBoardStateMachine(RuleBasedStateMachine):
         task_id = f"task-{self.next_id}"
         self.next_id += 1
 
-        self.tasks[task_id] = {
-            "id": task_id,
-            "title": title,
-            "status": "backlog"
-        }
+        self.tasks[task_id] = {"id": task_id, "title": title, "status": "backlog"}
 
     @rule(status=task_status)
     def move_task(self, status: str):

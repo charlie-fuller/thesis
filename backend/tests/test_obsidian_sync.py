@@ -1,5 +1,4 @@
-"""
-Tests for Obsidian Vault Sync functionality.
+"""Tests for Obsidian Vault Sync functionality.
 
 Tests cover:
 - Frontmatter parsing
@@ -10,18 +9,16 @@ Tests cover:
 - Full vault scanning
 """
 
-import os
 import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ============================================================================
 # Frontmatter Parsing Tests
 # ============================================================================
+
 
 class TestFrontmatterParsing:
     """Tests for YAML frontmatter parsing."""
@@ -113,6 +110,7 @@ title: [invalid yaml
 # Wikilink Conversion Tests
 # ============================================================================
 
+
 class TestWikilinkConversion:
     """Tests for Obsidian [[wikilink]] to markdown link conversion."""
 
@@ -183,6 +181,7 @@ Also see [[meetings/2026-01-15]].
 # File Hash Tests
 # ============================================================================
 
+
 class TestFileHash:
     """Tests for file content hash computation."""
 
@@ -235,6 +234,7 @@ class TestFileHash:
 # Pattern Matching Tests
 # ============================================================================
 
+
 class TestPatternMatching:
     """Tests for file include/exclude pattern matching."""
 
@@ -246,10 +246,7 @@ class TestPatternMatching:
         file_path = Path("/vault/notes/my-note.md")
 
         result = should_include_file(
-            file_path,
-            vault_path,
-            include_patterns=["**/*.md"],
-            exclude_patterns=[]
+            file_path, vault_path, include_patterns=["**/*.md"], exclude_patterns=[]
         )
 
         assert result is True
@@ -262,10 +259,7 @@ class TestPatternMatching:
         file_path = Path("/vault/.obsidian/plugins/something.md")
 
         result = should_include_file(
-            file_path,
-            vault_path,
-            include_patterns=["**/*.md"],
-            exclude_patterns=[".obsidian/**"]
+            file_path, vault_path, include_patterns=["**/*.md"], exclude_patterns=[".obsidian/**"]
         )
 
         assert result is False
@@ -278,10 +272,7 @@ class TestPatternMatching:
         file_path = Path("/vault/.trash/deleted-note.md")
 
         result = should_include_file(
-            file_path,
-            vault_path,
-            include_patterns=["**/*.md"],
-            exclude_patterns=[".trash/**"]
+            file_path, vault_path, include_patterns=["**/*.md"], exclude_patterns=[".trash/**"]
         )
 
         assert result is False
@@ -294,10 +285,7 @@ class TestPatternMatching:
         file_path = Path("/vault/.git/config")
 
         result = should_include_file(
-            file_path,
-            vault_path,
-            include_patterns=["**/*.md"],
-            exclude_patterns=[".git/**"]
+            file_path, vault_path, include_patterns=["**/*.md"], exclude_patterns=[".git/**"]
         )
 
         assert result is False
@@ -310,10 +298,7 @@ class TestPatternMatching:
         file_path = Path("/vault/image.png")
 
         result = should_include_file(
-            file_path,
-            vault_path,
-            include_patterns=["**/*.md"],
-            exclude_patterns=[]
+            file_path, vault_path, include_patterns=["**/*.md"], exclude_patterns=[]
         )
 
         assert result is False
@@ -329,7 +314,7 @@ class TestPatternMatching:
             file_path,
             vault_path,
             include_patterns=["**/*.md"],
-            exclude_patterns=[".obsidian/**", ".trash/**"]
+            exclude_patterns=[".obsidian/**", ".trash/**"],
         )
 
         assert result is True
@@ -338,6 +323,7 @@ class TestPatternMatching:
 # ============================================================================
 # Vault Scanning Tests
 # ============================================================================
+
 
 class TestVaultScanning:
     """Tests for vault directory scanning."""
@@ -360,9 +346,7 @@ class TestVaultScanning:
             (vault_path / ".obsidian" / "config.md").write_text("config")
 
             files = scan_vault(
-                vault_path,
-                include_patterns=["**/*.md"],
-                exclude_patterns=[".obsidian/**"]
+                vault_path, include_patterns=["**/*.md"], exclude_patterns=[".obsidian/**"]
             )
 
             file_names = [f.name for f in files]
@@ -389,7 +373,7 @@ class TestVaultScanning:
                 vault_path,
                 include_patterns=["**/*.md"],
                 exclude_patterns=[],
-                max_file_size_mb=1  # 1 MB limit
+                max_file_size_mb=1,  # 1 MB limit
             )
 
             file_names = [f.name for f in files]
@@ -402,6 +386,7 @@ class TestVaultScanning:
 # Sync State Tests (with mocked database)
 # ============================================================================
 
+
 class TestSyncState:
     """Tests for sync state management."""
 
@@ -410,13 +395,19 @@ class TestSyncState:
         from services.obsidian_sync import update_sync_state
 
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{
-            "id": "new-state-id",
-            "config_id": "config-123",
-            "file_path": "notes/test.md",
-            "sync_status": "synced"
-        }])
+        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+            data=[]
+        )
+        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
+            data=[
+                {
+                    "id": "new-state-id",
+                    "config_id": "config-123",
+                    "file_path": "notes/test.md",
+                    "sync_status": "synced",
+                }
+            ]
+        )
 
         with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             with patch("services.obsidian_sync.get_sync_state", return_value=None):
@@ -424,7 +415,7 @@ class TestSyncState:
                     config_id="config-123",
                     file_path="notes/test.md",
                     file_hash="abc123",
-                    sync_status="synced"
+                    sync_status="synced",
                 )
 
                 assert result.get("sync_status") == "synced"
@@ -434,10 +425,12 @@ class TestSyncState:
         from services.obsidian_sync import get_all_sync_states
 
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[
-            {"file_path": "note1.md", "sync_status": "synced"},
-            {"file_path": "note2.md", "sync_status": "pending"},
-        ])
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
+            data=[
+                {"file_path": "note1.md", "sync_status": "synced"},
+                {"file_path": "note2.md", "sync_status": "pending"},
+            ]
+        )
 
         with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             states = get_all_sync_states("config-123")
@@ -451,33 +444,28 @@ class TestSyncState:
 # Vault Configuration Tests
 # ============================================================================
 
+
 class TestVaultConfiguration:
     """Tests for vault configuration management."""
 
     def test_create_vault_config_validates_path(self):
         """Test that create_vault_config validates the vault path exists."""
-        from services.obsidian_sync import create_vault_config, ObsidianSyncError
+        from services.obsidian_sync import ObsidianSyncError, create_vault_config
 
         with pytest.raises(ObsidianSyncError) as exc_info:
             create_vault_config(
-                user_id="user-123",
-                client_id="client-123",
-                vault_path="/nonexistent/path/to/vault"
+                user_id="user-123", client_id="client-123", vault_path="/nonexistent/path/to/vault"
             )
 
         assert "does not exist" in str(exc_info.value)
 
     def test_create_vault_config_rejects_file_path(self):
         """Test that create_vault_config rejects file paths."""
-        from services.obsidian_sync import create_vault_config, ObsidianSyncError
+        from services.obsidian_sync import ObsidianSyncError, create_vault_config
 
         with tempfile.NamedTemporaryFile(suffix=".md") as f:
             with pytest.raises(ObsidianSyncError) as exc_info:
-                create_vault_config(
-                    user_id="user-123",
-                    client_id="client-123",
-                    vault_path=f.name
-                )
+                create_vault_config(user_id="user-123", client_id="client-123", vault_path=f.name)
 
             assert "not a directory" in str(exc_info.value)
 
@@ -485,6 +473,7 @@ class TestVaultConfiguration:
 # ============================================================================
 # Integration-style Tests (with mocked external services)
 # ============================================================================
+
 
 class TestSyncFile:
     """Tests for single file sync operation."""
@@ -508,22 +497,23 @@ This is test content.""")
                 "user_id": "user-123",
                 "client_id": "client-123",
                 "vault_path": str(vault_path),
-                "sync_options": {
-                    "parse_frontmatter": True,
-                    "convert_wikilinks": True
-                }
+                "sync_options": {"parse_frontmatter": True, "convert_wikilinks": True},
             }
 
             mock_supabase = MagicMock()
 
             # Mock chain: table().select().eq().eq().execute()
             mock_select_chain = MagicMock()
-            mock_select_chain.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+            mock_select_chain.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+                data=[]
+            )
             mock_select_chain.eq.return_value.execute.return_value = MagicMock(data=[])
             mock_supabase.table.return_value.select.return_value = mock_select_chain
 
             # Mock storage upload
-            mock_supabase.storage.from_.return_value.upload.return_value = MagicMock(path="test-path")
+            mock_supabase.storage.from_.return_value.upload.return_value = MagicMock(
+                path="test-path"
+            )
 
             # Mock document insert
             mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
@@ -534,8 +524,13 @@ This is test content.""")
             with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
                 with patch("services.obsidian_sync.process_document"):
                     with patch("services.obsidian_sync.update_sync_state", return_value={}):
-                        with patch("services.obsidian_sync._create_obsidian_document", return_value="doc-123"):
-                            with patch("services.obsidian_sync.SUPABASE_URL", "https://test.supabase.co"):
+                        with patch(
+                            "services.obsidian_sync._create_obsidian_document",
+                            return_value="doc-123",
+                        ):
+                            with patch(
+                                "services.obsidian_sync.SUPABASE_URL", "https://test.supabase.co"
+                            ):
                                 result = sync_file(config, file_path, existing_state=None)
 
                                 assert result["status"] == "added"
@@ -546,17 +541,17 @@ This is test content.""")
 # API Route Tests
 # ============================================================================
 
+
 class TestObsidianAPIRoutes:
     """Tests for Obsidian sync API routes."""
 
     @pytest.mark.xfail(reason="Patch doesn't work correctly when vault is configured in env")
     def test_status_endpoint_no_vault(self, authenticated_client):
         """Test /api/obsidian/status when no vault configured."""
-        with patch("services.obsidian_sync.get_sync_status", return_value={
-            "connected": False,
-            "vault_path": None,
-            "files_synced": 0
-        }):
+        with patch(
+            "services.obsidian_sync.get_sync_status",
+            return_value={"connected": False, "vault_path": None, "files_synced": 0},
+        ):
             response = authenticated_client.get("/api/obsidian/status")
 
             # Should return success even with no vault
@@ -570,14 +565,15 @@ class TestObsidianAPIRoutes:
         from services.obsidian_sync import ObsidianSyncError
 
         # Patch at the route level where create_vault_config is imported
-        with patch("api.routes.obsidian_sync.create_vault_config") as mock_create, \
-             patch("api.routes.obsidian_sync._get_db") as mock_db:
+        with (
+            patch("api.routes.obsidian_sync.create_vault_config") as mock_create,
+            patch("api.routes.obsidian_sync._get_db") as mock_db,
+        ):
             mock_create.side_effect = ObsidianSyncError("Vault path does not exist")
             mock_db.return_value = MagicMock()
 
             response = authenticated_client.post(
-                "/api/obsidian/configure",
-                json={"vault_path": "/nonexistent/path"}
+                "/api/obsidian/configure", json={"vault_path": "/nonexistent/path"}
             )
 
             assert response.status_code == 400
@@ -587,6 +583,7 @@ class TestObsidianAPIRoutes:
 # ============================================================================
 # Watcher Tests
 # ============================================================================
+
 
 class TestObsidianVaultWatcher:
     """Tests for the file watcher functionality."""
@@ -604,8 +601,8 @@ class TestObsidianVaultWatcher:
                 "sync_options": {
                     "include_patterns": ["**/*.md"],
                     "exclude_patterns": [".obsidian/**"],
-                    "debounce_ms": 100
-                }
+                    "debounce_ms": 100,
+                },
             }
 
             watcher = ObsidianVaultWatcher(config)
@@ -640,8 +637,8 @@ class TestObsidianVaultWatcher:
                 "sync_options": {
                     "include_patterns": ["**/*.md"],
                     "exclude_patterns": [".obsidian/**"],
-                    "debounce_ms": 100
-                }
+                    "debounce_ms": 100,
+                },
             }
 
             watcher = ObsidianVaultWatcher(config)
@@ -652,6 +649,7 @@ class TestObsidianVaultWatcher:
 # ============================================================================
 # Sync Logging Tests
 # ============================================================================
+
 
 class TestSyncLogging:
     """Tests for sync log creation and completion."""
@@ -670,7 +668,7 @@ class TestSyncLogging:
                 config_id="config-123",
                 user_id="user-123",
                 sync_type="full",
-                trigger_source="manual"
+                trigger_source="manual",
             )
 
             assert log_id == "log-uuid-123"
@@ -689,7 +687,7 @@ class TestSyncLogging:
                 config_id="config-123",
                 user_id="user-123",
                 sync_type="incremental",
-                trigger_source="watch"
+                trigger_source="watch",
             )
 
             # Check the insert was called with correct status
@@ -715,8 +713,8 @@ class TestSyncLogging:
                     "files_updated": 5,
                     "files_deleted": 2,
                     "files_skipped": 80,
-                    "files_failed": 3
-                }
+                    "files_failed": 3,
+                },
             )
 
             # Check update was called
@@ -740,8 +738,8 @@ class TestSyncLogging:
                 error_message="Connection timeout",
                 error_details=[
                     {"file": "note1.md", "error": "Upload failed"},
-                    {"file": "note2.md", "error": "Invalid content"}
-                ]
+                    {"file": "note2.md", "error": "Invalid content"},
+                ],
             )
 
             update_call = mock_supabase.table.return_value.update.call_args
@@ -754,6 +752,7 @@ class TestSyncLogging:
 # ============================================================================
 # Delete Handling Tests
 # ============================================================================
+
 
 class TestDeleteHandling:
     """Tests for file deletion sync handling."""
@@ -781,6 +780,7 @@ class TestDeleteHandling:
 # ============================================================================
 # Edge Cases and Error Handling Tests
 # ============================================================================
+
 
 class TestEdgeCases:
     """Tests for edge cases and error handling."""
@@ -837,10 +837,7 @@ metadata:
         file_path = Path("/other/location/note.md")
 
         result = should_include_file(
-            file_path,
-            vault_path,
-            include_patterns=["**/*.md"],
-            exclude_patterns=[]
+            file_path, vault_path, include_patterns=["**/*.md"], exclude_patterns=[]
         )
 
         assert result is False
@@ -865,7 +862,9 @@ metadata:
         """Test hash computation with unicode content."""
         from services.obsidian_sync import compute_file_hash
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        ) as f:
             f.write("# Unicode Test\n\n日本語テスト\n\n🚀 Emoji content")
             temp_path = Path(f.name)
 
@@ -880,6 +879,7 @@ metadata:
 # ============================================================================
 # Vault Configuration Edge Cases
 # ============================================================================
+
 
 class TestVaultConfigEdgeCases:
     """Tests for vault configuration edge cases."""
@@ -909,35 +909,35 @@ class TestVaultConfigEdgeCases:
         )
 
         # Mock update (deactivate)
-        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(
+            data=[]
+        )
 
         # Mock insert (new config)
         mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{
-                "id": "new-config-456",
-                "vault_path": "/test/vault",
-                "is_active": True
-            }]
+            data=[{"id": "new-config-456", "vault_path": "/test/vault", "is_active": True}]
         )
 
         with tempfile.TemporaryDirectory() as vault_dir:
             with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
                 result = create_vault_config(
-                    user_id="user-123",
-                    client_id="client-123",
-                    vault_path=vault_dir
+                    user_id="user-123", client_id="client-123", vault_path=vault_dir
                 )
 
                 # Verify update was called to deactivate old config
-                update_calls = [call for call in mock_supabase.table.return_value.update.call_args_list]
+                update_calls = [
+                    call for call in mock_supabase.table.return_value.update.call_args_list
+                ]
                 assert len(update_calls) >= 1
 
     def test_update_vault_config_raises_on_failure(self):
         """Test that update_vault_config raises on database error."""
-        from services.obsidian_sync import update_vault_config, ObsidianSyncError
+        from services.obsidian_sync import ObsidianSyncError, update_vault_config
 
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.side_effect = Exception("DB Error")
+        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.side_effect = (
+            Exception("DB Error")
+        )
 
         with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             with pytest.raises(ObsidianSyncError) as exc_info:
@@ -950,6 +950,7 @@ class TestVaultConfigEdgeCases:
 # Sync State Edge Cases
 # ============================================================================
 
+
 class TestSyncStateEdgeCases:
     """Tests for sync state management edge cases."""
 
@@ -959,12 +960,14 @@ class TestSyncStateEdgeCases:
 
         mock_supabase = MagicMock()
         mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{
-                "id": "new-state",
-                "config_id": "config-123",
-                "file_path": "new-note.md",
-                "sync_status": "synced"
-            }]
+            data=[
+                {
+                    "id": "new-state",
+                    "config_id": "config-123",
+                    "file_path": "new-note.md",
+                    "sync_status": "synced",
+                }
+            ]
         )
 
         with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
@@ -973,7 +976,7 @@ class TestSyncStateEdgeCases:
                     config_id="config-123",
                     file_path="new-note.md",
                     file_hash="abc123",
-                    sync_status="synced"
+                    sync_status="synced",
                 )
 
                 assert result.get("sync_status") == "synced"
@@ -986,10 +989,7 @@ class TestSyncStateEdgeCases:
 
         mock_supabase = MagicMock()
         mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[{
-                "sync_status": "failed",
-                "sync_error": "Connection timeout"
-            }]
+            data=[{"sync_status": "failed", "sync_error": "Connection timeout"}]
         )
 
         with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
@@ -998,7 +998,7 @@ class TestSyncStateEdgeCases:
                     config_id="config-123",
                     file_path="note.md",
                     sync_status="failed",
-                    sync_error="Connection timeout"
+                    sync_error="Connection timeout",
                 )
 
                 update_call = mock_supabase.table.return_value.update.call_args
@@ -1028,7 +1028,7 @@ class TestSyncStateEdgeCases:
             data=[
                 {"file_path": "note1.md", "sync_status": "synced", "file_hash": "abc"},
                 {"file_path": "folder/note2.md", "sync_status": "pending", "file_hash": "def"},
-                {"file_path": "deep/nested/note3.md", "sync_status": "synced", "file_hash": "ghi"}
+                {"file_path": "deep/nested/note3.md", "sync_status": "synced", "file_hash": "ghi"},
             ]
         )
 
@@ -1046,6 +1046,7 @@ class TestSyncStateEdgeCases:
 # Watcher Config Tests
 # ============================================================================
 
+
 class TestWatcherConfig:
     """Tests for file watcher configuration."""
 
@@ -1062,8 +1063,8 @@ class TestWatcherConfig:
                 "sync_options": {
                     "include_patterns": ["**/*.md"],
                     "exclude_patterns": [".obsidian/**"],
-                    "debounce_ms": 1000
-                }
+                    "debounce_ms": 1000,
+                },
             }
 
             watcher = ObsidianVaultWatcher(config)
@@ -1074,14 +1075,14 @@ class TestWatcherConfig:
 
     def test_watcher_uses_default_sync_options(self):
         """Test that watcher uses defaults when sync_options not provided."""
-        from services.obsidian_sync import ObsidianVaultWatcher, DEFAULT_SYNC_OPTIONS
+        from services.obsidian_sync import DEFAULT_SYNC_OPTIONS, ObsidianVaultWatcher
 
         with tempfile.TemporaryDirectory() as vault_dir:
             config = {
                 "id": "config-123",
                 "user_id": "user-123",
                 "client_id": "client-123",
-                "vault_path": vault_dir
+                "vault_path": vault_dir,
                 # No sync_options specified
             }
 
@@ -1095,18 +1096,15 @@ class TestWatcherConfig:
 # Empty Content Validation Tests
 # ============================================================================
 
+
 class TestEmptyContentValidation:
     """Tests for empty content validation during sync."""
 
     def test_create_rejects_empty_content(self):
         """Test that _create_obsidian_document rejects empty content."""
-        from services.obsidian_sync import _create_obsidian_document, ObsidianSyncError
+        from services.obsidian_sync import ObsidianSyncError, _create_obsidian_document
 
-        config = {
-            "user_id": "user-123",
-            "client_id": "client-123",
-            "vault_path": "/test/vault"
-        }
+        config = {"user_id": "user-123", "client_id": "client-123", "vault_path": "/test/vault"}
 
         # Empty bytes should raise error
         with pytest.raises(ObsidianSyncError) as exc_info:
@@ -1116,20 +1114,16 @@ class TestEmptyContentValidation:
                 filename="empty.md",
                 title="Empty File",
                 relative_path="empty.md",
-                frontmatter={}
+                frontmatter={},
             )
 
         assert "Cannot upload empty file" in str(exc_info.value)
 
     def test_create_rejects_none_content(self):
         """Test that _create_obsidian_document rejects None content."""
-        from services.obsidian_sync import _create_obsidian_document, ObsidianSyncError
+        from services.obsidian_sync import ObsidianSyncError, _create_obsidian_document
 
-        config = {
-            "user_id": "user-123",
-            "client_id": "client-123",
-            "vault_path": "/test/vault"
-        }
+        config = {"user_id": "user-123", "client_id": "client-123", "vault_path": "/test/vault"}
 
         # None should raise error
         with pytest.raises(ObsidianSyncError) as exc_info:
@@ -1139,14 +1133,14 @@ class TestEmptyContentValidation:
                 filename="none.md",
                 title="None File",
                 relative_path="none.md",
-                frontmatter={}
+                frontmatter={},
             )
 
         assert "Cannot upload empty file" in str(exc_info.value)
 
     def test_update_rejects_empty_content(self):
         """Test that _update_obsidian_document rejects empty content."""
-        from services.obsidian_sync import _update_obsidian_document, ObsidianSyncError
+        from services.obsidian_sync import ObsidianSyncError, _update_obsidian_document
 
         # Empty bytes should raise error
         with pytest.raises(ObsidianSyncError) as exc_info:
@@ -1155,7 +1149,7 @@ class TestEmptyContentValidation:
                 file_content=b"",
                 title="Empty Update",
                 relative_path="test.md",
-                frontmatter={}
+                frontmatter={},
             )
 
         assert "Cannot update with empty content" in str(exc_info.value)

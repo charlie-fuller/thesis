@@ -1,5 +1,4 @@
-"""
-Pytest configuration and fixtures for Thesis backend tests.
+"""Pytest configuration and fixtures for Thesis backend tests.
 
 This file contains shared fixtures and configuration used across all test modules.
 """
@@ -11,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 # Load real .env file first (before setting any test defaults)
 # This ensures integration tests have access to real credentials
 from dotenv import load_dotenv
+
 _env_path = Path(__file__).parent.parent / ".env"
 if _env_path.exists():
     load_dotenv(_env_path)
@@ -22,6 +22,7 @@ from fastapi.testclient import TestClient
 # BUT preserve real values for integration tests if they exist
 os.environ["TESTING"] = "true"
 
+
 # Only set fallback test values if no real credentials are present
 # This allows integration tests to run with real .env values
 def _set_if_not_real(key: str, test_value: str, min_real_length: int = 30):
@@ -29,6 +30,7 @@ def _set_if_not_real(key: str, test_value: str, min_real_length: int = 30):
     current = os.environ.get(key, "")
     if not current or len(current) < min_real_length or "test" in current.lower():
         os.environ[key] = test_value
+
 
 _set_if_not_real("SUPABASE_JWT_SECRET", "test-jwt-secret-key-for-testing-only", 50)
 _set_if_not_real("SUPABASE_URL", "https://test.supabase.co", 20)
@@ -41,6 +43,7 @@ _set_if_not_real("VOYAGE_API_KEY", "test-voyage-key", 20)
 # Mock Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_supabase():
     """Mock Supabase client for database operations."""
@@ -48,7 +51,9 @@ def mock_supabase():
 
     # Mock table operations
     mock.table.return_value.select.return_value.execute.return_value = MagicMock(data=[])
-    mock.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "test-id"}])
+    mock.table.return_value.insert.return_value.execute.return_value = MagicMock(
+        data=[{"id": "test-id"}]
+    )
     mock.table.return_value.update.return_value.execute.return_value = MagicMock(data=[])
     mock.table.return_value.delete.return_value.execute.return_value = MagicMock(data=[])
 
@@ -87,6 +92,7 @@ def mock_voyage():
 # ============================================================================
 # Authentication Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def valid_jwt_token():
@@ -131,7 +137,7 @@ def admin_user():
         "id": "00000000-0000-0000-0000-000000000003",
         "email": "admin@example.com",
         "role": "admin",
-        "client_id": "00000000-0000-0000-0000-000000000001"
+        "client_id": "00000000-0000-0000-0000-000000000001",
     }
 
 
@@ -142,13 +148,14 @@ def regular_user():
         "id": "00000000-0000-0000-0000-000000000002",
         "email": "user@example.com",
         "role": "user",
-        "client_id": "00000000-0000-0000-0000-000000000001"
+        "client_id": "00000000-0000-0000-0000-000000000001",
     }
 
 
 # ============================================================================
 # Test Data Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def sample_document():
@@ -162,7 +169,7 @@ def sample_document():
         "storage_url": "https://test.supabase.co/storage/v1/object/test-document.pdf",
         "mime_type": "application/pdf",
         "file_size": 1024,
-        "processed": True
+        "processed": True,
     }
 
 
@@ -175,7 +182,7 @@ def sample_conversation():
         "client_id": "00000000-0000-0000-0000-000000000001",
         "title": "Test Conversation",
         "archived": False,
-        "created_at": "2025-01-01T00:00:00Z"
+        "created_at": "2025-01-01T00:00:00Z",
     }
 
 
@@ -187,7 +194,7 @@ def sample_message():
         "conversation_id": "conv-123",
         "role": "user",
         "content": "Hello, this is a test message",
-        "created_at": "2025-01-01T00:00:00Z"
+        "created_at": "2025-01-01T00:00:00Z",
     }
 
 
@@ -199,7 +206,7 @@ def sample_chunk():
         "document_id": "doc-123",
         "content": "This is a sample chunk of text from a document.",
         "chunk_index": 0,
-        "embedding": [0.1] * 1024
+        "embedding": [0.1] * 1024,
     }
 
 
@@ -207,15 +214,19 @@ def sample_chunk():
 # Test Client Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def test_client():
     """Create a test client with mocked dependencies."""
     mock_supabase = MagicMock()
     mock_supabase.table.return_value.select.return_value.execute.return_value = MagicMock(data=[])
-    mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "test-id"}])
+    mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
+        data=[{"id": "test-id"}]
+    )
 
     with patch("database.get_supabase", return_value=mock_supabase):
         from main import app
+
         with TestClient(app) as client:
             yield client
 
@@ -226,7 +237,9 @@ def authenticated_client(valid_jwt_token, regular_user):
     mock_supabase = MagicMock()
 
     # Default mock for conversations list
-    mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.execute.return_value = MagicMock(data=[])
+    mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.execute.return_value = MagicMock(
+        data=[]
+    )
 
     # Mock user lookup for auth
     mock_supabase.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
@@ -234,12 +247,13 @@ def authenticated_client(valid_jwt_token, regular_user):
     )
 
     # Mock documents list
-    mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
-        data=[]
+    mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = (
+        MagicMock(data=[])
     )
 
     with patch("database.get_supabase", return_value=mock_supabase):
         from main import app
+
         with TestClient(app) as client:
             client.headers = {"Authorization": f"Bearer {valid_jwt_token}"}
             yield client
@@ -257,6 +271,7 @@ def admin_client(valid_jwt_token, admin_user):
 
     with patch("database.get_supabase", return_value=mock_supabase):
         from main import app
+
         with TestClient(app) as client:
             client.headers = {"Authorization": f"Bearer {valid_jwt_token}"}
             yield client
@@ -265,6 +280,7 @@ def admin_client(valid_jwt_token, admin_user):
 # ============================================================================
 # Async Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_async_supabase():
@@ -277,6 +293,7 @@ def mock_async_supabase():
 # ============================================================================
 # File Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def sample_pdf_bytes():
@@ -319,8 +336,9 @@ This concludes the sample document."""
 import sys
 
 # Store original modules that might get mocked
-_PROTECTED_MODULES = ['config', 'database', 'services', 'auth', 'anthropic']
+_PROTECTED_MODULES = ["config", "database", "services", "auth", "anthropic"]
 _original_modules = {}
+
 
 def _save_original_modules():
     """Save original modules before tests run."""
@@ -328,14 +346,16 @@ def _save_original_modules():
         if name in sys.modules:
             _original_modules[name] = sys.modules[name]
 
+
 def _restore_modules():
     """Restore original modules if they were replaced with mocks."""
     for name, module in _original_modules.items():
         if name in sys.modules:
             current = sys.modules[name]
             # If current module is a Mock, restore original
-            if hasattr(current, '_mock_name') or type(current).__name__ == 'MagicMock':
+            if hasattr(current, "_mock_name") or type(current).__name__ == "MagicMock":
                 sys.modules[name] = module
+
 
 # Save modules at import time
 _save_original_modules()
@@ -352,6 +372,7 @@ def restore_modules_session():
 # Cleanup
 # ============================================================================
 
+
 @pytest.fixture(autouse=True)
 def cleanup():
     """Clean up after each test."""
@@ -363,6 +384,7 @@ def cleanup():
 # ============================================================================
 # Agent Testing Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def sample_agent_response():
@@ -406,6 +428,7 @@ def coordinator_context():
 # Security Testing Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def malicious_inputs():
     """Collection of malicious inputs for security testing."""
@@ -447,6 +470,7 @@ def rate_limit_config():
 # Meeting Room Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def sample_meeting_room():
     """Sample meeting room data."""
@@ -474,17 +498,19 @@ def sample_meeting_messages():
 # Integration Test Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def integration_supabase():
-    """
-    Real Supabase client for integration tests.
+    """Real Supabase client for integration tests.
     Only used when INTEGRATION_TESTS=true is set.
     """
     import os
+
     if os.environ.get("INTEGRATION_TESTS") != "true":
         pytest.skip("Integration tests disabled")
 
     from supabase import create_client
+
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 
@@ -498,6 +524,7 @@ def integration_supabase():
 def integration_client(integration_supabase):
     """Test client for integration tests with real database."""
     from main import app
+
     with TestClient(app) as client:
         yield client
 
@@ -505,6 +532,7 @@ def integration_client(integration_supabase):
 # ============================================================================
 # Performance Testing Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def performance_config():
@@ -523,6 +551,7 @@ def performance_config():
 # ============================================================================
 # Project Testing Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def sample_project():

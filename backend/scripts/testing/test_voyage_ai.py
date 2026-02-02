@@ -1,18 +1,18 @@
-"""
-Test script to verify Voyage AI embeddings integration
-"""
+"""Test script to verify Voyage AI embeddings integration"""
+
 import os
 
 import voyageai
 from dotenv import load_dotenv
+
 from supabase import create_client
 
 # Load environment variables
 load_dotenv()
 
+
 def test_voyage_embeddings():
     """Test Voyage AI embedding generation"""
-
     # Load API key
     api_key = os.environ.get("VOYAGE_API_KEY")
 
@@ -29,18 +29,14 @@ def test_voyage_embeddings():
     test_texts = [
         "This is a test document about innovation and efficiency.",
         "Thesis helps executives make better decisions.",
-        "The PB_Magic framework measures leadership effectiveness."
+        "The PB_Magic framework measures leadership effectiveness.",
     ]
 
     print(f"\n🤖 Generating embeddings for {len(test_texts)} test texts...")
 
     try:
         # Generate embeddings using voyage-3
-        result = vo.embed(
-            test_texts,
-            model="voyage-3",
-            input_type="document"
-        )
+        result = vo.embed(test_texts, model="voyage-3", input_type="document")
 
         embeddings = result.embeddings
 
@@ -66,9 +62,9 @@ def test_voyage_embeddings():
         print(f"   {str(e)}")
         return False
 
+
 def test_database_storage(embedding):
     """Test storing embedding in database"""
-
     print("\n🗄️ Testing database storage...")
 
     # Load Supabase credentials
@@ -90,35 +86,47 @@ def test_database_storage(embedding):
 
         # First, create a test document
         # Note: uploaded_by should be set, but for test we'll use a placeholder
-        doc_result = supabase.table('documents').insert({
-            'client_id': '1c9351f8-9053-4ce0-a793-d260573afa04',
-            'uploaded_by': '00000000-0000-0000-0000-000000000001',  # Test user placeholder
-            'filename': 'test_voyage_embedding.txt',
-            'storage_url': 'test://voyage-test',
-            'file_type': 'text/plain',
-            'processed': True
-        }).execute()
+        doc_result = (
+            supabase.table("documents")
+            .insert(
+                {
+                    "client_id": "1c9351f8-9053-4ce0-a793-d260573afa04",
+                    "uploaded_by": "00000000-0000-0000-0000-000000000001",  # Test user placeholder
+                    "filename": "test_voyage_embedding.txt",
+                    "storage_url": "test://voyage-test",
+                    "file_type": "text/plain",
+                    "processed": True,
+                }
+            )
+            .execute()
+        )
 
-        document_id = doc_result.data[0]['id']
+        document_id = doc_result.data[0]["id"]
         print(f"✓ Created test document: {document_id}")
 
         # Insert chunk with embedding
-        chunk_result = supabase.table('document_chunks').insert({
-            'document_id': document_id,
-            'client_id': '1c9351f8-9053-4ce0-a793-d260573afa04',
-            'content': 'This is a test document about innovation and efficiency.',
-            'embedding': embedding,
-            'chunk_index': 0,
-            'metadata': {'test': True}
-        }).execute()
+        chunk_result = (
+            supabase.table("document_chunks")
+            .insert(
+                {
+                    "document_id": document_id,
+                    "client_id": "1c9351f8-9053-4ce0-a793-d260573afa04",
+                    "content": "This is a test document about innovation and efficiency.",
+                    "embedding": embedding,
+                    "chunk_index": 0,
+                    "metadata": {"test": True},
+                }
+            )
+            .execute()
+        )
 
-        chunk_id = chunk_result.data[0]['id']
+        chunk_id = chunk_result.data[0]["id"]
         print(f"✓ Stored chunk with embedding: {chunk_id}")
 
         # Verify we can retrieve it
-        verify_result = supabase.table('document_chunks').select('*').eq('id', chunk_id).execute()
+        verify_result = supabase.table("document_chunks").select("*").eq("id", chunk_id).execute()
 
-        if verify_result.data and verify_result.data[0]['embedding']:
+        if verify_result.data and verify_result.data[0]["embedding"]:
             print("✓ Successfully retrieved embedding from database")
             print(f"   Retrieved dimension: {len(verify_result.data[0]['embedding'])}")
             return True
@@ -130,6 +138,7 @@ def test_database_storage(embedding):
         print("\n❌ ERROR storing in database:")
         print(f"   {str(e)}")
         return False
+
 
 if __name__ == "__main__":
     print("=" * 60)

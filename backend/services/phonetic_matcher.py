@@ -1,5 +1,4 @@
-"""
-Phonetic matching service for name comparison.
+"""Phonetic matching service for name comparison.
 Uses Double Metaphone algorithm for sound-alike matching.
 
 Version: 1.0.0
@@ -28,8 +27,7 @@ class PhoneticMatch:
 
 
 class PhoneticMatcher:
-    """
-    Matches names using Double Metaphone phonetic algorithm.
+    """Matches names using Double Metaphone phonetic algorithm.
 
     Particularly effective for transcription errors where names
     sound similar but are spelled differently:
@@ -41,13 +39,11 @@ class PhoneticMatcher:
     def __init__(self):
         if doublemetaphone is None:
             raise ImportError(
-                "metaphone package not installed. "
-                "Install with: pip install metaphone"
+                "metaphone package not installed. Install with: pip install metaphone"
             )
 
     def get_metaphone_codes(self, name: str) -> Tuple[str, str]:
-        """
-        Get Double Metaphone codes for a name.
+        """Get Double Metaphone codes for a name.
 
         Returns tuple of (primary_code, secondary_code).
         Secondary code may be empty string if no alternate pronunciation.
@@ -62,12 +58,8 @@ class PhoneticMatcher:
         codes = doublemetaphone(cleaned)
         return (codes[0] or "", codes[1] or "")
 
-    def get_name_codes(
-        self,
-        full_name: str
-    ) -> Tuple[Tuple[str, str], Tuple[str, str]]:
-        """
-        Get metaphone codes for first and last name separately.
+    def get_name_codes(self, full_name: str) -> Tuple[Tuple[str, str], Tuple[str, str]]:
+        """Get metaphone codes for first and last name separately.
 
         Returns ((first_primary, first_secondary), (last_primary, last_secondary))
         """
@@ -86,13 +78,9 @@ class PhoneticMatcher:
             return (first_codes, last_codes)
 
     def compare_names(
-        self,
-        name1: str,
-        name2: str,
-        require_both_parts: bool = True
+        self, name1: str, name2: str, require_both_parts: bool = True
     ) -> PhoneticMatch:
-        """
-        Compare two names phonetically.
+        """Compare two names phonetically.
 
         Args:
             name1: First name to compare
@@ -111,12 +99,10 @@ class PhoneticMatcher:
         first2, last2 = codes2
 
         # Check first name match
-        first_primary_match = bool(
-            first1[0] and first2[0] and first1[0] == first2[0]
-        )
+        first_primary_match = bool(first1[0] and first2[0] and first1[0] == first2[0])
         first_secondary_match = bool(
-            (first1[0] and first2[1] and first1[0] == first2[1]) or
-            (first1[1] and first2[0] and first1[1] == first2[0])
+            (first1[0] and first2[1] and first1[0] == first2[1])
+            or (first1[1] and first2[0] and first1[1] == first2[0])
         )
         first_match = first_primary_match or first_secondary_match
 
@@ -125,8 +111,8 @@ class PhoneticMatcher:
         if has_last_names:
             last_primary_match = last1[0] == last2[0]
             last_secondary_match = bool(
-                (last1[0] and last2[1] and last1[0] == last2[1]) or
-                (last1[1] and last2[0] and last1[1] == last2[0])
+                (last1[0] and last2[1] and last1[0] == last2[1])
+                or (last1[1] and last2[0] and last1[1] == last2[0])
             )
             last_match = last_primary_match or last_secondary_match
         else:
@@ -146,20 +132,17 @@ class PhoneticMatcher:
             first_match=first_match,
             first_primary=first_primary_match,
             last_match=last_match if has_last_names else None,
-            last_primary=last_primary_match if has_last_names else None
+            last_primary=last_primary_match if has_last_names else None,
         )
 
         return PhoneticMatch(
             is_match=is_match,
-            primary_match=first_primary_match and (
-                last_primary_match if has_last_names else True
-            ),
-            secondary_match=first_secondary_match or (
-                last_secondary_match if has_last_names else False
-            ),
+            primary_match=first_primary_match and (last_primary_match if has_last_names else True),
+            secondary_match=first_secondary_match
+            or (last_secondary_match if has_last_names else False),
             name1_codes=(first1, last1),
             name2_codes=(first2, last2),
-            confidence=confidence
+            confidence=confidence,
         )
 
     def _calculate_confidence(
@@ -167,10 +150,9 @@ class PhoneticMatcher:
         first_match: bool,
         first_primary: bool,
         last_match: Optional[bool],
-        last_primary: Optional[bool]
+        last_primary: Optional[bool],
     ) -> float:
-        """
-        Calculate confidence score for phonetic match.
+        """Calculate confidence score for phonetic match.
 
         Primary matches are weighted higher than secondary matches.
         """
@@ -198,13 +180,9 @@ class PhoneticMatcher:
         return min(score, 1.0)
 
     def find_best_match(
-        self,
-        target_name: str,
-        candidates: list[str],
-        threshold: float = 0.7
+        self, target_name: str, candidates: list[str], threshold: float = 0.7
     ) -> Optional[Tuple[str, float]]:
-        """
-        Find the best phonetic match from a list of candidates.
+        """Find the best phonetic match from a list of candidates.
 
         Args:
             target_name: Name to match

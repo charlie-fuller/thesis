@@ -1,5 +1,4 @@
-"""
-IT Security and Compliance Testing
+"""IT Security and Compliance Testing
 
 Tests for enterprise IT requirements including:
 - Access controls and authentication
@@ -11,42 +10,47 @@ Tests for enterprise IT requirements including:
 NOTE: These tests are marked as xfail because the full IT compliance
 controls (token expiration checks, rate limiting, etc.) are not yet implemented.
 """
+
 import pytest
 
 # Mark failing tests as expected failures until compliance controls are implemented
 pytestmark = pytest.mark.xfail(reason="IT compliance controls not yet fully implemented")
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List
 import hashlib
 import secrets
-
+from datetime import datetime, timedelta, timezone
+from typing import List
 
 # =============================================================================
 # Access Control Tests
 # =============================================================================
+
 
 class TestAccessControl:
     """Tests for role-based access control (RBAC)."""
 
     ROLES = ["admin", "manager", "user", "viewer", "api_client"]
 
-    @pytest.mark.parametrize("role,resource,expected_access", [
-        ("admin", "user_management", True),
-        ("admin", "system_config", True),
-        ("manager", "team_reports", True),
-        ("manager", "system_config", False),
-        ("user", "own_data", True),
-        ("user", "other_user_data", False),
-        ("viewer", "read_reports", True),
-        ("viewer", "modify_data", False),
-        ("api_client", "api_endpoints", True),
-        ("api_client", "admin_panel", False),
-    ])
+    @pytest.mark.parametrize(
+        "role,resource,expected_access",
+        [
+            ("admin", "user_management", True),
+            ("admin", "system_config", True),
+            ("manager", "team_reports", True),
+            ("manager", "system_config", False),
+            ("user", "own_data", True),
+            ("user", "other_user_data", False),
+            ("viewer", "read_reports", True),
+            ("viewer", "modify_data", False),
+            ("api_client", "api_endpoints", True),
+            ("api_client", "admin_panel", False),
+        ],
+    )
     def test_role_based_permissions(self, role: str, resource: str, expected_access: bool):
         """Verify RBAC permissions are correctly enforced."""
         has_access = self._check_permission(role, resource)
-        assert has_access == expected_access, \
-            f"Role '{role}' should {'have' if expected_access else 'not have'} access to '{resource}'"
+        assert (
+            has_access == expected_access
+        ), f"Role '{role}' should {'have' if expected_access else 'not have'} access to '{resource}'"
 
     def test_principle_of_least_privilege(self):
         """Users should have minimum necessary permissions."""
@@ -77,7 +81,7 @@ class TestAccessControl:
             "delete_all_data",
             "modify_security_settings",
             "export_customer_pii",
-            "change_billing"
+            "change_billing",
         ]
 
         for action in critical_actions:
@@ -103,7 +107,7 @@ class TestAccessControl:
             "manager": ["team_reports", "own_data"],
             "user": ["own_data"],
             "viewer": ["read_reports"],
-            "api_client": ["api_endpoints"]
+            "api_client": ["api_endpoints"],
         }
         return resource in permissions.get(role, [])
 
@@ -156,7 +160,7 @@ class TestAuthentication:
             "change_password",
             "export_data",
             "api_key_creation",
-            "delete_account"
+            "delete_account",
         ]
 
         for operation in sensitive_operations:
@@ -242,17 +246,13 @@ class TestAuthentication:
 # Data Protection Tests
 # =============================================================================
 
+
 class TestDataProtection:
     """Tests for data encryption and protection."""
 
     def test_data_at_rest_encryption(self):
         """Sensitive data should be encrypted at rest."""
-        sensitive_fields = [
-            "password_hash",
-            "api_key",
-            "personal_data",
-            "financial_data"
-        ]
+        sensitive_fields = ["password_hash", "api_key", "personal_data", "financial_data"]
 
         for field in sensitive_fields:
             is_encrypted = self._check_field_encryption(field)
@@ -272,7 +272,7 @@ class TestDataProtection:
             "email": "user@example.com",
             "ssn": "123-45-6789",
             "credit_card": "4111111111111111",
-            "phone": "555-123-4567"
+            "phone": "555-123-4567",
         }
 
         for field, value in pii_data.items():
@@ -324,11 +324,7 @@ class TestDataProtection:
         return "***"
 
     def _get_retention_policies(self) -> dict:
-        return {
-            "conversation_logs": 90,
-            "audit_logs": 365,
-            "user_data": 730
-        }
+        return {"conversation_logs": 90, "audit_logs": 365, "user_data": 730}
 
     def _create_backup(self) -> dict:
         return {"encrypted": True, "encryption_algorithm": "AES-256-GCM"}
@@ -340,6 +336,7 @@ class TestDataProtection:
 # =============================================================================
 # Audit Logging Tests
 # =============================================================================
+
 
 class TestAuditLogging:
     """Tests for audit logging requirements."""
@@ -354,7 +351,7 @@ class TestAuditLogging:
         "data_deletion",
         "api_key_creation",
         "configuration_change",
-        "security_event"
+        "security_event",
     ]
 
     def test_all_auditable_events_logged(self):
@@ -388,7 +385,7 @@ class TestAuditLogging:
             "resource",
             "action",
             "result",
-            "session_id"
+            "session_id",
         ]
 
         for field in required_fields:
@@ -430,7 +427,7 @@ class TestAuditLogging:
     def _create_audit_log(self, event_type: str, **kwargs) -> dict:
         return {
             "id": f"log-{secrets.token_hex(8)}",
-            "timestamp": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "event_type": event_type,
             "user_id": kwargs.get("user_id", "system"),
             "ip_address": "192.168.1.1",
@@ -439,7 +436,7 @@ class TestAuditLogging:
             "action": "read",
             "result": "success",
             "session_id": "session-123",
-            "integrity_hash": hashlib.sha256(b"log_data").hexdigest()
+            "integrity_hash": hashlib.sha256(b"log_data").hexdigest(),
         }
 
     def _attempt_modify_audit_log(self, log_id: str) -> bool:
@@ -459,6 +456,7 @@ class TestAuditLogging:
 # Compliance Tests
 # =============================================================================
 
+
 class TestComplianceRequirements:
     """Tests for regulatory compliance (SOC2, GDPR, etc.)."""
 
@@ -469,7 +467,7 @@ class TestComplianceRequirements:
             "right_to_rectification",
             "right_to_erasure",
             "right_to_portability",
-            "right_to_object"
+            "right_to_object",
         ]
 
         for right in rights:
@@ -492,7 +490,7 @@ class TestComplianceRequirements:
             "availability",
             "processing_integrity",
             "confidentiality",
-            "privacy"
+            "privacy",
         ]
 
         for criteria in trust_criteria:
@@ -510,7 +508,7 @@ class TestComplianceRequirements:
             "recipients",
             "transfers",
             "retention_periods",
-            "security_measures"
+            "security_measures",
         ]
 
         for field in required_fields:
@@ -518,11 +516,7 @@ class TestComplianceRequirements:
 
     def test_privacy_impact_assessment(self):
         """Privacy impact assessments should exist for high-risk processing."""
-        high_risk_processes = [
-            "ai_decision_making",
-            "profiling",
-            "large_scale_processing"
-        ]
+        high_risk_processes = ["ai_decision_making", "profiling", "large_scale_processing"]
 
         for process in high_risk_processes:
             pia = self._get_privacy_impact_assessment(process)
@@ -539,7 +533,7 @@ class TestComplianceRequirements:
             "processor_identified": True,
             "purposes_documented": True,
             "security_measures_documented": True,
-            "subprocessor_list_available": True
+            "subprocessor_list_available": True,
         }
 
     def _get_soc2_controls(self, criteria: str) -> List[str]:
@@ -553,19 +547,17 @@ class TestComplianceRequirements:
             "recipients": ["service_providers"],
             "transfers": "None outside EEA",
             "retention_periods": "90 days",
-            "security_measures": "Encryption, access controls"
+            "security_measures": "Encryption, access controls",
         }
 
     def _get_privacy_impact_assessment(self, process: str) -> dict:
-        return {
-            "risk_assessment_completed": True,
-            "mitigation_measures_documented": True
-        }
+        return {"risk_assessment_completed": True, "mitigation_measures_documented": True}
 
 
 # =============================================================================
 # Network Security Tests
 # =============================================================================
+
 
 class TestNetworkSecurity:
     """Tests for network security requirements."""
@@ -601,7 +593,7 @@ class TestNetworkSecurity:
             "X-Frame-Options",
             "X-XSS-Protection",
             "Strict-Transport-Security",
-            "Content-Security-Policy"
+            "Content-Security-Policy",
         ]
 
         response_headers = self._get_response_headers("/api/health")
@@ -632,7 +624,7 @@ class TestNetworkSecurity:
     def _get_cors_config(self) -> dict:
         return {
             "allowed_origins": ["https://thesis.ai"],
-            "methods": ["GET", "POST", "PUT", "DELETE"]
+            "methods": ["GET", "POST", "PUT", "DELETE"],
         }
 
     def _get_rate_limit(self, endpoint: str) -> dict:
@@ -644,14 +636,11 @@ class TestNetworkSecurity:
             "X-Frame-Options": "DENY",
             "X-XSS-Protection": "1; mode=block",
             "Strict-Transport-Security": "max-age=31536000",
-            "Content-Security-Policy": "default-src 'self'"
+            "Content-Security-Policy": "default-src 'self'",
         }
 
     def _get_tls_config(self) -> dict:
-        return {
-            "min_version": "1.2",
-            "ciphers": ["TLS_AES_256_GCM_SHA384"]
-        }
+        return {"min_version": "1.2", "ciphers": ["TLS_AES_256_GCM_SHA384"]}
 
     def _get_ddos_config(self) -> dict:
         return {"enabled": True, "threshold_rps": 1000}
@@ -660,6 +649,7 @@ class TestNetworkSecurity:
 # =============================================================================
 # Disaster Recovery Tests
 # =============================================================================
+
 
 class TestDisasterRecovery:
     """Tests for disaster recovery capabilities."""
@@ -711,7 +701,7 @@ class TestDisasterRecovery:
             "escalation_procedures",
             "recovery_steps",
             "communication_plan",
-            "testing_schedule"
+            "testing_schedule",
         ]
 
         for section in required_sections:
@@ -728,11 +718,7 @@ class TestDisasterRecovery:
         return {"rto_hours": 4, "rpo_hours": 1}
 
     def _get_failover_config(self) -> dict:
-        return {
-            "enabled": True,
-            "automatic": True,
-            "secondary_region": "us-west-2"
-        }
+        return {"enabled": True, "automatic": True, "secondary_region": "us-west-2"}
 
     def _get_dr_plan(self) -> dict:
         return {
@@ -740,5 +726,5 @@ class TestDisasterRecovery:
             "escalation_procedures": "...",
             "recovery_steps": "...",
             "communication_plan": "...",
-            "testing_schedule": "quarterly"
+            "testing_schedule": "quarterly",
         }

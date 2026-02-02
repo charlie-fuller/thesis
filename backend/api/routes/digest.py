@@ -1,16 +1,16 @@
-"""
-Task Digest API Routes
+"""Task Digest API Routes
 
 Endpoints for generating task digest documents.
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
 from typing import Optional
 
-from logger_config import get_logger
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
 from auth import get_current_user
 from database import get_supabase
+from logger_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -21,8 +21,10 @@ router = APIRouter(prefix="/digest", tags=["Task Digest"])
 # MODELS
 # ============================================================================
 
+
 class DigestPreviewResponse(BaseModel):
     """Response model for digest preview."""
+
     status: str
     title: Optional[str] = None
     summary: Optional[str] = None
@@ -36,6 +38,7 @@ class DigestPreviewResponse(BaseModel):
 
 class DigestSaveResponse(BaseModel):
     """Response model for saving digest to KB."""
+
     status: str
     document_id: Optional[str] = None
     filename: Optional[str] = None
@@ -47,10 +50,10 @@ class DigestSaveResponse(BaseModel):
 # ENDPOINTS
 # ============================================================================
 
+
 @router.post("/preview", response_model=DigestPreviewResponse)
 async def preview_digest(user=Depends(get_current_user)):
-    """
-    Generate a digest preview without saving it.
+    """Generate a digest preview without saving it.
 
     Returns the markdown content that would be saved to KB.
     """
@@ -70,7 +73,7 @@ async def preview_digest(user=Depends(get_current_user)):
             health_score=digest.health_score,
             total_active=digest.total_active,
             overdue_count=digest.overdue_count,
-            due_today_count=digest.due_today_count
+            due_today_count=digest.due_today_count,
         )
 
     except Exception as e:
@@ -80,8 +83,7 @@ async def preview_digest(user=Depends(get_current_user)):
 
 @router.post("/save", response_model=DigestSaveResponse)
 async def save_digest_to_kb(user=Depends(get_current_user)):
-    """
-    Generate and save a task digest to the Knowledge Base.
+    """Generate and save a task digest to the Knowledge Base.
 
     Creates a new document or updates today's existing digest.
     The document is automatically tagged for the Taskmaster agent.
@@ -96,14 +98,14 @@ async def save_digest_to_kb(user=Depends(get_current_user)):
         digest = await digest_service.generate_digest(user["id"])
 
         # Get user's client_id
-        user_result = supabase.table('users').select('client_id').eq(
-            'id', user["id"]
-        ).single().execute()
+        user_result = (
+            supabase.table("users").select("client_id").eq("id", user["id"]).single().execute()
+        )
 
         if not user_result.data:
             raise HTTPException(status_code=400, detail="User not found")
 
-        client_id = user_result.data['client_id']
+        client_id = user_result.data["client_id"]
 
         # Save to KB
         result = await digest_service.save_digest_to_kb(digest, client_id)

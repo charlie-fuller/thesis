@@ -1,6 +1,7 @@
 import os
 
 from dotenv import load_dotenv
+
 from supabase import create_client
 
 load_dotenv()
@@ -35,7 +36,7 @@ print("📋 Please run the following SQL in your Supabase SQL Editor:")
 print("=" * 70)
 
 # Read and display the migration file
-with open('migrations/017_add_storage_limits.sql', 'r') as f:
+with open("migrations/017_add_storage_limits.sql", "r") as f:
     migration_sql = f.read()
     print(migration_sql)
 
@@ -51,7 +52,9 @@ print("\n💡 Alternatively, here's a quick check to see if the columns already 
 
 # Check if columns exist
 try:
-    result = client.table("users").select("id, email, storage_quota, storage_used").limit(1).execute()
+    result = (
+        client.table("users").select("id, email, storage_quota, storage_used").limit(1).execute()
+    )
     print("\n✅ Storage columns already exist!")
     print(f"   Found user with storage data: {result.data[0] if result.data else 'No users yet'}")
 except Exception as e:

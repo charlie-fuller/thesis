@@ -1,5 +1,4 @@
-"""
-IT Department Security Audit Tests
+"""IT Department Security Audit Tests
 
 This test suite addresses common IT department concerns when evaluating
 enterprise AI applications. Run this before presenting to IT for approval.
@@ -16,15 +15,15 @@ Key Concerns Addressed:
 9. Integration security
 10. Incident response capabilities
 """
-import pytest
-from typing import Dict, Any, List
-from datetime import datetime, timedelta
-import re
 
+import re
+from datetime import datetime
+from typing import List
 
 # =============================================================================
 # Third-Party Data Exposure Assessment
 # =============================================================================
+
 
 class TestThirdPartyDataExposure:
     """IT Concern: Where is our company data being sent?"""
@@ -40,27 +39,27 @@ class TestThirdPartyDataExposure:
             "data_retention",
             "dpa_status",  # Data Processing Agreement
             "soc2_status",
-            "gdpr_compliant"
+            "gdpr_compliant",
         ]
 
         for flow in data_flows:
             for field in required_documentation:
-                assert field in flow, \
-                    f"Data flow to {flow.get('service_name', 'unknown')} missing {field}"
+                assert (
+                    field in flow
+                ), f"Data flow to {flow.get('service_name', 'unknown')} missing {field}"
 
     def test_anthropic_data_handling(self):
         """Verify Anthropic data handling meets requirements."""
         anthropic_policy = self._get_vendor_data_policy("anthropic")
 
         # Critical checks for IT
-        assert anthropic_policy["data_used_for_training"] is False, \
-            "CRITICAL: Verify Anthropic doesn't train on our data"
+        assert (
+            anthropic_policy["data_used_for_training"] is False
+        ), "CRITICAL: Verify Anthropic doesn't train on our data"
 
-        assert anthropic_policy["data_retention_days"] <= 30, \
-            "Data retention should be minimal"
+        assert anthropic_policy["data_retention_days"] <= 30, "Data retention should be minimal"
 
-        assert anthropic_policy["soc2_certified"] is True, \
-            "Vendor should be SOC2 certified"
+        assert anthropic_policy["soc2_certified"] is True, "Vendor should be SOC2 certified"
 
     def test_pii_data_classification(self):
         """Verify PII handling is documented."""
@@ -80,8 +79,9 @@ class TestThirdPartyDataExposure:
         sensitive_fields = ["ssn", "credit_card", "password", "api_key"]
 
         for field in sensitive_fields:
-            assert field not in str(sample_request).lower(), \
-                f"Sensitive field {field} should not be sent to AI"
+            assert (
+                field not in str(sample_request).lower()
+            ), f"Sensitive field {field} should not be sent to AI"
 
     def test_customer_data_anonymization(self):
         """Customer data should be anonymizable for AI processing."""
@@ -101,7 +101,7 @@ class TestThirdPartyDataExposure:
                 "data_retention": "30 days (conversation context)",
                 "dpa_status": "signed",
                 "soc2_status": "certified",
-                "gdpr_compliant": True
+                "gdpr_compliant": True,
             },
             {
                 "service_name": "Voyage AI Embeddings",
@@ -110,7 +110,7 @@ class TestThirdPartyDataExposure:
                 "data_retention": "Not retained",
                 "dpa_status": "signed",
                 "soc2_status": "in_progress",
-                "gdpr_compliant": True
+                "gdpr_compliant": True,
             },
             {
                 "service_name": "Supabase",
@@ -119,8 +119,8 @@ class TestThirdPartyDataExposure:
                 "data_retention": "Per our retention policy",
                 "dpa_status": "signed",
                 "soc2_status": "certified",
-                "gdpr_compliant": True
-            }
+                "gdpr_compliant": True,
+            },
         ]
 
     def _get_vendor_data_policy(self, vendor: str) -> dict:
@@ -128,13 +128,13 @@ class TestThirdPartyDataExposure:
             "data_used_for_training": False,
             "data_retention_days": 30,
             "soc2_certified": True,
-            "gdpr_compliant": True
+            "gdpr_compliant": True,
         }
 
     def _get_pii_handling_policy(self) -> dict:
         return {
             "data_classification_levels": ["public", "internal", "confidential", "restricted"],
-            "pii_fields_identified": ["email", "name", "phone", "address"]
+            "pii_fields_identified": ["email", "name", "phone", "address"],
         }
 
     def _get_sample_ai_request(self) -> dict:
@@ -148,6 +148,7 @@ class TestThirdPartyDataExposure:
 # Authentication and SSO Integration
 # =============================================================================
 
+
 class TestAuthenticationSSO:
     """IT Concern: How does this integrate with our identity provider?"""
 
@@ -158,15 +159,15 @@ class TestAuthenticationSSO:
         sso_options = ["saml", "oidc", "oauth2", "azure_ad", "okta"]
         has_sso = any(opt in auth_config.get("supported_methods", []) for opt in sso_options)
 
-        assert has_sso or auth_config.get("sso_roadmap"), \
-            "SSO integration should be available or on roadmap"
+        assert has_sso or auth_config.get(
+            "sso_roadmap"
+        ), "SSO integration should be available or on roadmap"
 
     def test_mfa_supported(self):
         """Multi-factor authentication is supported."""
         auth_config = self._get_auth_config()
 
-        assert auth_config.get("mfa_supported") is True, \
-            "MFA should be supported"
+        assert auth_config.get("mfa_supported") is True, "MFA should be supported"
 
     def test_password_policy_configurable(self):
         """Password policies are configurable to match corporate policy."""
@@ -189,16 +190,16 @@ class TestAuthenticationSSO:
         """User provisioning can be automated."""
         provisioning = self._get_provisioning_config()
 
-        assert provisioning.get("scim_supported") is True or \
-               provisioning.get("api_available") is True, \
-            "Automated user provisioning should be available"
+        assert (
+            provisioning.get("scim_supported") is True or provisioning.get("api_available") is True
+        ), "Automated user provisioning should be available"
 
     # Helper methods
     def _get_auth_config(self) -> dict:
         return {
             "supported_methods": ["supabase_auth", "oauth2"],
             "mfa_supported": True,
-            "sso_roadmap": "Q2 2026"
+            "sso_roadmap": "Q2 2026",
         }
 
     def _get_password_policy(self) -> dict:
@@ -206,14 +207,14 @@ class TestAuthenticationSSO:
             "min_length": 12,
             "require_special": True,
             "require_numbers": True,
-            "expiry_configurable": True
+            "expiry_configurable": True,
         }
 
     def _get_session_config(self) -> dict:
         return {
             "timeout_minutes": 480,
             "concurrent_sessions_limit": 5,
-            "force_logout_available": True
+            "force_logout_available": True,
         }
 
     def _get_provisioning_config(self) -> dict:
@@ -224,6 +225,7 @@ class TestAuthenticationSSO:
 # API Key and Secret Management
 # =============================================================================
 
+
 class TestSecretManagement:
     """IT Concern: How are API keys and secrets managed?"""
 
@@ -231,7 +233,7 @@ class TestSecretManagement:
         """No secrets hardcoded in codebase."""
         # This would scan actual code
         hardcoded_patterns = [
-            r'sk-[a-zA-Z0-9]{48}',  # Anthropic API key pattern
+            r"sk-[a-zA-Z0-9]{48}",  # Anthropic API key pattern
             r'password\s*=\s*["\'][^"\']+["\']',
             r'api_key\s*=\s*["\'][^"\']+["\']',
         ]
@@ -240,8 +242,7 @@ class TestSecretManagement:
 
         for pattern in hardcoded_patterns:
             matches = re.findall(pattern, codebase_content, re.IGNORECASE)
-            assert len(matches) == 0, \
-                f"Potential hardcoded secret found matching: {pattern}"
+            assert len(matches) == 0, f"Potential hardcoded secret found matching: {pattern}"
 
     def test_secrets_in_env_or_vault(self):
         """Secrets are stored in environment variables or vault."""
@@ -283,6 +284,7 @@ class TestSecretManagement:
 # Data Residency and Sovereignty
 # =============================================================================
 
+
 class TestDataResidency:
     """IT Concern: Where is our data stored? Does it cross borders?"""
 
@@ -302,8 +304,7 @@ class TestDataResidency:
         actual_regions = self._get_actual_data_locations()
 
         for location in actual_regions:
-            assert location in approved_regions, \
-                f"Data stored in unapproved region: {location}"
+            assert location in approved_regions, f"Data stored in unapproved region: {location}"
 
     def test_gdpr_compliance_for_eu_data(self):
         """EU data handling is GDPR compliant."""
@@ -322,7 +323,7 @@ class TestDataResidency:
                 "adequacy_decision",
                 "standard_contractual_clauses",
                 "binding_corporate_rules",
-                "explicit_consent"
+                "explicit_consent",
             ]
 
     # Helper methods
@@ -331,18 +332,14 @@ class TestDataResidency:
             "primary_region": "us-east-1",
             "backup_region": "us-west-2",
             "processing_regions": ["us-east-1", "us-west-2"],
-            "approved_regions": ["us-east-1", "us-west-2", "eu-west-1"]
+            "approved_regions": ["us-east-1", "us-west-2", "eu-west-1"],
         }
 
     def _get_actual_data_locations(self) -> List[str]:
         return ["us-east-1", "us-west-2"]
 
     def _get_gdpr_config(self) -> dict:
-        return {
-            "data_subject_rights": True,
-            "right_to_erasure": True,
-            "data_portability": True
-        }
+        return {"data_subject_rights": True, "right_to_erasure": True, "data_portability": True}
 
     def _get_cross_border_transfers(self) -> List[dict]:
         return [{"destination": "Anthropic (US)", "legal_basis": "standard_contractual_clauses"}]
@@ -351,6 +348,7 @@ class TestDataResidency:
 # =============================================================================
 # Vendor Lock-in Assessment
 # =============================================================================
+
 
 class TestVendorLockIn:
     """IT Concern: Can we switch vendors if needed?"""
@@ -367,27 +365,29 @@ class TestVendorLockIn:
         """AI provider can be switched."""
         ai_config = self._get_ai_abstraction_config()
 
-        assert ai_config.get("abstraction_layer") is True, \
-            "AI provider should be behind abstraction layer"
+        assert (
+            ai_config.get("abstraction_layer") is True
+        ), "AI provider should be behind abstraction layer"
 
         supported_providers = ai_config.get("supported_providers", [])
-        assert len(supported_providers) >= 1, \
-            "Should support alternative AI providers"
+        assert len(supported_providers) >= 1, "Should support alternative AI providers"
 
     def test_database_portability(self):
         """Database can be migrated to another provider."""
         db_config = self._get_database_config()
 
-        assert db_config.get("standard_postgres") is True, \
-            "Should use standard PostgreSQL for portability"
+        assert (
+            db_config.get("standard_postgres") is True
+        ), "Should use standard PostgreSQL for portability"
 
     def test_no_proprietary_formats(self):
         """Data is not stored in proprietary formats."""
         storage_config = self._get_storage_format_config()
 
         for data_type, format_info in storage_config.items():
-            assert format_info.get("standard_format") is True, \
-                f"{data_type} should use standard format"
+            assert (
+                format_info.get("standard_format") is True
+            ), f"{data_type} should use standard format"
 
     # Helper methods
     def _get_export_config(self) -> dict:
@@ -396,7 +396,7 @@ class TestVendorLockIn:
     def _get_ai_abstraction_config(self) -> dict:
         return {
             "abstraction_layer": True,
-            "supported_providers": ["anthropic", "openai", "azure_openai"]
+            "supported_providers": ["anthropic", "openai", "azure_openai"],
         }
 
     def _get_database_config(self) -> dict:
@@ -406,13 +406,14 @@ class TestVendorLockIn:
         return {
             "documents": {"standard_format": True},
             "embeddings": {"standard_format": True},
-            "conversations": {"standard_format": True}
+            "conversations": {"standard_format": True},
         }
 
 
 # =============================================================================
 # Cost Control and Predictability
 # =============================================================================
+
 
 class TestCostControl:
     """IT Concern: Can we predict and control costs?"""
@@ -450,25 +451,17 @@ class TestCostControl:
 
     # Helper methods
     def _get_usage_monitoring(self) -> dict:
-        return {
-            "real_time_tracking": True,
-            "alerts_configurable": True,
-            "per_user_tracking": True
-        }
+        return {"real_time_tracking": True, "alerts_configurable": True, "per_user_tracking": True}
 
     def _get_spending_limits(self) -> dict:
         return {
             "daily_limit_configurable": True,
             "monthly_limit_configurable": True,
-            "per_user_limit_configurable": True
+            "per_user_limit_configurable": True,
         }
 
     def _get_cost_attribution(self) -> dict:
-        return {
-            "department_tagging": True,
-            "project_tagging": True,
-            "chargeback_reports": True
-        }
+        return {"department_tagging": True, "project_tagging": True, "chargeback_reports": True}
 
     def _get_forecasting_config(self) -> dict:
         return {"historical_data_available": True, "trend_analysis": True}
@@ -477,6 +470,7 @@ class TestCostControl:
 # =============================================================================
 # Shadow IT Prevention
 # =============================================================================
+
 
 class TestShadowITPrevention:
     """IT Concern: How do we prevent uncontrolled AI usage?"""
@@ -496,8 +490,7 @@ class TestShadowITPrevention:
         required_logs = ["login", "chat", "document_access", "data_export"]
 
         for activity in required_logs:
-            assert activity in logged_activities, \
-                f"Activity {activity} should be logged"
+            assert activity in logged_activities, f"Activity {activity} should be logged"
 
     def test_approved_use_cases_documented(self):
         """Approved use cases are documented."""
@@ -525,10 +518,16 @@ class TestShadowITPrevention:
 
     def _get_approved_use_cases(self) -> List[dict]:
         return [
-            {"description": "Research assistance", "data_types": ["public"],
-             "approved_by": "IT Security"},
-            {"description": "Document analysis", "data_types": ["internal"],
-             "approved_by": "IT Security"}
+            {
+                "description": "Research assistance",
+                "data_types": ["public"],
+                "approved_by": "IT Security",
+            },
+            {
+                "description": "Document analysis",
+                "data_types": ["internal"],
+                "approved_by": "IT Security",
+            },
         ]
 
     def _get_policy_enforcement(self) -> dict:
@@ -539,6 +538,7 @@ class TestShadowITPrevention:
 # Incident Response
 # =============================================================================
 
+
 class TestIncidentResponse:
     """IT Concern: What happens if something goes wrong?"""
 
@@ -546,13 +546,7 @@ class TestIncidentResponse:
         """Incident response plan is documented."""
         ir_plan = self._get_incident_response_plan()
 
-        required_sections = [
-            "detection",
-            "containment",
-            "eradication",
-            "recovery",
-            "post_incident"
-        ]
+        required_sections = ["detection", "containment", "eradication", "recovery", "post_incident"]
 
         for section in required_sections:
             assert section in ir_plan, f"IR plan missing section: {section}"
@@ -587,33 +581,31 @@ class TestIncidentResponse:
             "containment": "Isolate affected systems",
             "eradication": "Remove threat",
             "recovery": "Restore from backup",
-            "post_incident": "Root cause analysis"
+            "post_incident": "Root cause analysis",
         }
 
     def _get_security_contacts(self) -> dict:
-        return {
-            "security_email": "security@thesis.ai",
-            "emergency_contact": "+1-xxx-xxx-xxxx"
-        }
+        return {"security_email": "security@thesis.ai", "emergency_contact": "+1-xxx-xxx-xxxx"}
 
     def _get_breach_notification_process(self) -> dict:
         return {
             "notification_timeline_hours": 72,
             "affected_party_notification": True,
-            "regulatory_notification": True
+            "regulatory_notification": True,
         }
 
     def _get_termination_process(self) -> dict:
         return {
             "data_export_period_days": 30,
             "data_deletion_confirmation": True,
-            "no_data_retention_post_deletion": True
+            "no_data_retention_post_deletion": True,
         }
 
 
 # =============================================================================
 # Generate IT Audit Report
 # =============================================================================
+
 
 def generate_it_audit_report() -> str:
     """Generate a summary report for IT department review."""

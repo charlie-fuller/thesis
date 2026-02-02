@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Quick script to verify document status in the database.
+"""Quick script to verify document status in the database.
 Shows recent documents and their processing status.
 
 Usage:
@@ -14,6 +13,7 @@ from logger_config import get_logger
 
 logger = get_logger(__name__)
 
+
 def main():
     print("=" * 80)
     print("DOCUMENT STATUS VERIFICATION")
@@ -24,15 +24,21 @@ def main():
 
         # Get recent documents
         print("\n📄 Recent Documents (last 10):")
-        docs = supabase.table('documents').select(
-            'id, filename, processing_status, chunk_count, uploaded_at'
-        ).order('uploaded_at', desc=True).limit(10).execute()
+        docs = (
+            supabase.table("documents")
+            .select("id, filename, processing_status, chunk_count, uploaded_at")
+            .order("uploaded_at", desc=True)
+            .limit(10)
+            .execute()
+        )
 
         if docs.data:
             for i, doc in enumerate(docs.data, 1):
-                status = doc.get('processing_status', 'unknown')
-                chunks = doc.get('chunk_count', 0)
-                status_icon = "✅" if status == 'completed' else "⏳" if status == 'processing' else "❌"
+                status = doc.get("processing_status", "unknown")
+                chunks = doc.get("chunk_count", 0)
+                status_icon = (
+                    "✅" if status == "completed" else "⏳" if status == "processing" else "❌"
+                )
 
                 print(f"\n{i}. {status_icon} {doc['filename']}")
                 print(f"   ID: {doc['id'][:8]}...")
@@ -44,7 +50,9 @@ def main():
 
         # Check for rabbit-related documents specifically
         print("\n\n🐰 Searching for documents with 'rabbit' in filename...")
-        rabbit_docs = supabase.table('documents').select('*').ilike('filename', '%rabbit%').execute()
+        rabbit_docs = (
+            supabase.table("documents").select("*").ilike("filename", "%rabbit%").execute()
+        )
 
         if rabbit_docs.data:
             print(f"   ✅ Found {len(rabbit_docs.data)} document(s):")
@@ -54,15 +62,19 @@ def main():
                 print(f"      Chunks: {doc.get('chunk_count', 0)}")
 
                 # Check if chunks exist
-                if doc.get('chunk_count', 0) > 0:
-                    doc_id = doc['id']
-                    chunks = supabase.table('document_chunks').select(
-                        'id, content, embedding'
-                    ).eq('document_id', doc_id).limit(1).execute()
+                if doc.get("chunk_count", 0) > 0:
+                    doc_id = doc["id"]
+                    chunks = (
+                        supabase.table("document_chunks")
+                        .select("id, content, embedding")
+                        .eq("document_id", doc_id)
+                        .limit(1)
+                        .execute()
+                    )
 
                     if chunks.data:
                         chunk = chunks.data[0]
-                        has_embedding = chunk.get('embedding') is not None
+                        has_embedding = chunk.get("embedding") is not None
                         print(f"      Sample chunk: {chunk['content'][:100]}...")
                         print(f"      Has embedding: {'✅' if has_embedding else '❌'}")
         else:
@@ -74,11 +86,14 @@ def main():
 
         # Check total chunks
         print("\n\n📊 Database Statistics:")
-        total_docs = supabase.table('documents').select('id', count='exact').execute()
-        total_chunks = supabase.table('document_chunks').select('id', count='exact').execute()
-        chunks_with_embeddings = supabase.table('document_chunks').select(
-            'id', count='exact'
-        ).not_.is_('embedding', 'null').execute()
+        total_docs = supabase.table("documents").select("id", count="exact").execute()
+        total_chunks = supabase.table("document_chunks").select("id", count="exact").execute()
+        chunks_with_embeddings = (
+            supabase.table("document_chunks")
+            .select("id", count="exact")
+            .not_.is_("embedding", "null")
+            .execute()
+        )
 
         print(f"   Total documents: {total_docs.count}")
         print(f"   Total chunks: {total_chunks.count}")
@@ -91,8 +106,10 @@ def main():
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

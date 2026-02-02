@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Apply Migration 022: Add metadata column to messages table
+"""Apply Migration 022: Add metadata column to messages table
 Uses direct PostgreSQL connection via psycopg2
 """
 
@@ -20,11 +19,11 @@ except ImportError:
 
 # Load environment variables
 backend_dir = Path(__file__).parent
-env_path = backend_dir / '.env'
+env_path = backend_dir / ".env"
 load_dotenv(env_path)
 
 # Supabase connection details
-SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_URL = os.getenv("SUPABASE_URL")
 
 if not SUPABASE_URL:
     print("❌ ERROR: Missing SUPABASE_URL in .env file")
@@ -32,7 +31,7 @@ if not SUPABASE_URL:
 
 # Extract project ref from Supabase URL
 # Format: https://quizuqhnapsemfvjublt.supabase.co
-project_ref = SUPABASE_URL.replace('https://', '').replace('.supabase.co', '')
+project_ref = SUPABASE_URL.replace("https://", "").replace(".supabase.co", "")
 
 # Build PostgreSQL connection string
 # Format: postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
@@ -44,8 +43,8 @@ print(f"Project: {project_ref}")
 print()
 
 # Read migration file
-migration_file = backend_dir / 'migrations' / '022_add_messages_metadata_column.sql'
-with open(migration_file, 'r') as f:
+migration_file = backend_dir / "migrations" / "022_add_messages_metadata_column.sql"
+with open(migration_file, "r") as f:
     migration_sql = f.read()
 
 print("⚠️  Database Password Required")

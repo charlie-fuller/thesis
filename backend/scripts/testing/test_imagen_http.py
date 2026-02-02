@@ -1,7 +1,7 @@
-"""
-Test Google Gemini image generation using direct HTTP REST calls.
+"""Test Google Gemini image generation using direct HTTP REST calls.
 Based on official Google AI documentation.
 """
+
 import base64
 import json
 import os
@@ -17,8 +17,8 @@ def load_env():
         with open(env_file) as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
                     os.environ[key.strip()] = value.strip().strip('"').strip("'")
 
 
@@ -42,20 +42,11 @@ def test_gemini_image_http():
 
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent"
 
-    headers = {
-        "x-goog-api-key": api_key,
-        "Content-Type": "application/json"
-    }
+    headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
 
     prompt = "A friendly robot assistant with a smile, digital art style"
 
-    payload = {
-        "contents": [{
-            "parts": [
-                {"text": prompt}
-            ]
-        }]
-    }
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
     print(f"📝 Prompt: {prompt}")
     print(f"🔗 URL: {url}")
@@ -114,6 +105,7 @@ def test_gemini_image_http():
     except Exception as e:
         print(f"❌ Error: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -128,21 +120,11 @@ def test_imagen_endpoint():
 
     url = "https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict"
 
-    headers = {
-        "x-goog-api-key": api_key,
-        "Content-Type": "application/json"
-    }
+    headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
 
     prompt = "A friendly robot assistant with a smile, digital art style"
 
-    payload = {
-        "instances": [{
-            "prompt": prompt
-        }],
-        "parameters": {
-            "sampleCount": 1
-        }
-    }
+    payload = {"instances": [{"prompt": prompt}], "parameters": {"sampleCount": 1}}
 
     print(f"📝 Prompt: {prompt}")
     print(f"🔗 URL: {url}")
@@ -185,6 +167,7 @@ def test_imagen_endpoint():
     except Exception as e:
         print(f"❌ Error: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
 

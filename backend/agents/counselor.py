@@ -1,5 +1,4 @@
-"""
-Counselor Agent - Legal Intelligence
+"""Counselor Agent - Legal Intelligence
 
 The Counselor agent specializes in:
 - Contract considerations for AI vendors
@@ -13,16 +12,16 @@ import logging
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class CounselorAgent(BaseAgent):
-    """
-    Counselor - The Legal Intelligence agent.
+    """Counselor - The Legal Intelligence agent.
 
     Specializes in legal considerations, contracts, IP,
     and compliance for GenAI implementations.
@@ -33,7 +32,7 @@ class CounselorAgent(BaseAgent):
             name="counselor",
             display_name="Counselor",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -474,7 +473,7 @@ This is the work that matters.
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -487,15 +486,25 @@ This is the work that matters.
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Legal guidance: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Legal guidance: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         # Save legal analyses
         important_indicators = [
-            "legal", "contract", "liability", "ip", "intellectual property",
-            "licensing", "compliance", "dpa", "agreement", "terms"
+            "legal",
+            "contract",
+            "liability",
+            "ip",
+            "intellectual property",
+            "licensing",
+            "compliance",
+            "dpa",
+            "agreement",
+            "terms",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -515,15 +524,23 @@ This is the work that matters.
         message_lower = context.user_message.lower()
 
         # Hand off to Capital for contract cost questions
-        if any(word in message_lower for word in ["contract cost", "legal fees budget", "licensing cost"]):
+        if any(
+            word in message_lower
+            for word in ["contract cost", "legal fees budget", "licensing cost"]
+        ):
             return ("capital", "Query requires financial analysis")
 
         # Hand off to Guardian for compliance implementation
-        if any(word in message_lower for word in ["implement compliance", "security controls", "audit process"]):
+        if any(
+            word in message_lower
+            for word in ["implement compliance", "security controls", "audit process"]
+        ):
             return ("guardian", "Query requires IT/governance expertise")
 
         # Hand off to Atlas for legal research
-        if any(word in message_lower for word in ["legal research", "case law", "regulatory trends"]):
+        if any(
+            word in message_lower for word in ["legal research", "case law", "regulatory trends"]
+        ):
             return ("atlas", "Query requires research expertise")
 
         return None

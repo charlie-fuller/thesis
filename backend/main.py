@@ -1,15 +1,15 @@
-"""
-Thesis - Main Application Entry Point
+"""Thesis - Main Application Entry Point
 
 Multi-agent platform for enterprise GenAI strategy implementation.
 Provides specialized agents for research (Atlas), finance (Capital),
 IT/governance (Guardian), legal (Counselor), and transcript analysis (Oracle).
 """
+
 import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.responses import Response
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -35,6 +35,7 @@ limiter = Limiter(key_func=get_remote_address)
 # Application Lifespan Context Manager
 # ============================================================================
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle"""
@@ -42,6 +43,7 @@ async def lifespan(app: FastAPI):
     # Start Google Drive sync scheduler
     try:
         from services.sync_scheduler import start_scheduler
+
         start_scheduler(check_interval_minutes=5)
         logger.info("Google Drive sync scheduler started")
     except Exception as e:
@@ -50,6 +52,7 @@ async def lifespan(app: FastAPI):
     # Start Atlas research scheduler
     try:
         from services.research_scheduler import start_research_scheduler
+
         start_research_scheduler(hour_utc=6, minute=0)
         logger.info("Atlas research scheduler started")
     except Exception as e:
@@ -58,6 +61,7 @@ async def lifespan(app: FastAPI):
     # Start Knowledge Graph sync scheduler
     try:
         from services.graph_sync_scheduler import start_graph_sync_scheduler
+
         start_graph_sync_scheduler(hour_utc=3, minute=0)
         logger.info("Knowledge Graph sync scheduler started")
     except Exception as e:
@@ -66,6 +70,7 @@ async def lifespan(app: FastAPI):
     # Start Stakeholder Engagement scheduler (weekly)
     try:
         from services.engagement_scheduler import start_engagement_scheduler
+
         start_engagement_scheduler(day_of_week="sun", hour_utc=4, minute=0)
         logger.info("Stakeholder engagement scheduler started")
     except Exception as e:
@@ -78,30 +83,35 @@ async def lifespan(app: FastAPI):
     # Shutdown
     try:
         from services.sync_scheduler import stop_scheduler
+
         stop_scheduler()
     except Exception as e:
         logger.error(f"Warning during sync scheduler shutdown: {e}")
 
     try:
         from services.research_scheduler import stop_research_scheduler
+
         stop_research_scheduler()
     except Exception as e:
         logger.error(f"Warning during research scheduler shutdown: {e}")
 
     try:
         from services.graph_sync_scheduler import stop_graph_sync_scheduler
+
         stop_graph_sync_scheduler()
     except Exception as e:
         logger.error(f"Warning during graph sync scheduler shutdown: {e}")
 
     try:
         from services.engagement_scheduler import stop_engagement_scheduler
+
         stop_engagement_scheduler()
     except Exception as e:
         logger.error(f"Warning during engagement scheduler shutdown: {e}")
 
     try:
         from services.graph import close_neo4j_connection
+
         await close_neo4j_connection()
         logger.info("Neo4j connection closed")
     except Exception as e:
@@ -115,7 +125,7 @@ app = FastAPI(
     title="Thesis API",
     description="Multi-agent platform for enterprise GenAI strategy - Research, Finance, IT/Governance, Legal, and Transcript Analysis agents",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configure app state
@@ -146,13 +156,15 @@ LOCAL_DEV_ORIGINS = [
 # Check if running in production
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "development").lower()
 
+
 # Parse and normalize origins (ensure all have https:// prefix)
 def normalize_origin(origin: str) -> str:
     """Ensure origin has proper https:// prefix"""
     origin = origin.strip()
-    if origin and not origin.startswith(('http://', 'https://')):
+    if origin and not origin.startswith(("http://", "https://")):
         origin = f"https://{origin}"
     return origin
+
 
 allowed_origins = [normalize_origin(origin) for origin in FRONTEND_URL.split(",")]
 
@@ -182,9 +194,9 @@ logger.info(f"CORS allowed origins: {allowed_origins}")
 # Custom CORS Middleware (handles CORS before anything else)
 # ============================================================================
 
+
 class CustomCORSMiddleware:
-    """
-    Pure ASGI CORS middleware that handles preflight requests directly.
+    """Pure ASGI CORS middleware that handles preflight requests directly.
     This ensures CORS headers are always added, even when exceptions occur.
 
     Note: Using pure ASGI instead of BaseHTTPMiddleware to avoid
@@ -224,10 +236,12 @@ class CustomCORSMiddleware:
                         "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, X-Requested-With, X-Request-ID",
                         "Access-Control-Allow-Credentials": "true",
                         "Access-Control-Max-Age": "86400",
-                    }
+                    },
                 )
             else:
-                logger.warning(f"CORS preflight REJECTED for {path} - origin '{origin}' not in allowed list")
+                logger.warning(
+                    f"CORS preflight REJECTED for {path} - origin '{origin}' not in allowed list"
+                )
                 response = Response(status_code=403, content="CORS not allowed")
 
             await response(scope, receive, send)
@@ -257,7 +271,7 @@ class CustomCORSMiddleware:
             response = Response(
                 status_code=500,
                 content=str(e),
-                headers={h[0].decode(): h[1].decode() for h in error_headers}
+                headers={h[0].decode(): h[1].decode() for h in error_headers},
             )
             await response(scope, receive, send)
 
@@ -272,6 +286,7 @@ app.add_middleware(CustomCORSMiddleware)
 # Railway/proxies terminate TLS and forward requests as HTTP internally.
 # FastAPI's trailing-slash redirects use the internal HTTP scheme, causing
 # mixed content errors. This middleware intercepts redirects and fixes the scheme.
+
 
 class HTTPSRedirectFixMiddleware:
     """Fix redirect URLs to use HTTPS when behind a proxy."""
@@ -324,6 +339,7 @@ from api.routes import (
     compass,
     conversations,
     digest,
+    disco,
     discovery,
     document_mappings,
     documents,
@@ -341,7 +357,6 @@ from api.routes import (
     opportunities,
     pipeline,
     projects,
-    disco,
     research,
     stakeholder_metrics,
     stakeholders,
@@ -388,7 +403,9 @@ app.include_router(disco.router)
 app.include_router(entity_registry.router)
 app.include_router(entity_corrections.router)
 
-logger.info("All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, task management, Obsidian sync, Compass, Digest, Pipeline, DISCo, and Entity Validation routes)")
+logger.info(
+    "All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, task management, Obsidian sync, Compass, Digest, Pipeline, DISCo, and Entity Validation routes)"
+)
 
 # ============================================================================
 # Backward Compatibility Routes
@@ -404,29 +421,20 @@ from validation import validate_uuid
 
 @app.get("/api/clients/{client_id}/conversations")
 async def list_client_conversations(
-    client_id: str,
-    include_archived: bool = False,
-    current_user: dict = Depends(get_current_user)
+    client_id: str, include_archived: bool = False, current_user: dict = Depends(get_current_user)
 ):
     """List all conversations for a client (backward compatibility)"""
     try:
         validate_uuid(client_id, "client_id")
 
-        query = supabase.table('conversations')\
-            .select('*')\
-            .eq('client_id', client_id)
+        query = supabase.table("conversations").select("*").eq("client_id", client_id)
 
         if not include_archived:
-            query = query.eq('archived', False)
+            query = query.eq("archived", False)
 
-        result = await asyncio.to_thread(
-            lambda: query.order('updated_at', desc=True).execute()
-        )
+        result = await asyncio.to_thread(lambda: query.order("updated_at", desc=True).execute())
 
-        return {
-            'success': True,
-            'conversations': result.data
-        }
+        return {"success": True, "conversations": result.data}
 
     except Exception as e:
         logger.error(f"❌ Error listing client conversations: {str(e)}")
@@ -434,32 +442,32 @@ async def list_client_conversations(
 
 
 @app.get("/api/users/me/storage")
-async def get_user_storage(
-    current_user: dict = Depends(get_current_user)
-):
+async def get_user_storage(current_user: dict = Depends(get_current_user)):
     """Get user storage info (backward compatibility - forwards to documents router)"""
     try:
         # Query user storage from database
         result = await asyncio.to_thread(
-            lambda: supabase.table('users')\
-                .select('storage_used, storage_quota')\
-                .eq('id', current_user['id'])\
-                .single()\
-                .execute()
+            lambda: supabase.table("users")
+            .select("storage_used, storage_quota")
+            .eq("id", current_user["id"])
+            .single()
+            .execute()
         )
 
         if not result.data:
             raise HTTPException(status_code=404, detail="User not found")
 
-        storage_quota = result.data.get('storage_quota') or 524288000  # 500MB default
-        storage_used = result.data.get('storage_used') or 0
+        storage_quota = result.data.get("storage_quota") or 524288000  # 500MB default
+        storage_used = result.data.get("storage_used") or 0
 
         return {
-            'success': True,
-            'storage_quota': storage_quota,
-            'storage_used': storage_used,
-            'storage_available': max(0, storage_quota - storage_used),
-            'usage_percentage': round((storage_used / storage_quota * 100), 2) if storage_quota > 0 else 0
+            "success": True,
+            "storage_quota": storage_quota,
+            "storage_used": storage_used,
+            "storage_available": max(0, storage_quota - storage_used),
+            "usage_percentage": round((storage_used / storage_quota * 100), 2)
+            if storage_quota > 0
+            else 0,
         }
 
     except HTTPException:
@@ -470,33 +478,29 @@ async def get_user_storage(
 
 
 @app.get("/api/users/me/documents")
-async def get_user_documents(
-    current_user: dict = Depends(get_current_user)
-):
+async def get_user_documents(current_user: dict = Depends(get_current_user)):
     """Get user documents (backward compatibility - forwards to documents router)"""
     try:
         # Query user's documents from database
         result = await asyncio.to_thread(
-            lambda: supabase.table('documents')\
-                .select('*')\
-                .eq('uploaded_by', current_user['id'])\
-                .order('uploaded_at', desc=True)\
-                .execute()
+            lambda: supabase.table("documents")
+            .select("*")
+            .eq("uploaded_by", current_user["id"])
+            .order("uploaded_at", desc=True)
+            .execute()
         )
 
-        return {
-            'success': True,
-            'documents': result.data,
-            'count': len(result.data)
-        }
+        return {"success": True, "documents": result.data, "count": len(result.data)}
 
     except Exception as e:
         logger.error(f"❌ Error fetching user documents: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
+
 # ============================================================================
 # Core Health Endpoints
 # ============================================================================
+
 
 @app.get("/")
 async def root():
@@ -505,7 +509,7 @@ async def root():
         "message": "Thesis API is running",
         "version": "1.0.1",
         "status": "healthy",
-        "deploy_marker": "2025-12-28-meeting-cors-verify"
+        "deploy_marker": "2025-12-28-meeting-cors-verify",
     }
 
 
@@ -514,20 +518,12 @@ async def health_check():
     """Health check endpoint for monitoring"""
     try:
         # Test database connection
-        supabase.table('users').select('id').limit(1).execute()
+        supabase.table("users").select("id").limit(1).execute()
 
-        return {
-            "status": "healthy",
-            "database": "connected",
-            "version": "1.0.0"
-        }
+        return {"status": "healthy", "database": "connected", "version": "1.0.0"}
     except Exception as e:
         logger.error(f"❌ Health check failed: {str(e)}")
-        return {
-            "status": "unhealthy",
-            "database": "disconnected",
-            "error": str(e)
-        }
+        return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
 
 
 # ============================================================================
@@ -536,9 +532,5 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", 8000)),
-        reload=True
-    )
+
+    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)), reload=True)

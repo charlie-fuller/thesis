@@ -1,5 +1,4 @@
-"""
-Stakeholder Extractor Service
+"""Stakeholder Extractor Service
 
 Extracts potential stakeholders from meeting summaries and transcripts using LLM.
 Uses Claude Sonnet for high-quality extraction of names, roles, departments,
@@ -19,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ExtractedStakeholder:
     """A potential stakeholder extracted from content."""
+
     name: str
     role: Optional[str] = None
     department: Optional[str] = None
@@ -52,8 +52,7 @@ class StakeholderExtractor:
         source_document: str,
         document_date: Optional[str] = None,
     ) -> list[ExtractedStakeholder]:
-        """
-        Use LLM to extract stakeholders from meeting content.
+        """Use LLM to extract stakeholders from meeting content.
 
         Args:
             text: The document content to analyze
@@ -125,7 +124,7 @@ DOCUMENT CONTENT:
             response = self.anthropic.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=4096,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             response_text = response.content[0].text.strip()
@@ -141,9 +140,7 @@ DOCUMENT CONTENT:
             return []
 
     def _parse_response(
-        self,
-        response_text: str,
-        source_document: str
+        self, response_text: str, source_document: str
     ) -> list[ExtractedStakeholder]:
         """Parse LLM response into ExtractedStakeholder objects."""
         try:
@@ -204,21 +201,23 @@ DOCUMENT CONTENT:
                 # Determine confidence based on available info
                 confidence = self._calculate_confidence(item)
 
-                stakeholders.append(ExtractedStakeholder(
-                    name=name,
-                    role=item.get("role"),
-                    department=department,
-                    organization=item.get("organization"),
-                    email=item.get("email"),
-                    key_concerns=key_concerns,
-                    interests=interests,
-                    initial_sentiment=sentiment,
-                    influence_level=influence,
-                    source_document=source_document,
-                    source_text=item.get("source_text", "")[:500],
-                    extraction_context=item.get("extraction_context", "")[:500],
-                    confidence=confidence
-                ))
+                stakeholders.append(
+                    ExtractedStakeholder(
+                        name=name,
+                        role=item.get("role"),
+                        department=department,
+                        organization=item.get("organization"),
+                        email=item.get("email"),
+                        key_concerns=key_concerns,
+                        interests=interests,
+                        initial_sentiment=sentiment,
+                        influence_level=influence,
+                        source_document=source_document,
+                        source_text=item.get("source_text", "")[:500],
+                        extraction_context=item.get("extraction_context", "")[:500],
+                        confidence=confidence,
+                    )
+                )
 
             return stakeholders
 
@@ -233,12 +232,12 @@ DOCUMENT CONTENT:
         """Check if a name represents multiple people."""
         # Common separators for multiple people
         multi_person_patterns = [
-            "/",           # ashley/tricia
-            " & ",         # tyler & charlie
-            " and ",       # tyler and charlie
-            ", and ",      # tyler, and charlie
-            " + ",         # tyler + charlie
-            " or ",        # tyler or charlie (ambiguous reference)
+            "/",  # ashley/tricia
+            " & ",  # tyler & charlie
+            " and ",  # tyler and charlie
+            ", and ",  # tyler, and charlie
+            " + ",  # tyler + charlie
+            " or ",  # tyler or charlie (ambiguous reference)
         ]
 
         name_lower = name.lower()

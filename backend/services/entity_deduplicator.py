@@ -1,5 +1,4 @@
-"""
-Entity Deduplicator Service
+"""Entity Deduplicator Service
 
 Unified deduplication service for tasks, opportunities, and stakeholders.
 Provides consistent deduplication logic across all entity types during
@@ -30,6 +29,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DeduplicationConfig:
     """Configuration thresholds for deduplication matching."""
+
     # Fuzzy matching threshold (SequenceMatcher ratio, 0-1)
     fuzzy_threshold: float = 0.80
     # Semantic matching threshold (cosine similarity, 0-1)
@@ -45,6 +45,7 @@ class DeduplicationConfig:
 @dataclass
 class MatchResult:
     """Result of a deduplication check."""
+
     matched_id: str
     match_type: str  # 'existing', 'pending', 'rejected', 'batch'
     match_confidence: float
@@ -53,11 +54,11 @@ class MatchResult:
 
     def should_block(self, config: DeduplicationConfig) -> bool:
         """Determine if this match should block item creation."""
-        if self.match_type == 'rejected' and config.block_on_rejected:
+        if self.match_type == "rejected" and config.block_on_rejected:
             return True
-        if self.match_type == 'batch' and config.block_on_batch_duplicate:
+        if self.match_type == "batch" and config.block_on_batch_duplicate:
             return True
-        if self.match_type == 'existing' and config.block_on_existing:
+        if self.match_type == "existing" and config.block_on_existing:
             return True
         return False
 
@@ -65,6 +66,7 @@ class MatchResult:
 @dataclass
 class BatchCache:
     """Cache for within-batch deduplication."""
+
     tasks: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     opportunities: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     stakeholders: Dict[str, Dict[str, Any]] = field(default_factory=dict)
@@ -77,8 +79,7 @@ class BatchCache:
 
 
 def fuzzy_match(str1: str, str2: str) -> float:
-    """
-    Calculate fuzzy similarity between two strings.
+    """Calculate fuzzy similarity between two strings.
     Returns a score between 0 and 1.
     """
     if not str1 or not str2:
@@ -94,8 +95,7 @@ def normalize_for_cache_key(text: str) -> str:
 
 
 class EntityDeduplicator:
-    """
-    Unified deduplication service for all entity types.
+    """Unified deduplication service for all entity types.
 
     Usage:
         deduplicator = EntityDeduplicator(supabase)
@@ -129,10 +129,9 @@ class EntityDeduplicator:
         title: str,
         description: str = "",
         batch_id: Optional[str] = None,
-        embedding: Optional[List[float]] = None
+        embedding: Optional[List[float]] = None,
     ) -> Optional[MatchResult]:
-        """
-        Check for duplicate tasks.
+        """Check for duplicate tasks.
 
         Check order:
         1. Within-batch (BLOCK if match)
@@ -159,24 +158,24 @@ class EntityDeduplicator:
             if batch_key in self._batch_cache.tasks:
                 cached = self._batch_cache.tasks[batch_key]
                 return MatchResult(
-                    matched_id=cached['id'],
-                    match_type='batch',
+                    matched_id=cached["id"],
+                    match_type="batch",
                     match_confidence=1.0,
-                    match_reason=f"Duplicate in same batch: '{cached['title'][:50]}'"
+                    match_reason=f"Duplicate in same batch: '{cached['title'][:50]}'",
                 )
             # Also check fuzzy match against all batch items
             for key, cached in self._batch_cache.tasks.items():
                 if key.startswith(f"{batch_id}:"):
-                    similarity = fuzzy_match(title, cached['title'])
+                    similarity = fuzzy_match(title, cached["title"])
                     if similarity > self.config.fuzzy_threshold:
                         return MatchResult(
-                            matched_id=cached['id'],
-                            match_type='batch',
+                            matched_id=cached["id"],
+                            match_type="batch",
                             match_confidence=similarity,
-                            match_reason=f"Similar to batch item: '{cached['title'][:50]}'"
+                            match_reason=f"Similar to batch item: '{cached['title'][:50]}'",
                         )
             # Add to cache for future checks
-            self._batch_cache.tasks[batch_key] = {'id': 'pending', 'title': title}
+            self._batch_cache.tasks[batch_key] = {"id": "pending", "title": title}
 
         # 2. Check rejected candidates (fuzzy match)
         rejected_match = await self._check_rejected_tasks(client_id, title)
@@ -191,82 +190,81 @@ class EntityDeduplicator:
             return pending_match
 
         # 4. Check existing project_tasks (fuzzy + semantic)
-        existing_match = await self._check_existing_tasks(
-            client_id, title, description, embedding
-        )
+        existing_match = await self._check_existing_tasks(client_id, title, description, embedding)
         if existing_match:
             return existing_match
 
         return None
 
-    async def _check_rejected_tasks(
-        self, client_id: str, title: str
-    ) -> Optional[MatchResult]:
+    async def _check_rejected_tasks(self, client_id: str, title: str) -> Optional[MatchResult]:
         """Check if task matches a rejected candidate."""
         try:
-            result = self.supabase.table('task_candidates') \
-                .select('id, title') \
-                .eq('client_id', client_id) \
-                .eq('status', 'rejected') \
+            result = (
+                self.supabase.table("task_candidates")
+                .select("id, title")
+                .eq("client_id", client_id)
+                .eq("status", "rejected")
                 .execute()
+            )
 
             for rejected in result.data or []:
-                similarity = fuzzy_match(title, rejected.get('title', ''))
+                similarity = fuzzy_match(title, rejected.get("title", ""))
                 if similarity > self.config.fuzzy_threshold:
                     return MatchResult(
-                        matched_id=rejected['id'],
-                        match_type='rejected',
+                        matched_id=rejected["id"],
+                        match_type="rejected",
                         match_confidence=similarity,
-                        match_reason=f"Similar to rejected: '{rejected['title'][:50]}'"
+                        match_reason=f"Similar to rejected: '{rejected['title'][:50]}'",
                     )
         except Exception as e:
             logger.warning(f"Error checking rejected tasks: {e}")
         return None
 
     async def _check_pending_task_candidates(
-        self,
-        client_id: str,
-        title: str,
-        description: str,
-        embedding: Optional[List[float]]
+        self, client_id: str, title: str, description: str, embedding: Optional[List[float]]
     ) -> Optional[MatchResult]:
         """Check if task matches a pending candidate."""
         try:
             # Fuzzy match first
-            result = self.supabase.table('task_candidates') \
-                .select('id, title') \
-                .eq('client_id', client_id) \
-                .eq('status', 'pending') \
+            result = (
+                self.supabase.table("task_candidates")
+                .select("id, title")
+                .eq("client_id", client_id)
+                .eq("status", "pending")
                 .execute()
+            )
 
             for pending in result.data or []:
-                similarity = fuzzy_match(title, pending.get('title', ''))
+                similarity = fuzzy_match(title, pending.get("title", ""))
                 if similarity > self.config.fuzzy_threshold:
                     return MatchResult(
-                        matched_id=pending['id'],
-                        match_type='pending',
+                        matched_id=pending["id"],
+                        match_type="pending",
                         match_confidence=similarity,
-                        match_reason=f"Similar to pending candidate: '{pending['title'][:50]}'"
+                        match_reason=f"Similar to pending candidate: '{pending['title'][:50]}'",
                     )
 
             # Semantic match if embedding available
             if embedding:
                 try:
-                    semantic_result = self.supabase.rpc('match_task_candidates', {
-                        'query_embedding': embedding,
-                        'p_client_id': client_id,
-                        'match_threshold': self.config.semantic_threshold,
-                        'match_count': 1
-                    }).execute()
+                    semantic_result = self.supabase.rpc(
+                        "match_task_candidates",
+                        {
+                            "query_embedding": embedding,
+                            "p_client_id": client_id,
+                            "match_threshold": self.config.semantic_threshold,
+                            "match_count": 1,
+                        },
+                    ).execute()
 
                     if semantic_result.data:
                         match = semantic_result.data[0]
                         return MatchResult(
-                            matched_id=match['id'],
-                            match_type='pending',
-                            match_confidence=match['similarity'],
+                            matched_id=match["id"],
+                            match_type="pending",
+                            match_confidence=match["similarity"],
                             match_reason=f"Semantically similar to: '{match['title'][:50]}'",
-                            is_semantic=True
+                            is_semantic=True,
                         )
                 except Exception as e:
                     logger.debug(f"Semantic task candidate match failed: {e}")
@@ -276,49 +274,50 @@ class EntityDeduplicator:
         return None
 
     async def _check_existing_tasks(
-        self,
-        client_id: str,
-        title: str,
-        description: str,
-        embedding: Optional[List[float]]
+        self, client_id: str, title: str, description: str, embedding: Optional[List[float]]
     ) -> Optional[MatchResult]:
         """Check if task matches an existing project_task."""
         try:
             # Fuzzy match
-            result = self.supabase.table('project_tasks') \
-                .select('id, title') \
-                .eq('client_id', client_id) \
-                .neq('status', 'completed') \
+            result = (
+                self.supabase.table("project_tasks")
+                .select("id, title")
+                .eq("client_id", client_id)
+                .neq("status", "completed")
                 .execute()
+            )
 
             for task in result.data or []:
-                similarity = fuzzy_match(title, task.get('title', ''))
+                similarity = fuzzy_match(title, task.get("title", ""))
                 if similarity > self.config.fuzzy_threshold:
                     return MatchResult(
-                        matched_id=task['id'],
-                        match_type='existing',
+                        matched_id=task["id"],
+                        match_type="existing",
                         match_confidence=similarity,
-                        match_reason=f"Similar to existing task: '{task['title'][:50]}'"
+                        match_reason=f"Similar to existing task: '{task['title'][:50]}'",
                     )
 
             # Semantic match if embedding available
             if embedding:
                 try:
-                    semantic_result = self.supabase.rpc('match_existing_tasks', {
-                        'query_embedding': embedding,
-                        'p_client_id': client_id,
-                        'match_threshold': self.config.semantic_threshold,
-                        'match_count': 1
-                    }).execute()
+                    semantic_result = self.supabase.rpc(
+                        "match_existing_tasks",
+                        {
+                            "query_embedding": embedding,
+                            "p_client_id": client_id,
+                            "match_threshold": self.config.semantic_threshold,
+                            "match_count": 1,
+                        },
+                    ).execute()
 
                     if semantic_result.data:
                         match = semantic_result.data[0]
                         return MatchResult(
-                            matched_id=match['id'],
-                            match_type='existing',
-                            match_confidence=match['similarity'],
+                            matched_id=match["id"],
+                            match_type="existing",
+                            match_confidence=match["similarity"],
                             match_reason=f"Semantically similar to: '{match['title'][:50]}'",
-                            is_semantic=True
+                            is_semantic=True,
                         )
                 except Exception as e:
                     logger.debug(f"Semantic existing task match failed: {e}")
@@ -337,10 +336,9 @@ class EntityDeduplicator:
         title: str,
         quote: str = "",
         batch_id: Optional[str] = None,
-        embedding: Optional[List[float]] = None
+        embedding: Optional[List[float]] = None,
     ) -> Optional[MatchResult]:
-        """
-        Check for duplicate opportunities.
+        """Check for duplicate opportunities.
 
         Check order:
         1. Within-batch (BLOCK if match)
@@ -367,23 +365,23 @@ class EntityDeduplicator:
             if batch_key in self._batch_cache.opportunities:
                 cached = self._batch_cache.opportunities[batch_key]
                 return MatchResult(
-                    matched_id=cached['id'],
-                    match_type='batch',
+                    matched_id=cached["id"],
+                    match_type="batch",
                     match_confidence=1.0,
-                    match_reason=f"Duplicate in same batch: '{cached['title'][:50]}'"
+                    match_reason=f"Duplicate in same batch: '{cached['title'][:50]}'",
                 )
             # Also check fuzzy match against all batch items
             for key, cached in self._batch_cache.opportunities.items():
                 if key.startswith(f"{batch_id}:"):
-                    similarity = fuzzy_match(title, cached['title'])
+                    similarity = fuzzy_match(title, cached["title"])
                     if similarity > self.config.fuzzy_threshold:
                         return MatchResult(
-                            matched_id=cached['id'],
-                            match_type='batch',
+                            matched_id=cached["id"],
+                            match_type="batch",
                             match_confidence=similarity,
-                            match_reason=f"Similar to batch item: '{cached['title'][:50]}'"
+                            match_reason=f"Similar to batch item: '{cached['title'][:50]}'",
                         )
-            self._batch_cache.opportunities[batch_key] = {'id': 'pending', 'title': title}
+            self._batch_cache.opportunities[batch_key] = {"id": "pending", "title": title}
 
         # 2. Check rejected candidates
         rejected_match = await self._check_rejected_opportunities(client_id, title)
@@ -407,20 +405,22 @@ class EntityDeduplicator:
     ) -> Optional[MatchResult]:
         """Check if opportunity matches a rejected candidate."""
         try:
-            result = self.supabase.table('project_candidates') \
-                .select('id, title') \
-                .eq('client_id', client_id) \
-                .eq('status', 'rejected') \
+            result = (
+                self.supabase.table("project_candidates")
+                .select("id, title")
+                .eq("client_id", client_id)
+                .eq("status", "rejected")
                 .execute()
+            )
 
             for rejected in result.data or []:
-                similarity = fuzzy_match(title, rejected.get('title', ''))
+                similarity = fuzzy_match(title, rejected.get("title", ""))
                 if similarity > self.config.fuzzy_threshold:
                     return MatchResult(
-                        matched_id=rejected['id'],
-                        match_type='rejected',
+                        matched_id=rejected["id"],
+                        match_type="rejected",
                         match_confidence=similarity,
-                        match_reason=f"Similar to rejected: '{rejected['title'][:50]}'"
+                        match_reason=f"Similar to rejected: '{rejected['title'][:50]}'",
                     )
         except Exception as e:
             logger.warning(f"Error checking rejected opportunities: {e}")
@@ -431,20 +431,22 @@ class EntityDeduplicator:
     ) -> Optional[MatchResult]:
         """Check if opportunity matches a pending candidate."""
         try:
-            result = self.supabase.table('project_candidates') \
-                .select('id, title') \
-                .eq('client_id', client_id) \
-                .eq('status', 'pending') \
+            result = (
+                self.supabase.table("project_candidates")
+                .select("id, title")
+                .eq("client_id", client_id)
+                .eq("status", "pending")
                 .execute()
+            )
 
             for pending in result.data or []:
-                similarity = fuzzy_match(title, pending.get('title', ''))
+                similarity = fuzzy_match(title, pending.get("title", ""))
                 if similarity > self.config.fuzzy_threshold:
                     return MatchResult(
-                        matched_id=pending['id'],
-                        match_type='pending',
+                        matched_id=pending["id"],
+                        match_type="pending",
                         match_confidence=similarity,
-                        match_reason=f"Similar to pending: '{pending['title'][:50]}'"
+                        match_reason=f"Similar to pending: '{pending['title'][:50]}'",
                     )
         except Exception as e:
             logger.warning(f"Error checking pending opportunity candidates: {e}")
@@ -455,32 +457,34 @@ class EntityDeduplicator:
     ) -> Optional[MatchResult]:
         """Check if opportunity matches an existing one."""
         try:
-            result = self.supabase.table('ai_projects') \
-                .select('id, title, project_name, description') \
-                .eq('client_id', client_id) \
+            result = (
+                self.supabase.table("ai_projects")
+                .select("id, title, project_name, description")
+                .eq("client_id", client_id)
                 .execute()
+            )
 
             for opp in result.data or []:
                 # Check title
-                title_sim = fuzzy_match(title, opp.get('title', ''))
+                title_sim = fuzzy_match(title, opp.get("title", ""))
                 if title_sim > 0.85:
                     return MatchResult(
-                        matched_id=opp['id'],
-                        match_type='existing',
+                        matched_id=opp["id"],
+                        match_type="existing",
                         match_confidence=title_sim,
-                        match_reason=f"Title match ({title_sim:.0%}): '{opp['title'][:50]}'"
+                        match_reason=f"Title match ({title_sim:.0%}): '{opp['title'][:50]}'",
                     )
 
                 # Check project_name
-                project_name = opp.get('project_name')
+                project_name = opp.get("project_name")
                 if project_name:
                     proj_sim = fuzzy_match(title, project_name)
                     if proj_sim > 0.85:
                         return MatchResult(
-                            matched_id=opp['id'],
-                            match_type='existing',
+                            matched_id=opp["id"],
+                            match_type="existing",
                             match_confidence=proj_sim,
-                            match_reason=f"Project name match ({proj_sim:.0%}): '{project_name[:50]}'"
+                            match_reason=f"Project name match ({proj_sim:.0%}): '{project_name[:50]}'",
                         )
         except Exception as e:
             logger.warning(f"Error checking existing opportunities: {e}")
@@ -498,10 +502,9 @@ class EntityDeduplicator:
         department: str = "",
         organization: str = "",
         email: str = "",
-        batch_id: Optional[str] = None
+        batch_id: Optional[str] = None,
     ) -> Optional[MatchResult]:
-        """
-        Check for duplicate stakeholders.
+        """Check for duplicate stakeholders.
 
         Check order:
         1. Within-batch (BLOCK if match)
@@ -530,23 +533,23 @@ class EntityDeduplicator:
             if batch_key in self._batch_cache.stakeholders:
                 cached = self._batch_cache.stakeholders[batch_key]
                 return MatchResult(
-                    matched_id=cached['id'],
-                    match_type='batch',
+                    matched_id=cached["id"],
+                    match_type="batch",
                     match_confidence=1.0,
-                    match_reason=f"Duplicate in same batch: '{cached['name']}'"
+                    match_reason=f"Duplicate in same batch: '{cached['name']}'",
                 )
             # Also check fuzzy match against all batch items (catches name variations)
             for key, cached in self._batch_cache.stakeholders.items():
                 if key.startswith(f"{batch_id}:"):
-                    similarity = fuzzy_match(name, cached['name'])
+                    similarity = fuzzy_match(name, cached["name"])
                     if similarity > 0.90:  # Higher threshold for names
                         return MatchResult(
-                            matched_id=cached['id'],
-                            match_type='batch',
+                            matched_id=cached["id"],
+                            match_type="batch",
                             match_confidence=similarity,
-                            match_reason=f"Similar to batch item: '{cached['name']}'"
+                            match_reason=f"Similar to batch item: '{cached['name']}'",
                         )
-            self._batch_cache.stakeholders[batch_key] = {'id': 'pending', 'name': name}
+            self._batch_cache.stakeholders[batch_key] = {"id": "pending", "name": name}
 
         # 2. Check rejected candidates
         rejected_match = await self._check_rejected_stakeholders(client_id, name)
@@ -572,20 +575,22 @@ class EntityDeduplicator:
     ) -> Optional[MatchResult]:
         """Check if stakeholder matches a rejected candidate."""
         try:
-            result = self.supabase.table('stakeholder_candidates') \
-                .select('id, name') \
-                .eq('client_id', client_id) \
-                .eq('status', 'rejected') \
+            result = (
+                self.supabase.table("stakeholder_candidates")
+                .select("id, name")
+                .eq("client_id", client_id)
+                .eq("status", "rejected")
                 .execute()
+            )
 
             for rejected in result.data or []:
-                similarity = self._name_similarity(name, rejected.get('name', ''))
+                similarity = self._name_similarity(name, rejected.get("name", ""))
                 if similarity > 0.85:
                     return MatchResult(
-                        matched_id=rejected['id'],
-                        match_type='rejected',
+                        matched_id=rejected["id"],
+                        match_type="rejected",
                         match_confidence=similarity,
-                        match_reason=f"Similar to rejected: '{rejected['name']}'"
+                        match_reason=f"Similar to rejected: '{rejected['name']}'",
                     )
         except Exception as e:
             logger.warning(f"Error checking rejected stakeholders: {e}")
@@ -596,61 +601,59 @@ class EntityDeduplicator:
     ) -> Optional[MatchResult]:
         """Check if stakeholder matches a pending candidate."""
         try:
-            result = self.supabase.table('stakeholder_candidates') \
-                .select('id, name, email') \
-                .eq('client_id', client_id) \
-                .eq('status', 'pending') \
+            result = (
+                self.supabase.table("stakeholder_candidates")
+                .select("id, name, email")
+                .eq("client_id", client_id)
+                .eq("status", "pending")
                 .execute()
+            )
 
             for pending in result.data or []:
                 # Email match is definitive
-                if email and pending.get('email'):
-                    if email.lower() == pending['email'].lower():
+                if email and pending.get("email"):
+                    if email.lower() == pending["email"].lower():
                         return MatchResult(
-                            matched_id=pending['id'],
-                            match_type='pending',
+                            matched_id=pending["id"],
+                            match_type="pending",
                             match_confidence=1.0,
-                            match_reason=f"Email match: {email}"
+                            match_reason=f"Email match: {email}",
                         )
 
                 # Name similarity
-                similarity = self._name_similarity(name, pending.get('name', ''))
+                similarity = self._name_similarity(name, pending.get("name", ""))
                 if similarity > 0.85:
                     return MatchResult(
-                        matched_id=pending['id'],
-                        match_type='pending',
+                        matched_id=pending["id"],
+                        match_type="pending",
                         match_confidence=similarity,
-                        match_reason=f"Similar to pending: '{pending['name']}'"
+                        match_reason=f"Similar to pending: '{pending['name']}'",
                     )
         except Exception as e:
             logger.warning(f"Error checking pending stakeholder candidates: {e}")
         return None
 
     async def _check_existing_stakeholders(
-        self,
-        client_id: str,
-        name: str,
-        role: str,
-        department: str,
-        organization: str,
-        email: str
+        self, client_id: str, name: str, role: str, department: str, organization: str, email: str
     ) -> Optional[MatchResult]:
         """Check if stakeholder matches an existing one."""
         try:
-            result = self.supabase.table('stakeholders') \
-                .select('id, name, email, role, department, organization') \
-                .eq('client_id', client_id) \
+            result = (
+                self.supabase.table("stakeholders")
+                .select("id, name, email, role, department, organization")
+                .eq("client_id", client_id)
                 .execute()
+            )
 
             for existing in result.data or []:
                 # Email match is definitive
-                if email and existing.get('email'):
-                    if email.lower() == existing['email'].lower():
+                if email and existing.get("email"):
+                    if email.lower() == existing["email"].lower():
                         return MatchResult(
-                            matched_id=existing['id'],
-                            match_type='existing',
+                            matched_id=existing["id"],
+                            match_type="existing",
                             match_confidence=1.0,
-                            match_reason=f"Email match: {email}"
+                            match_reason=f"Email match: {email}",
                         )
 
                 # Calculate overall match score
@@ -660,18 +663,17 @@ class EntityDeduplicator:
 
                 if score >= 0.5:
                     return MatchResult(
-                        matched_id=existing['id'],
-                        match_type='existing',
+                        matched_id=existing["id"],
+                        match_type="existing",
                         match_confidence=score,
-                        match_reason=", ".join(reasons)
+                        match_reason=", ".join(reasons),
                     )
         except Exception as e:
             logger.warning(f"Error checking existing stakeholders: {e}")
         return None
 
     def _name_similarity(self, name1: str, name2: str) -> float:
-        """
-        Calculate name similarity score.
+        """Calculate name similarity score.
         Handles case differences, partial names, name ordering.
         """
         if not name1 or not name2:
@@ -703,19 +705,14 @@ class EntityDeduplicator:
         return SequenceMatcher(None, n1, n2).ratio()
 
     def _calculate_stakeholder_match(
-        self,
-        name: str,
-        role: str,
-        department: str,
-        organization: str,
-        existing: Dict[str, Any]
+        self, name: str, role: str, department: str, organization: str, existing: Dict[str, Any]
     ) -> Tuple[float, List[str]]:
         """Calculate overall match score for stakeholder."""
         score = 0.0
         reasons = []
 
         # Name similarity (up to 0.6)
-        name_score = self._name_similarity(name, existing.get('name', ''))
+        name_score = self._name_similarity(name, existing.get("name", ""))
         if name_score >= 0.9:
             score += 0.6
             reasons.append(f"Name match ({name_score:.0%})")
@@ -729,8 +726,8 @@ class EntityDeduplicator:
             return 0.0, []  # Names don't match at all
 
         # Role match (up to 0.2)
-        if role and existing.get('role'):
-            role_score = fuzzy_match(role, existing['role'])
+        if role and existing.get("role"):
+            role_score = fuzzy_match(role, existing["role"])
             if role_score >= 0.7:
                 score += 0.2
                 reasons.append("Role match")
@@ -739,14 +736,14 @@ class EntityDeduplicator:
                 reasons.append("Role similar")
 
         # Department match (up to 0.15)
-        if department and existing.get('department'):
-            if department.lower() == existing['department'].lower():
+        if department and existing.get("department"):
+            if department.lower() == existing["department"].lower():
                 score += 0.15
                 reasons.append("Department match")
 
         # Organization match (up to 0.15)
-        if organization and existing.get('organization'):
-            org_score = fuzzy_match(organization, existing['organization'])
+        if organization and existing.get("organization"):
+            org_score = fuzzy_match(organization, existing["organization"])
             if org_score >= 0.8:
                 score += 0.15
                 reasons.append("Organization match")
@@ -764,23 +761,16 @@ class EntityDeduplicator:
             text = f"{title} {description[:200]}"
         return create_embedding(text, input_type="document")
 
-    def update_batch_cache_id(
-        self,
-        entity_type: str,
-        batch_id: str,
-        title: str,
-        actual_id: str
-    ):
-        """
-        Update the batch cache with the actual ID after insertion.
+    def update_batch_cache_id(self, entity_type: str, batch_id: str, title: str, actual_id: str):
+        """Update the batch cache with the actual ID after insertion.
         Call this after successfully inserting a candidate.
         """
         cache_key = normalize_for_cache_key(title)
         batch_key = f"{batch_id}:{cache_key}"
 
-        if entity_type == 'task' and batch_key in self._batch_cache.tasks:
-            self._batch_cache.tasks[batch_key]['id'] = actual_id
-        elif entity_type == 'opportunity' and batch_key in self._batch_cache.opportunities:
-            self._batch_cache.opportunities[batch_key]['id'] = actual_id
-        elif entity_type == 'stakeholder' and batch_key in self._batch_cache.stakeholders:
-            self._batch_cache.stakeholders[batch_key]['id'] = actual_id
+        if entity_type == "task" and batch_key in self._batch_cache.tasks:
+            self._batch_cache.tasks[batch_key]["id"] = actual_id
+        elif entity_type == "opportunity" and batch_key in self._batch_cache.opportunities:
+            self._batch_cache.opportunities[batch_key]["id"] = actual_id
+        elif entity_type == "stakeholder" and batch_key in self._batch_cache.stakeholders:
+            self._batch_cache.stakeholders[batch_key]["id"] = actual_id

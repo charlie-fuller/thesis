@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-One-time script to generate justifications for all existing opportunities.
+"""One-time script to generate justifications for all existing opportunities.
 
 Usage (from repo root):
     cd backend
@@ -9,15 +8,16 @@ Usage (from repo root):
 If no client-id provided, generates for ALL opportunities across all clients.
 """
 
-import asyncio
 import argparse
-import sys
+import asyncio
 import os
+import sys
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from database import get_supabase
@@ -61,11 +61,10 @@ async def generate_all(client_id: str = None):
         print(f"[{i}/{len(needs_generation)}] Generating for: {opp['title'][:50]}...")
         try:
             await generate_opportunity_justifications(
-                opportunity_id=opp["id"],
-                client_id=opp["client_id"]
+                opportunity_id=opp["id"], client_id=opp["client_id"]
             )
             success += 1
-            print(f"  ✓ Done")
+            print("  ✓ Done")
         except Exception as e:
             failed += 1
             print(f"  ✗ Failed: {e}")
@@ -77,7 +76,9 @@ async def generate_all(client_id: str = None):
 def main():
     parser = argparse.ArgumentParser(description="Generate justifications for all opportunities")
     parser.add_argument("--client-id", help="Limit to specific client UUID")
-    parser.add_argument("--all", action="store_true", help="Regenerate ALL, even those with existing justifications")
+    parser.add_argument(
+        "--all", action="store_true", help="Regenerate ALL, even those with existing justifications"
+    )
     args = parser.parse_args()
 
     asyncio.run(generate_all(client_id=args.client_id))

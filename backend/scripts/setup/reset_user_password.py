@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Reset user password via Supabase Admin API
+"""Reset user password via Supabase Admin API
 Usage: python reset_user_password.py <email> <new_password>
 """
 
@@ -8,6 +7,7 @@ import os
 import sys
 
 from dotenv import load_dotenv
+
 from supabase import create_client
 
 # Load environment variables
@@ -23,17 +23,20 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 # Initialize Supabase client with service role key (admin access)
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+
 def reset_password_by_email(email: str, new_password: str):
     """Reset password for a user by email"""
     try:
         print(f"\n🔍 Looking up user: {email}")
 
         # Method 1: Try to get from users table first
-        users_result = supabase.table('users').select('id, email, name').eq('email', email).execute()
+        users_result = (
+            supabase.table("users").select("id, email, name").eq("email", email).execute()
+        )
 
         if users_result.data:
             user = users_result.data[0]
-            user_id = user['id']
+            user_id = user["id"]
             print("   Found in users table")
             print(f"   User ID: {user_id}")
             print(f"   Name: {user.get('name', 'N/A')}")
@@ -48,10 +51,7 @@ def reset_password_by_email(email: str, new_password: str):
 
         # Reset password
         print("\n🔄 Resetting password...")
-        supabase.auth.admin.update_user_by_id(
-            user_id,
-            {"password": new_password}
-        )
+        supabase.auth.admin.update_user_by_id(user_id, {"password": new_password})
 
         print("✅ Password reset successful!")
         print(f"   Email: {email}")
@@ -69,10 +69,7 @@ def reset_password_by_email(email: str, new_password: str):
 
 if __name__ == "__main__":
     # Reset both accounts to "thesis"
-    emails = [
-        "idbypaige@gmail.com",
-        "paige@thebradburygroup.com"
-    ]
+    emails = ["idbypaige@gmail.com", "paige@thebradburygroup.com"]
     new_password = "thesis"
 
     print("=" * 60)

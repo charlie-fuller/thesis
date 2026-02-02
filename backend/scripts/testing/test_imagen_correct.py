@@ -1,6 +1,5 @@
-"""
-Test image generation with the correct Gemini model.
-"""
+"""Test image generation with the correct Gemini model."""
+
 import asyncio
 import base64
 import os
@@ -20,8 +19,8 @@ async def test_image_generation():
         with open(env_file) as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
                     os.environ[key.strip()] = value.strip().strip('"').strip("'")
 
     api_key = os.getenv("GOOGLE_GENERATIVE_AI_API_KEY")
@@ -67,20 +66,20 @@ async def test_image_generation():
             print(f"\n   Checking Part {i}:")
 
             # Check various possible attributes
-            if hasattr(part, 'inline_data') and part.inline_data:
+            if hasattr(part, "inline_data") and part.inline_data:
                 print("      ✓ Has inline_data")
-                if hasattr(part.inline_data, 'data'):
+                if hasattr(part.inline_data, "data"):
                     image_data = part.inline_data.data
-                    mime_type = getattr(part.inline_data, 'mime_type', 'image/png')
+                    mime_type = getattr(part.inline_data, "mime_type", "image/png")
                     print(f"      Data length: {len(image_data) if image_data else 0} bytes")
                     print(f"      MIME: {mime_type}")
                     break
 
-            if hasattr(part, 'text'):
+            if hasattr(part, "text"):
                 text = part.text[:200] if part.text else ""
                 print(f"      Text: {text}...")
 
-            if hasattr(part, 'function_call'):
+            if hasattr(part, "function_call"):
                 print(f"      Function call: {part.function_call}")
 
         if not image_data:
@@ -109,6 +108,7 @@ async def test_image_generation():
     except Exception as e:
         print(f"\n❌ ERROR: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
 

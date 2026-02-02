@@ -1,5 +1,4 @@
-"""
-Stakeholder Engagement Scheduler
+"""Stakeholder Engagement Scheduler
 
 This module provides background job scheduling for automated engagement level
 calculation. Runs weekly to update stakeholder engagement levels based on
@@ -31,9 +30,9 @@ engagement_scheduler: Optional[BackgroundScheduler] = None
 # MAIN SCHEDULER JOB
 # ============================================================================
 
+
 def run_weekly_engagement():
-    """
-    Main scheduled job that runs weekly engagement calculation.
+    """Main scheduled job that runs weekly engagement calculation.
 
     This function:
     1. Gets all clients with stakeholders
@@ -97,9 +96,9 @@ def run_weekly_engagement():
 # MANUAL TRIGGER
 # ============================================================================
 
+
 async def trigger_manual_calculation(client_id: Optional[str] = None) -> dict:
-    """
-    Manually trigger engagement calculation.
+    """Manually trigger engagement calculation.
 
     Args:
         client_id: Optional client to calculate for. If None, calculates all.
@@ -115,8 +114,7 @@ async def trigger_manual_calculation(client_id: Optional[str] = None) -> dict:
         if client_id:
             logger.info(f"Manual engagement calculation triggered for client: {client_id}")
             result = await calculator.calculate_for_client(
-                client_id=client_id,
-                calculation_type="manual"
+                client_id=client_id, calculation_type="manual"
             )
         else:
             logger.info("Manual engagement calculation triggered for all clients")
@@ -133,13 +131,9 @@ async def trigger_manual_calculation(client_id: Optional[str] = None) -> dict:
 # SCHEDULER LIFECYCLE
 # ============================================================================
 
-def start_engagement_scheduler(
-    day_of_week: str = "sun",
-    hour_utc: int = 4,
-    minute: int = 0
-):
-    """
-    Start the background scheduler for automated engagement calculation.
+
+def start_engagement_scheduler(day_of_week: str = "sun", hour_utc: int = 4, minute: int = 0):
+    """Start the background scheduler for automated engagement calculation.
 
     Args:
         day_of_week: Day to run (mon, tue, wed, thu, fri, sat, sun). Default: Sunday
@@ -157,17 +151,13 @@ def start_engagement_scheduler(
     # Add weekly engagement job
     engagement_scheduler.add_job(
         func=run_weekly_engagement,
-        trigger=CronTrigger(
-            day_of_week=day_of_week,
-            hour=hour_utc,
-            minute=minute
-        ),
+        trigger=CronTrigger(day_of_week=day_of_week, hour=hour_utc, minute=minute),
         id="stakeholder_weekly_engagement",
         name="Stakeholder Weekly Engagement Calculation",
         replace_existing=True,
         coalesce=True,
         max_instances=1,
-        misfire_grace_time=3600  # Allow job to run up to 1 hour late
+        misfire_grace_time=3600,  # Allow job to run up to 1 hour late
     )
 
     engagement_scheduler.start()
@@ -193,27 +183,22 @@ def stop_engagement_scheduler():
 
 
 def get_engagement_scheduler_status() -> dict:
-    """
-    Get the current status of the engagement scheduler.
+    """Get the current status of the engagement scheduler.
 
     Returns:
         dict with running status and job info
     """
     if engagement_scheduler is None:
-        return {
-            "running": False,
-            "jobs": []
-        }
+        return {"running": False, "jobs": []}
 
     jobs = []
     for job in engagement_scheduler.get_jobs():
-        jobs.append({
-            "id": job.id,
-            "name": job.name,
-            "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None
-        })
+        jobs.append(
+            {
+                "id": job.id,
+                "name": job.name,
+                "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
+            }
+        )
 
-    return {
-        "running": engagement_scheduler.running,
-        "jobs": jobs
-    }
+    return {"running": engagement_scheduler.running, "jobs": jobs}

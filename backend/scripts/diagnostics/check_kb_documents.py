@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""
-Diagnostic script to check knowledge base documents for corrupted content
-"""
+"""Diagnostic script to check knowledge base documents for corrupted content"""
+
 from dotenv import load_dotenv
 
 from database import get_supabase
@@ -16,7 +15,12 @@ print("=" * 80)
 
 # Get all document chunks
 print("\n📊 Fetching document chunks...")
-result = supabase.table('document_chunks').select('id, document_id, content, source_type').limit(10).execute()
+result = (
+    supabase.table("document_chunks")
+    .select("id, document_id, content, source_type")
+    .limit(10)
+    .execute()
+)
 
 if not result.data:
     print("❌ No document chunks found in knowledge base")
@@ -26,7 +30,7 @@ print(f"✅ Found {len(result.data)} chunks (showing first 10)")
 
 # Analyze each chunk
 for idx, chunk in enumerate(result.data, 1):
-    content = chunk.get('content', '')
+    content = chunk.get("content", "")
     print(f"\n--- Chunk {idx} ---")
     print(f"ID: {chunk['id']}")
     print(f"Document ID: {chunk['document_id']}")
@@ -36,11 +40,13 @@ for idx, chunk in enumerate(result.data, 1):
     # Check if content is text or binary
     try:
         # Check for printable characters
-        printable_ratio = sum(c.isprintable() or c.isspace() for c in content) / len(content) if content else 0
+        printable_ratio = (
+            sum(c.isprintable() or c.isspace() for c in content) / len(content) if content else 0
+        )
         print(f"Printable ratio: {printable_ratio:.2%}")
 
         # Show first 200 characters
-        preview = content[:200].replace('\n', '\\n')
+        preview = content[:200].replace("\n", "\\n")
         print(f"Preview: {preview}...")
 
         if printable_ratio < 0.9:
@@ -54,9 +60,12 @@ print("\n" + "=" * 80)
 print("DOCUMENT METADATA")
 print("=" * 80)
 
-doc_result = supabase.table('documents').select(
-    'id, filename, source_platform, google_drive_file_id, processed, chunk_count'
-).limit(10).execute()
+doc_result = (
+    supabase.table("documents")
+    .select("id, filename, source_platform, google_drive_file_id, processed, chunk_count")
+    .limit(10)
+    .execute()
+)
 
 for doc in doc_result.data:
     print(f"\n📄 {doc['filename']}")
@@ -64,7 +73,7 @@ for doc in doc_result.data:
     print(f"   Source: {doc.get('source_platform', 'manual')}")
     print(f"   Processed: {doc.get('processed', False)}")
     print(f"   Chunks: {doc.get('chunk_count', 0)}")
-    if doc.get('google_drive_file_id'):
+    if doc.get("google_drive_file_id"):
         print(f"   Google Drive ID: {doc['google_drive_file_id']}")
 
 print("\n" + "=" * 80)

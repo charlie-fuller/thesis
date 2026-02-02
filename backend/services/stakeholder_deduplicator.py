@@ -1,5 +1,4 @@
-"""
-Stakeholder Deduplicator Service
+"""Stakeholder Deduplicator Service
 
 Detects potential matches between extracted stakeholders and existing stakeholders
 in the database. Uses name similarity, email matching, and role/organization context.
@@ -18,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class StakeholderMatch:
     """A potential match between an extracted stakeholder and an existing one."""
+
     extracted: ExtractedStakeholder
     existing_stakeholder_id: str
     existing_name: str
@@ -34,12 +34,9 @@ class StakeholderDeduplicator:
         self.supabase = supabase_client
 
     async def find_matches(
-        self,
-        extracted_stakeholders: list[ExtractedStakeholder],
-        client_id: str
+        self, extracted_stakeholders: list[ExtractedStakeholder], client_id: str
     ) -> dict[int, StakeholderMatch]:
-        """
-        Find potential matches for extracted stakeholders.
+        """Find potential matches for extracted stakeholders.
 
         Args:
             extracted_stakeholders: List of newly extracted stakeholders
@@ -67,10 +64,12 @@ class StakeholderDeduplicator:
     async def _get_existing_stakeholders(self, client_id: str) -> list[dict]:
         """Fetch existing stakeholders for the client."""
         try:
-            result = self.supabase.table("stakeholders") \
-                .select("id, name, email, role, department, organization") \
-                .eq("client_id", client_id) \
+            result = (
+                self.supabase.table("stakeholders")
+                .select("id, name, email, role, department, organization")
+                .eq("client_id", client_id)
                 .execute()
+            )
 
             return result.data if result.data else []
         except Exception as e:
@@ -78,9 +77,7 @@ class StakeholderDeduplicator:
             return []
 
     def _find_best_match(
-        self,
-        extracted: ExtractedStakeholder,
-        existing: list[dict]
+        self, extracted: ExtractedStakeholder, existing: list[dict]
     ) -> Optional[StakeholderMatch]:
         """Find the best matching existing stakeholder."""
         best_match = None
@@ -99,18 +96,15 @@ class StakeholderDeduplicator:
                     existing_role=existing_s.get("role"),
                     existing_department=existing_s.get("department"),
                     match_confidence=score,
-                    match_reasons=reasons
+                    match_reasons=reasons,
                 )
 
         return best_match
 
     def _calculate_match_score(
-        self,
-        extracted: ExtractedStakeholder,
-        existing: dict
+        self, extracted: ExtractedStakeholder, existing: dict
     ) -> tuple[float, list[str]]:
-        """
-        Calculate match score between extracted and existing stakeholder.
+        """Calculate match score between extracted and existing stakeholder.
 
         Returns:
             Tuple of (score, list of match reasons)
@@ -157,10 +151,7 @@ class StakeholderDeduplicator:
 
         # Organization match (up to 0.15)
         if extracted.organization and existing.get("organization"):
-            org_score = self._name_similarity(
-                extracted.organization,
-                existing["organization"]
-            )
+            org_score = self._name_similarity(extracted.organization, existing["organization"])
             if org_score >= 0.8:
                 score += 0.15
                 reasons.append("Organization match")
@@ -168,8 +159,7 @@ class StakeholderDeduplicator:
         return min(score, 1.0), reasons
 
     def _name_similarity(self, name1: str, name2: str) -> float:
-        """
-        Calculate name similarity score.
+        """Calculate name similarity score.
 
         Handles:
         - Case differences
@@ -209,21 +199,19 @@ class StakeholderDeduplicator:
 
 
 async def find_duplicate_candidates(
-    supabase_client,
-    client_id: str,
-    name: str,
-    email: Optional[str] = None
+    supabase_client, client_id: str, name: str, email: Optional[str] = None
 ) -> list[dict]:
-    """
-    Quick check for existing candidates with similar name/email.
+    """Quick check for existing candidates with similar name/email.
 
     Used to avoid creating duplicate candidates from the same document.
     """
     try:
-        query = supabase_client.table("stakeholder_candidates") \
-            .select("id, name, email, status, source_document_name") \
-            .eq("client_id", client_id) \
+        query = (
+            supabase_client.table("stakeholder_candidates")
+            .select("id, name, email, status, source_document_name")
+            .eq("client_id", client_id)
             .eq("status", "pending")
+        )
 
         # If email provided, check for exact email match
         if email:

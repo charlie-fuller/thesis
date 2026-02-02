@@ -22,12 +22,15 @@ RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 if RESEND_API_KEY:
     try:
         import resend
+
         resend.api_key = RESEND_API_KEY
         RESEND_AVAILABLE = True
         logger.info("[Admin Notifications] Resend email service configured")
     except ImportError:
         RESEND_AVAILABLE = False
-        logger.warning("[Admin Notifications] Resend library not installed. Emails will not be sent.")
+        logger.warning(
+            "[Admin Notifications] Resend library not installed. Emails will not be sent."
+        )
         logger.warning("[Admin Notifications] To enable: pip install resend-python")
 else:
     RESEND_AVAILABLE = False
@@ -35,20 +38,16 @@ else:
 
 
 async def get_admin_emails() -> List[str]:
-    """
-    Get email addresses of all admin users
+    """Get email addresses of all admin users
 
     Returns:
         List of admin email addresses
     """
     try:
-        result = supabase.table('users')\
-            .select('email')\
-            .eq('role', 'admin')\
-            .execute()
+        result = supabase.table("users").select("email").eq("role", "admin").execute()
 
         if result.data:
-            return [user['email'] for user in result.data if user.get('email')]
+            return [user["email"] for user in result.data if user.get("email")]
         return []
     except Exception as e:
         logger.info(f"[Admin Notifications] Failed to get admin emails: {str(e)}")
@@ -56,12 +55,9 @@ async def get_admin_emails() -> List[str]:
 
 
 async def send_interview_complete_notification(
-    extraction_id: str,
-    client_id: str,
-    completeness_score: int
+    extraction_id: str, client_id: str, completeness_score: int
 ) -> Dict[str, Any]:
-    """
-    Send notification to admins when an interview is completed and ready for review
+    """Send notification to admins when an interview is completed and ready for review
 
     Args:
         extraction_id: UUID of interview_extractions record
@@ -75,51 +71,57 @@ async def send_interview_complete_notification(
             "method": "email" | "log_only"
         }
     """
-
     try:
         # Get user info from interview session
-        extraction_result = supabase.table('interview_extractions')\
-            .select('metadata')\
-            .eq('id', extraction_id)\
-            .single()\
+        extraction_result = (
+            supabase.table("interview_extractions")
+            .select("metadata")
+            .eq("id", extraction_id)
+            .single()
             .execute()
+        )
 
         if not extraction_result.data:
             raise ValueError(f"Extraction not found: {extraction_id}")
 
         import json
-        metadata = json.loads(extraction_result.data.get('metadata', '{}'))
-        session_id = metadata.get('session_id')
+
+        metadata = json.loads(extraction_result.data.get("metadata", "{}"))
+        session_id = metadata.get("session_id")
 
         # Get user details from interview session
         user_name = "Unknown User"
         user_email = ""
 
         if session_id:
-            session_result = supabase.table('interview_sessions')\
-                .select('user_id')\
-                .eq('session_id', session_id)\
-                .single()\
+            session_result = (
+                supabase.table("interview_sessions")
+                .select("user_id")
+                .eq("session_id", session_id)
+                .single()
                 .execute()
+            )
 
             if session_result.data:
-                user_id = session_result.data['user_id']
-                user_result = supabase.table('users')\
-                    .select('name, email')\
-                    .eq('id', user_id)\
-                    .single()\
+                user_id = session_result.data["user_id"]
+                user_result = (
+                    supabase.table("users")
+                    .select("name, email")
+                    .eq("id", user_id)
+                    .single()
                     .execute()
+                )
 
                 if user_result.data:
-                    user_name = user_result.data.get('name', 'Unknown User')
-                    user_email = user_result.data.get('email', '')
+                    user_name = user_result.data.get("name", "Unknown User")
+                    user_email = user_result.data.get("email", "")
 
         # Get frontend URL for review dashboard link
         frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
-        if ',' in frontend_url:
+        if "," in frontend_url:
             # If multiple URLs, use the first production one
-            urls = [u.strip() for u in frontend_url.split(',')]
-            frontend_url = next((u for u in urls if 'localhost' not in u), urls[0])
+            urls = [u.strip() for u in frontend_url.split(",")]
+            frontend_url = next((u for u in urls if "localhost" not in u), urls[0])
 
         review_url = f"{frontend_url}/admin/solomon-review"
 
@@ -190,7 +192,7 @@ View Solomon Review Dashboard: {review_url}
                 "success": False,
                 "emails_sent": 0,
                 "method": "none",
-                "error": "No admin users found"
+                "error": "No admin users found",
             }
 
         # Send email via Resend if available
@@ -201,23 +203,23 @@ View Solomon Review Dashboard: {review_url}
                 emails_sent = 0
                 for admin_email in admin_emails:
                     try:
-                        resend.Emails.send({
-                            "from": from_email,
-                            "to": admin_email,
-                            "subject": subject,
-                            "html": html_body,
-                            "text": text_body
-                        })
+                        resend.Emails.send(
+                            {
+                                "from": from_email,
+                                "to": admin_email,
+                                "subject": subject,
+                                "html": html_body,
+                                "text": text_body,
+                            }
+                        )
                         emails_sent += 1
                         logger.info(f"[Admin Notifications] Email sent to: {admin_email}")
                     except Exception as email_error:
-                        logger.error(f"[Admin Notifications] Failed to send to {admin_email}: {str(email_error)}")
+                        logger.error(
+                            f"[Admin Notifications] Failed to send to {admin_email}: {str(email_error)}"
+                        )
 
-                return {
-                    "success": emails_sent > 0,
-                    "emails_sent": emails_sent,
-                    "method": "email"
-                }
+                return {"success": emails_sent > 0, "emails_sent": emails_sent, "method": "email"}
 
             except Exception as e:
                 logger.error(f"[Admin Notifications] Resend email failed: {str(e)}")
@@ -237,15 +239,10 @@ View Solomon Review Dashboard: {review_url}
             "success": True,
             "emails_sent": 0,
             "method": "log_only",
-            "admin_emails": admin_emails
+            "admin_emails": admin_emails,
         }
 
     except Exception as e:
         error_msg = f"Failed to send admin notification: {str(e)}"
         logger.error(f"[Admin Notifications] ERROR: {error_msg}")
-        return {
-            "success": False,
-            "emails_sent": 0,
-            "method": "error",
-            "error": error_msg
-        }
+        return {"success": False, "emails_sent": 0, "method": "error", "error": error_msg}

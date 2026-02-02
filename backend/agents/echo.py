@@ -1,5 +1,4 @@
-"""
-Echo Agent - Brand Voice Analysis & Emulation Partner
+"""Echo Agent - Brand Voice Analysis & Emulation Partner
 
 The Echo agent specializes in:
 - Brand voice analysis and profiling
@@ -14,16 +13,16 @@ from pathlib import Path
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class EchoAgent(BaseAgent):
-    """
-    Echo - The Brand Voice Analysis & Emulation Partner.
+    """Echo - The Brand Voice Analysis & Emulation Partner.
 
     Specializes in analyzing text samples to create comprehensive
     brand voice profiles and actionable AI emulation guidelines.
@@ -31,10 +30,7 @@ class EchoAgent(BaseAgent):
 
     def __init__(self, supabase: Client, anthropic_client: anthropic.Anthropic):
         super().__init__(
-            name="echo",
-            display_name="Echo",
-            supabase=supabase,
-            anthropic_client=anthropic_client
+            name="echo", display_name="Echo", supabase=supabase, anthropic_client=anthropic_client
         )
 
     def _get_default_instruction(self) -> str:
@@ -72,7 +68,7 @@ Help create detailed, implementable brand voice specifications."""
             model="claude-sonnet-4-20250514",
             max_tokens=8192,  # Higher token limit for detailed voice analysis
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -85,14 +81,22 @@ Help create detailed, implementable brand voice specifications."""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Brand voice insight: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Brand voice insight: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         important_indicators = [
-            "brand voice", "tone", "style", "emulation", "persona",
-            "writing style", "voice profile", "voice guidelines"
+            "brand voice",
+            "tone",
+            "style",
+            "emulation",
+            "persona",
+            "writing style",
+            "voice profile",
+            "voice guidelines",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -112,15 +116,24 @@ Help create detailed, implementable brand voice specifications."""
         message_lower = context.user_message.lower()
 
         # Hand off to Catalyst for internal communications application
-        if any(word in message_lower for word in ["internal communication", "employee messaging", "announcement"]):
+        if any(
+            word in message_lower
+            for word in ["internal communication", "employee messaging", "announcement"]
+        ):
             return ("catalyst", "Query requires internal communications expertise")
 
         # Hand off to Scholar for training content voice
-        if any(word in message_lower for word in ["training material", "learning content", "educational"]):
+        if any(
+            word in message_lower
+            for word in ["training material", "learning content", "educational"]
+        ):
             return ("scholar", "Query requires L&D content expertise")
 
         # Hand off to Strategist for executive communication voice
-        if any(word in message_lower for word in ["executive communication", "board presentation", "investor"]):
+        if any(
+            word in message_lower
+            for word in ["executive communication", "board presentation", "investor"]
+        ):
             return ("strategist", "Query requires executive communications expertise")
 
         return None

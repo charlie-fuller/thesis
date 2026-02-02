@@ -1,7 +1,7 @@
-"""
-Deep diagnostic for PostgREST API configuration issues
+"""Deep diagnostic for PostgREST API configuration issues
 Tests JWT tokens, API endpoints, and headers
 """
+
 import base64
 import json
 import os
@@ -13,7 +13,7 @@ def decode_jwt(token):
     """Decode JWT without verification to inspect claims"""
     try:
         # JWT format: header.payload.signature
-        parts = token.split('.')
+        parts = token.split(".")
         if len(parts) != 3:
             return {"error": "Invalid JWT format"}
 
@@ -21,12 +21,13 @@ def decode_jwt(token):
         payload = parts[1]
         padding = 4 - len(payload) % 4
         if padding != 4:
-            payload += '=' * padding
+            payload += "=" * padding
 
         decoded = base64.urlsafe_b64decode(payload)
         return json.loads(decoded)
     except Exception as e:
         return {"error": str(e)}
+
 
 # Get environment variables
 supabase_url = os.getenv("SUPABASE_URL")
@@ -67,9 +68,9 @@ try:
             "apikey": anon_key,
             "Authorization": f"Bearer {anon_key}",
             "Content-Type": "application/json",
-            "Prefer": "return=representation"
+            "Prefer": "return=representation",
         },
-        params={"select": "id,email,role", "limit": 1}
+        params={"select": "id,email,role", "limit": 1},
     )
     print(f"Status: {response.status_code}")
     print(f"Headers: {dict(response.headers)}")
@@ -89,9 +90,9 @@ try:
             "apikey": service_key,
             "Authorization": f"Bearer {service_key}",
             "Content-Type": "application/json",
-            "Prefer": "return=representation"
+            "Prefer": "return=representation",
         },
-        params={"select": "id,email,role", "limit": 1}
+        params={"select": "id,email,role", "limit": 1},
     )
     print(f"Status: {response.status_code}")
     print(f"Headers: {dict(response.headers)}")
@@ -121,7 +122,7 @@ for endpoint in endpoints:
                 "Authorization": f"Bearer {service_key}",
             },
             params={"select": "id", "limit": 1},
-            timeout=5
+            timeout=5,
         )
         print(f"Status: {response.status_code}")
         if response.status_code == 200:
@@ -141,7 +142,7 @@ try:
         headers={
             "apikey": service_key,
             "Authorization": f"Bearer {service_key}",
-        }
+        },
     )
     print(f"OPTIONS request status: {response.status_code}")
     print(f"Headers: {dict(response.headers)}")

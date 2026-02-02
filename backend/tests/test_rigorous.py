@@ -1,5 +1,4 @@
-"""
-Rigorous Testing Suite
+"""Rigorous Testing Suite
 
 Advanced tests for production reliability:
 1. Contract Tests - Frontend/Backend interface alignment
@@ -13,34 +12,53 @@ Advanced tests for production reliability:
 Total: 60+ tests targeting production edge cases.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
-from datetime import datetime, timedelta, timezone
-from uuid import uuid4, UUID
 import asyncio
 import json
-from typing import Optional, List
-from pydantic import BaseModel, ValidationError, field_validator
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+from uuid import UUID, uuid4
 
+import pytest
+from pydantic import BaseModel, ValidationError, field_validator
 
 # ============================================================================
 # CATEGORY 1: CONTRACT TESTS (Frontend ↔ Backend)
 # ============================================================================
+
 
 class TestAPIContractsProject:
     """Verify backend responses match frontend TypeScript interfaces."""
 
     # Fields required by frontend Project interface
     FRONTEND_PROJECT_FIELDS = [
-        "id", "project_code", "title", "description", "department",
-        "owner_stakeholder_id", "owner_name", "current_state", "desired_state",
-        "roi_potential", "implementation_effort", "strategic_alignment",
-        "stakeholder_readiness", "total_score", "tier", "status",
-        "next_step", "blockers", "follow_up_questions", "roi_indicators",
-        "created_at", "updated_at",
+        "id",
+        "project_code",
+        "title",
+        "description",
+        "department",
+        "owner_stakeholder_id",
+        "owner_name",
+        "current_state",
+        "desired_state",
+        "roi_potential",
+        "implementation_effort",
+        "strategic_alignment",
+        "stakeholder_readiness",
+        "total_score",
+        "tier",
+        "status",
+        "next_step",
+        "blockers",
+        "follow_up_questions",
+        "roi_indicators",
+        "created_at",
+        "updated_at",
         # Justification fields (optional)
-        "project_summary", "roi_justification", "effort_justification",
-        "alignment_justification", "readiness_justification"
+        "project_summary",
+        "roi_justification",
+        "effort_justification",
+        "alignment_justification",
+        "readiness_justification",
     ]
 
     def test_project_response_has_all_frontend_fields(self):
@@ -82,27 +100,40 @@ class TestAPIContractsProject:
     def test_project_nullable_fields_are_nullable(self):
         """Fields that frontend treats as nullable can be null."""
         nullable_fields = [
-            "description", "department", "owner_stakeholder_id", "owner_name",
-            "current_state", "desired_state", "roi_potential", "implementation_effort",
-            "strategic_alignment", "stakeholder_readiness", "next_step",
-            "project_summary", "roi_justification", "effort_justification",
-            "alignment_justification", "readiness_justification"
+            "description",
+            "department",
+            "owner_stakeholder_id",
+            "owner_name",
+            "current_state",
+            "desired_state",
+            "roi_potential",
+            "implementation_effort",
+            "strategic_alignment",
+            "stakeholder_readiness",
+            "next_step",
+            "project_summary",
+            "roi_justification",
+            "effort_justification",
+            "alignment_justification",
+            "readiness_justification",
         ]
 
-        response = {field: None for field in nullable_fields}
-        response.update({
-            "id": str(uuid4()),
-            "project_code": "OPP-001",
-            "title": "Test",
-            "total_score": 0,
-            "tier": 4,
-            "status": "identified",
-            "blockers": [],
-            "follow_up_questions": [],
-            "roi_indicators": {},
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        })
+        response = dict.fromkeys(nullable_fields)
+        response.update(
+            {
+                "id": str(uuid4()),
+                "project_code": "OPP-001",
+                "title": "Test",
+                "total_score": 0,
+                "tier": 4,
+                "status": "identified",
+                "blockers": [],
+                "follow_up_questions": [],
+                "roi_indicators": {},
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
         # All nullable fields should be allowed to be None
         for field in nullable_fields:
@@ -113,7 +144,11 @@ class TestAPIContractsRelatedDocument:
     """Verify RelatedDocument response matches frontend interface."""
 
     FRONTEND_RELATED_DOC_FIELDS = [
-        "chunk_id", "document_id", "document_name", "relevance_score", "snippet"
+        "chunk_id",
+        "document_id",
+        "document_name",
+        "relevance_score",
+        "snippet",
     ]
 
     def test_related_document_has_all_fields(self):
@@ -123,7 +158,7 @@ class TestAPIContractsRelatedDocument:
             "document_id": str(uuid4()),
             "document_name": "Test Document.pdf",
             "relevance_score": 0.85,
-            "snippet": "This is a relevant excerpt..."
+            "snippet": "This is a relevant excerpt...",
         }
 
         for field in self.FRONTEND_RELATED_DOC_FIELDS:
@@ -140,9 +175,7 @@ class TestAPIContractsRelatedDocument:
 class TestAPIContractsConversation:
     """Verify Conversation response matches frontend interface."""
 
-    FRONTEND_CONVERSATION_FIELDS = [
-        "id", "question", "response", "sources", "created_at"
-    ]
+    FRONTEND_CONVERSATION_FIELDS = ["id", "question", "response", "sources", "created_at"]
 
     def test_conversation_has_all_fields(self):
         """Conversation matches frontend interface."""
@@ -151,7 +184,7 @@ class TestAPIContractsConversation:
             "question": "What is the ROI?",
             "response": "The expected ROI is...",
             "sources": [],
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         for field in self.FRONTEND_CONVERSATION_FIELDS:
@@ -173,14 +206,20 @@ class TestAPIContractsTierResponse:
                 "tier_2_count": 0,
                 "tier_3_count": 0,
                 "tier_4_count": 0,
-                "total": 0
-            }
+                "total": 0,
+            },
         }
 
         expected_keys = {"tier_1", "tier_2", "tier_3", "tier_4", "summary"}
         assert set(response.keys()) == expected_keys
 
-        expected_summary_keys = {"tier_1_count", "tier_2_count", "tier_3_count", "tier_4_count", "total"}
+        expected_summary_keys = {
+            "tier_1_count",
+            "tier_2_count",
+            "tier_3_count",
+            "tier_4_count",
+            "total",
+        }
         assert set(response["summary"].keys()) == expected_summary_keys
 
     def test_tier_arrays_are_always_lists(self):
@@ -199,6 +238,7 @@ class TestAPIContractsTierResponse:
 # ============================================================================
 # CATEGORY 2: BOUNDARY TESTS
 # ============================================================================
+
 
 class TestTierBoundaries:
     """Test exact tier calculation boundaries."""
@@ -321,6 +361,7 @@ class TestPaginationBoundaries:
 # CATEGORY 3: ERROR RECOVERY TESTS
 # ============================================================================
 
+
 class TestErrorRecovery:
     """Test graceful degradation when things fail."""
 
@@ -350,6 +391,7 @@ class TestErrorRecovery:
 
     def test_invalid_tier_clamped_to_valid_range(self):
         """Invalid tier is clamped to 1-4."""
+
         def clamp_tier(tier):
             return max(1, min(4, tier))
 
@@ -360,6 +402,7 @@ class TestErrorRecovery:
 
     def test_empty_array_returned_on_query_failure(self):
         """Query failures return empty arrays, not errors."""
+
         def safe_query(should_fail=False):
             if should_fail:
                 return []  # Graceful degradation
@@ -377,6 +420,7 @@ class TestErrorRecovery:
 
     def test_json_parse_failure_returns_empty_dict(self):
         """Invalid JSON returns empty dict, not crash."""
+
         def safe_json_parse(text):
             try:
                 return json.loads(text)
@@ -421,6 +465,7 @@ class TestPartialUpdateRecovery:
 # ============================================================================
 # CATEGORY 4: TIME-BASED TESTS
 # ============================================================================
+
 
 class TestTimeBased:
     """Test date/time edge cases."""
@@ -492,6 +537,7 @@ class TestTimeBased:
 # CATEGORY 5: LOAD PATTERN TESTS
 # ============================================================================
 
+
 class TestLoadPatterns:
     """Test behavior under load conditions."""
 
@@ -503,7 +549,7 @@ class TestLoadPatterns:
         page = 5
         offset = (page - 1) * page_size
 
-        page_items = all_items[offset:offset + page_size]
+        page_items = all_items[offset : offset + page_size]
 
         assert len(page_items) == 10
         assert page_items[0]["id"] == "40"  # 5th page starts at index 40
@@ -522,15 +568,7 @@ class TestLoadPatterns:
 
     def test_deep_roi_indicators_handled(self):
         """Nested dict structures don't break."""
-        deep_indicators = {
-            "level1": {
-                "level2": {
-                    "level3": {
-                        "value": 123
-                    }
-                }
-            }
-        }
+        deep_indicators = {"level1": {"level2": {"level3": {"value": 123}}}}
         opp = {"roi_indicators": deep_indicators}
         assert opp["roi_indicators"]["level1"]["level2"]["level3"]["value"] == 123
 
@@ -573,12 +611,14 @@ class TestConcurrentAccess:
 # CATEGORY 6: DATABASE CONSTRAINT TESTS
 # ============================================================================
 
+
 class TestDatabaseConstraints:
     """Test that DB constraints are enforced."""
 
     def test_project_code_format(self):
         """Project code follows expected format (dept prefix + 2-digit number)."""
         import re
+
         valid_codes = ["F01", "L02", "H12", "IT01", "G99"]
         invalid_codes = ["f01", "F1", "F001", "PROJECT-001", "123"]
 
@@ -640,6 +680,7 @@ class TestDatabaseConstraints:
 # CATEGORY 7: SNAPSHOT/GOLDEN TESTS
 # ============================================================================
 
+
 class TestResponseSnapshots:
     """Detect unintended API response structure changes."""
 
@@ -647,13 +688,7 @@ class TestResponseSnapshots:
         """List response has stable keys."""
         expected_keys = {"tier_1", "tier_2", "tier_3", "tier_4", "summary"}
 
-        response = {
-            "tier_1": [],
-            "tier_2": [],
-            "tier_3": [],
-            "tier_4": [],
-            "summary": {}
-        }
+        response = {"tier_1": [], "tier_2": [], "tier_3": [], "tier_4": [], "summary": {}}
 
         assert set(response.keys()) == expected_keys
 
@@ -666,16 +701,14 @@ class TestResponseSnapshots:
             "tier_2_count": 0,
             "tier_3_count": 0,
             "tier_4_count": 0,
-            "total": 0
+            "total": 0,
         }
 
         assert set(summary.keys()) == expected_keys
 
     def test_error_response_structure(self):
         """Error responses have consistent structure."""
-        error_response = {
-            "detail": "Project not found"
-        }
+        error_response = {"detail": "Project not found"}
 
         assert "detail" in error_response
         assert isinstance(error_response["detail"], str)
@@ -684,7 +717,7 @@ class TestResponseSnapshots:
         """Success messages have consistent structure."""
         success_response = {
             "message": "Justifications generated successfully",
-            "justifications": {}
+            "justifications": {},
         }
 
         assert "message" in success_response
@@ -694,11 +727,13 @@ class TestResponseSnapshots:
 # CATEGORY 8: PYDANTIC VALIDATION TESTS
 # ============================================================================
 
+
 class TestPydanticValidation:
     """Test Pydantic model validation behavior."""
 
     def test_required_field_missing_raises(self):
         """Missing required field raises ValidationError."""
+
         class ProjectCreate(BaseModel):
             title: str
             project_code: str
@@ -711,6 +746,7 @@ class TestPydanticValidation:
 
     def test_optional_field_can_be_none(self):
         """Optional fields accept None."""
+
         class ProjectCreate(BaseModel):
             title: str
             description: Optional[str] = None
@@ -720,6 +756,7 @@ class TestPydanticValidation:
 
     def test_optional_field_can_be_omitted(self):
         """Optional fields can be omitted entirely."""
+
         class ProjectCreate(BaseModel):
             title: str
             description: Optional[str] = None
@@ -729,15 +766,16 @@ class TestPydanticValidation:
 
     def test_custom_validator_rejects_invalid(self):
         """Custom validators reject invalid values."""
+
         class ProjectCreate(BaseModel):
             title: str
             tier: int
 
-            @field_validator('tier')
+            @field_validator("tier")
             @classmethod
             def tier_must_be_valid(cls, v):
                 if v < 1 or v > 4:
-                    raise ValueError('Tier must be between 1 and 4')
+                    raise ValueError("Tier must be between 1 and 4")
                 return v
 
         with pytest.raises(ValidationError):
@@ -745,6 +783,7 @@ class TestPydanticValidation:
 
     def test_type_coercion_string_to_int(self):
         """Pydantic coerces compatible types."""
+
         class ScoreUpdate(BaseModel):
             score: int
 
@@ -757,6 +796,7 @@ class TestPydanticValidation:
 # ============================================================================
 # INTEGRATION: COMBINED SCENARIO TESTS
 # ============================================================================
+
 
 class TestCombinedScenarios:
     """Test realistic combined scenarios."""
@@ -775,17 +815,22 @@ class TestCombinedScenarios:
         }
 
         # Calculate derived fields
-        total_score = sum([
-            input_data.get("roi_potential") or 0,
-            input_data.get("implementation_effort") or 0,
-            input_data.get("strategic_alignment") or 0,
-            input_data.get("stakeholder_readiness") or 0,
-        ])
+        total_score = sum(
+            [
+                input_data.get("roi_potential") or 0,
+                input_data.get("implementation_effort") or 0,
+                input_data.get("strategic_alignment") or 0,
+                input_data.get("stakeholder_readiness") or 0,
+            ]
+        )
 
         def calc_tier(score):
-            if score >= 17: return 1
-            if score >= 14: return 2
-            if score >= 11: return 3
+            if score >= 17:
+                return 1
+            if score >= 14:
+                return 2
+            if score >= 11:
+                return 3
             return 4
 
         tier = calc_tier(total_score)
@@ -837,17 +882,22 @@ class TestCombinedScenarios:
         opp["stakeholder_readiness"] = 5
 
         # Recalculate
-        opp["total_score"] = sum([
-            opp["roi_potential"],
-            opp["implementation_effort"],
-            opp["strategic_alignment"],
-            opp["stakeholder_readiness"],
-        ])
+        opp["total_score"] = sum(
+            [
+                opp["roi_potential"],
+                opp["implementation_effort"],
+                opp["strategic_alignment"],
+                opp["stakeholder_readiness"],
+            ]
+        )
 
         def calc_tier(score):
-            if score >= 17: return 1
-            if score >= 14: return 2
-            if score >= 11: return 3
+            if score >= 17:
+                return 1
+            if score >= 14:
+                return 2
+            if score >= 11:
+                return 3
             return 4
 
         opp["tier"] = calc_tier(opp["total_score"])

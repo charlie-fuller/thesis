@@ -1,5 +1,4 @@
-"""
-Manual Agent - In-App Documentation Assistant
+"""Manual Agent - In-App Documentation Assistant
 
 The Manual agent specializes in:
 - Explaining Thesis features and capabilities
@@ -14,16 +13,16 @@ from pathlib import Path
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class ManualAgent(BaseAgent):
-    """
-    Manual - The In-App Documentation Assistant.
+    """Manual - The In-App Documentation Assistant.
 
     Specializes in helping users understand and navigate Thesis,
     answering questions about features, and troubleshooting issues.
@@ -34,7 +33,7 @@ class ManualAgent(BaseAgent):
             name="manual",
             display_name="Manual",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -73,7 +72,7 @@ If you don't know something, admit it and suggest where to find more information
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -83,7 +82,7 @@ If you don't know something, admit it and suggest where to find more information
             content=content,
             agent_name=self.name,
             agent_display_name=self.display_name,
-            save_to_memory=False
+            save_to_memory=False,
         )
 
     def should_handoff(self, context: AgentContext, response: str) -> Optional[tuple[str, str]]:
@@ -92,18 +91,28 @@ If you don't know something, admit it and suggest where to find more information
 
         # Hand off to Scholar for training/L&D program questions
         training_keywords = [
-            "training program", "curriculum", "learning path",
-            "champion program", "enablement program", "certification"
+            "training program",
+            "curriculum",
+            "learning path",
+            "champion program",
+            "enablement program",
+            "certification",
         ]
         if any(keyword in message_lower for keyword in training_keywords):
             return ("scholar", "Query requires L&D expertise for program design")
 
         # Hand off to Facilitator for meeting-related questions
-        if any(word in message_lower for word in ["meeting room", "meeting strategy", "multi-agent discussion"]):
+        if any(
+            word in message_lower
+            for word in ["meeting room", "meeting strategy", "multi-agent discussion"]
+        ):
             return ("facilitator", "Query about meeting orchestration best practices")
 
         # Hand off to Architect for technical integration questions
-        if any(word in message_lower for word in ["api", "integration", "technical architecture", "embed"]):
+        if any(
+            word in message_lower
+            for word in ["api", "integration", "technical architecture", "embed"]
+        ):
             return ("architect", "Query requires technical architecture expertise")
 
         return None

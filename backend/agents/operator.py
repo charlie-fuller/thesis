@@ -1,5 +1,4 @@
-"""
-Operator Agent - Business Operations Partner
+"""Operator Agent - Business Operations Partner
 
 The Operator agent specializes in:
 - Process analysis and workflow optimization
@@ -15,17 +14,17 @@ from pathlib import Path
 from typing import Optional
 
 import anthropic
+
+from services.operator_tools import OperatorTools
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
-from services.operator_tools import OperatorTools
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class OperatorAgent(BaseAgent):
-    """
-    Operator - The Business Operations Partner.
+    """Operator - The Business Operations Partner.
 
     Specializes in process optimization, automation assessment,
     operational metrics, and ground-level implementation.
@@ -36,7 +35,7 @@ class OperatorAgent(BaseAgent):
             name="operator",
             display_name="Operator",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -71,9 +70,19 @@ Provide practical, operations-focused guidance for AI implementation."""
 
         # Inject project-triage context if query relates to opportunities, stakeholders, or metrics
         triage_keywords = [
-            "opportunity", "opportunities", "pipeline", "triage",
-            "stakeholder", "metrics", "tier", "blocked", "priority",
-            "meeting prep", "focus", "kpi", "validation"
+            "opportunity",
+            "opportunities",
+            "pipeline",
+            "triage",
+            "stakeholder",
+            "metrics",
+            "tier",
+            "blocked",
+            "priority",
+            "meeting prep",
+            "focus",
+            "kpi",
+            "validation",
         ]
         query_lower = context.user_message.lower()
         if any(kw in query_lower for kw in triage_keywords):
@@ -89,7 +98,7 @@ Provide practical, operations-focused guidance for AI implementation."""
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -102,15 +111,27 @@ Provide practical, operations-focused guidance for AI implementation."""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Operations insight: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Operations insight: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         important_indicators = [
-            "process", "workflow", "automation", "metrics",
-            "kpi", "baseline", "efficiency", "bottleneck",
-            "opportunity", "triage", "tier", "stakeholder", "blocked"
+            "process",
+            "workflow",
+            "automation",
+            "metrics",
+            "kpi",
+            "baseline",
+            "efficiency",
+            "bottleneck",
+            "opportunity",
+            "triage",
+            "tier",
+            "stakeholder",
+            "blocked",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -129,7 +150,10 @@ Provide practical, operations-focused guidance for AI implementation."""
         message_lower = context.user_message.lower()
 
         # Hand off to Architect for technical architecture questions
-        if any(word in message_lower for word in ["architecture", "system design", "integration pattern"]):
+        if any(
+            word in message_lower
+            for word in ["architecture", "system design", "integration pattern"]
+        ):
             return ("architect", "Query requires technical architecture expertise")
 
         # Hand off to Sage for people/change management
@@ -137,7 +161,9 @@ Provide practical, operations-focused guidance for AI implementation."""
             return ("sage", "Query requires people/change management expertise")
 
         # Hand off to Capital for detailed ROI analysis
-        if any(word in message_lower for word in ["roi calculation", "cost-benefit", "financial model"]):
+        if any(
+            word in message_lower for word in ["roi calculation", "cost-benefit", "financial model"]
+        ):
             return ("capital", "Query requires detailed financial analysis")
 
         return None

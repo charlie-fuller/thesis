@@ -1,6 +1,5 @@
-"""
-Check Supabase project status and configuration
-"""
+"""Check Supabase project status and configuration"""
+
 import os
 
 import requests
@@ -27,9 +26,7 @@ print("\n2. Testing Auth Endpoints")
 print("-" * 80)
 try:
     response = requests.get(
-        f"{supabase_url}/auth/v1/health",
-        headers={"apikey": service_key},
-        timeout=5
+        f"{supabase_url}/auth/v1/health", headers={"apikey": service_key}, timeout=5
     )
     print(f"Auth Health Status: {response.status_code}")
     print(f"Response: {response.text}")
@@ -46,10 +43,10 @@ try:
         headers={
             "apikey": service_key,
             "Authorization": f"Bearer {service_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         },
         json={},
-        timeout=5
+        timeout=5,
     )
     print(f"RPC Status: {response.status_code}")
     print(f"Response: {response.text}")
@@ -66,9 +63,9 @@ try:
             "apikey": service_key,
             "Authorization": f"Bearer {service_key}",
             "Content-Type": "application/json",
-            "Accept": "application/json"
+            "Accept": "application/json",
         },
-        timeout=5
+        timeout=5,
     )
     print(f"Status Code: {response.status_code}")
     print(f"Status Text: {response.reason}")
@@ -78,9 +75,9 @@ try:
     print(f"\nResponse Body: {response.text}")
 
     # Check for Cloudflare or other proxy headers
-    if 'cf-ray' in response.headers:
+    if "cf-ray" in response.headers:
         print("\n⚠️ Request is going through Cloudflare")
-    if 'x-kong' in response.headers or any('kong' in k.lower() for k in response.headers.keys()):
+    if "x-kong" in response.headers or any("kong" in k.lower() for k in response.headers.keys()):
         print("\n⚠️ Request is going through Kong Gateway")
 
 except Exception as e:
@@ -95,12 +92,10 @@ try:
         headers={
             "apikey": service_key,
             "Authorization": f"Bearer {service_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         },
-        json={
-            "query": "{ __schema { types { name } } }"
-        },
-        timeout=5
+        json={"query": "{ __schema { types { name } } }"},
+        timeout=5,
     )
     print(f"GraphQL Status: {response.status_code}")
     print(f"Response: {response.text[:200]}")

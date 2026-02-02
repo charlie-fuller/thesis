@@ -1,5 +1,4 @@
-"""
-Coordinator Agent - Central Orchestrator for Thesis
+"""Coordinator Agent - Central Orchestrator for Thesis
 
 The Coordinator is the meta-agent that:
 - Analyzes incoming queries to determine which specialists to consult
@@ -12,13 +11,14 @@ The Coordinator is the meta-agent that:
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Optional
 from enum import Enum
+from typing import Any, AsyncGenerator, Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,8 @@ logger = logging.getLogger(__name__)
 _graph_available = False
 try:
     if os.getenv("NEO4J_URI") and os.getenv("NEO4J_PASSWORD"):
-        from ..services.graph import get_neo4j_connection, GraphQueryService
+        from ..services.graph import GraphQueryService, get_neo4j_connection
+
         _graph_available = True
 except ImportError:
     pass
@@ -34,22 +35,23 @@ except ImportError:
 
 class ConsultationMode(Enum):
     """How the coordinator should handle a query."""
-    DIRECT = "direct"       # Coordinator answers directly (greetings, simple questions)
-    SINGLE = "single"       # Route to a single specialist
-    MULTI = "multi"         # Consult multiple specialists and synthesize
+
+    DIRECT = "direct"  # Coordinator answers directly (greetings, simple questions)
+    SINGLE = "single"  # Route to a single specialist
+    MULTI = "multi"  # Consult multiple specialists and synthesize
 
 
 @dataclass
 class ConsultationPlan:
     """Plan for how to handle a user query."""
+
     mode: ConsultationMode
     specialists: list[str]  # List of agent names to consult
-    reasoning: str          # Why these specialists were chosen
+    reasoning: str  # Why these specialists were chosen
 
 
 class CoordinatorAgent(BaseAgent):
-    """
-    Thesis Coordinator - The central orchestrating agent.
+    """Thesis Coordinator - The central orchestrating agent.
 
     Presents as "Thesis" to users and seamlessly coordinates
     specialist agents behind the scenes.
@@ -58,78 +60,312 @@ class CoordinatorAgent(BaseAgent):
     # Map of specialist names to their expertise keywords
     SPECIALIST_DOMAINS = {
         # Original persona-aligned agents
-        "atlas": ["research", "study", "trend", "case study", "best practice", "mckinsey",
-                  "bcg", "gartner", "forrester", "academic", "literature", "benchmark",
-                  "lean", "toyota", "operational excellence", "value stream"],
-        "capital": ["roi", "budget", "cost", "financial", "investment", "savings",
-                   "cfo", "finance", "business case", "payback", "revenue", "expense",
-                   "sox", "audit trail", "close cycle", "controller"],
-        "guardian": ["security", "governance", "compliance", "infrastructure", "it",
-                    "soc2", "gdpr", "hipaa", "policy", "risk", "audit", "ciso", "cio",
-                    "okta", "sso", "shadow it", "vendor security"],
-        "counselor": ["legal", "contract", "liability", "ip", "intellectual property",
-                     "licensing", "terms", "agreement", "lawyer", "counsel", "dpa",
-                     "hallucination", "bias", "prompt drift", "data privacy"],
-        "oracle": ["transcript", "meeting", "sentiment", "stakeholder analysis",
-                  "attendee", "recording", "call notes"],
-        "sage": ["people", "change management", "adoption", "resistance", "fear", "anxiety",
-                "burnout", "champion", "community", "culture", "human", "flourishing",
-                "psychology", "safety", "overwhelm", "support", "morale", "engagement",
-                "people-first", "human-centered", "meaningful work", "team", "employee"],
+        "atlas": [
+            "research",
+            "study",
+            "trend",
+            "case study",
+            "best practice",
+            "mckinsey",
+            "bcg",
+            "gartner",
+            "forrester",
+            "academic",
+            "literature",
+            "benchmark",
+            "lean",
+            "toyota",
+            "operational excellence",
+            "value stream",
+        ],
+        "capital": [
+            "roi",
+            "budget",
+            "cost",
+            "financial",
+            "investment",
+            "savings",
+            "cfo",
+            "finance",
+            "business case",
+            "payback",
+            "revenue",
+            "expense",
+            "sox",
+            "audit trail",
+            "close cycle",
+            "controller",
+        ],
+        "guardian": [
+            "security",
+            "governance",
+            "compliance",
+            "infrastructure",
+            "it",
+            "soc2",
+            "gdpr",
+            "hipaa",
+            "policy",
+            "risk",
+            "audit",
+            "ciso",
+            "cio",
+            "okta",
+            "sso",
+            "shadow it",
+            "vendor security",
+        ],
+        "counselor": [
+            "legal",
+            "contract",
+            "liability",
+            "ip",
+            "intellectual property",
+            "licensing",
+            "terms",
+            "agreement",
+            "lawyer",
+            "counsel",
+            "dpa",
+            "hallucination",
+            "bias",
+            "prompt drift",
+            "data privacy",
+        ],
+        "oracle": [
+            "transcript",
+            "meeting",
+            "sentiment",
+            "stakeholder analysis",
+            "attendee",
+            "recording",
+            "call notes",
+        ],
+        "sage": [
+            "people",
+            "change management",
+            "adoption",
+            "resistance",
+            "fear",
+            "anxiety",
+            "burnout",
+            "champion",
+            "community",
+            "culture",
+            "human",
+            "flourishing",
+            "psychology",
+            "safety",
+            "overwhelm",
+            "support",
+            "morale",
+            "engagement",
+            "people-first",
+            "human-centered",
+            "meaningful work",
+            "team",
+            "employee",
+        ],
         # New consulting/implementation agents
-        "strategist": ["executive", "c-suite", "ceo", "board", "sponsor", "sponsorship",
-                      "stakeholder management", "coalition", "organizational politics",
-                      "governance structure", "strategic alignment", "business strategy",
-                      "executive buy-in", "leadership", "transformation"],
-        "architect": ["architecture", "integration", "api", "technical design", "build vs buy",
-                     "rag", "vector", "embedding", "mlops", "devops", "infrastructure",
-                     "microservices", "data pipeline", "system design", "technical"],
-        "operator": ["process", "workflow", "automation", "metrics", "kpi", "baseline",
-                    "exception", "sop", "operations", "efficiency", "throughput",
-                    "bottleneck", "ground level", "frontline", "day-to-day"],
-        "pioneer": ["emerging", "innovation", "r&d", "new technology", "cutting edge",
-                   "experimental", "prototype", "hype", "maturity", "readiness",
-                   "quantum", "future", "horizon", "scout", "evaluate"],
+        "strategist": [
+            "executive",
+            "c-suite",
+            "ceo",
+            "board",
+            "sponsor",
+            "sponsorship",
+            "stakeholder management",
+            "coalition",
+            "organizational politics",
+            "governance structure",
+            "strategic alignment",
+            "business strategy",
+            "executive buy-in",
+            "leadership",
+            "transformation",
+        ],
+        "architect": [
+            "architecture",
+            "integration",
+            "api",
+            "technical design",
+            "build vs buy",
+            "rag",
+            "vector",
+            "embedding",
+            "mlops",
+            "devops",
+            "infrastructure",
+            "microservices",
+            "data pipeline",
+            "system design",
+            "technical",
+        ],
+        "operator": [
+            "process",
+            "workflow",
+            "automation",
+            "metrics",
+            "kpi",
+            "baseline",
+            "exception",
+            "sop",
+            "operations",
+            "efficiency",
+            "throughput",
+            "bottleneck",
+            "ground level",
+            "frontline",
+            "day-to-day",
+        ],
+        "pioneer": [
+            "emerging",
+            "innovation",
+            "r&d",
+            "new technology",
+            "cutting edge",
+            "experimental",
+            "prototype",
+            "hype",
+            "maturity",
+            "readiness",
+            "quantum",
+            "future",
+            "horizon",
+            "scout",
+            "evaluate",
+        ],
         # Internal enablement agents
-        "catalyst": ["internal communications", "messaging", "narrative", "employee engagement",
-                    "announcement", "all-hands", "town hall", "internal marketing",
-                    "ai anxiety", "fear communication", "transparency", "email"],
-        "scholar": ["training", "learning", "l&d", "enablement", "curriculum", "course",
-                   "workshop", "certification", "champion program", "skill development",
-                   "adult learning", "capability building", "onboarding"],
+        "catalyst": [
+            "internal communications",
+            "messaging",
+            "narrative",
+            "employee engagement",
+            "announcement",
+            "all-hands",
+            "town hall",
+            "internal marketing",
+            "ai anxiety",
+            "fear communication",
+            "transparency",
+            "email",
+        ],
+        "scholar": [
+            "training",
+            "learning",
+            "l&d",
+            "enablement",
+            "curriculum",
+            "course",
+            "workshop",
+            "certification",
+            "champion program",
+            "skill development",
+            "adult learning",
+            "capability building",
+            "onboarding",
+        ],
         # Systems thinking agent
-        "nexus": ["systems thinking", "feedback loop", "leverage point", "unintended consequences",
-                 "interconnection", "complexity", "second-order effect", "system dynamics",
-                 "archetype", "reinforcing loop", "balancing loop", "mental model",
-                 "paradigm", "root cause", "holistic", "emergent", "ripple effect"],
+        "nexus": [
+            "systems thinking",
+            "feedback loop",
+            "leverage point",
+            "unintended consequences",
+            "interconnection",
+            "complexity",
+            "second-order effect",
+            "system dynamics",
+            "archetype",
+            "reinforcing loop",
+            "balancing loop",
+            "mental model",
+            "paradigm",
+            "root cause",
+            "holistic",
+            "emergent",
+            "ripple effect",
+        ],
         # Brand voice agent
-        "echo": ["brand voice", "style", "tone", "voice analysis", "ai emulation", "writing style",
-                "voice profile", "brand guidelines", "tone of voice", "style guide",
-                "communication style", "brand consistency", "voice cloning", "voice match"],
+        "echo": [
+            "brand voice",
+            "style",
+            "tone",
+            "voice analysis",
+            "ai emulation",
+            "writing style",
+            "voice profile",
+            "brand guidelines",
+            "tone of voice",
+            "style guide",
+            "communication style",
+            "brand consistency",
+            "voice cloning",
+            "voice match",
+        ],
         # Personal development agent
-        "compass": ["career", "performance", "win", "accomplishment", "check-in", "1:1", "one on one",
-                   "review", "promotion", "goal tracking", "reflection", "growth", "achievement",
-                   "manager conversation", "feedback", "competency", "strategic alignment",
-                   "professional development", "win log", "impact", "tracker"],
+        "compass": [
+            "career",
+            "performance",
+            "win",
+            "accomplishment",
+            "check-in",
+            "1:1",
+            "one on one",
+            "review",
+            "promotion",
+            "goal tracking",
+            "reflection",
+            "growth",
+            "achievement",
+            "manager conversation",
+            "feedback",
+            "competency",
+            "strategic alignment",
+            "professional development",
+            "win log",
+            "impact",
+            "tracker",
+        ],
         # Task management agent
-        "taskmaster": ["task", "tasks", "to do", "to-do", "action item", "action items",
-                      "what should i work on", "my tasks", "my priorities", "deliverable",
-                      "deliverables", "assignment", "overdue", "due today", "due date",
-                      "slippage", "blocked", "follow up", "follow-up", "commitment",
-                      "what do i need to do", "what's on my plate", "focus", "today's work"]
+        "taskmaster": [
+            "task",
+            "tasks",
+            "to do",
+            "to-do",
+            "action item",
+            "action items",
+            "what should i work on",
+            "my tasks",
+            "my priorities",
+            "deliverable",
+            "deliverables",
+            "assignment",
+            "overdue",
+            "due today",
+            "due date",
+            "slippage",
+            "blocked",
+            "follow up",
+            "follow-up",
+            "commitment",
+            "what do i need to do",
+            "what's on my plate",
+            "focus",
+            "today's work",
+        ],
     }
 
     def __init__(
         self,
         supabase: Client,
         anthropic_client: anthropic.Anthropic,
-        specialists: Optional[dict[str, BaseAgent]] = None
+        specialists: Optional[dict[str, BaseAgent]] = None,
     ):
         super().__init__(
             name="coordinator",
             display_name="Thesis",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
         self._specialists = specialists or {}
 
@@ -143,8 +379,7 @@ class CoordinatorAgent(BaseAgent):
         return self._specialists.get(name)
 
     async def reload_specialist_instruction(self, name: str) -> bool:
-        """
-        Reload a specialist's instruction from the database.
+        """Reload a specialist's instruction from the database.
         Used for hot-reloading after instruction updates in admin UI.
         Returns True if reload was successful.
         """
@@ -155,8 +390,7 @@ class CoordinatorAgent(BaseAgent):
         return False
 
     async def reload_all_instructions(self) -> dict[str, bool]:
-        """
-        Reload instructions for all specialists.
+        """Reload instructions for all specialists.
         Returns dict of agent_name -> success.
         """
         results = {}
@@ -309,8 +543,7 @@ Core Mission: Synthesize insights across research, finance, governance, legal, a
 </system>"""
 
     async def analyze_query(self, context: AgentContext) -> ConsultationPlan:
-        """
-        Analyze a user query to determine which specialists to consult.
+        """Analyze a user query to determine which specialists to consult.
 
         Uses Claude Haiku for fast, cost-effective classification.
         """
@@ -321,7 +554,7 @@ Core Mission: Synthesize insights across research, finance, governance, legal, a
             return ConsultationPlan(
                 mode=ConsultationMode.DIRECT,
                 specialists=[],
-                reasoning="Simple greeting or question - handling directly"
+                reasoning="Simple greeting or question - handling directly",
             )
 
         # Score each specialist based on keyword matching
@@ -343,13 +576,13 @@ Core Mission: Synthesize insights across research, finance, governance, legal, a
                 return ConsultationPlan(
                     mode=ConsultationMode.SINGLE,
                     specialists=top_specialists,
-                    reasoning=f"Query matches {top_specialists[0]} domain"
+                    reasoning=f"Query matches {top_specialists[0]} domain",
                 )
             else:
                 return ConsultationPlan(
                     mode=ConsultationMode.MULTI,
                     specialists=top_specialists,
-                    reasoning=f"Query spans multiple domains: {', '.join(top_specialists)}"
+                    reasoning=f"Query spans multiple domains: {', '.join(top_specialists)}",
                 )
 
         # For complex queries, use Claude Haiku to classify
@@ -357,10 +590,25 @@ Core Mission: Synthesize insights across research, finance, governance, legal, a
 
     def _is_greeting_or_simple(self, message: str) -> bool:
         """Check if message is a simple greeting or basic question."""
-        greetings = ["hello", "hi", "hey", "good morning", "good afternoon",
-                    "good evening", "thanks", "thank you", "bye", "goodbye"]
-        simple_phrases = ["what can you do", "help me", "who are you",
-                         "what is thesis", "how does this work"]
+        greetings = [
+            "hello",
+            "hi",
+            "hey",
+            "good morning",
+            "good afternoon",
+            "good evening",
+            "thanks",
+            "thank you",
+            "bye",
+            "goodbye",
+        ]
+        simple_phrases = [
+            "what can you do",
+            "help me",
+            "who are you",
+            "what is thesis",
+            "how does this work",
+        ]
 
         for greeting in greetings:
             if message.strip().lower().startswith(greeting):
@@ -410,31 +658,28 @@ If no specialists are needed (simple question), return:
             response = self.anthropic.messages.create(
                 model="claude-3-5-haiku-20241022",
                 max_tokens=200,
-                messages=[{"role": "user", "content": classification_prompt}]
+                messages=[{"role": "user", "content": classification_prompt}],
             )
 
             import json
+
             result = json.loads(response.content[0].text)
             specialists = result.get("specialists", [])
             reasoning = result.get("reasoning", "LLM classification")
 
             if not specialists:
                 return ConsultationPlan(
-                    mode=ConsultationMode.DIRECT,
-                    specialists=[],
-                    reasoning=reasoning
+                    mode=ConsultationMode.DIRECT, specialists=[], reasoning=reasoning
                 )
             elif len(specialists) == 1:
                 return ConsultationPlan(
-                    mode=ConsultationMode.SINGLE,
-                    specialists=specialists,
-                    reasoning=reasoning
+                    mode=ConsultationMode.SINGLE, specialists=specialists, reasoning=reasoning
                 )
             else:
                 return ConsultationPlan(
                     mode=ConsultationMode.MULTI,
                     specialists=specialists[:3],  # Max 3 specialists
-                    reasoning=reasoning
+                    reasoning=reasoning,
                 )
         except Exception as e:
             logger.error(f"LLM classification failed: {e}")
@@ -442,13 +687,11 @@ If no specialists are needed (simple question), return:
             return ConsultationPlan(
                 mode=ConsultationMode.SINGLE,
                 specialists=["atlas"],
-                reasoning="Fallback to Atlas due to classification error"
+                reasoning="Fallback to Atlas due to classification error",
             )
 
     async def consult_specialist(
-        self,
-        specialist_name: str,
-        context: AgentContext
+        self, specialist_name: str, context: AgentContext
     ) -> Optional[AgentResponse]:
         """Consult a specialist agent and get their response."""
         specialist = self._specialists.get(specialist_name)
@@ -467,7 +710,7 @@ If no specialists are needed (simple question), return:
                 handoff_context={"from_coordinator": True},
                 memories=context.memories,
                 stakeholders=context.stakeholders,
-                kb_context=context.kb_context
+                kb_context=context.kb_context,
             )
 
             response = await specialist.process(enriched_context)
@@ -481,12 +724,9 @@ If no specialists are needed (simple question), return:
             return None
 
     async def synthesize_responses(
-        self,
-        responses: list[tuple[str, AgentResponse]],
-        context: AgentContext
+        self, responses: list[tuple[str, AgentResponse]], context: AgentContext
     ) -> str:
-        """
-        Synthesize multiple specialist responses into a unified output.
+        """Synthesize multiple specialist responses into a unified output.
 
         Takes a list of (specialist_name, response) tuples and combines them.
         """
@@ -494,10 +734,9 @@ If no specialists are needed (simple question), return:
             return responses[0][1].content
 
         # Build synthesis prompt
-        specialist_insights = "\n\n".join([
-            f"=== {name.upper()} PERSPECTIVE ===\n{resp.content}"
-            for name, resp in responses
-        ])
+        specialist_insights = "\n\n".join(
+            [f"=== {name.upper()} PERSPECTIVE ===\n{resp.content}" for name, resp in responses]
+        )
 
         synthesis_prompt = f"""You are synthesizing insights from multiple specialist perspectives into a single, coherent response.
 
@@ -519,14 +758,13 @@ Your response should read as a single, coherent answer - not as separate section
         response = self.anthropic.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
-            messages=[{"role": "user", "content": synthesis_prompt}]
+            messages=[{"role": "user", "content": synthesis_prompt}],
         )
 
         return response.content[0].text
 
     async def process(self, context: AgentContext) -> AgentResponse:
-        """
-        Main processing method for the Coordinator.
+        """Main processing method for the Coordinator.
 
         1. Enrich context with graph data (if relevant)
         2. Analyze the query
@@ -557,7 +795,7 @@ Your response should read as a single, coherent answer - not as separate section
                     agent_name=self.name,
                     agent_display_name=self.display_name,
                     save_to_memory=response.save_to_memory,
-                    memory_content=response.memory_content
+                    memory_content=response.memory_content,
                 )
             else:
                 # Fallback to direct response
@@ -583,7 +821,7 @@ Your response should read as a single, coherent answer - not as separate section
                 agent_name=self.name,
                 agent_display_name=self.display_name,
                 save_to_memory=True,
-                memory_content=f"Multi-specialist query: {context.user_message[:100]}..."
+                memory_content=f"Multi-specialist query: {context.user_message[:100]}...",
             )
 
     async def _direct_response(self, context: AgentContext) -> AgentResponse:
@@ -599,18 +837,17 @@ Your response should read as a single, coherent answer - not as separate section
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=system_prompt,
-            messages=messages
+            messages=messages,
         )
 
         return AgentResponse(
             content=response.content[0].text,
             agent_name=self.name,
-            agent_display_name=self.display_name
+            agent_display_name=self.display_name,
         )
 
     async def stream(self, context: AgentContext) -> AsyncGenerator[str, None]:
-        """
-        Stream a response, handling multi-specialist synthesis.
+        """Stream a response, handling multi-specialist synthesis.
 
         For multi-specialist queries, we collect responses first then stream synthesis.
         For direct/single queries, we stream directly.
@@ -672,15 +909,12 @@ Your response should read as a single, coherent answer - not as separate section
                 yield text
 
     async def _stream_synthesis(
-        self,
-        responses: list[tuple[str, AgentResponse]],
-        context: AgentContext
+        self, responses: list[tuple[str, AgentResponse]], context: AgentContext
     ) -> AsyncGenerator[str, None]:
         """Stream the synthesis of multiple specialist responses."""
-        specialist_insights = "\n\n".join([
-            f"=== {name.upper()} PERSPECTIVE ===\n{resp.content}"
-            for name, resp in responses
-        ])
+        specialist_insights = "\n\n".join(
+            [f"=== {name.upper()} PERSPECTIVE ===\n{resp.content}" for name, resp in responses]
+        )
 
         synthesis_prompt = f"""You are synthesizing insights from multiple specialist perspectives into a single, coherent response.
 
@@ -711,22 +945,26 @@ Your response should read as a single, coherent answer - not as separate section
         """Log a handoff to a specialist agent."""
         try:
             # Get specialist agent ID
-            specialist_result = self.supabase.table("agents")\
-                .select("id")\
-                .eq("name", to_specialist)\
-                .single()\
+            specialist_result = (
+                self.supabase.table("agents")
+                .select("id")
+                .eq("name", to_specialist)
+                .single()
                 .execute()
+            )
 
             to_agent_id = specialist_result.data["id"] if specialist_result.data else None
 
-            self.supabase.table("agent_handoffs").insert({
-                "conversation_id": context.conversation_id,
-                "from_agent_id": self._agent_id,
-                "to_agent_id": to_agent_id,
-                "reason": f"Query routed to {to_specialist}",
-                "context": {"query_preview": context.user_message[:200]},
-                "status": "completed"
-            }).execute()
+            self.supabase.table("agent_handoffs").insert(
+                {
+                    "conversation_id": context.conversation_id,
+                    "from_agent_id": self._agent_id,
+                    "to_agent_id": to_agent_id,
+                    "reason": f"Query routed to {to_specialist}",
+                    "context": {"query_preview": context.user_message[:200]},
+                    "status": "completed",
+                }
+            ).execute()
         except Exception as e:
             logger.error(f"Failed to log handoff: {e}")
 
@@ -735,22 +973,33 @@ Your response should read as a single, coherent answer - not as separate section
     # =========================================================================
 
     def _should_use_graph(self, message: str) -> bool:
-        """
-        Determine if the query would benefit from graph context.
+        """Determine if the query would benefit from graph context.
 
         Returns True for stakeholder-related, influence, or network queries.
         """
         graph_keywords = [
-            "influence", "network", "relationship", "connected", "reports to",
-            "who knows", "path to", "reach", "blocker", "blocking", "champion",
-            "supporter", "aligned", "concern", "shared concern", "stakeholder"
+            "influence",
+            "network",
+            "relationship",
+            "connected",
+            "reports to",
+            "who knows",
+            "path to",
+            "reach",
+            "blocker",
+            "blocking",
+            "champion",
+            "supporter",
+            "aligned",
+            "concern",
+            "shared concern",
+            "stakeholder",
         ]
         message_lower = message.lower()
         return any(kw in message_lower for kw in graph_keywords)
 
     async def _get_graph_context(self, context: AgentContext) -> dict[str, Any]:
-        """
-        Fetch relevant graph context for stakeholder queries.
+        """Fetch relevant graph context for stakeholder queries.
 
         Returns dict with influence network, key influencers, shared concerns, etc.
         """
@@ -766,18 +1015,14 @@ Your response should read as a single, coherent answer - not as separate section
 
             # Get key influencers for general stakeholder queries
             if "influencer" in message_lower or "key stakeholder" in message_lower:
-                influencers = await query_service.find_key_influencers(
-                    context.client_id,
-                    limit=5
-                )
+                influencers = await query_service.find_key_influencers(context.client_id, limit=5)
                 if influencers:
                     graph_context["key_influencers"] = influencers
 
             # Get shared concerns
             if "concern" in message_lower or "issue" in message_lower or "problem" in message_lower:
                 concerns = await query_service.find_shared_concerns(
-                    context.client_id,
-                    min_stakeholders=2
+                    context.client_id, min_stakeholders=2
                 )
                 if concerns:
                     graph_context["shared_concerns"] = concerns[:5]
@@ -788,10 +1033,7 @@ Your response should read as a single, coherent answer - not as separate section
                 stakeholder = context.stakeholders[0]
                 stakeholder_id = stakeholder.get("id")
                 if stakeholder_id:
-                    network = await query_service.get_stakeholder_network(
-                        stakeholder_id,
-                        depth=2
-                    )
+                    network = await query_service.get_stakeholder_network(stakeholder_id, depth=2)
                     if network.get("connected"):
                         graph_context["stakeholder_network"] = network
 
@@ -816,13 +1058,17 @@ Your response should read as a single, coherent answer - not as separate section
         if "key_influencers" in graph_context:
             parts.append("\n**Key Influencers:**")
             for inf in graph_context["key_influencers"][:5]:
-                parts.append(f"- {inf['name']} ({inf['role']}) - Influence Score: {inf.get('influence_score', 'N/A')}")
+                parts.append(
+                    f"- {inf['name']} ({inf['role']}) - Influence Score: {inf.get('influence_score', 'N/A')}"
+                )
 
         if "shared_concerns" in graph_context:
             parts.append("\n**Shared Concerns Across Stakeholders:**")
             for concern in graph_context["shared_concerns"][:3]:
                 stakeholder_names = [s["name"] for s in concern.get("stakeholders", [])]
-                parts.append(f"- \"{concern['concern']['content'][:100]}...\" (raised by: {', '.join(stakeholder_names)})")
+                parts.append(
+                    f'- "{concern["concern"]["content"][:100]}..." (raised by: {", ".join(stakeholder_names)})'
+                )
 
         if "stakeholder_network" in graph_context:
             network = graph_context["stakeholder_network"]
@@ -839,16 +1085,17 @@ Your response should read as a single, coherent answer - not as separate section
             stats = graph_context["network_stats"]
             nodes = stats.get("nodes", {})
             rels = stats.get("relationships", {})
-            parts.append(f"\n**Network Overview:** {nodes.get('stakeholders', 0)} stakeholders, "
-                        f"{rels.get('influences', 0)} influence relationships, "
-                        f"{nodes.get('concerns', 0)} tracked concerns")
+            parts.append(
+                f"\n**Network Overview:** {nodes.get('stakeholders', 0)} stakeholders, "
+                f"{rels.get('influences', 0)} influence relationships, "
+                f"{nodes.get('concerns', 0)} tracked concerns"
+            )
 
         parts.append("\n--- END NETWORK INTELLIGENCE ---\n")
         return "\n".join(parts)
 
     async def _enrich_context_with_graph(self, context: AgentContext) -> AgentContext:
-        """
-        Enrich the agent context with graph-based insights.
+        """Enrich the agent context with graph-based insights.
 
         Called before processing stakeholder-related queries.
         """
@@ -872,5 +1119,5 @@ Your response should read as a single, coherent answer - not as separate section
             user_message=context.user_message,
             handoff_context=enriched_handoff,
             memories=context.memories,
-            stakeholders=context.stakeholders
+            stakeholders=context.stakeholders,
         )

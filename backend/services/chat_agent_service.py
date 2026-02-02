@@ -1,5 +1,4 @@
-"""
-Chat Agent Service - Integrates agent routing into the chat flow.
+"""Chat Agent Service - Integrates agent routing into the chat flow.
 
 Handles:
 1. Agent selection from request (explicit selection via UI)
@@ -10,15 +9,14 @@ Handles:
 
 import logging
 import re
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 import anthropic
-from supabase import Client
 
 from agents import AgentRouter
-from agents.agent_factory import create_specialist, create_coordinator
-from services.instruction_loader import load_instruction_from_file, instruction_file_exists
+from services.instruction_loader import instruction_file_exists, load_instruction_from_file
+from supabase import Client
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +24,12 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AgentSelection:
     """Result of agent selection for a chat message."""
+
     primary_agent: str  # Agent name (e.g., "atlas", "capital")
-    display_name: str   # Display name for UI (e.g., "Atlas", "Capital")
+    display_name: str  # Display name for UI (e.g., "Atlas", "Capital")
     system_instruction: str  # The system instruction to use
-    confidence: float   # Routing confidence (1.0 for explicit selection)
-    reason: str         # Why this agent was selected
+    confidence: float  # Routing confidence (1.0 for explicit selection)
+    reason: str  # Why this agent was selected
     supporting_agents: list[str] = None  # Additional agents that may be relevant
 
     def __post_init__(self):
@@ -59,11 +58,11 @@ AGENT_DISPLAY_NAMES = {
 
 # @mention patterns - matches @agentname at word boundaries
 MENTION_PATTERN = re.compile(
-    r'@(atlas|capital|guardian|counselor|oracle|sage|strategist|architect|'
-    r'operator|pioneer|catalyst|scholar|echo|nexus|coordinator|'
-    r'research|finance|it|governance|legal|transcript|people|change|'
-    r'executive|technical|operations|innovation|comms|training|voice|systems)',
-    re.IGNORECASE
+    r"@(atlas|capital|guardian|counselor|oracle|sage|strategist|architect|"
+    r"operator|pioneer|catalyst|scholar|echo|nexus|coordinator|"
+    r"research|finance|it|governance|legal|transcript|people|change|"
+    r"executive|technical|operations|innovation|comms|training|voice|systems)",
+    re.IGNORECASE,
 )
 
 # Map alternate names to canonical names
@@ -88,8 +87,7 @@ MENTION_ALIASES = {
 
 
 class ChatAgentService:
-    """
-    Service for routing chat messages to the appropriate agent(s).
+    """Service for routing chat messages to the appropriate agent(s).
 
     Usage:
         service = ChatAgentService(supabase, anthropic_client)
@@ -108,8 +106,7 @@ class ChatAgentService:
         self._instruction_cache: dict[str, str] = {}
 
     def parse_mentions(self, message: str) -> list[str]:
-        """
-        Parse @mentions from a message.
+        """Parse @mentions from a message.
 
         Returns list of canonical agent names mentioned.
         """
@@ -125,8 +122,7 @@ class ChatAgentService:
         return canonical
 
     async def get_agent_instruction(self, agent_name: str) -> Optional[str]:
-        """
-        Load system instruction for an agent.
+        """Load system instruction for an agent.
 
         Priority:
         1. Cache (if already loaded)
@@ -145,35 +141,43 @@ class ChatAgentService:
         if instruction_file_exists(agent_name):
             instruction = load_instruction_from_file(agent_name)
             if instruction:
-                logger.info(f"Loaded instruction for {agent_name} from XML ({len(instruction)} chars)")
+                logger.info(
+                    f"Loaded instruction for {agent_name} from XML ({len(instruction)} chars)"
+                )
 
         # Priority 2: Fall back to database if no XML file exists
         if not instruction:
             try:
                 # First get agent ID
-                agent_result = self.supabase.table("agents")\
-                    .select("id")\
-                    .eq("name", agent_name)\
-                    .single()\
+                agent_result = (
+                    self.supabase.table("agents")
+                    .select("id")
+                    .eq("name", agent_name)
+                    .single()
                     .execute()
+                )
 
                 if agent_result.data:
                     agent_id = agent_result.data["id"]
 
                     # Get active instruction version
-                    version_result = self.supabase.table("agent_instruction_versions")\
-                        .select("instructions")\
-                        .eq("agent_id", agent_id)\
-                        .eq("is_active", True)\
-                        .limit(1)\
+                    version_result = (
+                        self.supabase.table("agent_instruction_versions")
+                        .select("instructions")
+                        .eq("agent_id", agent_id)
+                        .eq("is_active", True)
+                        .limit(1)
                         .execute()
+                    )
 
                     if version_result.data and version_result.data[0].get("instructions"):
                         db_instruction = version_result.data[0]["instructions"]
                         # Only use if it's real content, not a placeholder
                         if not db_instruction.startswith("--") and len(db_instruction) > 100:
                             instruction = db_instruction
-                            logger.info(f"Loaded instruction for {agent_name} from DB ({len(instruction)} chars)")
+                            logger.info(
+                                f"Loaded instruction for {agent_name} from DB ({len(instruction)} chars)"
+                            )
             except Exception as e:
                 logger.error(f"Failed to load instruction from DB for {agent_name}: {e}")
 
@@ -190,8 +194,7 @@ class ChatAgentService:
         conversation_context: Optional[dict] = None,
         fallback_instruction: Optional[str] = None,
     ) -> AgentSelection:
-        """
-        Select the appropriate agent(s) for a chat message.
+        """Select the appropriate agent(s) for a chat message.
 
         Args:
             message: The user's message
@@ -273,32 +276,35 @@ If a question falls outside your expertise, acknowledge this and suggest
 which specialist might be better suited to help."""
 
     async def get_conversation_agent_context(self, conversation_id: str) -> Optional[dict]:
-        """
-        Get the agent context for an existing conversation.
+        """Get the agent context for an existing conversation.
 
         Returns context including current_agent if the conversation
         has an established agent.
         """
         try:
             # Check if conversation has an associated agent
-            conv_result = self.supabase.table("conversations")\
-                .select("agent_id, agents(name)")\
-                .eq("id", conversation_id)\
-                .single()\
+            conv_result = (
+                self.supabase.table("conversations")
+                .select("agent_id, agents(name)")
+                .eq("id", conversation_id)
+                .single()
                 .execute()
+            )
 
             if conv_result.data and conv_result.data.get("agents"):
                 agent_name = conv_result.data["agents"]["name"]
                 return {"current_agent": agent_name}
 
             # Check last message for agent context
-            msg_result = self.supabase.table("messages")\
-                .select("metadata")\
-                .eq("conversation_id", conversation_id)\
-                .eq("role", "assistant")\
-                .order("created_at", desc=True)\
-                .limit(1)\
+            msg_result = (
+                self.supabase.table("messages")
+                .select("metadata")
+                .eq("conversation_id", conversation_id)
+                .eq("role", "assistant")
+                .order("created_at", desc=True)
+                .limit(1)
                 .execute()
+            )
 
             if msg_result.data and msg_result.data[0].get("metadata"):
                 metadata = msg_result.data[0]["metadata"]
@@ -311,8 +317,7 @@ which specialist might be better suited to help."""
         return None
 
     def clear_instruction_cache(self, agent_name: Optional[str] = None) -> None:
-        """
-        Clear the instruction cache.
+        """Clear the instruction cache.
 
         Args:
             agent_name: Specific agent to clear, or None to clear all
@@ -331,8 +336,9 @@ def get_chat_agent_service() -> ChatAgentService:
     """Get the singleton ChatAgentService instance."""
     global _chat_agent_service
     if _chat_agent_service is None:
-        from database import get_supabase
         import os
+
+        from database import get_supabase
 
         supabase = get_supabase()
         anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))

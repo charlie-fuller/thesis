@@ -1,5 +1,4 @@
-"""
-Compass Agent - Personal Career Coach
+"""Compass Agent - Personal Career Coach
 
 The Compass agent specializes in:
 - Win capture and impact documentation from conversational updates
@@ -17,16 +16,16 @@ import logging
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class CompassAgent(BaseAgent):
-    """
-    Compass - The Personal Career Coach agent.
+    """Compass - The Personal Career Coach agent.
 
     Specializes in helping professionals track performance, capture wins,
     prepare for manager conversations, and maintain strategic alignment
@@ -38,7 +37,7 @@ class CompassAgent(BaseAgent):
             name="compass",
             display_name="Compass",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -146,9 +145,9 @@ When preparing for a manager conversation:
         if context.stakeholders:
             stakeholder_context = "\n\nKey relationships being tracked:\n"
             for stakeholder in context.stakeholders[:5]:
-                name = stakeholder.get('name', 'Unknown')
-                role = stakeholder.get('role', 'Unknown role')
-                engagement = stakeholder.get('engagement_level', 'unknown')
+                name = stakeholder.get("name", "Unknown")
+                role = stakeholder.get("role", "Unknown role")
+                engagement = stakeholder.get("engagement_level", "unknown")
                 stakeholder_context += f"- {name} ({role}): {engagement}\n"
             messages[0]["content"] = stakeholder_context + "\n\n" + messages[0]["content"]
 
@@ -156,7 +155,7 @@ When preparing for a manager conversation:
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -169,17 +168,34 @@ When preparing for a manager conversation:
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Career update: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Career update: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         # Save interactions that reveal important career/performance content
         important_indicators = [
-            "win", "accomplished", "shipped", "launched", "completed",
-            "goal", "check-in", "1:1", "review", "feedback",
-            "promotion", "growth", "skill", "competency", "impact",
-            "stakeholder", "relationship", "manager", "mentor"
+            "win",
+            "accomplished",
+            "shipped",
+            "launched",
+            "completed",
+            "goal",
+            "check-in",
+            "1:1",
+            "review",
+            "feedback",
+            "promotion",
+            "growth",
+            "skill",
+            "competency",
+            "impact",
+            "stakeholder",
+            "relationship",
+            "manager",
+            "mentor",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -200,19 +216,36 @@ When preparing for a manager conversation:
         message_lower = context.user_message.lower()
 
         # Hand off to Sage for deeper change management or people challenges
-        if any(word in message_lower for word in ["team resistance", "burnout", "culture change", "adoption challenge"]):
+        if any(
+            word in message_lower
+            for word in ["team resistance", "burnout", "culture change", "adoption challenge"]
+        ):
             return ("sage", "Query requires people/change management expertise")
 
         # Hand off to Scholar for training program design
-        if any(word in message_lower for word in ["training program", "learning path", "curriculum", "upskilling plan"]):
+        if any(
+            word in message_lower
+            for word in ["training program", "learning path", "curriculum", "upskilling plan"]
+        ):
             return ("scholar", "Query requires L&D expertise")
 
         # Hand off to Strategist for executive-level career strategy
-        if any(word in message_lower for word in ["executive visibility", "c-suite", "board presentation", "organizational politics"]):
+        if any(
+            word in message_lower
+            for word in [
+                "executive visibility",
+                "c-suite",
+                "board presentation",
+                "organizational politics",
+            ]
+        ):
             return ("strategist", "Query requires executive strategy expertise")
 
         # Hand off to Oracle for meeting transcript analysis
-        if any(word in message_lower for word in ["analyze meeting", "transcript", "what did they say", "meeting notes"]):
+        if any(
+            word in message_lower
+            for word in ["analyze meeting", "transcript", "what did they say", "meeting notes"]
+        ):
             return ("oracle", "Query involves transcript analysis")
 
         return None

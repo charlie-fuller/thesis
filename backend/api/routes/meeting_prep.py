@@ -1,13 +1,12 @@
-"""
-Meeting Prep API Routes
+"""Meeting Prep API Routes
 
 Endpoints for generating meeting preparation dashboards for stakeholders.
 Aggregates status, metrics, opportunities, and questions into a single view.
 """
 
 import logging
-from typing import Optional, List
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -24,8 +23,10 @@ router = APIRouter(prefix="/api/meeting-prep", tags=["meeting-prep"])
 # PYDANTIC MODELS
 # ============================================================================
 
+
 class StatusItem(BaseModel):
     """Single status indicator."""
+
     area: str
     status: str  # green, yellow, red
     notes: str
@@ -33,6 +34,7 @@ class StatusItem(BaseModel):
 
 class MetricSummary(BaseModel):
     """Metric summary for meeting prep."""
+
     id: str
     metric_name: str
     current_value: Optional[str]
@@ -43,6 +45,7 @@ class MetricSummary(BaseModel):
 
 class OpportunitySummary(BaseModel):
     """Opportunity summary for meeting prep."""
+
     id: str
     opportunity_code: str
     title: str
@@ -55,6 +58,7 @@ class OpportunitySummary(BaseModel):
 
 class MeetingPrepResponse(BaseModel):
     """Full meeting prep dashboard data."""
+
     stakeholder: dict
     status_summary: List[StatusItem]
     metrics: List[MetricSummary]
@@ -68,6 +72,7 @@ class MeetingPrepResponse(BaseModel):
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
+
 
 def _calculate_engagement_status(stakeholder: dict, insights_data: list) -> StatusItem:
     """Calculate engagement status based on stakeholder data."""
@@ -94,13 +99,13 @@ def _calculate_engagement_status(stakeholder: dict, insights_data: list) -> Stat
     elif engagement_level == "champion":
         notes = f"Champion - {total_interactions} interactions"
     elif engagement_level == "supporter":
-        notes = f"Supporter - building relationship"
+        notes = "Supporter - building relationship"
     elif engagement_level == "neutral":
-        notes = f"Neutral - needs more engagement"
+        notes = "Neutral - needs more engagement"
     elif engagement_level == "skeptic":
-        notes = f"Skeptic - address concerns"
+        notes = "Skeptic - address concerns"
     else:
-        notes = f"Blocker - critical to resolve"
+        notes = "Blocker - critical to resolve"
 
     return StatusItem(area="Engagement", status=status, notes=notes)
 
@@ -109,9 +114,7 @@ def _calculate_opportunity_clarity_status(opportunities: list) -> StatusItem:
     """Calculate opportunity clarity status."""
     if not opportunities:
         return StatusItem(
-            area="Opportunity Clarity",
-            status="yellow",
-            notes="No opportunities identified yet"
+            area="Opportunity Clarity", status="yellow", notes="No opportunities identified yet"
         )
 
     # Count by status
@@ -124,30 +127,26 @@ def _calculate_opportunity_clarity_status(opportunities: list) -> StatusItem:
         return StatusItem(
             area="Opportunity Clarity",
             status="red",
-            notes=f"{blocked_count} blocked, {scoping_count} scoping"
+            notes=f"{blocked_count} blocked, {scoping_count} scoping",
         )
     elif identified_count > scoping_count:
         return StatusItem(
             area="Opportunity Clarity",
             status="yellow",
-            notes=f"{identified_count} need scoping, {pilot_count} in pilot"
+            notes=f"{identified_count} need scoping, {pilot_count} in pilot",
         )
     else:
         return StatusItem(
             area="Opportunity Clarity",
             status="green",
-            notes=f"{scoping_count + pilot_count} in progress"
+            notes=f"{scoping_count + pilot_count} in progress",
         )
 
 
 def _calculate_metrics_validation_status(metrics: list) -> StatusItem:
     """Calculate metrics validation status."""
     if not metrics:
-        return StatusItem(
-            area="Metrics Validated",
-            status="red",
-            notes="No metrics tracked yet"
-        )
+        return StatusItem(area="Metrics Validated", status="red", notes="No metrics tracked yet")
 
     red_count = sum(1 for m in metrics if m.get("validation_status") == "red")
     yellow_count = sum(1 for m in metrics if m.get("validation_status") == "yellow")
@@ -158,50 +157,42 @@ def _calculate_metrics_validation_status(metrics: list) -> StatusItem:
 
     if validation_rate >= 0.7:
         return StatusItem(
-            area="Metrics Validated",
-            status="green",
-            notes=f"{green_count}/{total} validated"
+            area="Metrics Validated", status="green", notes=f"{green_count}/{total} validated"
         )
     elif validation_rate >= 0.3:
         return StatusItem(
             area="Metrics Validated",
             status="yellow",
-            notes=f"{red_count} unvalidated, {yellow_count} partial"
+            notes=f"{red_count} unvalidated, {yellow_count} partial",
         )
     else:
         return StatusItem(
-            area="Metrics Validated",
-            status="red",
-            notes=f"{red_count} need validation"
+            area="Metrics Validated", status="red", notes=f"{red_count} need validation"
         )
 
 
 def _calculate_blockers_status(opportunities: list, insights: list) -> StatusItem:
     """Calculate blockers status from opportunities and unresolved concerns."""
     blocked_opps = [o for o in opportunities if o.get("status") == "blocked"]
-    unresolved_concerns = [i for i in insights if
-                          i.get("insight_type") in ("concern", "objection") and
-                          not i.get("is_resolved")]
+    unresolved_concerns = [
+        i
+        for i in insights
+        if i.get("insight_type") in ("concern", "objection") and not i.get("is_resolved")
+    ]
 
     total_blockers = len(blocked_opps) + len(unresolved_concerns)
 
     if total_blockers == 0:
-        return StatusItem(
-            area="Blockers",
-            status="green",
-            notes="No active blockers"
-        )
+        return StatusItem(area="Blockers", status="green", notes="No active blockers")
     elif total_blockers <= 2:
         return StatusItem(
             area="Blockers",
             status="yellow",
-            notes=f"{total_blockers} active ({len(blocked_opps)} opps, {len(unresolved_concerns)} concerns)"
+            notes=f"{total_blockers} active ({len(blocked_opps)} opps, {len(unresolved_concerns)} concerns)",
         )
     else:
         return StatusItem(
-            area="Blockers",
-            status="red",
-            notes=f"{total_blockers} blockers need resolution"
+            area="Blockers", status="red", notes=f"{total_blockers} blockers need resolution"
         )
 
 
@@ -239,14 +230,14 @@ def _build_questions_list(stakeholder: dict, metrics: list, opportunities: list)
 # ENDPOINTS
 # ============================================================================
 
+
 @router.get("/{stakeholder_id}", response_model=MeetingPrepResponse)
 async def get_meeting_prep(
     stakeholder_id: str,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
-    """
-    Generate meeting prep dashboard for a stakeholder.
+    """Generate meeting prep dashboard for a stakeholder.
 
     Returns:
     - Status at a glance (engagement, opportunity clarity, metrics validation, blockers)
@@ -256,12 +247,14 @@ async def get_meeting_prep(
     - Recommended approach
     """
     # Get stakeholder
-    stakeholder_result = supabase.table("stakeholders") \
-        .select("*") \
-        .eq("id", stakeholder_id) \
-        .eq("client_id", current_user["client_id"]) \
-        .single() \
+    stakeholder_result = (
+        supabase.table("stakeholders")
+        .select("*")
+        .eq("id", stakeholder_id)
+        .eq("client_id", current_user["client_id"])
+        .single()
         .execute()
+    )
 
     if not stakeholder_result.data:
         raise HTTPException(status_code=404, detail="Stakeholder not found")
@@ -269,20 +262,24 @@ async def get_meeting_prep(
     stakeholder = stakeholder_result.data
 
     # Get stakeholder metrics
-    metrics_result = supabase.table("stakeholder_metrics") \
-        .select("*") \
-        .eq("stakeholder_id", stakeholder_id) \
-        .order("metric_category") \
-        .order("metric_name") \
+    metrics_result = (
+        supabase.table("stakeholder_metrics")
+        .select("*")
+        .eq("stakeholder_id", stakeholder_id)
+        .order("metric_category")
+        .order("metric_name")
         .execute()
+    )
 
     metrics = metrics_result.data
 
     # Get stakeholder opportunities (via link table)
-    opp_links_result = supabase.table("opportunity_stakeholder_link") \
-        .select("*, ai_projects(*)") \
-        .eq("stakeholder_id", stakeholder_id) \
+    opp_links_result = (
+        supabase.table("opportunity_stakeholder_link")
+        .select("*, ai_projects(*)")
+        .eq("stakeholder_id", stakeholder_id)
         .execute()
+    )
 
     opportunities_with_role = []
     for link in opp_links_result.data:
@@ -292,11 +289,13 @@ async def get_meeting_prep(
             opportunities_with_role.append(opp)
 
     # Also get opportunities where stakeholder is owner
-    owned_opps_result = supabase.table("ai_projects") \
-        .select("*") \
-        .eq("owner_stakeholder_id", stakeholder_id) \
-        .eq("client_id", current_user["client_id"]) \
+    owned_opps_result = (
+        supabase.table("ai_projects")
+        .select("*")
+        .eq("owner_stakeholder_id", stakeholder_id)
+        .eq("client_id", current_user["client_id"])
         .execute()
+    )
 
     # Merge owned opportunities (avoid duplicates)
     opp_ids = {o["id"] for o in opportunities_with_role}
@@ -309,10 +308,12 @@ async def get_meeting_prep(
     opportunities_with_role.sort(key=lambda x: x.get("total_score", 0), reverse=True)
 
     # Get stakeholder insights (for blockers calculation)
-    insights_result = supabase.table("stakeholder_insights") \
-        .select("*") \
-        .eq("stakeholder_id", stakeholder_id) \
+    insights_result = (
+        supabase.table("stakeholder_insights")
+        .select("*")
+        .eq("stakeholder_id", stakeholder_id)
         .execute()
+    )
 
     insights = insights_result.data
 
@@ -337,7 +338,9 @@ async def get_meeting_prep(
                 if "T" in last_contact:
                     contact_date = datetime.fromisoformat(last_contact.replace("Z", "+00:00"))
                 else:
-                    contact_date = datetime.strptime(last_contact, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                    contact_date = datetime.strptime(last_contact, "%Y-%m-%d").replace(
+                        tzinfo=timezone.utc
+                    )
             else:
                 contact_date = last_contact
 
@@ -408,16 +411,19 @@ async def list_meeting_prep_summaries(
     department: Optional[str] = None,
     limit: int = 20,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
-    """
-    Get quick meeting prep summaries for multiple stakeholders.
+    """Get quick meeting prep summaries for multiple stakeholders.
 
     Useful for seeing which stakeholders need attention.
     """
-    query = supabase.table("stakeholders") \
-        .select("id, name, department, role, priority_level, engagement_level, relationship_status, last_contact, last_interaction") \
+    query = (
+        supabase.table("stakeholders")
+        .select(
+            "id, name, department, role, priority_level, engagement_level, relationship_status, last_contact, last_interaction"
+        )
         .eq("client_id", current_user["client_id"])
+    )
 
     if priority_level:
         query = query.eq("priority_level", priority_level)
@@ -437,30 +443,36 @@ async def list_meeting_prep_summaries(
                     if "T" in last_contact:
                         contact_date = datetime.fromisoformat(last_contact.replace("Z", "+00:00"))
                     else:
-                        contact_date = datetime.strptime(last_contact, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                        contact_date = datetime.strptime(last_contact, "%Y-%m-%d").replace(
+                            tzinfo=timezone.utc
+                        )
                 else:
                     contact_date = last_contact
                 days_since = (datetime.now(timezone.utc) - contact_date).days
             except Exception:
                 pass
 
-        summaries.append({
-            "stakeholder_id": s["id"],
-            "name": s["name"],
-            "department": s.get("department"),
-            "role": s.get("role"),
-            "priority_level": s.get("priority_level", "tier_3"),
-            "engagement_level": s.get("engagement_level", "neutral"),
-            "relationship_status": s.get("relationship_status", "new"),
-            "days_since_contact": days_since,
-            "needs_attention": days_since is None or days_since > 14,
-        })
+        summaries.append(
+            {
+                "stakeholder_id": s["id"],
+                "name": s["name"],
+                "department": s.get("department"),
+                "role": s.get("role"),
+                "priority_level": s.get("priority_level", "tier_3"),
+                "engagement_level": s.get("engagement_level", "neutral"),
+                "relationship_status": s.get("relationship_status", "new"),
+                "days_since_contact": days_since,
+                "needs_attention": days_since is None or days_since > 14,
+            }
+        )
 
     # Sort by needs_attention and priority
-    summaries.sort(key=lambda x: (
-        not x["needs_attention"],  # needs_attention first
-        {"tier_1": 0, "tier_2": 1, "tier_3": 2}.get(x["priority_level"], 3),
-    ))
+    summaries.sort(
+        key=lambda x: (
+            not x["needs_attention"],  # needs_attention first
+            {"tier_1": 0, "tier_2": 1, "tier_3": 2}.get(x["priority_level"], 3),
+        )
+    )
 
     return {
         "stakeholders": summaries,
@@ -468,7 +480,7 @@ async def list_meeting_prep_summaries(
             "total": len(summaries),
             "needs_attention": sum(1 for s in summaries if s["needs_attention"]),
             "tier_1": sum(1 for s in summaries if s["priority_level"] == "tier_1"),
-        }
+        },
     }
 
 
@@ -476,29 +488,29 @@ async def list_meeting_prep_summaries(
 async def mark_stakeholder_contacted(
     stakeholder_id: str,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
-    """
-    Mark a stakeholder as contacted today.
+    """Mark a stakeholder as contacted today.
 
     Updates last_contact date to today.
     """
     # Verify ownership
-    existing = supabase.table("stakeholders") \
-        .select("id") \
-        .eq("id", stakeholder_id) \
-        .eq("client_id", current_user["client_id"]) \
-        .single() \
+    existing = (
+        supabase.table("stakeholders")
+        .select("id")
+        .eq("id", stakeholder_id)
+        .eq("client_id", current_user["client_id"])
+        .single()
         .execute()
+    )
 
     if not existing.data:
         raise HTTPException(status_code=404, detail="Stakeholder not found")
 
     today = datetime.now(timezone.utc).date()
 
-    supabase.table("stakeholders") \
-        .update({"last_contact": str(today)}) \
-        .eq("id", stakeholder_id) \
-        .execute()
+    supabase.table("stakeholders").update({"last_contact": str(today)}).eq(
+        "id", stakeholder_id
+    ).execute()
 
     return {"message": "Contact date updated", "last_contact": str(today)}

@@ -1,6 +1,5 @@
-"""
-Test with generic prompts that won't trigger policy violations.
-"""
+"""Test with generic prompts that won't trigger policy violations."""
+
 import asyncio
 import base64
 import os
@@ -20,8 +19,8 @@ async def test_generic_prompts():
         with open(env_file) as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
                     os.environ[key.strip()] = value.strip().strip('"').strip("'")
 
     api_key = os.getenv("GOOGLE_GENERATIVE_AI_API_KEY")
@@ -40,16 +39,16 @@ async def test_generic_prompts():
             "A blue butterfly on a flower",
             "A cute cartoon robot, digital art style",
             "A sunset over mountains",
-            "A friendly robot character in cartoon style"
+            "A friendly robot character in cartoon style",
         ]
 
         model_name = "gemini-2.0-flash-exp-image-generation"
         print(f"Model: {model_name}\n")
 
         for i, prompt in enumerate(test_prompts):
-            print(f"\n{'='*70}")
-            print(f"Test {i+1}: {prompt}")
-            print('='*70)
+            print(f"\n{'=' * 70}")
+            print(f"Test {i + 1}: {prompt}")
+            print("=" * 70)
 
             try:
                 model = genai.GenerativeModel(model_name)
@@ -66,9 +65,9 @@ async def test_generic_prompts():
                     for j, part in enumerate(candidate.content.parts):
                         print(f"Part {j}: {type(part)}")
 
-                        if hasattr(part, 'inline_data') and part.inline_data:
+                        if hasattr(part, "inline_data") and part.inline_data:
                             print("  Has inline_data")
-                            if hasattr(part.inline_data, 'data'):
+                            if hasattr(part.inline_data, "data"):
                                 data = part.inline_data.data
                                 print(f"  Data: {len(data) if data else 0} bytes")
                                 if data and len(data) > 0:
@@ -76,7 +75,9 @@ async def test_generic_prompts():
                                     print("\n✅ FOUND IMAGE DATA!")
 
                                     # Save
-                                    output_path = Path(__file__).parent / f"generated_image_{i+1}.png"
+                                    output_path = (
+                                        Path(__file__).parent / f"generated_image_{i + 1}.png"
+                                    )
                                     if isinstance(data, str):
                                         image_bytes = base64.b64decode(data)
                                     else:
@@ -88,7 +89,7 @@ async def test_generic_prompts():
 
                                     return True  # Success!
 
-                        elif hasattr(part, 'text'):
+                        elif hasattr(part, "text"):
                             text_preview = part.text[:150]
                             print(f"  Text: {text_preview}...")
 
@@ -98,9 +99,9 @@ async def test_generic_prompts():
             except Exception as e:
                 print(f"❌ Error: {str(e)}")
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("📊 CONCLUSION")
-        print("="*70)
+        print("=" * 70)
         print("No images were generated from any prompt.")
         print("\nThis suggests:")
         print("  • Image generation may not be available with this API key")
@@ -112,6 +113,7 @@ async def test_generic_prompts():
     except Exception as e:
         print(f"\n❌ Fatal error: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -121,7 +123,7 @@ async def main():
 
     success = await test_generic_prompts()
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     if success:
         print("✅ SUCCESS - Image generation is working!")
     else:
@@ -130,7 +132,7 @@ async def main():
         print("  1. Verify API key has Imagen 3 access enabled")
         print("  2. Check if Vertex AI credentials are needed")
         print("  3. Review Google AI Studio for image generation setup")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
 
 if __name__ == "__main__":

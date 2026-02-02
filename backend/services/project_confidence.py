@@ -1,5 +1,4 @@
-"""
-Project Confidence Scoring Service
+"""Project Confidence Scoring Service
 
 Evaluates how confident we are in a project's scores based on
 the completeness of available information. Higher confidence means
@@ -90,9 +89,9 @@ MAX_CONFIDENCE = sum(item["points"] for item in RUBRIC.values())
 # SCORING FUNCTIONS
 # ============================================================================
 
+
 def _make_specific_question(template: str, project: dict) -> str:
-    """
-    Make a question specific to the project by including context.
+    """Make a question specific to the project by including context.
 
     Args:
         template: Generic question template
@@ -105,7 +104,7 @@ def _make_specific_question(template: str, project: dict) -> str:
     department = project.get("department")
 
     # Add project context to questions
-    context_prefix = f"For \"{title}\""
+    context_prefix = f'For "{title}"'
     if department:
         context_prefix += f" ({department})"
     context_prefix += ": "
@@ -120,15 +119,17 @@ def _make_specific_question(template: str, project: dict) -> str:
     elif "success look like" in template or "target end state" in template:
         return f"{context_prefix}What measurable outcomes would indicate this was successful (e.g., 30% time reduction, $50K savings)?"
     elif "business owner" in template or "champion" in template:
-        return f"{context_prefix}Who has budget authority and will drive adoption of this initiative?"
+        return (
+            f"{context_prefix}Who has budget authority and will drive adoption of this initiative?"
+        )
     elif "department or business unit" in template:
-        return f"Which team or department would be the primary beneficiary and owner of \"{title}\"?"
+        return f'Which team or department would be the primary beneficiary and owner of "{title}"?'
     elif "quantifiable benefits" in template:
         return f"{context_prefix}What are the estimated hours saved per week, cost reduction, or revenue impact?"
     elif "rationale" in template:
         return f"{context_prefix}What specific factors led to scoring ROI as {project.get('roi_potential', 'N/A')} and effort as {project.get('implementation_effort', 'N/A')}?"
     elif "source of this project" in template:
-        return f"Where did \"{title}\" originate? (e.g., specific meeting, stakeholder request, pain point observation)"
+        return f'Where did "{title}" originate? (e.g., specific meeting, stakeholder request, pain point observation)'
     elif "immediate next action" in template:
         return f"{context_prefix}What is the single most important next step to validate or advance this?"
     elif "constraints" in template:
@@ -139,8 +140,7 @@ def _make_specific_question(template: str, project: dict) -> str:
 
 
 def evaluate_project_confidence(project: dict) -> Tuple[int, List[str]]:
-    """
-    Evaluate confidence in a project's scores.
+    """Evaluate confidence in a project's scores.
 
     Args:
         project: Dict with project fields
@@ -161,98 +161,82 @@ def evaluate_project_confidence(project: dict) -> Tuple[int, List[str]]:
     if all(s is not None for s in scores):
         points += RUBRIC["scores_complete"]["points"]
     else:
-        questions.append(_make_specific_question(
-            RUBRIC["scores_complete"]["question"], project
-        ))
+        questions.append(_make_specific_question(RUBRIC["scores_complete"]["question"], project))
 
     # Check description
     if project.get("description"):
         points += RUBRIC["description"]["points"]
     else:
-        questions.append(_make_specific_question(
-            RUBRIC["description"]["question"], project
-        ))
+        questions.append(_make_specific_question(RUBRIC["description"]["question"], project))
 
     # Check current_state
     if project.get("current_state"):
         points += RUBRIC["current_state"]["points"]
     else:
-        questions.append(_make_specific_question(
-            RUBRIC["current_state"]["question"], project
-        ))
+        questions.append(_make_specific_question(RUBRIC["current_state"]["question"], project))
 
     # Check desired_state
     if project.get("desired_state"):
         points += RUBRIC["desired_state"]["points"]
     else:
-        questions.append(_make_specific_question(
-            RUBRIC["desired_state"]["question"], project
-        ))
+        questions.append(_make_specific_question(RUBRIC["desired_state"]["question"], project))
 
     # Check owner
     if project.get("owner_stakeholder_id"):
         points += RUBRIC["owner_stakeholder_id"]["points"]
     else:
-        questions.append(_make_specific_question(
-            RUBRIC["owner_stakeholder_id"]["question"], project
-        ))
+        questions.append(
+            _make_specific_question(RUBRIC["owner_stakeholder_id"]["question"], project)
+        )
 
     # Check department
     if project.get("department"):
         points += RUBRIC["department"]["points"]
     else:
-        questions.append(_make_specific_question(
-            RUBRIC["department"]["question"], project
-        ))
+        questions.append(_make_specific_question(RUBRIC["department"]["question"], project))
 
     # Check ROI indicators (must have at least one)
     roi_indicators = project.get("roi_indicators") or {}
     if roi_indicators and len(roi_indicators) > 0:
         points += RUBRIC["roi_indicators"]["points"]
     else:
-        questions.append(_make_specific_question(
-            RUBRIC["roi_indicators"]["question"], project
-        ))
+        questions.append(_make_specific_question(RUBRIC["roi_indicators"]["question"], project))
 
     # Check justifications generated
-    has_justifications = any([
-        project.get("project_summary"),
-        project.get("roi_justification"),
-        project.get("effort_justification"),
-        project.get("alignment_justification"),
-        project.get("readiness_justification"),
-    ])
+    has_justifications = any(
+        [
+            project.get("project_summary"),
+            project.get("roi_justification"),
+            project.get("effort_justification"),
+            project.get("alignment_justification"),
+            project.get("readiness_justification"),
+        ]
+    )
     if has_justifications:
         points += RUBRIC["has_justifications"]["points"]
     else:
-        questions.append(_make_specific_question(
-            RUBRIC["has_justifications"]["question"], project
-        ))
+        questions.append(_make_specific_question(RUBRIC["has_justifications"]["question"], project))
 
     # Check source documentation
     if project.get("source_type") or project.get("source_notes"):
         points += RUBRIC["source_type"]["points"]
     else:
-        questions.append(_make_specific_question(
-            RUBRIC["source_type"]["question"], project
-        ))
+        questions.append(_make_specific_question(RUBRIC["source_type"]["question"], project))
 
     # Check next_step
     if project.get("next_step"):
         points += RUBRIC["next_step"]["points"]
     else:
-        questions.append(_make_specific_question(
-            RUBRIC["next_step"]["question"], project
-        ))
+        questions.append(_make_specific_question(RUBRIC["next_step"]["question"], project))
 
     # Check blockers documented (get points if blockers array exists, even if empty)
     blockers = project.get("blockers")
     if blockers is not None:  # Array exists (could be empty, meaning "reviewed, none found")
         points += RUBRIC["blockers_documented"]["points"]
     else:
-        questions.append(_make_specific_question(
-            RUBRIC["blockers_documented"]["question"], project
-        ))
+        questions.append(
+            _make_specific_question(RUBRIC["blockers_documented"]["question"], project)
+        )
 
     # Calculate percentage (0-100)
     confidence = round((points / MAX_CONFIDENCE) * 100)
@@ -284,9 +268,9 @@ def get_confidence_level_description(confidence: int) -> str:
 # BATCH OPERATIONS
 # ============================================================================
 
+
 async def evaluate_all_projects(client_id: str) -> dict:
-    """
-    Evaluate confidence for all projects belonging to a client.
+    """Evaluate confidence for all projects belonging to a client.
 
     Args:
         client_id: The client UUID
@@ -299,10 +283,7 @@ async def evaluate_all_projects(client_id: str) -> dict:
     supabase = get_supabase()
 
     # Get all projects for client
-    result = supabase.table("ai_projects") \
-        .select("*") \
-        .eq("client_id", client_id) \
-        .execute()
+    result = supabase.table("ai_projects").select("*").eq("client_id", client_id).execute()
 
     projects = result.data
     updated_count = 0
@@ -313,10 +294,12 @@ async def evaluate_all_projects(client_id: str) -> dict:
             confidence, questions = evaluate_project_confidence(project)
 
             # Update the project
-            supabase.table("ai_projects").update({
-                "scoring_confidence": confidence,
-                "confidence_questions": questions,
-            }).eq("id", project["id"]).execute()
+            supabase.table("ai_projects").update(
+                {
+                    "scoring_confidence": confidence,
+                    "confidence_questions": questions,
+                }
+            ).eq("id", project["id"]).execute()
 
             updated_count += 1
             logger.info(
@@ -325,11 +308,13 @@ async def evaluate_all_projects(client_id: str) -> dict:
             )
 
         except Exception as e:
-            errors.append({
-                "id": project["id"],
-                "title": project.get("title", "Unknown"),
-                "error": str(e),
-            })
+            errors.append(
+                {
+                    "id": project["id"],
+                    "title": project.get("title", "Unknown"),
+                    "error": str(e),
+                }
+            )
             logger.error(f"Failed to evaluate {project.get('title')}: {e}")
 
     # Calculate summary stats

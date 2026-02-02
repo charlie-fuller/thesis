@@ -1,6 +1,5 @@
-"""
-Test script to verify Anthropic Claude API connection
-"""
+"""Test script to verify Anthropic Claude API connection"""
+
 import os
 
 from anthropic import Anthropic
@@ -9,9 +8,9 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+
 def test_claude_api():
     """Test basic Claude API functionality"""
-
     # Load API key from environment
     api_key = os.environ.get("ANTHROPIC_API_KEY")
 
@@ -35,9 +34,9 @@ def test_claude_api():
             messages=[
                 {
                     "role": "user",
-                    "content": "Hello! Please respond with exactly: 'Thesis API test successful!'"
+                    "content": "Hello! Please respond with exactly: 'Thesis API test successful!'",
                 }
-            ]
+            ],
         )
 
         # Extract response
@@ -56,6 +55,7 @@ def test_claude_api():
         print("\n❌ ERROR calling Claude API:")
         print(f"   {str(e)}")
         return False
+
 
 if __name__ == "__main__":
     print("=" * 60)

@@ -1,5 +1,4 @@
-"""
-Centralized database connection management.
+"""Centralized database connection management.
 Provides singleton Supabase client to avoid connection pool exhaustion.
 """
 
@@ -8,13 +7,12 @@ import functools
 import os
 from typing import Callable, Optional, TypeVar
 
-from supabase import Client, create_client
-
 from logger_config import get_logger
+from supabase import Client, create_client
 
 logger = get_logger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class DatabaseService:
@@ -24,8 +22,7 @@ class DatabaseService:
 
     @classmethod
     def get_client(cls) -> Client:
-        """
-        Get the singleton Supabase client instance.
+        """Get the singleton Supabase client instance.
 
         Returns:
             Supabase Client instance
@@ -37,7 +34,9 @@ class DatabaseService:
             supabase_url = os.environ.get("SUPABASE_URL")
             # Prefer service role key for backend operations (bypasses RLS)
             # Fall back to SUPABASE_KEY for backwards compatibility
-            supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY")
+            supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get(
+                "SUPABASE_KEY"
+            )
 
             if not supabase_url or not supabase_key:
                 raise ValueError(
@@ -57,8 +56,7 @@ class DatabaseService:
 
 # Convenience function for getting the client
 def get_supabase() -> Client:
-    """
-    Get the Supabase client instance.
+    """Get the Supabase client instance.
 
     This is the preferred way to access the database throughout the application.
 
@@ -69,8 +67,7 @@ def get_supabase() -> Client:
 
 
 def with_db_retry(max_retries: int = 2):
-    """
-    Decorator that retries database operations on connection errors.
+    """Decorator that retries database operations on connection errors.
 
     Handles "Broken pipe" and similar connection errors by resetting
     the Supabase client and retrying the operation.
@@ -78,6 +75,7 @@ def with_db_retry(max_retries: int = 2):
     Args:
         max_retries: Maximum number of retry attempts (default 2)
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs) -> T:
@@ -89,7 +87,11 @@ def with_db_retry(max_retries: int = 2):
                     last_error = e
                     error_msg = str(e).lower()
                     # Check for connection-related errors
-                    if 'broken pipe' in error_msg or 'errno 32' in error_msg or 'connection' in error_msg:
+                    if (
+                        "broken pipe" in error_msg
+                        or "errno 32" in error_msg
+                        or "connection" in error_msg
+                    ):
                         if attempt < max_retries:
                             logger.warning(
                                 f"Database connection error in {func.__name__}, "
@@ -102,7 +104,7 @@ def with_db_retry(max_retries: int = 2):
                 except Exception as e:
                     # Check if the error message indicates a broken pipe
                     error_msg = str(e).lower()
-                    if 'broken pipe' in error_msg or 'errno 32' in error_msg:
+                    if "broken pipe" in error_msg or "errno 32" in error_msg:
                         last_error = e
                         if attempt < max_retries:
                             logger.warning(
@@ -115,5 +117,7 @@ def with_db_retry(max_retries: int = 2):
                     raise
             # If we exhausted all retries, raise the last error
             raise last_error  # type: ignore
+
         return wrapper
+
     return decorator

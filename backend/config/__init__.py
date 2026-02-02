@@ -1,5 +1,4 @@
-"""
-Backend Configuration for Thesis
+"""Backend Configuration for Thesis
 
 This module provides centralized configuration management, including
 support for single-tenant mode with a default client.
@@ -18,15 +17,11 @@ logger = logging.getLogger(__name__)
 
 # Well-known UUID for the default organization in single-tenant deployments
 # This allows the application to work without explicit client management
-DEFAULT_CLIENT_ID = os.getenv(
-    "DEFAULT_CLIENT_ID",
-    "00000000-0000-0000-0000-000000000001"
-)
+DEFAULT_CLIENT_ID = os.getenv("DEFAULT_CLIENT_ID", "00000000-0000-0000-0000-000000000001")
 
 
 def get_default_client_id() -> str:
-    """
-    Returns the default client ID for single-tenant deployments.
+    """Returns the default client ID for single-tenant deployments.
 
     In single-tenant mode, all users belong to this hidden "default organization".
     This simplifies the user experience by eliminating client management UI
@@ -44,8 +39,7 @@ def get_default_client_id() -> str:
 
 
 def get_client_id_for_user(user_profile: dict) -> str:
-    """
-    Returns the appropriate client_id for a given user.
+    """Returns the appropriate client_id for a given user.
 
     In single-tenant mode, this always returns the default client ID.
     In multi-tenant mode (future), this would return user_profile.get('client_id').
@@ -68,8 +62,7 @@ def get_client_id_for_user(user_profile: dict) -> str:
 
 
 def is_multi_tenant_mode() -> bool:
-    """
-    Checks if the application is running in multi-tenant mode.
+    """Checks if the application is running in multi-tenant mode.
 
     Returns:
         bool: True if multi-tenant features should be enabled
@@ -127,9 +120,9 @@ VOLUME_PATH = os.getenv("VOLUME_PATH")  # e.g., "/data" on Railway
 # Validation Functions
 # ============================================================================
 
+
 def validate_config():
-    """
-    Validates that all required configuration is present.
+    """Validates that all required configuration is present.
 
     Raises:
         ValueError: If required configuration is missing
@@ -153,9 +146,9 @@ def validate_config():
 # Helper Functions
 # ============================================================================
 
+
 def get_client_name() -> str:
-    """
-    Returns the display name for the default client.
+    """Returns the display name for the default client.
 
     Returns:
         str: Friendly name to use in UI/emails
@@ -164,8 +157,7 @@ def get_client_name() -> str:
 
 
 def get_assistant_name() -> str:
-    """
-    Returns the default assistant name.
+    """Returns the default assistant name.
 
     Returns:
         str: Name of the AI assistant

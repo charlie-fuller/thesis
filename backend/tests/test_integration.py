@@ -1,5 +1,4 @@
-"""
-Integration Tests - Real Backend Testing
+"""Integration Tests - Real Backend Testing
 
 These tests hit the REAL backend with actual database connections.
 They are slower than unit tests but validate real system behavior.
@@ -28,7 +27,7 @@ Note: conftest.py sets test environment variables, but this file
 import os
 import sys
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Generator, Optional
 
@@ -56,7 +55,7 @@ _has_real_key = SUPABASE_KEY and len(SUPABASE_KEY) > 50  # Real keys are long
 pytestmark = [
     pytest.mark.skipif(
         _is_test_url or not _has_real_key,
-        reason="Real Supabase credentials not configured - run with real .env"
+        reason="Real Supabase credentials not configured - run with real .env",
     ),
     pytest.mark.forked,  # Run each test in separate process to avoid mock pollution
 ]
@@ -66,30 +65,34 @@ pytestmark = [
 # Module Restoration - Fix mock pollution from other test files
 # ============================================================================
 
+
 def _restore_real_modules():
     """Restore real modules that may have been mocked by other tests."""
-    import importlib
-
     # Remove any mocked versions of critical modules
-    mocked_modules = ['database', 'config', 'auth', 'anthropic']
+    mocked_modules = ["database", "config", "auth", "anthropic"]
     for mod_name in mocked_modules:
         if mod_name in sys.modules:
             mod = sys.modules[mod_name]
             # Check if it's a Mock
-            if hasattr(mod, '_mock_name') or type(mod).__name__ in ('MagicMock', 'Mock'):
+            if hasattr(mod, "_mock_name") or type(mod).__name__ in ("MagicMock", "Mock"):
                 del sys.modules[mod_name]
 
     # Also remove submodules that might be mocked
-    to_remove = [k for k in sys.modules.keys()
-                 if any(k.startswith(f'{m}.') for m in mocked_modules)]
+    to_remove = [
+        k for k in sys.modules.keys() if any(k.startswith(f"{m}.") for m in mocked_modules)
+    ]
     for k in to_remove:
-        if hasattr(sys.modules[k], '_mock_name') or type(sys.modules[k]).__name__ in ('MagicMock', 'Mock'):
+        if hasattr(sys.modules[k], "_mock_name") or type(sys.modules[k]).__name__ in (
+            "MagicMock",
+            "Mock",
+        ):
             del sys.modules[k]
 
 
 # ============================================================================
 # Test Fixtures
 # ============================================================================
+
 
 @pytest.fixture(scope="module")
 def real_supabase():
@@ -99,7 +102,9 @@ def real_supabase():
 
     # Now import the real database module
     import importlib
+
     import database as db_module
+
     importlib.reload(db_module)
 
     from database import DatabaseService, get_supabase
@@ -136,15 +141,15 @@ def integration_client():
 
     # Step 2: Remove cached main module and its dependencies
     modules_to_reload = [
-        'main',
-        'database',
-        'auth',
-        'api.routes.agents',
-        'api.routes.tasks',
-        'api.routes.projects',
-        'api.routes.documents',
-        'api.routes.stakeholders',
-        'api.routes.conversations',
+        "main",
+        "database",
+        "auth",
+        "api.routes.agents",
+        "api.routes.tasks",
+        "api.routes.projects",
+        "api.routes.documents",
+        "api.routes.stakeholders",
+        "api.routes.conversations",
     ]
 
     # Remove from cache first
@@ -153,20 +158,23 @@ def integration_client():
             del sys.modules[mod]
 
     # Also remove any api.routes submodules
-    to_remove = [k for k in sys.modules.keys() if k.startswith('api.routes.')]
+    to_remove = [k for k in sys.modules.keys() if k.startswith("api.routes.")]
     for k in to_remove:
         del sys.modules[k]
 
     # Step 3: Reload core modules
     import database
+
     importlib.reload(database)
 
     import auth
+
     importlib.reload(auth)
 
     # Step 4: Import fresh app (will recreate routes with real dependencies)
-    from main import app
     from fastapi.testclient import TestClient
+
+    from main import app
 
     with TestClient(app) as client:
         yield client
@@ -174,8 +182,7 @@ def integration_client():
 
 @pytest.fixture(scope="module")
 def test_user_id(real_supabase) -> Generator[str, None, None]:
-    """
-    Get an existing user from the database for testing.
+    """Get an existing user from the database for testing.
 
     Since Supabase uses Auth, we can't create users directly in the users table.
     Instead, we use an existing user from the database.
@@ -222,6 +229,7 @@ def auth_headers(test_user_id, test_user_email) -> dict:
 # Health & Connectivity Tests
 # ============================================================================
 
+
 @pytest.mark.integration
 class TestHealthEndpoints:
     """Test health and connectivity endpoints."""
@@ -245,8 +253,7 @@ class TestHealthEndpoints:
     def test_cors_preflight(self, integration_client):
         """CORS preflight returns correct headers."""
         response = integration_client.options(
-            "/api/agents",
-            headers={"Origin": "http://localhost:3000"}
+            "/api/agents", headers={"Origin": "http://localhost:3000"}
         )
         # Should be 200 or include CORS headers
         assert response.status_code in [200, 204]
@@ -255,6 +262,7 @@ class TestHealthEndpoints:
 # ============================================================================
 # Agent API Tests
 # ============================================================================
+
 
 @pytest.mark.integration
 class TestAgentEndpoints:
@@ -304,12 +312,15 @@ class TestAgentEndpoints:
 # Task API Tests
 # ============================================================================
 
+
 @pytest.mark.integration
 class TestTaskEndpoints:
     """Test task CRUD operations."""
 
     @pytest.fixture
-    def test_task_id(self, integration_client, auth_headers, real_supabase, test_user_id) -> Generator[str, None, None]:
+    def test_task_id(
+        self, integration_client, auth_headers, real_supabase, test_user_id
+    ) -> Generator[str, None, None]:
         """Create a test task and clean up after."""
         task_data = {
             "title": f"Integration Test Task {uuid.uuid4().hex[:8]}",
@@ -407,7 +418,9 @@ class TestTaskEndpoints:
             "priority": 1,
         }
 
-        response = integration_client.patch(f"/api/tasks/{test_task_id}", json=update_data, headers=auth_headers)
+        response = integration_client.patch(
+            f"/api/tasks/{test_task_id}", json=update_data, headers=auth_headers
+        )
         assert response.status_code == 200
 
         data = response.json()
@@ -419,7 +432,9 @@ class TestTaskEndpoints:
         """Update task status (Kanban operation)."""
         # Create a fresh task for this test
         task_data = {"title": f"Status update test {uuid.uuid4().hex[:8]}"}
-        create_response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
+        create_response = integration_client.post(
+            "/api/tasks", json=task_data, headers=auth_headers
+        )
         if create_response.status_code != 200:
             pytest.skip(f"Could not create task: {create_response.text}")
 
@@ -429,7 +444,9 @@ class TestTaskEndpoints:
 
         try:
             status_data = {"status": "in_progress"}
-            response = integration_client.patch(f"/api/tasks/{task_id}/status", json=status_data, headers=auth_headers)
+            response = integration_client.patch(
+                f"/api/tasks/{task_id}/status", json=status_data, headers=auth_headers
+            )
             assert response.status_code == 200
 
             data = response.json()
@@ -443,7 +460,9 @@ class TestTaskEndpoints:
         """Delete a task."""
         # Create a task to delete
         task_data = {"title": f"Task to delete {uuid.uuid4().hex[:8]}"}
-        create_response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
+        create_response = integration_client.post(
+            "/api/tasks", json=task_data, headers=auth_headers
+        )
         task_id = create_response.json().get("task", {}).get("id")
 
         if not task_id:
@@ -485,12 +504,15 @@ class TestTaskEndpoints:
 # Project API Tests
 # ============================================================================
 
+
 @pytest.mark.integration
 class TestProjectEndpoints:
     """Test project pipeline endpoints."""
 
     @pytest.fixture
-    def test_project_id(self, integration_client, auth_headers, real_supabase) -> Generator[str, None, None]:
+    def test_project_id(
+        self, integration_client, auth_headers, real_supabase
+    ) -> Generator[str, None, None]:
         """Create a test project and clean up after."""
         opp_code = f"T{uuid.uuid4().hex[:4].upper()}"
         opp_data = {
@@ -579,7 +601,9 @@ class TestProjectEndpoints:
             "roi_potential": 5,
         }
 
-        response = integration_client.patch(f"/api/projects/{test_project_id}", json=update_data, headers=auth_headers)
+        response = integration_client.patch(
+            f"/api/projects/{test_project_id}", json=update_data, headers=auth_headers
+        )
         assert response.status_code == 200
 
         data = response.json()
@@ -615,6 +639,7 @@ class TestProjectEndpoints:
 # Stakeholder API Tests
 # ============================================================================
 
+
 @pytest.mark.integration
 class TestStakeholderEndpoints:
     """Test stakeholder management endpoints."""
@@ -632,6 +657,7 @@ class TestStakeholderEndpoints:
 # ============================================================================
 # Document API Tests
 # ============================================================================
+
 
 @pytest.mark.integration
 class TestDocumentEndpoints:
@@ -655,6 +681,7 @@ class TestDocumentEndpoints:
 # Conversation API Tests
 # ============================================================================
 
+
 @pytest.mark.integration
 class TestConversationEndpoints:
     """Test conversation endpoints."""
@@ -668,6 +695,7 @@ class TestConversationEndpoints:
 # ============================================================================
 # Database Integrity Tests
 # ============================================================================
+
 
 @pytest.mark.integration
 @pytest.mark.slow
@@ -717,6 +745,7 @@ class TestDatabaseIntegrity:
 # Concurrent Access Tests
 # ============================================================================
 
+
 @pytest.mark.integration
 @pytest.mark.slow
 class TestConcurrentAccess:
@@ -762,6 +791,7 @@ class TestConcurrentAccess:
 # Performance Tests
 # ============================================================================
 
+
 @pytest.mark.integration
 @pytest.mark.slow
 class TestPerformance:
@@ -794,6 +824,7 @@ class TestPerformance:
 # Error Handling Tests
 # ============================================================================
 
+
 @pytest.mark.integration
 class TestErrorHandling:
     """Test error response formats."""
@@ -817,9 +848,7 @@ class TestErrorHandling:
         """422 errors for validation failures."""
         # Send invalid JSON
         response = integration_client.post(
-            "/api/tasks",
-            json={"priority": "not-a-number"},
-            headers=auth_headers
+            "/api/tasks", json={"priority": "not-a-number"}, headers=auth_headers
         )
         assert response.status_code == 422
 
@@ -830,6 +859,7 @@ class TestErrorHandling:
 # ============================================================================
 # Cleanup Utility
 # ============================================================================
+
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_test_data():

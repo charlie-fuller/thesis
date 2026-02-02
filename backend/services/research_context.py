@@ -1,5 +1,4 @@
-"""
-Research Context Service
+"""Research Context Service
 
 Aggregates platform context to determine what Atlas should research:
 - Stakeholder concerns drive research priorities
@@ -15,10 +14,9 @@ from typing import Optional
 from database import get_supabase
 from logger_config import get_logger
 from services.agent_observer import (
-    get_platform_context,
     get_anticipatory_research_topics,
     get_open_knowledge_gaps,
-    get_stakeholder_concerns
+    get_stakeholder_concerns,
 )
 
 logger = get_logger(__name__)
@@ -30,9 +28,11 @@ supabase = get_supabase()
 # DATA MODELS
 # ============================================================================
 
+
 @dataclass
 class ResearchTopic:
     """A prioritized research topic."""
+
     topic: str
     query: str
     focus_area: str
@@ -45,6 +45,7 @@ class ResearchTopic:
 @dataclass
 class ResearchPriorities:
     """Prioritized list of research topics with metadata."""
+
     topics: list[ResearchTopic]
     total_count: int
     global_count: int
@@ -57,34 +58,74 @@ class ResearchPriorities:
 # ============================================================================
 
 FOCUS_AREA_QUERIES = {
-    'strategic_planning': {
-        'base_query': "What are the latest best practices for {topic}? Include C-suite engagement strategies, governance patterns, and case studies from Fortune 500 companies.",
-        'keywords': ['strategy', 'governance', 'executive', 'c-suite', 'leadership', 'transformation']
+    "strategic_planning": {
+        "base_query": "What are the latest best practices for {topic}? Include C-suite engagement strategies, governance patterns, and case studies from Fortune 500 companies.",
+        "keywords": [
+            "strategy",
+            "governance",
+            "executive",
+            "c-suite",
+            "leadership",
+            "transformation",
+        ],
     },
-    'finance_roi': {
-        'base_query': "What are proven ROI benchmarks and metrics for {topic}? Include specific numbers, payback periods, and case studies from comparable organizations.",
-        'keywords': ['roi', 'cost', 'budget', 'finance', 'savings', 'revenue', 'payback', 'investment']
+    "finance_roi": {
+        "base_query": "What are proven ROI benchmarks and metrics for {topic}? Include specific numbers, payback periods, and case studies from comparable organizations.",
+        "keywords": [
+            "roi",
+            "cost",
+            "budget",
+            "finance",
+            "savings",
+            "revenue",
+            "payback",
+            "investment",
+        ],
     },
-    'governance_compliance': {
-        'base_query': "What are current best practices for {topic} in enterprise AI? Include regulatory requirements, security frameworks, and compliance considerations.",
-        'keywords': ['compliance', 'governance', 'security', 'audit', 'regulation', 'policy', 'risk']
+    "governance_compliance": {
+        "base_query": "What are current best practices for {topic} in enterprise AI? Include regulatory requirements, security frameworks, and compliance considerations.",
+        "keywords": [
+            "compliance",
+            "governance",
+            "security",
+            "audit",
+            "regulation",
+            "policy",
+            "risk",
+        ],
     },
-    'change_management': {
-        'base_query': "What does research say about {topic} in AI implementation? Include adoption patterns, failure modes, and success factors.",
-        'keywords': ['adoption', 'change', 'training', 'culture', 'resistance', 'champion', 'workforce']
+    "change_management": {
+        "base_query": "What does research say about {topic} in AI implementation? Include adoption patterns, failure modes, and success factors.",
+        "keywords": [
+            "adoption",
+            "change",
+            "training",
+            "culture",
+            "resistance",
+            "champion",
+            "workforce",
+        ],
     },
-    'technical_architecture': {
-        'base_query': "What are enterprise architecture best practices for {topic}? Include integration patterns, scalability considerations, and vendor evaluation criteria.",
-        'keywords': ['architecture', 'integration', 'api', 'platform', 'infrastructure', 'mlops', 'rag']
+    "technical_architecture": {
+        "base_query": "What are enterprise architecture best practices for {topic}? Include integration patterns, scalability considerations, and vendor evaluation criteria.",
+        "keywords": [
+            "architecture",
+            "integration",
+            "api",
+            "platform",
+            "infrastructure",
+            "mlops",
+            "rag",
+        ],
     },
-    'innovation_trends': {
-        'base_query': "What are the emerging trends and developments in {topic}? Include maturity assessments, hype vs. reality analysis, and practical timelines.",
-        'keywords': ['emerging', 'trend', 'innovation', 'future', 'new', 'latest', 'cutting-edge']
+    "innovation_trends": {
+        "base_query": "What are the emerging trends and developments in {topic}? Include maturity assessments, hype vs. reality analysis, and practical timelines.",
+        "keywords": ["emerging", "trend", "innovation", "future", "new", "latest", "cutting-edge"],
     },
-    'general': {
-        'base_query': "What are best practices and current research on {topic}? Include evidence-based recommendations and practical implementation guidance.",
-        'keywords': []
-    }
+    "general": {
+        "base_query": "What are best practices and current research on {topic}? Include evidence-based recommendations and practical implementation guidance.",
+        "keywords": [],
+    },
 }
 
 
@@ -92,29 +133,26 @@ FOCUS_AREA_QUERIES = {
 # TOPIC CLASSIFICATION
 # ============================================================================
 
+
 def classify_focus_area(text: str) -> str:
-    """
-    Classify text into a focus area based on keywords.
-    """
+    """Classify text into a focus area based on keywords."""
     text_lower = text.lower()
 
     for focus_area, config in FOCUS_AREA_QUERIES.items():
-        if focus_area == 'general':
+        if focus_area == "general":
             continue
 
-        for keyword in config['keywords']:
+        for keyword in config["keywords"]:
             if keyword in text_lower:
                 return focus_area
 
-    return 'general'
+    return "general"
 
 
 def generate_research_query(topic: str, focus_area: str) -> str:
-    """
-    Generate a research query based on topic and focus area.
-    """
-    config = FOCUS_AREA_QUERIES.get(focus_area, FOCUS_AREA_QUERIES['general'])
-    query_template = config['base_query']
+    """Generate a research query based on topic and focus area."""
+    config = FOCUS_AREA_QUERIES.get(focus_area, FOCUS_AREA_QUERIES["general"])
+    query_template = config["base_query"]
 
     return query_template.format(topic=topic)
 
@@ -123,35 +161,34 @@ def generate_research_query(topic: str, focus_area: str) -> str:
 # PRIORITY SCORING
 # ============================================================================
 
+
 def calculate_priority(source: str, context: dict) -> int:
-    """
-    Calculate priority score (1-10) based on source and context.
-    """
+    """Calculate priority score (1-10) based on source and context."""
     base_priorities = {
-        'schedule': 5,
-        'knowledge_gap': 7,
-        'stakeholder_concern': 8,
-        'roi_opportunity': 9,
-        'anticipatory': 6,
-        'manual': 8
+        "schedule": 5,
+        "knowledge_gap": 7,
+        "stakeholder_concern": 8,
+        "roi_opportunity": 9,
+        "anticipatory": 6,
+        "manual": 8,
     }
 
     priority = base_priorities.get(source, 5)
 
     # Adjust based on context
-    if source == 'knowledge_gap':
-        occurrence = context.get('occurrence_count', 1)
+    if source == "knowledge_gap":
+        occurrence = context.get("occurrence_count", 1)
         if occurrence > 3:
             priority += 2
         elif occurrence > 1:
             priority += 1
 
-    if source == 'roi_opportunity':
-        estimated_value = context.get('estimated_value', 0)
+    if source == "roi_opportunity":
+        estimated_value = context.get("estimated_value", 0)
         if estimated_value > 100000:
             priority += 1
 
-    if source == 'stakeholder_concern':
+    if source == "stakeholder_concern":
         # Could check stakeholder importance/engagement
         pass
 
@@ -162,13 +199,11 @@ def calculate_priority(source: str, context: dict) -> int:
 # CONTEXT AGGREGATION
 # ============================================================================
 
+
 async def get_research_priorities(
-    client_id: Optional[str] = None,
-    include_global: bool = True,
-    max_topics: int = 10
+    client_id: Optional[str] = None, include_global: bool = True, max_topics: int = 10
 ) -> ResearchPriorities:
-    """
-    Get prioritized list of research topics based on platform context.
+    """Get prioritized list of research topics based on platform context.
 
     Considers:
     1. Scheduled research for today
@@ -183,60 +218,71 @@ async def get_research_priorities(
     if include_global:
         scheduled = await get_scheduled_topics_for_today()
         for item in scheduled:
-            topics.append(ResearchTopic(
-                topic=item.get('description', item['focus_area']),
-                query=item.get('query_template', generate_research_query(item['focus_area'], item['focus_area'])),
-                focus_area=item['focus_area'],
-                priority=item.get('priority', 5),
-                source='schedule',
-                context=item,
-                client_id=None  # Global
-            ))
+            topics.append(
+                ResearchTopic(
+                    topic=item.get("description", item["focus_area"]),
+                    query=item.get(
+                        "query_template",
+                        generate_research_query(item["focus_area"], item["focus_area"]),
+                    ),
+                    focus_area=item["focus_area"],
+                    priority=item.get("priority", 5),
+                    source="schedule",
+                    context=item,
+                    client_id=None,  # Global
+                )
+            )
 
     # 2. Get open knowledge gaps
     gaps = await get_open_knowledge_gaps(client_id=client_id, limit=5)
     for gap in gaps:
-        focus = classify_focus_area(gap.get('question', '') + ' ' + gap.get('topic', ''))
-        topics.append(ResearchTopic(
-            topic=gap.get('topic', 'Unknown'),
-            query=generate_research_query(gap.get('question', gap.get('topic', '')), focus),
-            focus_area=focus,
-            priority=calculate_priority('knowledge_gap', gap),
-            source='knowledge_gap',
-            context=gap,
-            client_id=client_id
-        ))
+        focus = classify_focus_area(gap.get("question", "") + " " + gap.get("topic", ""))
+        topics.append(
+            ResearchTopic(
+                topic=gap.get("topic", "Unknown"),
+                query=generate_research_query(gap.get("question", gap.get("topic", "")), focus),
+                focus_area=focus,
+                priority=calculate_priority("knowledge_gap", gap),
+                source="knowledge_gap",
+                context=gap,
+                client_id=client_id,
+            )
+        )
 
     # 3. Get stakeholder concerns
     if client_id:
         concerns = await get_stakeholder_concerns(client_id, unresolved_only=True)
         for concern in concerns[:3]:
-            content = concern.get('content', '')
+            content = concern.get("content", "")
             focus = classify_focus_area(content)
-            topics.append(ResearchTopic(
-                topic=content[:100],
-                query=generate_research_query(content, focus),
-                focus_area=focus,
-                priority=calculate_priority('stakeholder_concern', concern),
-                source='stakeholder_concern',
-                context=concern,
-                client_id=client_id
-            ))
+            topics.append(
+                ResearchTopic(
+                    topic=content[:100],
+                    query=generate_research_query(content, focus),
+                    focus_area=focus,
+                    priority=calculate_priority("stakeholder_concern", concern),
+                    source="stakeholder_concern",
+                    context=concern,
+                    client_id=client_id,
+                )
+            )
 
     # 4. Get anticipatory research topics
     if client_id:
         anticipatory = await get_anticipatory_research_topics(client_id)
         for item in anticipatory[:3]:
-            focus = classify_focus_area(item.get('topic', ''))
-            topics.append(ResearchTopic(
-                topic=item.get('topic', 'Unknown'),
-                query=generate_research_query(item.get('topic', ''), focus),
-                focus_area=focus,
-                priority=item.get('priority', 6),
-                source=item.get('trigger', 'anticipatory'),
-                context=item.get('context', {}),
-                client_id=client_id
-            ))
+            focus = classify_focus_area(item.get("topic", ""))
+            topics.append(
+                ResearchTopic(
+                    topic=item.get("topic", "Unknown"),
+                    query=generate_research_query(item.get("topic", ""), focus),
+                    focus_area=focus,
+                    priority=item.get("priority", 6),
+                    source=item.get("trigger", "anticipatory"),
+                    context=item.get("context", {}),
+                    client_id=client_id,
+                )
+            )
 
     # Sort by priority (highest first)
     topics.sort(key=lambda t: t.priority, reverse=True)
@@ -253,7 +299,7 @@ async def get_research_priorities(
         total_count=len(topics),
         global_count=global_count,
         client_count=client_count,
-        generated_at=datetime.now(timezone.utc).isoformat()
+        generated_at=datetime.now(timezone.utc).isoformat(),
     )
 
 
@@ -264,13 +310,15 @@ async def get_scheduled_topics_for_today() -> list[dict]:
         # Convert Python weekday (0=Monday) to SQL weekday (0=Sunday)
         sql_dow = (today_dow + 1) % 7
 
-        result = supabase.table('research_schedule')\
-            .select('*')\
-            .is_('client_id', 'null')\
-            .eq('day_of_week', sql_dow)\
-            .eq('is_active', True)\
-            .order('priority', desc=True)\
+        result = (
+            supabase.table("research_schedule")
+            .select("*")
+            .is_("client_id", "null")
+            .eq("day_of_week", sql_dow)
+            .eq("is_active", True)
+            .order("priority", desc=True)
             .execute()
+        )
 
         return result.data or []
 
@@ -283,32 +331,29 @@ async def get_scheduled_topics_for_today() -> list[dict]:
 # DEDUPLICATION
 # ============================================================================
 
+
 async def has_recent_research(
-    topic: str,
-    focus_area: str,
-    days: int = 7,
-    client_id: Optional[str] = None
+    topic: str, focus_area: str, days: int = 7, client_id: Optional[str] = None
 ) -> bool:
-    """
-    Check if similar research was done recently.
+    """Check if similar research was done recently.
 
     Prevents duplicate research on the same topic.
     """
     try:
-        since = datetime.now(timezone.utc).replace(
-            hour=0, minute=0, second=0
-        )
+        since = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0)
         since = since.isoformat()
 
-        query = supabase.table('research_tasks')\
-            .select('id')\
-            .eq('focus_area', focus_area)\
-            .eq('status', 'completed')\
-            .gte('completed_at', since)\
+        query = (
+            supabase.table("research_tasks")
+            .select("id")
+            .eq("focus_area", focus_area)
+            .eq("status", "completed")
+            .gte("completed_at", since)
             .limit(1)
+        )
 
         if client_id:
-            query = query.eq('client_id', client_id)
+            query = query.eq("client_id", client_id)
 
         result = query.execute()
 
@@ -319,20 +364,13 @@ async def has_recent_research(
         return False
 
 
-async def filter_duplicate_topics(
-    topics: list[ResearchTopic]
-) -> list[ResearchTopic]:
-    """
-    Filter out topics that have been researched recently.
-    """
+async def filter_duplicate_topics(topics: list[ResearchTopic]) -> list[ResearchTopic]:
+    """Filter out topics that have been researched recently."""
     filtered = []
 
     for topic in topics:
         has_recent = await has_recent_research(
-            topic=topic.topic,
-            focus_area=topic.focus_area,
-            days=7,
-            client_id=topic.client_id
+            topic=topic.topic, focus_area=topic.focus_area, days=7, client_id=topic.client_id
         )
 
         if not has_recent:
@@ -347,16 +385,11 @@ async def filter_duplicate_topics(
 # MAIN FUNCTION
 # ============================================================================
 
-async def get_next_research_topic(
-    client_id: Optional[str] = None
-) -> Optional[ResearchTopic]:
-    """
-    Get the single highest-priority research topic to execute next.
-    """
+
+async def get_next_research_topic(client_id: Optional[str] = None) -> Optional[ResearchTopic]:
+    """Get the single highest-priority research topic to execute next."""
     priorities = await get_research_priorities(
-        client_id=client_id,
-        include_global=True,
-        max_topics=5
+        client_id=client_id, include_global=True, max_topics=5
     )
 
     if not priorities.topics:
@@ -372,47 +405,49 @@ async def get_next_research_topic(
 
 
 async def get_research_summary() -> dict:
-    """
-    Get a summary of the current research context.
+    """Get a summary of the current research context.
 
     Useful for admin dashboards.
     """
     try:
         # Count pending tasks
-        pending = supabase.table('research_tasks')\
-            .select('id', count='exact')\
-            .eq('status', 'pending')\
+        pending = (
+            supabase.table("research_tasks")
+            .select("id", count="exact")
+            .eq("status", "pending")
             .execute()
+        )
 
         # Count completed today
         today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
-        completed = supabase.table('research_tasks')\
-            .select('id', count='exact')\
-            .eq('status', 'completed')\
-            .gte('completed_at', today)\
+        completed = (
+            supabase.table("research_tasks")
+            .select("id", count="exact")
+            .eq("status", "completed")
+            .gte("completed_at", today)
             .execute()
+        )
 
         # Count open gaps
-        gaps = supabase.table('knowledge_gaps')\
-            .select('id', count='exact')\
-            .eq('status', 'open')\
+        gaps = (
+            supabase.table("knowledge_gaps")
+            .select("id", count="exact")
+            .eq("status", "open")
             .execute()
+        )
 
         # Get today's schedule
         scheduled = await get_scheduled_topics_for_today()
 
         return {
-            'pending_tasks': pending.count if hasattr(pending, 'count') else 0,
-            'completed_today': completed.count if hasattr(completed, 'count') else 0,
-            'open_gaps': gaps.count if hasattr(gaps, 'count') else 0,
-            'scheduled_today': len(scheduled),
-            'scheduled_topics': [s.get('focus_area') for s in scheduled],
-            'generated_at': datetime.now(timezone.utc).isoformat()
+            "pending_tasks": pending.count if hasattr(pending, "count") else 0,
+            "completed_today": completed.count if hasattr(completed, "count") else 0,
+            "open_gaps": gaps.count if hasattr(gaps, "count") else 0,
+            "scheduled_today": len(scheduled),
+            "scheduled_topics": [s.get("focus_area") for s in scheduled],
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
         logger.error(f"Failed to get research summary: {e}")
-        return {
-            'error': str(e),
-            'generated_at': datetime.now(timezone.utc).isoformat()
-        }
+        return {"error": str(e), "generated_at": datetime.now(timezone.utc).isoformat()}

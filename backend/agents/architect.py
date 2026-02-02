@@ -1,5 +1,4 @@
-"""
-Architect Agent - Technical Architecture Partner
+"""Architect Agent - Technical Architecture Partner
 
 The Architect agent specializes in:
 - Enterprise AI architecture patterns (RAG, agents, fine-tuning)
@@ -14,16 +13,16 @@ from pathlib import Path
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class ArchitectAgent(BaseAgent):
-    """
-    Architect - The Technical Architecture Partner.
+    """Architect - The Technical Architecture Partner.
 
     Specializes in enterprise AI architecture, integration design,
     build vs. buy decisions, and technical implementation guidance.
@@ -34,7 +33,7 @@ class ArchitectAgent(BaseAgent):
             name="architect",
             display_name="Architect",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -71,7 +70,7 @@ Provide practical, enterprise-grade technical guidance for AI implementations.""
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -84,14 +83,24 @@ Provide practical, enterprise-grade technical guidance for AI implementations.""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Architecture decision: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Architecture decision: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         important_indicators = [
-            "architecture", "design", "integration", "decision",
-            "build", "buy", "vendor", "pattern", "rag", "vector"
+            "architecture",
+            "design",
+            "integration",
+            "decision",
+            "build",
+            "buy",
+            "vendor",
+            "pattern",
+            "rag",
+            "vector",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -114,11 +123,15 @@ Provide practical, enterprise-grade technical guidance for AI implementations.""
             return ("guardian", "Query requires security/governance expertise")
 
         # Hand off to Pioneer for emerging technology evaluation
-        if any(word in message_lower for word in ["emerging", "cutting edge", "experimental", "future"]):
+        if any(
+            word in message_lower for word in ["emerging", "cutting edge", "experimental", "future"]
+        ):
             return ("pioneer", "Query requires emerging technology expertise")
 
         # Hand off to Operator for operational implementation
-        if any(word in message_lower for word in ["deploy", "operate", "monitor", "production support"]):
+        if any(
+            word in message_lower for word in ["deploy", "operate", "monitor", "production support"]
+        ):
             return ("operator", "Query requires operational expertise")
 
         return None

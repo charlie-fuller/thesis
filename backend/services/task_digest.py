@@ -1,19 +1,18 @@
-"""
-Task Digest Service
+"""Task Digest Service
 
 Generates daily task digests as Knowledge Base documents.
 Creates a markdown summary of task status, overdue items, and focus recommendations.
 """
 
 import logging
-from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
-from typing import Optional
 import uuid
+from dataclasses import dataclass
+from datetime import date, datetime, timezone
+from typing import Optional
 
 from supabase import Client
 
-from .task_tracker import TaskTracker, TaskSnapshot, TaskSummary
+from .task_tracker import TaskSnapshot, TaskTracker
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DigestContent:
     """Generated digest content."""
+
     user_id: str
     generated_at: datetime
     title: str
@@ -39,13 +39,8 @@ class TaskDigestService:
         self.supabase = supabase
         self.tracker = TaskTracker(supabase)
 
-    async def generate_digest(
-        self,
-        user_id: str,
-        client_id: Optional[str] = None
-    ) -> DigestContent:
-        """
-        Generate a task digest for a user.
+    async def generate_digest(self, user_id: str, client_id: Optional[str] = None) -> DigestContent:
+        """Generate a task digest for a user.
 
         Args:
             user_id: The user's ID
@@ -93,16 +88,11 @@ class TaskDigestService:
             health_score=health,
             total_active=snapshot.total_active,
             overdue_count=len(snapshot.overdue),
-            due_today_count=len(snapshot.due_today)
+            due_today_count=len(snapshot.due_today),
         )
 
-    async def save_digest_to_kb(
-        self,
-        digest: DigestContent,
-        client_id: str
-    ) -> dict:
-        """
-        Save a digest as a Knowledge Base document.
+    async def save_digest_to_kb(self, digest: DigestContent, client_id: str) -> dict:
+        """Save a digest as a Knowledge Base document.
 
         Args:
             digest: The generated digest content
@@ -117,80 +107,79 @@ class TaskDigestService:
             filename = f"task-digest-{date.today().isoformat()}.md"
 
             # Check if a digest for today already exists
-            existing = self.supabase.table('documents').select('id').eq(
-                'client_id', client_id
-            ).eq('filename', filename).execute()
+            existing = (
+                self.supabase.table("documents")
+                .select("id")
+                .eq("client_id", client_id)
+                .eq("filename", filename)
+                .execute()
+            )
 
             if existing.data:
                 # Update existing digest
-                doc_id = existing.data[0]['id']
-                self.supabase.table('documents').update({
-                    'content': digest.markdown_content,
-                    'updated_at': datetime.now(timezone.utc).isoformat()
-                }).eq('id', doc_id).execute()
+                doc_id = existing.data[0]["id"]
+                self.supabase.table("documents").update(
+                    {
+                        "content": digest.markdown_content,
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                ).eq("id", doc_id).execute()
 
                 # Delete old chunks for re-embedding
-                self.supabase.table('document_chunks').delete().eq(
-                    'document_id', doc_id
-                ).execute()
+                self.supabase.table("document_chunks").delete().eq("document_id", doc_id).execute()
 
                 logger.info(f"Updated existing digest document: {doc_id}")
             else:
                 # Create new document
-                self.supabase.table('documents').insert({
-                    'id': doc_id,
-                    'client_id': client_id,
-                    'filename': filename,
-                    'title': digest.title,
-                    'content': digest.markdown_content,
-                    'file_type': 'text/markdown',
-                    'source': 'taskmaster_digest',
-                    'processed': False,
-                    'processing_status': 'pending'
-                }).execute()
+                self.supabase.table("documents").insert(
+                    {
+                        "id": doc_id,
+                        "client_id": client_id,
+                        "filename": filename,
+                        "title": digest.title,
+                        "content": digest.markdown_content,
+                        "file_type": "text/markdown",
+                        "source": "taskmaster_digest",
+                        "processed": False,
+                        "processing_status": "pending",
+                    }
+                ).execute()
 
                 logger.info(f"Created new digest document: {doc_id}")
 
             # Tag for Taskmaster agent
-            self.supabase.table('agent_knowledge_base').upsert({
-                'document_id': doc_id,
-                'agent_id': self._get_taskmaster_agent_id(),
-                'relevance_score': 1.0,
-                'assigned_by': 'system',
-                'assignment_type': 'auto'
-            }, on_conflict='document_id,agent_id').execute()
+            self.supabase.table("agent_knowledge_base").upsert(
+                {
+                    "document_id": doc_id,
+                    "agent_id": self._get_taskmaster_agent_id(),
+                    "relevance_score": 1.0,
+                    "assigned_by": "system",
+                    "assignment_type": "auto",
+                },
+                on_conflict="document_id,agent_id",
+            ).execute()
 
             return {
-                'status': 'success',
-                'document_id': doc_id,
-                'filename': filename,
-                'is_update': bool(existing.data)
+                "status": "success",
+                "document_id": doc_id,
+                "filename": filename,
+                "is_update": bool(existing.data),
             }
 
         except Exception as e:
             logger.error(f"Failed to save digest to KB: {e}")
-            return {
-                'status': 'error',
-                'message': str(e)
-            }
+            return {"status": "error", "message": str(e)}
 
     def _get_taskmaster_agent_id(self) -> str:
         """Get the Taskmaster agent's database ID."""
-        result = self.supabase.table('agents').select('id').eq(
-            'name', 'taskmaster'
-        ).execute()
+        result = self.supabase.table("agents").select("id").eq("name", "taskmaster").execute()
 
         if result.data:
-            return result.data[0]['id']
+            return result.data[0]["id"]
         return None
 
     def _build_markdown(
-        self,
-        title: str,
-        summary: str,
-        snapshot: TaskSnapshot,
-        health: int,
-        today: date
+        self, title: str, summary: str, snapshot: TaskSnapshot, health: int, today: date
     ) -> str:
         """Build markdown content for the digest."""
         lines = [
@@ -201,25 +190,24 @@ class TaskDigestService:
             f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
             "",
             "---",
-            ""
+            "",
         ]
 
         # Health score section
-        lines.extend([
-            "## Task Health",
-            "",
-            f"- **Score**: {health}/100 {self._health_indicator(health)}",
-            f"- **Active Tasks**: {snapshot.total_active}",
-            f"- **Completed (7 days)**: {snapshot.completed_recently}",
-            ""
-        ])
+        lines.extend(
+            [
+                "## Task Health",
+                "",
+                f"- **Score**: {health}/100 {self._health_indicator(health)}",
+                f"- **Active Tasks**: {snapshot.total_active}",
+                f"- **Completed (7 days)**: {snapshot.completed_recently}",
+                "",
+            ]
+        )
 
         # Overdue section
         if snapshot.overdue:
-            lines.extend([
-                "## Overdue Tasks",
-                ""
-            ])
+            lines.extend(["## Overdue Tasks", ""])
             for task in snapshot.overdue[:10]:
                 priority = self._priority_marker(task.priority)
                 lines.append(f"- {priority} **{task.title}** - {task.days_overdue}d overdue")
@@ -229,10 +217,7 @@ class TaskDigestService:
 
         # Due today section
         if snapshot.due_today:
-            lines.extend([
-                "## Due Today",
-                ""
-            ])
+            lines.extend(["## Due Today", ""])
             for task in snapshot.due_today:
                 priority = self._priority_marker(task.priority)
                 lines.append(f"- {priority} {task.title}")
@@ -240,13 +225,10 @@ class TaskDigestService:
 
         # Due this week section
         if snapshot.due_this_week:
-            lines.extend([
-                "## Due This Week",
-                ""
-            ])
+            lines.extend(["## Due This Week", ""])
             for task in snapshot.due_this_week[:10]:
                 priority = self._priority_marker(task.priority)
-                due_str = task.due_date.strftime('%a %m/%d') if task.due_date else ''
+                due_str = task.due_date.strftime("%a %m/%d") if task.due_date else ""
                 lines.append(f"- {priority} {task.title} ({due_str})")
             if len(snapshot.due_this_week) > 10:
                 lines.append(f"- *...and {len(snapshot.due_this_week) - 10} more*")
@@ -254,24 +236,20 @@ class TaskDigestService:
 
         # Blocked section
         if snapshot.blocked:
-            lines.extend([
-                "## Blocked",
-                ""
-            ])
+            lines.extend(["## Blocked", ""])
             for task in snapshot.blocked[:5]:
                 reason = task.blocker_reason or "No reason specified"
                 lines.append(f"- **{task.title}**: {reason[:80]}")
             lines.append("")
 
         # Focus recommendation
-        lines.extend([
-            "## Focus Recommendation",
-            ""
-        ])
+        lines.extend(["## Focus Recommendation", ""])
 
         if snapshot.overdue:
             focus = snapshot.overdue[0]
-            lines.append(f"Start with **{focus.title}** - it's {focus.days_overdue} day(s) overdue.")
+            lines.append(
+                f"Start with **{focus.title}** - it's {focus.days_overdue} day(s) overdue."
+            )
         elif snapshot.due_today:
             focus = snapshot.due_today[0]
             lines.append(f"Prioritize **{focus.title}** - due today.")
@@ -312,11 +290,5 @@ class TaskDigestService:
 
     def _priority_marker(self, priority: int) -> str:
         """Get priority marker for markdown."""
-        markers = {
-            1: "[P1]",
-            2: "[P2]",
-            3: "[P3]",
-            4: "[P4]",
-            5: "[P5]"
-        }
+        markers = {1: "[P1]", 2: "[P2]", 3: "[P3]", 4: "[P4]", 5: "[P5]"}
         return markers.get(priority, "[P3]")

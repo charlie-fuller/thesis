@@ -33,10 +33,9 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Optional
 
-from supabase import Client
-
 from config import get_assistant_name, get_client_name, get_default_client_id
 from database import get_supabase
+from supabase import Client
 
 # Get centralized Supabase client
 try:
@@ -53,8 +52,7 @@ USERS_DIR = SYSTEM_INSTRUCTIONS_DIR / "users"
 
 
 def replace_template_variables(template: str, variables: Dict[str, str]) -> str:
-    """
-    Replace template variables in the format {variable_name} with actual values.
+    """Replace template variables in the format {variable_name} with actual values.
 
     Args:
         template: The template string with {variable_name} placeholders
@@ -78,10 +76,9 @@ def load_user_system_instructions(
     user_role: str = "user",
     client_id: str = None,
     client_name: str = None,
-    assistant_name: str = None
+    assistant_name: str = None,
 ) -> str:
-    """
-    Load system instructions for a specific user.
+    """Load system instructions for a specific user.
 
     Priority:
     1. Supabase Storage: system-instructions bucket, users/{user_id}.txt (persistent)
@@ -114,10 +111,10 @@ def load_user_system_instructions(
             logger.info(f"   📋 Attempting to load from Supabase Storage: {storage_path}")
 
             # Download from Supabase Storage
-            response = supabase.storage.from_('system-instructions').download(storage_path)
+            response = supabase.storage.from_("system-instructions").download(storage_path)
 
             if response:
-                template = response.decode('utf-8')
+                template = response.decode("utf-8")
                 logger.info("   ✅ Loaded user-specific instructions from Supabase Storage")
         except Exception as e:
             logger.info(f"   ℹ️  No instructions in Supabase Storage: {str(e)}")
@@ -128,15 +125,17 @@ def load_user_system_instructions(
         user_file = USERS_DIR / f"{user_id}.txt"
         if user_file.exists():
             logger.info("   📋 Loading user-specific system instructions from local file")
-            with open(user_file, 'r', encoding='utf-8') as f:
+            with open(user_file, "r", encoding="utf-8") as f:
                 template = f.read()
             logger.info("   ✅ Loaded from local file (ephemeral on Railway)")
 
     # PRIORITY 3: Fall back to default
     if not template:
         if DEFAULT_PROMPT_FILE.exists():
-            logger.info(f"   📋 Loading default system instructions (no user-specific found for {user_id})")
-            with open(DEFAULT_PROMPT_FILE, 'r', encoding='utf-8') as f:
+            logger.info(
+                f"   📋 Loading default system instructions (no user-specific found for {user_id})"
+            )
+            with open(DEFAULT_PROMPT_FILE, "r", encoding="utf-8") as f:
                 template = f.read()
         else:
             raise FileNotFoundError(
@@ -170,12 +169,8 @@ def load_user_system_instructions(
     return instructions
 
 
-def get_system_instructions_for_user(
-    user_id: str,
-    user_data: Optional[Dict] = None
-) -> str:
-    """
-    Convenience function to load system instructions from user data dict.
+def get_system_instructions_for_user(user_id: str, user_data: Optional[Dict] = None) -> str:
+    """Convenience function to load system instructions from user data dict.
 
     Uses Redis cache for performance (1-hour TTL), with automatic fallback
     to loading from storage/files if cache miss or Redis unavailable.
@@ -200,12 +195,12 @@ def get_system_instructions_for_user(
     logger.debug(f"📋 Cache miss - loading system instructions for user {user_id}")
     instructions = load_user_system_instructions(
         user_id=user_id,
-        user_name=user_data.get('name', 'User'),
-        user_email=user_data.get('email', ''),
-        user_role=user_data.get('role', 'user'),
-        client_id=user_data.get('client_id'),  # Will use default if None
-        client_name=user_data.get('client_name'),  # Will use default if None
-        assistant_name=user_data.get('assistant_name')  # Will use default if None
+        user_name=user_data.get("name", "User"),
+        user_email=user_data.get("email", ""),
+        user_role=user_data.get("role", "user"),
+        client_id=user_data.get("client_id"),  # Will use default if None
+        client_name=user_data.get("client_name"),  # Will use default if None
+        assistant_name=user_data.get("assistant_name"),  # Will use default if None
     )
 
     # Cache for 1 hour (3600 seconds)
@@ -218,9 +213,9 @@ def get_system_instructions_for_user(
 # Version-Based System Instructions Loading (NEW - for system instruction versioning)
 # ============================================================================
 
+
 def get_active_system_instruction_version() -> Optional[dict]:
-    """
-    Get the currently active system instruction version from the database.
+    """Get the currently active system instruction version from the database.
 
     Returns the full version record including id, version_number, content,
     and metadata. Returns None if no active version exists.
@@ -240,11 +235,13 @@ def get_active_system_instruction_version() -> Optional[dict]:
         return None
 
     try:
-        result = supabase.table('system_instruction_versions')\
-            .select('id, version_number, content, created_at, activated_at, version_notes')\
-            .eq('is_active', True)\
-            .single()\
+        result = (
+            supabase.table("system_instruction_versions")
+            .select("id, version_number, content, created_at, activated_at, version_notes")
+            .eq("is_active", True)
+            .single()
             .execute()
+        )
 
         if result.data:
             # Cache for 5 minutes (invalidated on activation)
@@ -260,12 +257,8 @@ def get_active_system_instruction_version() -> Optional[dict]:
         return None
 
 
-def get_system_instructions_for_version(
-    version_id: str,
-    user_data: Optional[Dict] = None
-) -> str:
-    """
-    Load system instructions for a specific version ID.
+def get_system_instructions_for_version(version_id: str, user_data: Optional[Dict] = None) -> str:
+    """Load system instructions for a specific version ID.
 
     This is used for conversations that are bound to a specific version,
     ensuring that the same instructions are used throughout the conversation
@@ -296,16 +289,18 @@ def get_system_instructions_for_version(
             raise ValueError("Supabase not available for version lookup")
 
         try:
-            result = supabase.table('system_instruction_versions')\
-                .select('content')\
-                .eq('id', version_id)\
-                .single()\
+            result = (
+                supabase.table("system_instruction_versions")
+                .select("content")
+                .eq("id", version_id)
+                .single()
                 .execute()
+            )
 
             if not result.data:
                 raise ValueError(f"System instruction version {version_id} not found")
 
-            content = result.data['content']
+            content = result.data["content"]
 
             # Cache for 1 hour (versions are immutable once created)
             cache_set(cache_key, content, ttl=3600, namespace="sys_inst_versions")
@@ -315,14 +310,14 @@ def get_system_instructions_for_version(
             raise ValueError(f"Error loading system instruction version: {e}")
 
     # Apply template variable replacement
-    client_id = user_data.get('client_id') or get_default_client_id()
-    client_name = user_data.get('client_name') or get_client_name()
-    assistant_name = user_data.get('assistant_name') or get_assistant_name()
+    client_id = user_data.get("client_id") or get_default_client_id()
+    client_name = user_data.get("client_name") or get_client_name()
+    assistant_name = user_data.get("assistant_name") or get_assistant_name()
 
     variables = {
-        "user_name": user_data.get('name', 'User'),
-        "user_email": user_data.get('email', ''),
-        "user_role": user_data.get('role', 'user'),
+        "user_name": user_data.get("name", "User"),
+        "user_email": user_data.get("email", ""),
+        "user_role": user_data.get("role", "user"),
         "client_id": client_id,
         "client_name": client_name,
         "assistant_name": assistant_name,
@@ -333,8 +328,7 @@ def get_system_instructions_for_version(
 
 
 def invalidate_version_cache(version_id: str = None):
-    """
-    Invalidate system instruction version caches.
+    """Invalidate system instruction version caches.
 
     If version_id is provided, only that version's cache is cleared.
     If version_id is None, the active version cache is cleared.
@@ -353,8 +347,7 @@ def invalidate_version_cache(version_id: str = None):
 
 # Legacy function for backwards compatibility
 def get_default_system_instructions() -> str:
-    """
-    Legacy function - loads default system instructions without user customization.
+    """Legacy function - loads default system instructions without user customization.
 
     DEPRECATED: Use get_system_instructions_for_user() instead.
 
@@ -365,12 +358,10 @@ def get_default_system_instructions() -> str:
     logger.warning("Upgrade to get_system_instructions_for_user() for per-user customization")
 
     if DEFAULT_PROMPT_FILE.exists():
-        with open(DEFAULT_PROMPT_FILE, 'r', encoding='utf-8') as f:
+        with open(DEFAULT_PROMPT_FILE, "r", encoding="utf-8") as f:
             return f.read()
     else:
-        raise FileNotFoundError(
-            f"Default system instructions not found at {DEFAULT_PROMPT_FILE}"
-        )
+        raise FileNotFoundError(f"Default system instructions not found at {DEFAULT_PROMPT_FILE}")
 
 
 # For testing/debugging
@@ -388,11 +379,7 @@ if __name__ == "__main__":
     # Test template variable replacement
     logger.info("Testing template variable replacement:")
     test_template = "Hello {user_name} from {client_name}! Your role is {user_role}."
-    test_variables = {
-        "user_name": "John Doe",
-        "client_name": "Acme Corp",
-        "user_role": "admin"
-    }
+    test_variables = {"user_name": "John Doe", "client_name": "Acme Corp", "user_role": "admin"}
     result = replace_template_variables(test_template, test_variables)
     logger.info(f"  Template: {test_template}")
     logger.info(f"  Result: {result}")
@@ -403,9 +390,7 @@ if __name__ == "__main__":
     test_user_id = "test-user-123"
     try:
         user_instructions = load_user_system_instructions(
-            user_id=test_user_id,
-            user_name="Test User",
-            client_name="Test Corp"
+            user_id=test_user_id, user_name="Test User", client_name="Test Corp"
         )
         logger.info(f"Loaded instructions for {test_user_id}: {len(user_instructions)} characters")
     except FileNotFoundError:

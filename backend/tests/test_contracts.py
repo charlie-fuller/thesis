@@ -1,22 +1,24 @@
-"""
-Contract Testing for Thesis API
+"""Contract Testing for Thesis API
 
 Validates that API contracts between frontend and backend remain consistent.
 Uses schema-based contract validation to ensure breaking changes are caught.
 """
+
+import json
+from datetime import datetime
+from typing import Any, List, Optional
+
 import pytest
 from pydantic import BaseModel, ValidationError
-from typing import Optional, List, Any
-from datetime import datetime
-import json
-
 
 # =============================================================================
 # API Response Contracts (Expected by Frontend)
 # =============================================================================
 
+
 class MessageContract(BaseModel):
     """Contract for chat message response."""
+
     id: str
     content: str
     role: str  # 'user' | 'assistant'
@@ -28,6 +30,7 @@ class MessageContract(BaseModel):
 
 class ConversationContract(BaseModel):
     """Contract for conversation response."""
+
     id: str
     title: Optional[str] = None
     created_at: str
@@ -38,6 +41,7 @@ class ConversationContract(BaseModel):
 
 class AgentContract(BaseModel):
     """Contract for agent metadata."""
+
     id: str
     name: str
     description: str
@@ -48,6 +52,7 @@ class AgentContract(BaseModel):
 
 class TaskContract(BaseModel):
     """Contract for task/kanban item."""
+
     id: str
     title: str
     description: Optional[str] = None
@@ -61,6 +66,7 @@ class TaskContract(BaseModel):
 
 class ProjectContract(BaseModel):
     """Contract for project response."""
+
     id: str
     name: str
     client_id: str
@@ -75,6 +81,7 @@ class ProjectContract(BaseModel):
 
 class DocumentContract(BaseModel):
     """Contract for knowledge base document."""
+
     id: str
     title: str
     content_type: str
@@ -86,6 +93,7 @@ class DocumentContract(BaseModel):
 
 class MeetingRoomContract(BaseModel):
     """Contract for meeting room response."""
+
     id: str
     name: str
     topic: Optional[str] = None
@@ -97,12 +105,14 @@ class MeetingRoomContract(BaseModel):
 
 class ErrorContract(BaseModel):
     """Contract for error responses."""
+
     success: bool = False
     error: dict  # Contains 'code', 'message', optional 'details'
 
 
 class PaginatedResponseContract(BaseModel):
     """Contract for paginated list responses."""
+
     items: List[Any]
     total: int
     page: int
@@ -113,6 +123,7 @@ class PaginatedResponseContract(BaseModel):
 # =============================================================================
 # Contract Tests
 # =============================================================================
+
 
 class TestChatContracts:
     """Validate chat API contracts."""
@@ -127,7 +138,7 @@ class TestChatContracts:
             "agent_id": "atlas",
             "created_at": "2026-01-25T10:00:00Z",
             "conversation_id": "conv-456",
-            "metadata": {"tokens": 50}
+            "metadata": {"tokens": 50},
         }
 
         # Should validate without error
@@ -147,10 +158,10 @@ class TestChatContracts:
             MessageContract(**response)
 
         errors = exc.value.errors()
-        missing_fields = [e['loc'][0] for e in errors]
-        assert 'role' in missing_fields
-        assert 'created_at' in missing_fields
-        assert 'conversation_id' in missing_fields
+        missing_fields = [e["loc"][0] for e in errors]
+        assert "role" in missing_fields
+        assert "created_at" in missing_fields
+        assert "conversation_id" in missing_fields
 
     def test_conversation_response_contract(self):
         """Conversation response matches frontend expectations."""
@@ -160,7 +171,7 @@ class TestChatContracts:
             "created_at": "2026-01-25T09:00:00Z",
             "updated_at": "2026-01-25T10:00:00Z",
             "user_id": "user-789",
-            "messages": []
+            "messages": [],
         }
 
         conversation = ConversationContract(**response)
@@ -179,7 +190,7 @@ class TestAgentContracts:
             "description": "Research and market analysis specialist",
             "category": "Research",
             "icon": "search",
-            "capabilities": ["market_research", "trend_analysis", "citations"]
+            "capabilities": ["market_research", "trend_analysis", "citations"],
         }
 
         agent = AgentContract(**response)
@@ -190,14 +201,24 @@ class TestAgentContracts:
         """Agent list contains all required agents."""
         # Minimum required agents for frontend
         required_agents = [
-            "coordinator", "atlas", "capital", "guardian",
-            "counselor", "sage", "oracle", "architect"
+            "coordinator",
+            "atlas",
+            "capital",
+            "guardian",
+            "counselor",
+            "sage",
+            "oracle",
+            "architect",
         ]
 
         # Simulate API response
         agents = [
-            {"id": agent_id, "name": agent_id.title(),
-             "description": f"{agent_id} agent", "category": "Test"}
+            {
+                "id": agent_id,
+                "name": agent_id.title(),
+                "description": f"{agent_id} agent",
+                "category": "Test",
+            }
             for agent_id in required_agents
         ]
 
@@ -222,7 +243,7 @@ class TestTaskContracts:
             "due_date": "2026-02-01",
             "assignee_id": "user-456",
             "created_at": "2026-01-20T10:00:00Z",
-            "updated_at": "2026-01-25T10:00:00Z"
+            "updated_at": "2026-01-25T10:00:00Z",
         }
 
         task = TaskContract(**response)
@@ -231,13 +252,15 @@ class TestTaskContracts:
 
     def test_task_status_values(self):
         """Task status accepts valid kanban states."""
-        valid_statuses = ['backlog', 'todo', 'in_progress', 'done']
+        valid_statuses = ["backlog", "todo", "in_progress", "done"]
 
         for status in valid_statuses:
             task = TaskContract(
-                id="t1", title="Test", status=status,
+                id="t1",
+                title="Test",
+                status=status,
                 created_at="2026-01-25T10:00:00Z",
-                updated_at="2026-01-25T10:00:00Z"
+                updated_at="2026-01-25T10:00:00Z",
             )
             assert task.status == status
 
@@ -257,7 +280,7 @@ class TestProjectContracts:
             "revenue_potential": 90,
             "win_probability": 70,
             "created_at": "2026-01-15T10:00:00Z",
-            "updated_at": "2026-01-25T10:00:00Z"
+            "updated_at": "2026-01-25T10:00:00Z",
         }
 
         project = ProjectContract(**response)
@@ -275,7 +298,7 @@ class TestProjectContracts:
             "revenue_potential": 90,
             "win_probability": 70,
             "created_at": "2026-01-25T10:00:00Z",
-            "updated_at": "2026-01-25T10:00:00Z"
+            "updated_at": "2026-01-25T10:00:00Z",
         }
 
         # Note: Pydantic doesn't enforce range by default
@@ -296,7 +319,7 @@ class TestDocumentContracts:
             "file_path": "/documents/q4-analysis.pdf",
             "client_id": "client-456",
             "created_at": "2026-01-20T10:00:00Z",
-            "chunk_count": 45
+            "chunk_count": 45,
         }
 
         document = DocumentContract(**response)
@@ -316,7 +339,7 @@ class TestMeetingRoomContracts:
             "agents": ["atlas", "capital", "guardian"],
             "status": "active",
             "created_at": "2026-01-25T09:00:00Z",
-            "autonomous_mode": True
+            "autonomous_mode": True,
         }
 
         room = MeetingRoomContract(**response)
@@ -325,12 +348,15 @@ class TestMeetingRoomContracts:
 
     def test_meeting_room_status_values(self):
         """Meeting room status accepts valid states."""
-        valid_statuses = ['idle', 'active', 'paused']
+        valid_statuses = ["idle", "active", "paused"]
 
         for status in valid_statuses:
             room = MeetingRoomContract(
-                id="r1", name="Test", agents=["atlas"],
-                status=status, created_at="2026-01-25T10:00:00Z"
+                id="r1",
+                name="Test",
+                agents=["atlas"],
+                status=status,
+                created_at="2026-01-25T10:00:00Z",
             )
             assert room.status == status
 
@@ -345,8 +371,8 @@ class TestErrorContracts:
             "error": {
                 "code": "VALIDATION_ERROR",
                 "message": "Invalid input provided",
-                "details": {"field": "email", "issue": "invalid format"}
-            }
+                "details": {"field": "email", "issue": "invalid format"},
+            },
         }
 
         error = ErrorContract(**response)
@@ -357,10 +383,7 @@ class TestErrorContracts:
         """Error object must have code and message."""
         response = {
             "success": False,
-            "error": {
-                "code": "NOT_FOUND",
-                "message": "Resource not found"
-            }
+            "error": {"code": "NOT_FOUND", "message": "Resource not found"},
         }
 
         error = ErrorContract(**response)
@@ -378,7 +401,7 @@ class TestPaginationContracts:
             "total": 100,
             "page": 1,
             "per_page": 20,
-            "has_more": True
+            "has_more": True,
         }
 
         paginated = PaginatedResponseContract(**response)
@@ -389,6 +412,7 @@ class TestPaginationContracts:
 # =============================================================================
 # Consumer-Driven Contract Tests
 # =============================================================================
+
 
 class TestFrontendExpectations:
     """Tests documenting what the frontend expects from the API."""
@@ -415,7 +439,8 @@ class TestFrontendExpectations:
 
         # Backend should extract agent_id
         import re
-        match = re.match(r'^@(\w+)\s', message)
+
+        match = re.match(r"^@(\w+)\s", message)
 
         assert match is not None
         assert match.group(1) == "atlas"
@@ -425,7 +450,7 @@ class TestFrontendExpectations:
         datetime_str = "2026-01-25T10:30:00Z"
 
         # Should parse without error
-        parsed = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+        parsed = datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
         assert parsed.year == 2026
 
     def test_uuid_format(self):
@@ -438,8 +463,8 @@ class TestFrontendExpectations:
             "msg_abc123",  # Underscore prefix
         ]
 
-        uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-        prefixed_pattern = r'^[a-z]+[-_][a-zA-Z0-9]+$'
+        uuid_pattern = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        prefixed_pattern = r"^[a-z]+[-_][a-zA-Z0-9]+$"
 
         for id_val in valid_ids:
             is_uuid = bool(re.match(uuid_pattern, id_val))

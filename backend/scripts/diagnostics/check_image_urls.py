@@ -10,14 +10,14 @@ if env_file.exists():
     with open(env_file) as f:
         for line in f:
             line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                key, value = line.split('=', 1)
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
                 os.environ[key.strip()] = value.strip().strip('"').strip("'")
 
 from database import DatabaseService
 
 db = DatabaseService.get_client()
-result = db.table('conversation_images').select('*').execute()
+result = db.table("conversation_images").select("*").execute()
 
 for img in result.data:
     print(f"ID: {img['id']}")

@@ -1,5 +1,4 @@
-"""
-Smoke Tests
+"""Smoke Tests
 
 Quick health checks to verify system is operational after deployment.
 These tests should run fast (< 30 seconds total) and catch critical failures.
@@ -7,11 +6,11 @@ These tests should run fast (< 30 seconds total) and catch critical failures.
 Note: These tests require the actual app to be running with valid configuration.
 They are marked with @pytest.mark.smoke and can be skipped in unit test runs.
 """
-import pytest
-from typing import Dict, Any
-import time
-import os
 
+import os
+import time
+
+import pytest
 
 # Skip all smoke tests if no real credentials are configured
 _has_real_config = os.environ.get("SUPABASE_URL") and os.environ.get("ANTHROPIC_API_KEY")
@@ -20,6 +19,7 @@ _has_real_config = os.environ.get("SUPABASE_URL") and os.environ.get("ANTHROPIC_
 # =============================================================================
 # Core Service Health Checks
 # =============================================================================
+
 
 class TestCoreServices:
     """Verify core services are running."""
@@ -50,6 +50,7 @@ class TestCoreServices:
 # Authentication Smoke Tests
 # =============================================================================
 
+
 class TestAuthenticationSmoke:
     """Verify authentication works."""
 
@@ -70,6 +71,7 @@ class TestAuthenticationSmoke:
 # =============================================================================
 # Core Feature Smoke Tests
 # =============================================================================
+
 
 class TestCoreFeatures:
     """Verify core features are operational."""
@@ -101,6 +103,7 @@ class TestCoreFeatures:
 # Performance Smoke Tests
 # =============================================================================
 
+
 class TestPerformanceSmoke:
     """Verify basic performance is acceptable."""
 
@@ -129,6 +132,7 @@ class TestPerformanceSmoke:
 # Error Handling Smoke Tests
 # =============================================================================
 
+
 class TestErrorHandling:
     """Verify error handling works correctly."""
 
@@ -153,6 +157,7 @@ class TestErrorHandling:
 # Integration Smoke Tests
 # =============================================================================
 
+
 class TestIntegrationSmoke:
     """Verify key integrations work."""
 
@@ -167,6 +172,7 @@ class TestIntegrationSmoke:
 # =============================================================================
 # Deployment Smoke Tests
 # =============================================================================
+
 
 class TestDeploymentSmoke:
     """Verify deployment is correct."""
@@ -192,11 +198,14 @@ class TestDeploymentSmoke:
 # Fixtures for Smoke Tests
 # =============================================================================
 
+
 @pytest.fixture
 def client():
     """Create test client."""
     from fastapi.testclient import TestClient
+
     from main import app
+
     return TestClient(app)
 
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Seed script to insert the initial system instruction version (1.3) into the database.
+"""Seed script to insert the initial system instruction version (1.3) into the database.
 
 Run this AFTER the SQL migration (039_add_system_instruction_versioning.sql) has been applied.
 
@@ -39,8 +38,7 @@ def get_default_instructions_content() -> str:
 
 
 def seed_initial_version(bind_existing_conversations: bool = True):
-    """
-    Seed the initial system instruction version (1.3).
+    """Seed the initial system instruction version (1.3).
 
     Args:
         bind_existing_conversations: If True, bind all existing conversations to version 1.3
@@ -54,10 +52,12 @@ def seed_initial_version(bind_existing_conversations: bool = True):
     logger.info(f"📋 Loaded default.txt ({file_size:,} bytes)")
 
     # Check if version 1.3 already exists
-    existing = supabase.table("system_instruction_versions")\
-        .select("id")\
-        .eq("version_number", "1.3")\
+    existing = (
+        supabase.table("system_instruction_versions")
+        .select("id")
+        .eq("version_number", "1.3")
         .execute()
+    )
 
     if existing.data:
         logger.warning("⚠️ Version 1.3 already exists. Skipping seed.")
@@ -74,13 +74,11 @@ def seed_initial_version(bind_existing_conversations: bool = True):
         "activated_at": "now()",
         "metadata": {
             "migrated_from": "default.txt",
-            "migration_script": "039_seed_initial_system_instruction.py"
-        }
+            "migration_script": "039_seed_initial_system_instruction.py",
+        },
     }
 
-    result = supabase.table("system_instruction_versions")\
-        .insert(version_data)\
-        .execute()
+    result = supabase.table("system_instruction_versions").insert(version_data).execute()
 
     if not result.data:
         raise Exception("Failed to insert version 1.3")
@@ -90,10 +88,12 @@ def seed_initial_version(bind_existing_conversations: bool = True):
 
     # Bind existing conversations to this version
     if bind_existing_conversations:
-        update_result = supabase.table("conversations")\
-            .update({"system_instruction_version_id": version_id})\
-            .is_("system_instruction_version_id", "null")\
+        update_result = (
+            supabase.table("conversations")
+            .update({"system_instruction_version_id": version_id})
+            .is_("system_instruction_version_id", "null")
             .execute()
+        )
 
         updated_count = len(update_result.data) if update_result.data else 0
         logger.info(f"✅ Bound {updated_count} existing conversations to version 1.3")
@@ -111,7 +111,7 @@ def main():
     parser.add_argument(
         "--skip-bind",
         action="store_true",
-        help="Skip binding existing conversations to version 1.3"
+        help="Skip binding existing conversations to version 1.3",
     )
     args = parser.parse_args()
 

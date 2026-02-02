@@ -1,5 +1,4 @@
-"""
-Pipeline API Routes
+"""Pipeline API Routes
 
 Endpoints for the Pipeline page - your action-oriented dashboard for
 tracking opportunities, commitments, and stakeholder engagement.
@@ -8,10 +7,10 @@ Also includes Granola vault scanning endpoints.
 """
 
 import logging
-from typing import Optional, List, Dict
-from datetime import datetime, date, timezone, timedelta
+from datetime import date, datetime, timedelta, timezone
+from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from auth import get_current_user
@@ -26,8 +25,10 @@ router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])
 # RESPONSE MODELS
 # ============================================================================
 
+
 class PriorityOpportunity(BaseModel):
     """An opportunity in the priority queue."""
+
     id: str
     opportunity_code: str
     title: str
@@ -47,6 +48,7 @@ class PriorityOpportunity(BaseModel):
 
 class Commitment(BaseModel):
     """A task/commitment with due date."""
+
     id: str
     title: str
     description: Optional[str]
@@ -62,6 +64,7 @@ class Commitment(BaseModel):
 
 class StakeholderPulse(BaseModel):
     """Stakeholder engagement snapshot."""
+
     id: str
     name: str
     role: Optional[str]
@@ -75,6 +78,7 @@ class StakeholderPulse(BaseModel):
 
 class PipelineOverview(BaseModel):
     """Complete pipeline overview response."""
+
     priority_queue: List[PriorityOpportunity]
     commitments: List[Commitment]
     stakeholder_pulse: List[StakeholderPulse]
@@ -83,6 +87,7 @@ class PipelineOverview(BaseModel):
 
 class SyncActivityInfo(BaseModel):
     """Real-time sync activity from Obsidian watcher."""
+
     active: bool
     current_file: Optional[str] = None
     last_synced_file: Optional[str] = None  # Most recently synced file
@@ -91,6 +96,7 @@ class SyncActivityInfo(BaseModel):
 
 class ExtractionActivityInfo(BaseModel):
     """Status of entity extraction from scanned documents."""
+
     active: bool
     job_id: Optional[str] = None
     status: Optional[str] = None  # 'pending', 'running', 'completed', 'failed'
@@ -103,6 +109,7 @@ class ExtractionActivityInfo(BaseModel):
 
 class GranolaScanStatus(BaseModel):
     """Status of Granola vault scanning."""
+
     connected: bool
     vault_path: str
     total_files: int
@@ -116,6 +123,7 @@ class GranolaScanStatus(BaseModel):
 
 class GranolaScanResult(BaseModel):
     """Result of a Granola scan."""
+
     status: str
     files_scanned: int
     files_processed: int
@@ -133,15 +141,15 @@ class GranolaScanResult(BaseModel):
 # PIPELINE ENDPOINTS
 # ============================================================================
 
+
 @router.get("/overview", response_model=PipelineOverview)
 async def get_pipeline_overview(
     department: Optional[str] = Query(None, description="Filter by department (e.g., 'Legal')"),
     limit: int = Query(20, ge=1, le=100),
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
-    """
-    Get the complete pipeline overview with priority queue, commitments, and stakeholder pulse.
+    """Get the complete pipeline overview with priority queue, commitments, and stakeholder pulse.
 
     The priority queue ranks opportunities by: (ROI potential × Strategic alignment) / Implementation effort
     """
@@ -150,49 +158,53 @@ async def get_pipeline_overview(
     # -------------------------------------------------------------------------
     # PRIORITY QUEUE - Opportunities ranked by composite score
     # -------------------------------------------------------------------------
-    opp_query = supabase.table('ai_projects') \
-        .select('*, stakeholders!owner_stakeholder_id(name)') \
-        .eq('client_id', client_id) \
-        .neq('status', 'completed')
+    opp_query = (
+        supabase.table("ai_projects")
+        .select("*, stakeholders!owner_stakeholder_id(name)")
+        .eq("client_id", client_id)
+        .neq("status", "completed")
+    )
 
     if department:
-        opp_query = opp_query.ilike('department', f'%{department}%')
+        opp_query = opp_query.ilike("department", f"%{department}%")
 
-    opp_result = opp_query.order('created_at', desc=True).limit(limit).execute()
+    opp_result = opp_query.order("created_at", desc=True).limit(limit).execute()
 
     priority_queue = []
     for opp in opp_result.data:
         # Compute priority score: (ROI × Strategic) / Effort
         # Higher is better (high ROI, high strategic, low effort)
-        roi = opp.get('roi_potential') or 3
-        strategic = opp.get('strategic_alignment') or 3
-        effort = opp.get('implementation_effort') or 3
+        roi = opp.get("roi_potential") or 3
+        strategic = opp.get("strategic_alignment") or 3
+        effort = opp.get("implementation_effort") or 3
 
         # Invert effort (5 = easy = good, 1 = hard = bad for priority)
         effort_inverted = 6 - effort
         priority_score = (roi * strategic * effort_inverted) / 5  # Normalize
 
         owner_name = None
-        if opp.get('stakeholders'):
-            owner_name = opp['stakeholders'].get('name')
+        if opp.get("stakeholders"):
+            owner_name = opp["stakeholders"].get("name")
 
-        priority_queue.append(PriorityOpportunity(
-            id=opp['id'],
-            opportunity_code=opp['opportunity_code'],
-            title=opp['title'],
-            description=opp.get('description'),
-            department=opp.get('department'),
-            roi_potential=opp.get('roi_potential'),
-            implementation_effort=opp.get('implementation_effort'),
-            strategic_alignment=opp.get('strategic_alignment'),
-            stakeholder_readiness=opp.get('stakeholder_readiness'),
-            total_score=opp.get('total_score'),
-            tier=opp.get('tier'),
-            status=opp['status'],
-            priority_score=round(priority_score, 2),
-            owner_name=owner_name,
-            created_at=opp['created_at']
-        ))
+        priority_queue.append(
+            PriorityOpportunity(
+                id=opp["id"],
+                opportunity_code=opp["opportunity_code"],
+                title=opp["title"],
+                description=opp.get("description"),
+                department=opp.get("department"),
+                roi_potential=opp.get("roi_potential"),
+                implementation_effort=opp.get("implementation_effort"),
+                strategic_alignment=opp.get("strategic_alignment"),
+                stakeholder_readiness=opp.get("stakeholder_readiness"),
+                total_score=opp.get("total_score"),
+                tier=opp.get("tier"),
+                status=opp["status"],
+                priority_score=round(priority_score, 2),
+                owner_name=owner_name,
+                created_at=opp["created_at"],
+            )
+        )
 
     # Sort by priority score descending
     priority_queue.sort(key=lambda x: x.priority_score, reverse=True)
@@ -200,22 +212,24 @@ async def get_pipeline_overview(
     # -------------------------------------------------------------------------
     # COMMITMENTS - Tasks with due dates (what you owe people)
     # -------------------------------------------------------------------------
-    task_query = supabase.table('project_tasks') \
-        .select('*') \
-        .eq('client_id', client_id) \
-        .neq('status', 'completed')
+    task_query = (
+        supabase.table("project_tasks")
+        .select("*")
+        .eq("client_id", client_id)
+        .neq("status", "completed")
+    )
 
     if department:
         # Filter by related stakeholder department or assignee department
         # For now, we'll just show all tasks when department filter is applied
         pass
 
-    task_result = task_query.order('due_date', desc=False, nullsfirst=False).limit(limit).execute()
+    task_result = task_query.order("due_date", desc=False, nullsfirst=False).limit(limit).execute()
 
     today = date.today()
     commitments = []
     for task in task_result.data:
-        due_date_str = task.get('due_date')
+        due_date_str = task.get("due_date")
         is_overdue = False
         days_until_due = None
 
@@ -227,84 +241,94 @@ async def get_pipeline_overview(
             except (ValueError, TypeError):
                 pass
 
-        commitments.append(Commitment(
-            id=task['id'],
-            title=task['title'],
-            description=task.get('description'),
-            assignee_name=task.get('assignee_name'),
-            due_date=due_date_str,
-            status=task['status'],
-            priority=task.get('priority', 3),
-            source_type=task.get('source_type'),
-            is_overdue=is_overdue,
-            days_until_due=days_until_due,
-            created_at=task['created_at']
-        ))
+        commitments.append(
+            Commitment(
+                id=task["id"],
+                title=task["title"],
+                description=task.get("description"),
+                assignee_name=task.get("assignee_name"),
+                due_date=due_date_str,
+                status=task["status"],
+                priority=task.get("priority", 3),
+                source_type=task.get("source_type"),
+                is_overdue=is_overdue,
+                days_until_due=days_until_due,
+                created_at=task["created_at"],
+            )
+        )
 
     # Sort: overdue first, then by due date, then by priority
-    commitments.sort(key=lambda x: (
-        not x.is_overdue,  # Overdue first
-        x.due_date or '9999-99-99',  # Then by due date
-        -x.priority  # Then by priority (high first)
-    ))
+    commitments.sort(
+        key=lambda x: (
+            not x.is_overdue,  # Overdue first
+            x.due_date or "9999-99-99",  # Then by due date
+            -x.priority,  # Then by priority (high first)
+        )
+    )
 
     # -------------------------------------------------------------------------
     # STAKEHOLDER PULSE - Engagement levels and sentiment
     # -------------------------------------------------------------------------
-    sh_query = supabase.table('stakeholders') \
-        .select('*') \
-        .eq('client_id', client_id)
+    sh_query = supabase.table("stakeholders").select("*").eq("client_id", client_id)
 
     if department:
-        sh_query = sh_query.ilike('department', f'%{department}%')
+        sh_query = sh_query.ilike("department", f"%{department}%")
 
-    sh_result = sh_query.order('last_interaction', desc=True, nullsfirst=False).limit(limit).execute()
+    sh_result = (
+        sh_query.order("last_interaction", desc=True, nullsfirst=False).limit(limit).execute()
+    )
 
     stakeholder_pulse = []
     for sh in sh_result.data:
-        stakeholder_pulse.append(StakeholderPulse(
-            id=sh['id'],
-            name=sh['name'],
-            role=sh.get('role'),
-            department=sh.get('department'),
-            engagement_level=sh.get('engagement_level'),
-            sentiment_score=sh.get('sentiment_score'),
-            last_interaction=sh.get('last_interaction'),
-            total_interactions=sh.get('total_interactions') or 0,
-            open_questions=sh.get('open_questions') or []
-        ))
+        stakeholder_pulse.append(
+            StakeholderPulse(
+                id=sh["id"],
+                name=sh["name"],
+                role=sh.get("role"),
+                department=sh.get("department"),
+                engagement_level=sh.get("engagement_level"),
+                sentiment_score=sh.get("sentiment_score"),
+                last_interaction=sh.get("last_interaction"),
+                total_interactions=sh.get("total_interactions") or 0,
+                open_questions=sh.get("open_questions") or [],
+            )
+        )
 
     # -------------------------------------------------------------------------
     # STATS
     # -------------------------------------------------------------------------
     # Count totals
-    opp_count = supabase.table('ai_projects') \
-        .select('id', count='exact') \
-        .eq('client_id', client_id) \
-        .neq('status', 'completed') \
+    opp_count = (
+        supabase.table("ai_projects")
+        .select("id", count="exact")
+        .eq("client_id", client_id)
+        .neq("status", "completed")
         .execute()
+    )
 
-    task_count = supabase.table('project_tasks') \
-        .select('id', count='exact') \
-        .eq('client_id', client_id) \
-        .neq('status', 'completed') \
+    task_count = (
+        supabase.table("project_tasks")
+        .select("id", count="exact")
+        .eq("client_id", client_id)
+        .neq("status", "completed")
         .execute()
+    )
 
     overdue_count = sum(1 for c in commitments if c.is_overdue)
 
     stats = {
-        'total_opportunities': opp_count.count or 0,
-        'total_commitments': task_count.count or 0,
-        'overdue_commitments': overdue_count,
-        'total_stakeholders': len(stakeholder_pulse),
-        'department_filter': department
+        "total_opportunities": opp_count.count or 0,
+        "total_commitments": task_count.count or 0,
+        "overdue_commitments": overdue_count,
+        "total_stakeholders": len(stakeholder_pulse),
+        "department_filter": department,
     }
 
     return PipelineOverview(
         priority_queue=priority_queue[:limit],
         commitments=commitments[:limit],
         stakeholder_pulse=stakeholder_pulse[:limit],
-        stats=stats
+        stats=stats,
     )
 
 
@@ -314,53 +338,57 @@ async def get_priority_queue(
     status: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=100),
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Get just the priority queue (opportunities ranked by priority score)."""
     client_id = current_user.get("client_id")
 
-    query = supabase.table('ai_projects') \
-        .select('*, stakeholders!owner_stakeholder_id(name)') \
-        .eq('client_id', client_id)
+    query = (
+        supabase.table("ai_projects")
+        .select("*, stakeholders!owner_stakeholder_id(name)")
+        .eq("client_id", client_id)
+    )
 
     if department:
-        query = query.ilike('department', f'%{department}%')
+        query = query.ilike("department", f"%{department}%")
     if status:
-        query = query.eq('status', status)
+        query = query.eq("status", status)
     else:
-        query = query.neq('status', 'completed')
+        query = query.neq("status", "completed")
 
     result = query.limit(limit).execute()
 
     priority_queue = []
     for opp in result.data:
-        roi = opp.get('roi_potential') or 3
-        strategic = opp.get('strategic_alignment') or 3
-        effort = opp.get('implementation_effort') or 3
+        roi = opp.get("roi_potential") or 3
+        strategic = opp.get("strategic_alignment") or 3
+        effort = opp.get("implementation_effort") or 3
         effort_inverted = 6 - effort
         priority_score = (roi * strategic * effort_inverted) / 5
 
         owner_name = None
-        if opp.get('stakeholders'):
-            owner_name = opp['stakeholders'].get('name')
+        if opp.get("stakeholders"):
+            owner_name = opp["stakeholders"].get("name")
 
-        priority_queue.append(PriorityOpportunity(
-            id=opp['id'],
-            opportunity_code=opp['opportunity_code'],
-            title=opp['title'],
-            description=opp.get('description'),
-            department=opp.get('department'),
-            roi_potential=opp.get('roi_potential'),
-            implementation_effort=opp.get('implementation_effort'),
-            strategic_alignment=opp.get('strategic_alignment'),
-            stakeholder_readiness=opp.get('stakeholder_readiness'),
-            total_score=opp.get('total_score'),
-            tier=opp.get('tier'),
-            status=opp['status'],
-            priority_score=round(priority_score, 2),
-            owner_name=owner_name,
-            created_at=opp['created_at']
-        ))
+        priority_queue.append(
+            PriorityOpportunity(
+                id=opp["id"],
+                opportunity_code=opp["opportunity_code"],
+                title=opp["title"],
+                description=opp.get("description"),
+                department=opp.get("department"),
+                roi_potential=opp.get("roi_potential"),
+                implementation_effort=opp.get("implementation_effort"),
+                strategic_alignment=opp.get("strategic_alignment"),
+                stakeholder_readiness=opp.get("stakeholder_readiness"),
+                total_score=opp.get("total_score"),
+                tier=opp.get("tier"),
+                status=opp["status"],
+                priority_score=round(priority_score, 2),
+                owner_name=owner_name,
+                created_at=opp["created_at"],
+            )
+        )
 
     priority_queue.sort(key=lambda x: x.priority_score, reverse=True)
     return priority_queue
@@ -371,24 +399,22 @@ async def get_commitments(
     include_completed: bool = Query(False),
     limit: int = Query(50, ge=1, le=100),
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Get commitments (tasks) sorted by urgency."""
     client_id = current_user.get("client_id")
 
-    query = supabase.table('project_tasks') \
-        .select('*') \
-        .eq('client_id', client_id)
+    query = supabase.table("project_tasks").select("*").eq("client_id", client_id)
 
     if not include_completed:
-        query = query.neq('status', 'completed')
+        query = query.neq("status", "completed")
 
-    result = query.order('due_date', desc=False, nullsfirst=False).limit(limit).execute()
+    result = query.order("due_date", desc=False, nullsfirst=False).limit(limit).execute()
 
     today = date.today()
     commitments = []
     for task in result.data:
-        due_date_str = task.get('due_date')
+        due_date_str = task.get("due_date")
         is_overdue = False
         days_until_due = None
 
@@ -400,25 +426,23 @@ async def get_commitments(
             except (ValueError, TypeError):
                 pass
 
-        commitments.append(Commitment(
-            id=task['id'],
-            title=task['title'],
-            description=task.get('description'),
-            assignee_name=task.get('assignee_name'),
-            due_date=due_date_str,
-            status=task['status'],
-            priority=task.get('priority', 3),
-            source_type=task.get('source_type'),
-            is_overdue=is_overdue,
-            days_until_due=days_until_due,
-            created_at=task['created_at']
-        ))
+        commitments.append(
+            Commitment(
+                id=task["id"],
+                title=task["title"],
+                description=task.get("description"),
+                assignee_name=task.get("assignee_name"),
+                due_date=due_date_str,
+                status=task["status"],
+                priority=task.get("priority", 3),
+                source_type=task.get("source_type"),
+                is_overdue=is_overdue,
+                days_until_due=days_until_due,
+                created_at=task["created_at"],
+            )
+        )
 
-    commitments.sort(key=lambda x: (
-        not x.is_overdue,
-        x.due_date or '9999-99-99',
-        -x.priority
-    ))
+    commitments.sort(key=lambda x: (not x.is_overdue, x.due_date or "9999-99-99", -x.priority))
 
     return commitments
 
@@ -427,10 +451,10 @@ async def get_commitments(
 # GRANOLA SCANNING ENDPOINTS
 # ============================================================================
 
+
 @router.get("/granola/status", response_model=GranolaScanStatus)
 async def get_granola_status(
-    current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
 ):
     """Get the current status of Granola vault scanning."""
     from services.granola_scanner import get_scan_status
@@ -441,10 +465,10 @@ async def get_granola_status(
 
         # Get last scan time (skip if status has error to avoid cascading failures)
         last_scan = None
-        if status.get('connected') and not status.get('error'):
+        if status.get("connected") and not status.get("error"):
             try:
                 # Use RPC to avoid PostgREST ilike issues
-                last_doc = supabase.rpc('get_granola_scan_status', {'p_user_id': user_id}).execute()
+                last_doc = supabase.rpc("get_granola_scan_status", {"p_user_id": user_id}).execute()
                 # Note: last_scan would need a separate RPC or direct query
                 # For now, skip last_scan to avoid the ilike issue
             except Exception as e:
@@ -454,56 +478,67 @@ async def get_granola_status(
         sync_activity = None
         try:
             # Get user's vault config
-            config_result = supabase.table('obsidian_vault_configs') \
-                .select('id') \
-                .eq('user_id', user_id) \
-                .eq('is_active', True) \
+            config_result = (
+                supabase.table("obsidian_vault_configs")
+                .select("id")
+                .eq("user_id", user_id)
+                .eq("is_active", True)
                 .execute()
+            )
 
             if config_result.data:
-                config_id = config_result.data[0]['id']
+                config_id = config_result.data[0]["id"]
 
                 # Check for running syncs
-                running = supabase.table('obsidian_sync_log') \
-                    .select('id') \
-                    .eq('config_id', config_id) \
-                    .eq('status', 'running') \
+                running = (
+                    supabase.table("obsidian_sync_log")
+                    .select("id")
+                    .eq("config_id", config_id)
+                    .eq("status", "running")
                     .execute()
+                )
 
                 # Get most recently synced file (always, for display)
                 last_synced_file = None
-                recent_state = supabase.table('obsidian_sync_state') \
-                    .select('file_path') \
-                    .eq('config_id', config_id) \
-                    .order('updated_at', desc=True) \
-                    .limit(1) \
+                recent_state = (
+                    supabase.table("obsidian_sync_state")
+                    .select("file_path")
+                    .eq("config_id", config_id)
+                    .order("updated_at", desc=True)
+                    .limit(1)
                     .execute()
+                )
                 if recent_state.data:
                     # Extract just the filename from the path
-                    last_synced_file = recent_state.data[0]['file_path'].split('/')[-1]
+                    last_synced_file = recent_state.data[0]["file_path"].split("/")[-1]
 
                 # During active sync, current_file is the same as last_synced_file
                 current_file = last_synced_file if running.data else None
 
                 # Get recently completed syncs (last 60 seconds)
                 cutoff = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
-                recent = supabase.table('obsidian_sync_log') \
-                    .select('files_added, files_updated, completed_at') \
-                    .eq('config_id', config_id) \
-                    .eq('status', 'completed') \
-                    .gte('completed_at', cutoff) \
-                    .order('completed_at', desc=True) \
-                    .limit(3) \
+                recent = (
+                    supabase.table("obsidian_sync_log")
+                    .select("files_added, files_updated, completed_at")
+                    .eq("config_id", config_id)
+                    .eq("status", "completed")
+                    .gte("completed_at", cutoff)
+                    .order("completed_at", desc=True)
+                    .limit(3)
                     .execute()
+                )
 
                 sync_activity = SyncActivityInfo(
                     active=len(running.data) > 0,
                     current_file=current_file,
                     last_synced_file=last_synced_file,
                     recent_files=[
-                        {'files_added': r.get('files_added', 0), 'files_updated': r.get('files_updated', 0)}
+                        {
+                            "files_added": r.get("files_added", 0),
+                            "files_updated": r.get("files_updated", 0),
+                        }
                         for r in recent.data
-                    ]
+                    ],
                 )
         except Exception as e:
             logger.warning(f"Failed to get sync activity: {e}")
@@ -513,38 +548,38 @@ async def get_granola_status(
         try:
             # Find any active or recently completed extraction job for this user
             for job_id, job in _scan_jobs.items():
-                if job.get('user_id') == user_id:
-                    job_status = job.get('status', 'unknown')
+                if job.get("user_id") == user_id:
+                    job_status = job.get("status", "unknown")
                     # Include active jobs or recently completed ones (within 30 seconds)
-                    if job_status in ('pending', 'running'):
-                        result = job.get('result', {})
+                    if job_status in ("pending", "running"):
+                        result = job.get("result", {})
                         extraction_activity = ExtractionActivityInfo(
                             active=True,
                             job_id=job_id,
                             status=job_status,
-                            files_processed=result.get('files_processed', 0),
-                            opportunities_found=result.get('opportunities_created', 0),
-                            tasks_found=result.get('tasks_created', 0),
-                            stakeholders_found=result.get('stakeholders_created', 0),
-                            started_at=job.get('started_at')
+                            files_processed=result.get("files_processed", 0),
+                            opportunities_found=result.get("opportunities_created", 0),
+                            tasks_found=result.get("tasks_created", 0),
+                            stakeholders_found=result.get("stakeholders_created", 0),
+                            started_at=job.get("started_at"),
                         )
                         break
-                    elif job_status == 'completed':
-                        completed_at = job.get('completed_at')
+                    elif job_status == "completed":
+                        completed_at = job.get("completed_at")
                         if completed_at:
                             try:
                                 completed_time = datetime.fromisoformat(completed_at)
                                 if (datetime.now() - completed_time).total_seconds() < 30:
-                                    result = job.get('result', {})
+                                    result = job.get("result", {})
                                     extraction_activity = ExtractionActivityInfo(
                                         active=False,
                                         job_id=job_id,
-                                        status='completed',
-                                        files_processed=result.get('files_processed', 0),
-                                        opportunities_found=result.get('opportunities_created', 0),
-                                        tasks_found=result.get('tasks_created', 0),
-                                        stakeholders_found=result.get('stakeholders_created', 0),
-                                        started_at=job.get('started_at')
+                                        status="completed",
+                                        files_processed=result.get("files_processed", 0),
+                                        opportunities_found=result.get("opportunities_created", 0),
+                                        tasks_found=result.get("tasks_created", 0),
+                                        stakeholders_found=result.get("stakeholders_created", 0),
+                                        started_at=job.get("started_at"),
                                     )
                             except Exception:
                                 pass
@@ -552,26 +587,26 @@ async def get_granola_status(
             logger.warning(f"Failed to get extraction activity: {e}")
 
         return GranolaScanStatus(
-            connected=status.get('connected', False),
-            vault_path=status.get('vault_path', ''),
-            total_files=status.get('total_files', 0),
-            scanned_files=status.get('scanned_files', 0),
-            pending_files=status.get('pending_files', 0),
+            connected=status.get("connected", False),
+            vault_path=status.get("vault_path", ""),
+            total_files=status.get("total_files", 0),
+            scanned_files=status.get("scanned_files", 0),
+            pending_files=status.get("pending_files", 0),
             last_scan=last_scan,
-            error=status.get('error'),
+            error=status.get("error"),
             sync_activity=sync_activity,
-            extraction_activity=extraction_activity
+            extraction_activity=extraction_activity,
         )
     except Exception as e:
         logger.error(f"Granola status endpoint error: {e}")
         return GranolaScanStatus(
             connected=False,
-            vault_path='',
+            vault_path="",
             total_files=0,
             scanned_files=0,
             pending_files=0,
             last_scan=None,
-            error="Failed to get status"
+            error="Failed to get status",
         )
 
 
@@ -584,30 +619,33 @@ _active_user_scans: Dict[str, str] = {}  # user_id -> job_id
 def _run_background_scan(job_id: str, user_id: str, client_id: str, force_rescan: bool, since_date):
     """Run scan in background and update job status."""
     import asyncio
+
     from services.granola_scanner import scan_granola_vault as do_scan
 
     async def _async_scan():
         try:
-            _scan_jobs[job_id]['status'] = 'running'
-            result = await do_scan(user_id, client_id, force_rescan=force_rescan, since_date=since_date)
-            stats = result.get('stats', {})
-            _scan_jobs[job_id].update({
-                'status': 'completed',
-                'result': {
-                    'files_scanned': stats.get('files_scanned', 0),
-                    'files_processed': stats.get('files_processed', 0),
-                    'opportunities_created': stats.get('opportunities_created', 0),
-                    'tasks_created': stats.get('tasks_created', 0),
-                    'stakeholders_created': stats.get('stakeholders_created', 0),
-                },
-                'completed_at': datetime.now().isoformat()
-            })
+            _scan_jobs[job_id]["status"] = "running"
+            result = await do_scan(
+                user_id, client_id, force_rescan=force_rescan, since_date=since_date
+            )
+            stats = result.get("stats", {})
+            _scan_jobs[job_id].update(
+                {
+                    "status": "completed",
+                    "result": {
+                        "files_scanned": stats.get("files_scanned", 0),
+                        "files_processed": stats.get("files_processed", 0),
+                        "opportunities_created": stats.get("opportunities_created", 0),
+                        "tasks_created": stats.get("tasks_created", 0),
+                        "stakeholders_created": stats.get("stakeholders_created", 0),
+                    },
+                    "completed_at": datetime.now().isoformat(),
+                }
+            )
         except Exception as e:
-            _scan_jobs[job_id].update({
-                'status': 'failed',
-                'error': str(e),
-                'completed_at': datetime.now().isoformat()
-            })
+            _scan_jobs[job_id].update(
+                {"status": "failed", "error": str(e), "completed_at": datetime.now().isoformat()}
+            )
 
     # Run in new event loop for background thread
     loop = asyncio.new_event_loop()
@@ -624,28 +662,33 @@ def _run_background_scan(job_id: str, user_id: str, client_id: str, force_rescan
 @router.post("/granola/scan", response_model=GranolaScanResult)
 async def scan_granola_vault(
     force_rescan: bool = Query(False, description="Re-process already scanned files"),
-    since_date: Optional[date] = Query(None, description="Only scan meetings on or after this date (YYYY-MM-DD)"),
-    days_back: Optional[int] = Query(None, description="Only scan meetings from the last N days (alternative to since_date)"),
+    since_date: Optional[date] = Query(
+        None, description="Only scan meetings on or after this date (YYYY-MM-DD)"
+    ),
+    days_back: Optional[int] = Query(
+        None, description="Only scan meetings from the last N days (alternative to since_date)"
+    ),
     background: bool = Query(False, description="Run scan in background (returns immediately)"),
     background_tasks: BackgroundTasks = None,
     current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
-    """
-    Scan the Granola vault for new meeting summaries.
+    """Scan the Granola vault for new meeting summaries.
 
     Extracts opportunities, tasks, and stakeholders from each meeting.
     Use since_date or days_back to limit scanning to recent meetings.
     Use background=true to run in background (you can navigate away).
+
     Examples:
       - since_date=2026-01-01 (scan from Jan 1 onwards)
       - days_back=30 (scan last 30 days)
       - background=true (run in background, returns job_id)
     """
-    from services.granola_scanner import scan_granola_vault as do_scan
-    from datetime import timedelta
-    import uuid
     import threading
+    import uuid
+    from datetime import timedelta
+
+    from services.granola_scanner import scan_granola_vault as do_scan
 
     user_id = current_user["id"]
     client_id = current_user.get("client_id")
@@ -657,77 +700,84 @@ async def scan_granola_vault(
     if user_id in _active_user_scans:
         existing_job_id = _active_user_scans[user_id]
         existing_job = _scan_jobs.get(existing_job_id, {})
-        if existing_job.get('status') in ('starting', 'running'):
+        if existing_job.get("status") in ("starting", "running"):
             logger.info(f"Scan already in progress for user {user_id}, skipping duplicate request")
             return GranolaScanResult(
-                status='already_running',
+                status="already_running",
                 job_id=existing_job_id,
-                message='Scan already in progress',
-                files_scanned=0, files_processed=0, files_skipped=0, files_failed=0,
-                opportunities_created=0, tasks_created=0, stakeholders_created=0
+                message="Scan already in progress",
+                files_scanned=0,
+                files_processed=0,
+                files_skipped=0,
+                files_failed=0,
+                opportunities_created=0,
+                tasks_created=0,
+                stakeholders_created=0,
             )
 
     # Calculate since_date from days_back if provided
     effective_since_date = since_date
     if days_back and not since_date:
-        effective_since_date = (datetime.now().date() - timedelta(days=days_back))
+        effective_since_date = datetime.now().date() - timedelta(days=days_back)
         logger.info(f"Using days_back={days_back}, calculated since_date={effective_since_date}")
 
     # Background mode - return immediately
     if background:
         job_id = str(uuid.uuid4())[:8]
         _scan_jobs[job_id] = {
-            'status': 'starting',
-            'user_id': user_id,
-            'started_at': datetime.now().isoformat()
+            "status": "starting",
+            "user_id": user_id,
+            "started_at": datetime.now().isoformat(),
         }
         # Track active scan for this user
         _active_user_scans[user_id] = job_id
         # Start in background thread
         thread = threading.Thread(
             target=_run_background_scan,
-            args=(job_id, user_id, client_id, force_rescan, effective_since_date)
+            args=(job_id, user_id, client_id, force_rescan, effective_since_date),
         )
         thread.start()
         return GranolaScanResult(
-            status='started',
+            status="started",
             job_id=job_id,
-            message='Analysis started. You can navigate away safely.',
+            message="Analysis started. You can navigate away safely.",
             files_scanned=0,
             files_processed=0,
             files_skipped=0,
             files_failed=0,
             opportunities_created=0,
             tasks_created=0,
-            stakeholders_created=0
+            stakeholders_created=0,
         )
 
     try:
-        result = await do_scan(user_id, client_id, force_rescan=force_rescan, since_date=effective_since_date)
+        result = await do_scan(
+            user_id, client_id, force_rescan=force_rescan, since_date=effective_since_date
+        )
 
-        stats = result.get('stats', {})
+        stats = result.get("stats", {})
 
         # Extract failure details for debugging
         failed_details = None
-        if stats.get('files_failed', 0) > 0:
-            results_list = result.get('results', [])
+        if stats.get("files_failed", 0) > 0:
+            results_list = result.get("results", [])
             failed_details = [
-                {'file': r.get('file'), 'error': r.get('error')}
+                {"file": r.get("file"), "error": r.get("error")}
                 for r in results_list
-                if r.get('status') == 'failed'
+                if r.get("status") == "failed"
             ]
             logger.warning(f"Scan failures: {failed_details}")
 
         return GranolaScanResult(
-            status=result.get('status', 'unknown'),
-            files_scanned=stats.get('files_scanned', 0),
-            files_processed=stats.get('files_processed', 0),
-            files_skipped=stats.get('files_skipped', 0),
-            files_failed=stats.get('files_failed', 0),
-            opportunities_created=stats.get('opportunities_created', 0),
-            tasks_created=stats.get('tasks_created', 0),
-            stakeholders_created=stats.get('stakeholders_created', 0),
-            failed_details=failed_details
+            status=result.get("status", "unknown"),
+            files_scanned=stats.get("files_scanned", 0),
+            files_processed=stats.get("files_processed", 0),
+            files_skipped=stats.get("files_skipped", 0),
+            files_failed=stats.get("files_failed", 0),
+            opportunities_created=stats.get("opportunities_created", 0),
+            tasks_created=stats.get("tasks_created", 0),
+            stakeholders_created=stats.get("stakeholders_created", 0),
+            failed_details=failed_details,
         )
 
     except Exception as e:
@@ -736,12 +786,8 @@ async def scan_granola_vault(
 
 
 @router.get("/granola/scan/job/{job_id}")
-async def get_scan_job_status(
-    job_id: str,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Get the status of a background scan job.
+async def get_scan_job_status(job_id: str, current_user: dict = Depends(get_current_user)):
+    """Get the status of a background scan job.
     Returns job status: starting, running, completed, or failed.
     """
     if job_id not in _scan_jobs:
@@ -750,26 +796,24 @@ async def get_scan_job_status(
     job = _scan_jobs[job_id]
 
     # Verify user owns this job
-    if job.get('user_id') != current_user['id']:
+    if job.get("user_id") != current_user["id"]:
         raise HTTPException(status_code=403, detail="Not authorized to view this job")
 
     return {
-        'job_id': job_id,
-        'status': job.get('status'),
-        'started_at': job.get('started_at'),
-        'completed_at': job.get('completed_at'),
-        'result': job.get('result'),
-        'error': job.get('error')
+        "job_id": job_id,
+        "status": job.get("status"),
+        "started_at": job.get("started_at"),
+        "completed_at": job.get("completed_at"),
+        "result": job.get("result"),
+        "error": job.get("error"),
     }
 
 
 @router.get("/granola/debug")
 async def debug_granola_documents(
-    current_user: dict = Depends(get_current_user),
-    supabase = Depends(get_supabase)
+    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
 ):
-    """
-    Debug endpoint to check Granola documents and their storage URLs.
+    """Debug endpoint to check Granola documents and their storage URLs.
     Returns info about documents that would be scanned.
     """
     import httpx
@@ -778,10 +822,13 @@ async def debug_granola_documents(
 
     # Get documents using RPC
     try:
-        result = supabase.rpc('get_granola_documents_to_scan', {
-            'p_user_id': user_id,
-            'p_force_rescan': True  # Show all, not just unscanned
-        }).execute()
+        result = supabase.rpc(
+            "get_granola_documents_to_scan",
+            {
+                "p_user_id": user_id,
+                "p_force_rescan": True,  # Show all, not just unscanned
+            },
+        ).execute()
         documents = result.data or []
     except Exception as e:
         return {"error": f"Failed to query documents: {e}", "documents": []}
@@ -790,13 +837,13 @@ async def debug_granola_documents(
     debug_info = []
     async with httpx.AsyncClient() as client:
         for doc in documents[:5]:  # Limit to 5 for debug
-            storage_url = doc.get('storage_url')
+            storage_url = doc.get("storage_url")
             doc_info = {
-                "id": doc.get('id'),
-                "filename": doc.get('filename'),
+                "id": doc.get("id"),
+                "filename": doc.get("filename"),
                 "storage_url": storage_url[:100] if storage_url else None,
                 "storage_url_accessible": False,
-                "error": None
+                "error": None,
             }
 
             if storage_url:
@@ -809,7 +856,4 @@ async def debug_granola_documents(
 
             debug_info.append(doc_info)
 
-    return {
-        "total_documents": len(documents),
-        "sample_documents": debug_info
-    }
+    return {"total_documents": len(documents), "sample_documents": debug_info}

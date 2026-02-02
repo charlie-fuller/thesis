@@ -22,12 +22,12 @@ from cryptography.fernet import Fernet
 
 class OAuthCryptoError(Exception):
     """Raised when encryption/decryption operations fail"""
+
     pass
 
 
 def _get_encryption_key() -> bytes:
-    """
-    Get the encryption key from environment variable.
+    """Get the encryption key from environment variable.
 
     Returns:
         bytes: Fernet-compatible encryption key
@@ -39,8 +39,7 @@ def _get_encryption_key() -> bytes:
 
     if not key_hex:
         raise OAuthCryptoError(
-            "OAUTH_ENCRYPTION_KEY not set in environment. "
-            "Generate one with: openssl rand -hex 32"
+            "OAUTH_ENCRYPTION_KEY not set in environment. Generate one with: openssl rand -hex 32"
         )
 
     if len(key_hex) != 64:  # 32 bytes = 64 hex characters
@@ -60,8 +59,7 @@ def _get_encryption_key() -> bytes:
 
 
 def encrypt_token(plaintext: str) -> str:
-    """
-    Encrypt a plaintext token for storage in the database.
+    """Encrypt a plaintext token for storage in the database.
 
     Args:
         plaintext: The token to encrypt (e.g., access_token, refresh_token)
@@ -84,16 +82,15 @@ def encrypt_token(plaintext: str) -> str:
         f = Fernet(fernet_key)
 
         # Encrypt and return as string
-        encrypted_bytes = f.encrypt(plaintext.encode('utf-8'))
-        return encrypted_bytes.decode('utf-8')
+        encrypted_bytes = f.encrypt(plaintext.encode("utf-8"))
+        return encrypted_bytes.decode("utf-8")
 
     except Exception as e:
         raise OAuthCryptoError(f"Encryption failed: {e}")
 
 
 def decrypt_token(ciphertext: str) -> str:
-    """
-    Decrypt a token retrieved from the database.
+    """Decrypt a token retrieved from the database.
 
     Args:
         ciphertext: The encrypted token from database
@@ -116,8 +113,8 @@ def decrypt_token(ciphertext: str) -> str:
         f = Fernet(fernet_key)
 
         # Decrypt and return as string
-        decrypted_bytes = f.decrypt(ciphertext.encode('utf-8'))
-        return decrypted_bytes.decode('utf-8')
+        decrypted_bytes = f.decrypt(ciphertext.encode("utf-8"))
+        return decrypted_bytes.decode("utf-8")
 
     except Exception as e:
         raise OAuthCryptoError(
@@ -127,8 +124,7 @@ def decrypt_token(ciphertext: str) -> str:
 
 
 def rotate_encryption(old_ciphertext: str, new_key_hex: str) -> str:
-    """
-    Helper function to re-encrypt tokens with a new key.
+    """Helper function to re-encrypt tokens with a new key.
     Use this if you need to rotate your encryption key.
 
     Args:
@@ -160,8 +156,7 @@ def rotate_encryption(old_ciphertext: str, new_key_hex: str) -> str:
 
 # Test helper (optional - for development only)
 def _test_encryption():
-    """
-    Quick test to verify encryption/decryption works.
+    """Quick test to verify encryption/decryption works.
     Run with: python -c "from services.oauth_crypto import _test_encryption; _test_encryption()"
     """
     test_token = "ya29.a0AfH6SMBx_test_token_12345"

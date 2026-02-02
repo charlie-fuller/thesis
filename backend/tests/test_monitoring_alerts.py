@@ -1,5 +1,4 @@
-"""
-Monitoring and Alerting Tests
+"""Monitoring and Alerting Tests
 
 Tests for observability infrastructure including:
 - Metrics collection
@@ -8,16 +7,17 @@ Tests for observability infrastructure including:
 - Health checks
 - SLO compliance
 """
-import pytest
-from typing import Dict, Any, List
-from datetime import datetime, timedelta
-import json
-import re
 
+import json
+from datetime import datetime
+from typing import List
+
+import pytest
 
 # =============================================================================
 # Metrics Collection Tests
 # =============================================================================
+
 
 class TestMetricsCollection:
     """Tests for metrics collection and reporting."""
@@ -33,13 +33,7 @@ class TestMetricsCollection:
         assert len(metrics) > 0
         latest = metrics[-1]
 
-        required_fields = [
-            "method",
-            "path",
-            "status_code",
-            "duration_ms",
-            "timestamp"
-        ]
+        required_fields = ["method", "path", "status_code", "duration_ms", "timestamp"]
 
         for field in required_fields:
             assert field in latest, f"Metric missing field: {field}"
@@ -77,9 +71,9 @@ class TestMetricsCollection:
     def test_agent_usage_metrics(self):
         """Agent usage metrics are collected."""
         # Make chat request
-        self._make_request("/api/chat", method="POST", json={
-            "message": "@atlas Tell me about trends"
-        })
+        self._make_request(
+            "/api/chat", method="POST", json={"message": "@atlas Tell me about trends"}
+        )
 
         agent_metrics = self._get_recent_metrics("agent_invocations")
 
@@ -108,10 +102,23 @@ class TestMetricsCollection:
 
     def _get_recent_metrics(self, name: str) -> List[dict]:
         if name == "agent_invocations":
-            return [{"agent_id": "atlas", "duration_ms": 150, "success": True,
-                     "timestamp": datetime.now().isoformat()}]
-        return [{"method": "GET", "path": "/api/health", "status_code": 200,
-                 "duration_ms": 50, "timestamp": datetime.now().isoformat()}]
+            return [
+                {
+                    "agent_id": "atlas",
+                    "duration_ms": 150,
+                    "success": True,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ]
+        return [
+            {
+                "method": "GET",
+                "path": "/api/health",
+                "status_code": 200,
+                "duration_ms": 50,
+                "timestamp": datetime.now().isoformat(),
+            }
+        ]
 
     def _get_histogram(self, name: str) -> dict:
         return {"buckets": [0.1, 0.5, 1.0], "count": 10, "sum": 2.5}
@@ -123,6 +130,7 @@ class TestMetricsCollection:
 # =============================================================================
 # Log Format Tests
 # =============================================================================
+
 
 class TestLogFormatting:
     """Tests for structured logging."""
@@ -142,12 +150,7 @@ class TestLogFormatting:
         log_line = self._get_recent_log()
         log = json.loads(log_line)
 
-        required_fields = [
-            "timestamp",
-            "level",
-            "message",
-            "service"
-        ]
+        required_fields = ["timestamp", "level", "message", "service"]
 
         for field in required_fields:
             assert field in log, f"Log missing field: {field}"
@@ -160,24 +163,21 @@ class TestLogFormatting:
         log_line = self._get_recent_log(filter="request")
         log = json.loads(log_line)
 
-        context_fields = [
-            "request_id",
-            "user_id",
-            "path",
-            "method"
-        ]
+        context_fields = ["request_id", "user_id", "path", "method"]
 
         for field in context_fields:
-            assert field in log or field in log.get("context", {}), \
-                f"Log missing context field: {field}"
+            assert field in log or field in log.get(
+                "context", {}
+            ), f"Log missing context field: {field}"
 
     def test_sensitive_data_redacted(self):
         """Sensitive data is redacted from logs."""
         # Make request with sensitive data
-        self._make_request("/api/auth/login", method="POST", json={
-            "email": "test@example.com",
-            "password": "secret123"
-        })
+        self._make_request(
+            "/api/auth/login",
+            method="POST",
+            json={"email": "test@example.com", "password": "secret123"},
+        )
 
         log_line = self._get_recent_log()
 
@@ -219,11 +219,13 @@ class TestLogFormatting:
             "request_id": "req-123",
             "user_id": "user-456",
             "path": "/api/test",
-            "method": "GET"
+            "method": "GET",
         }
         # Include stack_trace for ERROR level logs
         if level == "ERROR":
-            log_data["stack_trace"] = "Traceback (most recent call last):\n  File \"test.py\", line 1\nError: Test error"
+            log_data["stack_trace"] = (
+                'Traceback (most recent call last):\n  File "test.py", line 1\nError: Test error'
+            )
             log_data["exception"] = "TestException"
         return json.dumps(log_data)
 
@@ -237,6 +239,7 @@ class TestLogFormatting:
 # =============================================================================
 # Alert Trigger Tests
 # =============================================================================
+
 
 class TestAlertTriggers:
     """Tests for alert trigger conditions."""
@@ -302,21 +305,28 @@ class TestAlertTriggers:
             "high_latency": {"p99_threshold_ms": 5000, "notification_channels": ["pagerduty"]},
             "database_connections": {"threshold_percent": 80, "notification_channels": ["slack"]},
             "disk_space_low": {"threshold_percent": 10, "notification_channels": ["email"]},
-            "ai_service_failure": {"failure_count": 5, "time_window_minutes": 5,
-                                   "notification_channels": ["pagerduty"]},
+            "ai_service_failure": {
+                "failure_count": 5,
+                "time_window_minutes": 5,
+                "notification_channels": ["pagerduty"],
+            },
         }
         return configs.get(name)
 
     def _get_all_alerts(self) -> List[dict]:
         return [
-            {"name": "high_error_rate", "notification_channels": ["slack"],
-             "runbook_url": "https://docs.example.com/runbooks/error-rate"},
+            {
+                "name": "high_error_rate",
+                "notification_channels": ["slack"],
+                "runbook_url": "https://docs.example.com/runbooks/error-rate",
+            },
         ]
 
 
 # =============================================================================
 # Health Check Tests
 # =============================================================================
+
 
 class TestHealthChecks:
     """Tests for health check endpoints."""
@@ -349,13 +359,7 @@ class TestHealthChecks:
 
         data = response.get("data", {})
 
-        components = [
-            "database",
-            "cache",
-            "ai_service",
-            "embeddings",
-            "storage"
-        ]
+        components = ["database", "cache", "ai_service", "embeddings", "storage"]
 
         for component in components:
             assert component in data, f"Health check missing: {component}"
@@ -378,14 +382,15 @@ class TestHealthChecks:
                 "ai_service": "healthy",
                 "embeddings": "healthy",
                 "storage": "healthy",
-                "version": "1.0.0"
-            }
+                "version": "1.0.0",
+            },
         }
 
 
 # =============================================================================
 # SLO Compliance Tests
 # =============================================================================
+
 
 class TestSLOCompliance:
     """Tests for Service Level Objective compliance."""
@@ -397,8 +402,9 @@ class TestSLOCompliance:
 
         metrics = self._get_availability_metrics(days=30)
 
-        assert metrics["availability"] >= target_availability, \
-            f"Availability {metrics['availability']} below SLO {target_availability}"
+        assert (
+            metrics["availability"] >= target_availability
+        ), f"Availability {metrics['availability']} below SLO {target_availability}"
 
     def test_latency_slo(self):
         """System meets latency SLO."""
@@ -407,8 +413,9 @@ class TestSLOCompliance:
 
         metrics = self._get_latency_metrics(days=7)
 
-        assert metrics["p95_ms"] <= target_p95_ms, \
-            f"P95 latency {metrics['p95_ms']}ms exceeds SLO {target_p95_ms}ms"
+        assert (
+            metrics["p95_ms"] <= target_p95_ms
+        ), f"P95 latency {metrics['p95_ms']}ms exceeds SLO {target_p95_ms}ms"
 
     def test_error_rate_slo(self):
         """System meets error rate SLO."""
@@ -417,8 +424,9 @@ class TestSLOCompliance:
 
         metrics = self._get_error_metrics(days=7)
 
-        assert metrics["error_rate"] <= target_error_rate, \
-            f"Error rate {metrics['error_rate']} exceeds SLO {target_error_rate}"
+        assert (
+            metrics["error_rate"] <= target_error_rate
+        ), f"Error rate {metrics['error_rate']} exceeds SLO {target_error_rate}"
 
     def test_throughput_slo(self):
         """System meets throughput SLO."""
@@ -427,8 +435,9 @@ class TestSLOCompliance:
 
         metrics = self._get_throughput_metrics()
 
-        assert metrics["max_rps"] >= target_rps, \
-            f"Max throughput {metrics['max_rps']} below SLO {target_rps}"
+        assert (
+            metrics["max_rps"] >= target_rps
+        ), f"Max throughput {metrics['max_rps']} below SLO {target_rps}"
 
     def test_slo_burn_rate_alert(self):
         """Burn rate alerts are configured for SLOs."""
@@ -459,6 +468,7 @@ class TestSLOCompliance:
 # Tracing Tests
 # =============================================================================
 
+
 class TestDistributedTracing:
     """Tests for distributed tracing."""
 
@@ -475,9 +485,7 @@ class TestDistributedTracing:
     def test_traces_span_services(self):
         """Traces span across service boundaries."""
         # Make request that touches multiple services
-        response = self._make_request("/api/chat", method="POST", json={
-            "message": "Hello"
-        })
+        response = self._make_request("/api/chat", method="POST", json={"message": "Hello"})
 
         trace = self._get_trace_for_request(response.get("request_id"))
 
@@ -501,10 +509,7 @@ class TestDistributedTracing:
 
         trace = self._get_recent_trace(has_error=True)
 
-        error_span = next(
-            (s for s in trace.get("spans", []) if s.get("error")),
-            None
-        )
+        error_span = next((s for s in trace.get("spans", []) if s.get("error")), None)
 
         if error_span:
             assert "error_message" in error_span or "exception" in error_span
@@ -518,9 +523,14 @@ class TestDistributedTracing:
             "trace_id": "trace-123",
             "span_id": "span-456",
             "spans": [
-                {"service": "api", "operation": "handle_request", "duration_ms": 100, "status": "ok"},
+                {
+                    "service": "api",
+                    "operation": "handle_request",
+                    "duration_ms": 100,
+                    "status": "ok",
+                },
                 {"service": "database", "operation": "query", "duration_ms": 20, "status": "ok"},
-            ]
+            ],
         }
 
     def _get_trace_for_request(self, request_id: str) -> dict:

@@ -1,16 +1,17 @@
-"""
-Pagination utilities
+"""Pagination utilities
 Helpers for paginating list endpoints
 """
+
 from typing import Generic, List, TypeVar
 
 from pydantic import BaseModel
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class PaginatedResponse(BaseModel, Generic[T]):
     """Generic paginated response model"""
+
     items: List[T]
     total: int
     limit: int
@@ -22,8 +23,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
 
 
 def paginate(items: List[T], total: int, limit: int, offset: int) -> dict:
-    """
-    Create a paginated response
+    """Create a paginated response
 
     Args:
         items: List of items for current page
@@ -35,10 +35,10 @@ def paginate(items: List[T], total: int, limit: int, offset: int) -> dict:
         Dict with pagination metadata
     """
     return {
-        'success': True,
-        'items': items,
-        'total': total,
-        'limit': limit,
-        'offset': offset,
-        'has_more': offset + len(items) < total
+        "success": True,
+        "items": items,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "has_more": offset + len(items) < total,
     }

@@ -1,6 +1,7 @@
 import os
 
 from dotenv import load_dotenv
+
 from supabase import create_client
 
 load_dotenv()
@@ -16,7 +17,7 @@ response = client.table("documents").select("*").execute()
 if response.data:
     print(f"✓ Found {len(response.data)} documents in your knowledge base:\n")
     for doc in response.data:
-        size_kb = doc.get('file_size', 0) / 1024 if doc.get('file_size') else 0
+        size_kb = doc.get("file_size", 0) / 1024 if doc.get("file_size") else 0
         print(f"• {doc.get('filename', 'unknown')}")
         print(f"  Type: {doc.get('file_type', 'unknown')}")
         print(f"  Size: {size_kb:.1f} KB")

@@ -1,5 +1,4 @@
-"""
-Document Classifier Service - Automatic Agent Relevance Tagging
+"""Document Classifier Service - Automatic Agent Relevance Tagging
 
 Classifies uploaded documents to determine which agents should have access.
 Uses a hybrid approach:
@@ -25,6 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AgentClassification:
     """Classification result for a single agent."""
+
     agent_id: str
     agent_name: str
     confidence: float
@@ -35,6 +35,7 @@ class AgentClassification:
 @dataclass
 class DocumentClassificationResult:
     """Full classification result for a document."""
+
     document_id: str
     detected_type: str
     classifications: list[AgentClassification] = field(default_factory=list)
@@ -47,8 +48,7 @@ class DocumentClassificationResult:
 
 
 class DocumentClassifier:
-    """
-    Classifies documents for agent relevance.
+    """Classifies documents for agent relevance.
 
     Workflow:
     1. Extract first 3 chunks of document
@@ -67,155 +67,375 @@ class DocumentClassifier:
     AGENT_KEYWORDS = {
         "atlas": [
             # Research/Analysis patterns
-            r"\bresearch\b", r"\bstudy\b", r"\bstudies\b", r"\bcase study\b",
-            r"\bconsulting\b", r"\bmckinsey\b", r"\bbcg\b", r"\bbain\b",
-            r"\baccenture\b", r"\bdeloitte\b", r"\bkpmg\b", r"\bpwc\b", r"\bey\b",
-            r"\bgartner\b", r"\bforrester\b", r"\bidc\b",
-            r"\bwhitepaper\b", r"\breport\b", r"\banalysis\b", r"\btrend\b",
-            r"\bbest practice\b", r"\bindustry\b", r"\bcompetitor\b",
-            r"\bai implementation\b", r"\bgenai\b", r"\bgen ai\b",
-            r"\bbenchmark\b", r"\bleading practice\b", r"\bmarket research\b",
+            r"\bresearch\b",
+            r"\bstudy\b",
+            r"\bstudies\b",
+            r"\bcase study\b",
+            r"\bconsulting\b",
+            r"\bmckinsey\b",
+            r"\bbcg\b",
+            r"\bbain\b",
+            r"\baccenture\b",
+            r"\bdeloitte\b",
+            r"\bkpmg\b",
+            r"\bpwc\b",
+            r"\bey\b",
+            r"\bgartner\b",
+            r"\bforrester\b",
+            r"\bidc\b",
+            r"\bwhitepaper\b",
+            r"\breport\b",
+            r"\banalysis\b",
+            r"\btrend\b",
+            r"\bbest practice\b",
+            r"\bindustry\b",
+            r"\bcompetitor\b",
+            r"\bai implementation\b",
+            r"\bgenai\b",
+            r"\bgen ai\b",
+            r"\bbenchmark\b",
+            r"\bleading practice\b",
+            r"\bmarket research\b",
         ],
         "capital": [
             # Financial patterns
-            r"\broi\b", r"\breturn on investment\b", r"\bcost\b", r"\bbudget\b",
-            r"\bfinance\b", r"\bfinancial\b", r"\bcfo\b", r"\bcontroller\b",
-            r"\bsaving\b", r"\bexpense\b", r"\binvestment\b", r"\bspend\b",
-            r"\bjustify\b", r"\bjustification\b", r"\bbusiness case\b",
-            r"\bpayback\b", r"\bbreakeven\b", r"\bvalue\b", r"\bprofit\b",
+            r"\broi\b",
+            r"\breturn on investment\b",
+            r"\bcost\b",
+            r"\bbudget\b",
+            r"\bfinance\b",
+            r"\bfinancial\b",
+            r"\bcfo\b",
+            r"\bcontroller\b",
+            r"\bsaving\b",
+            r"\bexpense\b",
+            r"\binvestment\b",
+            r"\bspend\b",
+            r"\bjustify\b",
+            r"\bjustification\b",
+            r"\bbusiness case\b",
+            r"\bpayback\b",
+            r"\bbreakeven\b",
+            r"\bvalue\b",
+            r"\bprofit\b",
             # Document types
-            r"\binvoice\b", r"\bquote\b", r"\bproposal\b", r"\bpurchase order\b",
-            r"\bbalance sheet\b", r"\bincome statement\b", r"\bcash flow\b",
-            r"\bprofit.?loss\b", r"\bp&l\b", r"\baudit\b",
+            r"\binvoice\b",
+            r"\bquote\b",
+            r"\bproposal\b",
+            r"\bpurchase order\b",
+            r"\bbalance sheet\b",
+            r"\bincome statement\b",
+            r"\bcash flow\b",
+            r"\bprofit.?loss\b",
+            r"\bp&l\b",
+            r"\baudit\b",
         ],
         "guardian": [
             # Security/Compliance patterns
-            r"\bsecurity\b", r"\bgovernance\b", r"\bcompliance\b", r"\brisk\b",
-            r"\bit\b", r"\binfrastructure\b", r"\barchitecture\b",
-            r"\bpolicy\b", r"\bpolicies\b", r"\bstandard\b", r"\bframework\b",
-            r"\bdata protection\b", r"\bprivacy\b", r"\bgdpr\b", r"\bccpa\b",
-            r"\baudit\b", r"\bcontrol\b", r"\baccess\b", r"\bpermission\b",
-            r"\bciso\b", r"\bcio\b", r"\bsoc2\b", r"\biso\b", r"\bhipaa\b",
+            r"\bsecurity\b",
+            r"\bgovernance\b",
+            r"\bcompliance\b",
+            r"\brisk\b",
+            r"\bit\b",
+            r"\binfrastructure\b",
+            r"\barchitecture\b",
+            r"\bpolicy\b",
+            r"\bpolicies\b",
+            r"\bstandard\b",
+            r"\bframework\b",
+            r"\bdata protection\b",
+            r"\bprivacy\b",
+            r"\bgdpr\b",
+            r"\bccpa\b",
+            r"\baudit\b",
+            r"\bcontrol\b",
+            r"\baccess\b",
+            r"\bpermission\b",
+            r"\bciso\b",
+            r"\bcio\b",
+            r"\bsoc2\b",
+            r"\biso\b",
+            r"\bhipaa\b",
             # IT patterns
-            r"\bnetwork\b", r"\bserver\b", r"\bfirewall\b", r"\bvpn\b",
-            r"\bencryption\b", r"\bcyber\b", r"\bvulnerability\b",
+            r"\bnetwork\b",
+            r"\bserver\b",
+            r"\bfirewall\b",
+            r"\bvpn\b",
+            r"\bencryption\b",
+            r"\bcyber\b",
+            r"\bvulnerability\b",
         ],
         "counselor": [
             # Legal patterns
-            r"\blegal\b", r"\bcontract\b", r"\bagreement\b", r"\bterms\b",
-            r"\blicense\b", r"\blicensing\b", r"\bip\b", r"\bintellectual property\b",
-            r"\bpatent\b", r"\bcopyright\b", r"\btrademark\b",
-            r"\bliability\b", r"\bindemnity\b", r"\bwarranty\b",
-            r"\blawyer\b", r"\battorney\b", r"\bcounsel\b",
+            r"\blegal\b",
+            r"\bcontract\b",
+            r"\bagreement\b",
+            r"\bterms\b",
+            r"\blicense\b",
+            r"\blicensing\b",
+            r"\bip\b",
+            r"\bintellectual property\b",
+            r"\bpatent\b",
+            r"\bcopyright\b",
+            r"\btrademark\b",
+            r"\bliability\b",
+            r"\bindemnity\b",
+            r"\bwarranty\b",
+            r"\blawyer\b",
+            r"\battorney\b",
+            r"\bcounsel\b",
             # Document types
-            r"\bnda\b", r"\bmsa\b", r"\bsow\b", r"\bsla\b",
-            r"\bstatement of work\b", r"\bmaster service\b",
-            r"\bterms of service\b", r"\bprivacy policy\b",
+            r"\bnda\b",
+            r"\bmsa\b",
+            r"\bsow\b",
+            r"\bsla\b",
+            r"\bstatement of work\b",
+            r"\bmaster service\b",
+            r"\bterms of service\b",
+            r"\bprivacy policy\b",
         ],
         "oracle": [
             # Meeting/Transcript patterns
-            r"\btranscript\b", r"\bmeeting\b", r"\bcall\b", r"\bconversation\b",
-            r"\battendee\b", r"\bparticipant\b", r"\bspeaker\b",
-            r"\bsentiment\b", r"\bfeedback\b", r"\breaction\b",
-            r"\bgranola\b", r"\botter\b", r"\bzoom\b", r"\bteams\b",
-            r"\binterview\b", r"\bnotes\b", r"\bminutes\b",
-            r"\bstakeholder\b", r"\bdiscussion\b",
+            r"\btranscript\b",
+            r"\bmeeting\b",
+            r"\bcall\b",
+            r"\bconversation\b",
+            r"\battendee\b",
+            r"\bparticipant\b",
+            r"\bspeaker\b",
+            r"\bsentiment\b",
+            r"\bfeedback\b",
+            r"\breaction\b",
+            r"\bgranola\b",
+            r"\botter\b",
+            r"\bzoom\b",
+            r"\bteams\b",
+            r"\binterview\b",
+            r"\bnotes\b",
+            r"\bminutes\b",
+            r"\bstakeholder\b",
+            r"\bdiscussion\b",
         ],
         "sage": [
             # Change management/HR patterns
-            r"\bpeople\b", r"\bchange management\b", r"\badoption\b", r"\bresistance\b",
-            r"\bfear\b", r"\banxiety\b", r"\bburnout\b", r"\bchampion\b",
-            r"\bculture\b", r"\bhuman\b", r"\bflourishing\b", r"\bpsychology\b",
-            r"\bsafety\b", r"\bmorale\b", r"\bengagement\b", r"\bemployee\b",
-            r"\bteam\b", r"\bpeople-first\b", r"\bhuman-centered\b",
+            r"\bpeople\b",
+            r"\bchange management\b",
+            r"\badoption\b",
+            r"\bresistance\b",
+            r"\bfear\b",
+            r"\banxiety\b",
+            r"\bburnout\b",
+            r"\bchampion\b",
+            r"\bculture\b",
+            r"\bhuman\b",
+            r"\bflourishing\b",
+            r"\bpsychology\b",
+            r"\bsafety\b",
+            r"\bmorale\b",
+            r"\bengagement\b",
+            r"\bemployee\b",
+            r"\bteam\b",
+            r"\bpeople-first\b",
+            r"\bhuman-centered\b",
             # HR document types
-            r"\bjob description\b", r"\bperformance review\b", r"\borganization chart\b",
-            r"\bhr policy\b", r"\bbenefits\b", r"\bonboarding\b",
+            r"\bjob description\b",
+            r"\bperformance review\b",
+            r"\borganization chart\b",
+            r"\bhr policy\b",
+            r"\bbenefits\b",
+            r"\bonboarding\b",
         ],
         "strategist": [
             # Executive/Strategy patterns
-            r"\bexecutive\b", r"\bc-suite\b", r"\bceo\b", r"\bboard\b", r"\bsponsor\b",
-            r"\bstakeholder management\b", r"\bcoalition\b", r"\bpolitics\b",
-            r"\bgovernance structure\b", r"\bstrategic alignment\b", r"\btransformation\b",
-            r"\bleadership\b", r"\bbuy-in\b",
+            r"\bexecutive\b",
+            r"\bc-suite\b",
+            r"\bceo\b",
+            r"\bboard\b",
+            r"\bsponsor\b",
+            r"\bstakeholder management\b",
+            r"\bcoalition\b",
+            r"\bpolitics\b",
+            r"\bgovernance structure\b",
+            r"\bstrategic alignment\b",
+            r"\btransformation\b",
+            r"\bleadership\b",
+            r"\bbuy-in\b",
             # Document types
-            r"\bstrategic plan\b", r"\broadmap\b", r"\bvision\b", r"\bmission\b",
-            r"\bboard presentation\b", r"\bexecutive summary\b",
+            r"\bstrategic plan\b",
+            r"\broadmap\b",
+            r"\bvision\b",
+            r"\bmission\b",
+            r"\bboard presentation\b",
+            r"\bexecutive summary\b",
         ],
         "architect": [
             # Technical architecture patterns
-            r"\barchitecture\b", r"\bintegration\b", r"\bapi\b", r"\btechnical design\b",
-            r"\bbuild vs buy\b", r"\brag\b", r"\bvector\b", r"\bembedding\b",
-            r"\bmlops\b", r"\bdevops\b", r"\bmicroservices\b", r"\bdata pipeline\b",
-            r"\bsystem design\b", r"\btechnical\b",
+            r"\barchitecture\b",
+            r"\bintegration\b",
+            r"\bapi\b",
+            r"\btechnical design\b",
+            r"\bbuild vs buy\b",
+            r"\brag\b",
+            r"\bvector\b",
+            r"\bembedding\b",
+            r"\bmlops\b",
+            r"\bdevops\b",
+            r"\bmicroservices\b",
+            r"\bdata pipeline\b",
+            r"\bsystem design\b",
+            r"\btechnical\b",
             # Document types
-            r"\barchitecture diagram\b", r"\bapi documentation\b", r"\bsequence diagram\b",
-            r"\ber diagram\b", r"\bdata model\b", r"\btechnical spec\b",
+            r"\barchitecture diagram\b",
+            r"\bapi documentation\b",
+            r"\bsequence diagram\b",
+            r"\ber diagram\b",
+            r"\bdata model\b",
+            r"\btechnical spec\b",
         ],
         "operator": [
             # Operations patterns
-            r"\bprocess\b", r"\bworkflow\b", r"\bautomation\b", r"\bmetrics\b",
-            r"\bkpi\b", r"\bbaseline\b", r"\bexception\b", r"\bsop\b",
-            r"\boperations\b", r"\befficiency\b", r"\bthroughput\b",
-            r"\bbottleneck\b", r"\bfrontline\b", r"\bday-to-day\b",
+            r"\bprocess\b",
+            r"\bworkflow\b",
+            r"\bautomation\b",
+            r"\bmetrics\b",
+            r"\bkpi\b",
+            r"\bbaseline\b",
+            r"\bexception\b",
+            r"\bsop\b",
+            r"\boperations\b",
+            r"\befficiency\b",
+            r"\bthroughput\b",
+            r"\bbottleneck\b",
+            r"\bfrontline\b",
+            r"\bday-to-day\b",
             # Document types
-            r"\bstandard operating procedure\b", r"\bprocess map\b",
-            r"\bworkflow diagram\b", r"\brunbook\b", r"\bplaybook\b",
+            r"\bstandard operating procedure\b",
+            r"\bprocess map\b",
+            r"\bworkflow diagram\b",
+            r"\brunbook\b",
+            r"\bplaybook\b",
         ],
         "pioneer": [
             # Innovation patterns
-            r"\bemerging\b", r"\binnovation\b", r"\br&d\b", r"\bnew technology\b",
-            r"\bcutting edge\b", r"\bexperimental\b", r"\bprototype\b",
-            r"\bhype\b", r"\bmaturity\b", r"\breadiness\b",
-            r"\bquantum\b", r"\bfuture\b", r"\bhorizon\b",
+            r"\bemerging\b",
+            r"\binnovation\b",
+            r"\br&d\b",
+            r"\bnew technology\b",
+            r"\bcutting edge\b",
+            r"\bexperimental\b",
+            r"\bprototype\b",
+            r"\bhype\b",
+            r"\bmaturity\b",
+            r"\breadiness\b",
+            r"\bquantum\b",
+            r"\bfuture\b",
+            r"\bhorizon\b",
             # Document types
-            r"\bpoc\b", r"\bproof of concept\b", r"\btechnology assessment\b",
+            r"\bpoc\b",
+            r"\bproof of concept\b",
+            r"\btechnology assessment\b",
             r"\binnovation brief\b",
         ],
         "catalyst": [
             # Communications patterns
-            r"\binternal communications\b", r"\bmessaging\b", r"\bnarrative\b",
-            r"\bemployee engagement\b", r"\bannouncement\b", r"\ball-hands\b",
-            r"\btown hall\b", r"\binternal marketing\b", r"\bai anxiety\b",
-            r"\btransparency\b", r"\bemail\b",
+            r"\binternal communications\b",
+            r"\bmessaging\b",
+            r"\bnarrative\b",
+            r"\bemployee engagement\b",
+            r"\bannouncement\b",
+            r"\ball-hands\b",
+            r"\btown hall\b",
+            r"\binternal marketing\b",
+            r"\bai anxiety\b",
+            r"\btransparency\b",
+            r"\bemail\b",
             # Document types
-            r"\bcommunication plan\b", r"\bmessaging template\b", r"\bfaq\b",
+            r"\bcommunication plan\b",
+            r"\bmessaging template\b",
+            r"\bfaq\b",
         ],
         "scholar": [
             # L&D patterns
-            r"\btraining\b", r"\blearning\b", r"\bl&d\b", r"\benablement\b",
-            r"\bcurriculum\b", r"\bcourse\b", r"\bworkshop\b", r"\bcertification\b",
-            r"\bchampion program\b", r"\bskill development\b", r"\badult learning\b",
-            r"\bcapability building\b", r"\bonboarding\b",
+            r"\btraining\b",
+            r"\blearning\b",
+            r"\bl&d\b",
+            r"\benablement\b",
+            r"\bcurriculum\b",
+            r"\bcourse\b",
+            r"\bworkshop\b",
+            r"\bcertification\b",
+            r"\bchampion program\b",
+            r"\bskill development\b",
+            r"\badult learning\b",
+            r"\bcapability building\b",
+            r"\bonboarding\b",
             # Document types
-            r"\btraining material\b", r"\bcourse outline\b", r"\blearning path\b",
-            r"\bquiz\b", r"\bassessment\b",
+            r"\btraining material\b",
+            r"\bcourse outline\b",
+            r"\blearning path\b",
+            r"\bquiz\b",
+            r"\bassessment\b",
         ],
         "echo": [
             # Brand voice patterns
-            r"\bbrand voice\b", r"\bstyle\b", r"\btone\b", r"\bvoice analysis\b",
-            r"\bai emulation\b", r"\bwriting style\b", r"\bvoice profile\b",
-            r"\bbrand guidelines\b", r"\btone of voice\b", r"\bstyle guide\b",
-            r"\bcommunication style\b", r"\bbrand consistency\b",
+            r"\bbrand voice\b",
+            r"\bstyle\b",
+            r"\btone\b",
+            r"\bvoice analysis\b",
+            r"\bai emulation\b",
+            r"\bwriting style\b",
+            r"\bvoice profile\b",
+            r"\bbrand guidelines\b",
+            r"\btone of voice\b",
+            r"\bstyle guide\b",
+            r"\bcommunication style\b",
+            r"\bbrand consistency\b",
         ],
         "nexus": [
             # Systems thinking patterns
-            r"\bsystems thinking\b", r"\bfeedback loop\b", r"\bleverage point\b",
-            r"\bunintended consequence\b", r"\binterconnection\b", r"\bcomplexity\b",
-            r"\bsecond-order effect\b", r"\bsystem dynamics\b", r"\barchetype\b",
-            r"\breinforcing loop\b", r"\bbalancing loop\b", r"\bmental model\b",
-            r"\broot cause\b", r"\bholistic\b", r"\bripple effect\b",
+            r"\bsystems thinking\b",
+            r"\bfeedback loop\b",
+            r"\bleverage point\b",
+            r"\bunintended consequence\b",
+            r"\binterconnection\b",
+            r"\bcomplexity\b",
+            r"\bsecond-order effect\b",
+            r"\bsystem dynamics\b",
+            r"\barchetype\b",
+            r"\breinforcing loop\b",
+            r"\bbalancing loop\b",
+            r"\bmental model\b",
+            r"\broot cause\b",
+            r"\bholistic\b",
+            r"\bripple effect\b",
             # Document types
-            r"\bcausal loop\b", r"\bsystem map\b",
+            r"\bcausal loop\b",
+            r"\bsystem map\b",
         ],
         "manual": [
             # Platform documentation patterns
-            r"\bthesis\b", r"\bplatform\b", r"\bfeature\b", r"\bhelp\b",
-            r"\btutorial\b", r"\bhow.?to\b", r"\bguide\b", r"\bdocumentation\b",
-            r"\bonboarding\b", r"\bquick.?start\b", r"\bfaq\b", r"\btroubleshooting\b",
-            r"\bnavigation\b", r"\bui\b", r"\binterface\b", r"\bworkflow\b",
-            r"\buser.?guide\b", r"\badmin.?guide\b", r"\bknowledge.?base\b",
-            r"\bmeeting.?room\b", r"\bagent.?roster\b", r"\bdig.?deeper\b",
+            r"\bthesis\b",
+            r"\bplatform\b",
+            r"\bfeature\b",
+            r"\bhelp\b",
+            r"\btutorial\b",
+            r"\bhow.?to\b",
+            r"\bguide\b",
+            r"\bdocumentation\b",
+            r"\bonboarding\b",
+            r"\bquick.?start\b",
+            r"\bfaq\b",
+            r"\btroubleshooting\b",
+            r"\bnavigation\b",
+            r"\bui\b",
+            r"\binterface\b",
+            r"\bworkflow\b",
+            r"\buser.?guide\b",
+            r"\badmin.?guide\b",
+            r"\bknowledge.?base\b",
+            r"\bmeeting.?room\b",
+            r"\bagent.?roster\b",
+            r"\bdig.?deeper\b",
         ],
     }
 
@@ -261,8 +481,7 @@ class DocumentClassifier:
         return None
 
     def _score_keywords(self, text: str) -> dict[str, float]:
-        """
-        Score text against keyword patterns for each agent.
+        """Score text against keyword patterns for each agent.
 
         Returns normalized scores (0.0 - 1.0) for each agent.
         """
@@ -301,8 +520,10 @@ class DocumentClassifier:
             return sorted_scores[0] >= self.MEDIUM_CONFIDENCE_THRESHOLD
 
         # Clear winner if top score is significantly higher than second
-        return sorted_scores[0] >= self.HIGH_CONFIDENCE_THRESHOLD and \
-               sorted_scores[0] - sorted_scores[1] >= 0.20
+        return (
+            sorted_scores[0] >= self.HIGH_CONFIDENCE_THRESHOLD
+            and sorted_scores[0] - sorted_scores[1] >= 0.20
+        )
 
     def _build_llm_prompt(self, sample_text: str, candidates: Optional[list[str]] = None) -> str:
         """Build the LLM classification prompt.
@@ -315,17 +536,18 @@ class DocumentClassifier:
         """
         # If we have candidates from keyword scoring, only send those (more efficient)
         if candidates and len(candidates) >= 2:
-            agent_list = "\n".join([
-                f"- {name}: {self.AGENT_DESCRIPTIONS.get(name, 'Specialist agent')}"
-                for name in candidates[:6]  # Max 6 candidates to keep prompt small
-            ])
+            agent_list = "\n".join(
+                [
+                    f"- {name}: {self.AGENT_DESCRIPTIONS.get(name, 'Specialist agent')}"
+                    for name in candidates[:6]  # Max 6 candidates to keep prompt small
+                ]
+            )
             agent_note = "From these candidate agents, select the most relevant:"
         else:
             # Fallback: send all agents (less efficient but comprehensive)
-            agent_list = "\n".join([
-                f"- {name}: {desc}"
-                for name, desc in self.AGENT_DESCRIPTIONS.items()
-            ])
+            agent_list = "\n".join(
+                [f"- {name}: {desc}" for name, desc in self.AGENT_DESCRIPTIONS.items()]
+            )
             agent_note = "Select which agents should have access to this document:"
 
         return f"""Classify this document for agent relevance.
@@ -342,8 +564,7 @@ Return JSON with the most relevant agents (max 3):
     async def _classify_with_llm(
         self, sample_text: str, candidates: Optional[list[str]] = None
     ) -> tuple[dict[str, float], str, int]:
-        """
-        Use Claude Haiku for LLM-based classification.
+        """Use Claude Haiku for LLM-based classification.
 
         Args:
             sample_text: Document text to classify
@@ -362,7 +583,7 @@ Return JSON with the most relevant agents (max 3):
             response = self.anthropic.messages.create(
                 model="claude-3-5-haiku-20241022",
                 max_tokens=500,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             result_text = response.content[0].text.strip()
@@ -370,6 +591,7 @@ Return JSON with the most relevant agents (max 3):
 
             # Parse JSON response
             import json
+
             # Handle potential markdown code blocks
             if "```json" in result_text:
                 result_text = result_text.split("```json")[1].split("```")[0]
@@ -382,7 +604,10 @@ Return JSON with the most relevant agents (max 3):
             for agent_info in data.get("agents", []):
                 agent_name = agent_info.get("name", "").lower()
                 confidence = float(agent_info.get("confidence", 0.0))
-                if agent_name in self.AGENT_KEYWORDS and confidence >= self.LOW_CONFIDENCE_THRESHOLD:
+                if (
+                    agent_name in self.AGENT_KEYWORDS
+                    and confidence >= self.LOW_CONFIDENCE_THRESHOLD
+                ):
                     scores[agent_name] = confidence
 
             detected_type = data.get("document_type", "unknown")
@@ -394,11 +619,9 @@ Return JSON with the most relevant agents (max 3):
             return {}, "unknown", 0
 
     def _determine_review_needed(
-        self,
-        classifications: list[AgentClassification]
+        self, classifications: list[AgentClassification]
     ) -> tuple[bool, Optional[str]]:
-        """
-        Determine if user review is needed.
+        """Determine if user review is needed.
 
         Returns:
             Tuple of (needs_review, reason)
@@ -426,12 +649,9 @@ Return JSON with the most relevant agents (max 3):
         return True, f"Low confidence ({top.confidence:.0%}) for {top.agent_name}"
 
     async def classify(
-        self,
-        document_id: str,
-        sample_chunks: list[str]
+        self, document_id: str, sample_chunks: list[str]
     ) -> DocumentClassificationResult:
-        """
-        Classify a document for agent relevance.
+        """Classify a document for agent relevance.
 
         Args:
             document_id: UUID of the document
@@ -470,7 +690,9 @@ Return JSON with the most relevant agents (max 3):
 
         # Build classifications list
         classifications: list[AgentClassification] = []
-        for agent_name, confidence in sorted(final_scores.items(), key=lambda x: x[1], reverse=True):
+        for agent_name, confidence in sorted(
+            final_scores.items(), key=lambda x: x[1], reverse=True
+        ):
             if confidence < self.LOW_CONFIDENCE_THRESHOLD:
                 continue
 
@@ -478,13 +700,15 @@ Return JSON with the most relevant agents (max 3):
             if not agent_id:
                 continue
 
-            classifications.append(AgentClassification(
-                agent_id=agent_id,
-                agent_name=agent_name,
-                confidence=confidence,
-                relevance_score=confidence,  # Use confidence as relevance
-                reason=f"Matched via {method} classification"
-            ))
+            classifications.append(
+                AgentClassification(
+                    agent_id=agent_id,
+                    agent_name=agent_name,
+                    confidence=confidence,
+                    relevance_score=confidence,  # Use confidence as relevance
+                    reason=f"Matched via {method} classification",
+                )
+            )
 
         # Limit to top 3 agents
         classifications = classifications[:3]
@@ -503,16 +727,13 @@ Return JSON with the most relevant agents (max 3):
             classification_method=method,
             model_used="claude-3-5-haiku-20241022" if method == "hybrid" else None,
             tokens_used=tokens_used,
-            processing_time_ms=processing_time_ms
+            processing_time_ms=processing_time_ms,
         )
 
     async def store_classification(
-        self,
-        result: DocumentClassificationResult,
-        auto_link_agents: bool = True
+        self, result: DocumentClassificationResult, auto_link_agents: bool = True
     ) -> bool:
-        """
-        Store classification result in database.
+        """Store classification result in database.
 
         Args:
             result: Classification result to store
@@ -546,7 +767,7 @@ Return JSON with the most relevant agents (max 3):
                         await self._link_agent_to_document(
                             document_id=result.document_id,
                             classification=classification,
-                            source=result.classification_method
+                            source=result.classification_method,
                         )
 
             logger.info(
@@ -560,47 +781,52 @@ Return JSON with the most relevant agents (max 3):
             return False
 
     async def _link_agent_to_document(
-        self,
-        document_id: str,
-        classification: AgentClassification,
-        source: str
+        self, document_id: str, classification: AgentClassification, source: str
     ) -> bool:
         """Create agent_knowledge_base link with relevance scoring."""
         try:
             # Check if link already exists
-            existing = self.supabase.table("agent_knowledge_base")\
-                .select("id")\
-                .eq("document_id", document_id)\
-                .eq("agent_id", classification.agent_id)\
+            existing = (
+                self.supabase.table("agent_knowledge_base")
+                .select("id")
+                .eq("document_id", document_id)
+                .eq("agent_id", classification.agent_id)
                 .execute()
+            )
 
             if existing.data:
                 # Update existing link
-                self.supabase.table("agent_knowledge_base").update({
-                    "relevance_score": classification.relevance_score,
-                    "classification_source": f"auto_{source}",
-                    "classification_confidence": classification.confidence,
-                    "classification_reason": classification.reason,
-                    "user_confirmed": False,
-                }).eq("id", existing.data[0]["id"]).execute()
+                self.supabase.table("agent_knowledge_base").update(
+                    {
+                        "relevance_score": classification.relevance_score,
+                        "classification_source": f"auto_{source}",
+                        "classification_confidence": classification.confidence,
+                        "classification_reason": classification.reason,
+                        "user_confirmed": False,
+                    }
+                ).eq("id", existing.data[0]["id"]).execute()
             else:
                 # Create new link
-                self.supabase.table("agent_knowledge_base").insert({
-                    "document_id": document_id,
-                    "agent_id": classification.agent_id,
-                    "relevance_score": classification.relevance_score,
-                    "classification_source": f"auto_{source}",
-                    "classification_confidence": classification.confidence,
-                    "classification_reason": classification.reason,
-                    "user_confirmed": False,
-                    "priority": 0,
-                }).execute()
+                self.supabase.table("agent_knowledge_base").insert(
+                    {
+                        "document_id": document_id,
+                        "agent_id": classification.agent_id,
+                        "relevance_score": classification.relevance_score,
+                        "classification_source": f"auto_{source}",
+                        "classification_confidence": classification.confidence,
+                        "classification_reason": classification.reason,
+                        "user_confirmed": False,
+                        "priority": 0,
+                    }
+                ).execute()
 
             logger.info(f"Linked agent {classification.agent_name} to document {document_id}")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to link agent {classification.agent_name} to document {document_id}: {e}")
+            logger.error(
+                f"Failed to link agent {classification.agent_name} to document {document_id}: {e}"
+            )
             return False
 
 
@@ -620,10 +846,9 @@ async def classify_document_for_agents(
     document_id: str,
     chunks: list[str],
     anthropic_client: Optional[anthropic.Anthropic] = None,
-    auto_store: bool = True
+    auto_store: bool = True,
 ) -> DocumentClassificationResult:
-    """
-    Convenience function to classify a document.
+    """Convenience function to classify a document.
 
     Args:
         document_id: UUID of the document

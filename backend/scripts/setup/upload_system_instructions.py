@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Upload System Instructions to Supabase Storage
+"""Upload System Instructions to Supabase Storage
 
 This script uploads local system instruction files to Supabase Storage
 to make them persistent and available in production.
@@ -30,8 +29,7 @@ USERS_DIR = SYSTEM_INSTRUCTIONS_DIR / "users"
 
 
 def upload_file_to_supabase(local_path: Path, storage_path: str) -> bool:
-    """
-    Upload a file to Supabase Storage.
+    """Upload a file to Supabase Storage.
 
     Args:
         local_path: Path to local file
@@ -44,26 +42,22 @@ def upload_file_to_supabase(local_path: Path, storage_path: str) -> bool:
         supabase = get_supabase()
 
         # Read file content
-        with open(local_path, 'rb') as f:
+        with open(local_path, "rb") as f:
             file_content = f.read()
 
         # Try to update existing file first
         try:
             logger.info(f"   Attempting to update existing file: {storage_path}")
-            result = supabase.storage.from_('system-instructions').update(
-                storage_path,
-                file_content,
-                {'content-type': 'text/plain; charset=utf-8'}
+            result = supabase.storage.from_("system-instructions").update(
+                storage_path, file_content, {"content-type": "text/plain; charset=utf-8"}
             )
             logger.info(f"   ✅ Updated: {storage_path}")
             return True
         except Exception:
             # If update fails, try upload (file might not exist yet)
             logger.info(f"   File doesn't exist, uploading new: {storage_path}")
-            result = supabase.storage.from_('system-instructions').upload(
-                storage_path,
-                file_content,
-                {'content-type': 'text/plain; charset=utf-8'}
+            result = supabase.storage.from_("system-instructions").upload(
+                storage_path, file_content, {"content-type": "text/plain; charset=utf-8"}
             )
             logger.info(f"   ✅ Uploaded: {storage_path}")
             return True
@@ -94,41 +88,32 @@ def upload_all_user_instructions() -> dict:
 
     if not USERS_DIR.exists():
         logger.error(f"❌ Users directory not found: {USERS_DIR}")
-        return {'success': 0, 'failed': 0}
+        return {"success": 0, "failed": 0}
 
     user_files = list(USERS_DIR.glob("*.txt"))
 
     if not user_files:
         logger.warning(f"⚠️  No user instruction files found in {USERS_DIR}")
-        return {'success': 0, 'failed': 0}
+        return {"success": 0, "failed": 0}
 
     logger.info(f"   Found {len(user_files)} user instruction file(s)")
 
-    results = {'success': 0, 'failed': 0}
+    results = {"success": 0, "failed": 0}
 
     for user_file in user_files:
         user_id = user_file.stem  # filename without extension
         if upload_user_instructions(user_id):
-            results['success'] += 1
+            results["success"] += 1
         else:
-            results['failed'] += 1
+            results["failed"] += 1
 
     return results
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='Upload system instructions to Supabase Storage'
-    )
-    parser.add_argument(
-        '--user-id',
-        help='Upload instructions for a specific user ID'
-    )
-    parser.add_argument(
-        '--all',
-        action='store_true',
-        help='Upload instructions for all users'
-    )
+    parser = argparse.ArgumentParser(description="Upload system instructions to Supabase Storage")
+    parser.add_argument("--user-id", help="Upload instructions for a specific user ID")
+    parser.add_argument("--all", action="store_true", help="Upload instructions for all users")
 
     args = parser.parse_args()
 
@@ -148,19 +133,22 @@ def main():
             logger.info("\n" + "=" * 80)
             logger.info(f"RESULTS: {results['success']} succeeded, {results['failed']} failed")
             logger.info("=" * 80)
-            sys.exit(0 if results['failed'] == 0 else 1)
+            sys.exit(0 if results["failed"] == 0 else 1)
 
         else:
             # Default: show usage
             parser.print_help()
             logger.info("\nExamples:")
             logger.info("  python upload_system_instructions.py --all")
-            logger.info("  python upload_system_instructions.py --user-id d3ba5354-873a-435a-a36a-853373c4f6e5")
+            logger.info(
+                "  python upload_system_instructions.py --user-id d3ba5354-873a-435a-a36a-853373c4f6e5"
+            )
             sys.exit(0)
 
     except Exception as e:
         logger.error(f"\n❌ Fatal error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

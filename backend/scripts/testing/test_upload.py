@@ -1,6 +1,5 @@
-"""
-Test script to verify document upload endpoint
-"""
+"""Test script to verify document upload endpoint"""
+
 import os
 
 import requests
@@ -8,7 +7,6 @@ import requests
 
 def test_document_upload():
     """Test uploading a document to the API"""
-
     # Create a simple test file
     test_content = """
     Thesis Test Document
@@ -26,8 +24,8 @@ def test_document_upload():
     """
 
     # Save test file
-    test_filename = 'test_document.txt'
-    with open(test_filename, 'w') as f:
+    test_filename = "test_document.txt"
+    with open(test_filename, "w") as f:
         f.write(test_content)
 
     print("=" * 60)
@@ -43,8 +41,8 @@ def test_document_upload():
 
     try:
         # Open file and upload
-        with open(test_filename, 'rb') as f:
-            files = {'file': (test_filename, f, 'text/plain')}
+        with open(test_filename, "rb") as f:
+            files = {"file": (test_filename, f, "text/plain")}
             response = requests.post(api_url, files=files)
 
         if response.status_code == 200:
@@ -60,7 +58,7 @@ def test_document_upload():
             os.remove(test_filename)
             print("\n✓ Cleaned up test file")
 
-            return result['document_id']
+            return result["document_id"]
         else:
             print(f"\n❌ Upload failed with status code: {response.status_code}")
             print(f"   Response: {response.text}")
@@ -74,6 +72,7 @@ def test_document_upload():
     except Exception as e:
         print(f"\n❌ ERROR: {str(e)}")
         return None
+
 
 if __name__ == "__main__":
     document_id = test_document_upload()

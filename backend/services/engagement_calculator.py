@@ -1,5 +1,4 @@
-"""
-Stakeholder Engagement Calculator
+"""Stakeholder Engagement Calculator
 
 This module provides automatic calculation of stakeholder engagement levels
 based on interaction signals from stakeholder_insights table.
@@ -32,9 +31,11 @@ logger = get_logger(__name__)
 # DATA MODELS
 # ============================================================================
 
+
 @dataclass
 class EngagementSignals:
     """Signals collected for engagement level calculation."""
+
     stakeholder_id: str
     current_level: str
 
@@ -93,6 +94,7 @@ class EngagementSignals:
 @dataclass
 class EngagementResult:
     """Result of an engagement level calculation."""
+
     stakeholder_id: str
     new_level: str
     previous_level: str
@@ -106,6 +108,7 @@ class EngagementResult:
 # ============================================================================
 
 ENGAGEMENT_LEVELS = ["blocker", "skeptic", "neutral", "supporter", "champion"]
+
 
 def level_rank(level: str) -> int:
     """Get numeric rank of engagement level (higher = better)."""
@@ -129,9 +132,9 @@ def is_demotion(old_level: str, new_level: str) -> bool:
 # ENGAGEMENT CALCULATOR
 # ============================================================================
 
+
 class EngagementCalculator:
-    """
-    Calculates stakeholder engagement levels based on interaction signals.
+    """Calculates stakeholder engagement levels based on interaction signals.
 
     Uses "sticky" level logic:
     - Promotion requires positive signals (interactions + positive insights)
@@ -143,19 +146,20 @@ class EngagementCalculator:
         self.supabase = supabase or get_supabase()
 
     async def collect_signals(self, stakeholder_id: str) -> EngagementSignals:
-        """
-        Collect all signals for engagement calculation.
+        """Collect all signals for engagement calculation.
 
         Queries:
         - stakeholders table for current level and interaction metrics
         - stakeholder_insights table for insight type counts
         """
         # Get stakeholder data
-        stakeholder_result = self.supabase.table("stakeholders")\
-            .select("engagement_level, total_interactions, last_interaction")\
-            .eq("id", stakeholder_id)\
-            .single()\
+        stakeholder_result = (
+            self.supabase.table("stakeholders")
+            .select("engagement_level, total_interactions, last_interaction")
+            .eq("id", stakeholder_id)
+            .single()
             .execute()
+        )
 
         if not stakeholder_result.data:
             raise ValueError(f"Stakeholder {stakeholder_id} not found")
@@ -176,10 +180,12 @@ class EngagementCalculator:
                 pass
 
         # Count insights by type
-        insights_result = self.supabase.table("stakeholder_insights")\
-            .select("insight_type, is_resolved")\
-            .eq("stakeholder_id", stakeholder_id)\
+        insights_result = (
+            self.supabase.table("stakeholder_insights")
+            .select("insight_type, is_resolved")
+            .eq("stakeholder_id", stakeholder_id)
             .execute()
+        )
 
         insights = insights_result.data or []
 
@@ -226,8 +232,7 @@ class EngagementCalculator:
         )
 
     def calculate_level(self, signals: EngagementSignals) -> tuple[str, str]:
-        """
-        Calculate engagement level from signals using sticky rules.
+        """Calculate engagement level from signals using sticky rules.
 
         Returns:
             tuple: (new_level, reason)
@@ -263,7 +268,10 @@ class EngagementCalculator:
         if signals.unresolved_objection_count >= 1:
             # Allow demotion to skeptic from any level
             if current_rank > level_rank("skeptic"):
-                return "skeptic", f"Unresolved objection detected ({signals.unresolved_objection_count})"
+                return (
+                    "skeptic",
+                    f"Unresolved objection detected ({signals.unresolved_objection_count})",
+                )
             # Keep at skeptic if already there or lower
             if current_rank <= level_rank("skeptic"):
                 return current, "Maintaining current level"
@@ -275,12 +283,18 @@ class EngagementCalculator:
         # Check for demotion from SUPPORTER/CHAMPION to NEUTRAL
         if current_rank >= level_rank("supporter"):
             if signals.unresolved_concern_count >= 2:
-                return "neutral", f"Multiple unresolved concerns ({signals.unresolved_concern_count})"
+                return (
+                    "neutral",
+                    f"Multiple unresolved concerns ({signals.unresolved_concern_count})",
+                )
 
         # Check for demotion from CHAMPION to SUPPORTER
         if current == "champion":
             if signals.objection_count > signals.support_count:
-                return "supporter", f"Objections ({signals.objection_count}) exceed support ({signals.support_count})"
+                return (
+                    "supporter",
+                    f"Objections ({signals.objection_count}) exceed support ({signals.support_count})",
+                )
 
         # Check for promotion to CHAMPION
         if signals.total_interactions >= 5:
@@ -296,19 +310,18 @@ class EngagementCalculator:
         # Check for promotion to SUPPORTER
         if signals.total_interactions >= 3 and signals.positive_ratio > 0.5:
             if current_rank < level_rank("supporter"):
-                return "supporter", f"Regular engagement with {signals.positive_ratio:.0%} positive signals"
+                return (
+                    "supporter",
+                    f"Regular engagement with {signals.positive_ratio:.0%} positive signals",
+                )
 
         # No change - maintain current level
         return current, "Maintaining current level (no qualifying signals for change)"
 
     async def calculate_for_stakeholder(
-        self,
-        stakeholder_id: str,
-        client_id: str,
-        calculation_type: str = "scheduled"
+        self, stakeholder_id: str, client_id: str, calculation_type: str = "scheduled"
     ) -> EngagementResult:
-        """
-        Calculate and update engagement for a single stakeholder.
+        """Calculate and update engagement for a single stakeholder.
 
         Args:
             stakeholder_id: UUID of stakeholder
@@ -328,32 +341,37 @@ class EngagementCalculator:
 
         # Update stakeholder if changed
         if changed:
-            self.supabase.table("stakeholders").update({
-                "engagement_level": new_level,
-                "last_engagement_calculated": datetime.now(timezone.utc).isoformat(),
-            }).eq("id", stakeholder_id).execute()
+            self.supabase.table("stakeholders").update(
+                {
+                    "engagement_level": new_level,
+                    "last_engagement_calculated": datetime.now(timezone.utc).isoformat(),
+                }
+            ).eq("id", stakeholder_id).execute()
 
             logger.info(
-                f"Engagement changed: {stakeholder_id} "
-                f"{previous_level} -> {new_level} ({reason})"
+                f"Engagement changed: {stakeholder_id} {previous_level} -> {new_level} ({reason})"
             )
         else:
             # Update timestamp even if no change
-            self.supabase.table("stakeholders").update({
-                "last_engagement_calculated": datetime.now(timezone.utc).isoformat(),
-            }).eq("id", stakeholder_id).execute()
+            self.supabase.table("stakeholders").update(
+                {
+                    "last_engagement_calculated": datetime.now(timezone.utc).isoformat(),
+                }
+            ).eq("id", stakeholder_id).execute()
 
         # Record in history (always, for trend tracking)
-        self.supabase.table("engagement_level_history").insert({
-            "id": str(uuid4()),
-            "stakeholder_id": stakeholder_id,
-            "client_id": client_id,
-            "engagement_level": new_level,
-            "previous_level": previous_level if changed else None,
-            "calculation_reason": reason,
-            "signals": signals.to_dict(),
-            "calculation_type": calculation_type,
-        }).execute()
+        self.supabase.table("engagement_level_history").insert(
+            {
+                "id": str(uuid4()),
+                "stakeholder_id": stakeholder_id,
+                "client_id": client_id,
+                "engagement_level": new_level,
+                "previous_level": previous_level if changed else None,
+                "calculation_reason": reason,
+                "signals": signals.to_dict(),
+                "calculation_type": calculation_type,
+            }
+        ).execute()
 
         return EngagementResult(
             stakeholder_id=stakeholder_id,
@@ -365,21 +383,17 @@ class EngagementCalculator:
         )
 
     async def calculate_for_client(
-        self,
-        client_id: str,
-        calculation_type: str = "scheduled"
+        self, client_id: str, calculation_type: str = "scheduled"
     ) -> dict:
-        """
-        Calculate engagement for all stakeholders in a client.
+        """Calculate engagement for all stakeholders in a client.
 
         Returns:
             dict with summary: {total, changed, promotions, demotions, errors}
         """
         # Get all stakeholders for client
-        result = self.supabase.table("stakeholders")\
-            .select("id")\
-            .eq("client_id", client_id)\
-            .execute()
+        result = (
+            self.supabase.table("stakeholders").select("id").eq("client_id", client_id).execute()
+        )
 
         stakeholders = result.data or []
 
@@ -411,12 +425,14 @@ class EngagementCalculator:
                     elif is_demotion(eng_result.previous_level, eng_result.new_level):
                         summary["demotions"] += 1
 
-                    summary["changes"].append({
-                        "stakeholder_id": stakeholder_id,
-                        "previous_level": eng_result.previous_level,
-                        "new_level": eng_result.new_level,
-                        "reason": eng_result.reason,
-                    })
+                    summary["changes"].append(
+                        {
+                            "stakeholder_id": stakeholder_id,
+                            "previous_level": eng_result.previous_level,
+                            "new_level": eng_result.new_level,
+                            "reason": eng_result.reason,
+                        }
+                    )
 
             except Exception as e:
                 logger.error(f"Error calculating engagement for {stakeholder_id}: {e}")
@@ -425,16 +441,13 @@ class EngagementCalculator:
         return summary
 
     async def calculate_all_clients(self) -> dict:
-        """
-        Calculate engagement for all active clients.
+        """Calculate engagement for all active clients.
 
         Returns:
             dict with overall summary and per-client results
         """
         # Get all clients with stakeholders
-        result = self.supabase.table("stakeholders")\
-            .select("client_id")\
-            .execute()
+        result = self.supabase.table("stakeholders").select("client_id").execute()
 
         client_ids = list(set(row["client_id"] for row in result.data if row.get("client_id")))
 

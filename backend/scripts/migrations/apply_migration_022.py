@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Apply Migration 022: Add metadata column to messages table
-"""
+"""Apply Migration 022: Add metadata column to messages table"""
 
 import sys
 from pathlib import Path
@@ -12,8 +10,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from scripts.lib.credentials import get_credentials
 
 creds = get_credentials()
-SUPABASE_URL = creds['supabase_url']
-SUPABASE_SERVICE_ROLE_KEY = creds['supabase_key']
+SUPABASE_URL = creds["supabase_url"]
+SUPABASE_SERVICE_ROLE_KEY = creds["supabase_key"]
 
 backend_dir = Path(__file__).parent
 
@@ -21,8 +19,8 @@ backend_dir = Path(__file__).parent
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 # Read migration file
-migration_file = backend_dir / 'migrations' / '022_add_messages_metadata_column.sql'
-with open(migration_file, 'r') as f:
+migration_file = backend_dir / "migrations" / "022_add_messages_metadata_column.sql"
+with open(migration_file, "r") as f:
     migration_sql = f.read()
 
 print("=" * 80)
@@ -39,11 +37,11 @@ try:
     print()
 
     # Split migration into individual statements
-    statements = migration_sql.split(';')
+    statements = migration_sql.split(";")
 
     for i, statement in enumerate(statements, 1):
         statement = statement.strip()
-        if not statement or statement.startswith('--'):
+        if not statement or statement.startswith("--"):
             continue
 
         print(f"Executing statement {i}...")
@@ -62,7 +60,9 @@ try:
     print()
     print("OPTION 1: Supabase Dashboard (Recommended)")
     print("-" * 80)
-    print(f"1. Go to: {SUPABASE_URL.replace('https://', 'https://supabase.com/dashboard/project/')}")
+    print(
+        f"1. Go to: {SUPABASE_URL.replace('https://', 'https://supabase.com/dashboard/project/')}"
+    )
     print("2. Click 'SQL Editor' in the left sidebar")
     print("3. Click 'New Query'")
     print("4. Copy the SQL from: backend/migrations/022_add_messages_metadata_column.sql")
@@ -70,7 +70,9 @@ try:
     print()
     print("OPTION 2: Using psql CLI")
     print("-" * 80)
-    print("psql postgresql://postgres:[PASSWORD]@db.quizuqhnapsemfvjublt.supabase.co:5432/postgres \\")
+    print(
+        "psql postgresql://postgres:[PASSWORD]@db.quizuqhnapsemfvjublt.supabase.co:5432/postgres \\"
+    )
     print("  -f backend/migrations/022_add_messages_metadata_column.sql")
     print()
     print("=" * 80)

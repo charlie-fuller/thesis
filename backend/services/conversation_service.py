@@ -1,5 +1,4 @@
-"""
-Conversation Service
+"""Conversation Service
 Handles conversation context analysis, including image generation suggestions
 """
 
@@ -12,6 +11,7 @@ logger = logging.getLogger(__name__)
 # Import the new L&D-specific detector
 try:
     from services.image_opportunity_detector import get_image_opportunity_detector
+
     LD_DETECTOR_AVAILABLE = True
 except ImportError:
     logger.warning("L&D Image Opportunity Detector not available")
@@ -23,59 +23,96 @@ class ConversationService:
 
     # Keywords that suggest visual content would be helpful
     VISUAL_KEYWORDS = [
-        'visualize', 'diagram', 'chart', 'graph', 'show me',
-        'what does', 'how does', 'illustrate', 'picture',
-        'image', 'sketch', 'draw', 'layout', 'design',
-        'architecture', 'structure', 'flow', 'process'
+        "visualize",
+        "diagram",
+        "chart",
+        "graph",
+        "show me",
+        "what does",
+        "how does",
+        "illustrate",
+        "picture",
+        "image",
+        "sketch",
+        "draw",
+        "layout",
+        "design",
+        "architecture",
+        "structure",
+        "flow",
+        "process",
     ]
 
     # Educational/complex topics that benefit from visuals
     EDUCATIONAL_TOPICS = [
-        'photosynthesis', 'solar system', 'anatomy', 'chemistry',
-        'physics', 'biology', 'mathematics', 'algorithm',
-        'data structure', 'network', 'circuit', 'ecosystem',
-        'cycle', 'timeline', 'hierarchy', 'workflow',
-        'architecture', 'model', 'framework', 'system design'
+        "photosynthesis",
+        "solar system",
+        "anatomy",
+        "chemistry",
+        "physics",
+        "biology",
+        "mathematics",
+        "algorithm",
+        "data structure",
+        "network",
+        "circuit",
+        "ecosystem",
+        "cycle",
+        "timeline",
+        "hierarchy",
+        "workflow",
+        "architecture",
+        "model",
+        "framework",
+        "system design",
     ]
 
     # Visual types that should trigger image generation
     VISUAL_TYPES = [
-        'image', 'picture', 'drawing', 'illustration',
-        'mind map', 'mindmap', 'flowchart', 'flow chart',
-        'diagram', 'infographic', 'timeline', 'chart',
-        'visualization', 'visual', 'graphic', 'schematic'
+        "image",
+        "picture",
+        "drawing",
+        "illustration",
+        "mind map",
+        "mindmap",
+        "flowchart",
+        "flow chart",
+        "diagram",
+        "infographic",
+        "timeline",
+        "chart",
+        "visualization",
+        "visual",
+        "graphic",
+        "schematic",
     ]
 
     # Explicit image request patterns
     IMAGE_REQUEST_PATTERNS = [
-        r'generate (?:an? )?image (?:of )?(.+)',
-        r'create (?:an? )?(?:picture|image|drawing) (?:of )?(.+)',
-        r'show me (?:an? )?(?:picture|image|visual) (?:of )?(.+)',
-        r'draw (.+)',
-        r'make (?:an? )?(?:picture|image) (?:of )?(.+)',
-        r'(?:can you |could you )?(?:generate|create|make|draw) (?:an? )?(?:image|picture) (.+)',
+        r"generate (?:an? )?image (?:of )?(.+)",
+        r"create (?:an? )?(?:picture|image|drawing) (?:of )?(.+)",
+        r"show me (?:an? )?(?:picture|image|visual) (?:of )?(.+)",
+        r"draw (.+)",
+        r"make (?:an? )?(?:picture|image) (?:of )?(.+)",
+        r"(?:can you |could you )?(?:generate|create|make|draw) (?:an? )?(?:image|picture) (.+)",
         # Visual types like mind map, flowchart, diagram, etc.
-        r'create (?:an? )?(?:mind ?map|flowchart|flow chart|diagram|infographic|timeline|chart|visualization|schematic) (?:of |for |about |showing |exploring )?(.+)',
-        r'(?:can you |could you )?(?:generate|create|make|draw) (?:an? )?(?:mind ?map|flowchart|flow chart|diagram|infographic|timeline|chart|visualization|schematic) (?:of |for |about |showing |exploring )?(.+)',
-        r'(?:generate|make) (?:an? )?(?:mind ?map|flowchart|flow chart|diagram|infographic|timeline|chart|visualization|schematic) (?:of |for |about |showing |exploring )?(.+)'
+        r"create (?:an? )?(?:mind ?map|flowchart|flow chart|diagram|infographic|timeline|chart|visualization|schematic) (?:of |for |about |showing |exploring )?(.+)",
+        r"(?:can you |could you )?(?:generate|create|make|draw) (?:an? )?(?:mind ?map|flowchart|flow chart|diagram|infographic|timeline|chart|visualization|schematic) (?:of |for |about |showing |exploring )?(.+)",
+        r"(?:generate|make) (?:an? )?(?:mind ?map|flowchart|flow chart|diagram|infographic|timeline|chart|visualization|schematic) (?:of |for |about |showing |exploring )?(.+)",
     ]
 
     # Aspect ratio keywords
     ASPECT_RATIO_KEYWORDS = {
-        '1:1': ['square', '1:1', 'instagram'],
-        '16:9': ['16:9', 'landscape', 'widescreen', 'presentation', 'wide'],
-        '9:16': ['9:16', 'portrait', 'vertical', 'mobile', 'story'],
-        '4:3': ['4:3', 'standard', 'classic']
+        "1:1": ["square", "1:1", "instagram"],
+        "16:9": ["16:9", "landscape", "widescreen", "presentation", "wide"],
+        "9:16": ["9:16", "portrait", "vertical", "mobile", "story"],
+        "4:3": ["4:3", "standard", "classic"],
     }
 
     def should_suggest_image(
-        self,
-        user_message: str,
-        assistant_response: str,
-        recent_messages: List[Dict[str, Any]]
+        self, user_message: str, assistant_response: str, recent_messages: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        """
-        Determine if an image suggestion should be made.
+        """Determine if an image suggestion should be made.
 
         Uses the L&D-specific Image Opportunity Detector for enhanced
         learning and development context awareness.
@@ -100,14 +137,13 @@ class ConversationService:
                 result = detector.detect_opportunity(
                     user_message=user_message,
                     assistant_response=assistant_response,
-                    recent_messages=recent_messages
+                    recent_messages=recent_messages,
                 )
 
-                if result.get('suggest'):
+                if result.get("suggest"):
                     # Generate the suggested prompt using the detector
                     suggested_prompt = detector.get_suggested_prompt(
-                        image_type=result['image_type'],
-                        subject=result['subject']
+                        image_type=result["image_type"], subject=result["subject"]
                     )
 
                     logger.info(
@@ -117,17 +153,18 @@ class ConversationService:
 
                     return {
                         "suggest": True,
-                        "reason": result['reason'],
+                        "reason": result["reason"],
                         "suggested_prompt": suggested_prompt,
-                        "image_type": result['image_type'],
-                        "subject": result['subject']
+                        "image_type": result["image_type"],
+                        "subject": result["subject"],
                     }
 
             # Fallback to original logic if detector not available or didn't trigger
             # Check if we've suggested recently (avoid spam)
             recent_suggestion_count = sum(
-                1 for msg in recent_messages
-                if msg.get('metadata', {}).get('image_suggestion') is not None
+                1
+                for msg in recent_messages
+                if msg.get("metadata", {}).get("image_suggestion") is not None
             )
 
             # Max 1 suggestion per 5 messages
@@ -147,8 +184,7 @@ class ConversationService:
 
             # Check for educational topics
             has_educational_topic = any(
-                topic in user_lower or topic in response_lower
-                for topic in self.EDUCATIONAL_TOPICS
+                topic in user_lower or topic in response_lower for topic in self.EDUCATIONAL_TOPICS
             )
 
             # Check message length - complex explanations benefit from visuals
@@ -162,7 +198,7 @@ class ConversationService:
                 return {
                     "suggest": True,
                     "reason": "This concept would be clearer with a visual",
-                    "suggested_prompt": suggested_prompt
+                    "suggested_prompt": suggested_prompt,
                 }
 
             return {"suggest": False}
@@ -172,8 +208,7 @@ class ConversationService:
             return {"suggest": False}
 
     def extract_image_request(self, user_message: str) -> Dict[str, Any]:
-        """
-        Detect and extract explicit image generation requests.
+        """Detect and extract explicit image generation requests.
 
         Uses a two-tier approach:
         1. First tries strict regex patterns for clear requests
@@ -214,7 +249,7 @@ class ConversationService:
                         "is_request": True,
                         "prompt": cleaned_prompt,
                         "aspect_ratio": aspect_ratio,
-                        "model": model
+                        "model": model,
                     }
 
             # Second, try flexible keyword-based detection
@@ -230,8 +265,7 @@ class ConversationService:
             return {"is_request": False}
 
     def _flexible_image_detection(self, user_message: str, user_lower: str) -> Dict[str, Any]:
-        """
-        Flexible keyword-based image request detection.
+        """Flexible keyword-based image request detection.
 
         Catches requests that don't match strict regex patterns, including:
         - Typos (e.g., "dioagram", "diagramm")
@@ -247,22 +281,53 @@ class ConversationService:
         """
         # Visual type keywords (with common typos)
         visual_keywords = [
-            'image', 'picture', 'diagram', 'dioagram', 'diagramm',
-            'mind map', 'mindmap', 'mind-map',
-            'flowchart', 'flow chart', 'flow-chart',
-            'infographic', 'info graphic', 'info-graphic',
-            'visualization', 'visualisation', 'visual',
-            'chart', 'graph', 'graphic', 'schematic',
-            'timeline', 'time line', 'time-line',
-            'illustration', 'drawing', 'sketch'
+            "image",
+            "picture",
+            "diagram",
+            "dioagram",
+            "diagramm",
+            "mind map",
+            "mindmap",
+            "mind-map",
+            "flowchart",
+            "flow chart",
+            "flow-chart",
+            "infographic",
+            "info graphic",
+            "info-graphic",
+            "visualization",
+            "visualisation",
+            "visual",
+            "chart",
+            "graph",
+            "graphic",
+            "schematic",
+            "timeline",
+            "time line",
+            "time-line",
+            "illustration",
+            "drawing",
+            "sketch",
         ]
 
         # Action keywords that indicate generation request
         action_keywords = [
-            'create', 'generate', 'make', 'draw', 'build',
-            'show', 'produce', 'design', 'render',
-            'give me', 'i need', 'i want', 'can you make',
-            'please create', 'please generate', 'please make'
+            "create",
+            "generate",
+            "make",
+            "draw",
+            "build",
+            "show",
+            "produce",
+            "design",
+            "render",
+            "give me",
+            "i need",
+            "i want",
+            "can you make",
+            "please create",
+            "please generate",
+            "please make",
         ]
 
         # Check for visual keyword presence
@@ -287,8 +352,12 @@ class ConversationService:
 
         # Try to extract just the subject part after common patterns
         extraction_patterns = [
-            r'(?:create|generate|make|draw|build|show|produce|design|render)\s+(?:a|an|the)?\s*(?:' + '|'.join(re.escape(v) for v in visual_keywords) + r')\s*(?:of|for|about|showing|exploring|on)?\s*[:\-]?\s*(.+)',
-            r'(?:give me|i need|i want)\s+(?:a|an|the)?\s*(?:' + '|'.join(re.escape(v) for v in visual_keywords) + r')\s*(?:of|for|about|showing|exploring|on)?\s*[:\-]?\s*(.+)',
+            r"(?:create|generate|make|draw|build|show|produce|design|render)\s+(?:a|an|the)?\s*(?:"
+            + "|".join(re.escape(v) for v in visual_keywords)
+            + r")\s*(?:of|for|about|showing|exploring|on)?\s*[:\-]?\s*(.+)",
+            r"(?:give me|i need|i want)\s+(?:a|an|the)?\s*(?:"
+            + "|".join(re.escape(v) for v in visual_keywords)
+            + r")\s*(?:of|for|about|showing|exploring|on)?\s*[:\-]?\s*(.+)",
         ]
 
         for pattern in extraction_patterns:
@@ -307,19 +376,20 @@ class ConversationService:
         aspect_ratio = self._extract_aspect_ratio(user_message)
         model = self._extract_model_preference(user_message)
 
-        logger.info(f"Image request detected (flexible): visual='{found_visual}', prompt='{cleaned_prompt[:50]}...'")
+        logger.info(
+            f"Image request detected (flexible): visual='{found_visual}', prompt='{cleaned_prompt[:50]}...'"
+        )
 
         return {
             "is_request": True,
             "prompt": cleaned_prompt,
             "aspect_ratio": aspect_ratio,
             "model": model,
-            "detected_visual_type": found_visual
+            "detected_visual_type": found_visual,
         }
 
     def _extract_subject_for_image(self, user_message: str, assistant_response: str) -> str:
-        """
-        Extract a good subject for image generation from context.
+        """Extract a good subject for image generation from context.
 
         Args:
             user_message: User's message
@@ -333,21 +403,20 @@ class ConversationService:
 
         # Remove common question words
         subject = user_message
-        for phrase in ['how does', 'what is', 'explain', 'tell me about', 'show me']:
+        for phrase in ["how does", "what is", "explain", "tell me about", "show me"]:
             if user_lower.startswith(phrase):
-                subject = user_message[len(phrase):].strip()
+                subject = user_message[len(phrase) :].strip()
                 break
 
         # Limit length
         words = subject.split()
         if len(words) > 10:
-            subject = ' '.join(words[:10])
+            subject = " ".join(words[:10])
 
         return f"diagram showing {subject}"
 
     def _extract_aspect_ratio(self, text: str) -> Optional[str]:
-        """
-        Extract aspect ratio from text.
+        """Extract aspect ratio from text.
 
         Args:
             text: Message text
@@ -364,8 +433,7 @@ class ConversationService:
         return None
 
     def _extract_model_preference(self, text: str) -> Optional[str]:
-        """
-        Extract model preference from text.
+        """Extract model preference from text.
 
         Args:
             text: Message text
@@ -375,16 +443,15 @@ class ConversationService:
         """
         text_lower = text.lower()
 
-        if any(word in text_lower for word in ['fast', 'quick', 'rapid', 'speed']):
-            return 'fast'
-        elif any(word in text_lower for word in ['quality', 'high quality', 'detailed', 'best']):
-            return 'quality'
+        if any(word in text_lower for word in ["fast", "quick", "rapid", "speed"]):
+            return "fast"
+        elif any(word in text_lower for word in ["quality", "high quality", "detailed", "best"]):
+            return "quality"
 
         return None
 
     def _clean_prompt(self, prompt: str) -> str:
-        """
-        Remove aspect ratio and model keywords from prompt.
+        """Remove aspect ratio and model keywords from prompt.
 
         Args:
             prompt: Raw prompt text
@@ -395,17 +462,17 @@ class ConversationService:
         # Remove aspect ratio mentions
         for keywords in self.ASPECT_RATIO_KEYWORDS.values():
             for keyword in keywords:
-                prompt = re.sub(rf'\b{keyword}\b', '', prompt, flags=re.IGNORECASE)
+                prompt = re.sub(rf"\b{keyword}\b", "", prompt, flags=re.IGNORECASE)
 
         # Remove model preference words
-        for word in ['fast', 'quick', 'quality', 'high quality', 'detailed']:
-            prompt = re.sub(rf'\b{word}\b', '', prompt, flags=re.IGNORECASE)
+        for word in ["fast", "quick", "quality", "high quality", "detailed"]:
+            prompt = re.sub(rf"\b{word}\b", "", prompt, flags=re.IGNORECASE)
 
         # Remove "in" at the beginning (e.g., "in 16:9" -> "")
-        prompt = re.sub(r'^\s*in\s+', '', prompt, flags=re.IGNORECASE)
+        prompt = re.sub(r"^\s*in\s+", "", prompt, flags=re.IGNORECASE)
 
         # Clean up extra whitespace
-        prompt = ' '.join(prompt.split())
+        prompt = " ".join(prompt.split())
 
         return prompt.strip()
 

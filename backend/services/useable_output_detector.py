@@ -1,7 +1,7 @@
-"""
-Useable Output Detection Service
+"""Useable Output Detection Service
 Blended approach using multiple signals to detect when AI output becomes useable
 """
+
 from datetime import datetime, timezone
 from typing import Optional, Tuple
 
@@ -13,6 +13,7 @@ logger = get_logger(__name__)
 # Lazy initialization - don't call get_supabase() at import time
 _supabase = None
 
+
 def _get_db():
     """Get Supabase client lazily to avoid import-time initialization."""
     global _supabase
@@ -20,33 +21,61 @@ def _get_db():
         _supabase = get_supabase()
     return _supabase
 
+
 # Positive confirmation keywords indicating useable output
 CONFIRMATION_KEYWORDS = [
     # Acceptance
-    'perfect', 'exactly', 'great', 'excellent', 'awesome',
+    "perfect",
+    "exactly",
+    "great",
+    "excellent",
+    "awesome",
     # Gratitude
-    'thanks', 'thank you', 'appreciate', 'appreciated',
+    "thanks",
+    "thank you",
+    "appreciate",
+    "appreciated",
     # Agreement
-    'that works', 'this works', 'works for me', 'sounds good',
+    "that works",
+    "this works",
+    "works for me",
+    "sounds good",
     # Completion
-    'got it', 'understood', 'makes sense', 'i can work with this',
-    'this is what i needed', 'just what i needed',
+    "got it",
+    "understood",
+    "makes sense",
+    "i can work with this",
+    "this is what i needed",
+    "just what i needed",
     # Positive affirmation
-    'yes this is good', 'yes perfect', 'thats it', "that's it",
-    'spot on', 'bang on', 'nailed it'
+    "yes this is good",
+    "yes perfect",
+    "thats it",
+    "that's it",
+    "spot on",
+    "bang on",
+    "nailed it",
 ]
 
 # Strong negative indicators (user is still iterating)
 ITERATION_KEYWORDS = [
-    'actually', 'but', 'however', 'instead', 'no not',
-    'can you change', 'modify', 'adjust', 'fix this',
-    'thats not quite', "that's not quite", 'not exactly'
+    "actually",
+    "but",
+    "however",
+    "instead",
+    "no not",
+    "can you change",
+    "modify",
+    "adjust",
+    "fix this",
+    "thats not quite",
+    "that's not quite",
+    "not exactly",
 ]
 
 
 def detect_confirmation_keywords(message_content: str) -> bool:
-    """
-    Detect if user message contains positive confirmation keywords
+    """Detect if user message contains positive confirmation keywords
 
     Args:
         message_content: The user's message content
@@ -65,8 +94,7 @@ def detect_confirmation_keywords(message_content: str) -> bool:
 
 
 def calculate_turns_to_message(conversation_id: str, message_id: str) -> int:
-    """
-    Calculate number of user turns up to and including a specific message
+    """Calculate number of user turns up to and including a specific message
 
     Args:
         conversation_id: The conversation ID
@@ -77,23 +105,23 @@ def calculate_turns_to_message(conversation_id: str, message_id: str) -> int:
     """
     try:
         # Get the target message timestamp
-        target_msg = _get_db().table('messages').select(
-            'timestamp'
-        ).eq('id', message_id).execute()
+        target_msg = _get_db().table("messages").select("timestamp").eq("id", message_id).execute()
 
         if not target_msg.data:
             return 0
 
-        target_timestamp = target_msg.data[0]['timestamp']
+        target_timestamp = target_msg.data[0]["timestamp"]
 
         # Count user messages up to this timestamp
-        user_messages = _get_db().table('messages').select(
-            'id'
-        ).eq('conversation_id', conversation_id).eq(
-            'role', 'user'
-        ).lte(
-            'timestamp', target_timestamp
-        ).execute()
+        user_messages = (
+            _get_db()
+            .table("messages")
+            .select("id")
+            .eq("conversation_id", conversation_id)
+            .eq("role", "user")
+            .lte("timestamp", target_timestamp)
+            .execute()
+        )
 
         return len(user_messages.data) if user_messages.data else 0
 
@@ -103,13 +131,9 @@ def calculate_turns_to_message(conversation_id: str, message_id: str) -> int:
 
 
 def mark_useable_output(
-    conversation_id: str,
-    message_id: str,
-    method: str,
-    user_id: Optional[str] = None
+    conversation_id: str, message_id: str, method: str, user_id: Optional[str] = None
 ) -> bool:
-    """
-    Mark a message as useable output in the database
+    """Mark a message as useable output in the database
 
     Args:
         conversation_id: The conversation ID
@@ -122,11 +146,15 @@ def mark_useable_output(
     """
     try:
         # Check if already marked (don't override)
-        existing = _get_db().table('conversations').select(
-            'useable_output_message_id'
-        ).eq('id', conversation_id).execute()
+        existing = (
+            _get_db()
+            .table("conversations")
+            .select("useable_output_message_id")
+            .eq("id", conversation_id)
+            .execute()
+        )
 
-        if existing.data and existing.data[0].get('useable_output_message_id'):
+        if existing.data and existing.data[0].get("useable_output_message_id"):
             logger.info(f"Conversation {conversation_id} already has useable output marked")
             return True  # Already marked, that's fine
 
@@ -134,12 +162,20 @@ def mark_useable_output(
         turns = calculate_turns_to_message(conversation_id, message_id)
 
         # Update conversation
-        result = _get_db().table('conversations').update({
-            'useable_output_message_id': message_id,
-            'turns_to_useable_output': turns,
-            'useable_output_method': method,
-            'useable_output_detected_at': datetime.now(timezone.utc).isoformat()
-        }).eq('id', conversation_id).execute()
+        result = (
+            _get_db()
+            .table("conversations")
+            .update(
+                {
+                    "useable_output_message_id": message_id,
+                    "turns_to_useable_output": turns,
+                    "useable_output_method": method,
+                    "useable_output_detected_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            .eq("id", conversation_id)
+            .execute()
+        )
 
         logger.info(
             f"Marked useable output for conversation {conversation_id}: "
@@ -154,8 +190,7 @@ def mark_useable_output(
 
 
 def auto_detect_useable_output(conversation_id: str) -> Optional[Tuple[str, str, int]]:
-    """
-    Automatically detect useable output using multiple signals
+    """Automatically detect useable output using multiple signals
 
     Checks in priority order:
     1. Copy events (tracked separately)
@@ -171,11 +206,14 @@ def auto_detect_useable_output(conversation_id: str) -> Optional[Tuple[str, str,
     """
     try:
         # Get all messages in conversation
-        messages = _get_db().table('messages').select(
-            'id, role, content, timestamp'
-        ).eq('conversation_id', conversation_id).order(
-            'timestamp', desc=False
-        ).execute()
+        messages = (
+            _get_db()
+            .table("messages")
+            .select("id, role, content, timestamp")
+            .eq("conversation_id", conversation_id)
+            .order("timestamp", desc=False)
+            .execute()
+        )
 
         if not messages.data or len(messages.data) < 2:
             return None
@@ -183,27 +221,27 @@ def auto_detect_useable_output(conversation_id: str) -> Optional[Tuple[str, str,
         # Analyze conversation flow
         for i, msg in enumerate(messages.data):
             # Skip if not a user message
-            if msg['role'] != 'user':
+            if msg["role"] != "user":
                 continue
 
             # Check for confirmation keywords in user message
-            if detect_confirmation_keywords(msg['content']):
+            if detect_confirmation_keywords(msg["content"]):
                 # Previous message (assistant) was the useable output
-                if i > 0 and messages.data[i-1]['role'] == 'assistant':
-                    assistant_msg_id = messages.data[i-1]['id']
+                if i > 0 and messages.data[i - 1]["role"] == "assistant":
+                    assistant_msg_id = messages.data[i - 1]["id"]
                     turns = calculate_turns_to_message(conversation_id, assistant_msg_id)
                     logger.info(
                         f"Auto-detected useable output via keywords in conversation {conversation_id}"
                     )
-                    return (assistant_msg_id, 'keyword_detected', turns)
+                    return (assistant_msg_id, "keyword_detected", turns)
 
         # Fallback: If conversation has ended naturally (no activity recently)
         # Use the last assistant message
-        last_messages = [m for m in messages.data if m['role'] == 'assistant']
+        last_messages = [m for m in messages.data if m["role"] == "assistant"]
         if last_messages:
             last_assistant_msg = last_messages[-1]
-            turns = calculate_turns_to_message(conversation_id, last_assistant_msg['id'])
-            return (last_assistant_msg['id'], 'conversation_ended', turns)
+            turns = calculate_turns_to_message(conversation_id, last_assistant_msg["id"])
+            return (last_assistant_msg["id"], "conversation_ended", turns)
 
         return None
 
@@ -213,8 +251,7 @@ def auto_detect_useable_output(conversation_id: str) -> Optional[Tuple[str, str,
 
 
 def process_conversation_for_useable_output(conversation_id: str) -> bool:
-    """
-    Process a conversation to detect and mark useable output if not already marked
+    """Process a conversation to detect and mark useable output if not already marked
 
     Args:
         conversation_id: The conversation ID
@@ -224,11 +261,15 @@ def process_conversation_for_useable_output(conversation_id: str) -> bool:
     """
     try:
         # Check if already marked
-        existing = _get_db().table('conversations').select(
-            'useable_output_message_id'
-        ).eq('id', conversation_id).execute()
+        existing = (
+            _get_db()
+            .table("conversations")
+            .select("useable_output_message_id")
+            .eq("id", conversation_id)
+            .execute()
+        )
 
-        if existing.data and existing.data[0].get('useable_output_message_id'):
+        if existing.data and existing.data[0].get("useable_output_message_id"):
             return True  # Already marked
 
         # Auto-detect

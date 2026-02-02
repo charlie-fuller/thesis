@@ -1,5 +1,4 @@
-"""
-Retry Logic with Exponential Backoff
+"""Retry Logic with Exponential Backoff
 
 Provides decorators and utilities for retrying failed operations with
 configurable backoff strategies and error handling.
@@ -14,7 +13,7 @@ from logger_config import get_logger
 
 logger = get_logger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def retry_with_backoff(
@@ -23,10 +22,9 @@ def retry_with_backoff(
     max_delay: float = 60.0,
     exponential_base: float = 2.0,
     retry_on: Tuple[Type[Exception], ...] = (Exception,),
-    log_attempts: bool = True
+    log_attempts: bool = True,
 ):
-    """
-    Decorator for retrying functions with exponential backoff.
+    """Decorator for retrying functions with exponential backoff.
 
     Args:
         max_retries: Maximum number of retry attempts (default: 3)
@@ -42,6 +40,7 @@ def retry_with_backoff(
             response = requests.get("https://api.example.com/data")
             return response.json()
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> T:
@@ -55,7 +54,7 @@ def retry_with_backoff(
                     if attempt > 0 and log_attempts:
                         logger.info(
                             f"Retry successful for {func.__name__} on attempt {attempt + 1}",
-                            extra={"function": func.__name__, "attempt": attempt + 1}
+                            extra={"function": func.__name__, "attempt": attempt + 1},
                         )
 
                     return result
@@ -71,16 +70,13 @@ def retry_with_backoff(
                                 extra={
                                     "function": func.__name__,
                                     "attempts": max_retries + 1,
-                                    "error": str(e)
-                                }
+                                    "error": str(e),
+                                },
                             )
                         raise
 
                     # Calculate delay with exponential backoff
-                    delay = min(
-                        initial_delay * (exponential_base ** attempt),
-                        max_delay
-                    )
+                    delay = min(initial_delay * (exponential_base**attempt), max_delay)
 
                     if log_attempts:
                         logger.warning(
@@ -89,8 +85,8 @@ def retry_with_backoff(
                                 "function": func.__name__,
                                 "attempt": attempt + 1,
                                 "delay": delay,
-                                "error": str(e)
-                            }
+                                "error": str(e),
+                            },
                         )
 
                     time.sleep(delay)
@@ -100,6 +96,7 @@ def retry_with_backoff(
                 raise last_exception
 
         return wrapper
+
     return decorator
 
 
@@ -109,10 +106,9 @@ def async_retry_with_backoff(
     max_delay: float = 60.0,
     exponential_base: float = 2.0,
     retry_on: Tuple[Type[Exception], ...] = (Exception,),
-    log_attempts: bool = True
+    log_attempts: bool = True,
 ):
-    """
-    Async version of retry_with_backoff decorator.
+    """Async version of retry_with_backoff decorator.
 
     Args:
         max_retries: Maximum number of retry attempts (default: 3)
@@ -129,6 +125,7 @@ def async_retry_with_backoff(
                 response = await client.get("https://api.example.com/data")
                 return response.json()
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs) -> T:
@@ -142,7 +139,7 @@ def async_retry_with_backoff(
                     if attempt > 0 and log_attempts:
                         logger.info(
                             f"Retry successful for {func.__name__} on attempt {attempt + 1}",
-                            extra={"function": func.__name__, "attempt": attempt + 1}
+                            extra={"function": func.__name__, "attempt": attempt + 1},
                         )
 
                     return result
@@ -158,16 +155,13 @@ def async_retry_with_backoff(
                                 extra={
                                     "function": func.__name__,
                                     "attempts": max_retries + 1,
-                                    "error": str(e)
-                                }
+                                    "error": str(e),
+                                },
                             )
                         raise
 
                     # Calculate delay with exponential backoff
-                    delay = min(
-                        initial_delay * (exponential_base ** attempt),
-                        max_delay
-                    )
+                    delay = min(initial_delay * (exponential_base**attempt), max_delay)
 
                     if log_attempts:
                         logger.warning(
@@ -176,8 +170,8 @@ def async_retry_with_backoff(
                                 "function": func.__name__,
                                 "attempt": attempt + 1,
                                 "delay": delay,
-                                "error": str(e)
-                            }
+                                "error": str(e),
+                            },
                         )
 
                     await asyncio.sleep(delay)
@@ -187,12 +181,12 @@ def async_retry_with_backoff(
                 raise last_exception
 
         return wrapper
+
     return decorator
 
 
 class CircuitBreaker:
-    """
-    Circuit breaker pattern implementation.
+    """Circuit breaker pattern implementation.
 
     Prevents repeated calls to a failing service by "opening" the circuit
     after a threshold of failures. The circuit will "half-open" after a
@@ -215,10 +209,9 @@ class CircuitBreaker:
         self,
         failure_threshold: int = 5,
         timeout: float = 60.0,
-        expected_exception: Type[Exception] = Exception
+        expected_exception: Type[Exception] = Exception,
     ):
-        """
-        Initialize circuit breaker.
+        """Initialize circuit breaker.
 
         Args:
             failure_threshold: Number of failures before opening circuit
@@ -234,8 +227,7 @@ class CircuitBreaker:
         self._state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
 
     def call(self, func: Callable[..., T]) -> Callable[..., T]:
-        """
-        Decorator to wrap function calls with circuit breaker logic.
+        """Decorator to wrap function calls with circuit breaker logic.
 
         Args:
             func: Function to wrap
@@ -243,6 +235,7 @@ class CircuitBreaker:
         Returns:
             Wrapped function with circuit breaker protection
         """
+
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> T:
             if self._state == "OPEN":
@@ -253,8 +246,8 @@ class CircuitBreaker:
                         extra={
                             "function": func.__name__,
                             "failure_count": self._failure_count,
-                            "state": self._state
-                        }
+                            "state": self._state,
+                        },
                     )
                     raise Exception(f"Circuit breaker OPEN for {func.__name__}")
                 else:
@@ -262,7 +255,7 @@ class CircuitBreaker:
                     self._state = "HALF_OPEN"
                     logger.info(
                         f"Circuit breaker transitioning to HALF_OPEN for {func.__name__}",
-                        extra={"function": func.__name__, "state": "HALF_OPEN"}
+                        extra={"function": func.__name__, "state": "HALF_OPEN"},
                     )
 
             try:
@@ -272,7 +265,7 @@ class CircuitBreaker:
                 if self._state == "HALF_OPEN":
                     logger.info(
                         f"Circuit breaker closing after successful call to {func.__name__}",
-                        extra={"function": func.__name__, "state": "CLOSED"}
+                        extra={"function": func.__name__, "state": "CLOSED"},
                     )
 
                 self._failure_count = 0
@@ -291,8 +284,8 @@ class CircuitBreaker:
                             "function": func.__name__,
                             "failure_count": self._failure_count,
                             "state": "OPEN",
-                            "error": str(e)
-                        }
+                            "error": str(e),
+                        },
                     )
 
                 raise
@@ -309,55 +302,52 @@ class CircuitBreaker:
 
 # Pre-configured retry strategies for common scenarios
 def retry_on_rate_limit(max_retries: int = 5):
-    """
-    Retry strategy specifically for API rate limits (429 errors).
+    """Retry strategy specifically for API rate limits (429 errors).
 
     Uses longer delays suitable for rate limit recovery.
     """
     return retry_with_backoff(
         max_retries=max_retries,
         initial_delay=5.0,  # Start with 5 seconds
-        max_delay=300.0,    # Max 5 minutes
+        max_delay=300.0,  # Max 5 minutes
         exponential_base=2.0,
-        log_attempts=True
+        log_attempts=True,
     )
 
 
 def retry_on_network_error(max_retries: int = 3):
-    """
-    Retry strategy for transient network errors.
+    """Retry strategy for transient network errors.
 
     Uses shorter delays suitable for quick recovery.
     """
     return retry_with_backoff(
         max_retries=max_retries,
         initial_delay=1.0,  # Start with 1 second
-        max_delay=10.0,     # Max 10 seconds
+        max_delay=10.0,  # Max 10 seconds
         exponential_base=2.0,
-        log_attempts=True
+        log_attempts=True,
     )
 
 
 def retry_on_server_error(max_retries: int = 3):
-    """
-    Retry strategy for server errors (5xx).
+    """Retry strategy for server errors (5xx).
 
     Uses moderate delays for server recovery.
     """
     return retry_with_backoff(
         max_retries=max_retries,
         initial_delay=2.0,  # Start with 2 seconds
-        max_delay=30.0,     # Max 30 seconds
+        max_delay=30.0,  # Max 30 seconds
         exponential_base=2.0,
-        log_attempts=True
+        log_attempts=True,
     )
 
 
 __all__ = [
-    'retry_with_backoff',
-    'async_retry_with_backoff',
-    'CircuitBreaker',
-    'retry_on_rate_limit',
-    'retry_on_network_error',
-    'retry_on_server_error',
+    "retry_with_backoff",
+    "async_retry_with_backoff",
+    "CircuitBreaker",
+    "retry_on_rate_limit",
+    "retry_on_network_error",
+    "retry_on_server_error",
 ]

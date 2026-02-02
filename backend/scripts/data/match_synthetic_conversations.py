@@ -8,34 +8,34 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from scripts.lib.credentials import get_credentials
 
 creds = get_credentials()
-SUPABASE_URL = creds['supabase_url']
-SUPABASE_SERVICE_ROLE_KEY = creds['supabase_key']
+SUPABASE_URL = creds["supabase_url"]
+SUPABASE_SERVICE_ROLE_KEY = creds["supabase_key"]
 
 # Load the synthetic conversations JSON
-with open('synthetic_conversations_charlie.json', 'r') as f:
+with open("synthetic_conversations_charlie.json", "r") as f:
     synthetic_conversations = json.load(f)
 
-expected_titles = [conv['title'] for conv in synthetic_conversations]
+expected_titles = [conv["title"] for conv in synthetic_conversations]
 
 print("📋 Expected synthetic conversation titles:")
 for i, title in enumerate(expected_titles, 1):
     print(f"  {i}. {title}")
 
-print("\n" + "="*80)
+print("\n" + "=" * 80)
 
 # Get all conversations for Charlie
 conv_url = f"{SUPABASE_URL}/rest/v1/conversations"
 headers = {
     "apikey": SUPABASE_SERVICE_ROLE_KEY,
     "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
 
 params = {
     "user_id": "eq.d3ba5354-873a-435a-a36a-853373c4f6e5",
     "select": "id,title,created_at",
     "order": "created_at.desc",
-    "limit": 30
+    "limit": 30,
 }
 
 conv_response = requests.get(conv_url, headers=headers, params=params)
@@ -48,16 +48,13 @@ matched = []
 unmatched = []
 
 for conv in all_conversations:
-    if conv['title'] in expected_titles:
+    if conv["title"] in expected_titles:
         matched.append(conv)
         print(f"✅ MATCH: {conv['title']}")
         print(f"   Created: {conv['created_at'][:10]}")
         # Get message count
         msg_url = f"{SUPABASE_URL}/rest/v1/messages"
-        msg_params = {
-            "conversation_id": f"eq.{conv['id']}",
-            "select": "id"
-        }
+        msg_params = {"conversation_id": f"eq.{conv['id']}", "select": "id"}
         msg_response = requests.get(msg_url, headers=headers, params=msg_params)
         msg_count = len(msg_response.json())
         print(f"   Messages: {msg_count}")
@@ -72,7 +69,7 @@ print(f"  Missing: {len(expected_titles) - len(matched)}")
 
 if len(expected_titles) - len(matched) > 0:
     print("\n❌ Missing conversations:")
-    matched_titles = [c['title'] for c in matched]
+    matched_titles = [c["title"] for c in matched]
     for title in expected_titles:
         if title not in matched_titles:
             print(f"  - {title}")
@@ -80,4 +77,3 @@ if len(expected_titles) - len(matched) > 0:
 print("\n📝 Other conversations (not synthetic):")
 for conv in unmatched[:10]:
     print(f"  - {conv['title']} ({conv['created_at'][:10]})")
-

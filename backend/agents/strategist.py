@@ -1,5 +1,4 @@
-"""
-Strategist Agent - Executive Strategy Partner
+"""Strategist Agent - Executive Strategy Partner
 
 The Strategist agent specializes in:
 - C-suite engagement and executive sponsorship
@@ -14,16 +13,16 @@ from pathlib import Path
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class StrategistAgent(BaseAgent):
-    """
-    Strategist - The Executive Strategy Partner.
+    """Strategist - The Executive Strategy Partner.
 
     Specializes in C-suite engagement, organizational politics,
     governance design, and strategic transformation leadership.
@@ -34,7 +33,7 @@ class StrategistAgent(BaseAgent):
             name="strategist",
             display_name="Strategist",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -71,7 +70,7 @@ Provide strategic, executive-level guidance for AI transformation initiatives.""
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -84,14 +83,22 @@ Provide strategic, executive-level guidance for AI transformation initiatives.""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Strategic insight: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Strategic insight: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         important_indicators = [
-            "executive", "strategy", "governance", "sponsor",
-            "coalition", "transformation", "board", "c-suite"
+            "executive",
+            "strategy",
+            "governance",
+            "sponsor",
+            "coalition",
+            "transformation",
+            "board",
+            "c-suite",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -110,11 +117,17 @@ Provide strategic, executive-level guidance for AI transformation initiatives.""
         message_lower = context.user_message.lower()
 
         # Hand off to Architect for technical architecture questions
-        if any(word in message_lower for word in ["architecture", "technical design", "integration", "api"]):
+        if any(
+            word in message_lower
+            for word in ["architecture", "technical design", "integration", "api"]
+        ):
             return ("architect", "Query requires technical architecture expertise")
 
         # Hand off to Capital for detailed financial modeling
-        if any(word in message_lower for word in ["roi calculation", "financial model", "budget breakdown"]):
+        if any(
+            word in message_lower
+            for word in ["roi calculation", "financial model", "budget breakdown"]
+        ):
             return ("capital", "Query requires detailed financial analysis")
 
         # Hand off to Operator for ground-level operations

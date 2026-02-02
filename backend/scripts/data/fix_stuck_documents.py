@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""
-Fix stuck documents that are in 'pending' status
+"""Fix stuck documents that are in 'pending' status
 Triggers processing for all documents with processing_status = 'pending'
 """
+
 import os
 
 import requests
@@ -12,15 +12,18 @@ from database import get_supabase
 
 load_dotenv()
 
+
 def fix_stuck_documents():
     """Find and trigger processing for all pending documents"""
     supabase = get_supabase()
 
     # Find all documents stuck in 'pending' status
-    result = supabase.table('documents')\
-        .select('id, filename, uploaded_by')\
-        .eq('processing_status', 'pending')\
+    result = (
+        supabase.table("documents")
+        .select("id, filename, uploaded_by")
+        .eq("processing_status", "pending")
         .execute()
+    )
 
     pending_docs = result.data
 
@@ -40,11 +43,13 @@ def fix_stuck_documents():
     for doc in pending_docs:
         try:
             # Get a user token for this user
-            user_result = supabase.table('users')\
-                .select('id, email')\
-                .eq('id', doc['uploaded_by'])\
-                .single()\
+            user_result = (
+                supabase.table("users")
+                .select("id, email")
+                .eq("id", doc["uploaded_by"])
+                .single()
                 .execute()
+            )
 
             if not user_result.data:
                 print(f"   ❌ User not found for document {doc['filename']}")
@@ -59,20 +64,20 @@ def fix_stuck_documents():
 
             now = datetime.now(timezone.utc)
             payload = {
-                'sub': user['id'],
-                'email': user['email'],
-                'aud': 'authenticated',
-                'role': 'authenticated',
-                'iat': int(now.timestamp()),
-                'exp': int((now + timedelta(hours=1)).timestamp())
+                "sub": user["id"],
+                "email": user["email"],
+                "aud": "authenticated",
+                "role": "authenticated",
+                "iat": int(now.timestamp()),
+                "exp": int((now + timedelta(hours=1)).timestamp()),
             }
 
-            token = jwt.encode(payload, os.getenv('SUPABASE_JWT_SECRET'), algorithm='HS256')
+            token = jwt.encode(payload, os.getenv("SUPABASE_JWT_SECRET"), algorithm="HS256")
 
             # Trigger processing
             response = requests.post(
                 f"{backend_url}/api/documents/{doc['id']}/process",
-                headers={'Authorization': f'Bearer {token}'}
+                headers={"Authorization": f"Bearer {token}"},
             )
 
             if response.status_code == 200:
@@ -84,6 +89,7 @@ def fix_stuck_documents():
             print(f"   ❌ Error processing {doc['filename']}: {e}")
 
     print("\n✅ Done! Check document statuses in a few moments.")
+
 
 if __name__ == "__main__":
     fix_stuck_documents()

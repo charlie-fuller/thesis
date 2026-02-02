@@ -1,5 +1,4 @@
-"""
-Career Status Report Generation Service
+"""Career Status Report Generation Service
 
 Generates AI-powered career status reports for the Compass agent.
 Uses a 5-dimension rubric to assess career performance:
@@ -18,7 +17,6 @@ import logging
 import os
 from datetime import date
 from typing import Optional
-from uuid import UUID
 
 import anthropic
 
@@ -95,8 +93,7 @@ DEFAULT_RUBRIC = {
 
 
 async def get_career_context(user_id: str, client_id: str) -> dict:
-    """
-    Gather career-related context from KB and memories.
+    """Gather career-related context from KB and memories.
 
     Pulls from ALL KB documents for the client, prioritizing:
     1. Recent meeting transcripts
@@ -131,7 +128,9 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
             .execute()
         )
 
-        logger.info(f"Documents query returned {len(docs_result.data) if docs_result.data else 0} documents")
+        logger.info(
+            f"Documents query returned {len(docs_result.data) if docs_result.data else 0} documents"
+        )
 
         if docs_result.data:
             # Get document IDs to fetch chunks
@@ -165,10 +164,25 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
 
             # Keywords that suggest career-relevant content
             career_keywords = [
-                "1:1", "one-on-one", "feedback", "performance", "goal",
-                "win", "accomplishment", "review", "check-in", "checkin",
-                "career", "growth", "development", "promotion", "raise",
-                "project", "deliverable", "milestone", "deadline"
+                "1:1",
+                "one-on-one",
+                "feedback",
+                "performance",
+                "goal",
+                "win",
+                "accomplishment",
+                "review",
+                "check-in",
+                "checkin",
+                "career",
+                "growth",
+                "development",
+                "promotion",
+                "raise",
+                "project",
+                "deliverable",
+                "milestone",
+                "deadline",
             ]
 
             for doc in docs_result.data:
@@ -185,15 +199,14 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
 
                 # Check if it's a transcript
                 is_transcript = (
-                    doc_type in ["transcript", "meeting_transcript"] or
-                    "transcript" in title_lower or
-                    "meeting" in title_lower
+                    doc_type in ["transcript", "meeting_transcript"]
+                    or "transcript" in title_lower
+                    or "meeting" in title_lower
                 )
 
                 # Check for career-relevant keywords
                 is_career_relevant = any(
-                    kw in title_lower or kw in content_lower
-                    for kw in career_keywords
+                    kw in title_lower or kw in content_lower for kw in career_keywords
                 )
 
                 doc_entry = {
@@ -212,7 +225,9 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
 
             # Build final document list: prioritize transcripts, then career-relevant
             # Take up to 5 transcripts, 3 career-relevant, 2 other recent docs
-            logger.info(f"Categorized docs: {len(transcripts)} transcripts, {len(career_relevant)} career-relevant, {len(other_docs)} other")
+            logger.info(
+                f"Categorized docs: {len(transcripts)} transcripts, {len(career_relevant)} career-relevant, {len(other_docs)} other"
+            )
 
             final_docs = []
             final_docs.extend(transcripts[:5])
@@ -243,7 +258,6 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
 
 def _build_assessment_prompt(context: dict) -> str:
     """Build the prompt for career status assessment."""
-
     # Format rubric dimensions
     rubric_text = "CAREER ASSESSMENT RUBRIC:\n\n"
     for key, dim in DEFAULT_RUBRIC.items():
@@ -429,8 +443,7 @@ async def generate_career_status_report(
     period_start: Optional[date] = None,
     period_end: Optional[date] = None,
 ) -> dict:
-    """
-    Generate a career status report.
+    """Generate a career status report.
 
     Args:
         user_id: The user's UUID
@@ -478,18 +491,12 @@ async def generate_career_status_report(
             "leadership_presence": assessment.get("leadership_presence"),
             "overall_score": assessment.get("overall_score"),
             "executive_summary": assessment.get("executive_summary"),
-            "strategic_impact_justification": assessment.get(
-                "strategic_impact_justification"
-            ),
-            "execution_quality_justification": assessment.get(
-                "execution_quality_justification"
-            ),
+            "strategic_impact_justification": assessment.get("strategic_impact_justification"),
+            "execution_quality_justification": assessment.get("execution_quality_justification"),
             "relationship_building_justification": assessment.get(
                 "relationship_building_justification"
             ),
-            "growth_mindset_justification": assessment.get(
-                "growth_mindset_justification"
-            ),
+            "growth_mindset_justification": assessment.get("growth_mindset_justification"),
             "leadership_presence_justification": assessment.get(
                 "leadership_presence_justification"
             ),
@@ -505,9 +512,7 @@ async def generate_career_status_report(
         }
 
         # Insert into database
-        result = (
-            supabase.table("compass_status_reports").insert(report_data).execute()
-        )
+        result = supabase.table("compass_status_reports").insert(report_data).execute()
 
         if result.data:
             logger.info(f"Generated career status report for user {user_id}")
@@ -537,9 +542,7 @@ async def get_latest_report(user_id: str, client_id: str) -> Optional[dict]:
     return result.data[0] if result.data else None
 
 
-async def list_reports(
-    user_id: str, client_id: str, limit: int = 10
-) -> list:
+async def list_reports(user_id: str, client_id: str, limit: int = 10) -> list:
     """List historical reports for a user."""
     supabase = get_supabase()
 
@@ -556,9 +559,7 @@ async def list_reports(
     return result.data or []
 
 
-async def get_report_by_id(
-    report_id: str, user_id: str, client_id: str
-) -> Optional[dict]:
+async def get_report_by_id(report_id: str, user_id: str, client_id: str) -> Optional[dict]:
     """Get a specific report by ID."""
     supabase = get_supabase()
 

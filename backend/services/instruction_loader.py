@@ -1,5 +1,4 @@
-"""
-Instruction Loader Service
+"""Instruction Loader Service
 
 Loads agent system instructions from XML files.
 XML files in backend/system_instructions/agents/ are the SINGLE SOURCE OF TRUTH.
@@ -14,11 +13,10 @@ Supports <include> directive for shared instruction fragments:
 """
 
 import logging
-import os
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +34,7 @@ def get_instruction_file_path(agent_name: str) -> Path:
 
 
 def load_shared_file(relative_path: str) -> Optional[str]:
-    """
-    Load a shared instruction fragment file.
+    """Load a shared instruction fragment file.
 
     Args:
         relative_path: Path relative to system_instructions/ (e.g., "shared/smart_brevity.xml")
@@ -53,7 +50,7 @@ def load_shared_file(relative_path: str) -> Optional[str]:
         return None
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
         logger.debug(f"Loaded shared file: {relative_path} ({len(content)} chars)")
         return content
@@ -63,8 +60,7 @@ def load_shared_file(relative_path: str) -> Optional[str]:
 
 
 def resolve_includes(content: str, max_depth: int = 3, current_depth: int = 0) -> str:
-    """
-    Resolve <include file="..." /> directives in instruction content.
+    """Resolve <include file="..." /> directives in instruction content.
 
     Args:
         content: The instruction content with potential include tags
@@ -93,8 +89,7 @@ def resolve_includes(content: str, max_depth: int = 3, current_depth: int = 0) -
 
 
 def load_instruction_from_file(agent_name: str, resolve_include_tags: bool = True) -> Optional[str]:
-    """
-    Load an agent's system instruction from its XML file.
+    """Load an agent's system instruction from its XML file.
 
     Args:
         agent_name: The agent's name (e.g., "atlas", "capital")
@@ -110,7 +105,7 @@ def load_instruction_from_file(agent_name: str, resolve_include_tags: bool = Tru
         return None
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Resolve include tags if requested
@@ -125,8 +120,7 @@ def load_instruction_from_file(agent_name: str, resolve_include_tags: bool = Tru
 
 
 def save_instruction_to_file(agent_name: str, content: str) -> bool:
-    """
-    Save an agent's system instruction to its XML file.
+    """Save an agent's system instruction to its XML file.
 
     Args:
         agent_name: The agent's name
@@ -141,7 +135,7 @@ def save_instruction_to_file(agent_name: str, content: str) -> bool:
         # Ensure directory exists
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
 
         logger.info(f"Saved instruction for {agent_name} to {file_path} ({len(content)} chars)")
@@ -167,8 +161,7 @@ def get_instruction_file_mtime(agent_name: str) -> Optional[datetime]:
 
 
 def list_available_instruction_files() -> list[dict]:
-    """
-    List all available instruction XML files.
+    """List all available instruction XML files.
 
     Returns:
         List of dicts with agent_name, file_path, size, and modified_at.
@@ -181,12 +174,14 @@ def list_available_instruction_files() -> list[dict]:
     for file_path in INSTRUCTIONS_DIR.glob("*.xml"):
         try:
             stat = file_path.stat()
-            files.append({
-                "agent_name": file_path.stem,
-                "file_path": str(file_path),
-                "size": stat.st_size,
-                "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-            })
+            files.append(
+                {
+                    "agent_name": file_path.stem,
+                    "file_path": str(file_path),
+                    "size": stat.st_size,
+                    "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                }
+            )
         except Exception as e:
             logger.error(f"Failed to stat {file_path}: {e}")
 

@@ -1,5 +1,4 @@
-"""
-Glean Evaluator Agent - "Can We Glean This?"
+"""Glean Evaluator Agent - "Can We Glean This?"
 
 The Glean Evaluator agent specializes in:
 - Assessing PRDs and application requests for Glean platform fit
@@ -14,16 +13,16 @@ from pathlib import Path
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class GleanEvaluatorAgent(BaseAgent):
-    """
-    Glean Evaluator - The "Can We Glean This?" Platform Fit Assessor.
+    """Glean Evaluator - The "Can We Glean This?" Platform Fit Assessor.
 
     Specializes in evaluating whether Glean is the appropriate tool
     for a given PRD, discussion, or application request. Considers
@@ -35,7 +34,7 @@ class GleanEvaluatorAgent(BaseAgent):
             name="glean_evaluator",
             display_name="Can We Glean This?",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -78,7 +77,7 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -91,14 +90,23 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Glean assessment: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Glean assessment: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         important_indicators = [
-            "glean", "assessment", "recommendation", "go", "no-go",
-            "alternative", "integration", "platform", "decision"
+            "glean",
+            "assessment",
+            "recommendation",
+            "go",
+            "no-go",
+            "alternative",
+            "integration",
+            "platform",
+            "decision",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -118,15 +126,24 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
         message_lower = context.user_message.lower()
 
         # Hand off to Architect for deep technical architecture questions
-        if any(word in message_lower for word in ["architecture", "rag", "custom build", "technical design"]):
+        if any(
+            word in message_lower
+            for word in ["architecture", "rag", "custom build", "technical design"]
+        ):
             return ("architect", "Query requires deep technical architecture expertise")
 
         # Hand off to Guardian for security/compliance deep-dives
-        if any(word in message_lower for word in ["soc2", "hipaa", "gdpr", "security audit", "compliance"]):
+        if any(
+            word in message_lower
+            for word in ["soc2", "hipaa", "gdpr", "security audit", "compliance"]
+        ):
             return ("guardian", "Query requires security/compliance expertise")
 
         # Hand off to Capital for detailed cost analysis
-        if any(word in message_lower for word in ["budget", "roi", "cost breakdown", "financial analysis"]):
+        if any(
+            word in message_lower
+            for word in ["budget", "roi", "cost breakdown", "financial analysis"]
+        ):
             return ("capital", "Query requires detailed financial analysis")
 
         return None

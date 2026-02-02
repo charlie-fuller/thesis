@@ -1,5 +1,4 @@
-"""
-Sage Agent - People & Human Flourishing
+"""Sage Agent - People & Human Flourishing
 
 The Sage agent specializes in:
 - Human-centered AI adoption and change management
@@ -19,16 +18,16 @@ import logging
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class SageAgent(BaseAgent):
-    """
-    Sage - The People & Human Flourishing agent.
+    """Sage - The People & Human Flourishing agent.
 
     Specializes in ensuring AI initiatives are human-centered,
     addressing change resistance, building community, and promoting
@@ -37,10 +36,7 @@ class SageAgent(BaseAgent):
 
     def __init__(self, supabase: Client, anthropic_client: anthropic.Anthropic):
         super().__init__(
-            name="sage",
-            display_name="Sage",
-            supabase=supabase,
-            anthropic_client=anthropic_client
+            name="sage", display_name="Sage", supabase=supabase, anthropic_client=anthropic_client
         )
 
     def _get_default_instruction(self) -> str:
@@ -455,9 +451,9 @@ Your warmth and empathy are not weakness - they are your primary tools for enabl
         if context.stakeholders:
             stakeholder_context = "\n\nRelevant stakeholders and their current state:\n"
             for stakeholder in context.stakeholders[:5]:
-                sentiment = stakeholder.get('sentiment_score', 0)
-                engagement = stakeholder.get('engagement_level', 'unknown')
-                concerns = stakeholder.get('concerns', [])
+                sentiment = stakeholder.get("sentiment_score", 0)
+                engagement = stakeholder.get("engagement_level", "unknown")
+                concerns = stakeholder.get("concerns", [])
                 stakeholder_context += f"- {stakeholder.get('name', 'Unknown')}: "
                 stakeholder_context += f"Sentiment {sentiment:+.2f}, Engagement: {engagement}"
                 if concerns:
@@ -469,7 +465,7 @@ Your warmth and empathy are not weakness - they are your primary tools for enabl
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -482,16 +478,30 @@ Your warmth and empathy are not weakness - they are your primary tools for enabl
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"People insight: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"People insight: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         # Save interactions that reveal important people/culture insights
         important_indicators = [
-            "fear", "resistance", "concern", "anxiety", "burnout",
-            "champion", "community", "culture", "trust", "safety",
-            "overwhelm", "support", "engagement", "morale", "adoption"
+            "fear",
+            "resistance",
+            "concern",
+            "anxiety",
+            "burnout",
+            "champion",
+            "community",
+            "culture",
+            "trust",
+            "safety",
+            "overwhelm",
+            "support",
+            "engagement",
+            "morale",
+            "adoption",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -512,23 +522,36 @@ Your warmth and empathy are not weakness - they are your primary tools for enabl
         message_lower = context.user_message.lower()
 
         # Hand off to Atlas for research needs
-        if any(word in message_lower for word in ["research", "case study", "best practice", "industry trend"]):
+        if any(
+            word in message_lower
+            for word in ["research", "case study", "best practice", "industry trend"]
+        ):
             return ("atlas", "Query requires research synthesis")
 
         # Hand off to Capital for financial justification
-        if any(word in message_lower for word in ["roi", "budget", "cost", "financial justification"]):
+        if any(
+            word in message_lower for word in ["roi", "budget", "cost", "financial justification"]
+        ):
             return ("capital", "Query requires financial analysis")
 
         # Hand off to Guardian for governance/security concerns
-        if any(word in message_lower for word in ["security concern", "compliance", "policy", "governance"]):
+        if any(
+            word in message_lower
+            for word in ["security concern", "compliance", "policy", "governance"]
+        ):
             return ("guardian", "Query requires governance expertise")
 
         # Hand off to Counselor for legal/HR legal matters
-        if any(word in message_lower for word in ["employment law", "hr policy", "legal liability"]):
+        if any(
+            word in message_lower for word in ["employment law", "hr policy", "legal liability"]
+        ):
             return ("counselor", "Query requires legal expertise")
 
         # Hand off to Oracle for specific transcript analysis
-        if any(word in message_lower for word in ["analyze transcript", "meeting notes", "extract sentiment"]):
+        if any(
+            word in message_lower
+            for word in ["analyze transcript", "meeting notes", "extract sentiment"]
+        ):
             return ("oracle", "Query involves transcript analysis")
 
         return None

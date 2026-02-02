@@ -1,5 +1,4 @@
-"""
-Entity Registry API endpoints.
+"""Entity Registry API endpoints.
 Manage organizations and person names for validation.
 
 Version: 1.0.0
@@ -68,7 +67,7 @@ async def list_organizations(
     limit: int = 100,
     offset: int = 0,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """List organizations in the registry."""
     client_id = current_user.get("client_id")
@@ -88,11 +87,11 @@ async def list_organizations(
                 "industry": e.industry,
                 "notes": e.notes,
                 "created_at": e.created_at.isoformat() if e.created_at else None,
-                "updated_at": e.updated_at.isoformat() if e.updated_at else None
+                "updated_at": e.updated_at.isoformat() if e.updated_at else None,
             }
             for e in entries
         ],
-        "count": len(entries)
+        "count": len(entries),
     }
 
 
@@ -100,7 +99,7 @@ async def list_organizations(
 async def create_organization(
     request: CreateOrganizationRequest,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Add an organization to the registry."""
     client_id = current_user.get("client_id")
@@ -114,13 +113,12 @@ async def create_organization(
         aliases=request.aliases,
         domain=request.domain,
         industry=request.industry,
-        notes=request.notes
+        notes=request.notes,
     )
 
     if not entry_id:
         raise HTTPException(
-            status_code=409,
-            detail=f"Organization '{request.canonical_name}' already exists"
+            status_code=409, detail=f"Organization '{request.canonical_name}' already exists"
         )
 
     return {"id": entry_id, "canonical_name": request.canonical_name}
@@ -128,9 +126,7 @@ async def create_organization(
 
 @router.get("/organizations/{org_id}")
 async def get_organization(
-    org_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase)
+    org_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
 ):
     """Get a specific organization."""
     client_id = current_user.get("client_id")
@@ -151,7 +147,7 @@ async def get_organization(
         "industry": entry.industry,
         "notes": entry.notes,
         "created_at": entry.created_at.isoformat() if entry.created_at else None,
-        "updated_at": entry.updated_at.isoformat() if entry.updated_at else None
+        "updated_at": entry.updated_at.isoformat() if entry.updated_at else None,
     }
 
 
@@ -160,7 +156,7 @@ async def add_organization_alias(
     org_id: str,
     request: AddAliasRequest,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Add an alias to an organization."""
     client_id = current_user.get("client_id")
@@ -191,7 +187,7 @@ async def list_persons(
     limit: int = 100,
     offset: int = 0,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """List persons in the registry."""
     client_id = current_user.get("client_id")
@@ -212,11 +208,11 @@ async def list_persons(
                 "stakeholder_id": e.stakeholder_id,
                 "notes": e.notes,
                 "created_at": e.created_at.isoformat() if e.created_at else None,
-                "updated_at": e.updated_at.isoformat() if e.updated_at else None
+                "updated_at": e.updated_at.isoformat() if e.updated_at else None,
             }
             for e in entries
         ],
-        "count": len(entries)
+        "count": len(entries),
     }
 
 
@@ -224,7 +220,7 @@ async def list_persons(
 async def create_person(
     request: CreatePersonRequest,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Add a person to the registry."""
     client_id = current_user.get("client_id")
@@ -237,13 +233,12 @@ async def create_person(
         canonical_name=request.canonical_name,
         aliases=request.aliases,
         stakeholder_id=request.stakeholder_id,
-        notes=request.notes
+        notes=request.notes,
     )
 
     if not entry_id:
         raise HTTPException(
-            status_code=409,
-            detail=f"Person '{request.canonical_name}' already exists"
+            status_code=409, detail=f"Person '{request.canonical_name}' already exists"
         )
 
     return {"id": entry_id, "canonical_name": request.canonical_name}
@@ -251,9 +246,7 @@ async def create_person(
 
 @router.get("/persons/{person_id}")
 async def get_person(
-    person_id: str,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase)
+    person_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
 ):
     """Get a specific person."""
     client_id = current_user.get("client_id")
@@ -275,7 +268,7 @@ async def get_person(
         "stakeholder_id": entry.stakeholder_id,
         "notes": entry.notes,
         "created_at": entry.created_at.isoformat() if entry.created_at else None,
-        "updated_at": entry.updated_at.isoformat() if entry.updated_at else None
+        "updated_at": entry.updated_at.isoformat() if entry.updated_at else None,
     }
 
 
@@ -284,7 +277,7 @@ async def add_person_alias(
     person_id: str,
     request: AddAliasRequest,
     current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase)
+    supabase=Depends(get_supabase),
 ):
     """Add an alias to a person."""
     client_id = current_user.get("client_id")
@@ -312,11 +305,9 @@ async def add_person_alias(
 
 @router.post("/bootstrap", response_model=BootstrapResponse)
 async def bootstrap_registry(
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase)
+    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
 ):
-    """
-    Populate registries from existing stakeholder data.
+    """Populate registries from existing stakeholder data.
 
     Creates person entries for all stakeholders and organization entries
     for unique organizations.

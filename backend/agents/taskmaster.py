@@ -1,5 +1,4 @@
-"""
-Taskmaster Agent - Personal Accountability Partner
+"""Taskmaster Agent - Personal Accountability Partner
 
 The Taskmaster agent specializes in:
 - Task discovery from KB documents and meeting transcripts
@@ -16,16 +15,16 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class TaskmasterAgent(BaseAgent):
-    """
-    Taskmaster - The Personal Accountability Partner agent.
+    """Taskmaster - The Personal Accountability Partner agent.
 
     Specializes in surfacing tasks from meetings/documents, tracking progress,
     detecting slippage, and providing focus guidance through daily digests.
@@ -36,7 +35,7 @@ class TaskmasterAgent(BaseAgent):
             name="taskmaster",
             display_name="Taskmaster",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -155,8 +154,8 @@ When creating tasks from extracted items:
         if context.kb_context:
             kb_summary = "\n\nKnowledge Base content (search for tasks here):\n"
             for i, chunk in enumerate(context.kb_context[:5], 1):
-                source = chunk.get('metadata', {}).get('filename', 'Unknown source')
-                content_preview = chunk.get('content', '')[:500]
+                source = chunk.get("metadata", {}).get("filename", "Unknown source")
+                content_preview = chunk.get("content", "")[:500]
                 kb_summary += f"\n[Source {i}: {source}]\n{content_preview}\n"
             messages[0]["content"] = kb_summary + "\n\n" + messages[0]["content"]
 
@@ -164,7 +163,7 @@ When creating tasks from extracted items:
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -173,7 +172,7 @@ When creating tasks from extracted items:
             content=content,
             agent_name=self.name,
             agent_display_name=self.display_name,
-            save_to_memory=False
+            save_to_memory=False,
         )
 
     async def _get_task_context(self, context: AgentContext) -> Optional[str]:
@@ -186,25 +185,37 @@ When creating tasks from extracted items:
             week_end = today + timedelta(days=7)
 
             # First, get user's details for assignee matching and client filtering
-            user_result = self.supabase.table('users').select(
-                'id, full_name, name, email, client_id'
-            ).eq('id', context.user_id).single().execute()
+            user_result = (
+                self.supabase.table("users")
+                .select("id, full_name, name, email, client_id")
+                .eq("id", context.user_id)
+                .single()
+                .execute()
+            )
 
             user_name = None
             client_id = None
             if user_result.data:
-                user_name = user_result.data.get('full_name') or user_result.data.get('name')
-                client_id = user_result.data.get('client_id')
+                user_name = user_result.data.get("full_name") or user_result.data.get("name")
+                client_id = user_result.data.get("client_id")
 
             if not client_id:
                 logger.warning(f"No client_id found for user {context.user_id}")
-                return "\n[Task Context: Unable to load tasks - user not associated with a client]\n"
+                return (
+                    "\n[Task Context: Unable to load tasks - user not associated with a client]\n"
+                )
 
             # Query tasks for this client
             # Get all tasks for the client, then filter in code for user-specific ones
-            result = self.supabase.table('project_tasks').select(
-                'id, title, status, priority, due_date, blocked_at, blocker_reason, assignee_user_id, assignee_name'
-            ).eq('client_id', client_id).neq('status', 'completed').execute()
+            result = (
+                self.supabase.table("project_tasks")
+                .select(
+                    "id, title, status, priority, due_date, blocked_at, blocker_reason, assignee_user_id, assignee_name"
+                )
+                .eq("client_id", client_id)
+                .neq("status", "completed")
+                .execute()
+            )
 
             if not result.data:
                 return "\n[Task Context: No active tasks found]\n"
@@ -212,8 +223,8 @@ When creating tasks from extracted items:
             # Filter to user's tasks (assigned to them, or unassigned in single-user client)
             tasks = []
             for task in result.data:
-                task_user_id = task.get('assignee_user_id')
-                task_assignee = task.get('assignee_name', '') or ''
+                task_user_id = task.get("assignee_user_id")
+                task_assignee = task.get("assignee_name", "") or ""
 
                 # Include task if:
                 # 1. Assigned to this user by ID
@@ -238,16 +249,16 @@ When creating tasks from extracted items:
             blocked = []
 
             for task in tasks:
-                if task.get('status') == 'blocked':
+                if task.get("status") == "blocked":
                     blocked.append(task)
                     continue
 
-                due_date_str = task.get('due_date')
+                due_date_str = task.get("due_date")
                 if not due_date_str:
                     no_due_date.append(task)
                     continue
 
-                due_date = datetime.strptime(due_date_str, '%Y-%m-%d').date()
+                due_date = datetime.strptime(due_date_str, "%Y-%m-%d").date()
                 if due_date < today:
                     overdue.append(task)
                 elif due_date == today:
@@ -264,25 +275,29 @@ When creating tasks from extracted items:
             if overdue:
                 context_parts.append(f"\nOVERDUE ({len(overdue)}):")
                 for t in overdue[:5]:
-                    priority_label = self._priority_label(t.get('priority', 3))
-                    context_parts.append(f"  - [{priority_label}] {t['title']} (due: {t['due_date']})")
+                    priority_label = self._priority_label(t.get("priority", 3))
+                    context_parts.append(
+                        f"  - [{priority_label}] {t['title']} (due: {t['due_date']})"
+                    )
 
             if due_today:
                 context_parts.append(f"\nDUE TODAY ({len(due_today)}):")
                 for t in due_today[:5]:
-                    priority_label = self._priority_label(t.get('priority', 3))
+                    priority_label = self._priority_label(t.get("priority", 3))
                     context_parts.append(f"  - [{priority_label}] {t['title']}")
 
             if due_this_week:
                 context_parts.append(f"\nDUE THIS WEEK ({len(due_this_week)}):")
                 for t in due_this_week[:5]:
-                    priority_label = self._priority_label(t.get('priority', 3))
-                    context_parts.append(f"  - [{priority_label}] {t['title']} (due: {t['due_date']})")
+                    priority_label = self._priority_label(t.get("priority", 3))
+                    context_parts.append(
+                        f"  - [{priority_label}] {t['title']} (due: {t['due_date']})"
+                    )
 
             if blocked:
                 context_parts.append(f"\nBLOCKED ({len(blocked)}):")
                 for t in blocked[:3]:
-                    reason = t.get('blocker_reason', 'No reason specified')
+                    reason = t.get("blocker_reason", "No reason specified")
                     context_parts.append(f"  - {t['title']}: {reason[:50]}")
 
             if no_due_date:
@@ -304,15 +319,24 @@ When creating tasks from extracted items:
         message_lower = context.user_message.lower()
 
         # Hand off to Oracle for transcript analysis
-        if any(word in message_lower for word in ["analyze transcript", "meeting notes", "what was discussed"]):
+        if any(
+            word in message_lower
+            for word in ["analyze transcript", "meeting notes", "what was discussed"]
+        ):
             return ("oracle", "Query requires transcript analysis expertise")
 
         # Hand off to Compass for career-related task prioritization
-        if any(word in message_lower for word in ["career goal", "performance review", "1:1 prep", "manager conversation"]):
+        if any(
+            word in message_lower
+            for word in ["career goal", "performance review", "1:1 prep", "manager conversation"]
+        ):
             return ("compass", "Query requires career coaching expertise")
 
         # Hand off to Operator for business operations context
-        if any(word in message_lower for word in ["opportunity pipeline", "project triage", "business metrics"]):
+        if any(
+            word in message_lower
+            for word in ["opportunity pipeline", "project triage", "business metrics"]
+        ):
             return ("operator", "Query requires business operations expertise")
 
         return None

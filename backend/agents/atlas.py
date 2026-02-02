@@ -1,5 +1,4 @@
-"""
-Atlas Agent - Research Intelligence
+"""Atlas Agent - Research Intelligence
 
 The Atlas agent specializes in:
 - Tracking GenAI research and trends
@@ -14,9 +13,10 @@ import logging
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +41,7 @@ When synthesizing your research:
 
 
 class AtlasAgent(BaseAgent):
-    """
-    Atlas - The Research Intelligence agent.
+    """Atlas - The Research Intelligence agent.
 
     Specializes in GenAI implementation research, consulting approaches,
     and evidence-based recommendations.
@@ -50,10 +49,7 @@ class AtlasAgent(BaseAgent):
 
     def __init__(self, supabase: Client, anthropic_client: anthropic.Anthropic):
         super().__init__(
-            name="atlas",
-            display_name="Atlas",
-            supabase=supabase,
-            anthropic_client=anthropic_client
+            name="atlas", display_name="Atlas", supabase=supabase, anthropic_client=anthropic_client
         )
 
     def _get_default_instruction(self) -> str:
@@ -608,7 +604,7 @@ Apply Lean principles to AI research and recommendations:
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -621,21 +617,20 @@ Apply Lean principles to AI research and recommendations:
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Research query: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Research query: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     async def process_with_web_research(
-        self,
-        context: AgentContext,
-        focus_area: str = "general"
+        self, context: AgentContext, focus_area: str = "general"
     ) -> AgentResponse:
-        """
-        Process a research query with web search enhancement.
+        """Process a research query with web search enhancement.
 
         Used by the research scheduler for proactive research tasks.
         Performs web search first, then synthesizes with Atlas persona.
         """
-        from services.web_researcher import research_topic_with_web, format_citations_for_output
+        from services.web_researcher import format_citations_for_output, research_topic_with_web
 
         # Extract topic from user message
         topic = context.user_message
@@ -643,9 +638,7 @@ Apply Lean principles to AI research and recommendations:
         # Perform web research
         try:
             web_context, citations = await research_topic_with_web(
-                topic=topic,
-                focus_area=focus_area,
-                max_sources=8
+                topic=topic, focus_area=focus_area, max_sources=8
             )
         except Exception as e:
             logger.warning(f"Web research failed, proceeding without: {e}")
@@ -673,7 +666,7 @@ Apply Lean principles to AI research and recommendations:
             model="claude-sonnet-4-20250514",
             max_tokens=8192,  # Larger for research output
             system=enhanced_system,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -690,24 +683,20 @@ Apply Lean principles to AI research and recommendations:
             save_to_memory=True,  # Always save research
             memory_content=f"Research on: {topic[:100]}...",
             metadata={
-                'focus_area': focus_area,
-                'web_sources': len(citations),
-                'citations': citations
-            }
+                "focus_area": focus_area,
+                "web_sources": len(citations),
+                "citations": citations,
+            },
         )
 
     async def synthesize_research(
-        self,
-        topic: str,
-        web_sources: list,
-        context: Optional[dict] = None
+        self, topic: str, web_sources: list, context: Optional[dict] = None
     ) -> str:
-        """
-        Synthesize research from web sources into a cohesive output.
+        """Synthesize research from web sources into a cohesive output.
 
         Used when web search has already been performed externally.
         """
-        from services.web_researcher import prepare_web_context, format_citations_for_output
+        from services.web_researcher import format_citations_for_output, prepare_web_context
 
         # Prepare web context
         web_context = prepare_web_context(web_sources)
@@ -741,7 +730,7 @@ Focus on evidence-based insights and actionable recommendations.
             model="claude-sonnet-4-20250514",
             max_tokens=8192,
             system=enhanced_system,
-            messages=[{"role": "user", "content": synthesis_prompt}]
+            messages=[{"role": "user", "content": synthesis_prompt}],
         )
 
         content = response.content[0].text
@@ -757,8 +746,14 @@ Focus on evidence-based insights and actionable recommendations.
         """Determine if this interaction should be saved to memory."""
         # Save research that provides substantive insights
         important_indicators = [
-            "recommendation", "finding", "study", "research",
-            "approach", "framework", "best practice", "lesson"
+            "recommendation",
+            "finding",
+            "study",
+            "research",
+            "approach",
+            "framework",
+            "best practice",
+            "lesson",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -779,19 +774,30 @@ Focus on evidence-based insights and actionable recommendations.
         message_lower = context.user_message.lower()
 
         # Hand off to Capital for ROI/cost questions
-        if any(word in message_lower for word in ["roi calculation", "budget", "cost-benefit", "financial model"]):
+        if any(
+            word in message_lower
+            for word in ["roi calculation", "budget", "cost-benefit", "financial model"]
+        ):
             return ("capital", "Query requires detailed financial analysis")
 
         # Hand off to Guardian for security/compliance specifics
-        if any(word in message_lower for word in ["security policy", "compliance framework", "audit requirement"]):
+        if any(
+            word in message_lower
+            for word in ["security policy", "compliance framework", "audit requirement"]
+        ):
             return ("guardian", "Query requires security/governance expertise")
 
         # Hand off to Counselor for legal specifics
-        if any(word in message_lower for word in ["contract review", "liability", "ip rights", "licensing terms"]):
+        if any(
+            word in message_lower
+            for word in ["contract review", "liability", "ip rights", "licensing terms"]
+        ):
             return ("counselor", "Query requires legal expertise")
 
         # Hand off to Oracle for transcript analysis
-        if any(word in message_lower for word in ["transcript", "meeting notes", "analyze this call"]):
+        if any(
+            word in message_lower for word in ["transcript", "meeting notes", "analyze this call"]
+        ):
             return ("oracle", "Query involves transcript analysis")
 
         return None

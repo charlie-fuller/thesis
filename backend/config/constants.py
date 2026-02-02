@@ -1,5 +1,4 @@
-"""
-Application Configuration Constants
+"""Application Configuration Constants
 Centralizes magic numbers and configuration values for better maintainability.
 
 This module extracts hardcoded values from across the codebase into
@@ -13,8 +12,7 @@ from typing import Dict, List, Set
 
 @dataclass(frozen=True)
 class TextChunkingConfig:
-    """
-    Configuration for document text chunking.
+    """Configuration for document text chunking.
 
     Text chunking splits large documents into smaller, semantically coherent
     chunks for vector embedding and search.
@@ -39,8 +37,7 @@ class TextChunkingConfig:
 
 @dataclass(frozen=True)
 class EmbeddingConfig:
-    """
-    Configuration for vector embedding generation.
+    """Configuration for vector embedding generation.
 
     Controls how documents are converted to vector embeddings for semantic search.
     """
@@ -70,8 +67,7 @@ class EmbeddingConfig:
 
 @dataclass(frozen=True)
 class SearchConfig:
-    """
-    Configuration for semantic search and vector similarity.
+    """Configuration for semantic search and vector similarity.
 
     Controls how similar documents are retrieved from the knowledge base.
     """
@@ -92,24 +88,27 @@ class SearchConfig:
     def __post_init__(self):
         # Initialize SIMILARITY_THRESHOLDS if not provided
         if self.SIMILARITY_THRESHOLDS is None:
-            object.__setattr__(self, 'SIMILARITY_THRESHOLDS', {
-                # Document reference queries - very permissive since user explicitly mentioned their upload
-                # e.g., "tell me about this document", "the file I uploaded", "my meeting transcripts"
-                # Lowered to 0.10 to catch meeting/transcript queries where semantic match may be loose
-                'document_reference': 0.10,
-                # Factual queries - lowered from 0.5 to allow semantic matches
-                'factual': 0.30,
-                # Exploratory queries can be more lenient (related concepts)
-                'exploratory': 0.25,
-                # Default for unspecified query types
-                'default': 0.0
-            })
+            object.__setattr__(
+                self,
+                "SIMILARITY_THRESHOLDS",
+                {
+                    # Document reference queries - very permissive since user explicitly mentioned their upload
+                    # e.g., "tell me about this document", "the file I uploaded", "my meeting transcripts"
+                    # Lowered to 0.10 to catch meeting/transcript queries where semantic match may be loose
+                    "document_reference": 0.10,
+                    # Factual queries - lowered from 0.5 to allow semantic matches
+                    "factual": 0.30,
+                    # Exploratory queries can be more lenient (related concepts)
+                    "exploratory": 0.25,
+                    # Default for unspecified query types
+                    "default": 0.0,
+                },
+            )
 
 
 @dataclass(frozen=True)
 class RateLimits:
-    """
-    Rate limiting configuration for API endpoints.
+    """Rate limiting configuration for API endpoints.
 
     Prevents abuse and ensures fair resource allocation.
     """
@@ -140,8 +139,7 @@ class RateLimits:
 
 @dataclass(frozen=True)
 class FileLimits:
-    """
-    File upload limits and validation rules.
+    """File upload limits and validation rules.
 
     Ensures safe and reasonable file handling.
     """
@@ -156,41 +154,53 @@ class FileLimits:
         return self.MAX_SIZE_MB * 1024 * 1024
 
     # Allowed file extensions for upload
-    ALLOWED_EXTENSIONS: Set[str] = frozenset({
-        # Documents
-        'pdf', 'docx', 'doc', 'txt',
-        # Spreadsheets
-        'xlsx', 'xls', 'csv',
-        # Presentations
-        'pptx', 'ppt',
-        # Other
-        'md', 'rtf'
-    })
+    ALLOWED_EXTENSIONS: Set[str] = frozenset(
+        {
+            # Documents
+            "pdf",
+            "docx",
+            "doc",
+            "txt",
+            # Spreadsheets
+            "xlsx",
+            "xls",
+            "csv",
+            # Presentations
+            "pptx",
+            "ppt",
+            # Other
+            "md",
+            "rtf",
+        }
+    )
 
     # MIME type mappings
     MIME_TYPES: Dict[str, str] = None
 
     def __post_init__(self):
         if self.MIME_TYPES is None:
-            object.__setattr__(self, 'MIME_TYPES', {
-                'pdf': 'application/pdf',
-                'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'doc': 'application/msword',
-                'txt': 'text/plain',
-                'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'xls': 'application/vnd.ms-excel',
-                'csv': 'text/csv',
-                'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                'ppt': 'application/vnd.ms-powerpoint',
-                'md': 'text/markdown',
-                'rtf': 'application/rtf'
-            })
+            object.__setattr__(
+                self,
+                "MIME_TYPES",
+                {
+                    "pdf": "application/pdf",
+                    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "doc": "application/msword",
+                    "txt": "text/plain",
+                    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "xls": "application/vnd.ms-excel",
+                    "csv": "text/csv",
+                    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    "ppt": "application/vnd.ms-powerpoint",
+                    "md": "text/markdown",
+                    "rtf": "application/rtf",
+                },
+            )
 
 
 @dataclass(frozen=True)
 class OAuthConfig:
-    """
-    OAuth configuration for external service integrations.
+    """OAuth configuration for external service integrations.
 
     Centralizes OAuth endpoints, scopes, and parameters.
     """
@@ -223,16 +233,19 @@ class OAuthConfig:
 
     def __post_init__(self):
         if self.GOOGLE_DRIVE_SCOPES is None:
-            object.__setattr__(self, 'GOOGLE_DRIVE_SCOPES', [
-                'https://www.googleapis.com/auth/drive.readonly',
-                'https://www.googleapis.com/auth/userinfo.email'
-            ])
+            object.__setattr__(
+                self,
+                "GOOGLE_DRIVE_SCOPES",
+                [
+                    "https://www.googleapis.com/auth/drive.readonly",
+                    "https://www.googleapis.com/auth/userinfo.email",
+                ],
+            )
 
 
 @dataclass(frozen=True)
 class DatabaseConfig:
-    """
-    Database operation configuration.
+    """Database operation configuration.
 
     Controls batch sizes, timeouts, and query limits.
     """
@@ -254,8 +267,7 @@ class DatabaseConfig:
 
 @dataclass(frozen=True)
 class DeduplicationConfig:
-    """
-    Configuration for entity deduplication during sync.
+    """Configuration for entity deduplication during sync.
 
     Controls how tasks, opportunities, and stakeholders are matched
     against existing items to prevent duplicates.
@@ -279,8 +291,7 @@ class DeduplicationConfig:
 
 @dataclass(frozen=True)
 class RedirectConfig:
-    """
-    Frontend redirect configuration for OAuth callbacks.
+    """Frontend redirect configuration for OAuth callbacks.
 
     Ensures consistent redirect behavior across integrations.
     """
@@ -297,16 +308,24 @@ class RedirectConfig:
 
     def __post_init__(self):
         if self.OAUTH_SUCCESS_PATHS is None:
-            object.__setattr__(self, 'OAUTH_SUCCESS_PATHS', {
-                'google_drive': '/documents?provider=google_drive&status=connected',
-                'notion': '/documents?provider=notion&status=connected'
-            })
+            object.__setattr__(
+                self,
+                "OAUTH_SUCCESS_PATHS",
+                {
+                    "google_drive": "/documents?provider=google_drive&status=connected",
+                    "notion": "/documents?provider=notion&status=connected",
+                },
+            )
 
         if self.OAUTH_ERROR_PATHS is None:
-            object.__setattr__(self, 'OAUTH_ERROR_PATHS', {
-                'google_drive': '/documents?provider=google_drive&status=error',
-                'notion': '/documents?provider=notion&status=error'
-            })
+            object.__setattr__(
+                self,
+                "OAUTH_ERROR_PATHS",
+                {
+                    "google_drive": "/documents?provider=google_drive&status=error",
+                    "notion": "/documents?provider=notion&status=error",
+                },
+            )
 
 
 # Singleton instances for easy import
@@ -323,22 +342,22 @@ DEDUPLICATION = DeduplicationConfig()
 
 # Convenience exports
 __all__ = [
-    'TextChunkingConfig',
-    'EmbeddingConfig',
-    'SearchConfig',
-    'RateLimits',
-    'FileLimits',
-    'OAuthConfig',
-    'DatabaseConfig',
-    'RedirectConfig',
-    'DeduplicationConfig',
-    'TEXT_CHUNKING',
-    'EMBEDDING',
-    'SEARCH',
-    'RATE_LIMITS',
-    'FILE_LIMITS',
-    'OAUTH',
-    'DATABASE',
-    'REDIRECTS',
-    'DEDUPLICATION',
+    "TextChunkingConfig",
+    "EmbeddingConfig",
+    "SearchConfig",
+    "RateLimits",
+    "FileLimits",
+    "OAuthConfig",
+    "DatabaseConfig",
+    "RedirectConfig",
+    "DeduplicationConfig",
+    "TEXT_CHUNKING",
+    "EMBEDDING",
+    "SEARCH",
+    "RATE_LIMITS",
+    "FILE_LIMITS",
+    "OAUTH",
+    "DATABASE",
+    "REDIRECTS",
+    "DEDUPLICATION",
 ]

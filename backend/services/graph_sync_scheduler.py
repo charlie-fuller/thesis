@@ -1,5 +1,4 @@
-"""
-Knowledge Graph Automatic Sync Scheduler
+"""Knowledge Graph Automatic Sync Scheduler
 
 This module provides background job scheduling for automatic Neo4j graph syncs.
 It uses APScheduler to run a daily full sync that mirrors PostgreSQL data to Neo4j.
@@ -21,8 +20,7 @@ graph_scheduler: Optional[BackgroundScheduler] = None
 
 
 async def _execute_full_sync(client_id: str) -> dict:
-    """
-    Execute a full graph sync for a client.
+    """Execute a full graph sync for a client.
 
     Args:
         client_id: The client ID to sync
@@ -40,29 +38,26 @@ async def _execute_full_sync(client_id: str) -> dict:
 
 
 def process_graph_sync():
-    """
-    Main job function that executes graph sync for all active clients.
+    """Main job function that executes graph sync for all active clients.
     Runs daily via APScheduler.
     """
     import asyncio
 
     try:
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info(f"Knowledge Graph Sync Job Started: {datetime.now(timezone.utc).isoformat()}")
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
 
         supabase = get_supabase()
 
         # Get all clients (clients table doesn't have is_active column)
-        result = supabase.table('clients')\
-            .select('id, name')\
-            .execute()
+        result = supabase.table("clients").select("id, name").execute()
 
         clients = result.data or []
 
         if not clients:
             logger.info("   No active clients found for graph sync")
-            logger.info(f"{'='*60}\n")
+            logger.info(f"{'=' * 60}\n")
             return
 
         logger.info(f"   Found {len(clients)} active client(s) for graph sync")
@@ -73,8 +68,8 @@ def process_graph_sync():
 
         for client in clients:
             try:
-                client_id = client['id']
-                client_name = client.get('name', 'Unknown')
+                client_id = client["id"]
+                client_name = client.get("name", "Unknown")
 
                 logger.info(f"\n   Syncing client: {client_name} ({client_id})")
 
@@ -86,12 +81,14 @@ def process_graph_sync():
 
                     # Count totals from results
                     synced_count = sum(
-                        v.get('synced', 0) for k, v in sync_result.items()
-                        if isinstance(v, dict) and 'synced' in v
+                        v.get("synced", 0)
+                        for k, v in sync_result.items()
+                        if isinstance(v, dict) and "synced" in v
                     )
                     error_count = sum(
-                        v.get('errors', 0) for k, v in sync_result.items()
-                        if isinstance(v, dict) and 'errors' in v
+                        v.get("errors", 0)
+                        for k, v in sync_result.items()
+                        if isinstance(v, dict) and "errors" in v
                     )
 
                     total_synced += synced_count
@@ -106,19 +103,18 @@ def process_graph_sync():
                 logger.error(f"      Error syncing client {client.get('id')}: {str(client_error)}")
                 total_errors += 1
 
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info(f"Knowledge Graph Sync Job Completed: {datetime.now(timezone.utc).isoformat()}")
         logger.info(f"   Total synced: {total_synced}, Total errors: {total_errors}")
-        logger.info(f"{'='*60}\n")
+        logger.info(f"{'=' * 60}\n")
 
     except Exception as e:
         logger.error(f"\nFatal error in graph sync job: {str(e)}")
-        logger.info(f"{'='*60}\n")
+        logger.info(f"{'=' * 60}\n")
 
 
 def start_graph_sync_scheduler(hour_utc: int = 3, minute: int = 0):
-    """
-    Start the background scheduler for automatic graph syncs.
+    """Start the background scheduler for automatic graph syncs.
 
     Args:
         hour_utc: Hour (UTC) to run the daily sync (default: 3 AM UTC)
@@ -130,7 +126,7 @@ def start_graph_sync_scheduler(hour_utc: int = 3, minute: int = 0):
         logger.warning("Graph sync scheduler is already running")
         return
 
-    graph_scheduler = BackgroundScheduler(timezone='UTC')
+    graph_scheduler = BackgroundScheduler(timezone="UTC")
 
     # Add daily job at specified time
     # coalesce=True: Combine multiple missed runs into one
@@ -139,27 +135,25 @@ def start_graph_sync_scheduler(hour_utc: int = 3, minute: int = 0):
     graph_scheduler.add_job(
         func=process_graph_sync,
         trigger=CronTrigger(hour=hour_utc, minute=minute),
-        id='knowledge_graph_daily_sync',
-        name='Knowledge Graph Daily Sync',
+        id="knowledge_graph_daily_sync",
+        name="Knowledge Graph Daily Sync",
         replace_existing=True,
         coalesce=True,
         max_instances=1,
-        misfire_grace_time=3600
+        misfire_grace_time=3600,
     )
 
     graph_scheduler.start()
 
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info("Knowledge Graph Sync Scheduler Started")
     logger.info(f"   Schedule: Daily at {hour_utc:02d}:{minute:02d} UTC")
     logger.info(f"   Started at: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
-    logger.info(f"{'='*60}\n")
+    logger.info(f"{'=' * 60}\n")
 
 
 def stop_graph_sync_scheduler():
-    """
-    Stop the background scheduler.
-    """
+    """Stop the background scheduler."""
     global graph_scheduler
 
     if graph_scheduler is not None and graph_scheduler.running:
@@ -168,35 +162,29 @@ def stop_graph_sync_scheduler():
 
 
 def get_graph_scheduler_status() -> dict:
-    """
-    Get the current status of the graph sync scheduler.
+    """Get the current status of the graph sync scheduler.
 
     Returns:
         dict: Scheduler status information
     """
     if graph_scheduler is None:
-        return {
-            'running': False,
-            'jobs': []
-        }
+        return {"running": False, "jobs": []}
 
     jobs = []
     for job in graph_scheduler.get_jobs():
-        jobs.append({
-            'id': job.id,
-            'name': job.name,
-            'next_run_time': job.next_run_time.isoformat() if job.next_run_time else None
-        })
+        jobs.append(
+            {
+                "id": job.id,
+                "name": job.name,
+                "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
+            }
+        )
 
-    return {
-        'running': graph_scheduler.running,
-        'jobs': jobs
-    }
+    return {"running": graph_scheduler.running, "jobs": jobs}
 
 
 def trigger_manual_sync():
-    """
-    Trigger an immediate graph sync (for manual/on-demand sync).
+    """Trigger an immediate graph sync (for manual/on-demand sync).
     Returns immediately after starting the sync in a background thread.
     """
     import threading
@@ -204,7 +192,4 @@ def trigger_manual_sync():
     thread = threading.Thread(target=process_graph_sync, daemon=True)
     thread.start()
 
-    return {
-        'status': 'started',
-        'message': 'Graph sync started in background'
-    }
+    return {"status": "started", "message": "Graph sync started in background"}

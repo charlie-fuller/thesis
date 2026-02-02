@@ -1,5 +1,4 @@
-"""
-Services module for Thesis
+"""Services module for Thesis
 Contains business logic and external API integrations
 """
 
@@ -10,12 +9,14 @@ Contains business logic and external API integrations
 def start_scheduler():
     """Lazy import for sync scheduler start."""
     from .sync_scheduler import start_scheduler as _start
+
     return _start()
 
 
 def stop_scheduler():
     """Lazy import for sync scheduler stop."""
     from .sync_scheduler import stop_scheduler as _stop
+
     return _stop()
 
 
@@ -23,7 +24,7 @@ def stop_scheduler():
 from .useable_output_detector import process_conversation_for_useable_output
 
 __all__ = [
-    'process_conversation_for_useable_output',
-    'start_scheduler',
-    'stop_scheduler',
+    "process_conversation_for_useable_output",
+    "start_scheduler",
+    "stop_scheduler",
 ]

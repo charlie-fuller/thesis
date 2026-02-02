@@ -1,7 +1,7 @@
-"""
-Template Library Routes
+"""Template Library Routes
 Exposes the ADDIE prompt library as browsable templates
 """
+
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -19,10 +19,9 @@ async def get_templates(
     phase: Optional[str] = Query(None, description="Filter by ADDIE phase"),
     category: Optional[str] = Query(None, description="Filter by category"),
     search: Optional[str] = Query(None, description="Search in prompt text"),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
-    """
-    Get all templates from the ADDIE prompt library.
+    """Get all templates from the ADDIE prompt library.
 
     Returns templates organized by phase with optional filtering.
     """
@@ -31,7 +30,7 @@ async def get_templates(
             "success": True,
             "templates": [],
             "phases": list(ADDIE_PROMPT_LIBRARY.keys()),
-            "categories": set()
+            "categories": set(),
         }
 
         template_id = 0
@@ -52,14 +51,16 @@ async def get_templates(
                 if search and search.lower() not in prompt.get("prompt", "").lower():
                     continue
 
-                result["templates"].append({
-                    "id": f"template_{template_id}",
-                    "prompt": prompt.get("prompt"),
-                    "category": prompt.get("category"),
-                    "addie_phase": prompt.get("addie_phase"),
-                    "priority": prompt.get("priority", 99),
-                    "keywords": prompt.get("contextual_keywords", [])
-                })
+                result["templates"].append(
+                    {
+                        "id": f"template_{template_id}",
+                        "prompt": prompt.get("prompt"),
+                        "category": prompt.get("category"),
+                        "addie_phase": prompt.get("addie_phase"),
+                        "priority": prompt.get("priority", 99),
+                        "keywords": prompt.get("contextual_keywords", []),
+                    }
+                )
 
                 # Collect unique categories
                 if prompt.get("category"):
@@ -69,38 +70,36 @@ async def get_templates(
         result["categories"] = sorted(list(result["categories"]))
 
         # Sort by phase and priority
-        phase_order = {"Analysis": 1, "Design": 2, "Development": 3, "Implementation": 4, "Evaluation": 5}
-        result["templates"].sort(key=lambda x: (phase_order.get(x["addie_phase"], 99), x["priority"]))
+        phase_order = {
+            "Analysis": 1,
+            "Design": 2,
+            "Development": 3,
+            "Implementation": 4,
+            "Evaluation": 5,
+        }
+        result["templates"].sort(
+            key=lambda x: (phase_order.get(x["addie_phase"], 99), x["priority"])
+        )
 
         return result
 
     except Exception as e:
         logger.error(f"Error fetching templates: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 @router.get("/by-phase")
-async def get_templates_by_phase(
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Get templates organized by ADDIE phase for easy browsing.
-    """
+async def get_templates_by_phase(current_user: dict = Depends(get_current_user)):
+    """Get templates organized by ADDIE phase for easy browsing."""
     try:
-        result = {
-            "success": True,
-            "phases": {}
-        }
+        result = {"success": True, "phases": {}}
 
         phase_descriptions = {
             "Analysis": "Identify learning needs, gaps, and audience characteristics",
             "Design": "Create learning objectives, assessments, and course structure",
             "Development": "Build content, activities, and materials",
             "Implementation": "Deploy training and prepare facilitators",
-            "Evaluation": "Measure effectiveness and gather feedback"
+            "Evaluation": "Measure effectiveness and gather feedback",
         }
 
         phase_colors = {
@@ -108,7 +107,7 @@ async def get_templates_by_phase(
             "Design": "blue",
             "Development": "purple",
             "Implementation": "orange",
-            "Evaluation": "pink"
+            "Evaluation": "pink",
         }
 
         template_id = 0
@@ -120,13 +119,15 @@ async def get_templates_by_phase(
 
             for prompt in prompts:
                 template_id += 1
-                templates.append({
-                    "id": f"template_{template_id}",
-                    "prompt": prompt.get("prompt"),
-                    "category": prompt.get("category"),
-                    "priority": prompt.get("priority", 99),
-                    "keywords": prompt.get("contextual_keywords", [])
-                })
+                templates.append(
+                    {
+                        "id": f"template_{template_id}",
+                        "prompt": prompt.get("prompt"),
+                        "category": prompt.get("category"),
+                        "priority": prompt.get("priority", 99),
+                        "keywords": prompt.get("contextual_keywords", []),
+                    }
+                )
                 if prompt.get("category"):
                     categories.add(prompt["category"])
 
@@ -136,26 +137,19 @@ async def get_templates_by_phase(
                 "color": phase_colors.get(phase_name, "gray"),
                 "categories": sorted(list(categories)),
                 "template_count": len(templates),
-                "templates": sorted(templates, key=lambda x: x["priority"])
+                "templates": sorted(templates, key=lambda x: x["priority"]),
             }
 
         return result
 
     except Exception as e:
         logger.error(f"Error fetching templates by phase: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 @router.get("/categories")
-async def get_template_categories(
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Get all unique categories across all phases.
-    """
+async def get_template_categories(current_user: dict = Depends(get_current_user)):
+    """Get all unique categories across all phases."""
     try:
         categories = set()
 
@@ -164,14 +158,8 @@ async def get_template_categories(
                 if prompt.get("category"):
                     categories.add(prompt["category"])
 
-        return {
-            "success": True,
-            "categories": sorted(list(categories))
-        }
+        return {"success": True, "categories": sorted(list(categories))}
 
     except Exception as e:
         logger.error(f"Error fetching categories: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}

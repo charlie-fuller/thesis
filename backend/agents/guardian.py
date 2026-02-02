@@ -1,5 +1,4 @@
-"""
-Guardian Agent - IT & Governance Intelligence
+"""Guardian Agent - IT & Governance Intelligence
 
 The Guardian agent specializes in:
 - Security assessments for AI implementations
@@ -13,16 +12,16 @@ import logging
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class GuardianAgent(BaseAgent):
-    """
-    Guardian - The IT & Governance Intelligence agent.
+    """Guardian - The IT & Governance Intelligence agent.
 
     Specializes in security, compliance, infrastructure,
     and governance considerations for GenAI implementations.
@@ -33,7 +32,7 @@ class GuardianAgent(BaseAgent):
             name="guardian",
             display_name="Guardian",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -494,7 +493,7 @@ When recommending AI models or vendors:
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -507,15 +506,26 @@ When recommending AI models or vendors:
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Security/governance: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Security/governance: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         # Save security and governance assessments
         important_indicators = [
-            "security", "compliance", "governance", "risk", "policy",
-            "audit", "soc2", "gdpr", "hipaa", "infrastructure", "architecture"
+            "security",
+            "compliance",
+            "governance",
+            "risk",
+            "policy",
+            "audit",
+            "soc2",
+            "gdpr",
+            "hipaa",
+            "infrastructure",
+            "architecture",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -535,15 +545,24 @@ When recommending AI models or vendors:
         message_lower = context.user_message.lower()
 
         # Hand off to Capital for security budget questions
-        if any(word in message_lower for word in ["security budget", "compliance cost", "audit pricing"]):
+        if any(
+            word in message_lower
+            for word in ["security budget", "compliance cost", "audit pricing"]
+        ):
             return ("capital", "Query requires financial analysis")
 
         # Hand off to Counselor for legal/regulatory interpretation
-        if any(word in message_lower for word in ["legal interpretation", "regulatory requirement", "liability"]):
+        if any(
+            word in message_lower
+            for word in ["legal interpretation", "regulatory requirement", "liability"]
+        ):
             return ("counselor", "Query requires legal expertise")
 
         # Hand off to Atlas for security research
-        if any(word in message_lower for word in ["security research", "industry benchmark", "best practice study"]):
+        if any(
+            word in message_lower
+            for word in ["security research", "industry benchmark", "best practice study"]
+        ):
             return ("atlas", "Query requires research expertise")
 
         return None

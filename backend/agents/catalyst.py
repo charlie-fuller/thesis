@@ -1,5 +1,4 @@
-"""
-Catalyst Agent - Internal Communications Partner
+"""Catalyst Agent - Internal Communications Partner
 
 The Catalyst agent specializes in:
 - AI initiative messaging and narratives
@@ -14,16 +13,16 @@ from pathlib import Path
 from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
-from .base_agent import BaseAgent, AgentContext, AgentResponse
+from .base_agent import AgentContext, AgentResponse, BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class CatalystAgent(BaseAgent):
-    """
-    Catalyst - The Internal Communications Partner.
+    """Catalyst - The Internal Communications Partner.
 
     Specializes in internal AI messaging, employee engagement,
     addressing AI anxiety, and multi-channel communication.
@@ -34,7 +33,7 @@ class CatalystAgent(BaseAgent):
             name="catalyst",
             display_name="Catalyst",
             supabase=supabase,
-            anthropic_client=anthropic_client
+            anthropic_client=anthropic_client,
         )
 
     def _get_default_instruction(self) -> str:
@@ -71,7 +70,7 @@ Help craft authentic, transparent internal communications that build trust."""
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             system=self.system_instruction,
-            messages=messages
+            messages=messages,
         )
 
         content = response.content[0].text
@@ -84,14 +83,22 @@ Help craft authentic, transparent internal communications that build trust."""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Communications insight: {context.user_message[:100]}..." if save_to_memory else None
+            memory_content=f"Communications insight: {context.user_message[:100]}..."
+            if save_to_memory
+            else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
         """Determine if this interaction should be saved to memory."""
         important_indicators = [
-            "messaging", "communication", "announcement", "narrative",
-            "employee", "engagement", "anxiety", "transparency"
+            "messaging",
+            "communication",
+            "announcement",
+            "narrative",
+            "employee",
+            "engagement",
+            "anxiety",
+            "transparency",
         ]
         query_lower = query.lower()
         response_lower = response.lower()
@@ -110,11 +117,17 @@ Help craft authentic, transparent internal communications that build trust."""
         message_lower = context.user_message.lower()
 
         # Hand off to Sage for deep people/change management
-        if any(word in message_lower for word in ["resistance", "burnout", "champion program", "community"]):
+        if any(
+            word in message_lower
+            for word in ["resistance", "burnout", "champion program", "community"]
+        ):
             return ("sage", "Query requires people/change management expertise")
 
         # Hand off to Scholar for training content
-        if any(word in message_lower for word in ["training", "curriculum", "learning program", "skill development"]):
+        if any(
+            word in message_lower
+            for word in ["training", "curriculum", "learning program", "skill development"]
+        ):
             return ("scholar", "Query requires L&D expertise")
 
         # Hand off to Strategist for executive communications

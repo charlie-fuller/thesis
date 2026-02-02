@@ -1,5 +1,4 @@
-"""
-Meeting Orchestrator Service
+"""Meeting Orchestrator Service
 
 Manages multi-agent conversations in meeting rooms:
 - Uses Facilitator agent to analyze intent and manage turn-taking
@@ -18,7 +17,6 @@ Updated: 2025-12-28 - Added Reporter for unified summaries
 """
 
 import asyncio
-import json
 import logging
 import re
 from dataclasses import dataclass, field
@@ -26,49 +24,91 @@ from typing import AsyncGenerator, Optional
 from uuid import UUID
 
 import anthropic
-from supabase import Client
 
-from agents.base_agent import AgentContext, AgentResponse, BaseAgent
+from agents.base_agent import BaseAgent
+from supabase import Client
 
 logger = logging.getLogger(__name__)
 
 # Greeting patterns that trigger facilitator welcome
 GREETING_PATTERNS = [
-    'hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening',
-    'howdy', 'greetings', "what's up", 'yo', 'hi there', 'hello there'
+    "hello",
+    "hi",
+    "hey",
+    "good morning",
+    "good afternoon",
+    "good evening",
+    "howdy",
+    "greetings",
+    "what's up",
+    "yo",
+    "hi there",
+    "hello there",
 ]
 
 # Summary patterns that trigger Reporter (single voice for synthesis)
 SUMMARY_PATTERNS = [
-    'summary', 'summarize', 'summarise', 'sum up', 'sum it up',
-    'recap', 'recapitulate',
-    'takeaway', 'take away', 'takeaways', 'key takeaway',
-    'action item', 'action items', 'next step', 'next steps',
-    'what did we', 'what have we', 'what was discussed',
-    'wrap up', 'wrap-up', 'wrapping up',
-    'highlight', 'highlights', 'key highlight',
-    'key point', 'key points', 'main point',
-    'conclude', 'conclusion', 'in conclusion',
-    'document', 'documentation',
-    'brief', 'briefing', 'executive brief',
-    'share with', 'send to', 'forward to',
-    'bottom line', 'bottomline',
-    'tldr', 'tl;dr',
-    'give me the gist', 'give me the highlights',
-    'what should i take', 'what do i need to know',
-    'pull together', 'bring it together'
+    "summary",
+    "summarize",
+    "summarise",
+    "sum up",
+    "sum it up",
+    "recap",
+    "recapitulate",
+    "takeaway",
+    "take away",
+    "takeaways",
+    "key takeaway",
+    "action item",
+    "action items",
+    "next step",
+    "next steps",
+    "what did we",
+    "what have we",
+    "what was discussed",
+    "wrap up",
+    "wrap-up",
+    "wrapping up",
+    "highlight",
+    "highlights",
+    "key highlight",
+    "key point",
+    "key points",
+    "main point",
+    "conclude",
+    "conclusion",
+    "in conclusion",
+    "document",
+    "documentation",
+    "brief",
+    "briefing",
+    "executive brief",
+    "share with",
+    "send to",
+    "forward to",
+    "bottom line",
+    "bottomline",
+    "tldr",
+    "tl;dr",
+    "give me the gist",
+    "give me the highlights",
+    "what should i take",
+    "what do i need to know",
+    "pull together",
+    "bring it together",
 ]
 
 # @mention pattern for direct agent addressing in meetings
 # Matches @agentname at word boundaries (case-insensitive)
 MENTION_PATTERN = re.compile(
-    r'@(atlas|capital|guardian|counselor|oracle|sage|strategist|architect|'
-    r'operator|pioneer|catalyst|scholar|echo|nexus|facilitator|reporter)',
-    re.IGNORECASE
+    r"@(atlas|capital|guardian|counselor|oracle|sage|strategist|architect|"
+    r"operator|pioneer|catalyst|scholar|echo|nexus|facilitator|reporter)",
+    re.IGNORECASE,
 )
 
 # Lazy import for embeddings to avoid crash if VOYAGE_API_KEY is not set
 _embed_meeting_room_message = None
+
 
 async def _get_embed_function():
     """Lazily load the embedding function."""
@@ -76,6 +116,7 @@ async def _get_embed_function():
     if _embed_meeting_room_message is None:
         try:
             from services.embeddings import embed_meeting_room_message
+
             _embed_meeting_room_message = embed_meeting_room_message
         except Exception as e:
             logger.warning(f"Embeddings not available: {e}")
@@ -86,6 +127,7 @@ async def _get_embed_function():
 @dataclass
 class MeetingContext:
     """Extended context for meeting room interactions."""
+
     user_id: str
     client_id: str
     meeting_room_id: str
@@ -102,6 +144,7 @@ class MeetingContext:
 @dataclass
 class AgentTurn:
     """Represents a single agent's turn in the meeting."""
+
     agent_id: str
     agent_name: str
     agent_display_name: str
@@ -113,6 +156,7 @@ class AgentTurn:
 @dataclass
 class AutonomousContext:
     """Context for autonomous discussion mode."""
+
     topic: str
     total_rounds: int
     current_round: int
@@ -122,8 +166,7 @@ class AutonomousContext:
 
 
 class MeetingOrchestrator:
-    """
-    Orchestrates multi-agent conversations in meeting rooms.
+    """Orchestrates multi-agent conversations in meeting rooms.
 
     Responsibilities:
     - Analyze user messages to determine which agents should respond
@@ -134,49 +177,241 @@ class MeetingOrchestrator:
 
     # Reuse the specialist domains from CoordinatorAgent
     SPECIALIST_DOMAINS = {
-        "atlas": ["research", "study", "trend", "case study", "best practice", "mckinsey",
-                  "bcg", "gartner", "forrester", "academic", "literature", "benchmark",
-                  "lean", "toyota", "operational excellence", "value stream"],
-        "capital": ["roi", "budget", "cost", "financial", "investment", "savings",
-                   "cfo", "finance", "business case", "payback", "revenue", "expense",
-                   "sox", "audit trail", "close cycle", "controller"],
-        "guardian": ["security", "governance", "compliance", "infrastructure", "it",
-                    "soc2", "gdpr", "hipaa", "policy", "risk", "audit", "ciso", "cio",
-                    "okta", "sso", "shadow it", "vendor security"],
-        "counselor": ["legal", "contract", "liability", "ip", "intellectual property",
-                     "licensing", "terms", "agreement", "lawyer", "counsel", "dpa",
-                     "hallucination", "bias", "prompt drift", "data privacy"],
-        "oracle": ["transcript", "meeting", "sentiment", "stakeholder analysis",
-                  "attendee", "recording", "call notes"],
-        "sage": ["people", "change management", "adoption", "resistance", "fear", "anxiety",
-                "burnout", "champion", "community", "culture", "human", "flourishing",
-                "psychology", "safety", "overwhelm", "support", "morale", "engagement",
-                "people-first", "human-centered", "meaningful work", "team", "employee"],
-        "strategist": ["executive", "c-suite", "ceo", "board", "sponsor", "sponsorship",
-                      "stakeholder management", "coalition", "organizational politics",
-                      "governance structure", "strategic alignment", "business strategy",
-                      "executive buy-in", "leadership", "transformation"],
-        "architect": ["architecture", "integration", "api", "technical design", "build vs buy",
-                     "rag", "vector", "embedding", "mlops", "devops", "infrastructure",
-                     "microservices", "data pipeline", "system design", "technical"],
-        "operator": ["process", "workflow", "automation", "metrics", "kpi", "baseline",
-                    "exception", "sop", "operations", "efficiency", "throughput",
-                    "bottleneck", "ground level", "frontline", "day-to-day"],
-        "pioneer": ["emerging", "innovation", "r&d", "new technology", "cutting edge",
-                   "experimental", "prototype", "hype", "maturity", "readiness",
-                   "quantum", "future", "horizon", "scout", "evaluate"],
-        "catalyst": ["internal communications", "messaging", "narrative", "employee engagement",
-                    "announcement", "all-hands", "town hall", "internal marketing",
-                    "ai anxiety", "fear communication", "transparency", "email"],
-        "scholar": ["training", "learning", "l&d", "enablement", "curriculum", "course",
-                   "workshop", "certification", "champion program", "skill development",
-                   "adult learning", "capability building", "onboarding"],
-        "nexus": ["systems thinking", "interconnection", "feedback loop", "leverage point",
-                 "unintended consequence", "causal", "dependency", "ripple effect", "ecosystem",
-                 "holistic", "systems dynamics", "second-order", "third-order", "complexity"],
-        "echo": ["brand voice", "style", "tone", "voice analysis", "ai emulation", "writing style",
-                "voice profile", "brand guidelines", "tone of voice", "style guide",
-                "communication style", "brand consistency", "voice cloning", "voice match"]
+        "atlas": [
+            "research",
+            "study",
+            "trend",
+            "case study",
+            "best practice",
+            "mckinsey",
+            "bcg",
+            "gartner",
+            "forrester",
+            "academic",
+            "literature",
+            "benchmark",
+            "lean",
+            "toyota",
+            "operational excellence",
+            "value stream",
+        ],
+        "capital": [
+            "roi",
+            "budget",
+            "cost",
+            "financial",
+            "investment",
+            "savings",
+            "cfo",
+            "finance",
+            "business case",
+            "payback",
+            "revenue",
+            "expense",
+            "sox",
+            "audit trail",
+            "close cycle",
+            "controller",
+        ],
+        "guardian": [
+            "security",
+            "governance",
+            "compliance",
+            "infrastructure",
+            "it",
+            "soc2",
+            "gdpr",
+            "hipaa",
+            "policy",
+            "risk",
+            "audit",
+            "ciso",
+            "cio",
+            "okta",
+            "sso",
+            "shadow it",
+            "vendor security",
+        ],
+        "counselor": [
+            "legal",
+            "contract",
+            "liability",
+            "ip",
+            "intellectual property",
+            "licensing",
+            "terms",
+            "agreement",
+            "lawyer",
+            "counsel",
+            "dpa",
+            "hallucination",
+            "bias",
+            "prompt drift",
+            "data privacy",
+        ],
+        "oracle": [
+            "transcript",
+            "meeting",
+            "sentiment",
+            "stakeholder analysis",
+            "attendee",
+            "recording",
+            "call notes",
+        ],
+        "sage": [
+            "people",
+            "change management",
+            "adoption",
+            "resistance",
+            "fear",
+            "anxiety",
+            "burnout",
+            "champion",
+            "community",
+            "culture",
+            "human",
+            "flourishing",
+            "psychology",
+            "safety",
+            "overwhelm",
+            "support",
+            "morale",
+            "engagement",
+            "people-first",
+            "human-centered",
+            "meaningful work",
+            "team",
+            "employee",
+        ],
+        "strategist": [
+            "executive",
+            "c-suite",
+            "ceo",
+            "board",
+            "sponsor",
+            "sponsorship",
+            "stakeholder management",
+            "coalition",
+            "organizational politics",
+            "governance structure",
+            "strategic alignment",
+            "business strategy",
+            "executive buy-in",
+            "leadership",
+            "transformation",
+        ],
+        "architect": [
+            "architecture",
+            "integration",
+            "api",
+            "technical design",
+            "build vs buy",
+            "rag",
+            "vector",
+            "embedding",
+            "mlops",
+            "devops",
+            "infrastructure",
+            "microservices",
+            "data pipeline",
+            "system design",
+            "technical",
+        ],
+        "operator": [
+            "process",
+            "workflow",
+            "automation",
+            "metrics",
+            "kpi",
+            "baseline",
+            "exception",
+            "sop",
+            "operations",
+            "efficiency",
+            "throughput",
+            "bottleneck",
+            "ground level",
+            "frontline",
+            "day-to-day",
+        ],
+        "pioneer": [
+            "emerging",
+            "innovation",
+            "r&d",
+            "new technology",
+            "cutting edge",
+            "experimental",
+            "prototype",
+            "hype",
+            "maturity",
+            "readiness",
+            "quantum",
+            "future",
+            "horizon",
+            "scout",
+            "evaluate",
+        ],
+        "catalyst": [
+            "internal communications",
+            "messaging",
+            "narrative",
+            "employee engagement",
+            "announcement",
+            "all-hands",
+            "town hall",
+            "internal marketing",
+            "ai anxiety",
+            "fear communication",
+            "transparency",
+            "email",
+        ],
+        "scholar": [
+            "training",
+            "learning",
+            "l&d",
+            "enablement",
+            "curriculum",
+            "course",
+            "workshop",
+            "certification",
+            "champion program",
+            "skill development",
+            "adult learning",
+            "capability building",
+            "onboarding",
+        ],
+        "nexus": [
+            "systems thinking",
+            "interconnection",
+            "feedback loop",
+            "leverage point",
+            "unintended consequence",
+            "causal",
+            "dependency",
+            "ripple effect",
+            "ecosystem",
+            "holistic",
+            "systems dynamics",
+            "second-order",
+            "third-order",
+            "complexity",
+        ],
+        "echo": [
+            "brand voice",
+            "style",
+            "tone",
+            "voice analysis",
+            "ai emulation",
+            "writing style",
+            "voice profile",
+            "brand guidelines",
+            "tone of voice",
+            "style guide",
+            "communication style",
+            "brand consistency",
+            "voice cloning",
+            "voice match",
+        ],
     }
 
     def __init__(
@@ -185,7 +420,7 @@ class MeetingOrchestrator:
         anthropic_client: anthropic.Anthropic,
         agents: dict[str, BaseAgent],
         facilitator: Optional[BaseAgent] = None,
-        reporter: Optional[BaseAgent] = None
+        reporter: Optional[BaseAgent] = None,
     ):
         self.supabase = supabase
         self.anthropic = anthropic_client
@@ -198,7 +433,11 @@ class MeetingOrchestrator:
         message_lower = message.lower().strip()
         # Check for exact matches or messages starting with greeting
         for greeting in GREETING_PATTERNS:
-            if message_lower == greeting or message_lower.startswith(greeting + " ") or message_lower.startswith(greeting + "!"):
+            if (
+                message_lower == greeting
+                or message_lower.startswith(greeting + " ")
+                or message_lower.startswith(greeting + "!")
+            ):
                 return True
         # Also catch very short messages that are likely greetings
         if len(message_lower) < 20 and any(g in message_lower for g in GREETING_PATTERNS[:6]):
@@ -214,8 +453,7 @@ class MeetingOrchestrator:
         return False
 
     def _parse_direct_mention(self, message: str, participants: list[dict]) -> Optional[list[dict]]:
-        """
-        Parse @mentions from a message and return matching participants.
+        """Parse @mentions from a message and return matching participants.
 
         When a user directly addresses an agent with @mention, that agent should
         respond directly WITHOUT Facilitator intervention.
@@ -229,7 +467,7 @@ class MeetingOrchestrator:
             return None
 
         # Build a map of agent names to participants
-        participant_map = {p['agent_name'].lower(): p for p in participants}
+        participant_map = {p["agent_name"].lower(): p for p in participants}
 
         # Find mentioned agents that are actually in this meeting
         mentioned_participants = []
@@ -239,7 +477,9 @@ class MeetingOrchestrator:
                 mentioned_participants.append(participant_map[mention_lower])
 
         if mentioned_participants:
-            logger.info(f"Direct @mention detected: {[p['agent_name'] for p in mentioned_participants]}")
+            logger.info(
+                f"Direct @mention detected: {[p['agent_name'] for p in mentioned_participants]}"
+            )
             return mentioned_participants
 
         # User mentioned agents not in this meeting - return None to let normal routing happen
@@ -251,29 +491,24 @@ class MeetingOrchestrator:
         spoken = set()
         # Look at last 10 messages to see who's spoken
         for msg in context.message_history[-10:]:
-            if msg.get('role') == 'agent' and msg.get('agent_name'):
-                spoken.add(msg['agent_name'])
+            if msg.get("role") == "agent" and msg.get("agent_name"):
+                spoken.add(msg["agent_name"])
         return spoken
 
     def _get_unheard_agents(self, context: MeetingContext, spoken: set[str]) -> list[dict]:
         """Get list of participant agents who haven't spoken recently."""
-        return [p for p in context.participants if p['agent_name'] not in spoken]
+        return [p for p in context.participants if p["agent_name"] not in spoken]
 
     # Agents that should always be considered for inclusion in discussions
     # These provide essential perspectives that should never be overlooked
-    ESSENTIAL_PERSPECTIVES = ['sage', 'nexus']  # People + Systems thinking
+    ESSENTIAL_PERSPECTIVES = ["sage", "nexus"]  # People + Systems thinking
 
     # Meta-agents that should not be selected as responding agents
     # (they have their own orchestration roles)
-    META_AGENT_NAMES = {'facilitator', 'reporter'}
+    META_AGENT_NAMES = {"facilitator", "reporter"}
 
-    def select_responding_agents(
-        self,
-        context: MeetingContext,
-        max_agents: int = 3
-    ) -> list[dict]:
-        """
-        Determine which agents from the meeting participants should respond.
+    def select_responding_agents(self, context: MeetingContext, max_agents: int = 3) -> list[dict]:
+        """Determine which agents from the meeting participants should respond.
 
         Uses keyword matching to score relevance, but ensures essential perspectives
         (Sage for people/change, Nexus for systems thinking) are always considered.
@@ -284,32 +519,27 @@ class MeetingOrchestrator:
 
         # Filter out meta-agents from consideration
         eligible_participants = [
-            p for p in context.participants
-            if p.get('agent_name', '').lower() not in self.META_AGENT_NAMES
+            p
+            for p in context.participants
+            if p.get("agent_name", "").lower() not in self.META_AGENT_NAMES
         ]
 
-        participant_names = {p['agent_name'] for p in eligible_participants}
+        participant_names = {p["agent_name"] for p in eligible_participants}
 
         # Score each eligible agent based on keyword matching
         scores: dict[str, int] = {}
         for participant in eligible_participants:
-            agent_name = participant['agent_name']
+            agent_name = participant["agent_name"]
             keywords = self.SPECIALIST_DOMAINS.get(agent_name, [])
             score = sum(1 for kw in keywords if kw in message_lower)
             scores[agent_name] = score
 
         # Get agents with positive scores
-        relevant_agents = [
-            p for p in eligible_participants
-            if scores.get(p['agent_name'], 0) > 0
-        ]
+        relevant_agents = [p for p in eligible_participants if scores.get(p["agent_name"], 0) > 0]
 
         if relevant_agents:
             # Sort by score and take top agents
-            relevant_agents.sort(
-                key=lambda p: scores.get(p['agent_name'], 0),
-                reverse=True
-            )
+            relevant_agents.sort(key=lambda p: scores.get(p["agent_name"], 0), reverse=True)
             selected = relevant_agents[:max_agents]
         else:
             # If no clear matches, start with first eligible participant
@@ -317,20 +547,20 @@ class MeetingOrchestrator:
 
         # Ensure essential perspectives are included if they're participants
         # and we have room (or make room for them)
-        selected_names = {p['agent_name'] for p in selected}
+        selected_names = {p["agent_name"] for p in selected}
 
         for essential_agent in self.ESSENTIAL_PERSPECTIVES:
             if essential_agent not in selected_names:
                 # Find this agent in eligible participants
                 for p in eligible_participants:
-                    if p['agent_name'] == essential_agent:
+                    if p["agent_name"] == essential_agent:
                         # Add essential agent, respecting max_agents by replacing lowest scored
                         if len(selected) < max_agents:
                             selected.append(p)
                         elif len(selected) >= max_agents and selected:
                             # Replace the lowest scored non-essential agent
                             for i in range(len(selected) - 1, -1, -1):
-                                if selected[i]['agent_name'] not in self.ESSENTIAL_PERSPECTIVES:
+                                if selected[i]["agent_name"] not in self.ESSENTIAL_PERSPECTIVES:
                                     selected[i] = p
                                     break
                         selected_names.add(essential_agent)
@@ -345,7 +575,7 @@ class MeetingOrchestrator:
         context: MeetingContext,
         base_instruction: str,
         other_participants: list[str],
-        recent_agent_turns: list[dict] = None
+        recent_agent_turns: list[dict] = None,
     ) -> str:
         """Build a meeting-aware system prompt for an agent.
 
@@ -358,8 +588,8 @@ class MeetingOrchestrator:
         if recent_agent_turns:
             recent_lines = []
             for turn in recent_agent_turns:
-                turn_name = turn.get('agent_display_name', turn.get('agent_name', 'Agent'))
-                turn_content = turn.get('content', '')
+                turn_name = turn.get("agent_display_name", turn.get("agent_name", "Agent"))
+                turn_content = turn.get("content", "")
                 # Truncate if too long
                 if len(turn_content) > 300:
                     turn_content = turn_content[:300] + "..."
@@ -380,13 +610,13 @@ RECENT CONTRIBUTIONS (respond to or build on these):
             seen_content = set()  # Track content hashes to avoid duplicates
             source_counter = 0
             for chunk in context.kb_context:
-                content = chunk.get('content', '')
+                content = chunk.get("content", "")
                 if not content:
                     continue
 
                 # Create a content hash to detect near-duplicates
                 # Normalize by lowercasing and removing extra whitespace
-                content_normalized = ' '.join(content.lower().split())
+                content_normalized = " ".join(content.lower().split())
                 content_hash = hash(content_normalized[:200])  # Hash first 200 chars
 
                 # Skip if we've already seen very similar content
@@ -396,10 +626,10 @@ RECENT CONTRIBUTIONS (respond to or build on these):
 
                 source_counter += 1
                 source_info = f"[Source {source_counter}"
-                metadata = chunk.get('metadata', {})
-                if metadata.get('filename'):
+                metadata = chunk.get("metadata", {})
+                if metadata.get("filename"):
                     source_info += f" - {metadata['filename']}"
-                elif metadata.get('conversation_title'):
+                elif metadata.get("conversation_title"):
                     source_info += f" - {metadata['conversation_title']}"
                 source_info += "]"
                 # Truncate content if too long to preserve token budget
@@ -433,8 +663,16 @@ CRITICAL - PRIORITIZE KB CONTEXT:
                 stakeholder_lines = []
                 for s in context.graph_context["stakeholders"][:3]:
                     sentiment = s.get("sentiment_score") or 0.5
-                    sentiment_label = "positive" if sentiment > 0.6 else "neutral" if sentiment > 0.4 else "cautious"
-                    stakeholder_lines.append(f"  - {s['name']} ({s.get('role', 'Unknown')}) - {sentiment_label}")
+                    sentiment_label = (
+                        "positive"
+                        if sentiment > 0.6
+                        else "neutral"
+                        if sentiment > 0.4
+                        else "cautious"
+                    )
+                    stakeholder_lines.append(
+                        f"  - {s['name']} ({s.get('role', 'Unknown')}) - {sentiment_label}"
+                    )
                 if stakeholder_lines:
                     graph_parts.append("Stakeholders:\n" + "\n".join(stakeholder_lines))
 
@@ -463,7 +701,9 @@ CRITICAL - PRIORITIZE KB CONTEXT:
                 rel_lines = []
                 for r in context.graph_context["relationships"][:3]:
                     rel_type = (r.get("relationship") or "relates_to").lower().replace("_", " ")
-                    rel_lines.append(f"  - {r.get('from_name', '?')} {rel_type} {r.get('to_name', '?')}")
+                    rel_lines.append(
+                        f"  - {r.get('from_name', '?')} {rel_type} {r.get('to_name', '?')}"
+                    )
                 if rel_lines:
                     graph_parts.append("Relationships:\n" + "\n".join(rel_lines))
 
@@ -522,15 +762,13 @@ The user can always ask you to expand. Default to SHORT.
         return base_instruction + meeting_context
 
     async def _stream_facilitator_message(
-        self,
-        message: str,
-        context: MeetingContext
+        self, message: str, context: MeetingContext
     ) -> AsyncGenerator[dict, None]:
         """Stream a facilitator message with proper event types."""
         yield {
             "type": "facilitator_turn_start",
             "agent_name": "facilitator",
-            "agent_display_name": "Facilitator"
+            "agent_display_name": "Facilitator",
         }
 
         # Stream the message character by character for consistency
@@ -538,10 +776,7 @@ The user can always ask you to expand. Default to SHORT.
         words = message.split()
         for i, word in enumerate(words):
             token = word + (" " if i < len(words) - 1 else "")
-            yield {
-                "type": "facilitator_token",
-                "content": token
-            }
+            yield {"type": "facilitator_token", "content": token}
             await asyncio.sleep(0.02)  # Small delay for natural streaming feel
 
         # Store the facilitator message
@@ -552,30 +787,22 @@ The user can always ask you to expand. Default to SHORT.
             agent_name="facilitator",
             agent_display_name="Facilitator",
             turn_number=context.turn_number,
-            metadata={"is_facilitator": True}
+            metadata={"is_facilitator": True},
         )
 
-        yield {
-            "type": "facilitator_turn_end",
-            "agent_name": "facilitator"
-        }
+        yield {"type": "facilitator_turn_end", "agent_name": "facilitator"}
 
     async def _stream_reporter_response(
-        self,
-        context: MeetingContext
+        self, context: MeetingContext
     ) -> AsyncGenerator[dict, None]:
-        """
-        Stream a Reporter response for summary/documentation requests.
+        """Stream a Reporter response for summary/documentation requests.
 
         The Reporter synthesizes the entire meeting discussion into a single
         unified summary, preventing multiple agents from each giving their own
         summary which causes confusion.
         """
         if not self.reporter:
-            yield {
-                "type": "error",
-                "message": "Reporter agent not available"
-            }
+            yield {"type": "error", "message": "Reporter agent not available"}
             return
 
         # Signal reporter turn start
@@ -583,7 +810,7 @@ The user can always ask you to expand. Default to SHORT.
             "type": "agent_turn_start",
             "agent_name": "reporter",
             "agent_display_name": "Reporter",
-            "turn_number": context.turn_number
+            "turn_number": context.turn_number,
         }
 
         try:
@@ -591,7 +818,9 @@ The user can always ask you to expand. Default to SHORT.
             meeting_history_text = self._format_meeting_history_for_reporter(context)
 
             # Build the system prompt with meeting context
-            reporter_system = self.reporter.system_instruction + f"""
+            reporter_system = (
+                self.reporter.system_instruction
+                + f"""
 
 --- MEETING CONTEXT FOR SYNTHESIS ---
 The following is the discussion you need to synthesize:
@@ -601,6 +830,7 @@ The following is the discussion you need to synthesize:
 The user's current request is below. Create a unified summary based on what the agents discussed.
 --- END MEETING CONTEXT ---
 """
+            )
 
             # Build messages for the API
             messages = [{"role": "user", "content": context.user_message}]
@@ -618,11 +848,7 @@ The user's current request is below. Create a unified summary based on what the 
             ) as stream:
                 for text in stream.text_stream:
                     full_response += text
-                    yield {
-                        "type": "agent_token",
-                        "agent_name": "reporter",
-                        "content": text
-                    }
+                    yield {"type": "agent_token", "agent_name": "reporter", "content": text}
 
                 final_message = stream.get_final_message()
                 tokens_input = final_message.usage.input_tokens
@@ -639,15 +865,15 @@ The user's current request is below. Create a unified summary based on what the 
                 metadata={
                     "is_reporter": True,
                     "is_summary": True,
-                    "tokens": {"input": tokens_input, "output": tokens_output}
-                }
+                    "tokens": {"input": tokens_input, "output": tokens_output},
+                },
             )
 
             # Signal turn end
             yield {
                 "type": "agent_turn_end",
                 "agent_name": "reporter",
-                "tokens": {"input": tokens_input, "output": tokens_output}
+                "tokens": {"input": tokens_input, "output": tokens_output},
             }
 
             # Signal round complete
@@ -655,26 +881,22 @@ The user's current request is below. Create a unified summary based on what the 
                 "type": "round_complete",
                 "agents_responded": ["reporter"],
                 "reporter_only": True,
-                "total_tokens": {"input": tokens_input, "output": tokens_output}
+                "total_tokens": {"input": tokens_input, "output": tokens_output},
             }
 
         except Exception as e:
             logger.error(f"Error in Reporter response: {e}")
-            yield {
-                "type": "error",
-                "agent_name": "reporter",
-                "message": str(e)
-            }
+            yield {"type": "error", "agent_name": "reporter", "message": str(e)}
 
     def _format_meeting_history_for_reporter(self, context: MeetingContext) -> str:
         """Format the meeting history for the Reporter to synthesize."""
         lines = []
         for msg in context.message_history:
-            role = msg.get('role', 'unknown')
-            if role == 'user':
+            role = msg.get("role", "unknown")
+            if role == "user":
                 lines.append(f"**User**: {msg.get('content', '')}")
-            elif role == 'agent':
-                agent_name = msg.get('agent_display_name', msg.get('agent_name', 'Agent'))
+            elif role == "agent":
+                agent_name = msg.get("agent_display_name", msg.get("agent_name", "Agent"))
                 lines.append(f"**{agent_name}**: {msg.get('content', '')}")
             # Skip system messages
         return "\n\n".join(lines)
@@ -686,12 +908,12 @@ The user's current request is below. Create a unified summary based on what the 
         from the participant list since they're always present.
         """
         # Get participant display names, excluding meta-agents
-        meta_agent_names = {'facilitator', 'reporter'}
+        meta_agent_names = {"facilitator", "reporter"}
         participant_names = []
         for p in participants:
-            agent_name = p.get('agent_name', '').lower()
+            agent_name = p.get("agent_name", "").lower()
             if agent_name not in meta_agent_names:
-                display_name = p.get('agent_display_name', p.get('agent_name', 'Agent'))
+                display_name = p.get("agent_display_name", p.get("agent_name", "Agent"))
                 participant_names.append(display_name)
 
         if len(participant_names) == 0:
@@ -700,37 +922,36 @@ The user's current request is below. Create a unified summary based on what the 
         if len(participant_names) <= 4:
             names_str = ", ".join(participant_names)
         else:
-            names_str = ", ".join(participant_names[:4]) + f", and {len(participant_names) - 4} others"
+            names_str = (
+                ", ".join(participant_names[:4]) + f", and {len(participant_names) - 4} others"
+            )
 
         return f"Welcome! I'm the Facilitator - I'll be guiding our discussion today. We have {names_str} joining us. What would you like us to explore together?"
 
     def _get_agent_domain_label(self, agent_name: str) -> str:
         """Get a brief domain label for an agent."""
         labels = {
-            'atlas': 'research',
-            'capital': 'finance',
-            'guardian': 'security',
-            'counselor': 'legal',
-            'oracle': 'meetings',
-            'sage': 'people',
-            'strategist': 'strategy',
-            'architect': 'technical',
-            'operator': 'operations',
-            'pioneer': 'innovation',
-            'catalyst': 'communications',
-            'scholar': 'learning',
-            'nexus': 'systems',
-            'echo': 'brand voice',
+            "atlas": "research",
+            "capital": "finance",
+            "guardian": "security",
+            "counselor": "legal",
+            "oracle": "meetings",
+            "sage": "people",
+            "strategist": "strategy",
+            "architect": "technical",
+            "operator": "operations",
+            "pioneer": "innovation",
+            "catalyst": "communications",
+            "scholar": "learning",
+            "nexus": "systems",
+            "echo": "brand voice",
         }
-        return labels.get(agent_name.lower(), 'specialist')
+        return labels.get(agent_name.lower(), "specialist")
 
     async def _generate_facilitator_routing_intro(
-        self,
-        responding_agents: list[dict],
-        user_message: str
+        self, responding_agents: list[dict], user_message: str
     ) -> Optional[str]:
-        """
-        Generate a conversational routing intro using the Facilitator LLM.
+        """Generate a conversational routing intro using the Facilitator LLM.
 
         Instead of hardcoded templates like "Let's hear from X and Y", this uses
         the Facilitator to craft human-level handoffs that give each agent a
@@ -740,10 +961,9 @@ The user's current request is below. Create a unified summary based on what the 
             return None
 
         # Filter out meta-agents (facilitator, reporter) from the list
-        meta_agents = {'facilitator', 'reporter'}
+        meta_agents = {"facilitator", "reporter"}
         filtered_agents = [
-            p for p in responding_agents
-            if p.get('agent_name', '').lower() not in meta_agents
+            p for p in responding_agents if p.get("agent_name", "").lower() not in meta_agents
         ]
 
         if not filtered_agents:
@@ -752,8 +972,8 @@ The user's current request is below. Create a unified summary based on what the 
         # Build agent info for the prompt
         agent_info_lines = []
         for agent in filtered_agents:
-            agent_name = agent.get('agent_name', '')
-            display_name = agent.get('agent_display_name', agent_name)
+            agent_name = agent.get("agent_name", "")
+            display_name = agent.get("agent_display_name", agent_name)
             domain = self._get_agent_domain_label(agent_name)
             agent_info_lines.append(f"- {display_name} ({domain})")
 
@@ -787,7 +1007,7 @@ Respond with ONLY the handoff message, nothing else."""
                 model="claude-sonnet-4-20250514",
                 max_tokens=150,
                 system=self.facilitator.system_instruction,
-                messages=[{"role": "user", "content": routing_prompt}]
+                messages=[{"role": "user", "content": routing_prompt}],
             )
 
             if response.content and len(response.content) > 0:
@@ -796,7 +1016,9 @@ Respond with ONLY the handoff message, nothing else."""
         except Exception as e:
             logger.warning(f"Facilitator routing intro generation failed: {e}")
             # Fallback to simple but correct format (no self-reference)
-            agent_names = [p.get('agent_display_name', p.get('agent_name')) for p in filtered_agents]
+            agent_names = [
+                p.get("agent_display_name", p.get("agent_name")) for p in filtered_agents
+            ]
             if len(agent_names) == 1:
                 return f"Let me bring in {agent_names[0]} on this."
             else:
@@ -805,12 +1027,8 @@ Respond with ONLY the handoff message, nothing else."""
 
         return None
 
-    async def process_meeting_turn(
-        self,
-        context: MeetingContext
-    ) -> AsyncGenerator[dict, None]:
-        """
-        Process a user message and yield streaming responses from agents.
+    async def process_meeting_turn(self, context: MeetingContext) -> AsyncGenerator[dict, None]:
+        """Process a user message and yield streaming responses from agents.
 
         The Facilitator orchestrates the conversation:
         - For greetings: Facilitator welcomes and asks what to explore (no agent responses)
@@ -833,7 +1051,7 @@ Respond with ONLY the handoff message, nothing else."""
                 meeting_room_id=context.meeting_room_id,
                 role="user",
                 content=context.user_message,
-                turn_number=context.turn_number
+                turn_number=context.turn_number,
             )
 
             # Check if this is a greeting - Facilitator handles alone
@@ -846,7 +1064,7 @@ Respond with ONLY the handoff message, nothing else."""
                     "type": "round_complete",
                     "agents_responded": ["facilitator"],
                     "facilitator_only": True,
-                    "total_tokens": {"input": 0, "output": len(welcome_message.split())}
+                    "total_tokens": {"input": 0, "output": len(welcome_message.split())},
                 }
                 return
 
@@ -860,24 +1078,22 @@ Respond with ONLY the handoff message, nothing else."""
             # Check for direct @mention - route directly to mentioned agent(s)
             # WITHOUT Facilitator intervention
             direct_mention_agents = self._parse_direct_mention(
-                context.user_message,
-                context.participants
+                context.user_message, context.participants
             )
             is_direct_mention = direct_mention_agents is not None
 
             if is_direct_mention:
                 # User directly addressed specific agent(s) - route to them
                 responding_agents = direct_mention_agents
-                logger.info(f"Direct @mention routing to: {[a['agent_name'] for a in responding_agents]}")
+                logger.info(
+                    f"Direct @mention routing to: {[a['agent_name'] for a in responding_agents]}"
+                )
             else:
                 # Normal routing - select agents based on message content
                 responding_agents = self.select_responding_agents(context)
 
             if not responding_agents:
-                yield {
-                    "type": "error",
-                    "message": "No agents available to respond"
-                }
+                yield {"type": "error", "message": "No agents available to respond"}
                 return
 
             # Facilitator introduces the agents (brief routing message)
@@ -885,8 +1101,7 @@ Respond with ONLY the handoff message, nothing else."""
             routing_intro = None
             if not is_direct_mention:
                 routing_intro = await self._generate_facilitator_routing_intro(
-                    responding_agents,
-                    context.user_message
+                    responding_agents, context.user_message
                 )
             if routing_intro:
                 async for event in self._stream_facilitator_message(routing_intro, context):
@@ -897,16 +1112,16 @@ Respond with ONLY the handoff message, nothing else."""
             total_tokens_output = 0
 
             # Get list of other participant names for context
-            all_participant_names = [p['agent_display_name'] for p in context.participants]
+            all_participant_names = [p["agent_display_name"] for p in context.participants]
 
             # Track agent turns in this round for context passing
             current_round_turns: list[dict] = []
 
             # Process each responding agent sequentially with streaming
             for participant in responding_agents:
-                agent_name = participant['agent_name']
-                agent_display_name = participant['agent_display_name']
-                agent_id = participant['agent_id']
+                agent_name = participant["agent_name"]
+                agent_display_name = participant["agent_display_name"]
+                agent_id = participant["agent_id"]
 
                 # Get the agent instance
                 agent = self.agents.get(agent_name)
@@ -919,12 +1134,14 @@ Respond with ONLY the handoff message, nothing else."""
                     "type": "agent_turn_start",
                     "agent_name": agent_name,
                     "agent_display_name": agent_display_name,
-                    "turn_number": context.turn_number
+                    "turn_number": context.turn_number,
                 }
 
                 try:
                     # Build meeting-aware context for the agent
-                    other_participants = [n for n in all_participant_names if n != agent_display_name]
+                    other_participants = [
+                        n for n in all_participant_names if n != agent_display_name
+                    ]
 
                     meeting_system_prompt = self._build_meeting_system_prompt(
                         agent_name=agent_name,
@@ -932,7 +1149,7 @@ Respond with ONLY the handoff message, nothing else."""
                         context=context,
                         base_instruction=agent.system_instruction,
                         other_participants=other_participants,
-                        recent_agent_turns=current_round_turns  # Pass recent turns for context
+                        recent_agent_turns=current_round_turns,  # Pass recent turns for context
                     )
 
                     # Collect response while streaming
@@ -951,11 +1168,7 @@ Respond with ONLY the handoff message, nothing else."""
                     ) as stream:
                         for text in stream.text_stream:
                             full_response += text
-                            yield {
-                                "type": "agent_token",
-                                "agent_name": agent_name,
-                                "content": text
-                            }
+                            yield {"type": "agent_token", "agent_name": agent_name, "content": text}
 
                         # Get final message for token counts
                         final_message = stream.get_final_message()
@@ -971,14 +1184,14 @@ Respond with ONLY the handoff message, nothing else."""
                         agent_name=agent_name,
                         agent_display_name=agent_display_name,
                         turn_number=context.turn_number,
-                        metadata={"tokens": {"input": tokens_input, "output": tokens_output}}
+                        metadata={"tokens": {"input": tokens_input, "output": tokens_output}},
                     )
 
                     # Update participant stats
                     await self._update_participant_stats(
                         meeting_room_id=context.meeting_room_id,
                         agent_id=agent_id,
-                        tokens_used=tokens_output
+                        tokens_used=tokens_output,
                     )
 
                     total_tokens_input += tokens_input
@@ -986,49 +1199,40 @@ Respond with ONLY the handoff message, nothing else."""
                     agents_responded.append(agent_name)
 
                     # Add this agent's turn to context for next agents
-                    current_round_turns.append({
-                        'agent_name': agent_name,
-                        'agent_display_name': agent_display_name,
-                        'content': full_response
-                    })
+                    current_round_turns.append(
+                        {
+                            "agent_name": agent_name,
+                            "agent_display_name": agent_display_name,
+                            "content": full_response,
+                        }
+                    )
 
                     # Signal turn end
                     yield {
                         "type": "agent_turn_end",
                         "agent_name": agent_name,
-                        "tokens": {"input": tokens_input, "output": tokens_output}
+                        "tokens": {"input": tokens_input, "output": tokens_output},
                     }
 
                 except Exception as e:
                     logger.error(f"Error getting response from {agent_name}: {e}")
-                    yield {
-                        "type": "error",
-                        "agent_name": agent_name,
-                        "message": str(e)
-                    }
+                    yield {"type": "error", "agent_name": agent_name, "message": str(e)}
 
             # Update meeting room token total
             await self._update_meeting_tokens(
-                context.meeting_room_id,
-                total_tokens_input + total_tokens_output
+                context.meeting_room_id, total_tokens_input + total_tokens_output
             )
 
             # Signal round complete
             yield {
                 "type": "round_complete",
                 "agents_responded": agents_responded,
-                "total_tokens": {
-                    "input": total_tokens_input,
-                    "output": total_tokens_output
-                }
+                "total_tokens": {"input": total_tokens_input, "output": total_tokens_output},
             }
 
         except Exception as e:
             logger.error(f"Meeting orchestration error: {e}")
-            yield {
-                "type": "error",
-                "message": str(e)
-            }
+            yield {"type": "error", "message": str(e)}
 
     def _build_meeting_messages(self, context: MeetingContext) -> list[dict]:
         """Build message history for Claude API from meeting context."""
@@ -1044,10 +1248,9 @@ Respond with ONLY the handoff message, nothing else."""
                 messages.append({"role": "user", "content": msg["content"]})
             else:
                 # System or other messages
-                messages.append({
-                    "role": msg.get("role", "user"),
-                    "content": msg.get("content", "")
-                })
+                messages.append(
+                    {"role": msg.get("role", "user"), "content": msg.get("content", "")}
+                )
 
         # Add current user message
         messages.append({"role": "user", "content": context.user_message})
@@ -1063,7 +1266,7 @@ Respond with ONLY the handoff message, nothing else."""
         agent_name: Optional[str] = None,
         agent_display_name: Optional[str] = None,
         turn_number: Optional[int] = None,
-        metadata: Optional[dict] = None
+        metadata: Optional[dict] = None,
     ) -> Optional[str]:
         """Store a message in the meeting room and queue for embedding."""
         try:
@@ -1088,9 +1291,7 @@ Respond with ONLY the handoff message, nothing else."""
                 message_id = result.data[0].get("id")
                 if message_id and role != "system":  # Skip system messages
                     # Queue embedding in background (don't await)
-                    asyncio.create_task(
-                        self._embed_message_background(message_id, content)
-                    )
+                    asyncio.create_task(self._embed_message_background(message_id, content))
                 return message_id
             return None
 
@@ -1098,28 +1299,17 @@ Respond with ONLY the handoff message, nothing else."""
             logger.error(f"Failed to store meeting message: {e}")
             return None
 
-    async def _embed_message_background(
-        self,
-        message_id: str,
-        content: str
-    ) -> None:
+    async def _embed_message_background(self, message_id: str, content: str) -> None:
         """Background task to embed a message."""
         try:
             embed_func = await _get_embed_function()
             if embed_func:
-                await embed_func(
-                    self.supabase,
-                    UUID(message_id),
-                    content
-                )
+                await embed_func(self.supabase, UUID(message_id), content)
         except Exception as e:
             logger.warning(f"Background embedding failed for {message_id}: {e}")
 
     async def _update_participant_stats(
-        self,
-        meeting_room_id: str,
-        agent_id: str,
-        tokens_used: int
+        self, meeting_room_id: str, agent_id: str, tokens_used: int
     ) -> None:
         """Update participant stats after a turn."""
         try:
@@ -1130,37 +1320,33 @@ Respond with ONLY the handoff message, nothing else."""
                     {
                         "p_meeting_room_id": meeting_room_id,
                         "p_agent_id": agent_id,
-                        "p_tokens": tokens_used
-                    }
+                        "p_tokens": tokens_used,
+                    },
                 ).execute()
             )
         except Exception as e:
             # Fallback to manual update if RPC doesn't exist
             logger.warning(f"RPC not available, skipping participant stats update: {e}")
 
-    async def _update_meeting_tokens(
-        self,
-        meeting_room_id: str,
-        tokens: int
-    ) -> None:
+    async def _update_meeting_tokens(self, meeting_room_id: str, tokens: int) -> None:
         """Update total tokens used in the meeting."""
         try:
             # Get current total
             result = await asyncio.to_thread(
                 lambda: self.supabase.table("meeting_rooms")
-                    .select("total_tokens_used")
-                    .eq("id", meeting_room_id)
-                    .single()
-                    .execute()
+                .select("total_tokens_used")
+                .eq("id", meeting_room_id)
+                .single()
+                .execute()
             )
 
             current = result.data.get("total_tokens_used", 0) if result.data else 0
 
             await asyncio.to_thread(
                 lambda: self.supabase.table("meeting_rooms")
-                    .update({"total_tokens_used": current + tokens})
-                    .eq("id", meeting_room_id)
-                    .execute()
+                .update({"total_tokens_used": current + tokens})
+                .eq("id", meeting_room_id)
+                .execute()
             )
         except Exception as e:
             logger.error(f"Failed to update meeting tokens: {e}")
@@ -1194,13 +1380,12 @@ Respond with ONLY the handoff message, nothing else."""
         context: MeetingContext,
         base_instruction: str,
         autonomous_context: AutonomousContext,
-        other_participants: list[str]
+        other_participants: list[str],
     ) -> str:
         """Build a prompt for agent-to-agent discourse."""
         # Format recent responses from other agents
         recent_contributions = self._format_recent_contributions(
-            autonomous_context.round_messages or [],
-            exclude_agent=agent_name
+            autonomous_context.round_messages or [], exclude_agent=agent_name
         )
 
         # Build expertise directory for other participants
@@ -1213,7 +1398,9 @@ Respond with ONLY the handoff message, nothing else."""
                     f"- **{p_display}**: {self.AGENT_EXPERTISE_DESCRIPTIONS[p_name]}"
                 )
 
-        expertise_directory = "\n".join(participant_expertise) if participant_expertise else "No other agents."
+        expertise_directory = (
+            "\n".join(participant_expertise) if participant_expertise else "No other agents."
+        )
 
         # Round-specific guidance
         if autonomous_context.current_round == 1:
@@ -1228,7 +1415,9 @@ Focus on: Responding to what's been said, adding new dimensions, challenging ass
 
         # Pre-format recent contributions section (avoid backslash in f-string expression)
         if recent_contributions:
-            contributions_section = f"RECENT CONTRIBUTIONS FROM OTHER AGENTS:\n{recent_contributions}"
+            contributions_section = (
+                f"RECENT CONTRIBUTIONS FROM OTHER AGENTS:\n{recent_contributions}"
+            )
         else:
             contributions_section = "You are the first to speak in this round."
 
@@ -1239,12 +1428,12 @@ Focus on: Responding to what's been said, adding new dimensions, challenging ass
             seen_content = set()  # Track content hashes to avoid duplicates
             source_counter = 0
             for chunk in context.kb_context[:8]:  # Limit to 8 chunks for autonomous context
-                content = chunk.get('content', '')
+                content = chunk.get("content", "")
                 if not content:
                     continue
 
                 # Create a content hash to detect near-duplicates
-                content_normalized = ' '.join(content.lower().split())
+                content_normalized = " ".join(content.lower().split())
                 content_hash = hash(content_normalized[:200])  # Hash first 200 chars
 
                 # Skip if we've already seen very similar content
@@ -1254,10 +1443,10 @@ Focus on: Responding to what's been said, adding new dimensions, challenging ass
 
                 source_counter += 1
                 source_info = f"[Source {source_counter}"
-                metadata = chunk.get('metadata', {})
-                if metadata.get('filename'):
+                metadata = chunk.get("metadata", {})
+                if metadata.get("filename"):
                     source_info += f" - {metadata['filename']}"
-                elif metadata.get('conversation_title'):
+                elif metadata.get("conversation_title"):
                     source_info += f" - {metadata['conversation_title']}"
                 source_info += "]"
                 # Increased to 800 chars for autonomous mode - agents need full context
@@ -1278,11 +1467,13 @@ IMPORTANT: This is REAL data from the user's documents. Reference it specificall
         if context.graph_context:
             graph_parts = []
             if context.graph_context.get("stakeholders"):
-                names = [s['name'] for s in context.graph_context["stakeholders"][:3]]
+                names = [s["name"] for s in context.graph_context["stakeholders"][:3]]
                 if names:
                     graph_parts.append(f"Stakeholders: {', '.join(names)}")
             if context.graph_context.get("concerns"):
-                concerns = [c.get("content", "")[:50] + "..." for c in context.graph_context["concerns"][:2]]
+                concerns = [
+                    c.get("content", "")[:50] + "..." for c in context.graph_context["concerns"][:2]
+                ]
                 if concerns:
                     graph_parts.append(f"Concerns: {'; '.join(concerns)}")
             if context.graph_context.get("roi_opportunities"):
@@ -1334,11 +1525,7 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
 """
         return base_instruction + discourse_context
 
-    def _format_recent_contributions(
-        self,
-        round_messages: list[dict],
-        exclude_agent: str
-    ) -> str:
+    def _format_recent_contributions(self, round_messages: list[dict], exclude_agent: str) -> str:
         """Format recent agent contributions for context."""
         contributions = []
         for msg in round_messages:
@@ -1353,10 +1540,7 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
         return "\n\n".join(contributions) if contributions else ""
 
     def _get_round_speakers(
-        self,
-        participants: list[dict],
-        speaking_order: str,
-        round_number: int
+        self, participants: list[dict], speaking_order: str, round_number: int
     ) -> list[dict]:
         """Get the ordered list of speakers for a round."""
         if speaking_order == "round_robin":
@@ -1366,44 +1550,36 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
         else:  # priority (default)
             # Sort by priority, then by name for consistency
             return sorted(
-                participants,
-                key=lambda p: (-p.get("priority", 0), p.get("agent_name", ""))
+                participants, key=lambda p: (-p.get("priority", 0), p.get("agent_name", ""))
             )
 
-    async def _check_for_user_interjection(
-        self,
-        meeting_room_id: str
-    ) -> bool:
+    async def _check_for_user_interjection(self, meeting_room_id: str) -> bool:
         """Check if user has sent a message during autonomous discussion."""
         try:
             result = await asyncio.to_thread(
                 lambda: self.supabase.table("meeting_room_messages")
-                    .select("id")
-                    .eq("meeting_room_id", meeting_room_id)
-                    .eq("role", "user")
-                    .eq("pending_interjection", True)
-                    .limit(1)
-                    .execute()
+                .select("id")
+                .eq("meeting_room_id", meeting_room_id)
+                .eq("role", "user")
+                .eq("pending_interjection", True)
+                .limit(1)
+                .execute()
             )
             return len(result.data) > 0 if result.data else False
         except Exception as e:
             logger.warning(f"Error checking for user interjection: {e}")
             return False
 
-    async def _update_autonomous_config(
-        self,
-        meeting_room_id: str,
-        config_update: dict
-    ) -> None:
+    async def _update_autonomous_config(self, meeting_room_id: str, config_update: dict) -> None:
         """Update the autonomous discussion config in meeting room."""
         try:
             # Get current config
             result = await asyncio.to_thread(
                 lambda: self.supabase.table("meeting_rooms")
-                    .select("config")
-                    .eq("id", meeting_room_id)
-                    .single()
-                    .execute()
+                .select("config")
+                .eq("id", meeting_room_id)
+                .single()
+                .execute()
             )
 
             current_config = result.data.get("config", {}) if result.data else {}
@@ -1413,9 +1589,9 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
 
             await asyncio.to_thread(
                 lambda: self.supabase.table("meeting_rooms")
-                    .update({"config": current_config})
-                    .eq("id", meeting_room_id)
-                    .execute()
+                .update({"config": current_config})
+                .eq("id", meeting_room_id)
+                .execute()
             )
         except Exception as e:
             logger.error(f"Failed to update autonomous config: {e}")
@@ -1425,10 +1601,9 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
         context: MeetingContext,
         topic: str,
         total_rounds: int,
-        speaking_order: str = "priority"
+        speaking_order: str = "priority",
     ) -> AsyncGenerator[dict, None]:
-        """
-        Run autonomous discussion for configured rounds.
+        """Run autonomous discussion for configured rounds.
         Yields SSE events as agents discuss.
 
         Events yielded:
@@ -1447,7 +1622,7 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
                 role="system",
                 content=f"[AUTONOMOUS DISCUSSION STARTED]\nTopic: {topic}\nRounds: {total_rounds}",
                 turn_number=0,
-                metadata={"autonomous": True, "topic": topic, "total_rounds": total_rounds}
+                metadata={"autonomous": True, "topic": topic, "total_rounds": total_rounds},
             )
 
             # Update config to mark discussion as active
@@ -1459,8 +1634,8 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
                     "total_rounds": total_rounds,
                     "current_round": 0,
                     "speaking_order": speaking_order,
-                    "is_paused": False
-                }
+                    "is_paused": False,
+                },
             )
 
             all_participant_names = [p["agent_display_name"] for p in context.participants]
@@ -1471,22 +1646,18 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
                 # Update current round in config
                 await self._update_autonomous_config(
                     context.meeting_room_id,
-                    {"current_round": round_num, "agents_spoken_this_round": []}
+                    {"current_round": round_num, "agents_spoken_this_round": []},
                 )
 
                 # Signal round start
                 yield {
                     "type": "discussion_round_start",
                     "round_number": round_num,
-                    "total_rounds": total_rounds
+                    "total_rounds": total_rounds,
                 }
 
                 # Get speaking order for this round
-                speakers = self._get_round_speakers(
-                    context.participants,
-                    speaking_order,
-                    round_num
-                )
+                speakers = self._get_round_speakers(context.participants, speaking_order, round_num)
 
                 round_messages: list[dict] = []
 
@@ -1497,13 +1668,12 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
                     )
                     if has_interjection:
                         await self._update_autonomous_config(
-                            context.meeting_room_id,
-                            {"is_active": False, "is_paused": True}
+                            context.meeting_room_id, {"is_active": False, "is_paused": True}
                         )
                         yield {
                             "type": "discussion_paused",
                             "reason": "user_interjection",
-                            "current_round": round_num
+                            "current_round": round_num,
                         }
                         return
 
@@ -1522,7 +1692,7 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
                         "type": "agent_turn_start",
                         "agent_name": agent_name,
                         "agent_display_name": agent_display_name,
-                        "turn_number": round_num
+                        "turn_number": round_num,
                     }
 
                     try:
@@ -1532,7 +1702,7 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
                             total_rounds=total_rounds,
                             current_round=round_num,
                             speaking_order=speaking_order,
-                            round_messages=round_messages
+                            round_messages=round_messages,
                         )
 
                         other_participants = [
@@ -1545,13 +1715,11 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
                             context=context,
                             base_instruction=agent.system_instruction,
                             autonomous_context=autonomous_ctx,
-                            other_participants=other_participants
+                            other_participants=other_participants,
                         )
 
                         # Build messages with topic and round context
-                        messages = self._build_autonomous_messages(
-                            context, topic, round_messages
-                        )
+                        messages = self._build_autonomous_messages(context, topic, round_messages)
 
                         # Stream response
                         full_response = ""
@@ -1569,7 +1737,7 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
                                 yield {
                                     "type": "agent_token",
                                     "agent_name": agent_name,
-                                    "content": text
+                                    "content": text,
                                 }
 
                             final_message = stream.get_final_message()
@@ -1590,60 +1758,56 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
                             responding_to_agent=responding_to,
                             metadata={
                                 "tokens": {"input": tokens_input, "output": tokens_output},
-                                "autonomous": True
-                            }
+                                "autonomous": True,
+                            },
                         )
 
                         # Update participant stats
                         await self._update_participant_stats(
                             meeting_room_id=context.meeting_room_id,
                             agent_id=agent_id,
-                            tokens_used=tokens_output
+                            tokens_used=tokens_output,
                         )
 
                         total_tokens_input += tokens_input
                         total_tokens_output += tokens_output
 
                         # Add to round messages for next agent's context
-                        round_messages.append({
-                            "agent_name": agent_name,
-                            "agent_display_name": agent_display_name,
-                            "content": full_response
-                        })
+                        round_messages.append(
+                            {
+                                "agent_name": agent_name,
+                                "agent_display_name": agent_display_name,
+                                "content": full_response,
+                            }
+                        )
 
                         # Signal turn end
                         yield {
                             "type": "agent_turn_end",
                             "agent_name": agent_name,
                             "tokens": {"input": tokens_input, "output": tokens_output},
-                            "full_response": full_response
+                            "full_response": full_response,
                         }
 
                     except Exception as e:
                         logger.error(f"Error in autonomous turn from {agent_name}: {e}")
-                        yield {
-                            "type": "error",
-                            "agent_name": agent_name,
-                            "message": str(e)
-                        }
+                        yield {"type": "error", "agent_name": agent_name, "message": str(e)}
 
                 # Signal round end
                 yield {
                     "type": "discussion_round_end",
                     "round_number": round_num,
-                    "agents_responded": [p["agent_name"] for p in speakers]
+                    "agents_responded": [p["agent_name"] for p in speakers],
                 }
 
             # Update meeting room token total
             await self._update_meeting_tokens(
-                context.meeting_room_id,
-                total_tokens_input + total_tokens_output
+                context.meeting_room_id, total_tokens_input + total_tokens_output
             )
 
             # Mark discussion as complete
             await self._update_autonomous_config(
-                context.meeting_room_id,
-                {"is_active": False, "is_paused": False}
+                context.meeting_room_id, {"is_active": False, "is_paused": False}
             )
 
             # Store completion message
@@ -1655,41 +1819,27 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
                 metadata={
                     "autonomous": True,
                     "discussion_complete": True,
-                    "total_tokens": total_tokens_input + total_tokens_output
-                }
+                    "total_tokens": total_tokens_input + total_tokens_output,
+                },
             )
 
             # Signal discussion complete
             yield {
                 "type": "discussion_complete",
                 "total_rounds_completed": total_rounds,
-                "total_tokens": {
-                    "input": total_tokens_input,
-                    "output": total_tokens_output
-                }
+                "total_tokens": {"input": total_tokens_input, "output": total_tokens_output},
             }
 
         except Exception as e:
             logger.error(f"Autonomous discussion error: {e}")
             await self._update_autonomous_config(
-                context.meeting_room_id,
-                {"is_active": False, "is_paused": True}
+                context.meeting_room_id, {"is_active": False, "is_paused": True}
             )
-            yield {
-                "type": "discussion_paused",
-                "reason": "error",
-                "current_round": 0
-            }
-            yield {
-                "type": "error",
-                "message": str(e)
-            }
+            yield {"type": "discussion_paused", "reason": "error", "current_round": 0}
+            yield {"type": "error", "message": str(e)}
 
     def _build_autonomous_messages(
-        self,
-        context: MeetingContext,
-        topic: str,
-        round_messages: list[dict]
+        self, context: MeetingContext, topic: str, round_messages: list[dict]
     ) -> list[dict]:
         """Build message history for autonomous discussion."""
         messages = []
@@ -1715,7 +1865,12 @@ Please share your perspective and engage with what other agents have said."""
                 content = f"[{rm['agent_display_name']}]: {rm['content']}"
                 messages.append({"role": "assistant", "content": content})
             # Prompt for next response
-            messages.append({"role": "user", "content": "Continue the discussion. Respond to what other agents have said."})
+            messages.append(
+                {
+                    "role": "user",
+                    "content": "Continue the discussion. Respond to what other agents have said.",
+                }
+            )
         else:
             messages.append({"role": "user", "content": topic_prompt})
 
@@ -1730,7 +1885,7 @@ Please share your perspective and engage with what other agents have said."""
         agent_display_name: str,
         discussion_round: int,
         responding_to_agent: Optional[str] = None,
-        metadata: Optional[dict] = None
+        metadata: Optional[dict] = None,
     ) -> Optional[str]:
         """Store an autonomous discussion message and queue for embedding."""
         try:
@@ -1755,9 +1910,7 @@ Please share your perspective and engage with what other agents have said."""
                 message_id = result.data[0].get("id")
                 if message_id:
                     # Queue embedding in background (don't await)
-                    asyncio.create_task(
-                        self._embed_message_background(message_id, content)
-                    )
+                    asyncio.create_task(self._embed_message_background(message_id, content))
                 return message_id
             return None
 
@@ -1765,35 +1918,28 @@ Please share your perspective and engage with what other agents have said."""
             logger.error(f"Failed to store autonomous message: {e}")
             return None
 
-    async def stop_autonomous_discussion(
-        self,
-        meeting_room_id: str
-    ) -> None:
+    async def stop_autonomous_discussion(self, meeting_room_id: str) -> None:
         """Stop an ongoing autonomous discussion."""
         await self._update_autonomous_config(
-            meeting_room_id,
-            {"is_active": False, "is_paused": True}
+            meeting_room_id, {"is_active": False, "is_paused": True}
         )
 
         await self._store_message(
             meeting_room_id=meeting_room_id,
             role="system",
             content="[AUTONOMOUS DISCUSSION STOPPED BY USER]",
-            metadata={"autonomous": True, "stopped": True}
+            metadata={"autonomous": True, "stopped": True},
         )
 
-    async def get_autonomous_status(
-        self,
-        meeting_room_id: str
-    ) -> dict:
+    async def get_autonomous_status(self, meeting_room_id: str) -> dict:
         """Get the current autonomous discussion status."""
         try:
             result = await asyncio.to_thread(
                 lambda: self.supabase.table("meeting_rooms")
-                    .select("config")
-                    .eq("id", meeting_room_id)
-                    .single()
-                    .execute()
+                .select("config")
+                .eq("id", meeting_room_id)
+                .single()
+                .execute()
             )
 
             config = result.data.get("config", {}) if result.data else {}
@@ -1806,7 +1952,8 @@ Please share your perspective and engage with what other agents have said."""
                 "current_round": autonomous.get("current_round", 0),
                 "speaking_order": autonomous.get("speaking_order", "priority"),
                 "is_paused": autonomous.get("is_paused", False),
-                "can_resume": autonomous.get("is_paused", False) and autonomous.get("topic") is not None
+                "can_resume": autonomous.get("is_paused", False)
+                and autonomous.get("topic") is not None,
             }
         except Exception as e:
             logger.error(f"Failed to get autonomous status: {e}")
@@ -1817,24 +1964,22 @@ Please share your perspective and engage with what other agents have said."""
                 "current_round": 0,
                 "speaking_order": "priority",
                 "is_paused": False,
-                "can_resume": False
+                "can_resume": False,
             }
 
 
 async def get_meeting_orchestrator(
-    supabase: Client,
-    anthropic_client: anthropic.Anthropic
+    supabase: Client, anthropic_client: anthropic.Anthropic
 ) -> MeetingOrchestrator:
-    """
-    Factory function to create a MeetingOrchestrator with all agents loaded.
+    """Factory function to create a MeetingOrchestrator with all agents loaded.
     Includes the Facilitator and Reporter meta-agents which are always present in meetings.
     - Facilitator: Orchestrates conversation flow, routes to agents
     - Reporter: Synthesizes discussions into unified summaries
     """
     from agents.atlas import AtlasAgent
     from agents.capital import CapitalAgent
-    from agents.guardian import GuardianAgent
     from agents.counselor import CounselorAgent
+    from agents.guardian import GuardianAgent
     from agents.oracle import OracleAgent
     from agents.sage import SageAgent
 
@@ -1842,6 +1987,7 @@ async def get_meeting_orchestrator(
     facilitator = None
     try:
         from agents.facilitator import FacilitatorAgent
+
         facilitator = FacilitatorAgent(supabase, anthropic_client)
         await facilitator.initialize()
         logger.info("Facilitator meta-agent initialized")
@@ -1852,6 +1998,7 @@ async def get_meeting_orchestrator(
     reporter = None
     try:
         from agents.reporter import ReporterAgent
+
         reporter = ReporterAgent(supabase, anthropic_client)
         await reporter.initialize()
         logger.info("Reporter meta-agent initialized")
@@ -1875,48 +2022,56 @@ async def get_meeting_orchestrator(
     # Try to load additional agents if they exist
     try:
         from agents.strategist import StrategistAgent
+
         agents["strategist"] = StrategistAgent(supabase, anthropic_client)
     except ImportError:
         pass
 
     try:
         from agents.architect import ArchitectAgent
+
         agents["architect"] = ArchitectAgent(supabase, anthropic_client)
     except ImportError:
         pass
 
     try:
         from agents.operator import OperatorAgent
+
         agents["operator"] = OperatorAgent(supabase, anthropic_client)
     except ImportError:
         pass
 
     try:
         from agents.pioneer import PioneerAgent
+
         agents["pioneer"] = PioneerAgent(supabase, anthropic_client)
     except ImportError:
         pass
 
     try:
         from agents.catalyst import CatalystAgent
+
         agents["catalyst"] = CatalystAgent(supabase, anthropic_client)
     except ImportError:
         pass
 
     try:
         from agents.scholar import ScholarAgent
+
         agents["scholar"] = ScholarAgent(supabase, anthropic_client)
     except ImportError:
         pass
 
     try:
         from agents.nexus import NexusAgent
+
         agents["nexus"] = NexusAgent(supabase, anthropic_client)
     except ImportError:
         pass
 
     try:
         from agents.echo import EchoAgent
+
         agents["echo"] = EchoAgent(supabase, anthropic_client)
     except ImportError:
         pass

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Seed historical system instruction versions (1.0 and 1.1) for version comparison feature.
+"""Seed historical system instruction versions (1.0 and 1.1) for version comparison feature.
 Run this script after 039_seed_initial_system_instruction.py
 """
 
@@ -22,7 +21,9 @@ def get_supabase() -> Client:
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY")
 
     if not url or not key:
-        raise ValueError("Supabase not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY)")
+        raise ValueError(
+            "Supabase not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY)"
+        )
 
     return create_client(url, key)
 
@@ -68,14 +69,23 @@ def seed_historical_versions():
             continue
 
         # Check if this version already exists
-        existing = supabase.table("system_instruction_versions").select("id").eq("version_number", version_info["version_number"]).execute()
+        existing = (
+            supabase.table("system_instruction_versions")
+            .select("id")
+            .eq("version_number", version_info["version_number"])
+            .execute()
+        )
 
         if existing.data:
-            print(f"⏭️  Version {version_info['version_number']} already exists (ID: {existing.data[0]['id']})")
+            print(
+                f"⏭️  Version {version_info['version_number']} already exists (ID: {existing.data[0]['id']})"
+            )
             continue
 
         # Calculate created_at timestamp (in the past)
-        created_at = datetime.now(timezone.utc) - timedelta(days=version_info["created_offset_days"])
+        created_at = datetime.now(timezone.utc) - timedelta(
+            days=version_info["created_offset_days"]
+        )
 
         # Insert the version
         version_data = {
@@ -93,7 +103,9 @@ def seed_historical_versions():
 
         if result.data:
             created_ids.append((version_info["version_number"], result.data[0]["id"]))
-            print(f"✅ Created version {version_info['version_number']} (ID: {result.data[0]['id']})")
+            print(
+                f"✅ Created version {version_info['version_number']} (ID: {result.data[0]['id']})"
+            )
         else:
             print(f"❌ Failed to create version {version_info['version_number']}")
 

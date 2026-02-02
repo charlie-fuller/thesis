@@ -1,5 +1,4 @@
-"""
-Test the chat endpoint with RAG integration
+"""Test the chat endpoint with RAG integration
 Tests:
 1. Chat with document context (RAG enabled)
 2. Chat without RAG
@@ -9,6 +8,7 @@ Tests:
 import requests
 
 API_BASE = "http://localhost:8000"
+
 
 def test_chat_with_rag():
     print("=" * 70)
@@ -20,44 +20,37 @@ def test_chat_with_rag():
         {
             "query": "What are the key principles for innovation?",
             "use_rag": True,
-            "description": "Should find innovation strategy from documents"
+            "description": "Should find innovation strategy from documents",
         },
         {
             "query": "Tell me about the PB_Magic framework",
             "use_rag": True,
-            "description": "Should find PB_Magic framework details"
+            "description": "Should find PB_Magic framework details",
         },
         {
             "query": "What is 2 + 2?",
             "use_rag": True,
-            "description": "Question not in documents - should handle gracefully"
+            "description": "Question not in documents - should handle gracefully",
         },
         {
             "query": "What strategic frameworks are mentioned?",
             "use_rag": True,
-            "description": "Should find ICE and OKR frameworks"
-        }
+            "description": "Should find ICE and OKR frameworks",
+        },
     ]
 
     for i, test in enumerate(test_queries, 1):
         print(f"\n{'─' * 70}")
         print(f"Test {i}: {test['description']}")
         print(f"{'─' * 70}")
-        print(f"Query: \"{test['query']}\"")
+        print(f'Query: "{test["query"]}"')
         print(f"RAG Enabled: {test['use_rag']}")
 
         # Make chat request
-        payload = {
-            "message": test['query'],
-            "use_rag": test['use_rag'],
-            "max_chunks": 3
-        }
+        payload = {"message": test["query"], "use_rag": test["use_rag"], "max_chunks": 3}
 
         try:
-            response = requests.post(
-                f"{API_BASE}/api/chat",
-                json=payload
-            )
+            response = requests.post(f"{API_BASE}/api/chat", json=payload)
 
             if response.status_code != 200:
                 print(f"\n❌ Request failed: {response.status_code}")
@@ -74,17 +67,19 @@ def test_chat_with_rag():
             print(f"   Output tokens: {result['tokens']['output']}")
 
             # Show context chunks if RAG was used
-            if result['context_used'] > 0:
+            if result["context_used"] > 0:
                 print("\n📚 Document Context Used:")
-                for j, chunk in enumerate(result['chunks'], 1):
-                    print(f"\n   Chunk {j} (Similarity: {chunk['similarity']:.4f} / {chunk['similarity']*100:.2f}%)")
+                for j, chunk in enumerate(result["chunks"], 1):
+                    print(
+                        f"\n   Chunk {j} (Similarity: {chunk['similarity']:.4f} / {chunk['similarity'] * 100:.2f}%)"
+                    )
                     print(f"   Content preview: {chunk['content'][:100]}...")
 
             # Show assistant response
             print("\n🤖 Assistant Response:")
             print(f"   {'-' * 66}")
             # Indent each line of the response
-            for line in result['message'].split('\n'):
+            for line in result["message"].split("\n"):
                 print(f"   {line}")
             print(f"   {'-' * 66}")
 
@@ -95,6 +90,7 @@ def test_chat_with_rag():
         except Exception as e:
             print(f"\n❌ Error: {str(e)}")
             import traceback
+
             traceback.print_exc()
             continue
 

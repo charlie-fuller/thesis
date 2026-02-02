@@ -1,5 +1,4 @@
-"""
-Agent Router for Thesis multi-agent system.
+"""Agent Router for Thesis multi-agent system.
 
 Routes incoming messages to the appropriate agent based on:
 1. Explicit agent selection by user
@@ -9,10 +8,11 @@ Routes incoming messages to the appropriate agent based on:
 
 import logging
 import re
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 import anthropic
+
 from supabase import Client
 
 logger = logging.getLogger(__name__)
@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RoutingDecision:
     """Result of routing decision."""
+
     primary_agent: str
     confidence: float
     reason: str
@@ -32,8 +33,7 @@ class RoutingDecision:
 
 
 class AgentRouter:
-    """
-    Routes messages to the appropriate Thesis agent.
+    """Routes messages to the appropriate Thesis agent.
 
     Routing hierarchy:
     1. Explicit selection (user says "@atlas" or selects in UI)
@@ -45,103 +45,269 @@ class AgentRouter:
     AGENT_KEYWORDS = {
         # Stakeholder Perspective Agents
         "atlas": [
-            r"\bresearch\b", r"\bstudy\b", r"\bstudies\b", r"\bcase study\b",
-            r"\bconsulting\b", r"\bmckinsey\b", r"\bbcg\b", r"\bbain\b",
-            r"\baccenture\b", r"\bdeloitte\b", r"\bkpmg\b", r"\bpwc\b", r"\bey\b",
-            r"\bgartner\b", r"\bforrester\b", r"\bidc\b",
-            r"\bwhitepaper\b", r"\breport\b", r"\banalysis\b", r"\btrend\b",
-            r"\bbest practice\b", r"\bindustry\b", r"\bcompetitor\b",
-            r"\bai implementation\b", r"\bgenai\b", r"\bgen ai\b",
+            r"\bresearch\b",
+            r"\bstudy\b",
+            r"\bstudies\b",
+            r"\bcase study\b",
+            r"\bconsulting\b",
+            r"\bmckinsey\b",
+            r"\bbcg\b",
+            r"\bbain\b",
+            r"\baccenture\b",
+            r"\bdeloitte\b",
+            r"\bkpmg\b",
+            r"\bpwc\b",
+            r"\bey\b",
+            r"\bgartner\b",
+            r"\bforrester\b",
+            r"\bidc\b",
+            r"\bwhitepaper\b",
+            r"\breport\b",
+            r"\banalysis\b",
+            r"\btrend\b",
+            r"\bbest practice\b",
+            r"\bindustry\b",
+            r"\bcompetitor\b",
+            r"\bai implementation\b",
+            r"\bgenai\b",
+            r"\bgen ai\b",
         ],
         "capital": [
-            r"\broi\b", r"\breturn on investment\b", r"\bcost\b", r"\bbudget\b",
-            r"\bfinance\b", r"\bfinancial\b", r"\bcfo\b", r"\bcontroller\b",
-            r"\bsaving\b", r"\bexpense\b", r"\binvestment\b", r"\bspend\b",
-            r"\bjustify\b", r"\bjustification\b", r"\bbusiness case\b",
-            r"\bpayback\b", r"\bbreakeven\b", r"\bvalue\b", r"\bprofit\b",
+            r"\broi\b",
+            r"\breturn on investment\b",
+            r"\bcost\b",
+            r"\bbudget\b",
+            r"\bfinance\b",
+            r"\bfinancial\b",
+            r"\bcfo\b",
+            r"\bcontroller\b",
+            r"\bsaving\b",
+            r"\bexpense\b",
+            r"\binvestment\b",
+            r"\bspend\b",
+            r"\bjustify\b",
+            r"\bjustification\b",
+            r"\bbusiness case\b",
+            r"\bpayback\b",
+            r"\bbreakeven\b",
+            r"\bvalue\b",
+            r"\bprofit\b",
         ],
         "guardian": [
-            r"\bsecurity\b", r"\bgovernance\b", r"\bcompliance\b", r"\brisk\b",
-            r"\bit\b", r"\binfrastructure\b", r"\barchitecture\b",
-            r"\bpolicy\b", r"\bpolicies\b", r"\bstandard\b", r"\bframework\b",
-            r"\bdata protection\b", r"\bprivacy\b", r"\bgdpr\b", r"\bccpa\b",
-            r"\baudit\b", r"\bcontrol\b", r"\baccess\b", r"\bpermission\b",
-            r"\bciso\b", r"\bcio\b", r"\bsoc2\b", r"\biso\b", r"\bhipaa\b",
+            r"\bsecurity\b",
+            r"\bgovernance\b",
+            r"\bcompliance\b",
+            r"\brisk\b",
+            r"\bit\b",
+            r"\binfrastructure\b",
+            r"\barchitecture\b",
+            r"\bpolicy\b",
+            r"\bpolicies\b",
+            r"\bstandard\b",
+            r"\bframework\b",
+            r"\bdata protection\b",
+            r"\bprivacy\b",
+            r"\bgdpr\b",
+            r"\bccpa\b",
+            r"\baudit\b",
+            r"\bcontrol\b",
+            r"\baccess\b",
+            r"\bpermission\b",
+            r"\bciso\b",
+            r"\bcio\b",
+            r"\bsoc2\b",
+            r"\biso\b",
+            r"\bhipaa\b",
         ],
         "counselor": [
-            r"\blegal\b", r"\bcontract\b", r"\bagreement\b", r"\bterms\b",
-            r"\blicense\b", r"\blicensing\b", r"\bip\b", r"\bintellectual property\b",
-            r"\bpatent\b", r"\bcopyright\b", r"\btrademark\b",
-            r"\bliability\b", r"\bindemnity\b", r"\bwarranty\b",
-            r"\blawyer\b", r"\battorney\b", r"\bcounsel\b",
-            r"\bnda\b", r"\bmsa\b", r"\bsow\b", r"\bsla\b",
+            r"\blegal\b",
+            r"\bcontract\b",
+            r"\bagreement\b",
+            r"\bterms\b",
+            r"\blicense\b",
+            r"\blicensing\b",
+            r"\bip\b",
+            r"\bintellectual property\b",
+            r"\bpatent\b",
+            r"\bcopyright\b",
+            r"\btrademark\b",
+            r"\bliability\b",
+            r"\bindemnity\b",
+            r"\bwarranty\b",
+            r"\blawyer\b",
+            r"\battorney\b",
+            r"\bcounsel\b",
+            r"\bnda\b",
+            r"\bmsa\b",
+            r"\bsow\b",
+            r"\bsla\b",
         ],
         "oracle": [
-            r"\btranscript\b", r"\bmeeting\b", r"\bcall\b", r"\bconversation\b",
-            r"\battendee\b", r"\bparticipant\b", r"\bspeaker\b",
-            r"\bsentiment\b", r"\bfeedback\b", r"\breaction\b",
-            r"\bgranola\b", r"\botter\b", r"\bzoom\b", r"\bteams\b",
-            r"\bupload\b", r"\banalyze\b", r"\bextract\b",
-            r"\bwho said\b", r"\bwhat did .+ say\b", r"\bstakeholder\b",
+            r"\btranscript\b",
+            r"\bmeeting\b",
+            r"\bcall\b",
+            r"\bconversation\b",
+            r"\battendee\b",
+            r"\bparticipant\b",
+            r"\bspeaker\b",
+            r"\bsentiment\b",
+            r"\bfeedback\b",
+            r"\breaction\b",
+            r"\bgranola\b",
+            r"\botter\b",
+            r"\bzoom\b",
+            r"\bteams\b",
+            r"\bupload\b",
+            r"\banalyze\b",
+            r"\bextract\b",
+            r"\bwho said\b",
+            r"\bwhat did .+ say\b",
+            r"\bstakeholder\b",
         ],
         "sage": [
-            r"\bpeople\b", r"\bchange management\b", r"\badoption\b", r"\bresistance\b",
-            r"\bfear\b", r"\banxiety\b", r"\bburnout\b", r"\bchampion\b",
-            r"\bculture\b", r"\bhuman\b", r"\bflourishing\b", r"\bpsychology\b",
-            r"\bsafety\b", r"\bmorale\b", r"\bengagement\b", r"\bemployee\b",
-            r"\bteam\b", r"\bpeople-first\b", r"\bhuman-centered\b",
+            r"\bpeople\b",
+            r"\bchange management\b",
+            r"\badoption\b",
+            r"\bresistance\b",
+            r"\bfear\b",
+            r"\banxiety\b",
+            r"\bburnout\b",
+            r"\bchampion\b",
+            r"\bculture\b",
+            r"\bhuman\b",
+            r"\bflourishing\b",
+            r"\bpsychology\b",
+            r"\bsafety\b",
+            r"\bmorale\b",
+            r"\bengagement\b",
+            r"\bemployee\b",
+            r"\bteam\b",
+            r"\bpeople-first\b",
+            r"\bhuman-centered\b",
         ],
         # Consulting/Implementation Agents
         "strategist": [
-            r"\bexecutive\b", r"\bc-suite\b", r"\bceo\b", r"\bboard\b", r"\bsponsor\b",
-            r"\bstakeholder management\b", r"\bcoalition\b", r"\bpolitics\b",
-            r"\bgovernance structure\b", r"\bstrategic alignment\b", r"\btransformation\b",
-            r"\bleadership\b", r"\bbuy-in\b",
+            r"\bexecutive\b",
+            r"\bc-suite\b",
+            r"\bceo\b",
+            r"\bboard\b",
+            r"\bsponsor\b",
+            r"\bstakeholder management\b",
+            r"\bcoalition\b",
+            r"\bpolitics\b",
+            r"\bgovernance structure\b",
+            r"\bstrategic alignment\b",
+            r"\btransformation\b",
+            r"\bleadership\b",
+            r"\bbuy-in\b",
         ],
         "architect": [
-            r"\barchitecture\b", r"\bintegration\b", r"\bapi\b", r"\btechnical design\b",
-            r"\bbuild vs buy\b", r"\brag\b", r"\bvector\b", r"\bembedding\b",
-            r"\bmlops\b", r"\bdevops\b", r"\bmicroservices\b", r"\bdata pipeline\b",
-            r"\bsystem design\b", r"\btechnical\b",
+            r"\barchitecture\b",
+            r"\bintegration\b",
+            r"\bapi\b",
+            r"\btechnical design\b",
+            r"\bbuild vs buy\b",
+            r"\brag\b",
+            r"\bvector\b",
+            r"\bembedding\b",
+            r"\bmlops\b",
+            r"\bdevops\b",
+            r"\bmicroservices\b",
+            r"\bdata pipeline\b",
+            r"\bsystem design\b",
+            r"\btechnical\b",
         ],
         "operator": [
-            r"\bprocess\b", r"\bworkflow\b", r"\bautomation\b", r"\bmetrics\b",
-            r"\bkpi\b", r"\bbaseline\b", r"\bexception\b", r"\bsop\b",
-            r"\boperations\b", r"\befficiency\b", r"\bthroughput\b",
-            r"\bbottleneck\b", r"\bfrontline\b", r"\bday-to-day\b",
+            r"\bprocess\b",
+            r"\bworkflow\b",
+            r"\bautomation\b",
+            r"\bmetrics\b",
+            r"\bkpi\b",
+            r"\bbaseline\b",
+            r"\bexception\b",
+            r"\bsop\b",
+            r"\boperations\b",
+            r"\befficiency\b",
+            r"\bthroughput\b",
+            r"\bbottleneck\b",
+            r"\bfrontline\b",
+            r"\bday-to-day\b",
         ],
         "pioneer": [
-            r"\bemerging\b", r"\binnovation\b", r"\br&d\b", r"\bnew technology\b",
-            r"\bcutting edge\b", r"\bexperimental\b", r"\bprototype\b",
-            r"\bhype\b", r"\bmaturity\b", r"\breadiness\b",
-            r"\bquantum\b", r"\bfuture\b", r"\bhorizon\b",
+            r"\bemerging\b",
+            r"\binnovation\b",
+            r"\br&d\b",
+            r"\bnew technology\b",
+            r"\bcutting edge\b",
+            r"\bexperimental\b",
+            r"\bprototype\b",
+            r"\bhype\b",
+            r"\bmaturity\b",
+            r"\breadiness\b",
+            r"\bquantum\b",
+            r"\bfuture\b",
+            r"\bhorizon\b",
         ],
         # Internal Enablement Agents
         "catalyst": [
-            r"\binternal communications\b", r"\bmessaging\b", r"\bnarrative\b",
-            r"\bemployee engagement\b", r"\bannouncement\b", r"\ball-hands\b",
-            r"\btown hall\b", r"\binternal marketing\b", r"\bai anxiety\b",
-            r"\btransparency\b", r"\bemail\b",
+            r"\binternal communications\b",
+            r"\bmessaging\b",
+            r"\bnarrative\b",
+            r"\bemployee engagement\b",
+            r"\bannouncement\b",
+            r"\ball-hands\b",
+            r"\btown hall\b",
+            r"\binternal marketing\b",
+            r"\bai anxiety\b",
+            r"\btransparency\b",
+            r"\bemail\b",
         ],
         "scholar": [
-            r"\btraining\b", r"\blearning\b", r"\bl&d\b", r"\benablement\b",
-            r"\bcurriculum\b", r"\bcourse\b", r"\bworkshop\b", r"\bcertification\b",
-            r"\bchampion program\b", r"\bskill development\b", r"\badult learning\b",
-            r"\bcapability building\b", r"\bonboarding\b",
+            r"\btraining\b",
+            r"\blearning\b",
+            r"\bl&d\b",
+            r"\benablement\b",
+            r"\bcurriculum\b",
+            r"\bcourse\b",
+            r"\bworkshop\b",
+            r"\bcertification\b",
+            r"\bchampion program\b",
+            r"\bskill development\b",
+            r"\badult learning\b",
+            r"\bcapability building\b",
+            r"\bonboarding\b",
         ],
         "echo": [
-            r"\bbrand voice\b", r"\bstyle\b", r"\btone\b", r"\bvoice analysis\b",
-            r"\bai emulation\b", r"\bwriting style\b", r"\bvoice profile\b",
-            r"\bbrand guidelines\b", r"\btone of voice\b", r"\bstyle guide\b",
-            r"\bcommunication style\b", r"\bbrand consistency\b",
+            r"\bbrand voice\b",
+            r"\bstyle\b",
+            r"\btone\b",
+            r"\bvoice analysis\b",
+            r"\bai emulation\b",
+            r"\bwriting style\b",
+            r"\bvoice profile\b",
+            r"\bbrand guidelines\b",
+            r"\btone of voice\b",
+            r"\bstyle guide\b",
+            r"\bcommunication style\b",
+            r"\bbrand consistency\b",
         ],
         # Systems/Coordination Agents
         "nexus": [
-            r"\bsystems thinking\b", r"\bfeedback loop\b", r"\bleverage point\b",
-            r"\bunintended consequence\b", r"\binterconnection\b", r"\bcomplexity\b",
-            r"\bsecond-order effect\b", r"\bsystem dynamics\b", r"\barchetype\b",
-            r"\breinforcing loop\b", r"\bbalancing loop\b", r"\bmental model\b",
-            r"\broot cause\b", r"\bholistic\b", r"\bripple effect\b",
+            r"\bsystems thinking\b",
+            r"\bfeedback loop\b",
+            r"\bleverage point\b",
+            r"\bunintended consequence\b",
+            r"\binterconnection\b",
+            r"\bcomplexity\b",
+            r"\bsecond-order effect\b",
+            r"\bsystem dynamics\b",
+            r"\barchetype\b",
+            r"\breinforcing loop\b",
+            r"\bbalancing loop\b",
+            r"\bmental model\b",
+            r"\broot cause\b",
+            r"\bholistic\b",
+            r"\bripple effect\b",
         ],
     }
 
@@ -190,8 +356,7 @@ class AgentRouter:
         self.anthropic = anthropic_client
 
     def route(self, message: str, conversation_context: Optional[dict] = None) -> RoutingDecision:
-        """
-        Route a message to the appropriate agent.
+        """Route a message to the appropriate agent.
 
         Args:
             message: The user's message
@@ -207,9 +372,7 @@ class AgentRouter:
         for mention, agent in self.AGENT_MENTIONS.items():
             if mention in message_lower:
                 return RoutingDecision(
-                    primary_agent=agent,
-                    confidence=1.0,
-                    reason=f"Explicit mention of {mention}"
+                    primary_agent=agent, confidence=1.0, reason=f"Explicit mention of {mention}"
                 )
 
         # 2. Check conversation context for continuity
@@ -223,14 +386,14 @@ class AgentRouter:
             current_score = keyword_scores.get(current_agent, 0)
             max_other_score = max(
                 (score for agent, score in keyword_scores.items() if agent != current_agent),
-                default=0
+                default=0,
             )
 
             if max_other_score < current_score + 3:  # Bias toward continuity
                 return RoutingDecision(
                     primary_agent=current_agent,
                     confidence=0.8,
-                    reason="Continuing conversation with current agent"
+                    reason="Continuing conversation with current agent",
                 )
 
         # 3. Keyword-based routing
@@ -241,14 +404,15 @@ class AgentRouter:
             if best_agent[1] >= 2:  # At least 2 keyword matches for confidence
                 # Check for supporting agents (secondary matches)
                 supporting = [
-                    agent for agent, score in keyword_scores.items()
+                    agent
+                    for agent, score in keyword_scores.items()
                     if agent != best_agent[0] and score >= 1
                 ]
                 return RoutingDecision(
                     primary_agent=best_agent[0],
                     confidence=min(0.9, 0.5 + best_agent[1] * 0.1),
                     reason=f"Keyword match (score: {best_agent[1]})",
-                    supporting_agents=supporting[:2]  # Max 2 supporting agents
+                    supporting_agents=supporting[:2],  # Max 2 supporting agents
                 )
 
         # 4. Default to Atlas (research) for general questions
@@ -256,7 +420,7 @@ class AgentRouter:
         return RoutingDecision(
             primary_agent="atlas",
             confidence=0.5,
-            reason="Default to research agent for general inquiry"
+            reason="Default to research agent for general inquiry",
         )
 
     def _score_keywords(self, message: str) -> dict[str, int]:
@@ -274,8 +438,7 @@ class AgentRouter:
         return scores
 
     async def route_with_llm(self, message: str, context: Optional[str] = None) -> RoutingDecision:
-        """
-        Use LLM to classify ambiguous messages.
+        """Use LLM to classify ambiguous messages.
 
         This is more expensive but more accurate for edge cases.
         """
@@ -309,7 +472,7 @@ Format: AGENT_NAME: reason"""
             response = self.anthropic.messages.create(
                 model="claude-haiku-3-20240307",  # Fast and cheap for classification
                 max_tokens=100,
-                messages=[{"role": "user", "content": classification_prompt}]
+                messages=[{"role": "user", "content": classification_prompt}],
             )
 
             result = response.content[0].text.strip()
@@ -320,23 +483,18 @@ Format: AGENT_NAME: reason"""
 
             if agent in self.AGENT_KEYWORDS:
                 return RoutingDecision(
-                    primary_agent=agent,
-                    confidence=0.85,
-                    reason=f"LLM classification: {reason}"
+                    primary_agent=agent, confidence=0.85, reason=f"LLM classification: {reason}"
                 )
         except Exception as e:
             logger.error(f"LLM routing failed: {e}")
 
         # Fallback to default
         return RoutingDecision(
-            primary_agent="atlas",
-            confidence=0.5,
-            reason="Fallback to research agent"
+            primary_agent="atlas", confidence=0.5, reason="Fallback to research agent"
         )
 
     def get_agent_for_handoff(self, from_agent: str, reason: str) -> Optional[str]:
-        """
-        Determine which agent to hand off to based on the handoff reason.
+        """Determine which agent to hand off to based on the handoff reason.
 
         This is called when an agent wants to defer to another agent.
         """

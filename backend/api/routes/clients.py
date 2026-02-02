@@ -1,7 +1,7 @@
-"""
-Client management routes
+"""Client management routes
 Handles listing and retrieving client information
 """
+
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,8 +18,7 @@ supabase = get_supabase()
 
 @router.get("")
 async def list_clients(current_user: dict = Depends(require_admin)):
-    """
-    Get all clients
+    """Get all clients
 
     Requires: admin role
 
@@ -31,10 +30,7 @@ async def list_clients(current_user: dict = Depends(require_admin)):
 
         # Fetch clients from database
         clients_result = await asyncio.to_thread(
-            lambda: supabase.table('clients')
-                .select('*')
-                .order('created_at', desc=True)
-                .execute()
+            lambda: supabase.table("clients").select("*").order("created_at", desc=True).execute()
         )
 
         clients = clients_result.data
@@ -44,42 +40,40 @@ async def list_clients(current_user: dict = Depends(require_admin)):
         for client in clients:
             # Count conversations
             conv_result = await asyncio.to_thread(
-                lambda: supabase.table('conversations')
-                    .select('id', count='exact')
-                    .eq('client_id', client['id'])
-                    .execute()
+                lambda: supabase.table("conversations")
+                .select("id", count="exact")
+                .eq("client_id", client["id"])
+                .execute()
             )
 
             # Count documents
             docs_result = await asyncio.to_thread(
-                lambda: supabase.table('documents')
-                    .select('id', count='exact')
-                    .eq('client_id', client['id'])
-                    .execute()
+                lambda: supabase.table("documents")
+                .select("id", count="exact")
+                .eq("client_id", client["id"])
+                .execute()
             )
 
             # Count users
             users_result = await asyncio.to_thread(
-                lambda: supabase.table('users')
-                    .select('id', count='exact')
-                    .eq('client_id', client['id'])
-                    .execute()
+                lambda: supabase.table("users")
+                .select("id", count="exact")
+                .eq("client_id", client["id"])
+                .execute()
             )
 
-            enriched_clients.append({
-                **client,
-                'conversation_count': conv_result.count or 0,
-                'document_count': docs_result.count or 0,
-                'user_count': users_result.count or 0
-            })
+            enriched_clients.append(
+                {
+                    **client,
+                    "conversation_count": conv_result.count or 0,
+                    "document_count": docs_result.count or 0,
+                    "user_count": users_result.count or 0,
+                }
+            )
 
         logger.info(f"   ✅ Loaded {len(enriched_clients)} clients")
 
-        return {
-            'success': True,
-            'clients': enriched_clients,
-            'count': len(enriched_clients)
-        }
+        return {"success": True, "clients": enriched_clients, "count": len(enriched_clients)}
 
     except Exception as e:
         logger.error(f"❌ Error loading clients: {str(e)}")
@@ -88,8 +82,7 @@ async def list_clients(current_user: dict = Depends(require_admin)):
 
 @router.get("/{client_id}")
 async def get_client(client_id: str, current_user: dict = Depends(get_current_user)):
-    """
-    Get a single client by ID
+    """Get a single client by ID
 
     Args:
         client_id: UUID of the client
@@ -105,16 +98,12 @@ async def get_client(client_id: str, current_user: dict = Depends(get_current_us
         logger.info(f"\n🏢 Loading client: {client_id}")
 
         # Verify user has access to this client (unless admin)
-        if current_user['role'] != 'admin' and current_user.get('client_id') != client_id:
+        if current_user["role"] != "admin" and current_user.get("client_id") != client_id:
             raise HTTPException(status_code=403, detail="Not authorized to access this client")
 
         # Fetch client from database
         client_result = await asyncio.to_thread(
-            lambda: supabase.table('clients')
-                .select('*')
-                .eq('id', client_id)
-                .single()
-                .execute()
+            lambda: supabase.table("clients").select("*").eq("id", client_id).single().execute()
         )
 
         if not client_result.data:
@@ -124,41 +113,38 @@ async def get_client(client_id: str, current_user: dict = Depends(get_current_us
 
         # Count conversations
         conv_result = await asyncio.to_thread(
-            lambda: supabase.table('conversations')
-                .select('id', count='exact')
-                .eq('client_id', client_id)
-                .execute()
+            lambda: supabase.table("conversations")
+            .select("id", count="exact")
+            .eq("client_id", client_id)
+            .execute()
         )
 
         # Count documents
         docs_result = await asyncio.to_thread(
-            lambda: supabase.table('documents')
-                .select('id', count='exact')
-                .eq('client_id', client_id)
-                .execute()
+            lambda: supabase.table("documents")
+            .select("id", count="exact")
+            .eq("client_id", client_id)
+            .execute()
         )
 
         # Count users
         users_result = await asyncio.to_thread(
-            lambda: supabase.table('users')
-                .select('id', count='exact')
-                .eq('client_id', client_id)
-                .execute()
+            lambda: supabase.table("users")
+            .select("id", count="exact")
+            .eq("client_id", client_id)
+            .execute()
         )
 
         enriched_client = {
             **client,
-            'conversation_count': conv_result.count or 0,
-            'document_count': docs_result.count or 0,
-            'user_count': users_result.count or 0
+            "conversation_count": conv_result.count or 0,
+            "document_count": docs_result.count or 0,
+            "user_count": users_result.count or 0,
         }
 
         logger.info(f"   ✅ Loaded client: {client.get('name', 'Unknown')}")
 
-        return {
-            'success': True,
-            'client': enriched_client
-        }
+        return {"success": True, "client": enriched_client}
 
     except HTTPException:
         raise

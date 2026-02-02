@@ -1,5 +1,4 @@
-"""
-Base Agent class for Thesis multi-agent system.
+"""Base Agent class for Thesis multi-agent system.
 
 All agents inherit from this class and implement their specialized behaviors.
 
@@ -16,14 +15,14 @@ When instructions are updated:
 
 import logging
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator, Optional
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import AsyncGenerator, Optional
 
 import anthropic
-from supabase import Client
 
-from services.instruction_loader import load_instruction_from_file, instruction_file_exists
+from services.instruction_loader import instruction_file_exists, load_instruction_from_file
+from supabase import Client
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +30,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AgentContext:
     """Context passed to agents for each interaction."""
+
     user_id: str
     client_id: str
     conversation_id: str
@@ -49,6 +49,7 @@ class AgentContext:
 @dataclass
 class AgentResponse:
     """Response from an agent."""
+
     content: str
     agent_name: str
     agent_display_name: str
@@ -63,8 +64,7 @@ class AgentResponse:
 
 
 class BaseAgent(ABC):
-    """
-    Base class for all Thesis agents.
+    """Base class for all Thesis agents.
 
     Each agent has:
     - A unique name (atlas, capital, guardian, counselor, oracle)
@@ -95,12 +95,13 @@ class BaseAgent(ABC):
         return self._agent_id
 
     async def initialize(self) -> None:
-        """
-        Initialize the agent by loading its configuration from the database.
+        """Initialize the agent by loading its configuration from the database.
         Called once when the agent is first loaded.
         """
         try:
-            result = self.supabase.table("agents").select("*").eq("name", self.name).single().execute()
+            result = (
+                self.supabase.table("agents").select("*").eq("name", self.name).single().execute()
+            )
             if result.data:
                 self._agent_id = result.data["id"]
                 # Load active instruction from agent_instruction_versions (single source of truth)
@@ -112,8 +113,7 @@ class BaseAgent(ABC):
             logger.error(f"Failed to initialize agent {self.name}: {e}")
 
     async def _load_active_instruction(self) -> bool:
-        """
-        Load the active instruction for this agent.
+        """Load the active instruction for this agent.
 
         Priority order:
         1. Active version from agent_instruction_versions table (for runtime, with versioning)
@@ -125,19 +125,23 @@ class BaseAgent(ABC):
         # First, try to load from DB (active version)
         if self._agent_id:
             try:
-                version_result = self.supabase.table("agent_instruction_versions")\
-                    .select("instructions")\
-                    .eq("agent_id", self._agent_id)\
-                    .eq("is_active", True)\
-                    .limit(1)\
+                version_result = (
+                    self.supabase.table("agent_instruction_versions")
+                    .select("instructions")
+                    .eq("agent_id", self._agent_id)
+                    .eq("is_active", True)
+                    .limit(1)
                     .execute()
+                )
 
                 if version_result.data and version_result.data[0].get("instructions"):
                     instruction = version_result.data[0]["instructions"]
                     # Only use if it's real content, not a placeholder
                     if not instruction.startswith("--") and len(instruction) > 100:
                         self._system_instruction = instruction
-                        logger.info(f"Loaded active instruction for {self.name} from DB ({len(instruction)} chars)")
+                        logger.info(
+                            f"Loaded active instruction for {self.name} from DB ({len(instruction)} chars)"
+                        )
                         return True
             except Exception as e:
                 logger.error(f"Failed to load instruction from DB for {self.name}: {e}")
@@ -147,7 +151,9 @@ class BaseAgent(ABC):
             xml_instruction = load_instruction_from_file(self.name)
             if xml_instruction and len(xml_instruction) > 100:
                 self._system_instruction = xml_instruction
-                logger.info(f"Loaded instruction for {self.name} from XML file ({len(xml_instruction)} chars)")
+                logger.info(
+                    f"Loaded instruction for {self.name} from XML file ({len(xml_instruction)} chars)"
+                )
                 return True
 
         # Fall back to Python default
@@ -162,8 +168,7 @@ class BaseAgent(ABC):
         return self._get_default_instruction()
 
     async def reload_instruction(self) -> bool:
-        """
-        Reload the system instruction from the database.
+        """Reload the system instruction from the database.
         Called when instructions are updated via the admin UI.
         This hot-reloads from agent_instruction_versions (single source of truth).
         Returns True if reload was successful.
@@ -177,16 +182,14 @@ class BaseAgent(ABC):
 
     @abstractmethod
     async def process(self, context: AgentContext) -> AgentResponse:
-        """
-        Process a user message and return a response.
+        """Process a user message and return a response.
 
         This is the main method that each agent implements.
         """
         pass
 
     async def stream(self, context: AgentContext) -> AsyncGenerator[str, None]:
-        """
-        Stream a response to the user.
+        """Stream a response to the user.
 
         Default implementation uses Claude's streaming API.
         Agents can override this for custom streaming behavior.
@@ -208,31 +211,25 @@ class BaseAgent(ABC):
 
         # Add conversation history
         for msg in context.message_history:
-            messages.append({
-                "role": msg["role"],
-                "content": msg["content"]
-            })
+            messages.append({"role": msg["role"], "content": msg["content"]})
 
         # Add the current user message
-        messages.append({
-            "role": "user",
-            "content": context.user_message
-        })
+        messages.append({"role": "user", "content": context.user_message})
 
         return messages
 
     def should_handoff(self, context: AgentContext, response: str) -> Optional[tuple[str, str]]:
-        """
-        Determine if this agent should hand off to another agent.
+        """Determine if this agent should hand off to another agent.
 
         Returns (agent_name, reason) if handoff should occur, None otherwise.
         Default implementation returns None - agents override for custom logic.
         """
         return None
 
-    async def save_memory(self, content: str, context: AgentContext, metadata: Optional[dict] = None) -> None:
-        """
-        Save a memory to Mem0 for future context.
+    async def save_memory(
+        self, content: str, context: AgentContext, metadata: Optional[dict] = None
+    ) -> None:
+        """Save a memory to Mem0 for future context.
 
         Memories are tagged with the agent name and relevant metadata.
         """
@@ -240,8 +237,7 @@ class BaseAgent(ABC):
         logger.info(f"Would save memory for {self.name}: {content[:100]}...")
 
     async def get_relevant_memories(self, query: str, context: AgentContext) -> list[dict]:
-        """
-        Retrieve relevant memories from Mem0.
+        """Retrieve relevant memories from Mem0.
 
         Returns memories that are relevant to the current query.
         """
@@ -253,9 +249,11 @@ class BaseAgent(ABC):
         try:
             # Update conversation with agent info
             if self._agent_id:
-                self.supabase.table("conversations").update({
-                    "agent_id": self._agent_id,
-                    "updated_at": datetime.now(timezone.utc).isoformat()
-                }).eq("id", context.conversation_id).execute()
+                self.supabase.table("conversations").update(
+                    {
+                        "agent_id": self._agent_id,
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                ).eq("id", context.conversation_id).execute()
         except Exception as e:
             logger.error(f"Failed to log interaction for {self.name}: {e}")

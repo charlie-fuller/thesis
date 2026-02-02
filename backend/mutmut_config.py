@@ -1,5 +1,4 @@
-"""
-Mutation Testing Configuration
+"""Mutation Testing Configuration
 
 Run with: mutmut run
 View results: mutmut results
@@ -8,6 +7,7 @@ Generate HTML report: mutmut html
 Mutation testing verifies test quality by introducing small code changes (mutants)
 and checking if tests catch them. Surviving mutants indicate weak test coverage.
 """
+
 
 # Files to mutate - focus on core business logic
 def targets():
