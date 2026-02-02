@@ -1762,7 +1762,7 @@ export default function KBDocumentsContent() {
             </button>
             <h3 className="heading-3">Vault</h3>
           </div>
-          {obsidianStatus && !obsidianStatus.connected && obsidianExpanded && (
+          {(!obsidianStatus || !obsidianStatus.connected) && obsidianExpanded && (
             <span className="text-sm text-muted">Not configured - run watcher script to connect</span>
           )}
         </div>
