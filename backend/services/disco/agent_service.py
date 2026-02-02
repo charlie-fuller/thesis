@@ -1166,6 +1166,7 @@ async def run_agent(
 
     except Exception as e:
         logger.error(f"Agent run failed: {e}")
+        error_msg = str(e)
 
         # Update run status to failed
         await asyncio.to_thread(
@@ -1174,14 +1175,14 @@ async def run_agent(
                 {
                     "status": "failed",
                     "completed_at": datetime.now(timezone.utc).isoformat(),
-                    "error_message": str(e),
+                    "error_message": error_msg,
                 }
             )
             .eq("id", run_id)
             .execute()
         )
 
-        yield {"type": "error", "data": str(e)}
+        yield {"type": "error", "data": error_msg}
 
 
 def get_format_guidance(agent_type: str, output_format: str) -> str:
@@ -1782,6 +1783,7 @@ Create a unified synthesis that combines the best of all three passes. Follow th
 
     except Exception as e:
         logger.error(f"[PURDY-MP] Multi-pass run failed: {e}")
+        error_msg = str(e)
 
         await asyncio.to_thread(
             lambda: supabase.table("disco_runs")
@@ -1789,14 +1791,14 @@ Create a unified synthesis that combines the best of all three passes. Follow th
                 {
                     "status": "failed",
                     "completed_at": datetime.now(timezone.utc).isoformat(),
-                    "error_message": str(e),
+                    "error_message": error_msg,
                 }
             )
             .eq("id", run_id)
             .execute()
         )
 
-        yield {"type": "error", "data": str(e)}
+        yield {"type": "error", "data": error_msg}
 
 
 async def get_run(run_id: str) -> Optional[Dict]:

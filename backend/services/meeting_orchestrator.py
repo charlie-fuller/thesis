@@ -120,7 +120,11 @@ async def _get_embed_function():
             _embed_meeting_room_message = embed_meeting_room_message
         except Exception as e:
             logger.warning(f"Embeddings not available: {e}")
-            _embed_meeting_room_message = lambda *args, **kwargs: None
+
+            def _noop_embed(*args, **kwargs):
+                return None
+
+            _embed_meeting_room_message = _noop_embed
     return _embed_meeting_room_message
 
 

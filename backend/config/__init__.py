@@ -6,7 +6,6 @@ support for single-tenant mode with a default client.
 
 import logging
 import os
-from typing import Optional
 
 # Use basic logger for config module (runs at import time)
 logger = logging.getLogger(__name__)
