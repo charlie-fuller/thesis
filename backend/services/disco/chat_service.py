@@ -25,9 +25,10 @@ CHAT_SYSTEM_PROMPT = """You are a helpful assistant for PuRDy (Product Requireme
 You help users understand their initiative documents, agent outputs, and discovery findings.
 
 You have access to:
-1. Documents uploaded to this initiative
-2. Previous agent outputs (triage, discovery plans, PRDs, tech evaluations)
-3. PuRDy methodology knowledge base
+1. Documents uploaded directly to this initiative
+2. Knowledge Base documents linked to this initiative
+3. Previous agent outputs (triage, discovery plans, PRDs, tech evaluations)
+4. PuRDy methodology knowledge base
 
 Your role is to:
 - Answer questions about this specific initiative and its documents
@@ -157,7 +158,7 @@ async def ask_question(
         )
 
         # Search for relevant context
-        from .document_service import search_initiative_docs, search_linked_kb_docs
+        from .document_service import search_initiative_docs, search_linked_kb_docs, get_linked_document_names
         from .system_kb_service import search_system_kb
 
         # Search initiative documents (direct uploads to disco_document_chunks)
@@ -166,11 +167,22 @@ async def ask_question(
         # Search linked KB documents (from disco_initiative_documents junction table)
         linked_kb_chunks = await search_linked_kb_docs(initiative_id, question, limit=8)
 
+        # Get linked document names (for meta-questions like "what documents do you have?")
+        linked_docs_list = await get_linked_document_names(initiative_id)
+
         # Search system KB (PuRDy methodology)
         kb_chunks = await search_system_kb(question, limit=5)
 
-        # Build context
+        # Build context - START with document availability so Claude knows what's linked
         context_parts = []
+
+        if linked_docs_list:
+            context_parts.append("## Available Linked KB Documents\n")
+            context_parts.append("You have access to the following knowledge base documents linked to this initiative:\n")
+            for doc in linked_docs_list:
+                doc_name = doc.get('title') or doc.get('filename', 'Unknown')
+                context_parts.append(f"- {doc_name}")
+            context_parts.append("\n")
 
         if doc_chunks:
             context_parts.append("## Initiative Documents (Uploaded)\n")

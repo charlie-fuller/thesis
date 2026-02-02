@@ -387,6 +387,52 @@ async def promote_output_to_document(
         raise
 
 
+async def get_linked_document_names(initiative_id: str) -> List[Dict]:
+    """
+    Get list of linked KB document titles/filenames for context.
+
+    This provides a list of all documents linked to an initiative,
+    useful for answering meta-questions like "what documents do you have?"
+
+    Args:
+        initiative_id: Initiative UUID
+
+    Returns:
+        List of {id, filename, title} for each linked document
+    """
+    logger.info(f"Fetching linked document names for initiative {initiative_id}")
+
+    try:
+        # Get linked document IDs from junction table
+        links_result = await asyncio.to_thread(
+            lambda: supabase.table('disco_initiative_documents')
+                .select('document_id')
+                .eq('initiative_id', initiative_id)
+                .execute()
+        )
+
+        if not links_result.data:
+            logger.info("No linked KB documents found for initiative")
+            return []
+
+        doc_ids = [link['document_id'] for link in links_result.data]
+        logger.info(f"Found {len(doc_ids)} linked KB documents")
+
+        # Fetch document metadata from KB
+        docs_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id, filename, title')
+                .in_('id', doc_ids)
+                .execute()
+        )
+
+        return docs_result.data or []
+
+    except Exception as e:
+        logger.error(f"Error fetching linked document names: {e}")
+        return []
+
+
 async def search_linked_kb_docs(
     initiative_id: str,
     query: str,
