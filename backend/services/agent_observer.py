@@ -440,7 +440,7 @@ async def get_stakeholder_concerns(client_id: str, unresolved_only: bool = True)
 
 
 async def get_anticipatory_research_topics(client_id: str) -> list[dict]:
-    """Identify topics that should be researched proactively based on:
+    """Identify topics that should be researched proactively based on.
 
     - New stakeholders added
     - ROI opportunities in evaluation
@@ -558,7 +558,7 @@ async def get_platform_context(client_id: Optional[str] = None) -> PlatformConte
 
 
 async def run_observation_cycle(client_id: Optional[str] = None):
-    """Run a full observation cycle:
+    """Run a full observation cycle.
 
     1. Scan recent conversations
     2. Detect knowledge gaps

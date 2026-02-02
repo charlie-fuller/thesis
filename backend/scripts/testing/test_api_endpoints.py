@@ -1,4 +1,4 @@
-"""Test the complete API workflow:
+"""Test the complete API workflow.
 
 1. Upload document
 2. Process document

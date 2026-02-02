@@ -19,7 +19,6 @@ You'll be prompted to log in via Supabase to get an auth token.
 """
 
 import argparse
-import base64
 import getpass
 import hashlib
 import os
@@ -225,7 +224,7 @@ class RemoteVaultSyncer:
 
     def initial_sync(self, limit: int = 100):
         """Sync recently modified files on startup."""
-        print(f"\nScanning vault for recent files...")
+        print("\nScanning vault for recent files...")
 
         # Find all eligible files
         files = []
