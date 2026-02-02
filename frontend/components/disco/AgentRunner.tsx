@@ -21,7 +21,6 @@ import {
 } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 import { authenticatedFetch } from '@/lib/api'
-import TagSelector from '@/components/TagSelector'
 import ReactMarkdown, { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import CheckpointPanel, { Checkpoint, ChecklistItem } from './CheckpointPanel'
@@ -192,8 +191,6 @@ export default function AgentRunner({
   const [currentPassLabel, setCurrentPassLabel] = useState('')
   const [checkpointLoading, setCheckpointLoading] = useState<number | null>(null)
 
-  // KB tag selection (for Discovery Guide)
-  const [selectedKbTags, setSelectedKbTags] = useState<Set<string>>(new Set())
 
   const contentRef = useRef<HTMLDivElement>(null)
 
@@ -362,11 +359,6 @@ export default function AgentRunner({
         agent_type: selectedAgent,
         output_format: outputFormat,
         multi_pass: isMultiPassAgent && multiPass
-      }
-
-      // Add KB tags for Discovery Guide
-      if (selectedAgent === 'discovery_guide' && selectedKbTags.size > 0) {
-        requestBody.kb_tags = Array.from(selectedKbTags)
       }
 
       const response = await authenticatedFetch(
@@ -570,48 +562,39 @@ export default function AgentRunner({
                     <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
                       Output Format
                     </h4>
-                    <div className="flex gap-2 flex-wrap">
-                      {(['comprehensive', 'executive', 'brief'] as const).map(format => (
-                        <label key={format} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
-                          outputFormat === format
+                    <div className="space-y-2">
+                      {([
+                        { value: 'comprehensive', label: 'Comprehensive', description: 'Full detailed analysis with all sections and supporting evidence' },
+                        { value: 'executive', label: 'Executive', description: 'Summary focused on key decisions and recommendations' },
+                        { value: 'brief', label: 'Brief', description: 'Concise bullet points for quick review' }
+                      ] as const).map(format => (
+                        <label key={format.value} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          outputFormat === format.value
                             ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
                             : 'border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50'
                         }`}>
                           <input
                             type="radio"
                             name="outputFormat"
-                            value={format}
-                            checked={outputFormat === format}
-                            onChange={() => setOutputFormat(format)}
+                            value={format.value}
+                            checked={outputFormat === format.value}
+                            onChange={() => setOutputFormat(format.value)}
                             disabled={running}
-                            className="w-4 h-4 text-indigo-600"
+                            className="mt-0.5 w-4 h-4 text-indigo-600"
                           />
-                          <span className="text-sm font-medium text-slate-900 dark:text-white capitalize">
-                            {format}
-                          </span>
+                          <div>
+                            <span className="text-sm font-medium text-slate-900 dark:text-white">
+                              {format.label}
+                            </span>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                              {format.description}
+                            </p>
+                          </div>
                         </label>
                       ))}
                     </div>
                   </div>
 
-                  {/* KB Tag Selection (Discovery Guide) */}
-                  {selectedAgent === 'discovery_guide' && (
-                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-                      <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-                        Include Knowledge Base Documents
-                      </h4>
-                      <p className="text-xs text-blue-700 dark:text-blue-300 mb-3">
-                        Filter KB documents by tags to include additional context.
-                      </p>
-                      <TagSelector
-                        selectedTags={selectedKbTags}
-                        onTagsChange={setSelectedKbTags}
-                        placeholder="Search tags..."
-                        showInitiatives={true}
-                        disabled={running}
-                      />
-                    </div>
-                  )}
 
                   {/* Multi-Pass Toggle (Insight Analyst, Initiative Builder) */}
                   {(selectedAgent === 'insight_analyst' || selectedAgent === 'initiative_builder') && (
