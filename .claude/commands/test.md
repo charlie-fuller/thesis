@@ -1,32 +1,155 @@
 # Run Test Suite
 
-Run the Thesis test suite with options for quick unit tests, full pytest regimen, or comprehensive production E2E tests.
+Run the Thesis test suite with options for quick unit tests, full pytest regimen, code quality gates, or comprehensive everything.
 
-## Usage
+## STEP 1: Ask User Which Mode to Run
+
+**IMPORTANT:** Before running any tests, use `AskUserQuestion` to ask the user which test mode they want:
 
 ```
-/test          # Run full regimen: pytest stages 1-4 + basic E2E (default)
-/test --quick  # Run core unit tests only (fastest)
-/test --full   # Run comprehensive E2E on production (28 scenarios)
+Question: "Which test mode would you like to run?"
+Header: "Test Mode"
+Options:
+1. "Quick" - "Unit tests only (~370 tests, fastest)"
+2. "Default" - "All pytest stages + 5 basic E2E (~800 tests)"
+3. "Full E2E" - "100 comprehensive browser tests on production"
+4. "Quality" - "Type checking, linting, complexity, secret scan"
+5. "Comprehensive" - "Everything: all tests + quality gates (~900+ checks)"
 ```
 
-**Note:** Cleanup of E2E test data runs automatically at the end of any E2E test (default or --full modes).
+Based on the user's selection:
+- **Quick** → Execute "OPTION: --quick" section only
+- **Default** → Execute "DEFAULT MODE" section (Stages 1-4 + basic E2E)
+- **Full E2E** → Execute "OPTION: --full" section (100 E2E scenarios)
+- **Quality** → Execute "OPTION: --quality" section (code quality gates)
+- **Comprehensive** → Execute DEFAULT MODE + OPTION: --quality (everything)
+
+---
 
 ## Prerequisites
 
-### For --quick and default modes (pytest)
+### For Quick and Default modes (pytest)
 1. **dotenvx** - The `.env` file is encrypted. Use `dotenvx run` to decrypt and inject environment variables.
 2. **DOTENV_PRIVATE_KEY** - Required for decryption. Found in `backend/.env.keys`.
 
-### For --full mode (production E2E)
+### For Full E2E mode (production)
 1. **Chrome DevTools MCP** - Chrome browser must be open with DevTools MCP connected
 2. **Authentication** - You should be logged into thesis-mvp.vercel.app in Chrome
+
+### For Quality mode
+1. **pre-commit** - Install with `pip install pre-commit`
+2. **mypy** - Installed via pre-commit or `pip install mypy`
+3. **trufflehog** - For secret scanning (optional, skipped if not installed)
+
+**Note:** Cleanup of E2E test data runs automatically at the end of any E2E test (Default or Full modes).
 
 ---
 
 # OPTION: --quick (Unit Tests Only)
 
-If `--quick` option is specified, run ONLY Stage 1 (unit tests) and skip everything else.
+Run ONLY Stage 1 (unit tests) and skip everything else.
+
+---
+
+# OPTION: --quality (Code Quality Gates)
+
+Run code quality checks: type checking, linting, complexity analysis, and secret scanning.
+
+## Quality Stage 1: Ruff Linting & Formatting
+
+Check code style and formatting:
+
+```bash
+cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
+.venv/bin/python -m ruff check . --select=E,F,W,B,I,C90,D 2>&1 || true
+.venv/bin/python -m ruff format --check . 2>&1 || true
+```
+
+Record: errors found, files checked.
+
+## Quality Stage 2: Mypy Type Checking
+
+Run static type analysis:
+
+```bash
+cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
+.venv/bin/python -m mypy . --ignore-missing-imports --no-error-summary 2>&1 || true
+```
+
+Record: type errors found, files checked.
+
+## Quality Stage 3: Complexity Analysis
+
+Check cyclomatic complexity (max 10):
+
+```bash
+cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
+.venv/bin/python -m ruff check . --select=C90 2>&1 || true
+```
+
+Record: complexity violations found.
+
+## Quality Stage 4: Docstring Coverage
+
+Check docstring compliance (Google style):
+
+```bash
+cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
+.venv/bin/python -m ruff check . --select=D --ignore=D100,D104,D103 2>&1 || true
+```
+
+Record: missing/malformed docstrings.
+
+## Quality Stage 5: Secret Scanning
+
+Scan for accidentally committed secrets:
+
+```bash
+cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis
+# Check if trufflehog is installed
+if command -v trufflehog &> /dev/null; then
+  trufflehog filesystem . --only-verified --no-update 2>&1 || true
+else
+  echo "trufflehog not installed - skipping secret scan"
+fi
+```
+
+Record: secrets found (should be 0).
+
+## Quality Stage 6: Frontend Lint
+
+Check frontend code quality:
+
+```bash
+cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/frontend
+npm run lint 2>&1 || true
+```
+
+Record: lint errors found.
+
+## Quality Summary
+
+After ALL quality stages complete, provide a summary:
+
+```
+============================================
+CODE QUALITY SUMMARY
+============================================
+Stage 1 - Ruff Lint/Format:    XX errors, XX warnings
+Stage 2 - Mypy Type Check:     XX type errors
+Stage 3 - Complexity (C90):    XX violations (max complexity: 10)
+Stage 4 - Docstrings (D):      XX issues
+Stage 5 - Secret Scan:         XX secrets found
+Stage 6 - Frontend Lint:       XX errors
+--------------------------------------------
+OVERALL:  [PASS/WARN/FAIL]
+============================================
+
+Notes:
+- Type errors are advisory (Week 1-2 rollout)
+- Complexity > 10 indicates functions needing refactor
+- Any secrets found is a CRITICAL failure
+```
 
 ---
 
@@ -191,237 +314,555 @@ TOTAL:                       XXX passed, XXX failed, XXX skipped
 
 # OPTION: --full (Comprehensive Production E2E)
 
-Run comprehensive end-to-end test of all Thesis functionality using Chrome DevTools MCP on production.
+Run comprehensive end-to-end test of ALL Thesis functionality using Chrome DevTools MCP on production.
 
 **Test Configuration:**
 - **Production URL**: https://thesis-mvp.vercel.app
 - **Test Data Prefix**: All test data uses "E2E Test" prefix for easy cleanup
+- **Total Tests**: 100 scenarios across 15 phases
 
 Execute ALL test phases in order. After each test, record PASS/FAIL.
 
 ---
 
-## PHASE 1: AUTHENTICATION & NAVIGATION
+## PHASE 1: AUTHENTICATION & SESSION (4 tests)
 
 ### Test 1.1: Verify Authentication State
-
-1. `mcp__chrome-devtools__navigate_page` to `https://thesis-mvp.vercel.app`
-2. `mcp__chrome-devtools__take_snapshot`
-3. Verify user is logged in (user menu visible) or complete login flow
+1. Navigate to `https://thesis-mvp.vercel.app`
+2. Take snapshot
+3. Verify user menu button is visible (authenticated state)
 
 *Expected:* User is authenticated with access to all app sections
 
-### Test 1.2: Navigation Bar Verification
+### Test 1.2: User Menu Functionality
+1. Click user menu button
+2. Verify dropdown shows user info and logout option
+3. Close menu without logging out
 
-1. Verify presence of navigation links: Dashboard, Chat, Tasks, Projects, Intelligence, Agents, KB, DISCo
-2. Click each link and verify page loads without error
+### Test 1.3: Navigation Bar - All Links Present
+1. Verify presence of ALL navigation links: Dashboard, Chat, Tasks, Projects, Intelligence, Agents, KB, DISCo
+2. Count should be 8 main navigation items
 
-*Expected:* All navigation links present and functional
+### Test 1.4: Navigation Bar - Each Link Works
+1. Click each navigation link in sequence
+2. Verify each page loads without console errors
+3. Verify URL changes correctly
 
 ---
 
-## PHASE 2: DASHBOARD
+## PHASE 2: DASHBOARD (5 tests)
 
-### Test 2.1: Dashboard Load
-
-1. Navigate to `https://thesis-mvp.vercel.app/`
+### Test 2.1: Dashboard Initial Load
+1. Navigate to `/`
 2. Verify dashboard content loads
-3. Check for console errors
+3. Check for console errors via `list_console_messages`
 
-*Expected:* Dashboard loads without errors
+### Test 2.2: Dashboard Widgets Present
+1. Verify key dashboard sections are visible
+2. Check for recent activity or summary widgets
+
+### Test 2.3: Dashboard Quick Actions
+1. Look for quick action buttons (if present)
+2. Verify they are clickable
+
+### Test 2.4: Dashboard Data Loading
+1. Verify any data-driven widgets show content (not loading spinners indefinitely)
+
+### Test 2.5: Dashboard Navigation from Widgets
+1. Click on a widget link (e.g., "View all tasks")
+2. Verify navigation to correct page
 
 ---
 
-## PHASE 3: CHAT & AI AGENTS
+## PHASE 3: CHAT - BASIC FUNCTIONALITY (8 tests)
 
-### Test 3.1: New Chat Creation
-
+### Test 3.1: Chat Page Load
 1. Navigate to `/chat`
-2. Click "+ New Chat" button
-3. Verify chat interface with message input
+2. Verify conversation list sidebar
+3. Verify message input area
 
-### Test 3.2: Send Message and Receive Response
+### Test 3.2: New Chat Creation
+1. Click "+ New Chat" button
+2. Verify fresh chat interface appears
+3. Verify message input is enabled
 
-1. Fill message: "E2E Test: Hello, this is an automated test message. Please acknowledge."
-2. Click Send
-3. Wait for AI response
+### Test 3.3: Send Message and Receive Response
+1. Type: "E2E Test: Hello, please acknowledge this automated test message."
+2. Click Send (or press Enter)
+3. Wait for AI response (up to 30 seconds)
+4. Verify response appears with agent attribution
 
-*Expected:* AI agent responds with acknowledgment
+### Test 3.4: Conversation Auto-Naming
+1. After sending message, check if conversation was auto-named
+2. Verify name appears in sidebar
 
-### Test 3.3: KB Context Chat (CRITICAL)
+### Test 3.5: Conversation Rename
+1. Find Rename button for test conversation
+2. Click Rename
+3. Enter new name: "E2E Renamed Chat"
+4. Confirm rename
+5. Verify new name appears in sidebar
 
-1. Click "+ New Chat"
-2. Send: "E2E KB Test: What are the key topics and themes from the documents added to the Knowledge Base in the last week? Please cite specific documents."
-3. Wait for response (10-15 seconds)
+### Test 3.6: Conversation Archive
+1. Find Archive button for a conversation
+2. Click Archive
+3. Verify conversation moves to archived
+4. Click "Show Archived" to verify it's there
+
+### Test 3.7: Conversation Delete
+1. Find Delete button for archived conversation
+2. Click Delete
+3. Confirm deletion
+4. Verify conversation is removed
+
+### Test 3.8: Search Conversations
+1. Type in conversation search box
+2. Verify conversations filter based on search term
+
+---
+
+## PHASE 4: CHAT - AI AGENTS & KB CONTEXT (7 tests)
+
+### Test 4.1: Agent Selector Display
+1. In chat, find Agent selector button (shows "Auto" by default)
+2. Click to open agent selection
+
+### Test 4.2: Agent Selection - Atlas
+1. Select "Atlas" agent
+2. Send: "E2E Agent Test: What are current AI research trends?"
+3. Verify response includes Atlas attribution
+
+### Test 4.3: Agent Selection - Capital
+1. Select "Capital" agent
+2. Send: "E2E Agent Test: What's a typical AI project ROI?"
+3. Verify response includes Capital attribution and financial focus
+
+### Test 4.4: Agent Selection - Auto Routing
+1. Select "Auto" agent
+2. Send: "E2E Test: What security considerations are there for AI?"
+3. Verify system routes to appropriate agent (likely Guardian)
+
+### Test 4.5: KB Context Chat (CRITICAL)
+1. Start new chat with Auto agent
+2. Send: "What are the key topics from my recent Knowledge Base documents? Please cite specific documents."
+3. Wait for response (up to 30 seconds)
 4. **Verify response contains:**
-   - References to specific KB documents
-   - Actual content/themes from documents
+   - References to specific KB document names
+   - Actual content from documents
    - Agent attribution
 
-*Pass Criteria:*
-- At least 1 document cited in response
-- Response contains substantive KB content
+*Pass Criteria:* At least 1 document cited
 
-### Test 3.4: Agent Selection
+### Test 4.6: Multi-Turn Conversation
+1. In same chat, send follow-up: "Tell me more about the first topic you mentioned."
+2. Verify response references previous context
+3. Verify conversation maintains coherence
 
-1. Find agent selector and select a specific agent (e.g., "Atlas")
-2. Send: "E2E Agent Test: Brief research summary on AI trends"
-3. Verify response comes from selected agent
-
-### Test 3.5: Chat Conversation Actions
-
-1. Test Rename button on a conversation
-2. Change name to "E2E Renamed Conversation"
-3. Test Archive if available
+### Test 4.7: Chat Error Handling
+1. Send extremely long message (if possible)
+2. Verify system handles gracefully (error or truncation)
 
 ---
 
-## PHASE 4: TASKS (KANBAN)
+## PHASE 5: CHAT - MEETING ROOMS (5 tests)
 
-### Test 4.1: View Tasks Board
+### Test 5.1: Meeting Rooms Tab Access
+1. Navigate to `/chat`
+2. Find and click "Meeting Rooms" tab
+3. Verify Meeting Rooms interface loads
 
+### Test 5.2: Meeting Room List
+1. Verify meeting rooms list displays
+2. Note if there are existing rooms or empty state
+
+### Test 5.3: Create Meeting Room (if available)
+1. Look for "Create Room" or similar button
+2. If present, create: "E2E Test Meeting Room"
+3. Verify room appears in list
+
+### Test 5.4: Meeting Room Entry
+1. Click on a meeting room
+2. Verify room interface loads with agent participants
+
+### Test 5.5: Meeting Room Discussion (if autonomous mode available)
+1. If room supports autonomous discussion, trigger it
+2. Verify agents respond to each other
+
+---
+
+## PHASE 6: TASKS - BOARD VIEW (10 tests)
+
+### Test 6.1: Tasks Page Load
 1. Navigate to `/tasks`
-2. Verify Kanban columns: To Do, In Progress, Done
-3. Note current task counts
+2. Verify Kanban board displays
+3. Verify all 4 columns: To Do, In Progress, Blocked, Done
 
-### Test 4.2: Create New Task
+### Test 6.2: Task Counts Display
+1. Verify task count shows in header
+2. Verify each column shows task count
 
+### Test 6.3: Create Task - Basic
+1. Click "Add Task" button
+2. Fill title: "E2E Test Task - Basic Creation"
+3. Leave other fields default
+4. Click Create
+5. Verify task appears in To Do column
+
+### Test 6.4: Create Task - Full Details
 1. Click "Add Task"
-2. Fill: "E2E Test Task - Full Suite Verification"
-3. Click Create
-4. Verify task appears in To Do
+2. Fill title: "E2E Test Task - Full Details"
+3. Fill description: "This is an automated test task with full details"
+4. Set priority: High
+5. Set team: Engineering
+6. Set due date: tomorrow
+7. Click Create
+8. Verify task appears with priority indicator
 
-### Test 4.3: Drag Task to In Progress
+### Test 6.5: Edit Task
+1. Click on "E2E Test Task - Basic Creation"
+2. Verify edit modal opens
+3. Change title to: "E2E Test Task - Edited"
+4. Click Update
+5. Verify change persists
 
-1. Drag test task to In Progress column
-2. Refresh page
-3. Verify task persisted in new column
+### Test 6.6: Change Task Status via Modal
+1. Open task edit modal
+2. Change status from To Do to In Progress
+3. Save changes
+4. Verify task moves to In Progress column
 
-### Test 4.4: Task Details Modal
+### Test 6.7: Delete Task
+1. Open task edit modal for "E2E Test Task - Edited"
+2. Click Delete
+3. Confirm deletion
+4. Verify task is removed from board
 
-1. Click on test task card
-2. Verify details display (title, description, status)
+### Test 6.8: Task Search
+1. Type in search box: "E2E"
+2. Verify tasks filter to show only matching tasks
+3. Clear search
+4. Verify all tasks return
+
+### Test 6.9: Task Filter - Priority
+1. Click priority filter button (e.g., "High")
+2. Verify only High priority tasks show
+3. Click again to clear filter
+
+### Test 6.10: Task Filter - Team
+1. Select a team from Team dropdown
+2. Verify tasks filter by team
+3. Reset to show all
 
 ---
 
-## PHASE 5: PROJECTS
+## PHASE 7: TASKS - ADVANCED FEATURES (6 tests)
 
-### Test 5.1: View Projects List
+### Test 7.1: Task Filter - Assignee
+1. Select an assignee from dropdown
+2. Verify tasks filter correctly
 
+### Test 7.2: Task Filter - Due Date Range
+1. Set due date range filter
+2. Verify tasks filter by date
+
+### Test 7.3: Task Filter - Source
+1. Click a source filter (Transcript, Conversation, etc.)
+2. Verify filtering works
+
+### Test 7.4: Show/Hide Completed Toggle
+1. Find "Show completed" checkbox
+2. Toggle it off
+3. Verify Done column behavior changes
+
+### Test 7.5: Sort Tasks
+1. Click sort button in a column
+2. Verify tasks reorder
+
+### Test 7.6: Refresh Tasks
+1. Click Refresh button
+2. Verify tasks reload without losing state
+
+---
+
+## PHASE 8: PROJECTS (10 tests)
+
+### Test 8.1: Projects Page Load
 1. Navigate to `/projects`
-2. Verify projects list or pipeline view
+2. Verify projects list or pipeline view loads
 
-### Test 5.2: Create New Project
+### Test 8.2: Pipeline Columns Present
+1. Verify status columns exist (Discovery, Evaluation, etc.)
+2. Count columns match expected
 
-1. Click "Add Project"
-2. Fill: "E2E Test Project - Automated Verification"
-3. Click Create
-4. Verify project appears
+### Test 8.3: Create Project
+1. Click "Add Project" button
+2. Fill name: "E2E Test Project"
+3. Fill description: "Automated test project"
+4. Click Create
+5. Verify project appears
 
-### Test 5.3: Project Pipeline View
+### Test 8.4: Project Details View
+1. Click on test project
+2. Verify details panel or page opens
+3. Verify name, description, status display
 
-1. Verify status columns (Discovery, Evaluation, etc.)
-2. Verify test project in correct column
+### Test 8.5: Edit Project Name
+1. In project details, find edit option
+2. Change name to: "E2E Test Project - Edited"
+3. Save
+4. Verify name updates
+
+### Test 8.6: Edit Project Status
+1. Change project status to next stage
+2. Save
+3. Verify project moves to new column
+
+### Test 8.7: Project Scoring (if available)
+1. If project has scoring inputs, enter values
+2. Verify score calculates
+3. Verify tier updates if applicable
+
+### Test 8.8: Project Search/Filter
+1. Use search or filter if available
+2. Verify projects filter correctly
+
+### Test 8.9: Project Stakeholders (if available)
+1. Look for stakeholder assignment
+2. If available, assign a stakeholder
+3. Verify association saves
+
+### Test 8.10: Delete Project
+1. Find delete option for test project
+2. Delete project
+3. Verify removal
 
 ---
 
-## PHASE 6: KNOWLEDGE BASE
+## PHASE 9: KNOWLEDGE BASE - NAVIGATION (8 tests)
 
-### Test 6.1: KB Page Load
-
+### Test 9.1: KB Page Load
 1. Navigate to `/kb`
-2. Verify document list/navigator and search
+2. Verify main KB interface loads
+3. Verify tabs: Documents, Conversations, Data Map
 
-### Test 6.2: KB Navigator Search
+### Test 9.2: Documents Tab
+1. Click Documents tab (if not default)
+2. Verify document browser displays
 
-1. Search for "AI"
-2. Verify results appear
+### Test 9.3: Vault Structure Display
+1. In document browser, verify Vault Structure heading
+2. Verify folder list displays with document counts
 
-### Test 6.3: Document Preview
+### Test 9.4: Expand Folder
+1. Click on a folder (e.g., "Granola" or "GitHub")
+2. Verify folder expands or documents filter
 
-1. Click on a document
-2. Verify preview displays title and content
+### Test 9.5: KB Navigator Panel
+1. Verify KB Navigator section displays
+2. Verify document count shows
 
-### Test 6.4: Tag Filtering
+### Test 9.6: Conversations Tab
+1. Click Conversations tab
+2. Verify conversation list loads
 
-1. Select a tag filter
-2. Verify documents filter correctly
+### Test 9.7: Data Map Tab
+1. Click Data Map tab
+2. Verify data map visualization loads
+
+### Test 9.8: Storage Usage Display
+1. Verify storage usage indicator shows
+2. Check format (e.g., "75 KB / 500 MB")
 
 ---
 
-## PHASE 7: AGENTS
+## PHASE 10: KNOWLEDGE BASE - DOCUMENTS (8 tests)
 
-### Test 7.1: Agents Directory
+### Test 10.1: Document Selection
+1. Click on a document in the navigator
+2. Verify document preview loads
 
+### Test 10.2: Document Preview Content
+1. With document selected, verify:
+   - Title displays
+   - Content/preview shows
+   - Metadata visible (date, source, etc.)
+
+### Test 10.3: Document Agents
+1. Verify associated agents display for document
+2. Check agent icons/tags
+
+### Test 10.4: Document Tags
+1. Verify document tags display
+2. Click a tag to filter (if available)
+
+### Test 10.5: Document Search
+1. Find search input in KB
+2. Search for a term (e.g., "AI")
+3. Verify results update
+
+### Test 10.6: Tag Manager
+1. Click Tag Manager button/tab
+2. Verify tag management interface
+
+### Test 10.7: Full Resync Button
+1. Find Full Resync button (in Vault section)
+2. Verify button is clickable (don't actually trigger full resync in test)
+
+### Test 10.8: Multiple Document Selection
+1. If supported, select multiple documents
+2. Verify multi-select behavior
+
+---
+
+## PHASE 11: AGENTS DIRECTORY (6 tests)
+
+### Test 11.1: Agents Page Load
 1. Navigate to `/agents`
-2. Verify agent cards display
-3. Look for: Atlas, Compass, Capital, Guardian
+2. Verify agent cards/list loads
 
-### Test 7.2: Agent Details
+### Test 11.2: All 21 Agents Present
+1. Scroll through agents list
+2. Verify key agents present: Atlas, Compass, Capital, Guardian, Counselor, Sage, Oracle, etc.
+3. Count total agents (should be ~21)
 
-1. Click an agent card
-2. Verify details and capabilities display
+### Test 11.3: Agent Card Information
+1. Verify each card shows:
+   - Agent name
+   - Icon/avatar
+   - Brief description or role
+
+### Test 11.4: Agent Details Expansion
+1. Click on an agent card (e.g., Atlas)
+2. Verify expanded details show
+3. Verify capabilities/description
+
+### Test 11.5: Agent Category Grouping
+1. Verify agents are grouped by category if applicable
+2. Check for category headers
+
+### Test 11.6: Agent Search/Filter (if available)
+1. If search exists, search for an agent
+2. Verify filtering works
 
 ---
 
-## PHASE 8: INTELLIGENCE
+## PHASE 12: INTELLIGENCE DASHBOARD (5 tests)
 
-### Test 8.1: Intelligence Dashboard
-
+### Test 12.1: Intelligence Page Load
 1. Navigate to `/intelligence`
-2. Verify charts/insights display
+2. Verify page loads without errors
+
+### Test 12.2: Charts/Visualizations Display
+1. Verify charts or data visualizations render
+2. Check for loading states completing
+
+### Test 12.3: Intelligence Metrics
+1. Verify key metrics display
+2. Check for data in metrics (not empty)
+
+### Test 12.4: Time Range Selection (if available)
+1. If time range selector exists, change it
+2. Verify data updates
+
+### Test 12.5: Intelligence Drill-Down (if available)
+1. Click on a chart element or metric
+2. Verify drill-down or detail view
 
 ---
 
-## PHASE 9: DISCo
+## PHASE 13: DISCo (8 tests)
 
-### Test 9.1: DISCo Page Load
-
+### Test 13.1: DISCo Page Load
 1. Navigate to `/disco`
-2. Verify interface displays
+2. Verify DISCo interface loads
+
+### Test 13.2: DISCo Tabs/Sections
+1. Verify main DISCo sections display
+2. Check for Discovery, Insights, Synthesis, Capabilities tabs
+
+### Test 13.3: Initiative List
+1. Verify initiatives list displays
+2. Note existing initiatives or empty state
+
+### Test 13.4: Create Initiative (if available)
+1. Look for create initiative option
+2. If available, create: "E2E Test Initiative"
+3. Verify creation
+
+### Test 13.5: Initiative Details
+1. Click on an initiative
+2. Verify details panel loads
+
+### Test 13.6: Initiative Members (if available)
+1. Check for members section
+2. Verify member management UI
+
+### Test 13.7: Initiative Documents (if available)
+1. Check for associated documents
+2. Verify document linking UI
+
+### Test 13.8: Delete Test Initiative
+1. Delete any test initiative created
+2. Verify cleanup
 
 ---
 
-## PHASE 10: MEETING ROOMS
+## PHASE 14: ADMIN HELP PANEL (5 tests)
 
-### Test 10.1: Meeting Rooms Interface
+### Test 14.1: Help Panel Visibility
+1. On chat page, verify Admin Help panel on right side
+2. Verify "How can I help?" text
 
+### Test 14.2: Quick Help Options
+1. Verify quick help buttons display:
+   - "How do I add a new user?"
+   - "How do I customize the theme?"
+   - "How do I export conversation history?"
+
+### Test 14.3: Click Quick Help Option
+1. Click one of the quick help buttons
+2. Verify helpful response appears
+
+### Test 14.4: Custom Help Question
+1. Type in help input: "How do I create a new task?"
+2. Submit question
+3. Verify helpful response
+
+### Test 14.5: Help Previous Chats
+1. Click "Previous Chats" button
+2. Verify help history or conversation list
+
+---
+
+## PHASE 15: CLEANUP & FINAL VERIFICATION (5 tests)
+
+### Cleanup 15.1: Delete Test Conversations
 1. Navigate to `/chat`
-2. Find "Meeting Rooms" tab
-3. Verify interface accessible
+2. Search/find all conversations with "E2E" in name
+3. Delete each one
+4. Verify deletion
 
----
-
-## PHASE 11: ADMIN HELP
-
-### Test 11.1: Help Panel
-
-1. Find Admin Help panel (right side)
-2. Verify help options display
-
-### Test 11.2: Help Question
-
-1. Ask: "How do I create a new task?"
-2. Verify helpful response
-
----
-
-## PHASE 12: CLEANUP
-
-### Cleanup 12.1: Delete Test Conversations
-
-1. Navigate to `/chat`
-2. Delete all conversations containing "E2E" in title
-
-### Cleanup 12.2: Delete Test Tasks
-
+### Cleanup 15.2: Delete Test Tasks
 1. Navigate to `/tasks`
-2. Delete all tasks containing "E2E Test"
+2. Search for "E2E Test"
+3. Delete all matching tasks
+4. Verify cleanup
 
-### Cleanup 12.3: Delete Test Projects
-
+### Cleanup 15.3: Delete Test Projects
 1. Navigate to `/projects`
-2. Delete all projects containing "E2E Test"
+2. Find any "E2E Test" projects
+3. Delete them
+4. Verify cleanup
+
+### Cleanup 15.4: Verify No Test Data Remains
+1. Search tasks for "E2E" - should be empty
+2. Search chat for "E2E" - should be empty
+3. Check projects for "E2E" - should be empty
+
+### Cleanup 15.5: Final Console Error Check
+1. Run `list_console_messages`
+2. Check for any ERROR level messages
+3. Document any issues found
 
 ---
 
@@ -433,71 +874,213 @@ COMPREHENSIVE E2E TEST SUMMARY
 ============================================
 Date: [CURRENT_DATE]
 Environment: Production (thesis-mvp.vercel.app)
+Total Tests: 100
 ============================================
 
-PHASE 1: Authentication & Navigation
-- Test 1.1 Verify Auth:           [PASS/FAIL]
-- Test 1.2 Navigation:            [PASS/FAIL]
+PHASE 1: Authentication & Session (4 tests)
+- Test 1.1 Verify Auth:              [PASS/FAIL]
+- Test 1.2 User Menu:                [PASS/FAIL]
+- Test 1.3 Nav Links Present:        [PASS/FAIL]
+- Test 1.4 Nav Links Work:           [PASS/FAIL]
 
-PHASE 2: Dashboard
-- Test 2.1 Dashboard Load:        [PASS/FAIL]
+PHASE 2: Dashboard (5 tests)
+- Test 2.1 Dashboard Load:           [PASS/FAIL]
+- Test 2.2 Widgets Present:          [PASS/FAIL]
+- Test 2.3 Quick Actions:            [PASS/FAIL]
+- Test 2.4 Data Loading:             [PASS/FAIL]
+- Test 2.5 Widget Navigation:        [PASS/FAIL]
 
-PHASE 3: Chat & AI Agents
-- Test 3.1 New Chat:              [PASS/FAIL]
-- Test 3.2 Send/Receive Message:  [PASS/FAIL]
-- Test 3.3 KB Context Chat:       [PASS/FAIL] [CRITICAL]
-- Test 3.4 Agent Selection:       [PASS/FAIL]
-- Test 3.5 Chat Actions:          [PASS/FAIL]
+PHASE 3: Chat - Basic (8 tests)
+- Test 3.1 Page Load:                [PASS/FAIL]
+- Test 3.2 New Chat:                 [PASS/FAIL]
+- Test 3.3 Send/Receive:             [PASS/FAIL]
+- Test 3.4 Auto-Naming:              [PASS/FAIL]
+- Test 3.5 Rename:                   [PASS/FAIL]
+- Test 3.6 Archive:                  [PASS/FAIL]
+- Test 3.7 Delete:                   [PASS/FAIL]
+- Test 3.8 Search:                   [PASS/FAIL]
 
-PHASE 4: Tasks (Kanban)
-- Test 4.1 View Tasks Board:      [PASS/FAIL]
-- Test 4.2 Create New Task:       [PASS/FAIL]
-- Test 4.3 Drag Task:             [PASS/FAIL]
-- Test 4.4 Task Details Modal:    [PASS/FAIL]
+PHASE 4: Chat - AI & KB (7 tests)
+- Test 4.1 Agent Selector:           [PASS/FAIL]
+- Test 4.2 Atlas Agent:              [PASS/FAIL]
+- Test 4.3 Capital Agent:            [PASS/FAIL]
+- Test 4.4 Auto Routing:             [PASS/FAIL]
+- Test 4.5 KB Context (CRITICAL):    [PASS/FAIL]
+- Test 4.6 Multi-Turn:               [PASS/FAIL]
+- Test 4.7 Error Handling:           [PASS/FAIL]
 
-PHASE 5: Projects
-- Test 5.1 View Projects:         [PASS/FAIL]
-- Test 5.2 Create New Project:    [PASS/FAIL]
-- Test 5.3 Pipeline View:         [PASS/FAIL]
+PHASE 5: Meeting Rooms (5 tests)
+- Test 5.1 Tab Access:               [PASS/FAIL]
+- Test 5.2 Room List:                [PASS/FAIL]
+- Test 5.3 Create Room:              [PASS/FAIL]
+- Test 5.4 Room Entry:               [PASS/FAIL]
+- Test 5.5 Discussion:               [PASS/FAIL]
 
-PHASE 6: Knowledge Base
-- Test 6.1 KB Page Load:          [PASS/FAIL]
-- Test 6.2 KB Search:             [PASS/FAIL]
-- Test 6.3 Document Preview:      [PASS/FAIL]
-- Test 6.4 Tag Filtering:         [PASS/FAIL]
+PHASE 6: Tasks - Board (10 tests)
+- Test 6.1 Page Load:                [PASS/FAIL]
+- Test 6.2 Task Counts:              [PASS/FAIL]
+- Test 6.3 Create Basic:             [PASS/FAIL]
+- Test 6.4 Create Full:              [PASS/FAIL]
+- Test 6.5 Edit Task:                [PASS/FAIL]
+- Test 6.6 Change Status:            [PASS/FAIL]
+- Test 6.7 Delete Task:              [PASS/FAIL]
+- Test 6.8 Search:                   [PASS/FAIL]
+- Test 6.9 Filter Priority:          [PASS/FAIL]
+- Test 6.10 Filter Team:             [PASS/FAIL]
 
-PHASE 7: Agents
-- Test 7.1 Agents Directory:      [PASS/FAIL]
-- Test 7.2 Agent Details:         [PASS/FAIL]
+PHASE 7: Tasks - Advanced (6 tests)
+- Test 7.1 Filter Assignee:          [PASS/FAIL]
+- Test 7.2 Filter Date:              [PASS/FAIL]
+- Test 7.3 Filter Source:            [PASS/FAIL]
+- Test 7.4 Show Completed:           [PASS/FAIL]
+- Test 7.5 Sort Tasks:               [PASS/FAIL]
+- Test 7.6 Refresh:                  [PASS/FAIL]
 
-PHASE 8: Intelligence
-- Test 8.1 Intelligence Dashboard: [PASS/FAIL]
+PHASE 8: Projects (10 tests)
+- Test 8.1 Page Load:                [PASS/FAIL]
+- Test 8.2 Pipeline Columns:         [PASS/FAIL]
+- Test 8.3 Create Project:           [PASS/FAIL]
+- Test 8.4 Project Details:          [PASS/FAIL]
+- Test 8.5 Edit Name:                [PASS/FAIL]
+- Test 8.6 Edit Status:              [PASS/FAIL]
+- Test 8.7 Scoring:                  [PASS/FAIL]
+- Test 8.8 Search/Filter:            [PASS/FAIL]
+- Test 8.9 Stakeholders:             [PASS/FAIL]
+- Test 8.10 Delete:                  [PASS/FAIL]
 
-PHASE 9: DISCo
-- Test 9.1 DISCo Page:            [PASS/FAIL]
+PHASE 9: KB - Navigation (8 tests)
+- Test 9.1 Page Load:                [PASS/FAIL]
+- Test 9.2 Documents Tab:            [PASS/FAIL]
+- Test 9.3 Vault Structure:          [PASS/FAIL]
+- Test 9.4 Expand Folder:            [PASS/FAIL]
+- Test 9.5 Navigator Panel:          [PASS/FAIL]
+- Test 9.6 Conversations Tab:        [PASS/FAIL]
+- Test 9.7 Data Map Tab:             [PASS/FAIL]
+- Test 9.8 Storage Usage:            [PASS/FAIL]
 
-PHASE 10: Meeting Rooms
-- Test 10.1 Meeting Rooms:        [PASS/FAIL]
+PHASE 10: KB - Documents (8 tests)
+- Test 10.1 Document Selection:      [PASS/FAIL]
+- Test 10.2 Preview Content:         [PASS/FAIL]
+- Test 10.3 Document Agents:         [PASS/FAIL]
+- Test 10.4 Document Tags:           [PASS/FAIL]
+- Test 10.5 Search:                  [PASS/FAIL]
+- Test 10.6 Tag Manager:             [PASS/FAIL]
+- Test 10.7 Resync Button:           [PASS/FAIL]
+- Test 10.8 Multi-Select:            [PASS/FAIL]
 
-PHASE 11: Admin Help
-- Test 11.1 Help Panel:           [PASS/FAIL]
-- Test 11.2 Help Question:        [PASS/FAIL]
+PHASE 11: Agents (6 tests)
+- Test 11.1 Page Load:               [PASS/FAIL]
+- Test 11.2 All Agents Present:      [PASS/FAIL]
+- Test 11.3 Card Information:        [PASS/FAIL]
+- Test 11.4 Details Expansion:       [PASS/FAIL]
+- Test 11.5 Category Grouping:       [PASS/FAIL]
+- Test 11.6 Search/Filter:           [PASS/FAIL]
 
-PHASE 12: Cleanup
-- Cleanup 12.1 Conversations:     [DONE/PARTIAL]
-- Cleanup 12.2 Tasks:             [DONE/PARTIAL]
-- Cleanup 12.3 Projects:          [DONE/PARTIAL]
+PHASE 12: Intelligence (5 tests)
+- Test 12.1 Page Load:               [PASS/FAIL]
+- Test 12.2 Charts Display:          [PASS/FAIL]
+- Test 12.3 Metrics:                 [PASS/FAIL]
+- Test 12.4 Time Range:              [PASS/FAIL]
+- Test 12.5 Drill-Down:              [PASS/FAIL]
+
+PHASE 13: DISCo (8 tests)
+- Test 13.1 Page Load:               [PASS/FAIL]
+- Test 13.2 Tabs/Sections:           [PASS/FAIL]
+- Test 13.3 Initiative List:         [PASS/FAIL]
+- Test 13.4 Create Initiative:       [PASS/FAIL]
+- Test 13.5 Initiative Details:      [PASS/FAIL]
+- Test 13.6 Members:                 [PASS/FAIL]
+- Test 13.7 Documents:               [PASS/FAIL]
+- Test 13.8 Delete Initiative:       [PASS/FAIL]
+
+PHASE 14: Admin Help (5 tests)
+- Test 14.1 Panel Visibility:        [PASS/FAIL]
+- Test 14.2 Quick Options:           [PASS/FAIL]
+- Test 14.3 Click Quick Help:        [PASS/FAIL]
+- Test 14.4 Custom Question:         [PASS/FAIL]
+- Test 14.5 Previous Chats:          [PASS/FAIL]
+
+PHASE 15: Cleanup (5 tests)
+- Test 15.1 Delete Conversations:    [DONE/PARTIAL]
+- Test 15.2 Delete Tasks:            [DONE/PARTIAL]
+- Test 15.3 Delete Projects:         [DONE/PARTIAL]
+- Test 15.4 Verify No Test Data:     [PASS/FAIL]
+- Test 15.5 Console Error Check:     [PASS/FAIL]
 
 --------------------------------------------
-TOTALS:  XX/28 tests passed
-         XX/28 tests failed
-         X items cleaned up
+TOTALS:  XX/100 tests passed
+         XX/100 tests failed
+         XX/100 tests skipped (feature not available)
 ============================================
 
-KB Context Chat Details:
-- Documents found: [COUNT]
-- Documents cited in response: [LIST]
-- Response quality: [GOOD/NEEDS_IMPROVEMENT]
+CRITICAL TESTS:
+- KB Context Chat (4.5): [PASS/FAIL]
+  - Documents cited: [COUNT]
+  - Response quality: [GOOD/NEEDS_IMPROVEMENT]
+
+CONSOLE ERRORS FOUND:
+[List any ERROR level console messages]
+============================================
+```
+
+---
+
+# OPTION: --comprehensive (Everything)
+
+Run ALL tests AND all code quality gates. This is the most thorough validation.
+
+## Execution Order
+
+1. **Run DEFAULT MODE first** (Stages 1-4 + basic E2E)
+2. **Then run QUALITY MODE** (all 6 quality stages)
+
+## Comprehensive Summary
+
+After ALL stages complete, provide a combined summary:
+
+```
+============================================
+COMPREHENSIVE TEST SUMMARY
+============================================
+Date: [CURRENT_DATE]
+============================================
+
+FUNCTIONAL TESTS (DEFAULT MODE)
+--------------------------------------------
+Stage 1 - Unit Tests:        XX passed, XX failed, XX skipped
+Stage 2 - Integration Tests: XX passed, XX failed, XX skipped
+Stage 3 - Extended Tests:    XX passed, XX failed, XX skipped
+Stage 4 - E2E Browser Tests: XX passed, XX failed
+--------------------------------------------
+Functional Total:            XXX passed, XXX failed
+
+CODE QUALITY GATES
+--------------------------------------------
+Stage 1 - Ruff Lint/Format:  XX errors, XX warnings
+Stage 2 - Mypy Type Check:   XX type errors
+Stage 3 - Complexity (C90):  XX violations
+Stage 4 - Docstrings (D):    XX issues
+Stage 5 - Secret Scan:       XX secrets found
+Stage 6 - Frontend Lint:     XX errors
+--------------------------------------------
+Quality Total:               XX issues
+
+============================================
+OVERALL RESULT: [PASS/WARN/FAIL]
+============================================
+
+Pass Criteria:
+- All functional tests pass
+- No secrets found (critical)
+- Lint errors = 0
+- Type errors = advisory (Week 1-2)
+- Complexity violations = warning only
+
+Blocking Issues:
+- [List any blocking failures]
+
+Advisory Issues:
+- [List non-blocking warnings]
 ============================================
 ```
 
@@ -616,11 +1199,55 @@ Tests pass individually but fail together - module state pollution. Use `pytest-
 |------|-------|----------|
 | --quick | Unit tests only | ~370 tests |
 | default | All pytest + 5 E2E | ~800 tests |
-| --full | Production E2E | 28 scenarios |
+| --full | Production E2E | 100 scenarios |
+| --quality | Code quality gates | 6 check categories |
+| comprehensive | All tests + quality | ~900+ checks |
+
+### Mode Summary
+
+| Mode | What It Runs | Use Case |
+|------|--------------|----------|
+| Quick | Unit tests only | Fast feedback during development |
+| Default | Pytest stages 1-4 + 5 basic E2E | Standard CI validation |
+| Full E2E | 100 browser scenarios | Pre-release production validation |
+| Quality | Type check, lint, complexity, secrets | Code review preparation |
+| Comprehensive | Default + Quality | Full validation before major releases |
+
+### Quality Gate Breakdown
+
+| Stage | Check | Tool | Threshold |
+|-------|-------|------|-----------|
+| 1 | Lint & Format | Ruff | 0 errors |
+| 2 | Type Checking | Mypy | Advisory (Week 1-2) |
+| 3 | Complexity | Ruff C90 | Max 10 per function |
+| 4 | Docstrings | Ruff D | Google style |
+| 5 | Secret Scan | TruffleHog | 0 secrets (critical) |
+| 6 | Frontend Lint | ESLint | 0 errors |
 
 ### E2E Scenario Summary
 
 | Mode | Scenarios | Validates |
 |------|-----------|-----------|
-| default (basic) | 5 | Auth, Chat, KB Search, Tasks CRUD, Kanban drag |
-| --full | 28 | Full app: Auth, Nav, Dashboard, Chat (with KB context), Tasks, Projects, KB, Agents, Intelligence, DISCo, Meeting Rooms, Help |
+| default (basic) | 5 | Auth, Chat, KB page load, Tasks CRUD, Task delete |
+| --full | 100 | Complete app coverage (see breakdown below) |
+
+### --full Mode Test Breakdown
+
+| Phase | Tests | Coverage |
+|-------|-------|----------|
+| 1. Auth & Session | 4 | Login state, user menu, navigation links |
+| 2. Dashboard | 5 | Widgets, data loading, quick actions |
+| 3. Chat - Basic | 8 | New chat, send/receive, rename, archive, delete, search |
+| 4. Chat - AI & KB | 7 | Agent selection, KB context (critical), multi-turn |
+| 5. Meeting Rooms | 5 | Tab access, room list, create, entry, discussion |
+| 6. Tasks - Board | 10 | CRUD, search, filters (priority, team) |
+| 7. Tasks - Advanced | 6 | Filters (assignee, date, source), sort, refresh |
+| 8. Projects | 10 | CRUD, pipeline, scoring, stakeholders |
+| 9. KB - Navigation | 8 | Tabs, vault structure, folders, storage |
+| 10. KB - Documents | 8 | Selection, preview, agents, tags, search |
+| 11. Agents | 6 | Directory, all 21 agents, details, categories |
+| 12. Intelligence | 5 | Dashboard, charts, metrics, time range |
+| 13. DISCo | 8 | Initiative CRUD, members, documents |
+| 14. Admin Help | 5 | Panel, quick options, custom questions |
+| 15. Cleanup | 5 | Delete test data, verify clean state |
+| **TOTAL** | **100** | **Complete Thesis functionality** |

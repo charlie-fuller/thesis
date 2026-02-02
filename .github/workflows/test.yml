@@ -63,7 +63,12 @@ jobs:
         with:
           file: backend/coverage.xml
           flags: backend
-          fail_ci_if_error: false
+          fail_ci_if_error: true  # Now enforced
+
+      - name: Check coverage threshold (70%)
+        working-directory: backend
+        run: |
+          uv run coverage report --fail-under=70
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -176,6 +181,56 @@ jobs:
         env:
           HYPOTHESIS_PROFILE: ci
         run: uv run pytest tests/test_property_based.py -v --tb=short
+
+  # =============================================================================
+  # Code Quality Gates
+  # =============================================================================
+  backend-typecheck:
+    name: Backend Type Checking (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install mypy and dependencies
+        run: pip install mypy pydantic types-requests
+
+      - name: Run mypy type checking
+        working-directory: backend
+        run: mypy . --ignore-missing-imports
+    # Week 1-2: Advisory mode (continue-on-error: true)
+    # Week 3+: Remove this line to make blocking
+    continue-on-error: true
+
+  secret-scan:
+    name: Secret Scanning (TruffleHog)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for scanning
+
+      - name: Run TruffleHog secret scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          extra_args: --only-verified
+
+  commitlint:
+    name: Commit Message Lint
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Lint commit messages
+        uses: wagoid/commitlint-github-action@v6
 
   # =============================================================================
   # Frontend Tests
@@ -374,16 +429,20 @@ jobs:
       - name: Run safety check (Python dependencies)
         working-directory: backend
         run: safety check -r requirements.txt --output json > safety-report.json || true
+        # Week 3+: Remove continue-on-error to make blocking
         continue-on-error: true
 
       - name: Run bandit (Python code security)
         working-directory: backend
-        run: bandit -r . -f json -o bandit-report.json || true
+        run: |
+          bandit -r . -f json -o bandit-report.json -x ./tests,./migrations,./.venv || true
+        # Week 3+: Remove continue-on-error to make blocking
         continue-on-error: true
 
       - name: Run pip-audit
         working-directory: backend
         run: pip-audit -r requirements.txt --format json > pip-audit-report.json || true
+        # Week 3+: Remove continue-on-error to make blocking
         continue-on-error: true
 
       - name: Upload Python security reports
@@ -405,6 +464,7 @@ jobs:
       - name: Run npm audit (JS dependencies)
         working-directory: frontend
         run: npm audit --json > npm-audit-report.json || true
+        # Week 3+: Remove continue-on-error to make blocking
         continue-on-error: true
 
       - name: Upload npm audit report
@@ -588,7 +648,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [backend-unit, backend-integration, backend-smoke, frontend-unit, e2e, security]
+    needs: [backend-unit, backend-integration, backend-smoke, backend-typecheck, secret-scan, frontend-unit, e2e, security]
     if: always()
     steps:
       - name: Check all jobs passed
@@ -597,9 +657,14 @@ jobs:
              [[ "${{ needs.backend-integration.result }}" != "success" ]] || \
              [[ "${{ needs.backend-smoke.result }}" != "success" ]] || \
              [[ "${{ needs.frontend-unit.result }}" != "success" ]] || \
-             [[ "${{ needs.e2e.result }}" != "success" ]]; then
+             [[ "${{ needs.e2e.result }}" != "success" ]] || \
+             [[ "${{ needs.secret-scan.result }}" != "success" ]]; then
             echo "One or more required jobs failed"
             exit 1
+          fi
+          # Note: backend-typecheck is advisory until week 3
+          if [[ "${{ needs.backend-typecheck.result }}" == "failure" ]]; then
+            echo "Warning: Type checking failed (advisory mode)"
           fi
           echo "All required jobs passed!"
 
@@ -612,6 +677,8 @@ jobs:
           echo "| Backend Unit | ${{ needs.backend-unit.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Backend Integration | ${{ needs.backend-integration.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Backend Smoke | ${{ needs.backend-smoke.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Type Check | ${{ needs.backend-typecheck.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secret Scan | ${{ needs.secret-scan.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Frontend Unit | ${{ needs.frontend-unit.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| E2E Tests | ${{ needs.e2e.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Security | ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
