@@ -9,9 +9,10 @@ Usage:
 
 import sys
 
+from services.quick_prompt_generator import generate_addie_prompts, save_quick_prompts
+
 from database import get_supabase
 from logger_config import get_logger
-from services.quick_prompt_generator import generate_addie_prompts, save_quick_prompts
 
 logger = get_logger(__name__)
 supabase = get_supabase()

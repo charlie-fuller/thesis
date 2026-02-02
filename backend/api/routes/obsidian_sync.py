@@ -720,6 +720,7 @@ async def upload_remote_file(
     """
     try:
         from services.document_service import process_document
+
         from services.obsidian_sync import (
             auto_classify_document,
             extract_date_from_content,
