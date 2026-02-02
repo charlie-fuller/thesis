@@ -1,4 +1,4 @@
-"""Task Tracker Service
+"""Task Tracker Service.
 
 Provides task querying, categorization, and slippage detection
 for the Taskmaster agent. Focuses on personal task accountability.

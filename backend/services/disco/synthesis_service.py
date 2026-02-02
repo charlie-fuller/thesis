@@ -1,4 +1,4 @@
-"""DISCo Synthesis Service
+"""DISCo Synthesis Service.
 
 Handles the Synthesis stage of the DISCo pipeline:
 - Running the synthesis agent to propose initiative bundles

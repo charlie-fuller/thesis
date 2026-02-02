@@ -1,4 +1,4 @@
-"""PuRDy Chat Service
+"""PuRDy Chat Service.
 
 Provides RAG-based Q&A functionality for initiatives.
 """

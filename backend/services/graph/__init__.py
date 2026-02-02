@@ -1,4 +1,4 @@
-"""Graph Services - Neo4j Knowledge Graph Integration
+"""Graph Services - Neo4j Knowledge Graph Integration.
 
 This module provides services for:
 - Neo4j connection management

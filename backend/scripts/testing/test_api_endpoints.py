@@ -1,7 +1,7 @@
 """Test the complete API workflow:
 1. Upload document
 2. Process document
-3. Search for content
+3. Search for content.
 """
 
 import requests

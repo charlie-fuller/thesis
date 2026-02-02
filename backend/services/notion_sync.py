@@ -40,7 +40,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 
 
 class NotionSyncError(Exception):
-    """Raised when Notion sync operations fail"""
+    """Raised when Notion sync operations fail."""
 
     pass
 
@@ -785,7 +785,7 @@ def sync_pages(
 
 
 def _create_sync_log(user_id: str, page_ids: Optional[List[str]]) -> str:
-    """Create a sync log entry and return its ID"""
+    """Create a sync log entry and return its ID."""
     page_count = len(page_ids) if page_ids else 0
     page_name = f"{page_count} pages" if page_ids else "All accessible pages"
 
@@ -805,7 +805,7 @@ def _create_sync_log(user_id: str, page_ids: Optional[List[str]]) -> str:
 def _complete_sync_log(
     sync_log_id: str, status: str, stats: Optional[Dict] = None, error_message: Optional[str] = None
 ):
-    """Update sync log entry with completion status"""
+    """Update sync log entry with completion status."""
     now = datetime.now(timezone.utc).isoformat()
 
     update_data = {"status": status, "completed_at": now}
@@ -831,7 +831,7 @@ def _complete_sync_log(
 
 
 def is_user_connected(user_id: str) -> bool:
-    """Check if user has an active Notion connection"""
+    """Check if user has an active Notion connection."""
     token_record = get_user_tokens(user_id)
     return token_record is not None
 

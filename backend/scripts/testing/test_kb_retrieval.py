@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test script to verify knowledge base retrieval is working"""
+"""Test script to verify knowledge base retrieval is working."""
 
 import os
 

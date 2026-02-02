@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply database migration"""
+"""Apply database migration."""
 
 import os
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Diagnostic script to check knowledge base documents for corrupted content"""
+"""Diagnostic script to check knowledge base documents for corrupted content."""
 
 from dotenv import load_dotenv
 

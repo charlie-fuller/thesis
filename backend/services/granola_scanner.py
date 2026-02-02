@@ -1,4 +1,4 @@
-"""Meeting Scanner Service
+"""Meeting Scanner Service.
 
 Scans meeting documents from the KB and extracts:
 - AI projects (as candidates for review)
@@ -366,7 +366,7 @@ EXCLUDED_ASSIGNEES = [
 
 
 class GranolaScannerError(Exception):
-    """Raised when Granola scanning operations fail"""
+    """Raised when Granola scanning operations fail."""
 
     pass
 
@@ -403,7 +403,7 @@ def parse_date_from_filename(filename: str) -> Optional[date]:
     """Extract meeting date from filename.
     Supports formats like:
     - 2025-07-27.md
-    - Chris __ Charlie-transcript-2026-01-06_09-12-32.md
+    - Chris __ Charlie-transcript-2026-01-06_09-12-32.md.
     """
     if not filename:
         return None
@@ -436,7 +436,7 @@ def get_document_meeting_date(doc: Dict[str, Any]) -> Optional[date]:
     Priority order:
     1. Date parsed from filename (most reliable for Granola)
     2. original_date field (if exists and valid - not in future)
-    3. uploaded_at as fallback
+    3. uploaded_at as fallback.
 
     Rejects dates that are in the future (data quality issue).
     """

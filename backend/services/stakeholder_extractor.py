@@ -1,4 +1,4 @@
-"""Stakeholder Extractor Service
+"""Stakeholder Extractor Service.
 
 Extracts potential stakeholders from meeting summaries and transcripts using LLM.
 Uses Claude Sonnet for high-quality extraction of names, roles, departments,

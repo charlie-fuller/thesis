@@ -1,5 +1,5 @@
 """Google Drive integration routes
-Handles OAuth, sync, and folder management
+Handles OAuth, sync, and folder management.
 """
 
 import asyncio
@@ -42,7 +42,7 @@ class SyncSettingsRequest(BaseModel):
 
 @router.get("/auth")
 async def google_drive_auth(current_user: dict = Depends(get_current_user)):
-    """Initiate Google Drive OAuth flow"""
+    """Initiate Google Drive OAuth flow."""
     try:
         flow = Flow.from_client_config(
             {
@@ -90,7 +90,7 @@ async def google_drive_auth(current_user: dict = Depends(get_current_user)):
 
 @router.get("/callback")
 async def google_drive_callback(code: str, state: str):
-    """Handle Google Drive OAuth callback"""
+    """Handle Google Drive OAuth callback."""
     try:
         # Verify state
         state_result = await asyncio.to_thread(
@@ -190,7 +190,7 @@ async def google_drive_callback(code: str, state: str):
 
 @router.get("/status")
 async def get_google_drive_status(current_user: dict = Depends(get_current_user)):
-    """Get Google Drive connection status"""
+    """Get Google Drive connection status."""
     try:
         status = get_connection_status(current_user["id"])
         return {"success": True, **status}
@@ -201,7 +201,7 @@ async def get_google_drive_status(current_user: dict = Depends(get_current_user)
 
 @router.get("/picker-token")
 async def get_picker_token(current_user: dict = Depends(get_current_user)):
-    """Get OAuth token and client ID for Google Picker API"""
+    """Get OAuth token and client ID for Google Picker API."""
     try:
         from services.google_drive_sync import get_or_refresh_token
 
@@ -223,7 +223,7 @@ async def get_picker_token(current_user: dict = Depends(get_current_user)):
 
 @router.get("/files/{folder_id}")
 async def get_folder_files(folder_id: str, current_user: dict = Depends(get_current_user)):
-    """List files in a Google Drive folder"""
+    """List files in a Google Drive folder."""
     try:
         files = list_folder_files(current_user["id"], folder_id)
         return {"success": True, "files": files}
@@ -240,7 +240,7 @@ async def sync_google_drive(
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user),
 ):
-    """Trigger manual Google Drive sync"""
+    """Trigger manual Google Drive sync."""
     try:
         # Check if syncing specific files or a folder
         if request.file_ids:
@@ -270,7 +270,7 @@ async def sync_single_document(
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user),
 ):
-    """Sync a specific Google Drive document by its file ID"""
+    """Sync a specific Google Drive document by its file ID."""
     try:
         # Sync single document in background
         background_tasks.add_task(
@@ -289,7 +289,7 @@ async def sync_single_document(
 
 @router.delete("/disconnect")
 async def disconnect_google_drive(current_user: dict = Depends(get_current_user)):
-    """Disconnect Google Drive"""
+    """Disconnect Google Drive."""
     try:
         disconnect_user(current_user["id"])
         return {"success": True, "message": "Google Drive disconnected"}
@@ -300,7 +300,7 @@ async def disconnect_google_drive(current_user: dict = Depends(get_current_user)
 
 @router.get("/sync-history")
 async def get_sync_history(current_user: dict = Depends(get_current_user), limit: int = 10):
-    """Get recent sync history"""
+    """Get recent sync history."""
     try:
         result = await asyncio.to_thread(
             lambda: supabase.table("google_drive_sync_log")
@@ -319,7 +319,7 @@ async def get_sync_history(current_user: dict = Depends(get_current_user), limit
 
 @router.get("/sync-settings")
 async def get_sync_settings(current_user: dict = Depends(get_current_user)):
-    """Get sync settings"""
+    """Get sync settings."""
     try:
         result = await asyncio.to_thread(
             lambda: supabase.table("google_drive_tokens")
@@ -344,7 +344,7 @@ async def get_sync_settings(current_user: dict = Depends(get_current_user)):
 async def update_sync_settings(
     request: SyncSettingsRequest, current_user: dict = Depends(get_current_user)
 ):
-    """Update sync settings"""
+    """Update sync settings."""
     try:
         update_data = {"sync_frequency": request.sync_frequency}
         if request.folder_id:

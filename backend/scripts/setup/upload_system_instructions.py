@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Upload System Instructions to Supabase Storage
+"""Upload System Instructions to Supabase Storage.
 
 This script uploads local system instruction files to Supabase Storage
 to make them persistent and available in production.

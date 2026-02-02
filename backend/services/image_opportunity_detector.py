@@ -1,5 +1,5 @@
 """Image Opportunity Detector Service
-Detects when visual content would enhance L&D conversations
+Detects when visual content would enhance L&D conversations.
 """
 
 import logging
@@ -275,11 +275,11 @@ class ImageOpportunityDetector:
         return detected
 
     def _has_complex_topic(self, text: str) -> bool:
-        """Check if text contains complex L&D topics"""
+        """Check if text contains complex L&D topics."""
         return any(topic in text for topic in self.COMPLEX_TOPICS)
 
     def _has_multi_steps(self, text: str) -> bool:
-        """Check if text contains multiple steps/stages"""
+        """Check if text contains multiple steps/stages."""
         return any(re.search(pattern, text) for pattern in self.MULTI_STEP_PATTERNS)
 
     def _extract_subject(self, user_message: str, assistant_response: str) -> str:
@@ -358,7 +358,7 @@ _detector_instance: Optional[ImageOpportunityDetector] = None
 
 
 def get_image_opportunity_detector() -> ImageOpportunityDetector:
-    """Get or create the global ImageOpportunityDetector instance"""
+    """Get or create the global ImageOpportunityDetector instance."""
     global _detector_instance
     if _detector_instance is None:
         _detector_instance = ImageOpportunityDetector()

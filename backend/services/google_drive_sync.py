@@ -71,13 +71,13 @@ _SUSPICIOUS_PATTERNS = [
 
 
 class GoogleDriveSyncError(Exception):
-    """Raised when Google Drive sync operations fail"""
+    """Raised when Google Drive sync operations fail."""
 
     pass
 
 
 class TimeoutError(Exception):
-    """Raised when an operation times out"""
+    """Raised when an operation times out."""
 
     pass
 
@@ -1234,7 +1234,7 @@ def sync_folder(
 
 
 def _create_sync_log(user_id: str, folder_id: Optional[str], folder_name: Optional[str]) -> str:
-    """Create a sync log entry and return its ID"""
+    """Create a sync log entry and return its ID."""
     log_data = {
         "user_id": user_id,
         "folder_id": folder_id,
@@ -1251,7 +1251,7 @@ def _create_sync_log(user_id: str, folder_id: Optional[str], folder_name: Option
 def _complete_sync_log(
     sync_log_id: str, status: str, stats: Optional[Dict] = None, error_message: Optional[str] = None
 ):
-    """Update sync log entry with completion status"""
+    """Update sync log entry with completion status."""
     now = datetime.now(timezone.utc).isoformat()
 
     update_data = {"status": status, "completed_at": now}
@@ -1294,7 +1294,7 @@ def _complete_sync_log(
 
 
 def is_user_connected(user_id: str) -> bool:
-    """Check if user has an active Google Drive connection"""
+    """Check if user has an active Google Drive connection."""
     token_record = get_user_tokens(user_id)
     return token_record is not None
 

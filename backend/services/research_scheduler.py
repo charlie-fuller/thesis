@@ -1,4 +1,4 @@
-"""Atlas Research Scheduler
+"""Atlas Research Scheduler.
 
 This module provides background job scheduling for automated research tasks.
 Atlas monitors platform context (stakeholder concerns, agent gaps, ROI opportunities)

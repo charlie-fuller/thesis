@@ -1,5 +1,5 @@
 """Notion integration routes
-Handles OAuth, page sync, and workspace management
+Handles OAuth, page sync, and workspace management.
 """
 
 import asyncio
@@ -35,7 +35,7 @@ class SyncSettingsRequest(BaseModel):
 
 @router.get("/auth")
 async def notion_auth(current_user: dict = Depends(get_current_user)):
-    """Initiate Notion OAuth flow"""
+    """Initiate Notion OAuth flow."""
     try:
         client_id = os.getenv("NOTION_CLIENT_ID")
         redirect_uri = os.getenv("NOTION_REDIRECT_URI")
@@ -61,7 +61,7 @@ async def notion_auth(current_user: dict = Depends(get_current_user)):
 
 @router.get("/callback")
 async def notion_callback(code: str, state: str):
-    """Handle Notion OAuth callback"""
+    """Handle Notion OAuth callback."""
     try:
         # Verify state
         state_result = await asyncio.to_thread(
@@ -122,7 +122,7 @@ async def notion_callback(code: str, state: str):
 
 @router.get("/status")
 async def get_notion_status_endpoint(current_user: dict = Depends(get_current_user)):
-    """Get Notion connection status"""
+    """Get Notion connection status."""
     try:
         status = get_notion_status(current_user["id"])
         return {"success": True, **status}
@@ -133,7 +133,7 @@ async def get_notion_status_endpoint(current_user: dict = Depends(get_current_us
 
 @router.get("/pages")
 async def list_notion_pages(current_user: dict = Depends(get_current_user)):
-    """List accessible Notion pages"""
+    """List accessible Notion pages."""
     try:
         pages = get_accessible_pages(current_user["id"])
         return {"success": True, "pages": pages}
@@ -150,7 +150,7 @@ async def sync_notion_pages(
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user),
 ):
-    """Trigger manual Notion page sync"""
+    """Trigger manual Notion page sync."""
     try:
         background_tasks.add_task(sync_pages, current_user["id"], request.page_ids)
 
@@ -167,7 +167,7 @@ async def sync_notion_pages(
 
 @router.delete("/disconnect")
 async def disconnect_notion_endpoint(current_user: dict = Depends(get_current_user)):
-    """Disconnect Notion"""
+    """Disconnect Notion."""
     try:
         disconnect_notion(current_user["id"])
         return {"success": True, "message": "Notion disconnected"}
@@ -178,7 +178,7 @@ async def disconnect_notion_endpoint(current_user: dict = Depends(get_current_us
 
 @router.get("/sync-history")
 async def get_notion_sync_history(current_user: dict = Depends(get_current_user), limit: int = 10):
-    """Get recent sync history"""
+    """Get recent sync history."""
     try:
         result = await asyncio.to_thread(
             lambda: supabase.table("notion_sync_log")
@@ -197,7 +197,7 @@ async def get_notion_sync_history(current_user: dict = Depends(get_current_user)
 
 @router.get("/sync-settings")
 async def get_notion_sync_settings(current_user: dict = Depends(get_current_user)):
-    """Get sync settings"""
+    """Get sync settings."""
     try:
         result = await asyncio.to_thread(
             lambda: supabase.table("notion_tokens")
@@ -222,7 +222,7 @@ async def get_notion_sync_settings(current_user: dict = Depends(get_current_user
 async def update_notion_sync_settings(
     request: SyncSettingsRequest, current_user: dict = Depends(get_current_user)
 ):
-    """Update sync settings"""
+    """Update sync settings."""
     try:
         update_data = {"sync_frequency": request.sync_frequency}
         if request.default_page_ids is not None:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """One-time script to reset user passwords and set roles to admin.
-Run with: python scripts/reset_user_passwords.py
+Run with: python scripts/reset_user_passwords.py.
 """
 
 import sys

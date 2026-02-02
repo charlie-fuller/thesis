@@ -1,4 +1,4 @@
-"""Theme Settings API Routes
+"""Theme Settings API Routes.
 
 Endpoints for managing application theme/styling settings.
 """
@@ -21,7 +21,7 @@ supabase = get_supabase()
 
 
 class ThemeSettings(BaseModel):
-    """Theme settings model"""
+    """Theme settings model."""
 
     # Brand colors
     color_primary: Optional[str] = Field(None, pattern=r"^#[0-9a-fA-F]{6}$")
@@ -80,7 +80,7 @@ class ThemeSettings(BaseModel):
 
 @router.get("/api/theme")
 async def get_theme_settings(current_user: dict = Depends(get_current_user)):
-    """Get theme settings for the current user's client"""
+    """Get theme settings for the current user's client."""
     try:
         client_id = current_user.get("client_id")
 
@@ -108,7 +108,7 @@ async def get_theme_settings(current_user: dict = Depends(get_current_user)):
 async def update_theme_settings(
     settings: ThemeSettings, current_user: dict = Depends(get_current_user)
 ):
-    """Update theme settings (admin only)"""
+    """Update theme settings (admin only)."""
     try:
         # Check admin role
         if current_user.get("role") != "admin":
@@ -163,7 +163,7 @@ async def update_theme_settings(
 
 @router.post("/api/theme/reset")
 async def reset_theme_settings(current_user: dict = Depends(get_current_user)):
-    """Reset theme settings to defaults (admin only)"""
+    """Reset theme settings to defaults (admin only)."""
     try:
         if current_user.get("role") != "admin":
             raise HTTPException(status_code=403, detail="Admin access required")
@@ -205,7 +205,7 @@ MAX_LOGO_SIZE = 2 * 1024 * 1024  # 2MB
 
 @router.post("/api/theme/logo")
 async def upload_logo(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
-    """Upload a logo image (admin only)"""
+    """Upload a logo image (admin only)."""
     try:
         if current_user.get("role") != "admin":
             raise HTTPException(status_code=403, detail="Admin access required")
@@ -276,7 +276,7 @@ async def upload_logo(file: UploadFile = File(...), current_user: dict = Depends
 
 @router.delete("/api/theme/logo")
 async def delete_logo(current_user: dict = Depends(get_current_user)):
-    """Remove the logo (admin only)"""
+    """Remove the logo (admin only)."""
     try:
         if current_user.get("role") != "admin":
             raise HTTPException(status_code=403, detail="Admin access required")
@@ -303,7 +303,7 @@ async def delete_logo(current_user: dict = Depends(get_current_user)):
 
 
 def get_default_theme() -> dict:
-    """Return default theme settings"""
+    """Return default theme settings."""
     return {
         "color_primary": "#6366f1",
         "color_primary_hover": "#4f46e5",

@@ -2,7 +2,7 @@
 Tests:
 1. Chat with document context (RAG enabled)
 2. Chat without RAG
-3. Verify context chunks are being used
+3. Verify context chunks are being used.
 """
 
 import requests

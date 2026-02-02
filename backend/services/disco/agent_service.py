@@ -1,4 +1,4 @@
-"""PuRDy Agent Service
+"""PuRDy Agent Service.
 
 Handles loading agent prompts, building context, and executing agent runs.
 """

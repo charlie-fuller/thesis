@@ -1,4 +1,4 @@
-"""PuRDy Sharing Service
+"""PuRDy Sharing Service.
 
 Handles initiative sharing and permissions management.
 """

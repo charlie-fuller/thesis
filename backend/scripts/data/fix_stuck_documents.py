@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Fix stuck documents that are in 'pending' status
-Triggers processing for all documents with processing_status = 'pending'
+Triggers processing for all documents with processing_status = 'pending'.
 """
 
 import os
@@ -14,7 +14,7 @@ load_dotenv()
 
 
 def fix_stuck_documents():
-    """Find and trigger processing for all pending documents"""
+    """Find and trigger processing for all pending documents."""
     supabase = get_supabase()
 
     # Find all documents stuck in 'pending' status

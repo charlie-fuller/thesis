@@ -1,4 +1,4 @@
-"""Backfill storage_used for all users based on their existing documents"""
+"""Backfill storage_used for all users based on their existing documents."""
 
 import os
 

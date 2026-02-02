@@ -39,13 +39,13 @@ VERSION_NUMBER_PATTERN = re.compile(r"^[0-9]+\.[0-9]+(-.+)?$")
 
 
 class VersionNotesUpdate(BaseModel):
-    """Model for updating version notes"""
+    """Model for updating version notes."""
 
     version_notes: str
 
 
 class VersionCompareRequest(BaseModel):
-    """Model for comparing two versions"""
+    """Model for comparing two versions."""
 
     version_a_id: str
     version_b_id: str
@@ -58,7 +58,7 @@ class VersionCompareRequest(BaseModel):
 
 
 class VersionResponse(BaseModel):
-    """Standard response model for version operations"""
+    """Standard response model for version operations."""
 
     success: bool
     version: Optional[dict] = None
@@ -71,7 +71,7 @@ class VersionResponse(BaseModel):
 
 
 def validate_version_number(version_number: str) -> str:
-    """Validate version number format (e.g., '1.3', '2.0-beta')"""
+    """Validate version number format (e.g., '1.3', '2.0-beta')."""
     if not version_number:
         raise HTTPException(status_code=400, detail="Version number is required")
 
@@ -85,7 +85,7 @@ def validate_version_number(version_number: str) -> str:
 
 
 def validate_instruction_file(file: UploadFile) -> None:
-    """Validate system instruction file"""
+    """Validate system instruction file."""
     if not file:
         raise HTTPException(status_code=400, detail="No file provided")
 
@@ -105,7 +105,7 @@ def validate_instruction_file(file: UploadFile) -> None:
 
 
 async def get_version_by_id(version_id: str) -> dict:
-    """Fetch a version by ID, raises 404 if not found"""
+    """Fetch a version by ID, raises 404 if not found."""
     result = await asyncio.to_thread(
         lambda: supabase.table("system_instruction_versions")
         .select("*")
@@ -121,7 +121,7 @@ async def get_version_by_id(version_id: str) -> dict:
 
 
 async def count_conversations_using_version(version_id: str) -> int:
-    """Count how many conversations are using a specific version"""
+    """Count how many conversations are using a specific version."""
     result = await asyncio.to_thread(
         lambda: supabase.table("conversations")
         .select("id", count="exact")
@@ -612,7 +612,7 @@ Keep your response professional and focused on actionable insights for the admin
 @router.get("/versions/{version_id}/changelog")
 async def get_version_changelog(version_id: str, current_user: dict = Depends(require_admin)):
     """Fetch the changelog file for a specific version if it exists.
-    Looks for files like v1.1-update-log.md or v1.3-changelog.md
+    Looks for files like v1.1-update-log.md or v1.3-changelog.md.
     """
     from pathlib import Path
 

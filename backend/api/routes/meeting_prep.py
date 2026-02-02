@@ -1,4 +1,4 @@
-"""Meeting Prep API Routes
+"""Meeting Prep API Routes.
 
 Endpoints for generating meeting preparation dashboards for stakeholders.
 Aggregates status, metrics, opportunities, and questions into a single view.

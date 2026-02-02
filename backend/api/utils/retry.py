@@ -1,4 +1,4 @@
-"""Retry Logic with Exponential Backoff
+"""Retry Logic with Exponential Backoff.
 
 Provides decorators and utilities for retrying failed operations with
 configurable backoff strategies and error handling.
@@ -293,7 +293,7 @@ class CircuitBreaker:
         return wrapper
 
     def reset(self):
-        """Manually reset the circuit breaker"""
+        """Manually reset the circuit breaker."""
         self._failure_count = 0
         self._last_failure_time = None
         self._state = "CLOSED"

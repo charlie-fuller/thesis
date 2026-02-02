@@ -1,4 +1,4 @@
-"""Index Help Documentation Script (v2 - with title/heading context)
+"""Index Help Documentation Script (v2 - with title/heading context).
 
 Processes markdown files from docs/help/ into the help_documents and help_chunks tables
 with embeddings for RAG-powered help chat.

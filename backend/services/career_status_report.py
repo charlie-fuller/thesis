@@ -1,4 +1,4 @@
-"""Career Status Report Generation Service
+"""Career Status Report Generation Service.
 
 Generates AI-powered career status reports for the Compass agent.
 Uses a 5-dimension rubric to assess career performance:

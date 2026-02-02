@@ -1,4 +1,4 @@
-"""Operator Tools Service
+"""Operator Tools Service.
 
 Provides data retrieval functions for the Operator agent to access
 project-triage data: opportunities, metrics, stakeholder information.

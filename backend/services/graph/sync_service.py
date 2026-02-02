@@ -1,4 +1,4 @@
-"""Graph Sync Service
+"""Graph Sync Service.
 
 Synchronizes data from Supabase (source of truth) to Neo4j (graph layer).
 Handles stakeholders, meetings, insights, documents, and relationships.

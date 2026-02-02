@@ -1,4 +1,4 @@
-"""Project Context Service
+"""Project Context Service.
 
 Provides vector search and context retrieval for AI projects.
 Used by the project detail modal to show related documents
@@ -169,7 +169,7 @@ def get_related_documents(
     min_similarity: float = 0.3,
 ) -> List[Dict]:
     """Find documents related to a project using vector search.
-    (Legacy function - prefer get_scoring_related_documents for detail modal)
+    (Legacy function - prefer get_scoring_related_documents for detail modal).
 
     Builds a search query from the project's title and description,
     then searches the knowledge base for relevant document chunks.

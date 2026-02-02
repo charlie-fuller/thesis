@@ -1,5 +1,5 @@
 """Useable Output Detection Service
-Blended approach using multiple signals to detect when AI output becomes useable
+Blended approach using multiple signals to detect when AI output becomes useable.
 """
 
 from datetime import datetime, timezone
@@ -75,7 +75,7 @@ ITERATION_KEYWORDS = [
 
 
 def detect_confirmation_keywords(message_content: str) -> bool:
-    """Detect if user message contains positive confirmation keywords
+    """Detect if user message contains positive confirmation keywords.
 
     Args:
         message_content: The user's message content
@@ -94,7 +94,7 @@ def detect_confirmation_keywords(message_content: str) -> bool:
 
 
 def calculate_turns_to_message(conversation_id: str, message_id: str) -> int:
-    """Calculate number of user turns up to and including a specific message
+    """Calculate number of user turns up to and including a specific message.
 
     Args:
         conversation_id: The conversation ID
@@ -133,7 +133,7 @@ def calculate_turns_to_message(conversation_id: str, message_id: str) -> int:
 def mark_useable_output(
     conversation_id: str, message_id: str, method: str, user_id: Optional[str] = None
 ) -> bool:
-    """Mark a message as useable output in the database
+    """Mark a message as useable output in the database.
 
     Args:
         conversation_id: The conversation ID
@@ -190,7 +190,7 @@ def mark_useable_output(
 
 
 def auto_detect_useable_output(conversation_id: str) -> Optional[Tuple[str, str, int]]:
-    """Automatically detect useable output using multiple signals
+    """Automatically detect useable output using multiple signals.
 
     Checks in priority order:
     1. Copy events (tracked separately)
@@ -251,7 +251,7 @@ def auto_detect_useable_output(conversation_id: str) -> Optional[Tuple[str, str,
 
 
 def process_conversation_for_useable_output(conversation_id: str) -> bool:
-    """Process a conversation to detect and mark useable output if not already marked
+    """Process a conversation to detect and mark useable output if not already marked.
 
     Args:
         conversation_id: The conversation ID

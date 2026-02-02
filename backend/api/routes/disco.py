@@ -1,4 +1,4 @@
-"""DISCo API Routes
+"""DISCo API Routes.
 
 Discovery-Insights-Synthesis-Capabilities (DISCo) API endpoints.
 """

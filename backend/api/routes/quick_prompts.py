@@ -1,5 +1,5 @@
 """Quick Prompts API Routes
-Handles CRUD operations for user quick prompts (activation shortcuts for AI assistant functions)
+Handles CRUD operations for user quick prompts (activation shortcuts for AI assistant functions).
 
 Created: November 21, 2025
 """
@@ -8,6 +8,10 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+
+from auth import get_current_user, require_admin
+from database import get_supabase
+from logger_config import get_logger
 from services.quick_prompt_generator import (
     delete_quick_prompt,
     detect_addie_phase_from_conversation,
@@ -20,10 +24,6 @@ from services.quick_prompt_generator import (
     save_quick_prompts,
     update_quick_prompt,
 )
-
-from auth import get_current_user, require_admin
-from database import get_supabase
-from logger_config import get_logger
 from validation import validate_uuid
 
 logger = get_logger(__name__)
@@ -37,7 +37,7 @@ supabase = get_supabase()
 
 
 class GeneratePromptsRequest(BaseModel):
-    """Request body for generating quick prompts"""
+    """Request body for generating quick prompts."""
 
     selected_functions: List[str] = Field(
         ..., min_length=5, max_length=5, description="5 function names from Solomon Stage 2"
@@ -48,7 +48,7 @@ class GeneratePromptsRequest(BaseModel):
 
 
 class CreatePromptRequest(BaseModel):
-    """Request body for creating a custom prompt"""
+    """Request body for creating a custom prompt."""
 
     prompt_text: str = Field(
         ..., min_length=1, max_length=500, description="Text of the quick prompt"
@@ -59,7 +59,7 @@ class CreatePromptRequest(BaseModel):
 
 
 class UpdatePromptRequest(BaseModel):
-    """Request body for updating a prompt"""
+    """Request body for updating a prompt."""
 
     prompt_text: Optional[str] = Field(
         None, min_length=1, max_length=500, description="Updated prompt text"
@@ -69,7 +69,7 @@ class UpdatePromptRequest(BaseModel):
 
 
 class QuickPromptResponse(BaseModel):
-    """Response model for a quick prompt"""
+    """Response model for a quick prompt."""
 
     id: str
     user_id: str
@@ -94,7 +94,7 @@ class QuickPromptResponse(BaseModel):
 async def generate_prompts_for_user(
     request: GeneratePromptsRequest, current_user: dict = Depends(get_current_user)
 ):
-    """Auto-generate quick prompts based on selected functions from Solomon Stage 2
+    """Auto-generate quick prompts based on selected functions from Solomon Stage 2.
 
     This endpoint is typically called automatically after system instructions are deployed.
     Generates 10 quick prompts (2 per function) for the 5 selected functions.
@@ -145,7 +145,7 @@ async def get_quick_prompts(
     addie_phase: Optional[str] = None,
     current_user: dict = Depends(get_current_user),
 ):
-    """Get all quick prompts for the current user
+    """Get all quick prompts for the current user.
 
     Query Parameters:
     - active_only: If true, only return active prompts (default: true)
@@ -174,7 +174,7 @@ async def get_quick_prompts(
 async def create_custom_prompt(
     request: CreatePromptRequest, current_user: dict = Depends(get_current_user)
 ):
-    """Create a new custom quick prompt
+    """Create a new custom quick prompt.
 
     Users can add their own prompts beyond the auto-generated ones.
     """
@@ -222,7 +222,7 @@ async def create_custom_prompt(
 async def update_prompt(
     prompt_id: str, request: UpdatePromptRequest, current_user: dict = Depends(get_current_user)
 ):
-    """Update a quick prompt (edit text, toggle active, change order)
+    """Update a quick prompt (edit text, toggle active, change order).
 
     Users can edit any prompt marked as editable=true.
     """
@@ -263,7 +263,7 @@ async def update_prompt(
 
 @router.delete("/{prompt_id}")
 async def delete_prompt(prompt_id: str, current_user: dict = Depends(get_current_user)):
-    """Delete a quick prompt
+    """Delete a quick prompt.
 
     Users can delete any prompt they own.
     """
@@ -292,7 +292,7 @@ async def delete_prompt(prompt_id: str, current_user: dict = Depends(get_current
 
 @router.post("/{prompt_id}/use")
 async def track_prompt_usage(prompt_id: str, current_user: dict = Depends(get_current_user)):
-    """Track usage of a quick prompt (increment usage_count)
+    """Track usage of a quick prompt (increment usage_count).
 
     Call this endpoint when a user clicks/uses a quick prompt.
     Used for analytics to understand which prompts are most valuable.
@@ -326,7 +326,7 @@ async def track_prompt_usage(prompt_id: str, current_user: dict = Depends(get_cu
 async def admin_get_user_prompts(
     user_id: str, active_only: bool = False, current_user: dict = Depends(require_admin)
 ):
-    """Admin endpoint to view quick prompts for any user
+    """Admin endpoint to view quick prompts for any user.
 
     Requires admin authentication.
     """
@@ -348,7 +348,7 @@ async def admin_get_user_prompts(
 
 @router.get("/admin/stats")
 async def admin_get_prompt_stats(current_user: dict = Depends(require_admin)):
-    """Admin endpoint to get quick prompt usage statistics
+    """Admin endpoint to get quick prompt usage statistics.
 
     Returns analytics on prompt usage across all users.
     """
@@ -409,14 +409,14 @@ async def admin_get_prompt_stats(current_user: dict = Depends(require_admin)):
 
 
 class GenerateADDIEPromptsRequest(BaseModel):
-    """Request body for generating ADDIE-based prompts"""
+    """Request body for generating ADDIE-based prompts."""
 
     phases: Optional[List[str]] = Field(None, description="ADDIE phases to include (default: all)")
     max_per_phase: int = Field(3, ge=1, le=10, description="Max prompts per phase")
 
 
 class ContextualPromptsRequest(BaseModel):
-    """Request body for getting contextual prompts"""
+    """Request body for getting contextual prompts."""
 
     conversation_text: str = Field(..., min_length=1, description="Recent conversation text")
     addie_phase: Optional[str] = Field(None, description="Optional ADDIE phase filter")
@@ -427,7 +427,7 @@ class ContextualPromptsRequest(BaseModel):
 async def generate_addie_prompts_endpoint(
     request: GenerateADDIEPromptsRequest, current_user: dict = Depends(get_current_user)
 ):
-    """Generate ADDIE-based quick prompts for L&D workflows
+    """Generate ADDIE-based quick prompts for L&D workflows.
 
     This endpoint generates prompts organized by ADDIE phases:
     - Analysis, Design, Development, Implementation, Evaluation, General
@@ -469,7 +469,7 @@ async def generate_addie_prompts_endpoint(
 async def get_contextual_prompts_endpoint(
     request: ContextualPromptsRequest, current_user: dict = Depends(get_current_user)
 ):
-    """Get contextually relevant prompts based on conversation content
+    """Get contextually relevant prompts based on conversation content.
 
     Analyzes the conversation text and returns prompts that match keywords
     and context, sorted by relevance score.
@@ -497,7 +497,7 @@ async def get_contextual_prompts_endpoint(
 async def detect_phase_endpoint(
     request: ContextualPromptsRequest, current_user: dict = Depends(get_current_user)
 ):
-    """Detect the most likely ADDIE phase from conversation text
+    """Detect the most likely ADDIE phase from conversation text.
 
     Useful for auto-selecting the appropriate prompt category.
     """

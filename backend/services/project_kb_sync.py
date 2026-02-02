@@ -1,4 +1,4 @@
-"""Project KB Sync Service
+"""Project KB Sync Service.
 
 Detects when knowledge base changes are relevant to projects
 and triggers re-evaluation of scores/justifications.

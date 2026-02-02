@@ -1,4 +1,4 @@
-"""Test the complete image generation flow end-to-end"""
+"""Test the complete image generation flow end-to-end."""
 
 import asyncio
 import os

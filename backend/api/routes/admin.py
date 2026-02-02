@@ -1,5 +1,5 @@
 """Admin dashboard routes
-Handles statistics, analytics, and administrative operations
+Handles statistics, analytics, and administrative operations.
 """
 
 import asyncio
@@ -28,7 +28,7 @@ supabase = get_supabase()
 @router.get("/stats")
 @limiter.limit("60/minute")
 async def get_admin_stats(request: Request, current_user: dict = Depends(require_admin)):
-    """Get overall platform statistics"""
+    """Get overall platform statistics."""
     try:
         # Count users
         users_result = await asyncio.to_thread(
@@ -72,7 +72,7 @@ async def get_admin_stats(request: Request, current_user: dict = Depends(require
 
 @router.get("/analytics/usage-trends")
 async def get_usage_trends(current_user: dict = Depends(require_admin), days: int = 30):
-    """Get usage trends over time, grouped by agent"""
+    """Get usage trends over time, grouped by agent."""
     try:
         from datetime import datetime, timedelta
 
@@ -241,7 +241,7 @@ async def get_usage_trends(current_user: dict = Depends(require_admin), days: in
 
 @router.get("/analytics/active-users")
 async def get_active_users(current_user: dict = Depends(require_admin), days: int = 7):
-    """Get active users in specified timeframe"""
+    """Get active users in specified timeframe."""
     try:
         from datetime import datetime, timedelta
 
@@ -296,7 +296,7 @@ async def get_active_users(current_user: dict = Depends(require_admin), days: in
 
 @router.get("/analytics/recent-activity")
 async def get_recent_activity(current_user: dict = Depends(require_admin), limit: int = 20):
-    """Get recent platform activity"""
+    """Get recent platform activity."""
     try:
         # Get recent conversations with user info
         convos = await asyncio.to_thread(
@@ -366,7 +366,7 @@ async def get_recent_activity(current_user: dict = Depends(require_admin), limit
 
 @router.get("/users")
 async def get_all_users(current_user: dict = Depends(require_admin)):
-    """Get all users for admin (for KPI user selector)"""
+    """Get all users for admin (for KPI user selector)."""
     try:
         result = await asyncio.to_thread(
             lambda: supabase.table("users").select("id, email, name").order("email").execute()
@@ -382,7 +382,7 @@ async def get_all_users(current_user: dict = Depends(require_admin)):
 
 @router.get("/clients")
 async def get_all_clients(current_user: dict = Depends(require_admin)):
-    """Get all clients for admin"""
+    """Get all clients for admin."""
     try:
         result = await asyncio.to_thread(
             lambda: supabase.table("clients").select("id, name").order("name").execute()
@@ -400,7 +400,7 @@ async def get_all_clients(current_user: dict = Depends(require_admin)):
 async def get_all_conversations(
     current_user: dict = Depends(require_admin), limit: int = 100, client_id: str = None
 ):
-    """Get all conversations with user and client info for admin"""
+    """Get all conversations with user and client info for admin."""
     try:
         # Build query with joins
         query = supabase.table("conversations").select("""
@@ -442,7 +442,7 @@ async def get_all_conversations(
 
 @router.get("/health")
 async def get_system_health(current_user: dict = Depends(require_admin)):
-    """Get real-time system health metrics for admin dashboard"""
+    """Get real-time system health metrics for admin dashboard."""
     try:
         health_data = {
             "supabase": {"status": "checking", "responseTime": 0},
@@ -768,7 +768,7 @@ async def get_upload_health(current_user: dict = Depends(require_admin)):
 async def clear_upload_issues(request: Request, current_user: dict = Depends(require_admin)):
     """Clear stuck documents and recent failures from the upload health panel.
     - Stuck documents: marked as 'failed' with explanation
-    - Recent failures: deleted from database
+    - Recent failures: deleted from database.
     """
     try:
         now = datetime.now(timezone.utc)

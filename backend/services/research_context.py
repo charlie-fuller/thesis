@@ -1,4 +1,4 @@
-"""Research Context Service
+"""Research Context Service.
 
 Aggregates platform context to determine what Atlas should research:
 - Stakeholder concerns drive research priorities

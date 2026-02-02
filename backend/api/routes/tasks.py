@@ -1,5 +1,5 @@
 """Task management routes
-Handles task CRUD, Kanban board operations, and task extraction from transcripts
+Handles task CRUD, Kanban board operations, and task extraction from transcripts.
 """
 
 import asyncio

@@ -1,4 +1,4 @@
-"""Neo4j Connection Management
+"""Neo4j Connection Management.
 
 Provides async-compatible connection handling for Neo4j Aura.
 Uses the official neo4j Python driver with connection pooling.

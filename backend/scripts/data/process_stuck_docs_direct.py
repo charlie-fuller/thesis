@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Directly process stuck documents without going through the API"""
+"""Directly process stuck documents without going through the API."""
 
 from dotenv import load_dotenv
 
@@ -10,7 +10,7 @@ load_dotenv()
 
 
 def process_stuck_documents():
-    """Find and process all pending documents directly"""
+    """Find and process all pending documents directly."""
     supabase = get_supabase()
 
     # Find all documents stuck in 'pending' status

@@ -1,3 +1,3 @@
 """API package for Thesis
-Contains route modules, models, and utilities
+Contains route modules, models, and utilities.
 """

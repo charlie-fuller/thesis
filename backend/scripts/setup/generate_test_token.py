@@ -1,4 +1,4 @@
-"""Generate a test JWT token for testing purposes
+"""Generate a test JWT token for testing purposes.
 
 This script creates a valid JWT token using the Supabase JWT secret
 from the .env file. The token can be used for testing API endpoints.
@@ -24,7 +24,7 @@ load_dotenv()
 
 
 def generate_test_token(user_id: str = None, email: str = None, expires_in_hours: int = 24):
-    """Generate a test JWT token
+    """Generate a test JWT token.
 
     Args:
         user_id: User ID (UUID) - if None, uses a default test ID

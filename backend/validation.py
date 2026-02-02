@@ -1,4 +1,4 @@
-"""Input validation utilities for API endpoints"""
+"""Input validation utilities for API endpoints."""
 
 import secrets
 import string

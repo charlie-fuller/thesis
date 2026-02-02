@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply Migration 022: Add metadata column to messages table"""
+"""Apply Migration 022: Add metadata column to messages table."""
 
 import sys
 from pathlib import Path

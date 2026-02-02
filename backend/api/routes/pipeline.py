@@ -1,4 +1,4 @@
-"""Pipeline API Routes
+"""Pipeline API Routes.
 
 Endpoints for the Pipeline page - your action-oriented dashboard for
 tracking opportunities, commitments, and stakeholder engagement.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Apply Migration 022: Add metadata column to messages table
-Uses direct PostgreSQL connection via psycopg2
+Uses direct PostgreSQL connection via psycopg2.
 """
 
 import os

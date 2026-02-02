@@ -1,4 +1,4 @@
-"""Obsidian Vault Sync Service
+"""Obsidian Vault Sync Service.
 
 Handles syncing markdown files from local Obsidian vaults to the Thesis Knowledge Base.
 Supports file watching, incremental sync, frontmatter parsing, and wikilink conversion.
@@ -171,7 +171,7 @@ MONTH_MAP = {
 
 
 class ObsidianSyncError(Exception):
-    """Raised when Obsidian sync operations fail"""
+    """Raised when Obsidian sync operations fail."""
 
     pass
 

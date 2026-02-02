@@ -1,5 +1,5 @@
 """Pagination utilities
-Helpers for paginating list endpoints
+Helpers for paginating list endpoints.
 """
 
 from typing import Generic, List, TypeVar
@@ -10,7 +10,7 @@ T = TypeVar("T")
 
 
 class PaginatedResponse(BaseModel, Generic[T]):
-    """Generic paginated response model"""
+    """Generic paginated response model."""
 
     items: List[T]
     total: int
@@ -23,7 +23,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
 
 
 def paginate(items: List[T], total: int, limit: int, offset: int) -> dict:
-    """Create a paginated response
+    """Create a paginated response.
 
     Args:
         items: List of items for current page

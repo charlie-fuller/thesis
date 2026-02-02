@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Describe oauth_states table structure by inspecting insert attempt"""
+"""Describe oauth_states table structure by inspecting insert attempt."""
 
 import os
 

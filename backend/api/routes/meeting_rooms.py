@@ -1,5 +1,5 @@
 """Meeting Room routes
-Handles creation, management, and chat for multi-agent meeting rooms
+Handles creation, management, and chat for multi-agent meeting rooms.
 """
 
 import asyncio

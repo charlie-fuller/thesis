@@ -1,5 +1,5 @@
 """User management routes
-Handles user CRUD, prompts, and profile operations
+Handles user CRUD, prompts, and profile operations.
 """
 
 import asyncio
@@ -46,7 +46,7 @@ class UserUpdateRequest(BaseModel):
 @router.get("")
 @limiter.limit("60/minute")
 async def list_users(request: Request, current_user: dict = Depends(require_admin)):
-    """List all users (admin only)"""
+    """List all users (admin only)."""
     try:
         result = await asyncio.to_thread(
             lambda: supabase.table("users")
@@ -67,7 +67,7 @@ async def list_users(request: Request, current_user: dict = Depends(require_admi
 async def create_user(
     request: Request, user_data: UserCreateRequest, current_user: dict = Depends(require_admin)
 ):
-    """Create a new user (admin only)"""
+    """Create a new user (admin only)."""
     try:
         # Generate secure temporary password
         temp_password = generate_secure_password(16)
@@ -119,7 +119,7 @@ async def update_user(
     user_update: UserUpdateRequest,
     current_user: dict = Depends(require_admin),
 ):
-    """Update user profile (admin only)"""
+    """Update user profile (admin only)."""
     try:
         validate_uuid(user_id, "user_id")
 
@@ -156,7 +156,7 @@ async def upload_avatar(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
 ):
-    """Upload a profile avatar image"""
+    """Upload a profile avatar image."""
     try:
         validate_uuid(user_id, "user_id")
 
@@ -219,7 +219,7 @@ async def upload_avatar(
 async def delete_avatar(
     request: Request, user_id: str, current_user: dict = Depends(get_current_user)
 ):
-    """Delete user's avatar"""
+    """Delete user's avatar."""
     try:
         validate_uuid(user_id, "user_id")
 
@@ -269,7 +269,7 @@ async def delete_avatar(
 async def resend_invitation(
     request: Request, user_id: str, current_user: dict = Depends(require_admin)
 ):
-    """Resend password reset email to user"""
+    """Resend password reset email to user."""
     try:
         validate_uuid(user_id, "user_id")
 

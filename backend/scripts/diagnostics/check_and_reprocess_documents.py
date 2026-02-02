@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check documents for missing embeddings and optionally reprocess them
+"""Check documents for missing embeddings and optionally reprocess them.
 
 Usage:
     python check_and_reprocess_documents.py                    # Interactive mode

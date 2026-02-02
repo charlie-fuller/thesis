@@ -1,4 +1,4 @@
-"""Instruction Loader Service
+"""Instruction Loader Service.
 
 Loads agent system instructions from XML files.
 XML files in backend/system_instructions/agents/ are the SINGLE SOURCE OF TRUTH.

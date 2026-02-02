@@ -1,4 +1,4 @@
-"""Task Extractor Service
+"""Task Extractor Service.
 
 Extracts potential tasks from KB documents and meeting transcripts.
 Supports both explicit patterns ("I will...") and inferred patterns

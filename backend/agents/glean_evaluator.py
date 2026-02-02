@@ -1,4 +1,4 @@
-"""Glean Evaluator Agent - "Can We Glean This?"
+"""Glean Evaluator Agent - "Can We Glean This?".
 
 The Glean Evaluator agent specializes in:
 - Assessing PRDs and application requests for Glean platform fit

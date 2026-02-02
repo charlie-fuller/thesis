@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Quick fix for UUID type cast error in match_document_chunks"""
+"""Quick fix for UUID type cast error in match_document_chunks."""
 
 import os
 import sys

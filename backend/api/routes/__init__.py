@@ -1,3 +1,3 @@
 """API Routes package
-All endpoint handlers organized by resource type
+All endpoint handlers organized by resource type.
 """

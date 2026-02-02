@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply migration 024: System Instruction Document Mappings"""
+"""Apply migration 024: System Instruction Document Mappings."""
 
 import sys
 from pathlib import Path

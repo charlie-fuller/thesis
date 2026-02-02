@@ -1,5 +1,5 @@
 """Document management routes
-Handles document upload, processing, retrieval, deletion, and save-from-chat
+Handles document upload, processing, retrieval, deletion, and save-from-chat.
 """
 
 import asyncio
@@ -942,7 +942,7 @@ async def process_document_endpoint(
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user),
 ):
-    """Trigger document processing (chunking and embedding)"""
+    """Trigger document processing (chunking and embedding)."""
     try:
         validate_uuid(document_id, "document_id")
 
@@ -1088,7 +1088,7 @@ async def get_obsidian_folders(current_user: dict = Depends(get_current_user)):
 
 @router.get("/{document_id}")
 async def get_document_metadata(document_id: str, current_user: dict = Depends(get_current_user)):
-    """Get document metadata"""
+    """Get document metadata."""
     try:
         validate_uuid(document_id, "document_id")
 
@@ -1186,7 +1186,7 @@ async def get_document_content(document_id: str, current_user: dict = Depends(ge
 async def list_all_documents(
     current_user: dict = Depends(require_admin), limit: int = 50, offset: int = 0
 ):
-    """List all documents (admin only)"""
+    """List all documents (admin only)."""
     try:
         result = await asyncio.to_thread(
             lambda: supabase.table("documents")
@@ -1206,7 +1206,7 @@ async def list_all_documents(
 
 @router.get("/{document_id}/details")
 async def get_document_details(document_id: str, current_user: dict = Depends(require_admin)):
-    """Get detailed document information including chunks (admin only)"""
+    """Get detailed document information including chunks (admin only)."""
     try:
         validate_uuid(document_id, "document_id")
 
@@ -1369,7 +1369,7 @@ async def delete_document(
 async def bulk_delete_documents(
     request: Request, document_ids: List[str], current_user: dict = Depends(require_admin)
 ):
-    """Delete multiple documents (admin only)"""
+    """Delete multiple documents (admin only)."""
     try:
         deleted_count = 0
         errors = []
@@ -1578,7 +1578,7 @@ async def delete_documents_by_path_pattern(
 
 @router.get("/{document_id}/download")
 async def download_document(document_id: str, current_user: dict = Depends(get_current_user)):
-    """Generate a signed URL for document download"""
+    """Generate a signed URL for document download."""
     try:
         validate_uuid(document_id, "document_id")
 

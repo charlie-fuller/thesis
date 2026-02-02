@@ -1,5 +1,5 @@
 """Document Mapping Routes
-Manages the relationship between documents and system instruction template slots
+Manages the relationship between documents and system instruction template slots.
 """
 
 import asyncio
@@ -37,7 +37,7 @@ class Document(BaseModel):
 
 @router.get("/api/clients/{client_id}/document-mappings")
 async def get_document_mappings(client_id: str, current_user: dict = Depends(require_admin)):
-    """Get current document mappings for a client"""
+    """Get current document mappings for a client."""
     try:
         validate_uuid(client_id, "client_id")
 
@@ -82,7 +82,7 @@ async def get_document_mappings(client_id: str, current_user: dict = Depends(req
 
 @router.get("/api/clients/{client_id}/documents")
 async def get_client_documents(client_id: str, current_user: dict = Depends(require_admin)):
-    """Get all documents available for mapping for a client"""
+    """Get all documents available for mapping for a client."""
     try:
         validate_uuid(client_id, "client_id")
 
@@ -108,7 +108,7 @@ async def get_client_documents(client_id: str, current_user: dict = Depends(requ
 async def update_document_mappings(
     client_id: str, request: UpdateMappingsRequest, current_user: dict = Depends(require_admin)
 ):
-    """Update document mappings for a client"""
+    """Update document mappings for a client."""
     try:
         validate_uuid(client_id, "client_id")
 
@@ -162,7 +162,7 @@ async def update_document_mappings(
 
 @router.post("/api/clients/{client_id}/regenerate-instructions")
 async def regenerate_instructions(client_id: str, current_user: dict = Depends(require_admin)):
-    """Regenerate system instructions with updated document mappings"""
+    """Regenerate system instructions with updated document mappings."""
     try:
         validate_uuid(client_id, "client_id")
 

@@ -1,4 +1,4 @@
-"""Opportunities API Routes
+"""Opportunities API Routes.
 
 Endpoints for managing AI implementation opportunities with 4-dimension scoring.
 Supports filtering by tier, department, status, and stakeholder.

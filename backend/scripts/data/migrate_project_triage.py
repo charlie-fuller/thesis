@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Migrate Project-Triage Markdown Data to Thesis PostgreSQL
+"""Migrate Project-Triage Markdown Data to Thesis PostgreSQL.
 
 This script imports data from the project-triage markdown files into the
 thesis database. It handles:

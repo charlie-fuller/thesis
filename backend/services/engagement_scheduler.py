@@ -1,4 +1,4 @@
-"""Stakeholder Engagement Scheduler
+"""Stakeholder Engagement Scheduler.
 
 This module provides background job scheduling for automated engagement level
 calculation. Runs weekly to update stakeholder engagement levels based on

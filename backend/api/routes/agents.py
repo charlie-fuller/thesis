@@ -1,4 +1,4 @@
-"""Agent Management API Routes
+"""Agent Management API Routes.
 
 Provides full CRUD and management for Thesis agents:
 - List all agents

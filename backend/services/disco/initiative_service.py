@@ -1,4 +1,4 @@
-"""PuRDy Initiative Service
+"""PuRDy Initiative Service.
 
 Handles CRUD operations for PuRDy initiatives.
 """

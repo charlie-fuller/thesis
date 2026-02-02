@@ -1,4 +1,4 @@
-"""Seed ADDIE-based Quick Prompts for Thesis L&D Users
+"""Seed ADDIE-based Quick Prompts for Thesis L&D Users.
 
 This script generates ADDIE workflow prompts for all existing users.
 Run this once to populate the new ADDIE-categorized prompts.
@@ -9,17 +9,16 @@ Usage:
 
 import sys
 
-from services.quick_prompt_generator import generate_addie_prompts, save_quick_prompts
-
 from database import get_supabase
 from logger_config import get_logger
+from services.quick_prompt_generator import generate_addie_prompts, save_quick_prompts
 
 logger = get_logger(__name__)
 supabase = get_supabase()
 
 
 def seed_addie_prompts_for_all_users():
-    """Generate and save ADDIE prompts for all users in the system"""
+    """Generate and save ADDIE prompts for all users in the system."""
     try:
         # Get all users
         logger.info("[Seed ADDIE Prompts] Fetching all users...")
@@ -102,7 +101,7 @@ def seed_addie_prompts_for_all_users():
 
 
 def seed_addie_prompts_for_user(user_id: str):
-    """Generate and save ADDIE prompts for a specific user
+    """Generate and save ADDIE prompts for a specific user.
 
     Args:
         user_id: User UUID

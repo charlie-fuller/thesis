@@ -1,4 +1,4 @@
-"""Centralized Error Handling Utilities
+"""Centralized Error Handling Utilities.
 
 Provides custom exception classes, standardized error responses, and
 FastAPI exception handlers for consistent error handling across the application.
@@ -52,7 +52,7 @@ def get_cors_headers(request: Request) -> dict:
 
 
 class ThesisError(Exception):
-    """Base exception for all Thesis errors"""
+    """Base exception for all Thesis errors."""
 
     def __init__(
         self,
@@ -68,138 +68,138 @@ class ThesisError(Exception):
 
 # Authentication & Authorization Errors
 class AuthenticationError(ThesisError):
-    """Raised when authentication fails"""
+    """Raised when authentication fails."""
 
     pass
 
 
 class AuthorizationError(ThesisError):
-    """Raised when user lacks permission for an action"""
+    """Raised when user lacks permission for an action."""
 
     pass
 
 
 class TokenExpiredError(AuthenticationError):
-    """Raised when authentication token has expired"""
+    """Raised when authentication token has expired."""
 
     pass
 
 
 # Document Processing Errors
 class DocumentProcessingError(ThesisError):
-    """Base class for document processing errors"""
+    """Base class for document processing errors."""
 
     pass
 
 
 class DocumentNotFoundError(DocumentProcessingError):
-    """Raised when a document cannot be found"""
+    """Raised when a document cannot be found."""
 
     pass
 
 
 class TextExtractionError(DocumentProcessingError):
-    """Raised when text extraction from a file fails"""
+    """Raised when text extraction from a file fails."""
 
     pass
 
 
 class UnsupportedFileTypeError(DocumentProcessingError):
-    """Raised when file type is not supported"""
+    """Raised when file type is not supported."""
 
     pass
 
 
 class FileSizeLimitError(DocumentProcessingError):
-    """Raised when file exceeds size limit"""
+    """Raised when file exceeds size limit."""
 
     pass
 
 
 # Embedding & Vector Search Errors
 class EmbeddingError(ThesisError):
-    """Base class for embedding-related errors"""
+    """Base class for embedding-related errors."""
 
     pass
 
 
 class EmbeddingGenerationError(EmbeddingError):
-    """Raised when embedding generation fails"""
+    """Raised when embedding generation fails."""
 
     pass
 
 
 class VectorSearchError(EmbeddingError):
-    """Raised when vector search fails"""
+    """Raised when vector search fails."""
 
     pass
 
 
 # External Service Errors
 class ExternalServiceError(ThesisError):
-    """Base class for external service errors"""
+    """Base class for external service errors."""
 
     pass
 
 
 class GoogleDriveError(ExternalServiceError):
-    """Raised when Google Drive operations fail"""
+    """Raised when Google Drive operations fail."""
 
     pass
 
 
 class NotionError(ExternalServiceError):
-    """Raised when Notion operations fail"""
+    """Raised when Notion operations fail."""
 
     pass
 
 
 class AnthropicAPIError(ExternalServiceError):
-    """Raised when Anthropic API calls fail"""
+    """Raised when Anthropic API calls fail."""
 
     pass
 
 
 class VoyageAPIError(ExternalServiceError):
-    """Raised when Voyage AI API calls fail"""
+    """Raised when Voyage AI API calls fail."""
 
     pass
 
 
 # Database Errors
 class DatabaseError(ThesisError):
-    """Base class for database errors"""
+    """Base class for database errors."""
 
     pass
 
 
 class DatabaseConnectionError(DatabaseError):
-    """Raised when database connection fails"""
+    """Raised when database connection fails."""
 
     pass
 
 
 class QueryExecutionError(DatabaseError):
-    """Raised when database query execution fails"""
+    """Raised when database query execution fails."""
 
     pass
 
 
 # Validation Errors
 class ValidationError(ThesisError):
-    """Base class for validation errors"""
+    """Base class for validation errors."""
 
     pass
 
 
 class InvalidInputError(ValidationError):
-    """Raised when input validation fails"""
+    """Raised when input validation fails."""
 
     pass
 
 
 class RateLimitError(ThesisError):
-    """Raised when rate limit is exceeded"""
+    """Raised when rate limit is exceeded."""
 
     pass
 

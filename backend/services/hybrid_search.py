@@ -1,4 +1,4 @@
-"""Hybrid Search Service - Combines Vector Search + Graph Context
+"""Hybrid Search Service - Combines Vector Search + Graph Context.
 
 This service enhances RAG (Retrieval Augmented Generation) by combining:
 1. Vector similarity search (PostgreSQL + Voyage AI embeddings)

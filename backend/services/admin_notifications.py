@@ -38,7 +38,7 @@ else:
 
 
 async def get_admin_emails() -> List[str]:
-    """Get email addresses of all admin users
+    """Get email addresses of all admin users.
 
     Returns:
         List of admin email addresses
@@ -57,7 +57,7 @@ async def get_admin_emails() -> List[str]:
 async def send_interview_complete_notification(
     extraction_id: str, client_id: str, completeness_score: int
 ) -> Dict[str, Any]:
-    """Send notification to admins when an interview is completed and ready for review
+    """Send notification to admins when an interview is completed and ready for review.
 
     Args:
         extraction_id: UUID of interview_extractions record

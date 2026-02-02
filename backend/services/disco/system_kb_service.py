@@ -1,4 +1,4 @@
-"""PuRDy System KB Service
+"""PuRDy System KB Service.
 
 Manages the global system knowledge base (methodology files).
 """

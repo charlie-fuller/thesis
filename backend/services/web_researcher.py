@@ -1,4 +1,4 @@
-"""Web Researcher Service
+"""Web Researcher Service.
 
 Provides web search capabilities for Atlas research with:
 - Credibility-tiered source filtering

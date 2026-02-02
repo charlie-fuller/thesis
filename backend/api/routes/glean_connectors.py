@@ -1,4 +1,4 @@
-"""Glean Connectors API Routes
+"""Glean Connectors API Routes.
 
 Provides endpoints for managing the Glean connector registry,
 including listing connectors, checking availability, and logging

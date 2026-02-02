@@ -1,4 +1,4 @@
-"""Update all users' storage_quota to 2GB"""
+"""Update all users' storage_quota to 2GB."""
 
 import os
 

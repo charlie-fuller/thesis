@@ -1,4 +1,4 @@
-"""Obsidian Vault Sync API Routes
+"""Obsidian Vault Sync API Routes.
 
 Handles configuration, sync triggers, and status for Obsidian vault integration.
 """
@@ -45,7 +45,7 @@ def _get_db():
 
 
 class ConfigureVaultRequest(BaseModel):
-    """Request body for configuring a vault"""
+    """Request body for configuring a vault."""
 
     vault_path: str = Field(..., description="Absolute path to Obsidian vault directory")
     sync_options: Optional[dict] = Field(
@@ -55,13 +55,13 @@ class ConfigureVaultRequest(BaseModel):
 
 
 class UpdateSyncOptionsRequest(BaseModel):
-    """Request body for updating sync options"""
+    """Request body for updating sync options."""
 
     sync_options: dict = Field(..., description="Sync options to update")
 
 
 class DisconnectRequest(BaseModel):
-    """Request body for disconnecting vault"""
+    """Request body for disconnecting vault."""
 
     remove_documents: bool = Field(
         False, description="Whether to delete synced documents from the knowledge base"

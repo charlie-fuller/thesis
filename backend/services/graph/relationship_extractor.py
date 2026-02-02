@@ -1,4 +1,4 @@
-"""Relationship Extractor
+"""Relationship Extractor.
 
 Infers graph relationships from Supabase data that aren't explicitly stored.
 This is where Neo4j's value shines - deriving relationships from patterns.

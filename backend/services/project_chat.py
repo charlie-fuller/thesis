@@ -1,4 +1,4 @@
-"""Project Chat Service
+"""Project Chat Service.
 
 Provides Q&A functionality for AI projects.
 Uses the Operator agent persona to answer questions about specific projects,

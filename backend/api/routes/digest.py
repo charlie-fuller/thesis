@@ -1,4 +1,4 @@
-"""Task Digest API Routes
+"""Task Digest API Routes.
 
 Endpoints for generating task digest documents.
 """

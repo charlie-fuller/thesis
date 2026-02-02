@@ -1,4 +1,4 @@
-"""Stakeholder Engagement Calculator
+"""Stakeholder Engagement Calculator.
 
 This module provides automatic calculation of stakeholder engagement levels
 based on interaction signals from stakeholder_insights table.

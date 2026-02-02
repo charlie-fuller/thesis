@@ -1,4 +1,4 @@
-"""PuRDy Document Service
+"""PuRDy Document Service.
 
 Handles document upload, chunking, embedding, and retrieval for PuRDy initiatives.
 """

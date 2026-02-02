@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check oauth_states table structure"""
+"""Check oauth_states table structure."""
 
 import os
 

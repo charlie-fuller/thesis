@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Obsidian Vault Watcher
+"""Obsidian Vault Watcher.
 
 Standalone script to run the Obsidian file watcher as a background process.
 Monitors configured vault directories for .md file changes and syncs them

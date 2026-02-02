@@ -1,5 +1,5 @@
 """Fix existing image URLs in database that point to gygax-files.com
-Update them to use direct Supabase storage URLs
+Update them to use direct Supabase storage URLs.
 """
 
 import os
@@ -23,7 +23,7 @@ from database import DatabaseService
 
 
 def fix_image_urls():
-    """Fix all image URLs in the database"""
+    """Fix all image URLs in the database."""
     db = DatabaseService.get_client()
     supabase_url = os.getenv("SUPABASE_URL")
 

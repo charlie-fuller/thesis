@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply database migration 018 - Fix storage calculation for external sources"""
+"""Apply database migration 018 - Fix storage calculation for external sources."""
 
 import os
 import sys

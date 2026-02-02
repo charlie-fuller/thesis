@@ -1,4 +1,4 @@
-"""Project Justification Generation Service
+"""Project Justification Generation Service.
 
 Generates AI-powered justifications for project scores using Claude.
 Produces:

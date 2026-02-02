@@ -1,4 +1,4 @@
-"""Test script to verify document upload endpoint"""
+"""Test script to verify document upload endpoint."""
 
 import os
 
@@ -6,7 +6,7 @@ import requests
 
 
 def test_document_upload():
-    """Test uploading a document to the API"""
+    """Test uploading a document to the API."""
     # Create a simple test file
     test_content = """
     Thesis Test Document

@@ -1,4 +1,4 @@
-"""Goal Alignment Analyzer Service
+"""Goal Alignment Analyzer Service.
 
 Analyzes AI projects against IS team FY27 strategic goals.
 Produces a 0-100 alignment score across 4 pillars (25 points each):

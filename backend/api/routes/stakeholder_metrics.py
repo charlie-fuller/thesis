@@ -1,4 +1,4 @@
-"""Stakeholder Metrics API Routes
+"""Stakeholder Metrics API Routes.
 
 Endpoints for managing stakeholder KPIs with validation status tracking.
 Supports the red/yellow/green validation framework from project-triage.

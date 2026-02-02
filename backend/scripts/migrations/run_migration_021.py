@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply database migration 021 - Recalculate storage_used for all users"""
+"""Apply database migration 021 - Recalculate storage_used for all users."""
 
 import os
 import sys

@@ -1,5 +1,5 @@
 """Services module for Thesis
-Contains business logic and external API integrations
+Contains business logic and external API integrations.
 """
 
 # Lazy imports to avoid import chain issues with optional dependencies (llama_index)

@@ -1,5 +1,5 @@
 """Error handling utilities
-Helpers for consistent error handling across routes
+Helpers for consistent error handling across routes.
 """
 
 from typing import Any
@@ -10,7 +10,7 @@ from errors import AuthorizationError, NotFoundError
 def require_resource_access(
     resource_type: str, resource: dict, user: dict, client_id_field: str = "client_id"
 ):
-    """Helper to check if user can access a resource
+    """Helper to check if user can access a resource.
 
     Args:
         resource_type: Type of resource (for error message)
@@ -27,7 +27,7 @@ def require_resource_access(
 
 
 def get_or_404(result: Any, resource_type: str, resource_id: str = None):
-    """Helper to return data or raise 404
+    """Helper to return data or raise 404.
 
     Args:
         result: Supabase query result

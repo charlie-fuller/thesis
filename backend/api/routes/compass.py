@@ -1,4 +1,4 @@
-"""Compass Agent API Routes
+"""Compass Agent API Routes.
 
 Endpoints for career status report generation and history.
 The Compass agent helps users track wins, prepare for check-ins,

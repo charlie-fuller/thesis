@@ -1,4 +1,4 @@
-"""Test script to verify Voyage AI embeddings integration"""
+"""Test script to verify Voyage AI embeddings integration."""
 
 import os
 
@@ -12,7 +12,7 @@ load_dotenv()
 
 
 def test_voyage_embeddings():
-    """Test Voyage AI embedding generation"""
+    """Test Voyage AI embedding generation."""
     # Load API key
     api_key = os.environ.get("VOYAGE_API_KEY")
 
@@ -64,7 +64,7 @@ def test_voyage_embeddings():
 
 
 def test_database_storage(embedding):
-    """Test storing embedding in database"""
+    """Test storing embedding in database."""
     print("\n🗄️ Testing database storage...")
 
     # Load Supabase credentials

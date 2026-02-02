@@ -1,4 +1,4 @@
-"""Graph Query Service
+"""Graph Query Service.
 
 Provides high-level graph queries for agents and API endpoints.
 Focuses on relationship traversal, influence networks, and pattern matching.

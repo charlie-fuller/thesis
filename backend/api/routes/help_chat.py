@@ -1,4 +1,4 @@
-"""Help Chat API Routes
+"""Help Chat API Routes.
 
 Provides AI-powered help chat using RAG over help documentation.
 Separate from main chat conversations.
@@ -44,7 +44,7 @@ claude_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 
 class HelpChatRequest(BaseModel):
-    """Request model for help chat"""
+    """Request model for help chat."""
 
     message: str
     conversation_id: Optional[str] = None  # If continuing conversation
@@ -53,7 +53,7 @@ class HelpChatRequest(BaseModel):
 
 
 class HelpChatResponse(BaseModel):
-    """Response model for help chat"""
+    """Response model for help chat."""
 
     conversation_id: str
     message_id: str

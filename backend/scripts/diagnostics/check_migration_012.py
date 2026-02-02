@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check if migration 012 has been applied"""
+"""Check if migration 012 has been applied."""
 
 import os
 

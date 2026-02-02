@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seed Manual Agent Documentation
+"""Seed Manual Agent Documentation.
 
 Seeds the Manual agent's knowledge base with Thesis platform documentation
 from the repository. This includes user guides, admin guides, and key

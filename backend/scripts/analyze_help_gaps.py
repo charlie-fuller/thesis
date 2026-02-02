@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Analyze Help System Gaps
+"""Analyze Help System Gaps.
 
 This script queries the database to analyze:
 1. Low confidence responses (similarity < 0.75)

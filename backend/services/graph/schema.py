@@ -1,4 +1,4 @@
-"""Neo4j Graph Schema Initialization
+"""Neo4j Graph Schema Initialization.
 
 Defines and creates the graph schema including:
 - Node constraints and indexes

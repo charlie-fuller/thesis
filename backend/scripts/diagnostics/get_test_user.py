@@ -1,4 +1,4 @@
-"""Get a test user ID from the database for testing
+"""Get a test user ID from the database for testing.
 
 This script queries the database to find an existing user
 that can be used for testing.
@@ -12,7 +12,7 @@ load_dotenv()
 
 
 def get_test_user():
-    """Get the first available user from the database"""
+    """Get the first available user from the database."""
     try:
         supabase = get_supabase()
         result = supabase.table("users").select("id, email, role, client_id").limit(1).execute()

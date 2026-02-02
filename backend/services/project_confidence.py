@@ -1,4 +1,4 @@
-"""Project Confidence Scoring Service
+"""Project Confidence Scoring Service.
 
 Evaluates how confident we are in a project's scores based on
 the completeness of available information. Higher confidence means

@@ -1,4 +1,4 @@
-"""Projects API Routes
+"""Projects API Routes.
 
 Endpoints for managing AI implementation projects with 4-dimension scoring.
 Supports filtering by tier, department, status, and stakeholder.

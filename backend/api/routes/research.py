@@ -1,4 +1,4 @@
-"""Research API Routes
+"""Research API Routes.
 
 Endpoints for managing Atlas proactive research:
 - View and trigger research tasks

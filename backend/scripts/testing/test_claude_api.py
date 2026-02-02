@@ -1,4 +1,4 @@
-"""Test script to verify Anthropic Claude API connection"""
+"""Test script to verify Anthropic Claude API connection."""
 
 import os
 
@@ -10,7 +10,7 @@ load_dotenv()
 
 
 def test_claude_api():
-    """Test basic Claude API functionality"""
+    """Test basic Claude API functionality."""
     # Load API key from environment
     api_key = os.environ.get("ANTHROPIC_API_KEY")
 

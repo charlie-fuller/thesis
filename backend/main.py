@@ -1,4 +1,4 @@
-"""Thesis - Main Application Entry Point
+"""Thesis - Main Application Entry Point.
 
 Multi-agent platform for enterprise GenAI strategy implementation.
 Provides specialized agents for research (Atlas), finance (Capital),
@@ -38,7 +38,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manage application startup and shutdown lifecycle"""
+    """Manage application startup and shutdown lifecycle."""
     # Startup
     # Start Google Drive sync scheduler
     try:
@@ -159,7 +159,7 @@ ENVIRONMENT = os.environ.get("ENVIRONMENT", "development").lower()
 
 # Parse and normalize origins (ensure all have https:// prefix)
 def normalize_origin(origin: str) -> str:
-    """Ensure origin has proper https:// prefix"""
+    """Ensure origin has proper https:// prefix."""
     origin = origin.strip()
     if origin and not origin.startswith(("http://", "https://")):
         origin = f"https://{origin}"
@@ -423,7 +423,7 @@ from validation import validate_uuid
 async def list_client_conversations(
     client_id: str, include_archived: bool = False, current_user: dict = Depends(get_current_user)
 ):
-    """List all conversations for a client (backward compatibility)"""
+    """List all conversations for a client (backward compatibility)."""
     try:
         validate_uuid(client_id, "client_id")
 
@@ -443,7 +443,7 @@ async def list_client_conversations(
 
 @app.get("/api/users/me/storage")
 async def get_user_storage(current_user: dict = Depends(get_current_user)):
-    """Get user storage info (backward compatibility - forwards to documents router)"""
+    """Get user storage info (backward compatibility - forwards to documents router)."""
     try:
         # Query user storage from database
         result = await asyncio.to_thread(
@@ -479,7 +479,7 @@ async def get_user_storage(current_user: dict = Depends(get_current_user)):
 
 @app.get("/api/users/me/documents")
 async def get_user_documents(current_user: dict = Depends(get_current_user)):
-    """Get user documents (backward compatibility - forwards to documents router)"""
+    """Get user documents (backward compatibility - forwards to documents router)."""
     try:
         # Query user's documents from database
         result = await asyncio.to_thread(
@@ -504,7 +504,7 @@ async def get_user_documents(current_user: dict = Depends(get_current_user)):
 
 @app.get("/")
 async def root():
-    """Root endpoint - API status"""
+    """Root endpoint - API status."""
     return {
         "message": "Thesis API is running",
         "version": "1.0.1",
@@ -515,7 +515,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for monitoring"""
+    """Health check endpoint for monitoring."""
     try:
         # Test database connection
         supabase.table("users").select("id").limit(1).execute()

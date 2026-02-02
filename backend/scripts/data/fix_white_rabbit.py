@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fix the White Rabbit Document
+"""Fix the White Rabbit Document.
 
 This script:
 1. Identifies the corrupted "white rabbits" document

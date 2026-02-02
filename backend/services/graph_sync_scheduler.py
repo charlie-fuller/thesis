@@ -1,4 +1,4 @@
-"""Knowledge Graph Automatic Sync Scheduler
+"""Knowledge Graph Automatic Sync Scheduler.
 
 This module provides background job scheduling for automatic Neo4j graph syncs.
 It uses APScheduler to run a daily full sync that mirrors PostgreSQL data to Neo4j.

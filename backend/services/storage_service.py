@@ -1,5 +1,5 @@
 """Supabase Storage Service
-Handles uploading, downloading, and managing files in Supabase Storage
+Handles uploading, downloading, and managing files in Supabase Storage.
 """
 
 import base64
@@ -14,10 +14,10 @@ logger = logging.getLogger(__name__)
 
 
 class StorageService:
-    """Service for managing Supabase Storage operations"""
+    """Service for managing Supabase Storage operations."""
 
     def __init__(self):
-        """Initialize Supabase client"""
+        """Initialize Supabase client."""
         self.supabase_url = os.getenv("SUPABASE_URL")
         self.supabase_key = os.getenv(
             "SUPABASE_SERVICE_ROLE_KEY"
@@ -32,7 +32,7 @@ class StorageService:
         logger.info("StorageService initialized")
 
     def ensure_bucket_exists(self) -> bool:
-        """Ensure the conversation-images bucket exists
+        """Ensure the conversation-images bucket exists.
 
         Note: The bucket should be created manually in Supabase dashboard.
         This just verifies it's accessible.
@@ -56,7 +56,7 @@ class StorageService:
     def upload_image(
         self, image_data: str, user_id: str, conversation_id: str, file_extension: str = "png"
     ) -> Optional[Dict[str, Any]]:
-        """Upload a base64-encoded image to Supabase Storage
+        """Upload a base64-encoded image to Supabase Storage.
 
         Args:
             image_data: Base64-encoded image data
@@ -125,7 +125,7 @@ class StorageService:
             return None
 
     def delete_image(self, storage_path: str) -> bool:
-        """Delete an image from Supabase Storage
+        """Delete an image from Supabase Storage.
 
         Args:
             storage_path: Path to the file in storage (e.g., "user_id/conversation_id/filename.png")
@@ -143,7 +143,7 @@ class StorageService:
             return False
 
     def delete_conversation_images(self, user_id: str, conversation_id: str) -> bool:
-        """Delete all images for a conversation
+        """Delete all images for a conversation.
 
         Args:
             user_id: ID of the user
@@ -175,7 +175,7 @@ class StorageService:
             return False
 
     def get_image_url(self, storage_path: str) -> Optional[str]:
-        """Get the public URL for an image
+        """Get the public URL for an image.
 
         Args:
             storage_path: Path to the file in storage
@@ -196,7 +196,7 @@ _storage_service: Optional[StorageService] = None
 
 
 def get_storage_service() -> StorageService:
-    """Get or create the global StorageService instance"""
+    """Get or create the global StorageService instance."""
     global _storage_service
     if _storage_service is None:
         _storage_service = StorageService()

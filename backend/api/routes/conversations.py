@@ -1,5 +1,5 @@
 """Conversation management routes
-Handles creation, retrieval, updating, and deletion of conversations
+Handles creation, retrieval, updating, and deletion of conversations.
 """
 
 import asyncio
@@ -58,7 +58,7 @@ class GenerateTitleRequest(BaseModel):
 async def create_conversation(
     request: ConversationCreateRequest, current_user: dict = Depends(get_current_user)
 ):
-    """Create a new conversation"""
+    """Create a new conversation."""
     try:
         # Auto-assign default client if not provided (single-tenant mode)
         client_id = request.client_id or get_default_client_id()
@@ -99,7 +99,7 @@ async def create_conversation(
 
 @router.get("/{conversation_id}")
 async def get_conversation(conversation_id: str, current_user: dict = Depends(get_current_user)):
-    """Get a single conversation by ID"""
+    """Get a single conversation by ID."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
@@ -144,7 +144,7 @@ async def get_conversation(conversation_id: str, current_user: dict = Depends(ge
 async def get_conversation_messages(
     conversation_id: str, current_user: dict = Depends(get_current_user)
 ):
-    """Get all messages in a conversation"""
+    """Get all messages in a conversation."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
@@ -214,7 +214,7 @@ async def update_conversation(
     request: ConversationUpdateRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    """Update conversation (rename)"""
+    """Update conversation (rename)."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
@@ -240,7 +240,7 @@ async def update_conversation(
 
 @router.delete("/{conversation_id}")
 async def delete_conversation(conversation_id: str, current_user: dict = Depends(get_current_user)):
-    """Delete a conversation and all its messages"""
+    """Delete a conversation and all its messages."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
@@ -343,7 +343,7 @@ async def list_conversations(
     limit: int = 100,
     current_user: dict = Depends(get_current_user),
 ):
-    """List conversations - all for admins, user-specific for regular users"""
+    """List conversations - all for admins, user-specific for regular users."""
     try:
         # Admins can see all conversations, regular users only see their own
         is_admin = current_user.get("role") == "admin"
@@ -407,7 +407,7 @@ async def add_conversation_to_knowledge_base(
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user),
 ):
-    """Add conversation to knowledge base for RAG search"""
+    """Add conversation to knowledge base for RAG search."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
@@ -429,7 +429,7 @@ async def add_conversation_to_knowledge_base(
 async def remove_conversation_from_knowledge_base(
     conversation_id: str, current_user: dict = Depends(get_current_user)
 ):
-    """Remove conversation from knowledge base"""
+    """Remove conversation from knowledge base."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
@@ -456,7 +456,7 @@ async def remove_conversation_from_knowledge_base(
 async def archive_conversation(
     conversation_id: str, current_user: dict = Depends(get_current_user)
 ):
-    """Archive a conversation"""
+    """Archive a conversation."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
@@ -483,7 +483,7 @@ async def archive_conversation(
 async def restore_conversation(
     conversation_id: str, current_user: dict = Depends(get_current_user)
 ):
-    """Restore an archived conversation"""
+    """Restore an archived conversation."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 

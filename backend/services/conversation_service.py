@@ -1,5 +1,5 @@
 """Conversation Service
-Handles conversation context analysis, including image generation suggestions
+Handles conversation context analysis, including image generation suggestions.
 """
 
 import logging
@@ -19,7 +19,7 @@ except ImportError:
 
 
 class ConversationService:
-    """Service for analyzing conversation context and suggesting actions"""
+    """Service for analyzing conversation context and suggesting actions."""
 
     # Keywords that suggest visual content would be helpful
     VISUAL_KEYWORDS = [
@@ -482,7 +482,7 @@ _conversation_service: Optional[ConversationService] = None
 
 
 def get_conversation_service() -> ConversationService:
-    """Get or create the global ConversationService instance"""
+    """Get or create the global ConversationService instance."""
     global _conversation_service
     if _conversation_service is None:
         _conversation_service = ConversationService()

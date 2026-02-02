@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Insert synthetic conversations for charlie@sickofancy.ai based on actual configured functions
+"""Insert synthetic conversations for charlie@sickofancy.ai based on actual configured functions.
 
 This script creates 10 synthetic conversations spread across 1 week (7 days) to test
 the Bradbury Impact Loop metrics. Uses Charlie's actual 5 configured functions:
@@ -40,7 +40,7 @@ CHARLIE_EMAIL = "charlie@sickofancy.ai"
 
 
 def create_conversation(title: str, created_at: datetime, user_id: str, client_id: str) -> str:
-    """Create a conversation and return its ID (matches real user conversation creation)"""
+    """Create a conversation and return its ID (matches real user conversation creation)."""
     url = f"{SUPABASE_URL}/rest/v1/conversations"
     headers = {
         "apikey": SUPABASE_SERVICE_ROLE_KEY,
@@ -70,7 +70,7 @@ def create_conversation(title: str, created_at: datetime, user_id: str, client_i
 
 
 def create_message(conversation_id: str, role: str, content: str, timestamp: datetime):
-    """Create a message in a conversation (matches real message creation schema)"""
+    """Create a message in a conversation (matches real message creation schema)."""
     url = f"{SUPABASE_URL}/rest/v1/messages"
     headers = {
         "apikey": SUPABASE_SERVICE_ROLE_KEY,

@@ -1,4 +1,4 @@
-"""Backfill database records for images that exist in storage but not in conversation_images table"""
+"""Backfill database records for images that exist in storage but not in conversation_images table."""
 
 import os
 from datetime import datetime

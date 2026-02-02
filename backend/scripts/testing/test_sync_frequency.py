@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test script for Google Drive sync frequency feature"""
+"""Test script for Google Drive sync frequency feature."""
 
 import os
 import sys

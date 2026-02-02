@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Comprehensive Knowledge Base Diagnostic Suite
-Tests the entire KB search pipeline from database to response
+Tests the entire KB search pipeline from database to response.
 """
 
 import sys
@@ -264,9 +264,7 @@ try:
     chunks_with_client = supabase.table("document_chunks").select("client_id").limit(100).execute()
 
     if chunks_with_client.data:
-        unique_clients = {
-            c.get("client_id") for c in chunks_with_client.data if c.get("client_id")
-        }
+        unique_clients = {c.get("client_id") for c in chunks_with_client.data if c.get("client_id")}
         print(f"Unique client IDs in chunks: {len(unique_clients)}")
 
         if unique_clients:

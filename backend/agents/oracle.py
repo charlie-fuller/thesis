@@ -39,7 +39,7 @@ class OracleAgent(BaseAgent):
 
     def _get_default_instruction(self) -> str:
         """Returns the default Oracle instruction.
-        This should match the content in system_instructions/agents/oracle.xml
+        This should match the content in system_instructions/agents/oracle.xml.
 
         NOTE: The canonical version is in oracle.xml. This is a fallback.
         """

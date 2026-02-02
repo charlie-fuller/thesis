@@ -1,4 +1,4 @@
-"""Document Classifier Service - Automatic Agent Relevance Tagging
+"""Document Classifier Service - Automatic Agent Relevance Tagging.
 
 Classifies uploaded documents to determine which agents should have access.
 Uses a hybrid approach:

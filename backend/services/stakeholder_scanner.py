@@ -1,4 +1,4 @@
-"""Stakeholder Scanner Service
+"""Stakeholder Scanner Service.
 
 Coordinates the stakeholder extraction process:
 1. Identifies meeting documents to scan

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Quick script to check document processing status"""
+"""Quick script to check document processing status."""
 
 from database import get_supabase
 

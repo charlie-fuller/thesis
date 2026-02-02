@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Migration 023: Add core document flag
-Adds is_core_document column to mark system/core documents that cannot be deleted
+Adds is_core_document column to mark system/core documents that cannot be deleted.
 """
 
 from dotenv import load_dotenv

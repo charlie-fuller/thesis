@@ -1,5 +1,5 @@
 """Sample Data Generator for KPI Testing
-Creates realistic test data for Ideation Velocity and Correction Loop KPIs
+Creates realistic test data for Ideation Velocity and Correction Loop KPIs.
 
 Usage:
     python test_kpi_sample_data.py --user-id <uuid> --weeks 4
@@ -58,7 +58,7 @@ ASSISTANT_RESPONSES = [
 
 
 def generate_test_data(user_id: str, num_weeks: int = 4):
-    """Generate sample conversations and messages for KPI testing
+    """Generate sample conversations and messages for KPI testing.
 
     Args:
         user_id: UUID of the test user
@@ -196,7 +196,7 @@ def generate_test_data(user_id: str, num_weeks: int = 4):
 
 
 def cleanup_test_data(user_id: str):
-    """Remove all test conversations for a user"""
+    """Remove all test conversations for a user."""
     print(f"\n🧹 Cleaning up test data for user: {user_id}")
 
     try:

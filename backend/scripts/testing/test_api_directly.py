@@ -1,4 +1,4 @@
-"""Direct API test - no imports from services"""
+"""Direct API test - no imports from services."""
 
 import base64
 import json

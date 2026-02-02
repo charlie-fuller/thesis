@@ -1,4 +1,4 @@
-"""Meeting Orchestrator Service
+"""Meeting Orchestrator Service.
 
 Manages multi-agent conversations in meeting rooms:
 - Uses Facilitator agent to analyze intent and manage turn-taking
@@ -1976,7 +1976,7 @@ async def get_meeting_orchestrator(
     """Factory function to create a MeetingOrchestrator with all agents loaded.
     Includes the Facilitator and Reporter meta-agents which are always present in meetings.
     - Facilitator: Orchestrates conversation flow, routes to agents
-    - Reporter: Synthesizes discussions into unified summaries
+    - Reporter: Synthesizes discussions into unified summaries.
     """
     from agents.atlas import AtlasAgent
     from agents.capital import CapitalAgent

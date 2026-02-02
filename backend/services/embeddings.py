@@ -1,5 +1,5 @@
 """Embeddings Service - Voyage AI Integration
-Provides embedding generation for documents, chat messages, and meeting room messages
+Provides embedding generation for documents, chat messages, and meeting room messages.
 """
 
 import logging
@@ -22,7 +22,7 @@ vo = voyageai.Client(api_key=VOYAGE_API_KEY)
 
 
 def create_embedding(text: str, input_type: str = "document") -> List[float]:
-    """Create embedding for a single text using Voyage AI
+    """Create embedding for a single text using Voyage AI.
 
     Args:
         text: Text to embed
@@ -39,7 +39,7 @@ def create_embedding(text: str, input_type: str = "document") -> List[float]:
 
 
 def create_embeddings_batch(texts: List[str], input_type: str = "document") -> List[List[float]]:
-    """Create embeddings for multiple texts in a single batch
+    """Create embeddings for multiple texts in a single batch.
 
     Args:
         texts: List of texts to embed

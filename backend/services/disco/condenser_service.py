@@ -1,4 +1,4 @@
-"""PuRDy Executive Summary Generator (formerly Condenser)
+"""PuRDy Executive Summary Generator (formerly Condenser).
 
 Extracts decision-forcing elements from comprehensive outputs:
 - The Leverage Point (single highest-impact intervention)

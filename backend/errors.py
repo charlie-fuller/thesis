@@ -1,4 +1,4 @@
-"""Standardized error handling for the API
+"""Standardized error handling for the API.
 
 Provides consistent error response format and custom exception classes.
 """
@@ -41,7 +41,7 @@ class APIError(HTTPException):
 
 
 class ValidationError(APIError):
-    """Validation error (400)"""
+    """Validation error (400)."""
 
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
         super().__init__(
@@ -50,21 +50,21 @@ class ValidationError(APIError):
 
 
 class AuthenticationError(APIError):
-    """Authentication error (401)"""
+    """Authentication error (401)."""
 
     def __init__(self, message: str = "Authentication required"):
         super().__init__(status_code=401, error_code="AUTHENTICATION_ERROR", message=message)
 
 
 class AuthorizationError(APIError):
-    """Authorization error (403)"""
+    """Authorization error (403)."""
 
     def __init__(self, message: str = "Not authorized to perform this action"):
         super().__init__(status_code=403, error_code="AUTHORIZATION_ERROR", message=message)
 
 
 class NotFoundError(APIError):
-    """Resource not found error (404)"""
+    """Resource not found error (404)."""
 
     def __init__(self, resource: str, resource_id: Optional[str] = None):
         message = f"{resource} not found"
@@ -80,21 +80,21 @@ class NotFoundError(APIError):
 
 
 class ConflictError(APIError):
-    """Resource conflict error (409)"""
+    """Resource conflict error (409)."""
 
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
         super().__init__(status_code=409, error_code="CONFLICT", message=message, details=details)
 
 
 class RateLimitError(APIError):
-    """Rate limit exceeded (429)"""
+    """Rate limit exceeded (429)."""
 
     def __init__(self, message: str = "Rate limit exceeded. Please try again later."):
         super().__init__(status_code=429, error_code="RATE_LIMIT_EXCEEDED", message=message)
 
 
 class ServerError(APIError):
-    """Internal server error (500)"""
+    """Internal server error (500)."""
 
     def __init__(self, message: str = "An internal server error occurred"):
         super().__init__(status_code=500, error_code="SERVER_ERROR", message=message)

@@ -1,4 +1,4 @@
-"""Stakeholder Deduplicator Service
+"""Stakeholder Deduplicator Service.
 
 Detects potential matches between extracted stakeholders and existing stakeholders
 in the database. Uses name similarity, email matching, and role/organization context.

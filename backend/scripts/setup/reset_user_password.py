@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Reset user password via Supabase Admin API
-Usage: python reset_user_password.py <email> <new_password>
+Usage: python reset_user_password.py <email> <new_password>.
 """
 
 import os
@@ -25,7 +25,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def reset_password_by_email(email: str, new_password: str):
-    """Reset password for a user by email"""
+    """Reset password for a user by email."""
     try:
         print(f"\n🔍 Looking up user: {email}")
 

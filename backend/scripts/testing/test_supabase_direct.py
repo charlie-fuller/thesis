@@ -1,4 +1,4 @@
-"""Direct Supabase connection test to debug RLS issues"""
+"""Direct Supabase connection test to debug RLS issues."""
 
 import os
 

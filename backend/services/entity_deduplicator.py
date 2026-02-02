@@ -1,4 +1,4 @@
-"""Entity Deduplicator Service
+"""Entity Deduplicator Service.
 
 Unified deduplication service for tasks, opportunities, and stakeholders.
 Provides consistent deduplication logic across all entity types during

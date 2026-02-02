@@ -1,4 +1,4 @@
-"""Task Digest Service
+"""Task Digest Service.
 
 Generates daily task digests as Knowledge Base documents.
 Creates a markdown summary of task status, overdue items, and focus recommendations.

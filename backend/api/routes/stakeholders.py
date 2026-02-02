@@ -1,4 +1,4 @@
-"""Stakeholders API Routes
+"""Stakeholders API Routes.
 
 Endpoints for managing stakeholders, their insights, and stakeholder candidates.
 """

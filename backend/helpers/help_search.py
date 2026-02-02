@@ -1,5 +1,5 @@
 """Help documentation search module
-Handles vector search and RAG over help documentation
+Handles vector search and RAG over help documentation.
 """
 
 from typing import Dict, List
@@ -13,7 +13,7 @@ supabase = get_supabase()
 
 
 def search_help_chunks(query: str, user_role: str, top_k: int = 3) -> tuple[List[Dict], str]:
-    """Search help chunks via vector similarity
+    """Search help chunks via vector similarity.
 
     Args:
         query: Search query
@@ -60,7 +60,7 @@ def search_help_chunks(query: str, user_role: str, top_k: int = 3) -> tuple[List
 
 
 def build_help_system_prompt(context: str) -> str:
-    """Build system prompt for help assistant
+    """Build system prompt for help assistant.
 
     Args:
         context: Documentation context from vector search

@@ -1,4 +1,4 @@
-"""Discovery API Routes
+"""Discovery API Routes.
 
 Unified endpoints for the Discovery Inbox feature.
 Provides counts and data across all candidate types (tasks, opportunities, stakeholders).

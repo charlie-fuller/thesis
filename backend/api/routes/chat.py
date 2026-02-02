@@ -1,5 +1,5 @@
 """Chat endpoint routes
-Handles AI chat interactions with RAG (Retrieval Augmented Generation)
+Handles AI chat interactions with RAG (Retrieval Augmented Generation).
 """
 
 import asyncio
@@ -137,7 +137,7 @@ def _message_has_substantial_content(message: str) -> bool:
 async def chat(
     request: Request, chat_request: ChatRequest, current_user: dict = Depends(get_current_user)
 ):
-    """Chat endpoint with RAG (Retrieval Augmented Generation)
+    """Chat endpoint with RAG (Retrieval Augmented Generation).
 
     Processes user messages and generates AI responses using Claude,
     optionally enhanced with context from user's documents.
@@ -555,7 +555,7 @@ Instructions:
 async def chat_stream(
     request: Request, chat_request: ChatRequest, current_user: dict = Depends(get_current_user)
 ):
-    """Streaming chat endpoint with RAG (Retrieval Augmented Generation)
+    """Streaming chat endpoint with RAG (Retrieval Augmented Generation).
 
     Streams AI responses in real-time using Server-Sent Events (SSE).
     Provides better UX with incremental response display.
@@ -589,7 +589,7 @@ async def chat_stream(
     )
 
     async def generate_stream():
-        """Generator function for SSE stream"""
+        """Generator function for SSE stream."""
         try:
             logger.info(f"Processing chat request: {chat_request.message[:100]}")
 
@@ -1782,7 +1782,7 @@ async def dig_deeper(
     )
 
     async def generate_stream():
-        """Generator function for SSE stream"""
+        """Generator function for SSE stream."""
         try:
             # Build the dig deeper prompt
             if dig_request.custom_prompt:

@@ -1,5 +1,5 @@
 """Client management routes
-Handles listing and retrieving client information
+Handles listing and retrieving client information.
 """
 
 import asyncio
@@ -18,7 +18,7 @@ supabase = get_supabase()
 
 @router.get("")
 async def list_clients(current_user: dict = Depends(require_admin)):
-    """Get all clients
+    """Get all clients.
 
     Requires: admin role
 
@@ -82,7 +82,7 @@ async def list_clients(current_user: dict = Depends(require_admin)):
 
 @router.get("/{client_id}")
 async def get_client(client_id: str, current_user: dict = Depends(get_current_user)):
-    """Get a single client by ID
+    """Get a single client by ID.
 
     Args:
         client_id: UUID of the client

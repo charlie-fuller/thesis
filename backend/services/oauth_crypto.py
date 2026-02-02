@@ -21,7 +21,7 @@ from cryptography.fernet import Fernet
 
 
 class OAuthCryptoError(Exception):
-    """Raised when encryption/decryption operations fail"""
+    """Raised when encryption/decryption operations fail."""
 
     pass
 
@@ -157,7 +157,7 @@ def rotate_encryption(old_ciphertext: str, new_key_hex: str) -> str:
 # Test helper (optional - for development only)
 def _test_encryption():
     """Quick test to verify encryption/decryption works.
-    Run with: python -c "from services.oauth_crypto import _test_encryption; _test_encryption()"
+    Run with: python -c "from services.oauth_crypto import _test_encryption; _test_encryption()".
     """
     test_token = "ya29.a0AfH6SMBx_test_token_12345"
 

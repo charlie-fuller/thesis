@@ -1,4 +1,4 @@
-"""Agent Observer Service
+"""Agent Observer Service.
 
 Monitors agent conversations to:
 - Understand what topics agents are discussing
@@ -444,7 +444,7 @@ async def get_anticipatory_research_topics(client_id: str) -> list[dict]:
     - New stakeholders added
     - ROI opportunities in evaluation
     - Recurring agent topics
-    - Stakeholder concerns
+    - Stakeholder concerns.
     """
     topics = []
 
@@ -561,7 +561,7 @@ async def run_observation_cycle(client_id: Optional[str] = None):
     1. Scan recent conversations
     2. Detect knowledge gaps
     3. Save gaps to database
-    4. Return summary
+    4. Return summary.
     """
     logger.info("Starting observation cycle...")
 

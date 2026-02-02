@@ -1,5 +1,5 @@
 """Deep diagnostic for PostgREST API configuration issues
-Tests JWT tokens, API endpoints, and headers
+Tests JWT tokens, API endpoints, and headers.
 """
 
 import base64
@@ -10,7 +10,7 @@ import requests
 
 
 def decode_jwt(token):
-    """Decode JWT without verification to inspect claims"""
+    """Decode JWT without verification to inspect claims."""
     try:
         # JWT format: header.payload.signature
         parts = token.split(".")

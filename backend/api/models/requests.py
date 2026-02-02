@@ -1,5 +1,5 @@
 """Request models for API endpoints
-All Pydantic models for validating incoming requests
+All Pydantic models for validating incoming requests.
 """
 
 from typing import Literal, Optional

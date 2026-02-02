@@ -1,4 +1,4 @@
-"""DISCo PRD Service
+"""DISCo PRD Service.
 
 Handles the Capabilities stage of the DISCo pipeline:
 - Generating PRDs from approved bundles

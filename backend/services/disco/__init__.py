@@ -1,4 +1,4 @@
-"""DISCo Services Module
+"""DISCo Services Module.
 
 Discovery-Insights-Synthesis-Capabilities (DISCo) services for:
 - Initiative management

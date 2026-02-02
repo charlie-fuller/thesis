@@ -338,7 +338,7 @@ def generate_embeddings(
     """Generate embeddings for a list of texts using Voyage AI.
     Handles batching to respect VoyageAI API limits:
     - Max 1000 texts per batch
-    - Max 320,000 tokens per batch (~1.28M characters assuming 4 chars/token)
+    - Max 320,000 tokens per batch (~1.28M characters assuming 4 chars/token).
 
     Args:
         texts: List of text strings to embed
@@ -873,7 +873,7 @@ def remove_conversation_from_kb(conversation_id: str, user_id: str) -> Dict:
 
 def preprocess_query(query: str) -> str:
     """Preprocess search query to improve relevance by removing stop words.
-    and focusing on key terms
+    and focusing on key terms.
 
     Args:
         query: The raw search query

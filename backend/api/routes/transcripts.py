@@ -1,4 +1,4 @@
-"""Transcript API Routes
+"""Transcript API Routes.
 
 Endpoints for uploading and analyzing meeting transcripts.
 """

@@ -1,4 +1,4 @@
-"""Task Auto-Extractor Service
+"""Task Auto-Extractor Service.
 
 Automatically extracts potential tasks from newly uploaded documents.
 Stores candidates for user review before creating actual tasks.

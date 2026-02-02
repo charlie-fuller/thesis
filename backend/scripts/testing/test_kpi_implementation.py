@@ -1,5 +1,5 @@
 """Test script for KPI Dashboard implementation
-Tests database access, query logic, and data flow
+Tests database access, query logic, and data flow.
 """
 
 import os
@@ -13,7 +13,7 @@ from database import get_supabase
 
 
 def test_database_schema():
-    """Test that required tables and columns exist"""
+    """Test that required tables and columns exist."""
     print("\n=== Testing Database Schema ===\n")
 
     supabase = get_supabase()
@@ -72,7 +72,7 @@ def test_database_schema():
 
 
 def test_conversation_data():
-    """Test actual conversation data for KPI calculations"""
+    """Test actual conversation data for KPI calculations."""
     print("\n=== Testing Conversation Data ===\n")
 
     supabase = get_supabase()
@@ -137,7 +137,7 @@ def test_conversation_data():
 
 
 def test_kpi_query_logic():
-    """Test the actual KPI query logic"""
+    """Test the actual KPI query logic."""
     print("\n=== Testing KPI Query Logic ===\n")
 
     supabase = get_supabase()
@@ -259,7 +259,7 @@ def test_kpi_query_logic():
 
 
 def main():
-    """Run all tests"""
+    """Run all tests."""
     print("=" * 60)
     print("KPI DASHBOARD IMPLEMENTATION TEST")
     print("=" * 60)

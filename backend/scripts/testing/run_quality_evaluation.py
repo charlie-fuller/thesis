@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AI Quality Evaluation Script for Thesis
+"""AI Quality Evaluation Script for Thesis.
 
 This script evaluates the quality of Thesis's AI responses by comparing:
 1. Responses WITH RAG context (using user documents)

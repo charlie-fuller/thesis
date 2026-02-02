@@ -1,4 +1,4 @@
-"""Stakeholder Linker Service
+"""Stakeholder Linker Service.
 
 Links extracted stakeholders to related opportunities and tasks based on:
 - Department/role keyword matching

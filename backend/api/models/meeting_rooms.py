@@ -1,4 +1,4 @@
-"""Pydantic models for Meeting Room API endpoints"""
+"""Pydantic models for Meeting Room API endpoints."""
 
 from datetime import datetime
 from typing import Literal, Optional

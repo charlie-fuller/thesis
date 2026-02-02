@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply database migration 022 - Fix UUID type cast in match_document_chunks"""
+"""Apply database migration 022 - Fix UUID type cast in match_document_chunks."""
 
 import os
 import sys

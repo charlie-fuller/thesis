@@ -1,4 +1,4 @@
-"""Check Supabase project status and configuration"""
+"""Check Supabase project status and configuration."""
 
 import os
 

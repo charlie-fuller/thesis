@@ -1,4 +1,4 @@
-"""Project Taskmaster Service
+"""Project Taskmaster Service.
 
 Handles Taskmaster chat within project context.
 Extracts tasks from conversation and creates them as task_candidates
