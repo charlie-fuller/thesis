@@ -8,10 +8,6 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-
-from auth import get_current_user, require_admin
-from database import get_supabase
-from logger_config import get_logger
 from services.quick_prompt_generator import (
     delete_quick_prompt,
     detect_addie_phase_from_conversation,
@@ -24,6 +20,10 @@ from services.quick_prompt_generator import (
     save_quick_prompts,
     update_quick_prompt,
 )
+
+from auth import get_current_user, require_admin
+from database import get_supabase
+from logger_config import get_logger
 from validation import validate_uuid
 
 logger = get_logger(__name__)

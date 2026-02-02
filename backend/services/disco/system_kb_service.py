@@ -150,7 +150,7 @@ async def sync_kb_from_filesystem() -> Dict:
                 )
 
                 chunks_to_insert = []
-                for i, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
+                for _i, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
                     chunks_to_insert.append(
                         {
                             "kb_id": kb_id,

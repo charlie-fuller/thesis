@@ -515,7 +515,7 @@ DOCUMENT CONTENT:
                     # Try to parse the date
                     try:
                         # Handle various date formats
-                        for fmt in ["%m/%d/%Y", "%m/%d/%y", "%m/%d"]:
+                        for _fmt in ["%m/%d/%Y", "%m/%d/%y", "%m/%d"]:
                             try:
                                 parsed = date.today().replace(
                                     month=int(date_text.split("/")[0]),

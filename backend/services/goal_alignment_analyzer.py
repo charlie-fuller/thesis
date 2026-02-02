@@ -97,7 +97,7 @@ def _build_analysis_prompt(project: dict) -> str:
 
     # Build pillar descriptions
     pillar_text = ""
-    for i, (key, pillar) in enumerate(IS_GOALS.items(), 1):
+    for i, (_key, pillar) in enumerate(IS_GOALS.items(), 1):
         outcomes = ", ".join(pillar["key_outcomes"])
         kpis = ", ".join(pillar["kpis"])
         pillar_text += f"""

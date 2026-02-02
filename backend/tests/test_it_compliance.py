@@ -172,7 +172,7 @@ class TestAuthentication:
         user_id = "test-user"
 
         # Simulate failed login attempts
-        for i in range(5):
+        for _i in range(5):
             self._record_failed_login(user_id)
 
         # Account should be locked
@@ -581,7 +581,7 @@ class TestNetworkSecurity:
             ("/api/documents/upload", 10, "minute"),
         ]
 
-        for endpoint, limit, period in endpoints:
+        for endpoint, limit, _period in endpoints:
             rate_limit = self._get_rate_limit(endpoint)
             assert rate_limit is not None, f"Rate limit should be set for {endpoint}"
             assert rate_limit["limit"] <= limit * 2, f"Rate limit too high for {endpoint}"

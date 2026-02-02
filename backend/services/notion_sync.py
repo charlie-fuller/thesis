@@ -334,7 +334,7 @@ def get_accessible_pages(user_id: str) -> List[Dict]:
                     title = "Untitled"
                     if "properties" in page:
                         # Check for title property
-                        for prop_name, prop_value in page["properties"].items():
+                        for _prop_name, prop_value in page["properties"].items():
                             if prop_value.get("type") == "title":
                                 title_array = prop_value.get("title", [])
                                 if title_array:
@@ -421,7 +421,7 @@ def _fetch_page_title(page_id: str, integration_token: str) -> str:
 
         # Method 1: Try to extract title from properties (works for database pages)
         if "properties" in page_data:
-            for prop_name, prop_value in page_data["properties"].items():
+            for _prop_name, prop_value in page_data["properties"].items():
                 if prop_value.get("type") == "title":
                     title_array = prop_value.get("title", [])
                     if title_array and len(title_array) > 0:
@@ -531,7 +531,7 @@ def create_placeholder_documents(user_id: str, page_ids: List[str]) -> List[Dict
                 # Extract title
                 title = "Untitled"
                 if "properties" in page_data:
-                    for prop_name, prop_value in page_data["properties"].items():
+                    for _prop_name, prop_value in page_data["properties"].items():
                         if prop_value.get("type") == "title":
                             title_array = prop_value.get("title", [])
                             if title_array:

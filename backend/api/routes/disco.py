@@ -45,7 +45,13 @@ from services.disco import (
     upload_document,
     upload_document_file,
 )
-from services.disco.agent_service import MULTI_PASS_CONFIG, get_run, list_runs, run_agent_multi_pass
+from services.disco.agent_service import (
+    MULTI_PASS_CONFIG,
+    get_consolidated_agents,
+    get_run,
+    list_runs,
+    run_agent_multi_pass,
+)
 from services.disco.condenser_service import condense_output
 from services.disco.prd_service import (
     approve_prd,
@@ -979,6 +985,343 @@ async def api_condense_output(
 
 
 # ============================================================================
+# CHECKPOINTS
+# ============================================================================
+
+
+class CheckpointApprove(BaseModel):
+    """Request body for approving a checkpoint."""
+
+    notes: Optional[str] = None
+    checklist_items: Optional[List[dict]] = None  # [{item: str, completed: bool}]
+
+
+class CheckpointReset(BaseModel):
+    """Request body for resetting a checkpoint."""
+
+    reason: Optional[str] = None
+
+
+@router.get("/initiatives/{initiative_id}/checkpoints")
+async def api_list_checkpoints(
+    initiative_id: str, current_user: dict = Depends(require_disco_access)
+):
+    """List all checkpoints for an initiative.
+
+    Returns checkpoint statuses for the 4 stage gates:
+    1. Discovery Guide -> Insight Analyst
+    2. Insight Analyst -> Initiative Builder
+    3. Initiative Builder -> Requirements Generator
+    4. Requirements Generator -> Done
+    """
+    await require_initiative_access(initiative_id, current_user, "viewer")
+
+    try:
+        # Initialize checkpoints if they don't exist
+        await asyncio.to_thread(
+            lambda: supabase.rpc(
+                "initialize_disco_checkpoints", {"p_initiative_id": initiative_id}
+            ).execute()
+        )
+
+        # Fetch checkpoints
+        result = await asyncio.to_thread(
+            lambda: supabase.table("disco_checkpoints")
+            .select("*")
+            .eq("initiative_id", initiative_id)
+            .order("checkpoint_number")
+            .execute()
+        )
+
+        checkpoints = result.data or []
+
+        # Calculate staleness for each checkpoint
+        for checkpoint in checkpoints:
+            if checkpoint["status"] == "approved":
+                # Check if new documents were added since approval
+                docs_result = await asyncio.to_thread(
+                    lambda cp=checkpoint: supabase.table("disco_initiative_documents")
+                    .select("linked_at")
+                    .eq("initiative_id", initiative_id)
+                    .gt("linked_at", cp["approved_at"])
+                    .limit(1)
+                    .execute()
+                )
+                if docs_result.data:
+                    checkpoint["status"] = "stale"
+                    checkpoint["stale_reason"] = "New documents added since approval"
+
+        return {"success": True, "checkpoints": checkpoints}
+    except Exception as e:
+        logger.error(f"Error listing checkpoints: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+@router.get("/initiatives/{initiative_id}/checkpoints/{checkpoint_number}")
+async def api_get_checkpoint(
+    initiative_id: str, checkpoint_number: int, current_user: dict = Depends(require_disco_access)
+):
+    """Get a specific checkpoint with details."""
+    await require_initiative_access(initiative_id, current_user, "viewer")
+
+    if checkpoint_number not in [1, 2, 3, 4]:
+        raise HTTPException(status_code=400, detail="Checkpoint number must be 1-4")
+
+    try:
+        result = await asyncio.to_thread(
+            lambda: supabase.table("disco_checkpoints")
+            .select("*")
+            .eq("initiative_id", initiative_id)
+            .eq("checkpoint_number", checkpoint_number)
+            .single()
+            .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Checkpoint not found")
+
+        checkpoint = result.data
+
+        # Get checkpoint-specific checklist content
+        checkpoint_checklists = {
+            1: {
+                "title": "Ready to Execute Discovery?",
+                "items": [
+                    {
+                        "item": "Triage decision is GO (not NO-GO or INVESTIGATE)",
+                        "completed": False,
+                    },
+                    {
+                        "item": "Discovery sessions are planned with clear agendas",
+                        "completed": False,
+                    },
+                    {"item": "Participants and sponsors are identified", "completed": False},
+                    {"item": "You are ready to execute the discovery sessions", "completed": False},
+                ],
+                "human_action": "After approval, YOU will conduct interviews/workshops per the session plan, upload transcripts and notes to Documents, and re-run Discovery Guide to check coverage.",
+            },
+            2: {
+                "title": "Ready for Initiative Bundles?",
+                "items": [
+                    {"item": "Decision document quality is acceptable", "completed": False},
+                    {"item": "Leverage point makes sense", "completed": False},
+                    {"item": "Evidence supports conclusions", "completed": False},
+                    {"item": "No critical gaps or contradictions", "completed": False},
+                ],
+                "human_action": "Review the decision document and validate the leverage point before proceeding.",
+            },
+            3: {
+                "title": "Ready for PRD Generation?",
+                "items": [
+                    {"item": "Bundle definitions are clear", "completed": False},
+                    {
+                        "item": "Scoring (impact/feasibility/urgency) is accurate",
+                        "completed": False,
+                    },
+                    {"item": "Dependencies are correctly mapped", "completed": False},
+                    {"item": "Selected bundles for PRD generation", "completed": False},
+                ],
+                "human_action": "Approve, reject, merge, or split bundles as needed before generating PRDs.",
+            },
+            4: {
+                "title": "Ready for Engineering Handoff?",
+                "items": [
+                    {"item": "PRD is complete and accurate", "completed": False},
+                    {"item": "Technical approach is validated", "completed": False},
+                    {"item": "Requirements are testable", "completed": False},
+                    {"item": "Ready for engineering planning", "completed": False},
+                ],
+                "human_action": "Final review before handoff to engineering team.",
+            },
+        }
+
+        checkpoint["checklist_config"] = checkpoint_checklists.get(checkpoint_number)
+
+        return {"success": True, "checkpoint": checkpoint}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting checkpoint: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+@router.post("/initiatives/{initiative_id}/checkpoints/{checkpoint_number}/approve")
+async def api_approve_checkpoint(
+    initiative_id: str,
+    checkpoint_number: int,
+    body: CheckpointApprove,
+    current_user: dict = Depends(require_disco_access),
+):
+    """Approve a checkpoint to unlock the next agent.
+
+    This is the human-in-the-loop gate between DISCo stages.
+    """
+    await require_initiative_access(initiative_id, current_user, "editor")
+
+    if checkpoint_number not in [1, 2, 3, 4]:
+        raise HTTPException(status_code=400, detail="Checkpoint number must be 1-4")
+
+    try:
+        # Get current checkpoint
+        result = await asyncio.to_thread(
+            lambda: supabase.table("disco_checkpoints")
+            .select("*")
+            .eq("initiative_id", initiative_id)
+            .eq("checkpoint_number", checkpoint_number)
+            .single()
+            .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Checkpoint not found")
+
+        checkpoint = result.data
+
+        if checkpoint["status"] not in ["needs_review", "stale"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Checkpoint cannot be approved (current status: {checkpoint['status']})",
+            )
+
+        # Update checkpoint to approved
+        from datetime import datetime, timezone
+
+        update_data = {
+            "status": "approved",
+            "approved_at": datetime.now(timezone.utc).isoformat(),
+            "approved_by": current_user["id"],
+            "notes": body.notes,
+        }
+
+        if body.checklist_items:
+            update_data["checklist_items"] = body.checklist_items
+
+        await asyncio.to_thread(
+            lambda: supabase.table("disco_checkpoints")
+            .update(update_data)
+            .eq("id", checkpoint["id"])
+            .execute()
+        )
+
+        # Unlock the next checkpoint if not the last one
+        if checkpoint_number < 4:
+            await asyncio.to_thread(
+                lambda: supabase.table("disco_checkpoints")
+                .update({"status": "locked"})  # Will be set to needs_review when agent runs
+                .eq("initiative_id", initiative_id)
+                .eq("checkpoint_number", checkpoint_number + 1)
+                .eq("status", "locked")  # Only update if still locked
+                .execute()
+            )
+
+        logger.info(
+            f"[DISCO] Checkpoint {checkpoint_number} approved for initiative {initiative_id} by user {current_user['id']}"
+        )
+
+        return {
+            "success": True,
+            "message": f"Checkpoint {checkpoint_number} approved",
+            "next_agent": _get_next_agent_for_checkpoint(checkpoint_number),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error approving checkpoint: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+@router.post("/initiatives/{initiative_id}/checkpoints/{checkpoint_number}/reset")
+async def api_reset_checkpoint(
+    initiative_id: str,
+    checkpoint_number: int,
+    body: CheckpointReset,
+    current_user: dict = Depends(require_disco_access),
+):
+    """Reset a checkpoint to needs_review.
+
+    Used when re-running an agent after approval, or when requesting changes.
+    """
+    await require_initiative_access(initiative_id, current_user, "editor")
+
+    if checkpoint_number not in [1, 2, 3, 4]:
+        raise HTTPException(status_code=400, detail="Checkpoint number must be 1-4")
+
+    try:
+        # Get current checkpoint
+        result = await asyncio.to_thread(
+            lambda: supabase.table("disco_checkpoints")
+            .select("*")
+            .eq("initiative_id", initiative_id)
+            .eq("checkpoint_number", checkpoint_number)
+            .single()
+            .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Checkpoint not found")
+
+        checkpoint = result.data
+
+        if checkpoint["status"] == "locked":
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot reset a locked checkpoint",
+            )
+
+        # Reset checkpoint to needs_review
+        update_data = {
+            "status": "needs_review",
+            "approved_at": None,
+            "approved_by": None,
+        }
+
+        if body.reason:
+            update_data["notes"] = f"Reset: {body.reason}"
+
+        await asyncio.to_thread(
+            lambda: supabase.table("disco_checkpoints")
+            .update(update_data)
+            .eq("id", checkpoint["id"])
+            .execute()
+        )
+
+        # Also reset subsequent checkpoints to locked
+        if checkpoint_number < 4:
+            await asyncio.to_thread(
+                lambda: supabase.table("disco_checkpoints")
+                .update({"status": "locked", "approved_at": None, "approved_by": None})
+                .eq("initiative_id", initiative_id)
+                .gt("checkpoint_number", checkpoint_number)
+                .execute()
+            )
+
+        logger.info(
+            f"[DISCO] Checkpoint {checkpoint_number} reset for initiative {initiative_id} by user {current_user['id']}"
+        )
+
+        return {
+            "success": True,
+            "message": f"Checkpoint {checkpoint_number} reset to needs_review",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error resetting checkpoint: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+def _get_next_agent_for_checkpoint(checkpoint_number: int) -> str:
+    """Get the next agent to run after a checkpoint is approved."""
+    agents = {
+        1: "insight_analyst",
+        2: "initiative_builder",
+        3: "requirements_generator",
+        4: None,  # No next agent after final checkpoint
+    }
+    return agents.get(checkpoint_number)
+
+
+# ============================================================================
 # DEBUG
 # ============================================================================
 
@@ -1149,9 +1492,19 @@ async def api_ask_question(
 
 
 @router.get("/agents")
-async def api_list_agents(current_user: dict = Depends(require_disco_access)):
-    """List available agent types."""
-    return {"success": True, "agents": get_agent_types()}
+async def api_list_agents(
+    include_legacy: bool = False, current_user: dict = Depends(require_disco_access)
+):
+    """List available agent types.
+
+    Args:
+        include_legacy: If True, includes legacy agents for backwards compatibility.
+                       Default returns only the 4 consolidated stage-aligned agents.
+    """
+    if include_legacy:
+        return {"success": True, "agents": get_agent_types(include_legacy=True)}
+    else:
+        return {"success": True, "agents": get_consolidated_agents()}
 
 
 @router.get("/agents/{agent_type}")

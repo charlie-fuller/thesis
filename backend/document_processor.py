@@ -434,7 +434,7 @@ def process_document(document_id: str) -> Dict:
         # FIX: Batch insert instead of individual inserts (10-12x performance improvement)
         # Collect all chunk data first
         chunks_to_insert = []
-        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
+        for _i, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
             # Sanitize content: remove null bytes which PostgreSQL cannot handle
             sanitized_content = chunk["content"].replace("\x00", "")
 
@@ -758,7 +758,7 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
         # FIX: Batch insert instead of individual inserts (10-12x performance improvement)
         # Collect all chunk data first
         chunks_to_insert = []
-        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
+        for _i, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
             # Sanitize content: remove null bytes which PostgreSQL cannot handle
             sanitized_content = chunk["content"].replace("\x00", "")
 

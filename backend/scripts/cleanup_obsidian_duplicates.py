@@ -92,7 +92,7 @@ def cleanup_document(supabase, doc_id, dry_run=True):
 
 def update_sync_states(supabase, duplicates, dry_run=True):
     """Update sync states to point to the kept document."""
-    for filename, info in duplicates.items():
+    for _filename, info in duplicates.items():
         keep_doc = info["keep"]
 
         # Find any sync state that references documents being deleted

@@ -1252,6 +1252,47 @@ def build_full_prompt(agent_type: str, context: Dict, output_format: str = "comp
 
     # Agent-specific instructions
     agent_instructions = {
+        # === Consolidated Agents (v2.0) ===
+        "discovery_guide": """Please guide this initiative through the Discovery stage.
+
+FIRST, detect the appropriate mode based on what exists:
+- If no prior Discovery Guide outputs: Run TRIAGE mode
+- If triage was GO but no session transcripts: Run PLANNING mode
+- If session transcripts exist: Run COVERAGE mode
+
+Then execute the appropriate mode as defined in your prompt.
+
+For TRIAGE: Validate the problem worth solving with 4-criteria gate, provide GO/NO-GO/INVESTIGATE.
+For PLANNING: Design discovery sessions for humans to execute (max 5 sessions, each with quantification questions).
+For COVERAGE: Assess if we have enough to proceed to Insight Analyst, or need more discovery.""",
+        "insight_analyst": """Please analyze all discovery artifacts and create a decision document.
+
+Your process:
+1. Read all documents thoroughly - do not skim
+2. Extract key insights with direct quotes as evidence
+3. Identify system patterns (check Pattern Library for matches)
+4. Create the decision document with leverage point and intervention reasoning
+
+Output must start with the decision (GO/NO-GO/CONDITIONAL) as the literal first word.""",
+        "initiative_builder": """Please transform the decision document into initiative bundles.
+
+Your process:
+1. Cluster related findings by theme, root cause, or solution affinity
+2. Score each cluster on Impact, Feasibility, and Urgency
+3. Create bundle definitions with dependencies and rationale
+4. Include decision points for the human checkpoint
+
+Prepare your output for human review - they will approve/reject/edit bundles before PRD generation.""",
+        "requirements_generator": """Please generate a comprehensive PRD with technical evaluation for the approved initiative bundle.
+
+Include all required sections:
+- Executive Summary, Problem Statement, Goals & Success Metrics
+- Stakeholders, Functional & Non-Functional Requirements
+- Technical Evaluation with 3+ options, Architecture diagram, 3-year TCO
+- Risks, Dependencies, Implementation Path with phasing
+
+Every requirement must be traceable to discovery findings.""",
+        # === Legacy Agents (backwards compatibility) ===
         "discovery_prep": """Please analyze the stakeholder documents provided and create a Meeting Preparation Guide.
 
 FIRST, evaluate the Minimum Viable Input (MVI):
@@ -1289,7 +1330,7 @@ FINALLY, create the discovery plan with:
         "coverage_tracker": "Please analyze the current discovery coverage. Identify gaps, assess readiness for synthesis, and perform 3M waste diagnosis if applicable.",
         "consolidator": "Please consolidate all discovery findings into a comprehensive decision document. Include persona-specific briefs for Finance, Engineering, Sales, and Executive audiences.",
         "synthesizer": "Please synthesize all discovery findings into a comprehensive PRD. Include persona-specific briefs for Finance, Engineering, Sales, and Executive audiences.",
-        "synthesis": "Please analyze all consolidated insights and propose initiative bundles. Cluster related items, score each cluster on impact/feasibility/urgency, and create actionable bundle definitions for human review.",
+        "strategist": "Please analyze all consolidated insights and propose initiative bundles. Cluster related items, score each cluster on impact/feasibility/urgency, and create actionable bundle definitions for human review.",
         "prd_generator": "Please generate a complete PRD (Product Requirements Document) for the given initiative bundle. Include all required sections: executive summary, problem statement, goals, stakeholders, requirements, technical considerations, risks, and timeline.",
         "tech_evaluation": "Please evaluate technical platform options for this initiative. Provide recommendations with confidence-tagged effort estimates.",
     }

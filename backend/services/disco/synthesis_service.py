@@ -391,7 +391,7 @@ def parse_synthesis_output(content_markdown: str, output_id: str) -> List[Dict]:
     bundle_pattern = r"### Bundle \d+: (.+?)(?=### Bundle|\Z|## Items Not Bundled|## Dependency Map|## Recommendations)"
     bundle_matches = re.findall(bundle_pattern, content_markdown, re.DOTALL)
 
-    for i, match in enumerate(bundle_matches, 1):
+    for _i, match in enumerate(bundle_matches, 1):
         lines = match.strip().split("\n")
         if not lines:
             continue

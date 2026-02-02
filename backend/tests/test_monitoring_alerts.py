@@ -204,7 +204,7 @@ class TestLogFormatting:
             "ERROR": ["failed", "exception", "error"],
         }
 
-        for level, keywords in log_levels.items():
+        for level, _keywords in log_levels.items():
             self._get_logs_by_level(level)
             # Logs at each level should contain appropriate content
 

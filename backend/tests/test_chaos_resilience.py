@@ -190,7 +190,7 @@ class TestResourceExhaustion:
         large_responses = []
 
         try:
-            for i in range(100):
+            for _i in range(100):
                 response = await self._make_request("/api/large-data")
                 large_responses.append(response)
         except MemoryError:

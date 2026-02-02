@@ -82,7 +82,7 @@ async def upload_document(
 
             # Store chunks with embeddings
             chunks_to_insert = []
-            for i, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
+            for _i, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
                 sanitized_content = chunk["content"].replace("\x00", "")
                 chunks_to_insert.append(
                     {

@@ -260,7 +260,7 @@ def _build_assessment_prompt(context: dict) -> str:
     """Build the prompt for career status assessment."""
     # Format rubric dimensions
     rubric_text = "CAREER ASSESSMENT RUBRIC:\n\n"
-    for key, dim in DEFAULT_RUBRIC.items():
+    for _key, dim in DEFAULT_RUBRIC.items():
         rubric_text += f"### {dim['name']} (Weight: {dim['weight']}%)\n"
         rubric_text += f"{dim['description']}\n"
         for level, desc in sorted(dim["levels"].items(), reverse=True):

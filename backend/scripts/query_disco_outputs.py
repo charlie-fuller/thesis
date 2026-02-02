@@ -80,7 +80,7 @@ def main():
         print(f"Total outputs: {len(outputs)}")
         print(f"{'=' * 80}")
 
-        for i, output in enumerate(outputs[:4], 1):  # Last 4 versions
+        for _i, output in enumerate(outputs[:4], 1):  # Last 4 versions
             init_name = initiatives.get(output.get("initiative_id"), "Unknown")
             print(f"\n--- Version {output.get('version')} | Initiative: {init_name} ---")
             print(f"Created: {output.get('created_at')}")

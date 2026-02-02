@@ -5,10 +5,10 @@ Exposes the ADDIE prompt library as browsable templates
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from services.quick_prompt_generator import ADDIE_PROMPT_LIBRARY
 
 from auth import get_current_user
 from logger_config import get_logger
-from services.quick_prompt_generator import ADDIE_PROMPT_LIBRARY
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/templates", tags=["templates"])
@@ -152,7 +152,7 @@ async def get_template_categories(current_user: dict = Depends(get_current_user)
     try:
         categories = set()
 
-        for phase_name, prompts in ADDIE_PROMPT_LIBRARY.items():
+        for _phase_name, prompts in ADDIE_PROMPT_LIBRARY.items():
             for prompt in prompts:
                 if prompt.get("category"):
                     categories.add(prompt["category"])
