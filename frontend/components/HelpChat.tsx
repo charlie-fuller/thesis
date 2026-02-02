@@ -21,7 +21,7 @@ const CONTEXTUAL_QUESTIONS: Record<string, string[]> = {
   '/kb': [
     'How do I upload documents to the Knowledge Base?',
     'How does document auto-classification work?',
-    'How do I sync my Obsidian vault?',
+    'How do I sync my vault?',
     'How do I tag documents for specific agents?',
     'What file types are supported?',
   ],

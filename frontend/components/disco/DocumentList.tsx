@@ -64,7 +64,7 @@ function DocumentItem({
   const getSourceIcon = () => {
     switch (doc.source_platform) {
       case 'obsidian':
-        return <span className="text-purple-500 text-xs">Obsidian</span>
+        return <span className="text-purple-500 text-xs">Vault</span>
       case 'google_drive':
         return <span className="text-blue-500 text-xs">Drive</span>
       case 'notion':

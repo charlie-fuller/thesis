@@ -1742,7 +1742,7 @@ export default function KBDocumentsContent() {
       {/* Documents Tab Content */}
       {activeTab === 'documents' && (
       <>
-      {/* Obsidian Vault Section - First so it's at the top */}
+      {/* Vault Section - First so it's at the top */}
       <div className={`card mb-3 ${obsidianExpanded && obsidianStatus?.connected ? 'p-6' : 'p-2'}`}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 flex-1">
@@ -2778,7 +2778,7 @@ export default function KBDocumentsContent() {
                 </div>
               )}
 
-              {/* Obsidian file path */}
+              {/* Vault file path */}
               {selectedDoc.obsidian_file_path && (
                 <div>
                   <label className="text-sm font-medium text-secondary">Vault Path</label>

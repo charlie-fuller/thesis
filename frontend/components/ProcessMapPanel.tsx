@@ -181,7 +181,7 @@ export default function ProcessMapPanel() {
 
           {/* ===== ROW 1: Input Sources ===== */}
 
-          {/* Obsidian Vault */}
+          {/* Local Vault */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedStep(processSteps[0])}
@@ -213,7 +213,7 @@ export default function ProcessMapPanel() {
             markerEnd="url(#arrowhead)"
           />
 
-          {/* Obsidian Sync */}
+          {/* Vault Sync */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setSelectedStep(processSteps[1])}
