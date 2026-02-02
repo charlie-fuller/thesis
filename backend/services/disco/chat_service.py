@@ -157,21 +157,31 @@ async def ask_question(
         )
 
         # Search for relevant context
-        from .document_service import search_initiative_docs
+        from .document_service import search_initiative_docs, search_linked_kb_docs
         from .system_kb_service import search_system_kb
 
-        # Search initiative documents
+        # Search initiative documents (direct uploads to disco_document_chunks)
         doc_chunks = await search_initiative_docs(initiative_id, question, limit=8)
 
-        # Search system KB
+        # Search linked KB documents (from disco_initiative_documents junction table)
+        linked_kb_chunks = await search_linked_kb_docs(initiative_id, question, limit=8)
+
+        # Search system KB (PuRDy methodology)
         kb_chunks = await search_system_kb(question, limit=5)
 
         # Build context
         context_parts = []
 
         if doc_chunks:
-            context_parts.append("## Initiative Documents\n")
+            context_parts.append("## Initiative Documents (Uploaded)\n")
             for chunk in doc_chunks:
+                context_parts.append(f"[From {chunk.get('filename', 'document')}]:")
+                context_parts.append(chunk['content'])
+                context_parts.append("\n---\n")
+
+        if linked_kb_chunks:
+            context_parts.append("\n## Linked Knowledge Base Documents\n")
+            for chunk in linked_kb_chunks:
                 context_parts.append(f"[From {chunk.get('filename', 'document')}]:")
                 context_parts.append(chunk['content'])
                 context_parts.append("\n---\n")
@@ -241,6 +251,17 @@ Please answer based on the context provided. Cite sources when referencing speci
                     'type': 'document',
                     'id': source_id,
                     'name': chunk.get('filename', 'Document'),
+                    'similarity': chunk.get('similarity', 0)
+                })
+
+        for chunk in linked_kb_chunks:
+            source_id = chunk.get('document_id')
+            if source_id and source_id not in seen_sources:
+                seen_sources.add(source_id)
+                sources.append({
+                    'type': 'linked_kb',
+                    'id': source_id,
+                    'name': chunk.get('filename', 'KB Document'),
                     'similarity': chunk.get('similarity', 0)
                 })
 

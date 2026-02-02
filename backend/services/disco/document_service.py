@@ -387,6 +387,92 @@ async def promote_output_to_document(
         raise
 
 
+async def search_linked_kb_docs(
+    initiative_id: str,
+    query: str,
+    limit: int = 8,
+    min_similarity: float = 0.2
+) -> List[Dict]:
+    """
+    Vector search within KB documents linked to an initiative.
+
+    Searches the main KB's document_chunks table for documents that are
+    linked to this initiative via disco_initiative_documents junction table.
+
+    Args:
+        initiative_id: Initiative UUID
+        query: Search query
+        limit: Max results
+        min_similarity: Minimum similarity threshold
+
+    Returns:
+        List of matching chunks with similarity scores
+    """
+    logger.info(f"Searching linked KB docs for initiative {initiative_id}: {query[:50]}...")
+
+    try:
+        # Get linked document IDs from junction table
+        links_result = await asyncio.to_thread(
+            lambda: supabase.table('disco_initiative_documents')
+                .select('document_id')
+                .eq('initiative_id', initiative_id)
+                .execute()
+        )
+
+        if not links_result.data:
+            logger.info("No linked KB documents found for initiative")
+            return []
+
+        doc_ids = [link['document_id'] for link in links_result.data]
+        logger.info(f"Found {len(doc_ids)} linked KB documents")
+
+        # Generate query embedding
+        query_embedding = await asyncio.to_thread(
+            lambda: generate_embeddings([query], input_type=EMBEDDING.INPUT_TYPE_QUERY)[0]
+        )
+
+        # Search document_chunks for linked documents using vector similarity
+        # Using raw SQL via RPC since there's no built-in function for this specific case
+        result = await asyncio.to_thread(
+            lambda: supabase.rpc(
+                'match_document_chunks_by_ids',
+                {
+                    'query_embedding': query_embedding,
+                    'match_count': limit,
+                    'match_threshold': min_similarity,
+                    'p_document_ids': doc_ids
+                }
+            ).execute()
+        )
+
+        chunks = result.data or []
+        logger.info(f"Found {len(chunks)} matching chunks from linked KB docs")
+
+        # Fetch document filenames for context
+        if chunks:
+            chunk_doc_ids = list(set(c['document_id'] for c in chunks))
+            docs_result = await asyncio.to_thread(
+                lambda: supabase.table('documents')
+                    .select('id, filename, title')
+                    .in_('id', chunk_doc_ids)
+                    .execute()
+            )
+            doc_names = {
+                d['id']: d.get('title') or d.get('filename', 'Unknown')
+                for d in (docs_result.data or [])
+            }
+
+            for chunk in chunks:
+                chunk['filename'] = doc_names.get(chunk['document_id'], 'Unknown')
+
+        return chunks
+
+    except Exception as e:
+        logger.error(f"Error searching linked KB docs: {e}")
+        # Return empty list on error - don't fail the entire chat
+        return []
+
+
 async def get_all_initiative_content(initiative_id: str) -> str:
     """
     Get all document content for an initiative as a single string.
