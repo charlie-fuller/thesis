@@ -1096,8 +1096,6 @@ def sync_file(config: Dict, file_path: Path, existing_state: Optional[Dict] = No
     relative_path = str(file_path.relative_to(vault_path))
     sync_options = config.get("sync_options", DEFAULT_SYNC_OPTIONS)
 
-    logger.info(f"   Syncing: {relative_path}")
-
     # Determine if file is binary based on extension
     # RTF is text-based but needs special processing to extract plain text
     binary_extensions = {".pdf", ".docx", ".xlsx", ".pptx", ".rtf"}
@@ -1115,11 +1113,14 @@ def sync_file(config: Dict, file_path: Path, existing_state: Optional[Dict] = No
         # If hash matches but document_id is missing, we need to create the document
         if existing_state:
             if existing_state.get("file_hash") == file_hash and existing_state.get("document_id"):
-                logger.debug(f"      Skipping (unchanged): {relative_path}")
+                logger.info(f"   Skipped (unchanged): {relative_path}")
                 return {"status": "skipped", "reason": "unchanged"}
             elif existing_state.get("file_hash") == file_hash:
                 # Recovery: hash matches but no document - need to recreate
                 logger.warning(f"      Sync state missing document_id, recreating: {relative_path}")
+
+        # File will be synced (either new, changed, or recovery)
+        logger.info(f"   Syncing: {relative_path}")
 
         # Handle binary files differently from text files
         frontmatter = {}
