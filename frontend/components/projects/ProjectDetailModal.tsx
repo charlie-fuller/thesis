@@ -40,6 +40,9 @@ import {
   XCircle,
   Rocket,
   ListTodo,
+  Compass,
+  Plus,
+  Trash2,
 } from 'lucide-react'
 import { apiGet, apiPost, apiPatch } from '@/lib/api'
 import ScoreJustification from './ScoreJustification'
@@ -101,6 +104,14 @@ interface Project {
     summary: string
     analyzed_at: string
   } | null
+  // Linked initiatives
+  initiative_ids?: string[]
+}
+
+interface Initiative {
+  id: string
+  name: string
+  status?: string
 }
 
 // Edit form state type
@@ -229,6 +240,11 @@ export default function ProjectDetailModal({
   const [docsLoading, setDocsLoading] = useState(false)
   const [linkedStakeholders, setLinkedStakeholders] = useState<LinkedStakeholder[]>([])
   const [stakeholdersLoading, setStakeholdersLoading] = useState(false)
+  const [linkedInitiatives, setLinkedInitiatives] = useState<Initiative[]>([])
+  const [availableInitiatives, setAvailableInitiatives] = useState<Initiative[]>([])
+  const [initiativesLoading, setInitiativesLoading] = useState(false)
+  const [editingInitiatives, setEditingInitiatives] = useState(false)
+  const [selectedInitiativeIds, setSelectedInitiativeIds] = useState<string[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [conversationsLoading, setConversationsLoading] = useState(false)
   const [showConversations, setShowConversations] = useState(false)
@@ -321,12 +337,13 @@ export default function ProjectDetailModal({
     }
   }, [editingSection, project])
 
-  // Fetch related documents and stakeholders on open
+  // Fetch related documents, stakeholders, and initiatives on open
   useEffect(() => {
     if (open && project) {
       fetchRelatedDocuments()
       fetchLinkedStakeholders()
       fetchConversations()
+      fetchLinkedInitiatives()
     }
   }, [open, project?.id])
 
@@ -364,6 +381,60 @@ export default function ProjectDetailModal({
     } finally {
       setStakeholdersLoading(false)
     }
+  }
+
+  const fetchLinkedInitiatives = async () => {
+    setInitiativesLoading(true)
+    try {
+      // Get list of available initiatives
+      const tagsResult = await apiGet<{ success: boolean; tags: Array<{ tag: string; initiative_id: string; status: string }> }>(
+        '/api/disco/initiatives/as-tags'
+      )
+      if (tagsResult.success && tagsResult.tags) {
+        const initiatives = tagsResult.tags.map(t => ({
+          id: t.initiative_id,
+          name: t.tag,
+          status: t.status,
+        }))
+        setAvailableInitiatives(initiatives)
+
+        // Filter to get linked initiatives based on project.initiative_ids
+        const linkedIds = project.initiative_ids || []
+        const linked = initiatives.filter(i => linkedIds.includes(i.id))
+        setLinkedInitiatives(linked)
+        setSelectedInitiativeIds(linkedIds)
+      }
+    } catch (error) {
+      console.error('Failed to fetch initiatives:', error)
+    } finally {
+      setInitiativesLoading(false)
+    }
+  }
+
+  const handleSaveInitiatives = async () => {
+    setIsSaving(true)
+    try {
+      await apiPatch(`/api/projects/${project.id}`, {
+        initiative_ids: selectedInitiativeIds,
+      })
+      // Update local state
+      const linked = availableInitiatives.filter(i => selectedInitiativeIds.includes(i.id))
+      setLinkedInitiatives(linked)
+      setProject({ ...project, initiative_ids: selectedInitiativeIds })
+      setEditingInitiatives(false)
+    } catch (error) {
+      console.error('Failed to save initiatives:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const toggleInitiative = (initiativeId: string) => {
+    setSelectedInitiativeIds(prev =>
+      prev.includes(initiativeId)
+        ? prev.filter(id => id !== initiativeId)
+        : [...prev, initiativeId]
+    )
   }
 
   const fetchConversations = async () => {
@@ -1393,6 +1464,102 @@ export default function ProjectDetailModal({
               )}
             </section>
           )}
+
+          {/* Linked Initiatives */}
+          <section className="group">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
+                <Compass className="w-4 h-4" />
+                Linked Initiatives
+                {linkedInitiatives.length > 0 && (
+                  <span className="text-xs font-normal">({linkedInitiatives.length})</span>
+                )}
+              </h3>
+              {editingInitiatives ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleSaveInitiatives}
+                    disabled={isSaving}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                  >
+                    {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingInitiatives(false)
+                      setSelectedInitiativeIds(project.initiative_ids || [])
+                    }}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:bg-hover rounded"
+                  >
+                    <XCircle className="w-3 h-3" />
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditingInitiatives(true)}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Edit linked initiatives"
+                >
+                  <Pencil className="w-3 h-3" />
+                  Edit
+                </button>
+              )}
+            </div>
+
+            {initiativesLoading ? (
+              <div className="flex items-center gap-2 text-muted py-4">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Loading initiatives...</span>
+              </div>
+            ) : editingInitiatives ? (
+              <div className="space-y-2">
+                {availableInitiatives.length === 0 ? (
+                  <p className="text-sm text-muted py-4">No initiatives available.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                    {availableInitiatives.map((initiative) => (
+                      <label
+                        key={initiative.id}
+                        className={`flex items-center gap-2 p-2 border rounded-lg cursor-pointer transition-colors ${
+                          selectedInitiativeIds.includes(initiative.id)
+                            ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
+                            : 'border-default hover:bg-hover'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedInitiativeIds.includes(initiative.id)}
+                          onChange={() => toggleInitiative(initiative.id)}
+                          className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                        />
+                        <span className="text-sm text-primary truncate">{initiative.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : linkedInitiatives.length === 0 ? (
+              <p className="text-sm text-muted py-4">
+                No initiatives linked. Click Edit to connect this project to DISCo initiatives.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {linkedInitiatives.map((initiative) => (
+                  <a
+                    key={initiative.id}
+                    href={`/disco/${initiative.id}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-sm hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
+                  >
+                    <Compass className="w-3.5 h-3.5" />
+                    {initiative.name}
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                ))}
+              </div>
+            )}
+          </section>
 
           {/* Related Documents */}
           <section>

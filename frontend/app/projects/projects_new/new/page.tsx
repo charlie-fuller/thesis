@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, Target, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Save, Target, AlertCircle, Compass } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 import PageHeader from '@/components/PageHeader'
 
@@ -15,6 +15,12 @@ interface Stakeholder {
   name: string
   department: string | null
   role: string | null
+}
+
+interface Initiative {
+  id: string
+  name: string
+  status?: string
 }
 
 interface OpportunityCreate {
@@ -33,6 +39,7 @@ interface OpportunityCreate {
   next_step?: string
   blockers?: string[]
   follow_up_questions?: string[]
+  initiative_ids?: string[]
 }
 
 // ============================================================================
@@ -181,6 +188,7 @@ export default function NewOpportunityPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([])
+  const [initiatives, setInitiatives] = useState<Initiative[]>([])
 
   // Form state
   const [form, setForm] = useState<OpportunityCreate>({
@@ -199,20 +207,40 @@ export default function NewOpportunityPage() {
     next_step: '',
     blockers: [],
     follow_up_questions: [],
+    initiative_ids: [],
   })
 
-  // Load stakeholders for owner selection
+  // Load stakeholders and initiatives
   useEffect(() => {
-    async function loadStakeholders() {
+    async function loadData() {
       try {
-        const data = await apiGet<{ stakeholders: Stakeholder[] }>('/api/stakeholders/')
-        setStakeholders(data.stakeholders || [])
+        const [stakeholdersData, initiativesData] = await Promise.all([
+          apiGet<{ stakeholders: Stakeholder[] }>('/api/stakeholders/'),
+          apiGet<{ success: boolean; tags: Array<{ tag: string; initiative_id: string; status: string }> }>('/api/disco/initiatives/as-tags'),
+        ])
+        setStakeholders(stakeholdersData.stakeholders || [])
+        if (initiativesData.success && initiativesData.tags) {
+          setInitiatives(initiativesData.tags.map(t => ({
+            id: t.initiative_id,
+            name: t.tag,
+            status: t.status,
+          })))
+        }
       } catch (err) {
-        console.error('Failed to load stakeholders:', err)
+        console.error('Failed to load data:', err)
       }
     }
-    loadStakeholders()
+    loadData()
   }, [])
+
+  const toggleInitiative = (initiativeId: string) => {
+    setForm(prev => ({
+      ...prev,
+      initiative_ids: prev.initiative_ids?.includes(initiativeId)
+        ? prev.initiative_ids.filter(id => id !== initiativeId)
+        : [...(prev.initiative_ids || []), initiativeId],
+    }))
+  }
 
   // Calculate total score
   const totalScore =
@@ -381,6 +409,39 @@ export default function NewOpportunityPage() {
               </div>
             </div>
           </div>
+
+          {/* Linked Initiatives */}
+          {initiatives.length > 0 && (
+            <div className="bg-card rounded-xl border border-default p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Compass className="w-5 h-5 text-indigo-600" />
+                <h2 className="text-lg font-semibold text-primary">Linked Initiatives (Optional)</h2>
+              </div>
+              <p className="text-sm text-muted mb-4">
+                Connect this project to DISCo initiatives for context tracking.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {initiatives.map((initiative) => (
+                  <label
+                    key={initiative.id}
+                    className={`flex items-center gap-2 p-2 border rounded-lg cursor-pointer transition-colors ${
+                      form.initiative_ids?.includes(initiative.id)
+                        ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
+                        : 'border-default hover:bg-hover'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.initiative_ids?.includes(initiative.id) || false}
+                      onChange={() => toggleInitiative(initiative.id)}
+                      className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-primary truncate">{initiative.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Current/Desired State */}
           <div className="bg-card rounded-xl border border-default p-6">

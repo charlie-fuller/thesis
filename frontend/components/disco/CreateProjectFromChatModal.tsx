@@ -270,6 +270,7 @@ export default function CreateProjectFromChatModal({
         source_type: 'initiative_chat',
         source_id: initiativeId,
         source_notes: sourceContext,
+        initiative_ids: [initiativeId],  // Link to the source initiative
       }
 
       const result = await apiPost<{ id: string; project_code: string }>('/api/projects/', projectData)

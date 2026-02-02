@@ -65,6 +65,7 @@ class ProjectCreate(BaseModel):
     source_type: Optional[str] = None
     source_id: Optional[str] = None  # e.g., initiative_id for initiative_chat source
     source_notes: Optional[str] = None
+    initiative_ids: List[str] = Field(default=[], description="List of linked DISCo initiative IDs")
     scoring_confidence: Optional[int] = Field(
         None, ge=0, le=100, description="Confidence in scoring (0-100)"
     )
@@ -95,6 +96,7 @@ class ProjectUpdate(BaseModel):
     source_type: Optional[str] = None
     source_id: Optional[str] = None
     source_notes: Optional[str] = None
+    initiative_ids: Optional[List[str]] = None
     scoring_confidence: Optional[int] = Field(None, ge=0, le=100)
     confidence_questions: Optional[List[str]] = None
     display_order: Optional[int] = None
@@ -135,6 +137,7 @@ class ProjectResponse(BaseModel):
     source_type: Optional[str]
     source_id: Optional[str] = None  # Links to initiative, document, etc.
     source_notes: Optional[str]
+    initiative_ids: List[str] = []  # Linked DISCo initiatives
     created_at: str
     updated_at: str
     # Project fields (for scoping/pilot phase)
@@ -257,6 +260,7 @@ def _format_project(proj: dict, owner_name: Optional[str] = None) -> dict:
         "source_type": proj.get("source_type"),
         "source_id": proj.get("source_id"),
         "source_notes": proj.get("source_notes"),
+        "initiative_ids": proj.get("initiative_ids") or [],
         "created_at": proj["created_at"],
         "updated_at": proj.get("updated_at", proj["created_at"]),
         # Project fields
@@ -935,6 +939,7 @@ async def create_project(
         "source_type": project.source_type,
         "source_id": project.source_id,
         "source_notes": project.source_notes,
+        "initiative_ids": project.initiative_ids or [],
     }
 
     try:

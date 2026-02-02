@@ -221,8 +221,8 @@ export default function DiscoProcessMap() {
             </text>
           </g>
 
-          {/* Arrow: Row 1 -> Row 2 (vertical) */}
-          <path d={`M ${agentX + agentWidth/2} ${startY + agentHeight} L ${agentX + agentWidth/2} ${startY + rowSpacing - 5}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Checkpoint 1 -> Agent 2 (from checkpoint down to next agent) */}
+          <path d={`M ${checkpointX + checkpointSize/2} ${startY + (agentHeight - checkpointSize)/2 + checkpointSize} L ${checkpointX + checkpointSize/2} ${startY + rowSpacing - 15} L ${agentX + agentWidth/2} ${startY + rowSpacing - 15} L ${agentX + agentWidth/2} ${startY + rowSpacing - 5}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* ===== ROW 2: INSIGHT ANALYST + CHECKPOINT 2 ===== */}
           <g
@@ -272,8 +272,8 @@ export default function DiscoProcessMap() {
             </text>
           </g>
 
-          {/* Arrow: Row 2 -> Row 3 (vertical) */}
-          <path d={`M ${agentX + agentWidth/2} ${startY + rowSpacing + agentHeight} L ${agentX + agentWidth/2} ${startY + rowSpacing*2 - 5}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Checkpoint 2 -> Agent 3 (from checkpoint down to next agent) */}
+          <path d={`M ${checkpointX + checkpointSize/2} ${startY + rowSpacing + (agentHeight - checkpointSize)/2 + checkpointSize} L ${checkpointX + checkpointSize/2} ${startY + rowSpacing*2 - 15} L ${agentX + agentWidth/2} ${startY + rowSpacing*2 - 15} L ${agentX + agentWidth/2} ${startY + rowSpacing*2 - 5}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* ===== ROW 3: INITIATIVE BUILDER + CHECKPOINT 3 ===== */}
           <g
@@ -323,8 +323,8 @@ export default function DiscoProcessMap() {
             </text>
           </g>
 
-          {/* Arrow: Row 3 -> Row 4 (vertical) */}
-          <path d={`M ${agentX + agentWidth/2} ${startY + rowSpacing*2 + agentHeight} L ${agentX + agentWidth/2} ${startY + rowSpacing*3 - 5}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Checkpoint 3 -> Agent 4 (from checkpoint down to next agent) */}
+          <path d={`M ${checkpointX + checkpointSize/2} ${startY + rowSpacing*2 + (agentHeight - checkpointSize)/2 + checkpointSize} L ${checkpointX + checkpointSize/2} ${startY + rowSpacing*3 - 15} L ${agentX + agentWidth/2} ${startY + rowSpacing*3 - 15} L ${agentX + agentWidth/2} ${startY + rowSpacing*3 - 5}`} fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* ===== ROW 4: REQUIREMENTS GENERATOR + CHECKPOINT 4 ===== */}
           <g
@@ -374,8 +374,8 @@ export default function DiscoProcessMap() {
             </text>
           </g>
 
-          {/* Arrow: Row 4 -> PRD Output (vertical) */}
-          <path d={`M ${agentX + agentWidth/2} ${startY + rowSpacing*3 + agentHeight} L ${agentX + agentWidth/2} ${startY + rowSpacing*4 - 5}`} fill="none" stroke="#22c55e" strokeWidth="2" markerEnd="url(#arrowhead)" />
+          {/* Arrow: Checkpoint 4 -> PRD Output (from checkpoint down to PRD) */}
+          <path d={`M ${checkpointX + checkpointSize/2} ${startY + rowSpacing*3 + (agentHeight - checkpointSize)/2 + checkpointSize} L ${checkpointX + checkpointSize/2} ${startY + rowSpacing*4 - 15} L ${agentX + agentWidth/2} ${startY + rowSpacing*4 - 15} L ${agentX + agentWidth/2} ${startY + rowSpacing*4 - 5}`} fill="none" stroke="#22c55e" strokeWidth="2" markerEnd="url(#arrowhead)" />
 
           {/* Final Output: PRD */}
           <g>
