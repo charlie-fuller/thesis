@@ -31,7 +31,7 @@ Every initiative has four tabs:
 | **Documents** | Link documents from the Knowledge Base or upload new ones |
 | **Run Agent** | Execute discovery agents and see streaming output |
 | **Outputs** | View all agent results in one place |
-| **Chat** | Ask questions about the initiative with full context |
+| **Chat** | Ask questions about the initiative - sees all linked documents |
 
 **Documents tab features:**
 - **Link from KB** - Browse and select existing KB documents
@@ -177,6 +177,26 @@ DISCo uses the Knowledge Base as its single source of truth for documents.
 - Documents stay up-to-date across all initiatives
 - No duplicate uploads needed
 - Search across all your org's content
+
+---
+
+## Using the Chat
+
+The **Chat** tab lets you ask questions about your initiative with full context.
+
+**What the chat sees:**
+- All documents linked to the initiative (listed by name)
+- Relevant content chunks via semantic search
+- Previous agent outputs (triage results, PRDs, etc.)
+- PuRDy methodology reference
+
+**Example questions:**
+- "What documents do you have access to?"
+- "Summarize the key findings from the planning doc"
+- "What concerns did Triage raise?"
+- "Compare the two approaches in the tech evaluation"
+
+The chat always knows what documents are linked, so you can ask meta-questions like "can you see the planning document?" and get a direct answer.
 
 ---
 

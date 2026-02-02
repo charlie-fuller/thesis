@@ -11,6 +11,7 @@ Generic AI advice is... fine. But AI advice grounded in *your* documents, *your*
 **Documents you can upload:**
 - PDFs
 - Word documents (.docx)
+- RTF files (.rtf)
 - Markdown files
 - CSV and JSON data
 - XML files
@@ -93,6 +94,7 @@ Sync your local markdown vault to the KB:
 - Markdown files (.md)
 - PDFs (.pdf) - with OCR fallback for image-based PDFs
 - Word documents (.docx)
+- RTF files (.rtf)
 - Excel spreadsheets (.xlsx)
 - PowerPoint presentations (.pptx)
 
@@ -104,6 +106,12 @@ When syncing, you'll see a progress bar showing:
 
 **Folder view:**
 In the KB, switch to "Vault" view to see your vault's folder structure as a navigable tree. Click folders to expand/collapse.
+
+**Recent files:**
+The Vault section shows recently synced files sorted by sync time. Meeting documents are prioritized by their actual meeting date, not sync date.
+
+**Pending files:**
+Click the pending count to see which files are queued for sync. Files with special characters in names (brackets, parentheses) are handled correctly.
 
 **Auto-classification:**
 Documents are automatically classified by type during sync:

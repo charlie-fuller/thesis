@@ -420,3 +420,60 @@ Date filtering and temporal awareness added to the help chat system.
 
 - Removed Vault panel from main dashboard
 - Streamlined Discovery Inbox focus
+
+---
+
+## Late January / Early February Updates (January 30 - February 2, 2026)
+
+### DISCo Chat Document Visibility Fix
+
+The DISCo initiative chat now properly shows linked KB documents in all contexts.
+
+**Problem Solved**:
+- Previously, chat only included KB document chunks via vector search
+- Meta-questions like "what documents do you have?" returned nothing because they didn't semantically match content
+- Users couldn't verify if linked documents were visible to the assistant
+
+**Solution**:
+- Added document list to chat context showing all linked KB documents by name
+- Chat now starts context with "Available Linked KB Documents" section
+- Vector search results still included for content-specific queries
+- System prompt updated to mention KB document access
+
+**Files**: `backend/services/disco/chat_service.py`, `backend/services/disco/document_service.py`
+
+### Code Quality Gates & Test Command
+
+Enhanced `/test` command with code quality gates and flexible options.
+
+**Features**:
+- `--quick` flag for core tests only (faster feedback)
+- `--full` flag for comprehensive test suite including integration
+- Pre-test quality gates: Black formatting, Ruff linting
+- Automatic fix suggestions when quality checks fail
+
+**Files**: `backend/scripts/run_all_tests.sh`
+
+### Database Connection Resilience
+
+Added automatic retry logic for database connections to handle transient failures.
+
+**Features**:
+- Retry with exponential backoff for broken pipe errors
+- Handles connection pool exhaustion gracefully
+- Automatic reconnection on `BrokenPipeError`
+
+**Files**: `backend/database.py`
+
+### File Storage Improvements
+
+- **Special Characters**: Filenames with special characters (brackets, parentheses) now handled correctly in storage paths
+- **RTF Support**: Added RTF file type support for document uploads
+- **Pending Details**: Clicking pending count in sync status now shows list of pending files
+
+### KB Vault Section Enhancements
+
+- Recent files section shows recently synced documents
+- Files sorted by `last_synced_at` timestamp
+- Meeting documents prioritized by `document_date` for accurate recency
+- Date-only strings parsed as local dates (not UTC midnight)
