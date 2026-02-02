@@ -1294,14 +1294,32 @@ def get_connection_status(user_id: str) -> Dict:
 
         last_sync = sync_result.data[0]['completed_at'] if sync_result.data else None
 
-        # Get document count
-        doc_result = supabase.table('documents')\
-            .select('id', count='exact')\
-            .eq('user_id', user_id)\
-            .eq('source_platform', 'google_drive')\
-            .execute()
-
-        document_count = doc_result.count or 0
+        # Get document count from cache (fast) or fall back to exact count
+        document_count = 0
+        try:
+            counts_result = supabase.table('user_document_counts')\
+                .select('google_drive_count')\
+                .eq('user_id', user_id)\
+                .maybe_single()\
+                .execute()
+            if counts_result.data:
+                document_count = counts_result.data.get('google_drive_count', 0)
+            else:
+                # Cache miss - fall back to exact count
+                doc_result = supabase.table('documents')\
+                    .select('id', count='exact')\
+                    .eq('uploaded_by', user_id)\
+                    .eq('source_platform', 'google_drive')\
+                    .execute()
+                document_count = doc_result.count or 0
+        except Exception:
+            # Cache table may not exist yet - fall back to exact count
+            doc_result = supabase.table('documents')\
+                .select('id', count='exact')\
+                .eq('uploaded_by', user_id)\
+                .eq('source_platform', 'google_drive')\
+                .execute()
+            document_count = doc_result.count or 0
 
         return {
             'connected': True,

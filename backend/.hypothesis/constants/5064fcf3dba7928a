@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/disco/document_service.py
+# hypothesis_version: 6.151.3
+
+[0.2, 100, '\x00', '*', 'Unknown', 'agent_type', 'chunk_count', 'chunk_index', 'chunk_size', 'content', 'content, chunk_index', 'content_markdown', 'disco_documents', 'disco_outputs', 'document_chunks', 'document_id', 'document_type', 'documents', 'embedding', 'exact', 'filename', 'filename, title', 'id', 'id, filename', 'initiative_id', 'match_count', 'match_threshold', 'metadata', 'p_initiative_id', 'query_embedding', 'run_id', 'source_output_id', 'source_run_id', 'title', 'total', 'uploaded', 'uploaded_at', 'version']

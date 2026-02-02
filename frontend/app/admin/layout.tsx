@@ -14,7 +14,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { user, profile, loading, isAdmin } = useAuth();
-  const { isOpen: helpChatOpen, toggleOpen: toggleHelpChat } = useHelpChat();
+  const { isOpen: helpChatOpen } = useHelpChat();
   const router = useRouter();
 
   // Check admin access
@@ -61,11 +61,7 @@ export default function AdminLayout({
   return (
     <div className="h-screen bg-page flex flex-col">
       {/* Top Navigation - using shared PageHeader with help panel toggle */}
-      <PageHeader
-        showPanelToggles={true}
-        showRightPanel={helpChatOpen}
-        onToggleRightPanel={toggleHelpChat}
-      />
+      <PageHeader showHelpToggle />
 
       {/* Main Content Area with Help Panel */}
       <div className="flex-1 flex overflow-hidden">

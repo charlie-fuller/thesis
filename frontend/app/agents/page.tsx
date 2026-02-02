@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { apiGet } from '@/lib/api'
 import { logger } from '@/lib/logger'
-import PageHeader from '@/components/PageHeader'
+import PageLayout from '@/components/PageLayout'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { AgentIcon, getAgentColor } from '@/components/AgentIcon'
 
@@ -68,9 +68,7 @@ export default function AgentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-page">
-      <PageHeader />
-
+    <PageLayout>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -174,6 +172,6 @@ export default function AgentsPage() {
           </>
         )}
       </main>
-    </div>
+    </PageLayout>
   )
 }

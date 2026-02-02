@@ -20,7 +20,7 @@ import {
 import { apiGet, apiPatch } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import PageHeader from '@/components/PageHeader'
+import PageLayout from '@/components/PageLayout'
 import ProjectDetailModal from '@/components/projects/ProjectDetailModal'
 import toast from 'react-hot-toast'
 
@@ -408,9 +408,7 @@ export default function ProjectsPage() {
   }, {} as Record<number, number>)
 
   return (
-    <div className="min-h-screen bg-page">
-      <PageHeader />
-
+    <PageLayout>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Page Header */}
         <div className="flex items-center justify-between mb-6">
@@ -695,6 +693,6 @@ export default function ProjectsPage() {
           onClose={() => setSelectedProject(null)}
         />
       )}
-    </div>
+    </PageLayout>
   )
 }

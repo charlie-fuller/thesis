@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import PageHeader from '@/components/PageHeader'
+import PageLayout from '@/components/PageLayout'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import dynamic from 'next/dynamic'
 
@@ -47,8 +47,7 @@ export default function KnowledgeBasePage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-page">
-      <PageHeader />
+    <PageLayout>
       <div className="flex-1 p-6">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-2xl font-bold text-primary mb-6">Knowledge Base</h1>
@@ -101,6 +100,6 @@ export default function KnowledgeBasePage() {
           )}
         </div>
       </div>
-    </div>
+    </PageLayout>
   )
 }

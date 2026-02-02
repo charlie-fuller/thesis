@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import TranscriptUpload from '@/components/TranscriptUpload'
-import PageHeader from '@/components/PageHeader'
+import PageLayout from '@/components/PageLayout'
 import { apiGet, apiDelete } from '@/lib/api'
 
 interface Transcript {
@@ -87,8 +87,7 @@ export default function TranscriptsPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-page">
-      <PageHeader />
+    <PageLayout>
       <div className="max-w-6xl mx-auto px-4 py-8 w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -246,6 +245,6 @@ export default function TranscriptsPage() {
           </div>
         )}
       </div>
-    </div>
+    </PageLayout>
   )
 }

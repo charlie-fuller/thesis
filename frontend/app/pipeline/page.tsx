@@ -19,7 +19,7 @@ import {
   Vault
 } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
-import PageHeader from '@/components/PageHeader'
+import PageLayout from '@/components/PageLayout'
 
 // ============================================================================
 // TYPES
@@ -481,10 +481,8 @@ export default function PipelinePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <PageHeader />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <PageLayout>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 bg-slate-50 dark:bg-slate-950 min-h-full">
         {/* Page Title */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Pipeline</h1>
@@ -600,6 +598,6 @@ export default function PipelinePage() {
           />
         </div>
       </main>
-    </div>
+    </PageLayout>
   )
 }

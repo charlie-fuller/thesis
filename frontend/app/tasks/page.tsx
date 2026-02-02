@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import PageHeader from '@/components/PageHeader'
+import PageLayout from '@/components/PageLayout'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import TaskKanbanBoard from '@/components/tasks/TaskKanbanBoard'
 
@@ -33,13 +33,12 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-page">
-      <PageHeader />
+    <PageLayout>
       <div className="flex-1 p-6">
         <div className="max-w-[1600px] mx-auto">
           <TaskKanbanBoard />
         </div>
       </div>
-    </div>
+    </PageLayout>
   )
 }

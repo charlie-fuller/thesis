@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
@@ -69,6 +69,20 @@ export default function KBDocumentsContent() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Pagination state for infinite scroll
+  const [paginationOffset, setPaginationOffset] = useState(0)
+  const [hasMoreDocuments, setHasMoreDocuments] = useState(true)
+  const [totalEstimate, setTotalEstimate] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [statusChecksStarted, setStatusChecksStarted] = useState(false)
+
+  // Tags cache for lazy loading
+  const [tagsCache, setTagsCache] = useState<Record<string, DocumentTag[]>>({})
+  const [loadingTags, setLoadingTags] = useState<Set<string>>(new Set())
+
+  // Ref for infinite scroll sentinel
+  const loadMoreRef = useRef<HTMLDivElement>(null)
 
   // Google Drive state
   const [driveStatus, setDriveStatus] = useState<GoogleDriveStatus | null>(null)
@@ -181,10 +195,13 @@ export default function KBDocumentsContent() {
   const [activeTab, setActiveTab] = useState<'documents' | 'tags'>('documents')
 
   // Compute all unique tags from documents (sorted by frequency, then alphabetically)
+  // Includes both embedded tags and cached tags from lazy loading
   const allTags = useMemo(() => {
     const tagCounts: Record<string, number> = {}
     documents.forEach(doc => {
-      (doc.tags || []).forEach(t => {
+      // Use cached tags if available, otherwise use embedded tags
+      const docTags = tagsCache[doc.id] || doc.tags || []
+      docTags.forEach(t => {
         tagCounts[t.tag] = (tagCounts[t.tag] || 0) + 1
       })
     })
@@ -192,7 +209,7 @@ export default function KBDocumentsContent() {
     return Object.entries(tagCounts)
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([tag]) => tag)
-  }, [documents])
+  }, [documents, tagsCache])
 
   // Toggle a tag in the filter
   const toggleTagFilter = (tag: string) => {
@@ -229,15 +246,17 @@ export default function KBDocumentsContent() {
       }
 
       // Tag filter - document must have ALL selected tags (AND logic)
+      // Use cached tags if available, otherwise use embedded tags
       let matchesTags = true
       if (selectedTags.size > 0) {
-        const docTags = new Set((doc.tags || []).map(t => t.tag))
+        const tags = tagsCache[doc.id] || doc.tags || []
+        const docTags = new Set(tags.map(t => t.tag))
         matchesTags = Array.from(selectedTags).every(tag => docTags.has(tag))
       }
 
       return matchesSearch && matchesSource && matchesTags
     })
-  }, [documents, searchQuery, sourceFilter, selectedTags])
+  }, [documents, searchQuery, sourceFilter, selectedTags, tagsCache])
 
   // Tree node type for nested folder structure
   interface FolderTreeNode {
@@ -414,24 +433,109 @@ export default function KBDocumentsContent() {
 
 
   // Define functions first with useCallback
-  const loadDocuments = useCallback(async (showLoading = true) => {
+  // Load documents with pagination (initial load or refresh)
+  const loadDocuments = useCallback(async (showLoading = true, reset = true) => {
     try {
       if (showLoading) {
         setLoading(true)
       }
-      // Use new user-based endpoint - users only see their own documents
-      const data = await apiGet<{ documents: Document[] }>(`/api/users/me/documents`)
-      setDocuments(data.documents || [])
+      if (reset) {
+        setPaginationOffset(0)
+      }
+
+      // Use new paginated endpoint - faster with minimal columns, no tags initially
+      const data = await apiGet<{
+        documents: Document[]
+        total_estimate: number
+        has_more: boolean
+        offset: number
+        limit: number
+      }>(`/api/users/me/documents/list?limit=50&offset=0&include_tags=false`)
+
+      const newDocs = data.documents || []
+      setDocuments(newDocs)
+      setTotalEstimate(data.total_estimate || 0)
+      setHasMoreDocuments(data.has_more || false)
+      setPaginationOffset(data.limit || 50)
       setError(null)
     } catch (err) {
       logger.error('Error loading documents:', err)
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      // Fall back to original endpoint if new one fails
+      try {
+        const data = await apiGet<{ documents: Document[] }>(`/api/users/me/documents`)
+        setDocuments(data.documents || [])
+        setHasMoreDocuments(false)
+        setError(null)
+      } catch (fallbackErr) {
+        setError(err instanceof Error ? err.message : 'Unknown error')
+      }
     } finally {
       if (showLoading) {
         setLoading(false)
       }
     }
   }, [])
+
+  // Load more documents for infinite scroll
+  const loadMoreDocuments = useCallback(async () => {
+    if (loadingMore || !hasMoreDocuments) return
+
+    try {
+      setLoadingMore(true)
+      const data = await apiGet<{
+        documents: Document[]
+        total_estimate: number
+        has_more: boolean
+        offset: number
+        limit: number
+      }>(`/api/users/me/documents/list?limit=50&offset=${paginationOffset}&include_tags=false`)
+
+      const newDocs = data.documents || []
+      setDocuments(prev => [...prev, ...newDocs])
+      setTotalEstimate(data.total_estimate || totalEstimate)
+      setHasMoreDocuments(data.has_more || false)
+      setPaginationOffset(prev => prev + (data.limit || 50))
+    } catch (err) {
+      logger.error('Error loading more documents:', err)
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [loadingMore, hasMoreDocuments, paginationOffset, totalEstimate])
+
+  // Fetch tags for specific documents (lazy loading)
+  const fetchTagsForDocuments = useCallback(async (docIds: string[]) => {
+    // Filter out already cached or currently loading
+    const idsToFetch = docIds.filter(id => !tagsCache[id] && !loadingTags.has(id))
+    if (idsToFetch.length === 0) return
+
+    // Mark as loading
+    setLoadingTags(prev => new Set([...prev, ...idsToFetch]))
+
+    try {
+      const data = await apiPost<{ tags: Record<string, DocumentTag[]> }>(
+        '/api/documents/tags/batch',
+        { document_ids: idsToFetch }
+      )
+
+      if (data.tags) {
+        setTagsCache(prev => ({ ...prev, ...data.tags }))
+        // Update documents with fetched tags
+        setDocuments(prevDocs =>
+          prevDocs.map(doc =>
+            data.tags[doc.id] ? { ...doc, tags: data.tags[doc.id] } : doc
+          )
+        )
+      }
+    } catch (err) {
+      logger.error('Error fetching tags:', err)
+    } finally {
+      setLoadingTags(prev => {
+        const next = new Set(prev)
+        idsToFetch.forEach(id => next.delete(id))
+        return next
+      })
+    }
+  }, [tagsCache, loadingTags])
 
   const handleDocumentsChange = useCallback(async () => {
     await loadDocuments()
@@ -633,15 +737,27 @@ export default function KBDocumentsContent() {
   }
 
   // Now use the functions in useEffect hooks
+  // First effect: Load documents immediately (fast paginated endpoint)
   useEffect(() => {
     loadDocuments()
-    checkDriveStatus()
-    checkNotionStatusFn()
-    checkObsidianStatusFn()
-    fetchRecentFiles()
-
     // Intentionally run only on mount - including function dependencies would cause infinite re-fetch loops
   }, [])
+
+  // Second effect: Load status checks AFTER documents appear (deferred for perceived performance)
+  useEffect(() => {
+    // Only start status checks once initial load is complete
+    if (!loading && !statusChecksStarted) {
+      setStatusChecksStarted(true)
+      // Small delay to ensure documents render first
+      const timeoutId = setTimeout(() => {
+        checkDriveStatus()
+        checkNotionStatusFn()
+        checkObsidianStatusFn()
+        fetchRecentFiles()
+      }, 100)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [loading, statusChecksStarted, checkDriveStatus])
 
   // Auto-refresh when there are unprocessed documents
   useEffect(() => {
@@ -651,12 +767,35 @@ export default function KBDocumentsContent() {
       // Poll every 2 seconds to check for processing completion
       // Use showLoading=false to avoid UI flashing during background polling
       const intervalId = setInterval(() => {
-        loadDocuments(false)
+        loadDocuments(false, false) // Don't reset pagination
       }, 2000)
 
       return () => clearInterval(intervalId)
     }
   }, [documents, loadDocuments])
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const sentinel = loadMoreRef.current
+    if (!sentinel) return
+
+    // Only enable infinite scroll when not filtering
+    const shouldEnableInfiniteScroll = !searchQuery && sourceFilter === 'all' && selectedTags.size === 0
+
+    if (!shouldEnableInfiniteScroll) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreDocuments && !loadingMore) {
+          loadMoreDocuments()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMoreDocuments, loadingMore, loadMoreDocuments, searchQuery, sourceFilter, selectedTags.size])
 
   // Listen for messages from OAuth popup
   useEffect(() => {
@@ -1231,6 +1370,11 @@ export default function KBDocumentsContent() {
 
     // Load this document's agent assignments
     loadDocumentAgentAssignments(doc.id)
+
+    // Lazy-load tags for this document if not already cached
+    if (!doc.tags?.length && !tagsCache[doc.id]) {
+      fetchTagsForDocuments([doc.id])
+    }
   }
 
   function toggleDocAgentSelection(agentId: string) {
@@ -2466,6 +2610,31 @@ export default function KBDocumentsContent() {
                   </div>
                 </div>
               ))}
+
+              {/* Infinite scroll sentinel */}
+              {hasMoreDocuments && !searchQuery && sourceFilter === 'all' && selectedTags.size === 0 && (
+                <div
+                  ref={loadMoreRef}
+                  className="h-10 flex items-center justify-center"
+                >
+                  {loadingMore && (
+                    <div className="flex items-center gap-2 text-sm text-muted">
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Loading more...
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Show total count indicator */}
+              {totalEstimate > 0 && (
+                <div className="text-center text-xs text-muted py-2">
+                  Showing {filteredDocuments.length} of {totalEstimate} documents
+                </div>
+              )}
             </div>
           )}
           </div>

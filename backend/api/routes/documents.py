@@ -506,6 +506,104 @@ async def get_all_tags(
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
 
 
+class BatchTagsRequest(BaseModel):
+    """Request body for fetching tags for multiple documents."""
+    document_ids: List[str]
+
+
+@router.post("/tags/batch")
+async def get_tags_batch(
+    request: BatchTagsRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get tags for multiple documents in a single request.
+
+    Optimized endpoint for lazy-loading tags after initial document list load.
+
+    Args:
+        document_ids: List of document UUIDs to fetch tags for
+
+    Returns:
+        tags: Dictionary mapping document_id to list of tags
+    """
+    try:
+        if not request.document_ids:
+            return {
+                'success': True,
+                'tags': {}
+            }
+
+        user_id = current_user['id']
+
+        # Validate UUIDs
+        valid_doc_ids = []
+        for doc_id in request.document_ids:
+            try:
+                validate_uuid(doc_id, "document_id")
+                valid_doc_ids.append(doc_id)
+            except Exception:
+                continue
+
+        if not valid_doc_ids:
+            return {
+                'success': True,
+                'tags': {}
+            }
+
+        # Batch fetch tags - limit to 100 documents per request
+        valid_doc_ids = valid_doc_ids[:100]
+
+        # First verify user owns these documents (for security)
+        docs_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('id')
+                .eq('uploaded_by', user_id)
+                .in_('id', valid_doc_ids)
+                .execute()
+        )
+
+        owned_doc_ids = [doc['id'] for doc in (docs_result.data or [])]
+
+        if not owned_doc_ids:
+            return {
+                'success': True,
+                'tags': {}
+            }
+
+        # Fetch tags for owned documents
+        tags_result = await asyncio.to_thread(
+            lambda: supabase.table('document_tags')
+                .select('document_id, tag, source')
+                .in_('document_id', owned_doc_ids)
+                .execute()
+        )
+
+        # Group tags by document_id
+        tags_by_doc: dict = {}
+        for tag_record in tags_result.data or []:
+            doc_id = tag_record['document_id']
+            if doc_id not in tags_by_doc:
+                tags_by_doc[doc_id] = []
+            tags_by_doc[doc_id].append({
+                'tag': tag_record['tag'],
+                'source': tag_record['source']
+            })
+
+        # Ensure all requested (and owned) docs have an entry
+        for doc_id in owned_doc_ids:
+            if doc_id not in tags_by_doc:
+                tags_by_doc[doc_id] = []
+
+        return {
+            'success': True,
+            'tags': tags_by_doc
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting batch tags: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
 @router.get("/by-tags")
 async def get_documents_by_tags(
     tags: str,  # Comma-separated tags

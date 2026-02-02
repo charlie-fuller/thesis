@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import PageHeader from '@/components/PageHeader'
+import PageLayout from '@/components/PageLayout'
 import InterfaceHealthPanel from '@/components/InterfaceHealthPanel'
 import UnifiedDiscoveryPanel from '@/components/discovery/UnifiedDiscoveryPanel'
 import GraphStatsPanel from '@/components/GraphStatsPanel'
@@ -49,9 +49,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-page">
-      <PageHeader />
-
+    <PageLayout>
       <main className="flex-1 mx-auto w-full p-6 max-w-7xl">
         {/* Header */}
         <div className="mb-6">
@@ -265,6 +263,6 @@ export default function HomePage() {
           </div>
         )}
       </main>
-    </div>
+    </PageLayout>
   )
 }

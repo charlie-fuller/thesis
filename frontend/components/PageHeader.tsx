@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useHelpChat } from '@/contexts/HelpChatContext'
 import UserMenu from './UserMenu'
 
 interface PageHeaderProps {
@@ -13,6 +14,8 @@ interface PageHeaderProps {
   onToggleLeftPanel?: () => void
   onToggleRightPanel?: () => void
   tabSwitcher?: React.ReactNode
+  // New prop: show help toggle using context (no callback needed)
+  showHelpToggle?: boolean
 }
 
 export default function PageHeader({
@@ -22,7 +25,9 @@ export default function PageHeader({
   onToggleLeftPanel,
   onToggleRightPanel,
   tabSwitcher,
+  showHelpToggle = false,
 }: PageHeaderProps) {
+  const { isOpen: helpPanelOpen, toggleOpen: toggleHelpPanel } = useHelpChat()
   const { isAdmin, hasDiscoAccess } = useAuth()
   const { theme } = useTheme()
   const pathname = usePathname()
@@ -145,6 +150,23 @@ export default function PageHeader({
                 className={`p-1.5 rounded transition-colors ${showRightPanel ? 'text-primary' : 'text-muted hover:text-primary'}`}
                 aria-label={showRightPanel ? 'Hide Help' : 'Show Help'}
                 title={showRightPanel ? 'Hide Help' : 'Show Help'}
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                  <rect x="3" y="4" width="18" height="16" rx="2" />
+                  <line x1="15" y1="4" x2="15" y2="20" />
+                  <line x1="17" y1="8" x2="19" y2="8" />
+                  <line x1="17" y1="11" x2="19" y2="11" />
+                  <line x1="17" y1="14" x2="19" y2="14" />
+                </svg>
+              </button>
+            )}
+            {/* Standalone help toggle (uses context) */}
+            {showHelpToggle && (
+              <button
+                onClick={toggleHelpPanel}
+                className={`p-1.5 rounded transition-colors ${helpPanelOpen ? 'text-primary' : 'text-muted hover:text-primary'}`}
+                aria-label={helpPanelOpen ? 'Hide Help' : 'Show Help'}
+                title={helpPanelOpen ? 'Hide Help' : 'Show Help'}
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
                   <rect x="3" y="4" width="18" height="16" rx="2" />

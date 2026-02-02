@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { apiGet, apiPost, apiDelete } from '@/lib/api'
-import PageHeader from '@/components/PageHeader'
+import PageLayout from '@/components/PageLayout'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import dynamic from 'next/dynamic'
 
@@ -248,8 +248,7 @@ function IntelligencePageContent() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-page">
-      <PageHeader />
+    <PageLayout>
       <div className="max-w-7xl mx-auto px-4 py-8 w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -751,7 +750,7 @@ function IntelligencePageContent() {
           </div>
         )}
       </div>
-    </div>
+    </PageLayout>
   )
 }
 

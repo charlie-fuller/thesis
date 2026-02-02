@@ -474,3 +474,207 @@ async def get_storage_info(
     except Exception as e:
         logger.error(f"❌ Error fetching storage info: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+@router.get("/me/documents/list")
+async def list_user_documents_paginated(
+    limit: int = 50,
+    offset: int = 0,
+    include_tags: bool = False,
+    current_user: dict = Depends(get_current_user)
+):
+    """List documents with pagination and minimal columns for fast loading.
+
+    Optimized endpoint that:
+    - Returns only essential columns (not SELECT *)
+    - Supports pagination with offset/limit
+    - Optionally includes tags (disabled by default for speed)
+    - Returns estimated total count from cache
+
+    Args:
+        limit: Number of documents to return (default 50, max 100)
+        offset: Number of documents to skip
+        include_tags: Whether to include document tags (slower)
+
+    Returns:
+        documents: List of document objects with minimal fields
+        total_estimate: Estimated total document count (from cache)
+        has_more: Boolean indicating if more documents exist
+        offset: Current offset
+        limit: Current limit
+    """
+    try:
+        user_id = current_user['id']
+
+        # Clamp limit to reasonable bounds
+        limit = min(max(1, limit), 100)
+        offset = max(0, offset)
+
+        # Select only essential columns for fast loading
+        essential_columns = (
+            'id, filename, title, uploaded_at, processed, processing_status, '
+            'source_platform, file_size, obsidian_file_path, external_url, '
+            'google_drive_file_id, notion_page_id, sync_cadence, storage_url'
+        )
+
+        # Fetch documents with pagination
+        result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select(essential_columns)
+                .eq('uploaded_by', user_id)
+                .order('uploaded_at', desc=True)
+                .range(offset, offset + limit)
+                .execute()
+        )
+
+        documents = result.data or []
+
+        # Get estimated total from cache (fast) or fall back to actual count
+        total_estimate = 0
+        try:
+            counts_result = await asyncio.to_thread(
+                lambda: supabase.table('user_document_counts')
+                    .select('total_count')
+                    .eq('user_id', user_id)
+                    .maybe_single()
+                    .execute()
+            )
+            if counts_result.data:
+                total_estimate = counts_result.data.get('total_count', 0)
+            else:
+                # Cache miss - count documents directly (slower, but initializes cache)
+                count_result = await asyncio.to_thread(
+                    lambda: supabase.table('documents')
+                        .select('id', count='exact')
+                        .eq('uploaded_by', user_id)
+                        .execute()
+                )
+                total_estimate = count_result.count or len(documents)
+        except Exception as count_err:
+            # Fallback if counts table doesn't exist yet
+            logger.debug(f"Could not fetch document counts: {count_err}")
+            total_estimate = len(documents) + (1 if len(documents) == limit else 0)
+
+        # Optionally include tags
+        if include_tags and documents:
+            doc_ids = [doc['id'] for doc in documents]
+            try:
+                tags_result = await asyncio.to_thread(
+                    lambda: supabase.table('document_tags')
+                        .select('document_id, tag, source')
+                        .in_('document_id', doc_ids)
+                        .execute()
+                )
+
+                # Group tags by document_id
+                tags_by_doc = {}
+                for tag_record in tags_result.data or []:
+                    doc_id = tag_record['document_id']
+                    if doc_id not in tags_by_doc:
+                        tags_by_doc[doc_id] = []
+                    tags_by_doc[doc_id].append({
+                        'tag': tag_record['tag'],
+                        'source': tag_record['source']
+                    })
+
+                # Attach tags to documents
+                for doc in documents:
+                    doc['tags'] = tags_by_doc.get(doc['id'], [])
+            except Exception as tag_err:
+                logger.debug(f"Could not fetch document tags: {tag_err}")
+                for doc in documents:
+                    doc['tags'] = []
+        else:
+            # No tags requested - set empty arrays
+            for doc in documents:
+                doc['tags'] = []
+
+        has_more = len(documents) == limit and (offset + limit) < total_estimate
+
+        return {
+            'success': True,
+            'documents': documents,
+            'total_estimate': total_estimate,
+            'has_more': has_more,
+            'offset': offset,
+            'limit': limit
+        }
+
+    except Exception as e:
+        import traceback
+        logger.error(f"❌ Error listing documents paginated: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")
+
+
+@router.get("/me/documents/counts")
+async def get_user_document_counts(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get cached document counts by source platform.
+
+    Returns counts from the user_document_counts cache table for fast retrieval.
+    Falls back to calculating counts if cache is not available.
+    """
+    try:
+        user_id = current_user['id']
+
+        # Try to get from cache first
+        try:
+            counts_result = await asyncio.to_thread(
+                lambda: supabase.table('user_document_counts')
+                    .select('*')
+                    .eq('user_id', user_id)
+                    .maybe_single()
+                    .execute()
+            )
+
+            if counts_result.data:
+                return {
+                    'success': True,
+                    'total': counts_result.data.get('total_count', 0),
+                    'google_drive': counts_result.data.get('google_drive_count', 0),
+                    'notion': counts_result.data.get('notion_count', 0),
+                    'obsidian': counts_result.data.get('obsidian_count', 0),
+                    'upload': counts_result.data.get('upload_count', 0),
+                    'cached': True,
+                    'updated_at': counts_result.data.get('updated_at')
+                }
+        except Exception as cache_err:
+            logger.debug(f"Cache lookup failed, calculating counts: {cache_err}")
+
+        # Fallback: calculate counts directly
+        docs_result = await asyncio.to_thread(
+            lambda: supabase.table('documents')
+                .select('source_platform')
+                .eq('uploaded_by', user_id)
+                .execute()
+        )
+
+        docs = docs_result.data or []
+        counts = {
+            'google_drive': 0,
+            'notion': 0,
+            'obsidian': 0,
+            'upload': 0
+        }
+
+        for doc in docs:
+            platform = doc.get('source_platform') or 'upload'
+            if platform in counts:
+                counts[platform] += 1
+            elif platform == 'google_drive':
+                counts['google_drive'] += 1
+
+        return {
+            'success': True,
+            'total': len(docs),
+            'google_drive': counts['google_drive'],
+            'notion': counts['notion'],
+            'obsidian': counts['obsidian'],
+            'upload': counts['upload'],
+            'cached': False
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Error fetching document counts: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.")

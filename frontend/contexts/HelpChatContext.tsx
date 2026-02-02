@@ -1,8 +1,10 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { API_BASE_URL } from '@/lib/config';
 import { supabase } from '@/lib/supabase';
+
+const HELP_PANEL_STORAGE_KEY = 'thesis-help-panel-open';
 
 export interface HelpMessage {
   id: string;
@@ -47,8 +49,30 @@ interface HelpChatContextType {
 const HelpChatContext = createContext<HelpChatContextType | undefined>(undefined);
 
 export function HelpChatProvider({ children }: { children: ReactNode }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpenState] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [stateLoaded, setStateLoaded] = useState(false);
+
+  // Load saved state from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(HELP_PANEL_STORAGE_KEY);
+    if (saved !== null) {
+      setIsOpenState(saved === 'true');
+    }
+    setStateLoaded(true);
+  }, []);
+
+  // Persist to localStorage when isOpen changes (after initial load)
+  useEffect(() => {
+    if (stateLoaded) {
+      localStorage.setItem(HELP_PANEL_STORAGE_KEY, String(isOpen));
+    }
+  }, [isOpen, stateLoaded]);
+
+  // Wrapper for setIsOpen that updates state
+  const setIsOpen = useCallback((open: boolean) => {
+    setIsOpenState(open);
+  }, []);
   const [currentConversation, setCurrentConversation] = useState<HelpConversation | null>(null);
   const [conversations, setConversations] = useState<HelpConversation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -64,7 +88,7 @@ export function HelpChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleOpen = useCallback(() => {
-    setIsOpen((prev) => !prev);
+    setIsOpenState((prev) => !prev);
     if (!isOpen) {
       setIsMinimized(false);
     }
