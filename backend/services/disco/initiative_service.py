@@ -8,13 +8,14 @@ import asyncio
 from typing import Dict, List, Optional
 from uuid import uuid4
 
-from database import get_supabase
+from database import get_supabase, with_db_retry
 from logger_config import get_logger
 
 logger = get_logger(__name__)
 supabase = get_supabase()
 
 
+@with_db_retry(max_retries=2)
 async def create_initiative(
     name: str,
     user_id: str,
@@ -36,9 +37,12 @@ async def create_initiative(
     initiative_id = str(uuid4())
 
     try:
+        # Use get_supabase() dynamically to support connection retry
+        db = get_supabase()
+
         # Create the initiative
         result = await asyncio.to_thread(
-            lambda: supabase.table('disco_initiatives').insert({
+            lambda: db.table('disco_initiatives').insert({
                 'id': initiative_id,
                 'name': name,
                 'description': description,
@@ -54,7 +58,7 @@ async def create_initiative(
 
         # Add creator as owner in members table
         await asyncio.to_thread(
-            lambda: supabase.table('disco_initiative_members').insert({
+            lambda: db.table('disco_initiative_members').insert({
                 'initiative_id': initiative_id,
                 'user_id': user_id,
                 'role': 'owner'
@@ -69,6 +73,7 @@ async def create_initiative(
         raise
 
 
+@with_db_retry(max_retries=2)
 async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
     """
     Get a single initiative by ID.
@@ -83,9 +88,12 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
     logger.info(f"Fetching initiative: {initiative_id}")
 
     try:
+        # Use get_supabase() dynamically to support connection retry
+        db = get_supabase()
+
         # Fetch initiative with creator info
         result = await asyncio.to_thread(
-            lambda: supabase.table('disco_initiatives')
+            lambda: db.table('disco_initiatives')
                 .select('*, users!disco_initiatives_created_by_fkey(id, name, email)')
                 .eq('id', initiative_id)
                 .single()
@@ -105,7 +113,7 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
 
         # Get user's role in this initiative
         member_result = await asyncio.to_thread(
-            lambda: supabase.table('disco_initiative_members')
+            lambda: db.table('disco_initiative_members')
                 .select('role')
                 .eq('initiative_id', initiative_id)
                 .eq('user_id', user_id)
@@ -117,7 +125,7 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
 
         # Get document count
         doc_count = await asyncio.to_thread(
-            lambda: supabase.table('disco_documents')
+            lambda: db.table('disco_documents')
                 .select('id', count='exact')
                 .eq('initiative_id', initiative_id)
                 .execute()
@@ -126,7 +134,7 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
 
         # Get latest output for each agent type
         outputs_result = await asyncio.to_thread(
-            lambda: supabase.table('disco_outputs')
+            lambda: db.table('disco_outputs')
                 .select('agent_type, version, created_at, recommendation, confidence_level')
                 .eq('initiative_id', initiative_id)
                 .order('created_at', desc=True)
@@ -149,6 +157,7 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
         raise
 
 
+@with_db_retry(max_retries=2)
 async def list_initiatives(
     user_id: str,
     status_filter: Optional[str] = None,
@@ -170,9 +179,12 @@ async def list_initiatives(
     logger.info(f"Listing initiatives for user {user_id}")
 
     try:
+        # Use get_supabase() dynamically to support connection retry
+        db = get_supabase()
+
         # Get initiative IDs where user is a member
         member_result = await asyncio.to_thread(
-            lambda: supabase.table('disco_initiative_members')
+            lambda: db.table('disco_initiative_members')
                 .select('initiative_id, role')
                 .eq('user_id', user_id)
                 .execute()
@@ -185,7 +197,7 @@ async def list_initiatives(
         roles_map = {m['initiative_id']: m['role'] for m in member_result.data}
 
         # Build query
-        query = supabase.table('disco_initiatives')\
+        query = db.table('disco_initiatives')\
             .select('*, users!disco_initiatives_created_by_fkey(id, name, email)', count='exact')\
             .in_('id', initiative_ids)
 
@@ -204,7 +216,7 @@ async def list_initiatives(
 
         # Get document counts for all initiatives
         doc_counts = await asyncio.to_thread(
-            lambda: supabase.table('disco_documents')
+            lambda: db.table('disco_documents')
                 .select('initiative_id')
                 .in_('initiative_id', initiative_ids)
                 .execute()
@@ -229,6 +241,7 @@ async def list_initiatives(
         raise
 
 
+@with_db_retry(max_retries=2)
 async def update_initiative(
     initiative_id: str,
     user_id: str,
@@ -260,8 +273,10 @@ async def update_initiative(
         raise ValueError("No valid fields to update")
 
     try:
+        # Use get_supabase() dynamically to support connection retry
+        db = get_supabase()
         result = await asyncio.to_thread(
-            lambda: supabase.table('disco_initiatives')
+            lambda: db.table('disco_initiatives')
                 .update(filtered_updates)
                 .eq('id', initiative_id)
                 .execute()
@@ -278,6 +293,7 @@ async def update_initiative(
         raise
 
 
+@with_db_retry(max_retries=2)
 async def delete_initiative(initiative_id: str, user_id: str) -> bool:
     """
     Delete an initiative and all associated data.
@@ -291,9 +307,12 @@ async def delete_initiative(initiative_id: str, user_id: str) -> bool:
     """
     logger.info(f"Deleting initiative {initiative_id}")
 
+    # Use get_supabase() dynamically to support connection retry
+    db = get_supabase()
+
     # Check permission (must be owner)
     member_result = await asyncio.to_thread(
-        lambda: supabase.table('disco_initiative_members')
+        lambda: db.table('disco_initiative_members')
             .select('role')
             .eq('initiative_id', initiative_id)
             .eq('user_id', user_id)
@@ -307,7 +326,7 @@ async def delete_initiative(initiative_id: str, user_id: str) -> bool:
     try:
         # Delete initiative (cascades to all related tables)
         await asyncio.to_thread(
-            lambda: supabase.table('disco_initiatives')
+            lambda: db.table('disco_initiatives')
                 .delete()
                 .eq('id', initiative_id)
                 .execute()
@@ -324,8 +343,9 @@ async def delete_initiative(initiative_id: str, user_id: str) -> bool:
 async def check_user_access(initiative_id: str, user_id: str) -> bool:
     """Check if user has any access to initiative."""
     try:
+        db = get_supabase()
         result = await asyncio.to_thread(
-            lambda: supabase.table('disco_initiative_members')
+            lambda: db.table('disco_initiative_members')
                 .select('id')
                 .eq('initiative_id', initiative_id)
                 .eq('user_id', user_id)
@@ -339,8 +359,9 @@ async def check_user_access(initiative_id: str, user_id: str) -> bool:
 async def check_edit_permission(initiative_id: str, user_id: str) -> bool:
     """Check if user can edit initiative (owner or editor)."""
     try:
+        db = get_supabase()
         result = await asyncio.to_thread(
-            lambda: supabase.table('disco_initiative_members')
+            lambda: db.table('disco_initiative_members')
                 .select('role')
                 .eq('initiative_id', initiative_id)
                 .eq('user_id', user_id)
