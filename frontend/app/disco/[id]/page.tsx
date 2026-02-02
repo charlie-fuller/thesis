@@ -399,7 +399,7 @@ export default function InitiativeDetailPage() {
       <div className="flex border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
         {[
           { id: 'documents' as const, label: 'Documents', icon: FileText },
-          { id: 'agents' as const, label: 'Run Agent', icon: Play },
+          { id: 'agents' as const, label: 'Run Agents', icon: Play },
           { id: 'outputs' as const, label: 'Outputs', icon: CheckCircle },
           { id: 'chat' as const, label: 'Chat', icon: MessageSquare },
         ].map((tab) => (
@@ -456,6 +456,7 @@ export default function InitiativeDetailPage() {
             initiativeId={initiativeId}
             canRun={canEdit}
             documents={documents}
+            outputs={outputs}
             onComplete={handleAgentComplete}
           />
         )}

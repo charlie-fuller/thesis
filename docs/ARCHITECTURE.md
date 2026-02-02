@@ -83,31 +83,31 @@ This document contains detailed architecture documentation. For essential Claude
 
 ### DISCo (Discovery → Insights → Synthesis → Capabilities)
 23. **DISCo KB Integration** - Uses Knowledge Base as single source of truth for documents. Link existing KB documents to initiatives via browser modal with search/tag filtering. Chat includes linked document list for visibility plus vector search for content queries.
-24. **DISCo Pipeline** - AI-assisted product discovery with 8 specialized agents across 4 stages:
-    - **Discovery Stage**: Triage (GO/NO-GO with Problem Worth Solving gate), Discovery Planner
-    - **Insights Stage**: Coverage Tracker, Insight Extractor (pattern library), Consolidator (decision doc)
-    - **Synthesis Stage**: Strategist (cluster insights into initiative bundles)
-    - **Capabilities Stage**: PRD Generator (engineering-ready PRDs from bundles), Tech Evaluation
+24. **DISCo Pipeline** - AI-assisted product discovery with 4 consolidated stage-aligned agents and human-in-the-loop checkpoints:
+    - **Discovery Guide**: Validates problem, plans discovery sessions, tracks coverage (consolidates: Triage, Discovery Planner, Coverage Tracker)
+    - **Insight Analyst**: Extracts patterns and creates decision document (consolidates: Insight Extractor, Consolidator)
+    - **Initiative Builder**: Clusters insights into scored initiative bundles (consolidates: Strategist)
+    - **Requirements Generator**: Produces PRD with technical recommendations (consolidates: PRD Generator, Tech Evaluation)
 
-**UI Sidebar Order (workflow sequence):**
-| # | Agent | Color | v4.2 Persona Feature |
-|---|-------|-------|---------------------|
-| 1 | Triage | Blue | Problem Worth Solving gate (Mikki) |
-| 2 | Discovery Planner | Amber | Session templates with agendas |
-| 3 | Coverage Tracker | Purple | Gap analysis with session routing |
-| 4 | Insight Extractor | Cyan | Pattern Library - 5 enterprise loops (Tyler) |
-| 5 | Consolidator | Green | Metrics Dashboard + diagram reasoning (Chris) |
-| 6 | Strategist | Emerald | Cluster insights into initiative bundles |
-| 7 | PRD Generator | Rose | Engineering-ready PRDs from bundles |
-| 8 | Tech Evaluation | Indigo | Build vs. buy with architecture diagrams |
+**Consolidated Agent Architecture (v1.0):**
+| # | Agent | Color | Consolidates | Checkpoint After |
+|---|-------|-------|--------------|------------------|
+| 1 | Discovery Guide | Blue | Triage + Discovery Planner + Coverage Tracker | Ready to Execute Discovery? |
+| 2 | Insight Analyst | Cyan | Insight Extractor + Consolidator | Ready for Initiative Building? |
+| 3 | Initiative Builder | Green | Strategist | Ready for Requirements? |
+| 4 | Requirements Generator | Rose | PRD Generator + Tech Evaluation | Ready for Engineering Handoff? |
 
-**Note:** Synthesizer was merged into Consolidator (v4.2). Legacy outputs created by Synthesizer display under Consolidator.
+**Human-in-the-Loop Checkpoints:**
+- Each checkpoint is a gate between agents requiring human approval
+- Checkpoints have 4 states: `locked`, `needs_review`, `approved`, `stale`
+- Checklist items must be completed before approval
+- Staleness detected when new documents added after approval
+- Re-running an agent resets the checkpoint to `needs_review`
 
-**Prompt Version:** v4.2 (2026-01-25) - See `/backend/disco_agents/` (formerly `purdy_agents`, path alias still supported)
-**Evaluation:** `/backend/disco_agents/EVALUATION-v4.2-RESULTS.md`
-- Triage: 85/100 ADOPT - Problem gate working well
-- Synthesizer: 78/100 REVIEW - Blocked term enforcement needed
-- Insight Extractor: 82/100 ADOPT - Pattern Library adds value
+**Legacy Agent Support:** Original 8 agents available via `include_legacy=true` query param on `/api/disco/agents`. Legacy outputs display correctly in UI.
+
+**Prompt Version:** v1.0 Consolidated (2026-02-02) - See `/backend/disco_agents/`
+**Previous Version:** v4.2 (2026-01-25) - Legacy agents still available for backwards compatibility
 
 ## Database Schema
 
@@ -169,13 +169,14 @@ This document contains detailed architecture documentation. For essential Claude
 - `disco_document_chunks` - Chunked + embedded for RAG
 - `disco_runs` - Agent run metadata
 - `disco_run_documents` - Documents used per run
-- `disco_outputs` - Versioned agent outputs (all agents)
+- `disco_outputs` - Versioned agent outputs (all agents), `last_run_at` for staleness tracking
 - `disco_conversations` - Chat sessions
 - `disco_messages` - Chat messages
 - `disco_system_kb` - Global methodology KB
 - `disco_system_kb_chunks` - KB chunks for RAG
 - `disco_bundles` - Initiative bundles from Strategist (scores, rationale, dependencies)
 - `disco_prds` - PRD documents from PRD Generator (structured + markdown)
+- `disco_checkpoints` - Human-in-the-loop approval gates between consolidated agents (status, checklist_items, approved_at/by)
 
 ## Database Migrations
 
@@ -208,6 +209,7 @@ Run migrations in order from `/database/migrations/`:
 | 047 | disco_outcome_tracking | Outcome tracking (formerly purdy_outcome_tracking) |
 | 048 | disco_synthesis | DISCo bundles + PRDs tables |
 | 056 | rename_opportunities_to_projects | Rename opportunities → projects throughout |
+| 061 | disco_checkpoints | Human-in-the-loop checkpoints for consolidated agents |
 
 ## Important Files Reference
 
@@ -227,7 +229,7 @@ Run migrations in order from `/database/migrations/`:
 - `/backend/services/project_*.py` - Project services (context, chat, justification, confidence, taskmaster, kb_sync)
 - `/backend/services/stakeholder_*.py` - Stakeholder services (extractor, scanner, deduplicator, linker)
 - `/backend/services/task_*.py` - Task services (auto_extractor, extractor)
-- `/backend/services/disco/` - DISCo services (8 agents) (formerly `purdy/`, path alias still supported)
+- `/backend/services/disco/` - DISCo services (4 consolidated agents + 8 legacy) (formerly `purdy/`, path alias still supported)
 - `/backend/services/graph/` - Neo4j services
 
 ### Backend API Routes
