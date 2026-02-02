@@ -700,7 +700,7 @@ async def get_visualization_data(
                 nodes = nodes[:limit]
                 # Filter links to only include those between limited nodes
                 node_ids = {n["id"] for n in nodes}
-                links = [l for l in links if l["source"] in node_ids and l["target"] in node_ids]
+                links = [link for link in links if link["source"] in node_ids and link["target"] in node_ids]
 
             return {
                 "nodes": nodes,

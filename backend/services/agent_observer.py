@@ -262,7 +262,7 @@ async def summarize_agent_focus_areas(
         for agent_name, convs in by_agent.items():
             # Extract topics from conversation titles
             topics = list(
-                set(conv.get("title", "Unknown")[:50] for conv in convs if conv.get("title"))
+                {conv.get("title", "Unknown")[:50] for conv in convs if conv.get("title")}
             )[:10]
 
             # Get last active time

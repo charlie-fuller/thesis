@@ -449,7 +449,7 @@ class EngagementCalculator:
         # Get all clients with stakeholders
         result = self.supabase.table("stakeholders").select("client_id").execute()
 
-        client_ids = list(set(row["client_id"] for row in result.data if row.get("client_id")))
+        client_ids = list({row["client_id"] for row in result.data if row.get("client_id")})
 
         overall = {
             "clients_processed": 0,

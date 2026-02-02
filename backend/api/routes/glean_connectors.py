@@ -170,8 +170,8 @@ async def list_categories(supabase: Client = Depends(get_supabase)):
     """Get all unique connector categories."""
     try:
         result = supabase.table("glean_connectors").select("category").execute()
-        categories = set(r["category"] for r in result.data if r.get("category"))
-        return sorted(list(categories))
+        categories = {r["category"] for r in result.data if r.get("category")}
+        return sorted(categories)
     except Exception as e:
         logger.error(f"Error listing categories: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

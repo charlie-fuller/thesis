@@ -314,7 +314,7 @@ async def get_engagement_changes(
         return []
 
     # Get stakeholder names
-    stakeholder_ids = list(set(r["stakeholder_id"] for r in result.data))
+    stakeholder_ids = list({r["stakeholder_id"] for r in result.data})
     stakeholders = (
         supabase.table("stakeholders").select("id, name").in_("id", stakeholder_ids).execute()
     )

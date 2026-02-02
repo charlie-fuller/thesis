@@ -1619,7 +1619,7 @@ async def export_help_conversations(
         messages = messages_result.data or []
 
         # Get user info for conversations
-        user_ids = list(set(c["user_id"] for c in conversations if c.get("user_id")))
+        user_ids = list({c["user_id"] for c in conversations if c.get("user_id")})
         users_result = (
             await asyncio.to_thread(
                 lambda: supabase.table("users")

@@ -214,7 +214,7 @@ async def merge_bundles(
         bundles.append(bundle)
 
     # Ensure all bundles are from same initiative
-    initiative_ids = set(b["initiative_id"] for b in bundles)
+    initiative_ids = {b["initiative_id"] for b in bundles}
     if len(initiative_ids) > 1:
         raise ValueError("Cannot merge bundles from different initiatives")
 

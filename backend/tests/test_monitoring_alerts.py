@@ -490,7 +490,7 @@ class TestDistributedTracing:
         trace = self._get_trace_for_request(response.get("request_id"))
 
         # Should have spans for multiple services
-        services = set(span["service"] for span in trace["spans"])
+        services = {span["service"] for span in trace["spans"]}
         assert len(services) >= 2, "Trace should span multiple services"
 
     def test_trace_includes_metadata(self):

@@ -1119,7 +1119,7 @@ async def get_scan_stats(current_user=Depends(get_current_user)):
             .eq("client_id", client_id)
             .execute()
         )
-        scanned_doc_ids = set(c["source_document_id"] for c in (scanned_docs_result.data or []))
+        scanned_doc_ids = {c["source_document_id"] for c in (scanned_docs_result.data or [])}
 
         return {
             "total_documents": total_docs,

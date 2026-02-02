@@ -281,7 +281,7 @@ async def search_initiative_docs(
 
         # Fetch document filenames for context
         if chunks:
-            doc_ids = list(set(c["document_id"] for c in chunks))
+            doc_ids = list({c["document_id"] for c in chunks})
             docs_result = await asyncio.to_thread(
                 lambda: supabase.table("disco_documents")
                 .select("id, filename")
@@ -468,7 +468,7 @@ async def search_linked_kb_docs(
 
         # Fetch document filenames for context
         if chunks:
-            chunk_doc_ids = list(set(c["document_id"] for c in chunks))
+            chunk_doc_ids = list({c["document_id"] for c in chunks})
             docs_result = await asyncio.to_thread(
                 lambda: supabase.table("documents")
                 .select("id, filename, title")

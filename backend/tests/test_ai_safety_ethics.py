@@ -131,7 +131,7 @@ class TestFairnessMetrics:
 
         # Calculate variance
         avg_length = sum(lengths) / len(lengths)
-        variance = sum((l - avg_length) ** 2 for l in lengths) / len(lengths)
+        variance = sum((length - avg_length) ** 2 for length in lengths) / len(lengths)
 
         # Low variance indicates consistent treatment
         assert variance < (avg_length * 0.5) ** 2, (

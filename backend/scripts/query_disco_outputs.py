@@ -50,7 +50,7 @@ def main():
 
     # Get initiative names
     initiative_ids = list(
-        set(o.get("initiative_id") for o in result.data if o.get("initiative_id"))
+        {o.get("initiative_id") for o in result.data if o.get("initiative_id")}
     )
     initiatives = {}
     if initiative_ids:

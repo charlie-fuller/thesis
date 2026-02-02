@@ -259,10 +259,10 @@ class TestPromptRegression:
     def test_response_is_not_just_bullets(self):
         """Responses should have context, not just bullet points."""
         for agent, response in SAMPLE_RESPONSES.items():
-            lines = [l.strip() for l in response.strip().split("\n") if l.strip()]
+            lines = [line.strip() for line in response.strip().split("\n") if line.strip()]
 
             # Count lines that are bullets vs prose
-            bullet_lines = len([l for l in lines if l.startswith("-") or l.startswith("*")])
+            bullet_lines = len([line for line in lines if line.startswith("-") or line.startswith("*")])
             total_lines = len(lines)
 
             # At least 30% should not be bullet points

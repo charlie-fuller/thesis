@@ -210,7 +210,7 @@ def get_all_active_clients() -> list[str]:
             .execute()
         )
 
-        client_ids = list(set(row["client_id"] for row in result.data if row.get("client_id")))
+        client_ids = list({row["client_id"] for row in result.data if row.get("client_id")})
         return client_ids
 
     except Exception as e:

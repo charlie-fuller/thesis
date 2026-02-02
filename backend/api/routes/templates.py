@@ -67,7 +67,7 @@ async def get_templates(
                     result["categories"].add(prompt["category"])
 
         # Convert categories set to sorted list
-        result["categories"] = sorted(list(result["categories"]))
+        result["categories"] = sorted(result["categories"])
 
         # Sort by phase and priority
         phase_order = {
@@ -134,7 +134,7 @@ async def get_templates_by_phase(current_user: dict = Depends(get_current_user))
                 "name": phase_name,
                 "description": phase_descriptions.get(phase_name, ""),
                 "color": phase_colors.get(phase_name, "gray"),
-                "categories": sorted(list(categories)),
+                "categories": sorted(categories),
                 "template_count": len(templates),
                 "templates": sorted(templates, key=lambda x: x["priority"]),
             }
@@ -157,7 +157,7 @@ async def get_template_categories(current_user: dict = Depends(get_current_user)
                 if prompt.get("category"):
                     categories.add(prompt["category"])
 
-        return {"success": True, "categories": sorted(list(categories))}
+        return {"success": True, "categories": sorted(categories)}
 
     except Exception as e:
         logger.error(f"Error fetching categories: {str(e)}")

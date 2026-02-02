@@ -89,7 +89,7 @@ try:
 
     if chunks_result.data:
         # Get unique document IDs
-        unique_docs = set(c["document_id"] for c in chunks_result.data)
+        unique_docs = {c["document_id"] for c in chunks_result.data}
         print(f"Unique documents with chunks: {len(unique_docs)}")
 
         # Show sample chunks
@@ -264,9 +264,9 @@ try:
     chunks_with_client = supabase.table("document_chunks").select("client_id").limit(100).execute()
 
     if chunks_with_client.data:
-        unique_clients = set(
+        unique_clients = {
             c.get("client_id") for c in chunks_with_client.data if c.get("client_id")
-        )
+        }
         print(f"Unique client IDs in chunks: {len(unique_clients)}")
 
         if unique_clients:
