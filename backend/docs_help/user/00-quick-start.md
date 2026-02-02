@@ -85,6 +85,8 @@ The system builds a picture of who's supportive, who's skeptical, what concerns 
 | **Intelligence** | Stakeholder tracking and analytics |
 | **KB** | Knowledge Base - your documents and conversations |
 
+**Need help?** Click the help icon in the top right of any page to open the help sidebar. Ask questions about how to use Thesis and get answers from the Manual agent. The sidebar stays open as you navigate between pages.
+
 ---
 
 ## The Agent Roster (All Twenty)

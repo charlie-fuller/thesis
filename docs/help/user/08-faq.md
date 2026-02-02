@@ -192,6 +192,12 @@ The system checks for potential duplicates when you accept. If a match is found,
 
 ## Getting Help
 
+**How do I get help while using the app?**
+Click the help icon (question mark) in the top right corner of any page. This opens the help sidebar where you can ask questions about how to use Thesis. The Manual agent will answer based on this documentation.
+
+**Does the help sidebar stay open?**
+Yes. The help panel state persists across navigation and sessions. Open it once, and it stays open as you move between pages. Close it when you're done.
+
 **Where's the main documentation?**
 [CLAUDE.md](/CLAUDE.md) is the primary reference for developers. Help docs (what you're reading) cover user features.
 

@@ -134,11 +134,20 @@ In the KB view, you can:
 **Search and filter:**
 - Search by document name
 - Filter by source (Direct Upload, Google Drive, Notion)
+- Filter by tags to find related documents
+
+**Performance optimizations:**
+The KB now loads much faster:
+- Documents appear immediately (first 50)
+- Scroll down to automatically load more (infinite scroll)
+- Status indicators load in the background
+- Tags load on-demand when you open document details
 
 **View document details:**
 - Click a document to see its info
 - See which agents it's tagged for
 - View processing status
+- Tags load when you open the detail modal
 
 **Edit agent visibility:**
 - Change which agents can see a document
