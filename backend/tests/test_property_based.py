@@ -1,4 +1,4 @@
-"""Property-Based Testing with Hypothesis
+"""Property-Based Testing with Hypothesis.
 
 Tests that verify properties hold for all valid inputs, rather than specific examples.
 Hypothesis generates random inputs to find edge cases we might miss.

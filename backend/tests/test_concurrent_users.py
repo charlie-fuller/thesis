@@ -1,4 +1,4 @@
-"""Concurrent User Testing
+"""Concurrent User Testing.
 
 Tests for race conditions, deadlocks, and data integrity
 when multiple users access the system simultaneously.
@@ -41,9 +41,9 @@ class TestRaceConditions:
 
         # Each should have unique ID
         conversation_ids = [r["conversation_id"] for r in results]
-        assert len(conversation_ids) == len(set(conversation_ids)), (
-            "Conversation IDs should be unique"
-        )
+        assert len(conversation_ids) == len(
+            set(conversation_ids)
+        ), "Conversation IDs should be unique"
 
     @pytest.mark.concurrent
     async def test_message_ordering(self):
@@ -101,9 +101,9 @@ class TestRaceConditions:
 
         # Verify final count
         final_count = await self._get_counter(counter_id)
-        assert final_count == increment_count, (
-            f"Counter should be {increment_count}, got {final_count}"
-        )
+        assert (
+            final_count == increment_count
+        ), f"Counter should be {increment_count}, got {final_count}"
 
     # Helper methods
     async def _create_conversation(self, user_id: str, title: str) -> dict:
@@ -348,9 +348,9 @@ class TestSessionConsistency:
 
         # Each should have correct request_id
         for i, result in enumerate(results):
-            assert result["request_id"] == request_ids[i], (
-                f"Request context leaked for {request_ids[i]}"
-            )
+            assert (
+                result["request_id"] == request_ids[i]
+            ), f"Request context leaked for {request_ids[i]}"
 
     # Helper methods
     async def _set_session_data(self, user_id: str, data: dict) -> None:

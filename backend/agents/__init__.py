@@ -1,4 +1,4 @@
-"""Thesis Multi-Agent System
+"""Thesis Multi-Agent System.
 
 Core agents for enterprise GenAI strategy implementation:
 

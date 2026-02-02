@@ -1,4 +1,4 @@
-"""Backend Configuration for Thesis
+"""Backend Configuration for Thesis.
 
 This module provides centralized configuration management, including
 support for single-tenant mode with a default client.

@@ -299,7 +299,7 @@ def mock_async_supabase():
 def sample_pdf_bytes():
     """Return minimal valid PDF bytes for testing."""
     # Minimal PDF structure
-    return b"""%PDF-1.4
+    return b"""%PDF-1.4.
 1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
 2 0 obj << /Type /Pages /Kids [] /Count 0 >> endobj
 xref
@@ -389,7 +389,7 @@ def cleanup():
 @pytest.fixture
 def sample_agent_response():
     """Sample agent response for quality testing."""
-    return """**Key AI Trends for 2026**
+    return """**Key AI Trends for 2026**.
 
 Based on recent Gartner research, enterprise AI adoption is accelerating with three dominant trends:
 

@@ -1,4 +1,4 @@
-"""Integration Tests - Real Backend Testing
+"""Integration Tests - Real Backend Testing.
 
 These tests hit the REAL backend with actual database connections.
 They are slower than unit tests but validate real system behavior.

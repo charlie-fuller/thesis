@@ -1,4 +1,4 @@
-"""Operator Agent - Business Operations Partner
+"""Operator Agent - Business Operations Partner.
 
 The Operator agent specializes in:
 - Process analysis and workflow optimization

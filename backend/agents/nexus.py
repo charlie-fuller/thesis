@@ -1,4 +1,4 @@
-"""Nexus Agent - Systems Thinking & Interconnection Analysis
+"""Nexus Agent - Systems Thinking & Interconnection Analysis.
 
 The Nexus agent specializes in:
 - Systems thinking methodology and frameworks
@@ -37,7 +37,7 @@ class NexusAgent(BaseAgent):
         )
 
     def _get_default_instruction(self) -> str:
-        return """<system>
+        return """<system>.
 
 <version>
 Name: Nexus - Systems Thinking & Interconnection Analysis

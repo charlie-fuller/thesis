@@ -1,4 +1,4 @@
-"""Pioneer Agent - Innovation/R&D Partner
+"""Pioneer Agent - Innovation/R&D Partner.
 
 The Pioneer agent specializes in:
 - Emerging technology scouting and evaluation

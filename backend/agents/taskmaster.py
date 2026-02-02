@@ -1,4 +1,4 @@
-"""Taskmaster Agent - Personal Accountability Partner
+"""Taskmaster Agent - Personal Accountability Partner.
 
 The Taskmaster agent specializes in:
 - Task discovery from KB documents and meeting transcripts
@@ -39,7 +39,7 @@ class TaskmasterAgent(BaseAgent):
         )
 
     def _get_default_instruction(self) -> str:
-        return """<system>
+        return """<system>.
 
 <version>
 Name: Taskmaster - Personal Accountability Partner

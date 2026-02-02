@@ -1,4 +1,4 @@
-"""Authentication and Authorization Tests
+"""Authentication and Authorization Tests.
 
 Tests for JWT validation, user authentication, and role-based access control.
 """

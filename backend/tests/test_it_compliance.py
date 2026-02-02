@@ -1,4 +1,4 @@
-"""IT Security and Compliance Testing
+"""IT Security and Compliance Testing.
 
 Tests for enterprise IT requirements including:
 - Access controls and authentication
@@ -48,9 +48,9 @@ class TestAccessControl:
     def test_role_based_permissions(self, role: str, resource: str, expected_access: bool):
         """Verify RBAC permissions are correctly enforced."""
         has_access = self._check_permission(role, resource)
-        assert has_access == expected_access, (
-            f"Role '{role}' should {'have' if expected_access else 'not have'} access to '{resource}'"
-        )
+        assert (
+            has_access == expected_access
+        ), f"Role '{role}' should {'have' if expected_access else 'not have'} access to '{resource}'"
 
     def test_principle_of_least_privilege(self):
         """Users should have minimum necessary permissions."""

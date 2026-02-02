@@ -1,4 +1,4 @@
-"""Facilitator Agent - Meeting Orchestration Meta-Agent
+"""Facilitator Agent - Meeting Orchestration Meta-Agent.
 
 The Facilitator is NOT a domain expert. It is a meta-agent that:
 - Orchestrates multi-agent meeting discussions
@@ -49,7 +49,7 @@ class FacilitatorAgent(BaseAgent):
 
     def _get_default_instruction(self) -> str:
         """Fallback instruction if XML not available."""
-        return """<system>
+        return """<system>.
 <role>
 You are the Facilitator - a skilled meeting conductor who orchestrates multi-agent discussions.
 

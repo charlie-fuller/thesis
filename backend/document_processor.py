@@ -99,7 +99,7 @@ supabase = get_supabase()
 
 
 def extract_text_from_file(file_data: bytes, filename: str) -> str:
-    """Extract text from different file types
+    """Extract text from different file types.
 
     Args:
         file_data: Raw file bytes
@@ -260,7 +260,7 @@ def chunk_text(
     chunk_size: int = TEXT_CHUNKING.DEFAULT_CHUNK_SIZE,
     overlap: int = TEXT_CHUNKING.DEFAULT_OVERLAP,
 ) -> List[Dict]:
-    """Split text into overlapping chunks
+    """Split text into overlapping chunks.
 
     Args:
         text: The text to chunk
@@ -335,7 +335,7 @@ def generate_embeddings(
     batch_size: int = EMBEDDING.DEFAULT_BATCH_SIZE,
     input_type: str = EMBEDDING.INPUT_TYPE_DOCUMENT,
 ) -> List[List[float]]:
-    """Generate embeddings for a list of texts using Voyage AI
+    """Generate embeddings for a list of texts using Voyage AI.
     Handles batching to respect VoyageAI API limits:
     - Max 1000 texts per batch
     - Max 320,000 tokens per batch (~1.28M characters assuming 4 chars/token)
@@ -382,7 +382,7 @@ def generate_embeddings(
 
 
 def process_document(document_id: str) -> Dict:
-    """Process a document: extract text, chunk, embed, store
+    """Process a document: extract text, chunk, embed, store.
 
     Args:
         document_id: UUID of the document to process
@@ -670,7 +670,7 @@ async def process_document_with_classification(
 
 
 def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
-    """Process a conversation into chunks and add to knowledge base
+    """Process a conversation into chunks and add to knowledge base.
 
     Args:
         conversation_id: UUID of the conversation
@@ -826,7 +826,7 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
 
 
 def remove_conversation_from_kb(conversation_id: str, user_id: str) -> Dict:
-    """Remove a conversation from the knowledge base
+    """Remove a conversation from the knowledge base.
 
     Args:
         conversation_id: UUID of the conversation
@@ -872,7 +872,7 @@ def remove_conversation_from_kb(conversation_id: str, user_id: str) -> Dict:
 
 
 def preprocess_query(query: str) -> str:
-    """Preprocess search query to improve relevance by removing stop words
+    """Preprocess search query to improve relevance by removing stop words.
     and focusing on key terms
 
     Args:
@@ -984,7 +984,7 @@ def preprocess_query(query: str) -> str:
 
 
 def detect_query_type(query: str) -> str:
-    """Detect the type of query to determine appropriate search strategy
+    """Detect the type of query to determine appropriate search strategy.
 
     Args:
         query: The search query
@@ -1107,7 +1107,7 @@ def search_similar_chunks(
     agent_ids: List[str] = None,
     fallback_threshold: int = 3,
 ) -> List[Dict]:
-    """Search for document chunks similar to a query
+    """Search for document chunks similar to a query.
 
     Uses Redis cache for identical queries (1-hour TTL) to avoid expensive
     vector similarity searches.

@@ -1,4 +1,4 @@
-"""Counselor Agent - Legal Intelligence
+"""Counselor Agent - Legal Intelligence.
 
 The Counselor agent specializes in:
 - Contract considerations for AI vendors
@@ -36,7 +36,7 @@ class CounselorAgent(BaseAgent):
         )
 
     def _get_default_instruction(self) -> str:
-        return """<system>
+        return """<system>.
 
 <version>
 Name: Counselor - Legal Intelligence (Ashley Adams Persona)

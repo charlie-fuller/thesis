@@ -1,4 +1,4 @@
-"""E2E Browser Tests for Thesis Platform
+"""E2E Browser Tests for Thesis Platform.
 
 This file contains test scenario definitions for Chrome DevTools MCP-based E2E testing.
 These tests are meant to be executed by Claude Code using the Chrome DevTools MCP tools.
@@ -1408,7 +1408,7 @@ E2E_TEST_SCENARIOS = {
 # - 1 strategic task (from Chris Baumgartner to Charlie)
 # - 1 Tier-1 project (high scores, exec sponsorship)
 # - 1 new stakeholder (VP with role, concerns, interests)
-GRANOLA_E2E_TEST_MEETING_CONTENT = """## Granola Notes
+GRANOLA_E2E_TEST_MEETING_CONTENT = """## Granola Notes.
 ## E2E Test - Quantum Computing Strategy Session
 **Granola ID:** e2e-test-{timestamp}
 **Created:** 2026-01-28T10:00:00.000Z

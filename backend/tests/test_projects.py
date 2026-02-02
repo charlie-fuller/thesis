@@ -1,4 +1,4 @@
-"""Tests for Projects Pipeline API
+"""Tests for Projects Pipeline API.
 
 Tests the AI implementation projects with 4-dimension scoring:
 - roi_potential (1-5)

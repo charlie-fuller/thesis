@@ -1,4 +1,4 @@
-"""Oracle Agent - Transcript Analyzer
+"""Oracle Agent - Transcript Analyzer.
 
 The Oracle agent specializes in:
 - Parsing meeting transcripts (Granola, Otter.ai, plain text)
@@ -43,7 +43,7 @@ class OracleAgent(BaseAgent):
 
         NOTE: The canonical version is in oracle.xml. This is a fallback.
         """
-        return """<system>
+        return """<system>.
 
 <version>
 Name: Oracle - Meeting Intelligence and Stakeholder Analyst

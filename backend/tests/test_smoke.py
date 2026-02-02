@@ -1,4 +1,4 @@
-"""Smoke Tests
+"""Smoke Tests.
 
 Quick health checks to verify system is operational after deployment.
 These tests should run fast (< 30 seconds total) and catch critical failures.

@@ -1,4 +1,4 @@
-"""Sage Agent - People & Human Flourishing
+"""Sage Agent - People & Human Flourishing.
 
 The Sage agent specializes in:
 - Human-centered AI adoption and change management
@@ -40,7 +40,7 @@ class SageAgent(BaseAgent):
         )
 
     def _get_default_instruction(self) -> str:
-        return """<system>
+        return """<system>.
 
 <version>
 Name: Sage - People & Human Flourishing (Chad Meek Persona)

@@ -1,4 +1,4 @@
-"""Document Management Tests
+"""Document Management Tests.
 
 Tests for document upload, processing, text extraction, and storage operations.
 """

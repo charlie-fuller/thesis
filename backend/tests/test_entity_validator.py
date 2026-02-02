@@ -1,4 +1,4 @@
-"""Tests for Entity Validation System
+"""Tests for Entity Validation System.
 
 Tests the phonetic matching, entity validation, and registry management services.
 

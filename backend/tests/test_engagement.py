@@ -1,4 +1,4 @@
-"""Tests for Stakeholder Engagement Calculator Service
+"""Tests for Stakeholder Engagement Calculator Service.
 
 Tests the engagement level calculation system including:
 - Engagement level determination (Champion, Supporter, Neutral, Skeptic, Blocker)

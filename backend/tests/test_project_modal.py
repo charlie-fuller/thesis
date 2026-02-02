@@ -1,4 +1,4 @@
-"""Tests for Project Detail Modal functionality
+"""Tests for Project Detail Modal functionality.
 
 Tests the new endpoints and services added for:
 - Related documents via vector search
@@ -15,10 +15,10 @@ import pytest
 
 
 class TestProjectContext:
-    """Tests for services/project_context.py"""
+    """Tests for services/project_context.py."""
 
     def test_get_scoring_related_documents_formats_correctly(self):
-        """Verify that document chunks are formatted correctly for frontend"""
+        """Verify that document chunks are formatted correctly for frontend."""
         from services.project_context import get_scoring_related_documents
 
         # Mock the search_similar_chunks function
@@ -68,7 +68,7 @@ class TestProjectContext:
             assert result["metadata"]["page_number"] == 5
 
     def test_build_project_context_includes_all_sections(self):
-        """Verify context string includes all project details"""
+        """Verify context string includes all project details."""
         from services.project_context import build_project_context
 
         project = {
@@ -111,11 +111,11 @@ class TestProjectContext:
 
 
 class TestProjectChat:
-    """Tests for services/project_chat.py"""
+    """Tests for services/project_chat.py."""
 
     @pytest.mark.asyncio
     async def test_ask_about_project_returns_response_and_sources(self):
-        """Verify ask_about_project returns expected structure"""
+        """Verify ask_about_project returns expected structure."""
         from services.project_chat import ask_about_project
 
         mock_project = {
@@ -167,10 +167,10 @@ class TestProjectChat:
 
 
 class TestProjectsAPI:
-    """Tests for api/routes/projects.py endpoints"""
+    """Tests for api/routes/projects.py endpoints."""
 
     def test_related_documents_endpoint_returns_list(self):
-        """Verify GET /{id}/related-documents returns list"""
+        """Verify GET /{id}/related-documents returns list."""
         # This test would require a running server or async test client
         # Documenting expected behavior:
         # - Should return List[RelatedDocumentResponse]
@@ -178,7 +178,7 @@ class TestProjectsAPI:
         pass
 
     def test_conversations_endpoint_returns_list(self):
-        """Verify GET /{id}/conversations returns list"""
+        """Verify GET /{id}/conversations returns list."""
         # Expected behavior:
         # - Should return List[ConversationResponse]
         # - Ordered by created_at DESC (newest first)
@@ -186,7 +186,7 @@ class TestProjectsAPI:
         pass
 
     def test_ask_endpoint_creates_conversation(self):
-        """Verify POST /{id}/ask creates and returns conversation"""
+        """Verify POST /{id}/ask creates and returns conversation."""
         # Expected behavior:
         # - Accepts { question: string }
         # - Returns { response: string, sources: List[RelatedDocumentResponse] }
@@ -195,10 +195,10 @@ class TestProjectsAPI:
 
 
 class TestPydanticModels:
-    """Tests for Pydantic model validation"""
+    """Tests for Pydantic model validation."""
 
     def test_related_document_response_model(self):
-        """Verify RelatedDocumentResponse validates correctly"""
+        """Verify RelatedDocumentResponse validates correctly."""
         from api.routes.projects import RelatedDocumentResponse
 
         data = {
@@ -220,7 +220,7 @@ class TestPydanticModels:
         assert model.relevance_score == 0.85
 
     def test_ask_question_request_validation(self):
-        """Verify AskQuestionRequest validates correctly"""
+        """Verify AskQuestionRequest validates correctly."""
         from api.routes.projects import AskQuestionRequest
 
         # Valid request
@@ -232,7 +232,7 @@ class TestPydanticModels:
             AskQuestionRequest(question="")
 
     def test_conversation_response_model(self):
-        """Verify ConversationResponse validates correctly"""
+        """Verify ConversationResponse validates correctly."""
         from api.routes.projects import ConversationResponse
 
         data = {

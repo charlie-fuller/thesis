@@ -1,4 +1,4 @@
-"""Reporter Agent - Meeting Synthesis and Documentation
+"""Reporter Agent - Meeting Synthesis and Documentation.
 
 The Reporter agent specializes in:
 - Synthesizing multi-agent discussions into clear summaries
@@ -41,7 +41,7 @@ class ReporterAgent(BaseAgent):
 
     def _get_default_instruction(self) -> str:
         """Fallback instruction if XML file is not available."""
-        return """<system>
+        return """<system>.
 
 <version>
 Name: Reporter - Meeting Synthesis and Documentation

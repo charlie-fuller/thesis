@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Improved Text Validation for Document Processing
+"""Improved Text Validation for Document Processing.
 
 This module provides enhanced validation to detect corrupted .docx XML,
 binary data, and other non-readable content that passes simple printable ratio tests.

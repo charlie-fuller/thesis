@@ -1,4 +1,4 @@
-"""Thesis Backend Test Suite
+"""Thesis Backend Test Suite.
 
 This package contains all unit, integration, and API tests for the Thesis backend.
 

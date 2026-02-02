@@ -1,4 +1,4 @@
-"""Chaos and Resilience Testing
+"""Chaos and Resilience Testing.
 
 Tests system behavior under adverse conditions:
 - Service failures

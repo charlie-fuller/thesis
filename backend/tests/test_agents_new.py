@@ -1,4 +1,4 @@
-"""Tests for Glean Evaluator and Compass Agents
+"""Tests for Glean Evaluator and Compass Agents.
 
 Tests the Glean platform fit assessment and career coaching agents,
 including memory save decisions, handoff logic, and context injection.
@@ -301,7 +301,7 @@ class CompassAgent(BaseAgentTestable):
         )
 
     def _get_default_instruction(self) -> str:
-        return """<system>
+        return """<system>.
 <role>
 You are Compass, a personal career development coach. Your purpose is to help professionals track their performance, capture wins, prepare for manager conversations, and maintain strategic alignment with company goals.
 </role>

@@ -1,4 +1,4 @@
-"""Strategist Agent - Executive Strategy Partner
+"""Strategist Agent - Executive Strategy Partner.
 
 The Strategist agent specializes in:
 - C-suite engagement and executive sponsorship

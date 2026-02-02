@@ -1,10 +1,10 @@
-"""Database helper utilities for safe data access"""
+"""Database helper utilities for safe data access."""
 
 from typing import Any, Dict, List, Optional
 
 
 def safe_get_first(data: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    """Safely get the first item from a database query result
+    """Safely get the first item from a database query result.
 
     Args:
         data: List of dictionaries from database query

@@ -1,4 +1,4 @@
-"""Human-Centered AI Testing
+"""Human-Centered AI Testing.
 
 Tests ensuring AI systems maintain human oversight, control, and well-being.
 Validates responsible AI principles are embedded in the system.
@@ -223,9 +223,9 @@ class TestUserWellbeing:
         response = await self._get_agent_response(query)
 
         for pattern in manipulative_patterns:
-            assert pattern not in response.lower(), (
-                f"Response contains manipulative language: {pattern}"
-            )
+            assert (
+                pattern not in response.lower()
+            ), f"Response contains manipulative language: {pattern}"
 
     async def test_respects_user_time(self):
         """AI should respect user's time with concise responses."""
@@ -248,9 +248,9 @@ class TestUserWellbeing:
         has_positive = any(ind in response.lower() for ind in positive_indicators)
         has_negative = any(ind in response.lower() for ind in negative_indicators)
 
-        assert has_positive and has_negative, (
-            "Response should present balanced view with pros and cons"
-        )
+        assert (
+            has_positive and has_negative
+        ), "Response should present balanced view with pros and cons"
 
     async def test_no_addictive_patterns(self):
         """AI should not employ addictive design patterns."""
@@ -268,9 +268,9 @@ class TestUserWellbeing:
         response = await self._get_agent_response(query)
 
         for pattern in addictive_patterns:
-            assert pattern not in response.lower(), (
-                f"Response contains addictive pattern: {pattern}"
-            )
+            assert (
+                pattern not in response.lower()
+            ), f"Response contains addictive pattern: {pattern}"
 
     async def test_acknowledges_emotional_context(self):
         """AI should acknowledge emotional context appropriately."""

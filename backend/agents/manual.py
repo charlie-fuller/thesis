@@ -1,4 +1,4 @@
-"""Manual Agent - In-App Documentation Assistant
+"""Manual Agent - In-App Documentation Assistant.
 
 The Manual agent specializes in:
 - Explaining Thesis features and capabilities

@@ -1,4 +1,4 @@
-"""Atlas Agent - Research Intelligence
+"""Atlas Agent - Research Intelligence.
 
 The Atlas agent specializes in:
 - Tracking GenAI research and trends
@@ -53,7 +53,7 @@ class AtlasAgent(BaseAgent):
         )
 
     def _get_default_instruction(self) -> str:
-        return """<system>
+        return """<system>.
 
 <version>
 Name: Atlas - Research Intelligence for Operational Excellence (Chris Baumgartner Persona)

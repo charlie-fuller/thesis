@@ -1,4 +1,4 @@
-"""Catalyst Agent - Internal Communications Partner
+"""Catalyst Agent - Internal Communications Partner.
 
 The Catalyst agent specializes in:
 - AI initiative messaging and narratives

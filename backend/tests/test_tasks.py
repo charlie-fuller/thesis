@@ -1,4 +1,4 @@
-"""Tests for Task Management API
+"""Tests for Task Management API.
 
 Tests the Kanban-style task management system including CRUD operations,
 status updates, reordering, comments, history, and transcript extraction.

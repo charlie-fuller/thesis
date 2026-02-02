@@ -1,4 +1,4 @@
-"""Chat Endpoint and RAG Tests
+"""Chat Endpoint and RAG Tests.
 
 Tests for the chat API endpoint, RAG context retrieval, and streaming responses.
 """

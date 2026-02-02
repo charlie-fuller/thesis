@@ -1,4 +1,4 @@
-"""Thesis Load Testing with Locust
+"""Thesis Load Testing with Locust.
 
 Run with:
   locust -f locustfile.py --host=http://localhost:8000

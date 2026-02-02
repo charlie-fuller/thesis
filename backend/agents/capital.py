@@ -1,4 +1,4 @@
-"""Capital Agent - Finance Intelligence
+"""Capital Agent - Finance Intelligence.
 
 The Capital agent specializes in:
 - ROI analysis and projections for GenAI initiatives
@@ -36,7 +36,7 @@ class CapitalAgent(BaseAgent):
         )
 
     def _get_default_instruction(self) -> str:
-        return """<system>
+        return """<system>.
 
 <version>
 Name: Capital - Finance Intelligence

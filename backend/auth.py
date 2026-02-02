@@ -74,7 +74,7 @@ def _get_parsed_jwt_key():
 
 
 def decode_jwt(token: str) -> Optional[dict]:
-    """Decode and validate a Supabase JWT token
+    """Decode and validate a Supabase JWT token.
 
     Args:
         token: The JWT token string
@@ -142,7 +142,7 @@ def decode_jwt(token: str) -> Optional[dict]:
 
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> dict:
-    """Dependency to get the current authenticated user from JWT token
+    """Dependency to get the current authenticated user from JWT token.
 
     Args:
         credentials: HTTP Bearer credentials from request header
@@ -198,7 +198,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
 def get_current_user_optional(
     credentials: Optional[HTTPAuthorizationCredentials] = Security(security),
 ) -> Optional[dict]:
-    """Optional authentication - doesn't raise error if no token
+    """Optional authentication - doesn't raise error if no token.
 
     Args:
         credentials: HTTP Bearer credentials (optional)
@@ -248,7 +248,7 @@ def get_current_user_optional(
 
 
 def require_role(allowed_roles: list):
-    """Dependency factory to require specific roles
+    """Dependency factory to require specific roles.
 
     Args:
         allowed_roles: List of allowed role names
@@ -280,7 +280,7 @@ require_client_admin = require_role(["admin"])
 
 
 def require_app_access(required_apps: list):
-    """Dependency factory to require access to specific apps
+    """Dependency factory to require access to specific apps.
 
     Args:
         required_apps: List of required app names (e.g., ['disco', 'thesis'])

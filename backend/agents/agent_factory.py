@@ -1,4 +1,4 @@
-"""Agent Factory - Creates and configures agents for Thesis
+"""Agent Factory - Creates and configures agents for Thesis.
 
 Provides factory functions to create fully configured agents
 with proper initialization and specialist registration.

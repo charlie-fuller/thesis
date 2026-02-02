@@ -1,4 +1,4 @@
-"""Contract Testing for Thesis API
+"""Contract Testing for Thesis API.
 
 Validates that API contracts between frontend and backend remain consistent.
 Uses schema-based contract validation to ensure breaking changes are caught.

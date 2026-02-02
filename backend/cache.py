@@ -1,4 +1,4 @@
-"""Redis Cache Utility
+"""Redis Cache Utility.
 
 Provides caching layer for frequently accessed data with graceful fallback.
 If Redis is not available, operations silently fail and data is fetched normally.
@@ -43,7 +43,7 @@ _redis_client: Optional[Any] = None
 
 
 def _get_redis_client():
-    """Get or create Redis client with connection pooling"""
+    """Get or create Redis client with connection pooling."""
     global _redis_client
 
     if not REDIS_AVAILABLE:
@@ -216,30 +216,30 @@ def hash_cache_key(*args, **kwargs) -> str:
 
 
 def cache_system_instructions(user_id: str, instructions: str, ttl: int = 3600):
-    """Cache system instructions for a user (1 hour default TTL)"""
+    """Cache system instructions for a user (1 hour default TTL)."""
     return cache_set(f"user:{user_id}", instructions, ttl=ttl, namespace="sys_inst")
 
 
 def get_cached_system_instructions(user_id: str) -> Optional[str]:
-    """Get cached system instructions for a user"""
+    """Get cached system instructions for a user."""
     return cache_get(f"user:{user_id}", namespace="sys_inst")
 
 
 def cache_search_results(query: str, client_id: str, results: list, ttl: int = 3600):
-    """Cache vector search results (1 hour default TTL)"""
+    """Cache vector search results (1 hour default TTL)."""
     # Hash query + client_id to create cache key
     key = hash_cache_key(query, client_id)
     return cache_set(key, results, ttl=ttl, namespace="search")
 
 
 def get_cached_search_results(query: str, client_id: str) -> Optional[list]:
-    """Get cached vector search results"""
+    """Get cached vector search results."""
     key = hash_cache_key(query, client_id)
     return cache_get(key, namespace="search")
 
 
 def invalidate_user_cache(user_id: str):
-    """Invalidate all cache entries for a user"""
+    """Invalidate all cache entries for a user."""
     cache_delete(f"user:{user_id}", namespace="sys_inst")
     cache_delete(f"user:{user_id}", namespace="profile")
 
@@ -269,7 +269,7 @@ def invalidate_all_system_instructions():
 
 
 def invalidate_search_cache(client_id: str):
-    """Invalidate all search cache for a client"""
+    """Invalidate all search cache for a client."""
     cache_invalidate_pattern("*", namespace="search")
 
 

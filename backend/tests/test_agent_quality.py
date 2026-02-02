@@ -1,4 +1,4 @@
-"""Agent Response Quality Tests
+"""Agent Response Quality Tests.
 
 These tests validate that agent responses meet quality standards including:
 - Domain relevance (agents respond with appropriate expertise)
@@ -106,9 +106,9 @@ class TestAgentResponseQuality:
 
         # Check that response contains expected domain terms
         found_traits = [trait for trait in expected_traits if trait.lower() in response_lower]
-        assert len(found_traits) >= 1, (
-            f"Response lacks domain relevance. Expected: {expected_traits}"
-        )
+        assert (
+            len(found_traits) >= 1
+        ), f"Response lacks domain relevance. Expected: {expected_traits}"
 
     @pytest.mark.parametrize("agent", SAMPLE_RESPONSES.keys())
     def test_smart_brevity_word_limit(self, agent):
@@ -129,9 +129,9 @@ class TestAgentResponseQuality:
         response_lower = response.lower()
 
         for phrase in BANNED_PHRASES:
-            assert phrase.lower() not in response_lower, (
-                f"Response contains banned phrase: '{phrase}'"
-            )
+            assert (
+                phrase.lower() not in response_lower
+            ), f"Response contains banned phrase: '{phrase}'"
 
     @pytest.mark.parametrize("agent", SAMPLE_RESPONSES.keys())
     def test_response_has_structure(self, agent):
@@ -252,9 +252,9 @@ class TestPromptRegression:
 
         for agent, response in SAMPLE_RESPONSES.items():
             first_word = response.strip().split()[0].lower().rstrip("!,.")
-            assert first_word not in greeting_starters, (
-                f"{agent} response starts with greeting: '{first_word}'"
-            )
+            assert (
+                first_word not in greeting_starters
+            ), f"{agent} response starts with greeting: '{first_word}'"
 
     def test_response_is_not_just_bullets(self):
         """Responses should have context, not just bullet points."""
@@ -262,15 +262,17 @@ class TestPromptRegression:
             lines = [line.strip() for line in response.strip().split("\n") if line.strip()]
 
             # Count lines that are bullets vs prose
-            bullet_lines = len([line for line in lines if line.startswith("-") or line.startswith("*")])
+            bullet_lines = len(
+                [line for line in lines if line.startswith("-") or line.startswith("*")]
+            )
             total_lines = len(lines)
 
             # At least 30% should not be bullet points
             if total_lines > 0:
                 prose_ratio = (total_lines - bullet_lines) / total_lines
-                assert prose_ratio >= 0.2, (
-                    f"{agent} response is {int((1 - prose_ratio) * 100)}% bullets"
-                )
+                assert (
+                    prose_ratio >= 0.2
+                ), f"{agent} response is {int((1 - prose_ratio) * 100)}% bullets"
 
     def test_response_ends_properly(self):
         """Responses should end with complete sentences, not ellipsis."""
@@ -279,9 +281,9 @@ class TestPromptRegression:
         for agent, response in SAMPLE_RESPONSES.items():
             response_stripped = response.strip().rstrip("*_")
             for ending in bad_endings:
-                assert not response_stripped.endswith(ending), (
-                    f"{agent} response ends with '{ending}'"
-                )
+                assert not response_stripped.endswith(
+                    ending
+                ), f"{agent} response ends with '{ending}'"
 
 
 class TestAgentPersonaConsistency:

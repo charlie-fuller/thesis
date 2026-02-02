@@ -1,4 +1,4 @@
-"""Architect Agent - Technical Architecture Partner
+"""Architect Agent - Technical Architecture Partner.
 
 The Architect agent specializes in:
 - Enterprise AI architecture patterns (RAG, agents, fine-tuning)

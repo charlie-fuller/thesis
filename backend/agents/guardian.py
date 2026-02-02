@@ -1,4 +1,4 @@
-"""Guardian Agent - IT & Governance Intelligence
+"""Guardian Agent - IT & Governance Intelligence.
 
 The Guardian agent specializes in:
 - Security assessments for AI implementations
@@ -36,7 +36,7 @@ class GuardianAgent(BaseAgent):
         )
 
     def _get_default_instruction(self) -> str:
-        return """<system>
+        return """<system>.
 
 <version>
 Name: Guardian - IT & Governance Intelligence (Danny Leal Persona)

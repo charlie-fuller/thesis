@@ -1,4 +1,4 @@
-"""Mutation Testing Configuration
+"""Mutation Testing Configuration.
 
 Run with: mutmut run
 View results: mutmut results

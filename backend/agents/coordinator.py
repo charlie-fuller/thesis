@@ -1,4 +1,4 @@
-"""Coordinator Agent - Central Orchestrator for Thesis
+"""Coordinator Agent - Central Orchestrator for Thesis.
 
 The Coordinator is the meta-agent that:
 - Analyzes incoming queries to determine which specialists to consult
@@ -401,7 +401,7 @@ class CoordinatorAgent(BaseAgent):
         return results
 
     def _get_default_instruction(self) -> str:
-        return """<system>
+        return """<system>.
 
 <version>
 Name: Thesis Coordinator

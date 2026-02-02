@@ -1,4 +1,4 @@
-"""Meeting Orchestrator Tests
+"""Meeting Orchestrator Tests.
 
 Tests for multi-agent meeting room orchestration including:
 - Agent selection based on topic
@@ -377,6 +377,6 @@ class TestSmartBrevityInMeetings:
 
         for agent, response in MOCK_AGENT_RESPONSES.items():
             for phrase in filler_phrases:
-                assert phrase.lower() not in response.lower(), (
-                    f"{agent} uses filler phrase: {phrase}"
-                )
+                assert (
+                    phrase.lower() not in response.lower()
+                ), f"{agent} uses filler phrase: {phrase}"

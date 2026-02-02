@@ -1,4 +1,4 @@
-"""Scholar Agent - Learning & Development Partner
+"""Scholar Agent - Learning & Development Partner.
 
 The Scholar agent specializes in:
 - AI training program design

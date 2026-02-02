@@ -1,4 +1,4 @@
-"""Tests for DISCo Initiative Service
+"""Tests for DISCo Initiative Service.
 
 Tests CRUD operations, access control, and status management for initiatives.
 """

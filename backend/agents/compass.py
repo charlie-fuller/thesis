@@ -1,4 +1,4 @@
-"""Compass Agent - Personal Career Coach
+"""Compass Agent - Personal Career Coach.
 
 The Compass agent specializes in:
 - Win capture and impact documentation from conversational updates
@@ -41,7 +41,7 @@ class CompassAgent(BaseAgent):
         )
 
     def _get_default_instruction(self) -> str:
-        return """<system>
+        return """<system>.
 
 <version>
 Name: Compass - Personal Career Coach

@@ -1,4 +1,4 @@
-"""Echo Agent - Brand Voice Analysis & Emulation Partner
+"""Echo Agent - Brand Voice Analysis & Emulation Partner.
 
 The Echo agent specializes in:
 - Brand voice analysis and profiling

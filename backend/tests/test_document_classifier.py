@@ -1,4 +1,4 @@
-"""Tests for Document Classifier Service
+"""Tests for Document Classifier Service.
 
 Tests the hybrid keyword + LLM classification system for auto-tagging
 documents to relevant agents.
@@ -879,7 +879,7 @@ class TestLLMClassification:
     @pytest.mark.asyncio
     async def test_llm_handles_markdown_code_blocks(self, mock_anthropic_client):
         """LLM classification handles JSON wrapped in markdown code blocks."""
-        mock_anthropic_client.messages.create.return_value.content[0].text = """```json
+        mock_anthropic_client.messages.create.return_value.content[0].text = """```json.
 {"agents": [{"name": "capital", "confidence": 0.9, "reason": "Financial"}], "document_type": "invoice"}
 ```"""
         classifier = DocumentClassifier(anthropic_client=mock_anthropic_client)

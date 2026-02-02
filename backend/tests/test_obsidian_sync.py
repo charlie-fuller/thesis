@@ -27,7 +27,7 @@ class TestFrontmatterParsing:
         """Test parsing basic frontmatter."""
         from services.obsidian_sync import parse_frontmatter
 
-        content = """---
+        content = """---.
 title: My Note
 tags:
   - project
@@ -46,7 +46,7 @@ This is the body."""
         """Test parsing frontmatter with thesis-agents field."""
         from services.obsidian_sync import parse_frontmatter
 
-        content = """---
+        content = """---.
 title: Financial Analysis
 thesis-agents:
   - atlas
@@ -67,7 +67,7 @@ Content goes here."""
         """Test parsing content without frontmatter."""
         from services.obsidian_sync import parse_frontmatter
 
-        content = """# No Frontmatter
+        content = """# No Frontmatter.
 
 Just regular markdown content."""
 
@@ -80,7 +80,7 @@ Just regular markdown content."""
         """Test parsing incomplete frontmatter (no closing ---)."""
         from services.obsidian_sync import parse_frontmatter
 
-        content = """---
+        content = """---.
 title: Incomplete
 This has no closing delimiter."""
 
@@ -94,7 +94,7 @@ This has no closing delimiter."""
         """Test parsing invalid YAML in frontmatter."""
         from services.obsidian_sync import parse_frontmatter
 
-        content = """---
+        content = """---.
 title: [invalid yaml
   - missing bracket
 ---
@@ -485,7 +485,7 @@ class TestSyncFile:
         with tempfile.TemporaryDirectory() as vault_dir:
             vault_path = Path(vault_dir)
             file_path = vault_path / "test-note.md"
-            file_path.write_text("""---
+            file_path.write_text("""---.
 title: Test Note
 ---
 # Test Content
@@ -789,7 +789,7 @@ class TestEdgeCases:
         """Test parsing complex nested YAML frontmatter."""
         from services.obsidian_sync import parse_frontmatter
 
-        content = """---
+        content = """---.
 title: Complex Note
 metadata:
   author: John Doe
@@ -1159,7 +1159,7 @@ class TestEmptyContentValidation:
         from services.obsidian_sync import parse_frontmatter
 
         # File that is ONLY frontmatter
-        content = """---
+        content = """---.
 title: Only Frontmatter
 tags:
   - test

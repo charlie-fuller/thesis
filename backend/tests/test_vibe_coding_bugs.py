@@ -1,4 +1,4 @@
-"""Vibe-Coding Bug Tests
+"""Vibe-Coding Bug Tests.
 
 These tests target the common failure modes in AI-assisted codebases:
 - Array/List edge cases

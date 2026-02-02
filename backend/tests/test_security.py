@@ -1,4 +1,4 @@
-"""Security Tests
+"""Security Tests.
 
 Tests for authentication, authorization, and input validation.
 """
