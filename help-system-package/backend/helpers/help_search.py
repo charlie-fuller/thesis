@@ -1,19 +1,24 @@
 """
 Help documentation search module
-Handles vector search and RAG over help documentation
+Handles vector search and RAG over help documentation.
 """
-from typing import List, Dict
-from database import get_supabase
-from services.embeddings import create_embedding
+
+from typing import Dict, List
+
 from logger_config import get_logger
+from services.embeddings import create_embedding
+
+from database import get_supabase
 
 logger = get_logger(__name__)
 supabase = get_supabase()
 
 
-def search_help_chunks(query: str, user_role: str, top_k: int = 3) -> tuple[List[Dict], str]:
+def search_help_chunks(
+    query: str, user_role: str, top_k: int = 3
+) -> tuple[List[Dict], str]:
     """
-    Search help chunks via vector similarity
+    Search help chunks via vector similarity.
 
     Args:
         query: Search query
@@ -28,12 +33,12 @@ def search_help_chunks(query: str, user_role: str, top_k: int = 3) -> tuple[List
 
     # Step 2: Search help chunks via vector similarity
     help_chunks = supabase.rpc(
-        'match_help_chunks',
+        "match_help_chunks",
         {
-            'query_embedding': query_embedding,
-            'match_count': top_k,
-            'user_role': user_role
-        }
+            "query_embedding": query_embedding,
+            "match_count": top_k,
+            "user_role": user_role,
+        },
     ).execute()
 
     if not help_chunks.data:
@@ -49,12 +54,14 @@ def search_help_chunks(query: str, user_role: str, top_k: int = 3) -> tuple[List
             f"[Source {i+1}: {chunk['document_title']} - {chunk['heading_context']}]\n{chunk['content']}"
         )
 
-        sources.append({
-            "title": chunk['document_title'],
-            "section": chunk['heading_context'],
-            "file_path": chunk['file_path'],
-            "similarity": chunk['similarity']
-        })
+        sources.append(
+            {
+                "title": chunk["document_title"],
+                "section": chunk["heading_context"],
+                "file_path": chunk["file_path"],
+                "similarity": chunk["similarity"],
+            }
+        )
 
     context = "\n\n---\n\n".join(context_parts)
 
@@ -63,7 +70,7 @@ def search_help_chunks(query: str, user_role: str, top_k: int = 3) -> tuple[List
 
 def build_help_system_prompt(context: str) -> str:
     """
-    Build system prompt for help assistant
+    Build system prompt for help assistant.
 
     Args:
         context: Documentation context from vector search

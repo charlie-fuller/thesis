@@ -1,26 +1,27 @@
 """
-Help Chat API Routes
+Help Chat API Routes.
 
 Provides AI-powered help chat using RAG over help documentation.
 Separate from main chat conversations.
 """
 
+import os
+from datetime import datetime
+from typing import Dict, List, Optional
+
+import anthropic
+from auth import get_current_user
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from logger_config import get_logger
+from pydantic import BaseModel
+from services.embeddings import create_embedding
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from pydantic import BaseModel
-from typing import List, Dict, Optional
-from datetime import datetime
-import anthropic
-import os
+from utils.safe_db import safe_get_first
 
 from database import get_supabase
-from auth import get_current_user
-from services.embeddings import create_embedding
-from logger_config import get_logger
 
-from utils.safe_db import safe_get_first
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/help", tags=["help"])
 limiter = Limiter(key_func=get_remote_address)
@@ -30,14 +31,16 @@ claude_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 
 class HelpChatRequest(BaseModel):
-    """Request model for help chat"""
+    """Request model for help chat."""
+
     message: str
     conversation_id: Optional[str] = None  # If continuing conversation
     top_k: int = 3  # Number of help chunks to retrieve (reduced for speed)
 
 
 class HelpChatResponse(BaseModel):
-    """Response model for help chat"""
+    """Response model for help chat."""
+
     conversation_id: str
     message_id: str
     response: str
@@ -49,7 +52,7 @@ class HelpChatResponse(BaseModel):
 async def ask_help_question(
     request: Request,
     chat_request: HelpChatRequest,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Ask a question to the help system.
@@ -64,8 +67,8 @@ async def ask_help_question(
     - response: AI-generated answer
     - sources: Help documents referenced
     """
-    user_id = current_user['id']
-    user_role = current_user.get('role', 'user')
+    user_id = current_user["id"]
+    user_role = current_user.get("role", "user")
 
     logger.info(
         "Help chat request",
@@ -73,17 +76,21 @@ async def ask_help_question(
             "user_id": user_id,
             "user_role": user_role,
             "message_length": len(chat_request.message),
-            "conversation_id": chat_request.conversation_id
-        }
+            "conversation_id": chat_request.conversation_id,
+        },
     )
 
     try:
         # Get or create conversation
         if chat_request.conversation_id:
             # Verify user owns this conversation
-            conv = supabase.table('help_conversations').select('id').eq(
-                'id', chat_request.conversation_id
-            ).eq('user_id', user_id).execute()
+            conv = (
+                supabase.table("help_conversations")
+                .select("id")
+                .eq("id", chat_request.conversation_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
 
             if not conv.data:
                 raise HTTPException(status_code=404, detail="Conversation not found")
@@ -92,12 +99,18 @@ async def ask_help_question(
 
         else:
             # Create new help conversation
-            conv = supabase.table('help_conversations').insert({
-                'user_id': user_id,
-                'title': chat_request.message[:50]  # First 50 chars as title
-            }).execute()
+            conv = (
+                supabase.table("help_conversations")
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "title": chat_request.message[:50],  # First 50 chars as title
+                    }
+                )
+                .execute()
+            )
 
-            conversation_id = safe_get_first(conv.data)['id']
+            conversation_id = safe_get_first(conv.data)["id"]
             logger.info(f"Created new help conversation: {conversation_id}")
 
         # Step 1: Generate query embedding
@@ -105,16 +118,18 @@ async def ask_help_question(
 
         # Step 2: Search help chunks via vector similarity
         help_chunks = supabase.rpc(
-            'match_help_chunks',
+            "match_help_chunks",
             {
-                'query_embedding': query_embedding,
-                'match_count': chat_request.top_k,
-                'user_role': user_role
-            }
+                "query_embedding": query_embedding,
+                "match_count": chat_request.top_k,
+                "user_role": user_role,
+            },
         ).execute()
 
         if not help_chunks.data:
-            logger.warning(f"No help chunks found for query: {chat_request.message[:50]}")
+            logger.warning(
+                f"No help chunks found for query: {chat_request.message[:50]}"
+            )
             # Still answer, but without context
             context = "No specific documentation found for this query."
             sources = []
@@ -128,19 +143,25 @@ async def ask_help_question(
                     f"[Source {i+1}: {chunk['document_title']} - {chunk['heading_context']}]\n{chunk['content']}"
                 )
 
-                sources.append({
-                    "title": chunk['document_title'],
-                    "section": chunk['heading_context'],
-                    "file_path": chunk['file_path'],
-                    "similarity": chunk['similarity']
-                })
+                sources.append(
+                    {
+                        "title": chunk["document_title"],
+                        "section": chunk["heading_context"],
+                        "file_path": chunk["file_path"],
+                        "similarity": chunk["similarity"],
+                    }
+                )
 
             context = "\n\n---\n\n".join(context_parts)
 
         # Step 3: Get conversation history
-        history = supabase.table('help_messages').select(
-            'role, content'
-        ).eq('conversation_id', conversation_id).order('timestamp').execute()
+        history = (
+            supabase.table("help_messages")
+            .select("role, content")
+            .eq("conversation_id", conversation_id)
+            .order("timestamp")
+            .execute()
+        )
 
         # Step 4: Build system prompt for help assistant
         system_prompt = f"""You are a helpful assistant for the SuperAssistant platform.
@@ -190,38 +211,47 @@ If the documentation doesn't cover the user's question, acknowledge this briefly
 
         # Step 5: Generate response using Claude
         messages = [
-            {"role": msg['role'], "content": msg['content']}
-            for msg in history.data
-        ] + [
-            {"role": "user", "content": chat_request.message}
-        ]
+            {"role": msg["role"], "content": msg["content"]} for msg in history.data
+        ] + [{"role": "user", "content": chat_request.message}]
 
         response = claude_client.messages.create(
             model="claude-sonnet-4-5-20250929",  # Sonnet 4.5 for help responses
             max_tokens=1500,  # Increased to allow complete process documentation (was 500, too restrictive)
             system=system_prompt,
-            messages=messages
+            messages=messages,
         )
 
         assistant_response = response.content[0].text
 
         # Step 6: Save messages to database
         # Save user message
-        user_msg = supabase.table('help_messages').insert({
-            'conversation_id': conversation_id,
-            'role': 'user',
-            'content': chat_request.message
-        }).execute()
+        user_msg = (
+            supabase.table("help_messages")
+            .insert(
+                {
+                    "conversation_id": conversation_id,
+                    "role": "user",
+                    "content": chat_request.message,
+                }
+            )
+            .execute()
+        )
 
         # Save assistant message with sources
-        assistant_msg = supabase.table('help_messages').insert({
-            'conversation_id': conversation_id,
-            'role': 'assistant',
-            'content': assistant_response,
-            'sources': sources
-        }).execute()
+        assistant_msg = (
+            supabase.table("help_messages")
+            .insert(
+                {
+                    "conversation_id": conversation_id,
+                    "role": "assistant",
+                    "content": assistant_response,
+                    "sources": sources,
+                }
+            )
+            .execute()
+        )
 
-        message_id = safe_get_first(assistant_msg.data)['id']
+        message_id = safe_get_first(assistant_msg.data)["id"]
 
         logger.info(
             "Help response generated",
@@ -229,54 +259,60 @@ If the documentation doesn't cover the user's question, acknowledge this briefly
                 "conversation_id": conversation_id,
                 "message_id": message_id,
                 "sources_count": len(sources),
-                "response_length": len(assistant_response)
-            }
+                "response_length": len(assistant_response),
+            },
         )
 
         return {
             "conversation_id": conversation_id,
             "message_id": message_id,
             "response": assistant_response,
-            "sources": sources
+            "sources": sources,
         }
 
     except Exception as e:
         import traceback
+
         error_trace = traceback.format_exc()
         logger.error(f"Error in help chat: {e}")
         logger.error(f"Full traceback: {error_trace}")
-        raise HTTPException(status_code=500, detail=f"Error generating help response: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error generating help response: {str(e)}"
+        )
 
 
 @router.get("/conversations")
 @limiter.limit("60/minute")
 async def get_help_conversations(
-    request: Request,
-    current_user: dict = Depends(get_current_user)
+    request: Request, current_user: dict = Depends(get_current_user)
 ):
     """
     Get all help conversations for current user.
 
     Returns list of conversations with message counts.
     """
-    user_id = current_user['id']
+    user_id = current_user["id"]
 
     try:
-        conversations = supabase.table('help_conversations').select(
-            'id, title, created_at, updated_at'
-        ).eq('user_id', user_id).order('updated_at', desc=True).execute()
+        conversations = (
+            supabase.table("help_conversations")
+            .select("id, title, created_at, updated_at")
+            .eq("user_id", user_id)
+            .order("updated_at", desc=True)
+            .execute()
+        )
 
         # Get message counts for each conversation
         result = []
         for conv in conversations.data:
-            messages = supabase.table('help_messages').select(
-                'id', count='exact'
-            ).eq('conversation_id', conv['id']).execute()
+            messages = (
+                supabase.table("help_messages")
+                .select("id", count="exact")
+                .eq("conversation_id", conv["id"])
+                .execute()
+            )
 
-            result.append({
-                **conv,
-                "message_count": messages.count
-            })
+            result.append({**conv, "message_count": messages.count})
 
         return result
 
@@ -290,31 +326,36 @@ async def get_help_conversations(
 async def get_help_conversation(
     request: Request,
     conversation_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Get full conversation history with messages.
     """
-    user_id = current_user['id']
+    user_id = current_user["id"]
 
     try:
         # Verify ownership
-        conv = supabase.table('help_conversations').select('*').eq(
-            'id', conversation_id
-        ).eq('user_id', user_id).execute()
+        conv = (
+            supabase.table("help_conversations")
+            .select("*")
+            .eq("id", conversation_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
 
         if not conv.data:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
         # Get messages
-        messages = supabase.table('help_messages').select(
-            'id, role, content, sources, timestamp'
-        ).eq('conversation_id', conversation_id).order('timestamp').execute()
+        messages = (
+            supabase.table("help_messages")
+            .select("id, role, content, sources, timestamp")
+            .eq("conversation_id", conversation_id)
+            .order("timestamp")
+            .execute()
+        )
 
-        return {
-            **safe_get_first(conv.data),
-            "messages": messages.data
-        }
+        return {**safe_get_first(conv.data), "messages": messages.data}
 
     except HTTPException:
         raise
@@ -328,24 +369,30 @@ async def get_help_conversation(
 async def delete_help_conversation(
     request: Request,
     conversation_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Delete a help conversation and all its messages.
     """
-    user_id = current_user['id']
+    user_id = current_user["id"]
 
     try:
         # Verify ownership
-        conv = supabase.table('help_conversations').select('id').eq(
-            'id', conversation_id
-        ).eq('user_id', user_id).execute()
+        conv = (
+            supabase.table("help_conversations")
+            .select("id")
+            .eq("id", conversation_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
 
         if not conv.data:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
         # Delete conversation (messages cascade)
-        supabase.table('help_conversations').delete().eq('id', conversation_id).execute()
+        supabase.table("help_conversations").delete().eq(
+            "id", conversation_id
+        ).execute()
 
         return {"status": "deleted", "conversation_id": conversation_id}
 
@@ -362,7 +409,7 @@ async def submit_help_feedback(
     request: Request,
     message_id: str,
     feedback: int,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Submit feedback (thumbs up/down) for a help message.
@@ -372,43 +419,50 @@ async def submit_help_feedback(
     - feedback: 1 for thumbs up, -1 for thumbs down
     """
     if feedback not in [-1, 1]:
-        raise HTTPException(status_code=400, detail="Feedback must be 1 (thumbs up) or -1 (thumbs down)")
+        raise HTTPException(
+            status_code=400, detail="Feedback must be 1 (thumbs up) or -1 (thumbs down)"
+        )
 
-    user_id = current_user['id']
+    user_id = current_user["id"]
 
     try:
         # Verify message exists and belongs to user's conversation
-        message = supabase.table('help_messages').select(
-            'id, conversation_id'
-        ).eq('id', message_id).execute()
+        message = (
+            supabase.table("help_messages")
+            .select("id, conversation_id")
+            .eq("id", message_id)
+            .execute()
+        )
 
         if not message.data:
             raise HTTPException(status_code=404, detail="Message not found")
 
-        conversation_id = safe_get_first(message.data)['conversation_id']
+        conversation_id = safe_get_first(message.data)["conversation_id"]
 
         # Verify user owns the conversation
-        conv = supabase.table('help_conversations').select('id').eq(
-            'id', conversation_id
-        ).eq('user_id', user_id).execute()
+        conv = (
+            supabase.table("help_conversations")
+            .select("id")
+            .eq("id", conversation_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
 
         if not conv.data:
             raise HTTPException(status_code=403, detail="Not authorized")
 
         # Update feedback
         from datetime import datetime
-        supabase.table('help_messages').update({
-            'feedback': feedback,
-            'feedback_timestamp': datetime.utcnow().isoformat()
-        }).eq('id', message_id).execute()
 
-        logger.info(f"Feedback recorded: message={message_id}, feedback={feedback}, user={user_id}")
+        supabase.table("help_messages").update(
+            {"feedback": feedback, "feedback_timestamp": datetime.utcnow().isoformat()}
+        ).eq("id", message_id).execute()
 
-        return {
-            "status": "success",
-            "message_id": message_id,
-            "feedback": feedback
-        }
+        logger.info(
+            f"Feedback recorded: message={message_id}, feedback={feedback}, user={user_id}"
+        )
+
+        return {"status": "success", "message_id": message_id, "feedback": feedback}
 
     except HTTPException:
         raise
@@ -423,7 +477,7 @@ async def search_help_docs(
     request: Request,
     query: str,
     top_k: int = 10,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Search help documentation directly (without starting a conversation).
@@ -437,7 +491,7 @@ async def search_help_docs(
     **Returns**:
     - List of relevant help chunks with sources
     """
-    user_role = current_user.get('role', 'user')
+    user_role = current_user.get("role", "user")
 
     # Cap top_k
     top_k = min(top_k, 20)
@@ -448,18 +502,15 @@ async def search_help_docs(
 
         # Search help chunks
         results = supabase.rpc(
-            'match_help_chunks',
+            "match_help_chunks",
             {
-                'query_embedding': query_embedding,
-                'match_count': top_k,
-                'user_role': user_role
-            }
+                "query_embedding": query_embedding,
+                "match_count": top_k,
+                "user_role": user_role,
+            },
         ).execute()
 
-        return {
-            "query": query,
-            "results": results.data
-        }
+        return {"query": query, "results": results.data}
 
     except Exception as e:
         logger.error(f"Error searching help docs: {e}")
@@ -469,8 +520,7 @@ async def search_help_docs(
 @router.get("/stats")
 @limiter.limit("60/minute")
 async def get_help_stats(
-    request: Request,
-    current_user: dict = Depends(get_current_user)
+    request: Request, current_user: dict = Depends(get_current_user)
 ):
     """
     Get statistics about help documentation.
@@ -483,36 +533,42 @@ async def get_help_stats(
     - Documents by category
     - Most referenced sources
     """
-    user_role = current_user.get('role', 'user')
+    user_role = current_user.get("role", "user")
 
-    if user_role != 'admin':
+    if user_role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
     try:
         # Get counts
-        doc_count = supabase.table('help_documents').select('id', count='exact').execute()
-        chunk_count = supabase.table('help_chunks').select('id', count='exact').execute()
+        doc_count = (
+            supabase.table("help_documents").select("id", count="exact").execute()
+        )
+        chunk_count = (
+            supabase.table("help_chunks").select("id", count="exact").execute()
+        )
 
         # Documents by category
-        docs_by_category = supabase.table('help_documents').select(
-            'category'
-        ).execute()
+        docs_by_category = supabase.table("help_documents").select("category").execute()
 
         category_counts = {}
         for doc in docs_by_category.data:
-            cat = doc['category']
+            cat = doc["category"]
             category_counts[cat] = category_counts.get(cat, 0) + 1
 
         # Most recent updates
-        recent_docs = supabase.table('help_documents').select(
-            'title, category, updated_at'
-        ).order('updated_at', desc=True).limit(5).execute()
+        recent_docs = (
+            supabase.table("help_documents")
+            .select("title, category, updated_at")
+            .order("updated_at", desc=True)
+            .limit(5)
+            .execute()
+        )
 
         return {
             "total_documents": doc_count.count,
             "total_chunks": chunk_count.count,
             "documents_by_category": category_counts,
-            "recent_updates": recent_docs.data
+            "recent_updates": recent_docs.data,
         }
 
     except Exception as e:
@@ -528,15 +584,19 @@ async def help_system_status():
     """
     try:
         # Get counts
-        doc_count = supabase.table('help_documents').select('id', count='exact').execute()
-        chunk_count = supabase.table('help_chunks').select('id', count='exact').execute()
+        doc_count = (
+            supabase.table("help_documents").select("id", count="exact").execute()
+        )
+        chunk_count = (
+            supabase.table("help_chunks").select("id", count="exact").execute()
+        )
 
         return {
             "status": "operational",
             "total_documents": doc_count.count if doc_count else 0,
             "total_chunks": chunk_count.count if chunk_count else 0,
             "database_connected": True,
-            "indexed": chunk_count.count > 0 if chunk_count else False
+            "indexed": chunk_count.count > 0 if chunk_count else False,
         }
 
     except Exception as e:
@@ -545,7 +605,7 @@ async def help_system_status():
             "status": "error",
             "error": str(e),
             "database_connected": False,
-            "indexed": False
+            "indexed": False,
         }
 
 
@@ -564,12 +624,12 @@ async def test_help_search():
 
         # Step 2: Test RPC call
         help_chunks = supabase.rpc(
-            'match_help_chunks',
+            "match_help_chunks",
             {
-                'query_embedding': query_embedding,
-                'match_count': 3,
-                'user_role': 'admin'
-            }
+                "query_embedding": query_embedding,
+                "match_count": 3,
+                "user_role": "admin",
+            },
         ).execute()
 
         return {
@@ -579,21 +639,18 @@ async def test_help_search():
             "chunks_found": len(help_chunks.data) if help_chunks.data else 0,
             "sample_results": [
                 {
-                    "title": chunk['document_title'],
-                    "section": chunk['heading_context'],
-                    "similarity": chunk['similarity']
+                    "title": chunk["document_title"],
+                    "section": chunk["heading_context"],
+                    "similarity": chunk["similarity"],
                 }
                 for chunk in (help_chunks.data[:3] if help_chunks.data else [])
-            ]
+            ],
         }
 
     except Exception as e:
         import traceback
-        return {
-            "status": "error",
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }
+
+        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
 
 
 @router.post("/index-docs")
@@ -601,7 +658,7 @@ async def test_help_search():
 async def index_help_docs(
     request: Request,
     current_user: dict = Depends(get_current_user),
-    force: bool = False
+    force: bool = False,
 ):
     """
     Index or reindex help documentation.
@@ -618,12 +675,14 @@ async def index_help_docs(
     - Status of indexing operation
     - Number of documents and chunks created
     """
-    user_role = current_user.get('role', 'user')
+    user_role = current_user.get("role", "user")
 
-    if user_role != 'admin':
+    if user_role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    logger.info(f"Admin {current_user['id']} triggered help docs indexing (force={force})")
+    logger.info(
+        f"Admin {current_user['id']} triggered help docs indexing (force={force})"
+    )
 
     try:
         import sys
@@ -641,17 +700,23 @@ async def index_help_docs(
         index_all_help_docs(force=force)
 
         # Get final counts
-        doc_count = supabase.table('help_documents').select('id', count='exact').execute()
-        chunk_count = supabase.table('help_chunks').select('id', count='exact').execute()
+        doc_count = (
+            supabase.table("help_documents").select("id", count="exact").execute()
+        )
+        chunk_count = (
+            supabase.table("help_chunks").select("id", count="exact").execute()
+        )
 
-        logger.info(f"Help docs indexing complete: {doc_count.count} docs, {chunk_count.count} chunks")
+        logger.info(
+            f"Help docs indexing complete: {doc_count.count} docs, {chunk_count.count} chunks"
+        )
 
         return {
             "status": "success",
             "message": "Help documentation indexed successfully",
             "total_documents": doc_count.count,
             "total_chunks": chunk_count.count,
-            "force_reindex": force
+            "force_reindex": force,
         }
 
     except Exception as e:
@@ -660,10 +725,7 @@ async def index_help_docs(
 
 
 @router.post("/index-docs-webhook")
-async def index_help_docs_webhook(
-    request: Request,
-    force: bool = True
-):
+async def index_help_docs_webhook(request: Request, force: bool = True):
     """
     Webhook endpoint for automated help docs reindexing.
 
@@ -683,7 +745,9 @@ async def index_help_docs_webhook(
     # Check API key authentication
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+        raise HTTPException(
+            status_code=401, detail="Missing or invalid Authorization header"
+        )
 
     provided_key = auth_header.replace("Bearer ", "").strip()
     expected_key = os.environ.get("HELP_REINDEX_API_KEY")
@@ -714,10 +778,16 @@ async def index_help_docs_webhook(
         index_all_help_docs(force=force)
 
         # Get final counts
-        doc_count = supabase.table('help_documents').select('id', count='exact').execute()
-        chunk_count = supabase.table('help_chunks').select('id', count='exact').execute()
+        doc_count = (
+            supabase.table("help_documents").select("id", count="exact").execute()
+        )
+        chunk_count = (
+            supabase.table("help_chunks").select("id", count="exact").execute()
+        )
 
-        logger.info(f"Webhook reindex complete: {doc_count.count} docs, {chunk_count.count} chunks")
+        logger.info(
+            f"Webhook reindex complete: {doc_count.count} docs, {chunk_count.count} chunks"
+        )
 
         return {
             "status": "success",
@@ -725,7 +795,7 @@ async def index_help_docs_webhook(
             "total_documents": doc_count.count,
             "total_chunks": chunk_count.count,
             "force_reindex": force,
-            "triggered_by": "github_actions"
+            "triggered_by": "github_actions",
         }
 
     except Exception as e:
