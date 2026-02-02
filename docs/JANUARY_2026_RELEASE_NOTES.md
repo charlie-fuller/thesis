@@ -477,3 +477,18 @@ Added automatic retry logic for database connections to handle transient failure
 - Files sorted by `last_synced_at` timestamp
 - Meeting documents prioritized by `document_date` for accurate recency
 - Date-only strings parsed as local dates (not UTC midnight)
+
+### Global Help Sidebar
+
+The help assistant is now available on all pages throughout the application.
+
+**Features**:
+- Help toggle button in header (right side) on every page
+- Panel state persists across navigation and browser sessions via localStorage
+- 400px sidebar slides in from right when opened
+- Available on: Dashboard, Tasks, KB, Projects, Intelligence, Agents, Pipeline, Transcripts, DISCo, Admin
+
+**Files**:
+- `frontend/components/PageLayout.tsx` (new wrapper component)
+- `frontend/components/PageHeader.tsx` (added `showHelpToggle` prop)
+- `frontend/contexts/HelpChatContext.tsx` (added localStorage persistence)
