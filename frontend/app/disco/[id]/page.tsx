@@ -19,7 +19,6 @@ import {
   Settings,
   Eye,
   Edit3,
-  History,
   Target,
   ExternalLink
 } from 'lucide-react'
@@ -379,32 +378,27 @@ export default function InitiativeDetailPage() {
                 )}
               </div>
             )}
-            <div className="flex items-center gap-4 mt-2 text-sm text-slate-500 dark:text-slate-400">
-              <span className="flex items-center gap-1">
-                <FileText className="w-4 h-4" />
-                {initiative.document_count} documents
-              </span>
-              <span className="flex items-center gap-1">
-                <History className="w-4 h-4" />
-                {outputs.length} outputs
-              </span>
-              {linkedProjects.length > 0 && (
-                <a
-                  href={`/projects?initiative=${initiativeId}`}
-                  className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline"
-                >
-                  <Target className="w-4 h-4" />
-                  {linkedProjects.length} project{linkedProjects.length !== 1 ? 's' : ''}
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
-              {initiative.user_role !== 'owner' && (
-                <span className="flex items-center gap-1">
-                  <Eye className="w-4 h-4" />
-                  {initiative.user_role}
-                </span>
-              )}
-            </div>
+            {/* Show linked projects or user role if applicable */}
+            {(linkedProjects.length > 0 || initiative.user_role !== 'owner') && (
+              <div className="flex items-center gap-4 mt-2 text-sm text-slate-500 dark:text-slate-400">
+                {linkedProjects.length > 0 && (
+                  <a
+                    href={`/projects?initiative=${initiativeId}`}
+                    className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline"
+                  >
+                    <Target className="w-4 h-4" />
+                    {linkedProjects.length} project{linkedProjects.length !== 1 ? 's' : ''}
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+                {initiative.user_role !== 'owner' && (
+                  <span className="flex items-center gap-1">
+                    <Eye className="w-4 h-4" />
+                    {initiative.user_role}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
