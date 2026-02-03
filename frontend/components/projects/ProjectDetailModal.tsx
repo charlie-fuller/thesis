@@ -651,6 +651,45 @@ export default function ProjectDetailModal({
     setEditForm(prev => ({ ...prev, [field]: value }))
   }
 
+  // Check if there are unsaved changes in the current editing section
+  const checkForUnsavedChanges = (): boolean => {
+    if (!editingSection) return false
+
+    switch (editingSection) {
+      case 'header':
+        return editForm.title !== project.title || editForm.status !== project.status
+      case 'scores':
+        return (
+          editForm.roi_potential !== project.roi_potential ||
+          editForm.implementation_effort !== project.implementation_effort ||
+          editForm.strategic_alignment !== project.strategic_alignment ||
+          editForm.stakeholder_readiness !== project.stakeholder_readiness
+        )
+      case 'justifications':
+        return (
+          editForm.project_summary !== (project.project_summary || '') ||
+          editForm.roi_justification !== (project.roi_justification || '') ||
+          editForm.effort_justification !== (project.effort_justification || '') ||
+          editForm.alignment_justification !== (project.alignment_justification || '') ||
+          editForm.readiness_justification !== (project.readiness_justification || '')
+        )
+      case 'description':
+        return (
+          editForm.description !== (project.description || '') ||
+          editForm.department !== (project.department || '')
+        )
+      case 'states':
+        return (
+          editForm.current_state !== (project.current_state || '') ||
+          editForm.desired_state !== (project.desired_state || '')
+        )
+      case 'next_step':
+        return editForm.next_step !== (project.next_step || '')
+      default:
+        return false
+    }
+  }
+
   // Check if justifications exist
   const hasJustifications = !!(
     project.project_summary ||
@@ -720,25 +759,7 @@ export default function ProjectDetailModal({
                   {project.title}
                 </h2>
               )}
-              {editingSection === 'header' ? (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleSaveSection('header')}
-                    disabled={isSaving}
-                    className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
-                    title="Save"
-                  >
-                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  </button>
-                  <button
-                    onClick={() => setEditingSection(null)}
-                    className="p-1 text-muted hover:bg-hover rounded"
-                    title="Cancel"
-                  >
-                    <XCircle className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
+              {editingSection !== 'header' && (
                 <button
                   onClick={() => setEditingSection('header')}
                   className="p-1 text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
@@ -810,27 +831,7 @@ export default function ProjectDetailModal({
                     <Target className="w-4 h-4" />
                     Scores (1-5)
                   </h3>
-                  {editingSection === 'scores' ? (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleSaveSection('scores')}
-                        disabled={isSaving}
-                        className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
-                        title="Save"
-                      >
-                        {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditingSection(null)}
-                        className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:bg-hover rounded"
-                        title="Cancel"
-                      >
-                        <XCircle className="w-3 h-3" />
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
+                  {editingSection !== 'scores' && (
                     <button
                       onClick={() => setEditingSection('scores')}
                       className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
@@ -920,25 +921,7 @@ export default function ProjectDetailModal({
                     Score Justifications
                   </h3>
                   <div className="flex items-center gap-2">
-                    {editingSection === 'justifications' ? (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleSaveSection('justifications')}
-                          disabled={isSaving}
-                          className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
-                        >
-                          {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                          Save
-                        </button>
-                        <button
-                          onClick={() => setEditingSection(null)}
-                          className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:bg-hover rounded"
-                        >
-                          <XCircle className="w-3 h-3" />
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
+                    {editingSection !== 'justifications' && (
                       <>
                         <button
                           onClick={handleGenerateJustifications}
@@ -1155,25 +1138,7 @@ export default function ProjectDetailModal({
                     <FileText className="w-4 h-4" />
                     Description
                   </h3>
-                  {editingSection === 'description' ? (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleSaveSection('description')}
-                        disabled={isSaving}
-                        className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
-                      >
-                        {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditingSection(null)}
-                        className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:bg-hover rounded"
-                      >
-                        <XCircle className="w-3 h-3" />
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
+                  {editingSection !== 'description' && (
                     <button
                       onClick={() => setEditingSection('description')}
                       className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1235,25 +1200,7 @@ export default function ProjectDetailModal({
                     <Target className="w-4 h-4" />
                     Current vs. Desired State
                   </h3>
-                  {editingSection === 'states' ? (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleSaveSection('states')}
-                        disabled={isSaving}
-                        className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
-                      >
-                        {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditingSection(null)}
-                        className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:bg-hover rounded"
-                      >
-                        <XCircle className="w-3 h-3" />
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
+                  {editingSection !== 'states' && (
                     <button
                       onClick={() => setEditingSection('states')}
                       className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1321,25 +1268,7 @@ export default function ProjectDetailModal({
                     <ChevronRight className="w-4 h-4" />
                     Next Step
                   </h3>
-                  {editingSection === 'next_step' ? (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleSaveSection('next_step')}
-                        disabled={isSaving}
-                        className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
-                      >
-                        {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditingSection(null)}
-                        className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:bg-hover rounded"
-                      >
-                        <XCircle className="w-3 h-3" />
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
+                  {editingSection !== 'next_step' && (
                     <button
                       onClick={() => setEditingSection('next_step')}
                       className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1895,20 +1824,35 @@ export default function ProjectDetailModal({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between gap-3 p-4 border-t border-default">
-          <p className="text-xs text-muted">
-            {editingSection
-              ? 'Tip: Save or cancel your changes before switching tabs.'
-              : 'Hover over sections to reveal edit buttons.'}
-          </p>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-secondary hover:text-primary hover:bg-hover rounded-lg transition-colors"
-          >
-            Close
-          </button>
-        </div>
+        {/* Footer - shows Save/Cancel when editing */}
+        {editingSection && (
+          <div className="flex items-center justify-end gap-3 p-4 border-t border-default">
+            <button
+              onClick={() => {
+                // Check if there are unsaved changes
+                const hasChanges = checkForUnsavedChanges()
+                if (hasChanges) {
+                  if (window.confirm('You have unsaved changes. Are you sure you want to cancel?')) {
+                    setEditingSection(null)
+                  }
+                } else {
+                  setEditingSection(null)
+                }
+              }}
+              className="px-4 py-2 text-secondary hover:text-primary hover:bg-hover rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => handleSaveSection(editingSection)}
+              disabled={isSaving}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save Changes
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Document Viewer Modal */}
