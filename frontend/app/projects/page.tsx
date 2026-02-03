@@ -16,7 +16,9 @@ import {
   AlertTriangle,
   Plus,
   ArrowUpDown,
-  Star
+  Star,
+  LayoutGrid,
+  Layers
 } from 'lucide-react'
 import { apiGet, apiPatch } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
@@ -150,9 +152,10 @@ interface ProjectCardProps {
   onToggleActive?: () => void
   isFirst?: boolean
   isLast?: boolean
+  showTier?: boolean
 }
 
-function ProjectCard({ project, onClick, onMoveUp, onMoveDown, onToggleActive, isFirst, isLast }: ProjectCardProps) {
+function ProjectCard({ project, onClick, onMoveUp, onMoveDown, onToggleActive, isFirst, isLast, showTier = false }: ProjectCardProps) {
   const tierColor = TIER_COLORS[project.tier] || TIER_COLORS[4]
   const statusColor = STATUS_COLORS[project.status] || STATUS_COLORS.backlog
   const isActive = project.status === 'active'
@@ -198,9 +201,11 @@ function ProjectCard({ project, onClick, onMoveUp, onMoveDown, onToggleActive, i
         <div className="flex items-start justify-between mb-3 pr-6">
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono text-muted">{project.project_code}</span>
-            <span className={`text-xs px-1.5 py-0.5 rounded ${tierColor}`}>
-              T{project.tier}
-            </span>
+            {showTier && (
+              <span className={`text-xs px-1.5 py-0.5 rounded ${tierColor}`}>
+                T{project.tier}
+              </span>
+            )}
             <span className={`text-xs px-1.5 py-0.5 rounded capitalize ${statusColor}`}>
               {project.status}
             </span>
@@ -298,6 +303,7 @@ export default function ProjectsPage() {
   const [tierFilter, setTierFilter] = useState<number | ''>('')
   const [sortBy, setSortBy] = useState('manual')
   const [activeOnly, setActiveOnly] = useState(false)
+  const [viewMode, setViewMode] = useState<'list' | 'tier'>('list')
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -490,29 +496,47 @@ export default function ProjectsPage() {
         )}
 
         {/* Stats Row */}
-        <div className="mb-6 grid grid-cols-2 md:grid-cols-6 gap-4">
-          <div className="bg-card rounded-lg border border-default p-4">
+        <div className="mb-6 flex items-center gap-4">
+          <div className="bg-card rounded-lg border border-default p-4 min-w-[100px]">
             <div className="flex items-center gap-2 text-muted mb-1">
               <Target className="w-4 h-4" />
               <span className="text-xs uppercase tracking-wide">Total</span>
             </div>
             <p className="text-2xl font-semibold text-primary">{projects.length}</p>
           </div>
-          <div className="bg-card rounded-lg border border-default p-4">
+          <div className="bg-card rounded-lg border border-default p-4 min-w-[100px]">
             <div className="flex items-center gap-2 text-muted mb-1">
               <Star className="w-4 h-4 text-amber-500" />
               <span className="text-xs uppercase tracking-wide">Active</span>
             </div>
             <p className="text-2xl font-semibold text-amber-600 dark:text-amber-400">{activeCount}</p>
           </div>
-          {[1, 2, 3, 4].map(tier => (
-            <div key={tier} className="bg-card rounded-lg border border-default p-4">
-              <div className="flex items-center gap-2 text-muted mb-1">
-                <span className={`text-xs px-1.5 py-0.5 rounded ${TIER_COLORS[tier]}`}>T{tier}</span>
-              </div>
-              <p className="text-2xl font-semibold text-primary">{tierCounts[tier] || 0}</p>
-            </div>
-          ))}
+
+          {/* View Toggle */}
+          <div className="ml-auto flex items-center gap-1 bg-hover rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-card shadow-sm text-primary'
+                  : 'text-muted hover:text-primary'
+              }`}
+              title="List View"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('tier')}
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === 'tier'
+                  ? 'bg-card shadow-sm text-primary'
+                  : 'text-muted hover:text-primary'
+              }`}
+              title="Tier View"
+            >
+              <Layers className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -639,135 +663,64 @@ export default function ProjectsPage() {
               Go to Pipeline
             </button>
           </div>
+        ) : viewMode === 'list' ? (
+          /* List View - Flat grid without tier grouping */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {sortedProjects.map((project, idx) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onClick={() => handleViewProject(project)}
+                onMoveUp={() => moveProject(project.id, 'up')}
+                onMoveDown={() => moveProject(project.id, 'down')}
+                onToggleActive={() => toggleProjectActive(project.id)}
+                isFirst={idx === 0}
+                isLast={idx === sortedProjects.length - 1}
+                showTier={false}
+              />
+            ))}
+          </div>
         ) : (
+          /* Tier View - Grouped by tier */
           <div className="space-y-8">
-            {/* Tier 1 - Quick Wins */}
-            <div>
-              <div className="flex items-center gap-2 pb-3 mb-4 border-b border-default">
-                <span className={`text-xs px-2 py-1 rounded font-medium ${TIER_COLORS[1]}`}>T1</span>
-                <span className="text-sm font-medium text-primary">Quick Wins</span>
-                <span className="text-xs text-muted ml-auto">
-                  {sortedProjects.filter(p => p.tier === 1).length} projects
-                </span>
-              </div>
-              {(() => {
-                const tierProjects = sortedProjects.filter(p => p.tier === 1)
-                return tierProjects.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {tierProjects.map((project, idx) => (
-                      <ProjectCard
-                        key={project.id}
-                        project={project}
-                        onClick={() => handleViewProject(project)}
-                        onMoveUp={() => moveProject(project.id, 'up')}
-                        onMoveDown={() => moveProject(project.id, 'down')}
-                        onToggleActive={() => toggleProjectActive(project.id)}
-                        isFirst={idx === 0}
-                        isLast={idx === tierProjects.length - 1}
-                      />
-                    ))}
+            {[
+              { tier: 1, label: 'Quick Wins' },
+              { tier: 2, label: 'Strategic' },
+              { tier: 3, label: 'Long-term' },
+              { tier: 4, label: 'Low Priority' },
+            ].map(({ tier, label }) => {
+              const tierProjects = sortedProjects.filter(p => p.tier === tier)
+              return (
+                <div key={tier}>
+                  <div className="flex items-center gap-2 pb-3 mb-4 border-b border-default">
+                    <span className={`text-xs px-2 py-1 rounded font-medium ${TIER_COLORS[tier]}`}>T{tier}</span>
+                    <span className="text-sm font-medium text-primary">{label}</span>
+                    <span className="text-xs text-muted ml-auto">
+                      {tierProjects.length} projects
+                    </span>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted py-4">No T1 projects</p>
-                )
-              })()}
-            </div>
-
-            {/* Tier 2 - Strategic */}
-            <div>
-              <div className="flex items-center gap-2 pb-3 mb-4 border-b border-default">
-                <span className={`text-xs px-2 py-1 rounded font-medium ${TIER_COLORS[2]}`}>T2</span>
-                <span className="text-sm font-medium text-primary">Strategic</span>
-                <span className="text-xs text-muted ml-auto">
-                  {sortedProjects.filter(p => p.tier === 2).length} projects
-                </span>
-              </div>
-              {(() => {
-                const tierProjects = sortedProjects.filter(p => p.tier === 2)
-                return tierProjects.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {tierProjects.map((project, idx) => (
-                      <ProjectCard
-                        key={project.id}
-                        project={project}
-                        onClick={() => handleViewProject(project)}
-                        onMoveUp={() => moveProject(project.id, 'up')}
-                        onMoveDown={() => moveProject(project.id, 'down')}
-                        onToggleActive={() => toggleProjectActive(project.id)}
-                        isFirst={idx === 0}
-                        isLast={idx === tierProjects.length - 1}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted py-4">No T2 projects</p>
-                )
-              })()}
-            </div>
-
-            {/* Tier 3 - Long-term */}
-            <div>
-              <div className="flex items-center gap-2 pb-3 mb-4 border-b border-default">
-                <span className={`text-xs px-2 py-1 rounded font-medium ${TIER_COLORS[3]}`}>T3</span>
-                <span className="text-sm font-medium text-primary">Long-term</span>
-                <span className="text-xs text-muted ml-auto">
-                  {sortedProjects.filter(p => p.tier === 3).length} projects
-                </span>
-              </div>
-              {(() => {
-                const tierProjects = sortedProjects.filter(p => p.tier === 3)
-                return tierProjects.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {tierProjects.map((project, idx) => (
-                      <ProjectCard
-                        key={project.id}
-                        project={project}
-                        onClick={() => handleViewProject(project)}
-                        onMoveUp={() => moveProject(project.id, 'up')}
-                        onMoveDown={() => moveProject(project.id, 'down')}
-                        onToggleActive={() => toggleProjectActive(project.id)}
-                        isFirst={idx === 0}
-                        isLast={idx === tierProjects.length - 1}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted py-4">No T3 projects</p>
-                )
-              })()}
-            </div>
-
-            {/* Tier 4 - Low Priority */}
-            <div>
-              <div className="flex items-center gap-2 pb-3 mb-4 border-b border-default">
-                <span className={`text-xs px-2 py-1 rounded font-medium ${TIER_COLORS[4]}`}>T4</span>
-                <span className="text-sm font-medium text-primary">Low Priority</span>
-                <span className="text-xs text-muted ml-auto">
-                  {sortedProjects.filter(p => p.tier === 4).length} projects
-                </span>
-              </div>
-              {(() => {
-                const tierProjects = sortedProjects.filter(p => p.tier === 4)
-                return tierProjects.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {tierProjects.map((project, idx) => (
-                      <ProjectCard
-                        key={project.id}
-                        project={project}
-                        onClick={() => handleViewProject(project)}
-                        onMoveUp={() => moveProject(project.id, 'up')}
-                        onMoveDown={() => moveProject(project.id, 'down')}
-                        onToggleActive={() => toggleProjectActive(project.id)}
-                        isFirst={idx === 0}
-                        isLast={idx === tierProjects.length - 1}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted py-4">No T4 projects</p>
-                )
-              })()}
-            </div>
+                  {tierProjects.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {tierProjects.map((project, idx) => (
+                        <ProjectCard
+                          key={project.id}
+                          project={project}
+                          onClick={() => handleViewProject(project)}
+                          onMoveUp={() => moveProject(project.id, 'up')}
+                          onMoveDown={() => moveProject(project.id, 'down')}
+                          onToggleActive={() => toggleProjectActive(project.id)}
+                          isFirst={idx === 0}
+                          isLast={idx === tierProjects.length - 1}
+                          showTier={true}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted py-4">No T{tier} projects</p>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </main>
