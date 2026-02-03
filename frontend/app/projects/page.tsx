@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Target,
@@ -273,7 +273,7 @@ function ProjectCard({ project, onClick, onMoveUp, onMoveDown, isFirst, isLast, 
 // MAIN PAGE
 // ============================================================================
 
-export default function ProjectsPage() {
+function ProjectsPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
@@ -685,5 +685,14 @@ export default function ProjectsPage() {
         />
       )}
     </PageLayout>
+  )
+}
+
+// Wrap in Suspense for useSearchParams
+export default function ProjectsPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <ProjectsPageContent />
+    </Suspense>
   )
 }
