@@ -126,6 +126,7 @@ export default function InitiativeDetailPage() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [outputs, setOutputs] = useState<Output[]>([])
   const [linkedProjects, setLinkedProjects] = useState<LinkedProject[]>([])
+  const [showActiveProjectsOnly, setShowActiveProjectsOnly] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -447,7 +448,9 @@ export default function InitiativeDetailPage() {
             )}
             {tab.id === 'projects' && (
               <span className="ml-1 px-1.5 py-0.5 text-xs bg-slate-100 dark:bg-slate-800 rounded">
-                {linkedProjects.length}
+                {showActiveProjectsOnly
+                  ? linkedProjects.filter(p => p.status !== 'archived').length
+                  : linkedProjects.length}
               </span>
             )}
           </button>
@@ -501,19 +504,40 @@ export default function InitiativeDetailPage() {
         {/* Projects Tab */}
         {activeTab === 'projects' && (
           <div className="space-y-4">
-            {linkedProjects.length === 0 ? (
-              <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg">
-                <Target className="w-12 h-12 mx-auto text-slate-400 mb-3" />
-                <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
-                  No Linked Projects
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                  Projects can be linked to this initiative from the Projects page.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {linkedProjects.map((project) => (
+            {/* Active Only Toggle */}
+            <div className="flex items-center justify-end">
+              <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                <input
+                  type="checkbox"
+                  checked={showActiveProjectsOnly}
+                  onChange={(e) => setShowActiveProjectsOnly(e.target.checked)}
+                  className="rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
+                />
+                Active only
+              </label>
+            </div>
+            {(() => {
+              const filteredProjects = showActiveProjectsOnly
+                ? linkedProjects.filter(p => p.status !== 'archived')
+                : linkedProjects
+
+              return filteredProjects.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg">
+                  <Target className="w-12 h-12 mx-auto text-slate-400 mb-3" />
+                  <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+                    {showActiveProjectsOnly && linkedProjects.length > 0
+                      ? 'No Active Projects'
+                      : 'No Linked Projects'}
+                  </h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                    {showActiveProjectsOnly && linkedProjects.length > 0
+                      ? 'All linked projects are archived. Uncheck "Active only" to see them.'
+                      : 'Projects can be linked to this initiative from the Projects page.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredProjects.map((project) => (
                   <a
                     key={project.id}
                     href={`/projects?highlight=${project.id}`}
@@ -545,9 +569,10 @@ export default function InitiativeDetailPage() {
                       </p>
                     )}
                   </a>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )
+            })()}
           </div>
         )}
 
