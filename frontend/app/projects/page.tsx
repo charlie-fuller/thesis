@@ -16,7 +16,6 @@ import {
   AlertTriangle,
   Plus,
   ArrowUpDown,
-  Star,
   LayoutGrid,
   Layers
 } from 'lucide-react'
@@ -402,16 +401,6 @@ export default function ProjectsPage() {
     }
   }, [projects, sortBy, activeOnly])
 
-  // Count active projects - must be before early returns (React Hook rule)
-  const activeCount = useMemo(() =>
-    projects.filter(p => p.status === 'active').length
-  , [projects])
-
-  // Group projects by tier for summary
-  const tierCounts = useMemo(() => projects.reduce((acc, p) => {
-    acc[p.tier] = (acc[p.tier] || 0) + 1
-    return acc
-  }, {} as Record<number, number>), [projects])
 
   // Show loading state while auth is being checked
   if (authLoading) {
@@ -456,24 +445,8 @@ export default function ProjectsPage() {
           </div>
         )}
 
-        {/* Stats Row */}
-        <div className="mb-6 flex items-center gap-4">
-          <div className="bg-card rounded-lg border border-default p-4 min-w-[100px]">
-            <div className="flex items-center gap-2 text-muted mb-1">
-              <Target className="w-4 h-4" />
-              <span className="text-xs uppercase tracking-wide">Total</span>
-            </div>
-            <p className="text-2xl font-semibold text-primary">{projects.length}</p>
-          </div>
-          <div className="bg-card rounded-lg border border-default p-4 min-w-[100px]">
-            <div className="flex items-center gap-2 text-muted mb-1">
-              <Star className="w-4 h-4 text-amber-500" />
-              <span className="text-xs uppercase tracking-wide">Active</span>
-            </div>
-            <p className="text-2xl font-semibold text-amber-600 dark:text-amber-400">{activeCount}</p>
-          </div>
-
-          {/* View Toggle */}
+        {/* View Toggle */}
+        <div className="mb-6 flex items-center">
           <div className="ml-auto flex items-center gap-1 bg-hover rounded-lg p-1">
             <button
               onClick={() => setViewMode('list')}
