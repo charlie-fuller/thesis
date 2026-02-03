@@ -287,7 +287,7 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [tierFilter, setTierFilter] = useState<number | ''>('')
   const [sortBy, setSortBy] = useState('manual')
-  const [activeOnly, setActiveOnly] = useState(false)
+  const [activeOnly, setActiveOnly] = useState(true)
   const [viewMode, setViewMode] = useState<'list' | 'tier'>('list')
 
   // Redirect to login if not authenticated
