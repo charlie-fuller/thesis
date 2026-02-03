@@ -61,6 +61,7 @@ DEFAULT_SYNC_OPTIONS = {
         "**/*.pptx",
         # Spreadsheets
         "**/*.xlsx",
+        "**/*.csv",
     ],
     "exclude_patterns": [
         # Version control & IDE
