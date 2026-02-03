@@ -429,12 +429,7 @@ function ProjectsPageContent() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Page Header */}
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-primary">Projects</h1>
-            <p className="text-sm text-secondary mt-1">
-              AI implementation opportunities ranked by impact and effort
-            </p>
-          </div>
+          <h1 className="text-2xl font-bold text-primary">Projects</h1>
         </div>
 
         {/* Error State */}
