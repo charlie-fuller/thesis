@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Target,
   Filter,
@@ -275,11 +275,15 @@ function ProjectCard({ project, onClick, onMoveUp, onMoveDown, isFirst, isLast, 
 
 export default function ProjectsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+
+  // Get initiative filter from URL
+  const initiativeFilter = searchParams.get('initiative') || ''
 
   // Filters
   const [departmentFilter, setDepartmentFilter] = useState('')
@@ -305,6 +309,7 @@ export default function ProjectsPage() {
       if (departmentFilter) params.set('department', departmentFilter)
       if (statusFilter) params.set('status', statusFilter)
       if (tierFilter) params.set('tier', tierFilter.toString())
+      if (initiativeFilter) params.set('initiative_id', initiativeFilter)
 
       const data = await apiGet<Project[]>(`/api/projects/?${params}`)
       setProjects(data)
@@ -315,7 +320,7 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false)
     }
-  }, [departmentFilter, statusFilter, tierFilter])
+  }, [departmentFilter, statusFilter, tierFilter, initiativeFilter])
 
   useEffect(() => {
     if (user) {
@@ -479,6 +484,20 @@ export default function ProjectsPage() {
             <Filter className="w-4 h-4 text-muted" />
             <span className="text-sm text-muted">Filters:</span>
           </div>
+
+          {/* Initiative Filter Indicator */}
+          {initiativeFilter && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg text-sm">
+              <span>Filtered by initiative</span>
+              <button
+                onClick={() => router.push('/projects')}
+                className="hover:text-indigo-900 dark:hover:text-indigo-100"
+                title="Clear filter"
+              >
+                &times;
+              </button>
+            </div>
+          )}
 
           {/* Active Only Toggle */}
           <label className="flex items-center gap-2 cursor-pointer">
