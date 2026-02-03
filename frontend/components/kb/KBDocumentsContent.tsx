@@ -75,7 +75,7 @@ export default function KBDocumentsContent() {
   const [hasMoreDocuments, setHasMoreDocuments] = useState(true)
   const [totalEstimate, setTotalEstimate] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [statusChecksStarted, setStatusChecksStarted] = useState(false)
+  const statusChecksStarted = useRef(false)
 
   // Tags cache for lazy loading
   const [tagsCache, setTagsCache] = useState<Record<string, DocumentTag[]>>({})
@@ -746,8 +746,10 @@ export default function KBDocumentsContent() {
   // Second effect: Load status checks AFTER documents appear (deferred for perceived performance)
   useEffect(() => {
     // Only start status checks once initial load is complete
-    if (!loading && !statusChecksStarted) {
-      setStatusChecksStarted(true)
+    // Using a ref instead of state to prevent the state update from causing a re-render
+    // that would clear the timeout before it fires
+    if (!loading && !statusChecksStarted.current) {
+      statusChecksStarted.current = true
       // Small delay to ensure documents render first
       const timeoutId = setTimeout(() => {
         checkDriveStatus()
@@ -757,7 +759,7 @@ export default function KBDocumentsContent() {
       }, 100)
       return () => clearTimeout(timeoutId)
     }
-  }, [loading, statusChecksStarted, checkDriveStatus])
+  }, [loading, checkDriveStatus])
 
   // Auto-refresh when there are unprocessed documents
   useEffect(() => {
