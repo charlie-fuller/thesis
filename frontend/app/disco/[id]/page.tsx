@@ -91,6 +91,7 @@ interface LinkedProject {
   id: string
   project_code: string
   title: string
+  description: string | null
   status: string
   tier: number
 }
@@ -110,7 +111,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: str
   archived: { label: 'Archived', color: 'text-slate-500', bgColor: 'bg-slate-100 dark:bg-slate-800' },
 }
 
-type TabType = 'documents' | 'agents' | 'outputs' | 'chat'
+type TabType = 'documents' | 'agents' | 'outputs' | 'projects' | 'chat'
 
 // ============================================================================
 // MAIN PAGE
@@ -419,6 +420,7 @@ export default function InitiativeDetailPage() {
           { id: 'documents' as const, label: 'Documents', icon: FileText },
           { id: 'agents' as const, label: 'Run Agents', icon: Play },
           { id: 'outputs' as const, label: 'Outputs', icon: CheckCircle },
+          { id: 'projects' as const, label: 'Projects', icon: Target },
           { id: 'chat' as const, label: 'Chat', icon: MessageSquare },
         ].map((tab) => (
           <button
@@ -440,6 +442,11 @@ export default function InitiativeDetailPage() {
             {tab.id === 'outputs' && (
               <span className="ml-1 px-1.5 py-0.5 text-xs bg-slate-100 dark:bg-slate-800 rounded">
                 {outputs.length}
+              </span>
+            )}
+            {tab.id === 'projects' && (
+              <span className="ml-1 px-1.5 py-0.5 text-xs bg-slate-100 dark:bg-slate-800 rounded">
+                {linkedProjects.length}
               </span>
             )}
           </button>
@@ -488,6 +495,59 @@ export default function InitiativeDetailPage() {
             onRefresh={loadOutputs}
             onDelete={canEdit ? handleDeleteOutput : undefined}
           />
+        )}
+
+        {/* Projects Tab */}
+        {activeTab === 'projects' && (
+          <div className="space-y-4">
+            {linkedProjects.length === 0 ? (
+              <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg">
+                <Target className="w-12 h-12 mx-auto text-slate-400 mb-3" />
+                <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+                  No Linked Projects
+                </h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                  Projects can be linked to this initiative from the Projects page.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {linkedProjects.map((project) => (
+                  <a
+                    key={project.id}
+                    href={`/projects?highlight=${project.id}`}
+                    className="block p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-indigo-300 dark:hover:border-indigo-600 hover:shadow-md transition-all group"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                          {project.project_code}
+                        </span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded capitalize ${
+                          project.status === 'active'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            : project.status === 'completed'
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                        }`}>
+                          {project.status}
+                        </span>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                    </div>
+                    <h4 className="font-medium text-slate-900 dark:text-white mb-1 line-clamp-2">
+                      {project.title}
+                    </h4>
+                    {project.description && (
+                      <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">
+                        {project.description}
+                      </p>
+                    )}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Chat Tab */}
