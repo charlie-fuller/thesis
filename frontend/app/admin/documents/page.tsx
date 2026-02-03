@@ -78,11 +78,13 @@ export default function DocumentsPage() {
       loadDocuments();
     }, 300);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadDocuments is stable
   }, [searchQuery, selectedClient, selectedType, selectedStatus, dateRange, sortBy, sortOrder]);
 
   // Load on pagination change
   useEffect(() => {
     loadDocuments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadDocuments is stable
   }, [offset, limit]);
 
   const loadDocuments = async () => {

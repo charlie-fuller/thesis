@@ -51,6 +51,7 @@ export default function ConversationViewerPage() {
     if (conversationId) {
       fetchConversation();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchConversation is stable
   }, [conversationId]);
 
   const fetchConversation = async () => {

@@ -153,6 +153,7 @@ export default function HelpSystemPage() {
         clearInterval(pollIntervalRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only effect
   }, []);
 
   useEffect(() => {
@@ -162,6 +163,7 @@ export default function HelpSystemPage() {
     if (activeTab === 'analytics' && !analytics) {
       fetchAnalytics();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch functions are stable
   }, [activeTab, documents, analytics]);
 
   const fetchHelpStatus = async () => {

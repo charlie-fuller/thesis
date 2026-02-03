@@ -80,6 +80,7 @@ export default function CoreDocumentsPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData is stable
   }, [clientId]);
 
   const loadData = async () => {
