@@ -17,6 +17,7 @@ from services.obsidian_sync import (
     ObsidianSyncError,
     create_vault_config,
     deactivate_vault_config,
+    get_effective_sync_options,
     get_sync_status,
     get_vault_config,
     scan_vault,
@@ -625,10 +626,11 @@ async def debug_vault_scan(current_user: dict = Depends(get_current_user), limit
             return {"success": False, "error": "No vault configured"}
 
         vault_path = Path(config["vault_path"])
-        sync_options = config.get("sync_options", DEFAULT_SYNC_OPTIONS)
+        # Use effective sync options to ensure default patterns are included
+        sync_options = get_effective_sync_options(config.get("sync_options"))
 
-        include_patterns = sync_options.get("include_patterns", ["**/*.md"])
-        exclude_patterns = sync_options.get("exclude_patterns", [".obsidian/**"])
+        include_patterns = sync_options["include_patterns"]
+        exclude_patterns = sync_options["exclude_patterns"]
         max_file_size_mb = sync_options.get("max_file_size_mb", 10)
 
         # Scan vault
@@ -720,7 +722,6 @@ async def upload_remote_file(
     """
     try:
         from services.document_service import process_document
-
         from services.obsidian_sync import (
             auto_classify_document,
             extract_date_from_content,
