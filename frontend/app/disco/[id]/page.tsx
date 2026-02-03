@@ -19,7 +19,9 @@ import {
   Settings,
   Eye,
   Edit3,
-  History
+  History,
+  Target,
+  ExternalLink
 } from 'lucide-react'
 import { apiGet, apiPost, apiDelete } from '@/lib/api'
 import DocumentUpload from '@/components/disco/DocumentUpload'
@@ -86,6 +88,14 @@ interface Output {
   created_at: string
 }
 
+interface LinkedProject {
+  id: string
+  project_code: string
+  title: string
+  status: string
+  tier: number
+}
+
 // ============================================================================
 // CONSTANTS
 // ============================================================================
@@ -115,6 +125,7 @@ export default function InitiativeDetailPage() {
   const [initiative, setInitiative] = useState<Initiative | null>(null)
   const [documents, setDocuments] = useState<Document[]>([])
   const [outputs, setOutputs] = useState<Output[]>([])
+  const [linkedProjects, setLinkedProjects] = useState<LinkedProject[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -175,11 +186,24 @@ export default function InitiativeDetailPage() {
     }
   }, [initiativeId])
 
+  // Load linked projects
+  const loadLinkedProjects = useCallback(async () => {
+    try {
+      const result = await apiGet<{ projects: LinkedProject[] }>(
+        `/api/projects?initiative_id=${initiativeId}`
+      )
+      setLinkedProjects(result.projects || [])
+    } catch (err) {
+      console.error('Failed to load linked projects:', err)
+    }
+  }, [initiativeId])
+
   useEffect(() => {
     loadInitiative()
     loadDocuments()
     loadOutputs()
-  }, [loadInitiative, loadDocuments, loadOutputs])
+    loadLinkedProjects()
+  }, [loadInitiative, loadDocuments, loadOutputs, loadLinkedProjects])
 
   const handleDocumentDeleted = (docId: string) => {
     setDocuments(documents.filter(d => d.id !== docId))
@@ -364,6 +388,16 @@ export default function InitiativeDetailPage() {
                 <History className="w-4 h-4" />
                 {outputs.length} outputs
               </span>
+              {linkedProjects.length > 0 && (
+                <a
+                  href={`/projects?initiative=${initiativeId}`}
+                  className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                  <Target className="w-4 h-4" />
+                  {linkedProjects.length} project{linkedProjects.length !== 1 ? 's' : ''}
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
               {initiative.user_role !== 'owner' && (
                 <span className="flex items-center gap-1">
                   <Eye className="w-4 h-4" />

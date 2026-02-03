@@ -323,6 +323,7 @@ async def list_projects(
     tier: Optional[int] = Query(None, ge=1, le=4),
     status: Optional[str] = None,
     owner_stakeholder_id: Optional[str] = None,
+    initiative_id: Optional[str] = Query(None, description="Filter by linked initiative ID"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     current_user: dict = Depends(get_current_user),
@@ -330,7 +331,7 @@ async def list_projects(
 ):
     """List all projects for the current client.
 
-    Supports filtering by department, tier, status, and owner.
+    Supports filtering by department, tier, status, owner, and initiative.
     """
     query = supabase.table("ai_projects").select("*").eq("client_id", current_user["client_id"])
 
@@ -342,6 +343,8 @@ async def list_projects(
         query = query.eq("status", status)
     if owner_stakeholder_id:
         query = query.eq("owner_stakeholder_id", owner_stakeholder_id)
+    if initiative_id:
+        query = query.contains("initiative_ids", [initiative_id])
 
     result = query.order("total_score", desc=True).range(offset, offset + limit - 1).execute()
 
