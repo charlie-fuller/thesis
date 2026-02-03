@@ -144,12 +144,14 @@ function IntelligencePageContent() {
     if (!authLoading && user && session) {
       loadStakeholderData()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadStakeholderData is stable
   }, [authLoading, user, session])
 
   useEffect(() => {
     if (!authLoading && user && session && activeTab === 'stakeholders') {
       loadStakeholderData()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadStakeholderData is stable, activeTab intentionally omitted
   }, [authLoading, filterDepartment, filterEngagement, user, session])
 
   async function handleCreateStakeholder(e: React.FormEvent) {

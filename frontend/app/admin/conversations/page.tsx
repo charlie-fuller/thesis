@@ -55,6 +55,7 @@ export default function ConversationsPage() {
   useEffect(() => {
     fetchClients();
     fetchConversations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch functions are stable
   }, [clientFilter]);
 
   async function fetchClients() {

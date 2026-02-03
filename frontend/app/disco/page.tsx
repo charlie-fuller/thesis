@@ -282,6 +282,7 @@ export default function DiscoInitiativesPage() {
 
   useEffect(() => {
     loadInitiatives()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadInitiatives is stable
   }, [statusFilter])
 
   const handleInitiativeCreated = (initiative: Initiative) => {

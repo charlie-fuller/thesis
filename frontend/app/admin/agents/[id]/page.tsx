@@ -209,6 +209,7 @@ export default function AgentDetailPage() {
 
   useEffect(() => {
     fetchAgent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchAgent is stable
   }, [agentId]);
 
   // Fetch scan stats when viewing Taskmaster agent
@@ -216,6 +217,7 @@ export default function AgentDetailPage() {
     if (agentId === 'taskmaster') {
       fetchScanStats();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchScanStats is stable
   }, [agentId]);
 
   const fetchAgent = async () => {

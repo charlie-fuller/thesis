@@ -119,6 +119,7 @@ export default function MeetingRoomPage() {
       loadMeeting()
       loadMessages()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load functions are stable
   }, [user, meetingId])
 
   useEffect(() => {
