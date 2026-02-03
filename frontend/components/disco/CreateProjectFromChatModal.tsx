@@ -8,7 +8,9 @@ import {
   FolderPlus,
   AlertCircle,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  CheckSquare,
+  Square
 } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 import toast from 'react-hot-toast'
@@ -27,6 +29,12 @@ interface ExtractedScore {
   confidence: 'high' | 'medium' | 'low' | 'none'
 }
 
+interface ExtractedTask {
+  title: string
+  description?: string
+  priority: 'low' | 'medium' | 'high'
+}
+
 interface ExtractedData {
   title: ExtractedField
   description: ExtractedField
@@ -42,6 +50,7 @@ interface ExtractedData {
 interface ExtractionResponse {
   success: boolean
   extracted?: ExtractedData
+  tasks?: ExtractedTask[]
   source_context?: string
   initiative_id?: string
   initiative_name?: string
@@ -167,6 +176,8 @@ export default function CreateProjectFromChatModal({
   // Extracted data tracking
   const [extractedConfidence, setExtractedConfidence] = useState<ExtractedData | null>(null)
   const [sourceContext, setSourceContext] = useState('')
+  const [extractedTasks, setExtractedTasks] = useState<ExtractedTask[]>([])
+  const [selectedTaskIndices, setSelectedTaskIndices] = useState<Set<number>>(new Set())
 
   // Form state
   const [projectCode, setProjectCode] = useState('')
@@ -213,6 +224,13 @@ export default function CreateProjectFromChatModal({
           // Generate project code based on department
           const dept = extracted.department.value?.toLowerCase() || 'general'
           setProjectCode(generateProjectCode(dept))
+
+          // Handle extracted tasks
+          if (result.tasks && result.tasks.length > 0) {
+            setExtractedTasks(result.tasks)
+            // Select all tasks by default
+            setSelectedTaskIndices(new Set(result.tasks.map((_, i) => i)))
+          }
         } else {
           setError(result.error || 'Failed to extract project information')
         }
@@ -275,9 +293,30 @@ export default function CreateProjectFromChatModal({
 
       const result = await apiPost<{ id: string; project_code: string }>('/api/projects/', projectData)
 
+      // Create selected tasks linked to the new project
+      const tasksToCreate = extractedTasks.filter((_, i) => selectedTaskIndices.has(i))
+      let tasksCreated = 0
+
+      for (const task of tasksToCreate) {
+        try {
+          const priorityMap: Record<string, number> = { low: 2, medium: 3, high: 4 }
+          await apiPost('/api/tasks', {
+            title: task.title,
+            description: task.description || null,
+            priority: priorityMap[task.priority] || 3,
+            related_project_id: result.id,
+            status: 'pending',
+          })
+          tasksCreated++
+        } catch (taskErr) {
+          console.error('Failed to create task:', task.title, taskErr)
+        }
+      }
+
+      const taskMessage = tasksCreated > 0 ? ` with ${tasksCreated} task${tasksCreated > 1 ? 's' : ''}` : ''
       toast.success(
         <div className="flex items-center gap-2">
-          <span>Project {result.project_code} created</span>
+          <span>Project {result.project_code} created{taskMessage}</span>
           <button
             onClick={() => router.push(`/projects?highlight=${result.id}`)}
             className="text-indigo-600 hover:text-indigo-700 underline"
@@ -300,7 +339,7 @@ export default function CreateProjectFromChatModal({
     } finally {
       setCreating(false)
     }
-  }, [projectCode, title, description, department, currentState, desiredState, roiPotential, implementationEffort, strategicAlignment, stakeholderReadiness, initiativeId, sourceContext, onClose, router])
+  }, [projectCode, title, description, department, currentState, desiredState, roiPotential, implementationEffort, strategicAlignment, stakeholderReadiness, initiativeId, sourceContext, extractedTasks, selectedTaskIndices, onClose, router])
 
   // Reset form when modal closes
   useEffect(() => {
@@ -317,6 +356,8 @@ export default function CreateProjectFromChatModal({
       setStakeholderReadiness(3)
       setExtractedConfidence(null)
       setSourceContext('')
+      setExtractedTasks([])
+      setSelectedTaskIndices(new Set())
       setError(null)
     }
   }, [open])
@@ -334,7 +375,7 @@ export default function CreateProjectFromChatModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center gap-2">
             <FolderPlus className="w-5 h-5 text-indigo-600" />
-            <h2 className="text-lg font-semibold">Create Project from Chat</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Create Project from Chat</h2>
           </div>
           <button
             onClick={onClose}
@@ -530,6 +571,60 @@ export default function CreateProjectFromChatModal({
                   />
                 </div>
               </div>
+
+              {/* Extracted Tasks */}
+              {extractedTasks.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium mb-3 text-slate-900 dark:text-slate-100">
+                    Suggested Tasks ({selectedTaskIndices.size} of {extractedTasks.length} selected)
+                  </h3>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {extractedTasks.map((task, index) => (
+                      <label
+                        key={index}
+                        className="flex items-start gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newSet = new Set(selectedTaskIndices)
+                            if (newSet.has(index)) {
+                              newSet.delete(index)
+                            } else {
+                              newSet.add(index)
+                            }
+                            setSelectedTaskIndices(newSet)
+                          }}
+                          className="mt-0.5 flex-shrink-0"
+                        >
+                          {selectedTaskIndices.has(index) ? (
+                            <CheckSquare className="w-5 h-5 text-indigo-600" />
+                          ) : (
+                            <Square className="w-5 h-5 text-slate-400" />
+                          )}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-slate-900 dark:text-slate-100">{task.title}</p>
+                          {task.description && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                              {task.description}
+                            </p>
+                          )}
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+                          task.priority === 'high'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            : task.priority === 'medium'
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                            : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                        }`}>
+                          {task.priority}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Source Context */}
               <div className="text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-4">

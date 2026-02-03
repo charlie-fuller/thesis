@@ -65,7 +65,7 @@ async def api_ask_question(
 # PROJECT EXTRACTION FROM CHAT
 # ============================================================================
 
-PROJECT_EXTRACTION_PROMPT = """You are analyzing a conversation from a DISCo initiative chat to extract project information.
+PROJECT_EXTRACTION_PROMPT = """You are analyzing a conversation from a DISCo initiative chat to extract project information and related tasks.
 
 CRITICAL: Extract ONLY the MOST RECENTLY discussed project idea.
 
@@ -79,11 +79,11 @@ MULTI-PROJECT HANDLING:
 - Earlier messages about DIFFERENT projects should be treated as irrelevant.
 - Use [BACKGROUND] only if it contains additional context about the SAME project in [CURRENT FOCUS].
 
-For each field, provide:
+For each project field, provide:
 1. The extracted value (or null if not found)
 2. A confidence level: "high" (explicitly stated), "medium" (implied/inferred), "low" (guessed from context), "none" (cannot determine)
 
-Fields to extract:
+Project fields to extract:
 - title: A concise project name (max 100 chars)
 - description: What this project aims to accomplish (2-3 sentences)
 - department: Which department this relates to (finance, legal, hr, it, revops, marketing, sales, operations)
@@ -93,6 +93,12 @@ Fields to extract:
 - implementation_effort: Score 1-5 (5=easiest to implement)
 - strategic_alignment: Score 1-5 (5=highest strategic value)
 - stakeholder_readiness: Score 1-5 (5=most ready stakeholders)
+
+TASKS: Also extract any tasks, action items, or next steps mentioned for this project.
+- Look for phrases like "we need to", "next step is", "should do", "action item", "todo", etc.
+- Each task needs: title (concise action), description (optional context), priority (low/medium/high)
+- Extract up to 10 tasks maximum
+- Only extract tasks related to the CURRENT project being extracted
 
 Respond in this exact JSON format:
 {
@@ -105,7 +111,11 @@ Respond in this exact JSON format:
   "implementation_effort": {"value": "number 1-5 or null", "confidence": "high|medium|low|none"},
   "strategic_alignment": {"value": "number 1-5 or null", "confidence": "high|medium|low|none"},
   "stakeholder_readiness": {"value": "number 1-5 or null", "confidence": "high|medium|low|none"},
-  "source_summary": "A brief 1-2 sentence summary of the CURRENT project being extracted (not earlier projects)"
+  "source_summary": "A brief 1-2 sentence summary of the CURRENT project being extracted (not earlier projects)",
+  "tasks": [
+    {"title": "Task title", "description": "Optional details", "priority": "low|medium|high"},
+    ...
+  ]
 }
 
 Return ONLY valid JSON, no markdown formatting."""
@@ -308,6 +318,7 @@ Now extract project information from this conversation."""
                     ),
                 },
             },
+            "tasks": extracted.get("tasks", []),
             "source_context": source_context,
             "initiative_id": initiative_id,
             "initiative_name": initiative_name,
