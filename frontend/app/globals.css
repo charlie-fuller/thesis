@@ -28,7 +28,6 @@
   --color-text-muted: #6b7280;        /* Light gray - Muted text (4.6:1 on white) */
   --color-text-on-primary: #ffffff;   /* White - Text on primary buttons */
   --color-text-on-secondary: #1d1d22; /* Dark gray - Text on secondary/outline buttons */
-  --color-text-input: #1d1d22;        /* Dark gray - Always dark for input fields */
 
   /* Border Colors */
   --color-border-default: #e5e5e9;    /* Light border - Default borders */
@@ -88,24 +87,12 @@ body {
 input,
 textarea,
 select {
-  color: var(--color-text-input);
-}
-
-/* Dark mode: use light text for inputs */
-.dark input,
-.dark textarea,
-.dark select {
-  color: #f1f5f9; /* slate-100 */
+  color: var(--color-text-primary);
 }
 
 input::placeholder,
 textarea::placeholder {
   color: var(--color-text-muted);
-}
-
-.dark input::placeholder,
-.dark textarea::placeholder {
-  color: #94a3b8; /* slate-400 */
 }
 
 input:disabled,
