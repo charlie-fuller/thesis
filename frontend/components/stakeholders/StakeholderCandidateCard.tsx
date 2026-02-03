@@ -273,7 +273,7 @@ export default function StakeholderCandidateCard({
             <div>
               <div className="text-xs text-secondary font-medium mb-1">Evidence</div>
               <p className="text-sm text-secondary italic bg-secondary/5 p-2 rounded">
-                "{candidate.source_text}"
+                &ldquo;{candidate.source_text}&rdquo;
               </p>
             </div>
           )}

@@ -75,6 +75,7 @@ export default function GraphVisualization({
   visibleNodeTypes,
 }: GraphVisualizationProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<any>(null);
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -211,6 +212,7 @@ export default function GraphVisualization({
       </div>
 
       {/* Graph */}
+      {/* eslint-disable @typescript-eslint/no-explicit-any */}
       <ForceGraph2D
         ref={graphRef}
         graphData={data}

@@ -4,10 +4,16 @@ import { useState } from 'react'
 import { Database, FileText } from 'lucide-react'
 import KBDocumentBrowser from './KBDocumentBrowser'
 
+interface UploadedDocument {
+  id: string
+  name: string
+  [key: string]: unknown
+}
+
 interface DocumentUploadProps {
   initiativeId: string
   initiativeName?: string
-  onUploaded: (document: any) => void
+  onUploaded: (document: UploadedDocument) => void
   onDocumentsLinked?: () => void
 }
 

@@ -24,8 +24,11 @@ export default function ProjectNameModal({
   // Reset form when modal opens
   useEffect(() => {
     if (open) {
-      setProjectName('')
-      setProjectDescription('')
+      // Using setTimeout to avoid synchronous setState in effect
+      setTimeout(() => {
+        setProjectName('')
+        setProjectDescription('')
+      }, 0)
     }
   }, [open])
 

@@ -107,7 +107,7 @@ interface AgentRunnerProps {
   canRun: boolean
   documents: Document[]
   outputs?: AgentOutput[]
-  onComplete: (output: any) => void
+  onComplete: (output: AgentOutput) => void
 }
 
 // Consolidated agent config (4 agents with checkpoints)

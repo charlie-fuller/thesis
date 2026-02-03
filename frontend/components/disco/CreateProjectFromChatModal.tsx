@@ -629,7 +629,7 @@ export default function CreateProjectFromChatModal({
               {/* Source Context */}
               <div className="text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-4">
                 <p>
-                  <strong>Source:</strong> DISCo Initiative "{initiativeName}"
+                  <strong>Source:</strong> DISCo Initiative &ldquo;{initiativeName}&rdquo;
                 </p>
                 {sourceContext && (
                   <p className="mt-1 line-clamp-2">{sourceContext}</p>

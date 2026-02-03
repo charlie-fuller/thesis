@@ -11,7 +11,7 @@ import { test, expect } from '@playwright/test'
 const screenshotOptions = {
   fullPage: true,
   animations: 'disabled' as const,
-  mask: [] as any[], // Elements to mask (dynamic content)
+  mask: [] as unknown[], // Elements to mask (dynamic content)
 }
 
 test.describe('Visual Regression - Page Layouts', () => {

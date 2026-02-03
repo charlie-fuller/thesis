@@ -25,7 +25,14 @@ async def create_initiative(name: str, user_id: str, description: Optional[str] 
 
     Returns:
         Created initiative record
+
+    Raises:
+        ValueError: If name is empty or whitespace only
     """
+    # Validate name is not empty
+    if not name or not name.strip():
+        raise ValueError("Initiative name cannot be empty")
+
     logger.info(f"Creating initiative: {name} for user {user_id}")
 
     initiative_id = str(uuid4())

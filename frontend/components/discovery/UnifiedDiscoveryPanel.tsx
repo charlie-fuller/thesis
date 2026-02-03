@@ -446,7 +446,7 @@ export default function UnifiedDiscoveryPanel() {
             {/* Source badge */}
             <div className="flex items-center gap-2 text-xs text-muted mb-2">
               <FileText className="w-3 h-3" />
-              <span>{'source_document_name' in currentItem ? (currentItem as any).source_document_name : 'Unknown source'}</span>
+              <span>{currentItem.source_document_name ?? 'Unknown source'}</span>
               <span className={`ml-auto px-2 py-0.5 rounded font-medium ${
                 currentItem.confidence === 'high'
                   ? 'bg-green-500/20 text-green-400'

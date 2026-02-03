@@ -68,7 +68,7 @@ interface Document {
   content?: string
   document_type?: string
   version?: number
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 interface Output {
@@ -82,7 +82,7 @@ interface Output {
   confidence_level: string | null
   executive_summary: string | null
   content_markdown: string
-  content_structured: Record<string, any>
+  content_structured: Record<string, unknown>
   created_at: string
 }
 

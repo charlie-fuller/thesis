@@ -88,7 +88,7 @@ interface Output {
   confidence_level: string | null
   executive_summary: string | null
   content_markdown: string
-  content_structured: Record<string, any>
+  content_structured: Record<string, unknown>
   created_at: string
   output_format?: string
   synthesis_mode?: string

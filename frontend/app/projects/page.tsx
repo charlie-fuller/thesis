@@ -407,7 +407,7 @@ export default function ProjectsPage() {
   // Sort and filter projects
   const sortedProjects = useMemo(() => {
     // Filter by active status first if toggle is on
-    let filtered = activeOnly
+    const filtered = activeOnly
       ? projects.filter(p => ['scoping', 'pilot', 'scaling'].includes(p.status))
       : projects
 
@@ -434,6 +434,17 @@ export default function ProjectsPage() {
     }
   }, [projects, sortBy, activeOnly])
 
+  // Count active projects - must be before early returns (React Hook rule)
+  const activeCount = useMemo(() =>
+    projects.filter(p => ['scoping', 'pilot', 'scaling'].includes(p.status)).length
+  , [projects])
+
+  // Group projects by tier for summary
+  const tierCounts = useMemo(() => projects.reduce((acc, p) => {
+    acc[p.tier] = (acc[p.tier] || 0) + 1
+    return acc
+  }, {} as Record<number, number>), [projects])
+
   // Show loading state while auth is being checked
   if (authLoading) {
     return (
@@ -450,17 +461,6 @@ export default function ProjectsPage() {
   if (!user) {
     return null
   }
-
-  // Group projects by tier for summary
-  const tierCounts = projects.reduce((acc, p) => {
-    acc[p.tier] = (acc[p.tier] || 0) + 1
-    return acc
-  }, {} as Record<number, number>)
-
-  // Count active projects
-  const activeCount = useMemo(() =>
-    projects.filter(p => ['scoping', 'pilot', 'scaling'].includes(p.status)).length
-  , [projects])
 
   return (
     <PageLayout>
@@ -781,7 +781,7 @@ export default function ProjectsPage() {
       {/* Project Detail Modal */}
       {selectedProject && (
         <ProjectDetailModal
-          project={selectedProject as any}
+          project={selectedProject}
           open={true}
           onClose={() => setSelectedProject(null)}
         />

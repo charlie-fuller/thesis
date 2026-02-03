@@ -111,7 +111,7 @@ export default function ShareModal({
 
       setMembers(prev =>
         prev.map(m =>
-          m.user_id === userId ? { ...m, role: newRole as any } : m
+          m.user_id === userId ? { ...m, role: newRole as Member['role'] } : m
         )
       )
     } catch (err) {
@@ -171,7 +171,7 @@ export default function ShareModal({
                 </div>
                 <select
                   value={role}
-                  onChange={(e) => setRole(e.target.value as any)}
+                  onChange={(e) => setRole(e.target.value as 'editor' | 'viewer')}
                   className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 >
                   <option value="viewer">Viewer</option>
