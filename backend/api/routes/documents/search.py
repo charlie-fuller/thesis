@@ -422,11 +422,22 @@ async def bulk_tag_operation(
 async def search_documents(
     q: Optional[str] = None,
     tags: Optional[str] = None,
+    sort: Optional[str] = None,
+    source: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,
     current_user: dict = Depends(get_current_user),
 ):
-    """Search KB documents by filename, title, content, and/or tags."""
+    """Search KB documents by filename, title, content, and/or tags.
+
+    Args:
+        q: Search query for filename/title
+        tags: Comma-separated list of tags to filter by
+        sort: Sort order - 'recent' (default), 'oldest', 'name_asc', 'name_desc'
+        source: Filter by source platform - 'obsidian', 'google_drive', 'notion', 'upload'
+        limit: Number of results per page
+        offset: Pagination offset
+    """
     try:
         user_id = current_user["id"]
 
@@ -438,8 +449,22 @@ async def search_documents(
                 count="exact",
             )
             .eq("uploaded_by", user_id)
-            .order("uploaded_at", desc=True)
         )
+
+        # Apply source platform filter
+        if source and source.strip():
+            query = query.eq("source_platform", source.strip())
+
+        # Apply sort order
+        sort_field = sort.strip().lower() if sort else "recent"
+        if sort_field == "oldest":
+            query = query.order("uploaded_at", desc=False)
+        elif sort_field == "name_asc":
+            query = query.order("filename", desc=False)
+        elif sort_field == "name_desc":
+            query = query.order("filename", desc=True)
+        else:  # default to 'recent'
+            query = query.order("uploaded_at", desc=True)
 
         if q and q.strip():
             search_term = q.strip()

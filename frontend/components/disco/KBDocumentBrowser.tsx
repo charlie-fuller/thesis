@@ -1,9 +1,27 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { X, Search, FileText, Check, Loader2, Eye, Tag, Link } from 'lucide-react'
+import { X, Search, FileText, Check, Loader2, Eye, Tag, Link, ArrowUpDown, Filter } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 import TagSelector from '@/components/TagSelector'
+
+type SortOption = 'recent' | 'oldest' | 'name_asc' | 'name_desc'
+type SourceOption = '' | 'obsidian' | 'google_drive' | 'notion' | 'upload'
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'recent', label: 'Most Recent' },
+  { value: 'oldest', label: 'Oldest First' },
+  { value: 'name_asc', label: 'Name (A-Z)' },
+  { value: 'name_desc', label: 'Name (Z-A)' },
+]
+
+const SOURCE_OPTIONS: { value: SourceOption; label: string }[] = [
+  { value: '', label: 'All Sources' },
+  { value: 'obsidian', label: 'Vault' },
+  { value: 'google_drive', label: 'Google Drive' },
+  { value: 'notion', label: 'Notion' },
+  { value: 'upload', label: 'Uploaded' },
+]
 
 interface KBDocument {
   id: string
@@ -31,6 +49,8 @@ export default function KBDocumentBrowser({
 }: KBDocumentBrowserProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTagsFilter, setSelectedTagsFilter] = useState<Set<string>>(new Set())
+  const [sortBy, setSortBy] = useState<SortOption>('recent')
+  const [sourceFilter, setSourceFilter] = useState<SourceOption>('')
   const [documents, setDocuments] = useState<KBDocument[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set())
@@ -43,8 +63,14 @@ export default function KBDocumentBrowser({
 
   const LIMIT = 20
 
-  // Fetch documents when search or tags change
-  const fetchDocuments = useCallback(async (resetOffset = true, query?: string, tags?: Set<string>) => {
+  // Fetch documents when search, tags, sort, or source change
+  const fetchDocuments = useCallback(async (
+    resetOffset = true,
+    query?: string,
+    tags?: Set<string>,
+    sort?: SortOption,
+    source?: SourceOption
+  ) => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -54,11 +80,20 @@ export default function KBDocumentBrowser({
       // Use passed values or fall back to state
       const q = query ?? searchQuery
       const t = tags ?? selectedTagsFilter
+      const s = sort ?? sortBy
+      const src = source ?? sourceFilter
+
       if (q) {
         params.append('q', q)
       }
       if (t.size > 0) {
         params.append('tags', Array.from(t).join(','))
+      }
+      if (s) {
+        params.append('sort', s)
+      }
+      if (src) {
+        params.append('source', src)
       }
 
       const result = await apiGet<{
@@ -80,14 +115,14 @@ export default function KBDocumentBrowser({
     } finally {
       setLoading(false)
     }
-  }, [offset])
+  }, [offset, searchQuery, selectedTagsFilter, sortBy, sourceFilter])
 
-  // Initial load and search/filter changes
+  // Initial load and search/filter/sort changes
   useEffect(() => {
     if (isOpen) {
-      fetchDocuments(true, searchQuery, selectedTagsFilter)
+      fetchDocuments(true, searchQuery, selectedTagsFilter, sortBy, sourceFilter)
     }
-  }, [isOpen, searchQuery, selectedTagsFilter])
+  }, [isOpen, searchQuery, selectedTagsFilter, sortBy, sourceFilter])
 
   // Load document preview
   const loadPreview = async (docId: string) => {
@@ -162,6 +197,8 @@ export default function KBDocumentBrowser({
     setPreviewContent('')
     setSearchQuery('')
     setSelectedTagsFilter(new Set())
+    setSortBy('recent')
+    setSourceFilter('')
     onClose()
   }
 
@@ -189,7 +226,8 @@ export default function KBDocumentBrowser({
         </div>
 
         {/* Search and Filter */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 space-y-3">
+          {/* First Row: Search and Tags */}
           <div className="flex items-start gap-4">
             {/* Text Search - 60% width */}
             <div className="relative w-3/5">
@@ -213,6 +251,54 @@ export default function KBDocumentBrowser({
                 size="base"
               />
             </div>
+          </div>
+
+          {/* Second Row: Sort and Source Filter */}
+          <div className="flex items-center gap-4">
+            {/* Sort Dropdown */}
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="w-4 h-4 text-slate-400" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="px-3 py-1.5 text-sm border border-default rounded-lg bg-card text-primary focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                {SORT_OPTIONS.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Source Filter Dropdown */}
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-slate-400" />
+              <select
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value as SourceOption)}
+                className="px-3 py-1.5 text-sm border border-default rounded-lg bg-card text-primary focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                {SOURCE_OPTIONS.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Active filters indicator */}
+            {(sortBy !== 'recent' || sourceFilter) && (
+              <button
+                onClick={() => {
+                  setSortBy('recent')
+                  setSourceFilter('')
+                }}
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                Reset filters
+              </button>
+            )}
           </div>
         </div>
 
@@ -295,7 +381,7 @@ export default function KBDocumentBrowser({
                 {/* Load More */}
                 {hasMore && (
                   <button
-                    onClick={() => fetchDocuments(false, searchQuery, selectedTagsFilter)}
+                    onClick={() => fetchDocuments(false, searchQuery, selectedTagsFilter, sortBy, sourceFilter)}
                     disabled={loading}
                     className="w-full py-3 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center justify-center gap-2"
                   >
