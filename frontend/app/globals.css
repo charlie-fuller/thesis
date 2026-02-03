@@ -91,9 +91,21 @@ select {
   color: var(--color-text-input);
 }
 
+/* Dark mode: use light text for inputs */
+.dark input,
+.dark textarea,
+.dark select {
+  color: #f1f5f9; /* slate-100 */
+}
+
 input::placeholder,
 textarea::placeholder {
   color: var(--color-text-muted);
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #94a3b8; /* slate-400 */
 }
 
 input:disabled,
