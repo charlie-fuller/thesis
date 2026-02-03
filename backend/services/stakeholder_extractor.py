@@ -139,19 +139,77 @@ DOCUMENT CONTENT:
             logger.error(f"Stakeholder extraction failed: {e}")
             return []
 
+    def _clean_json_response(self, response_text: str) -> str:
+        """Clean markdown code blocks from JSON response."""
+        if response_text.startswith("```"):
+            response_text = response_text.split("```")[1]
+            if response_text.startswith("json"):
+                response_text = response_text[4:]
+            response_text = response_text.strip()
+        return response_text
+
+    def _normalize_field(
+        self, value: str | None, valid_values: tuple[str, ...], default: str
+    ) -> str | None:
+        """Normalize a field value to lowercase and validate against allowed values."""
+        if not value:
+            return None
+        normalized = value.lower().strip()
+        return normalized if normalized in valid_values else default
+
+    def _ensure_list(self, value) -> list:
+        """Ensure a value is a list."""
+        if isinstance(value, list):
+            return value
+        return [value] if value else []
+
+    def _build_stakeholder(self, item: dict, source_document: str) -> ExtractedStakeholder | None:
+        """Build an ExtractedStakeholder from a parsed item."""
+        name = item.get("name", "").strip()
+        if len(name) < 2:
+            return None
+
+        if self._is_multi_person(name):
+            logger.debug(f"Skipping multi-person entry: {name}")
+            return None
+
+        department = item.get("department")
+        if department:
+            department = department.lower().strip()
+
+        sentiment = self._normalize_field(
+            item.get("initial_sentiment"),
+            ("positive", "neutral", "negative"),
+            "neutral",
+        )
+        influence = self._normalize_field(
+            item.get("influence_level"), ("high", "medium", "low"), "medium"
+        )
+
+        return ExtractedStakeholder(
+            name=name,
+            role=item.get("role"),
+            department=department,
+            organization=item.get("organization"),
+            email=item.get("email"),
+            key_concerns=self._ensure_list(item.get("key_concerns", [])),
+            interests=self._ensure_list(item.get("interests", [])),
+            initial_sentiment=sentiment,
+            influence_level=influence,
+            source_document=source_document,
+            source_text=item.get("source_text", "")[:500],
+            extraction_context=item.get("extraction_context", "")[:500],
+            confidence=self._calculate_confidence(item),
+        )
+
     def _parse_response(
         self, response_text: str, source_document: str
     ) -> list[ExtractedStakeholder]:
         """Parse LLM response into ExtractedStakeholder objects."""
         try:
-            # Handle potential markdown code blocks
-            if response_text.startswith("```"):
-                response_text = response_text.split("```")[1]
-                if response_text.startswith("json"):
-                    response_text = response_text[4:]
-                response_text = response_text.strip()
-
+            response_text = self._clean_json_response(response_text)
             stakeholders_data = json.loads(response_text)
+
             if not isinstance(stakeholders_data, list):
                 logger.warning("LLM response not a list")
                 return []
@@ -161,63 +219,9 @@ DOCUMENT CONTENT:
                 if not isinstance(item, dict) or "name" not in item:
                     continue
 
-                name = item.get("name", "").strip()
-                if len(name) < 2:
-                    continue
-
-                # Skip multi-person entries (e.g., "ashley/tricia", "tyler & charlie")
-                if self._is_multi_person(name):
-                    logger.debug(f"Skipping multi-person entry: {name}")
-                    continue
-
-                # Normalize department to lowercase
-                department = item.get("department")
-                if department:
-                    department = department.lower().strip()
-
-                # Normalize sentiment
-                sentiment = item.get("initial_sentiment")
-                if sentiment:
-                    sentiment = sentiment.lower().strip()
-                    if sentiment not in ("positive", "neutral", "negative"):
-                        sentiment = "neutral"
-
-                # Normalize influence level
-                influence = item.get("influence_level")
-                if influence:
-                    influence = influence.lower().strip()
-                    if influence not in ("high", "medium", "low"):
-                        influence = "medium"
-
-                # Ensure lists
-                key_concerns = item.get("key_concerns", [])
-                if not isinstance(key_concerns, list):
-                    key_concerns = [key_concerns] if key_concerns else []
-
-                interests = item.get("interests", [])
-                if not isinstance(interests, list):
-                    interests = [interests] if interests else []
-
-                # Determine confidence based on available info
-                confidence = self._calculate_confidence(item)
-
-                stakeholders.append(
-                    ExtractedStakeholder(
-                        name=name,
-                        role=item.get("role"),
-                        department=department,
-                        organization=item.get("organization"),
-                        email=item.get("email"),
-                        key_concerns=key_concerns,
-                        interests=interests,
-                        initial_sentiment=sentiment,
-                        influence_level=influence,
-                        source_document=source_document,
-                        source_text=item.get("source_text", "")[:500],
-                        extraction_context=item.get("extraction_context", "")[:500],
-                        confidence=confidence,
-                    )
-                )
+                stakeholder = self._build_stakeholder(item, source_document)
+                if stakeholder:
+                    stakeholders.append(stakeholder)
 
             return stakeholders
 

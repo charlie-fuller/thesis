@@ -466,6 +466,48 @@ DOCUMENT CONTENT:
             extraction_pattern=pattern_name,
         )
 
+    def _calculate_weekday_date(self, date_text: str, today: date) -> Optional[date]:
+        """Calculate the next occurrence of a weekday."""
+        weekdays = {
+            "monday": 0,
+            "tuesday": 1,
+            "wednesday": 2,
+            "thursday": 3,
+            "friday": 4,
+            "saturday": 5,
+            "sunday": 6,
+        }
+        target_day = weekdays.get(date_text.lower())
+        if target_day is None:
+            return None
+        days_ahead = target_day - today.weekday()
+        if days_ahead <= 0:
+            days_ahead += 7
+        return today + timedelta(days=days_ahead)
+
+    def _calculate_eow_date(self, today: date) -> date:
+        """Calculate end of week (Friday)."""
+        days_until_friday = (4 - today.weekday()) % 7
+        if days_until_friday == 0:
+            days_until_friday = 7
+        return today + timedelta(days=days_until_friday)
+
+    def _calculate_eom_date(self, today: date) -> date:
+        """Calculate end of month."""
+        if today.month == 12:
+            return date(today.year + 1, 1, 1) - timedelta(days=1)
+        return date(today.year, today.month + 1, 1) - timedelta(days=1)
+
+    def _parse_date_text(self, date_text: str) -> Optional[date]:
+        """Parse a date from text like '1/15' or '1/15/2025'."""
+        try:
+            parts = date_text.split("/")
+            if len(parts) >= 2:
+                return date.today().replace(month=int(parts[0]), day=int(parts[1]))
+        except (ValueError, IndexError):
+            pass
+        return None
+
     def _extract_due_date(self, text: str) -> tuple[Optional[date], Optional[str]]:
         """Extract due date from text using patterns."""
         today = date.today()
@@ -479,53 +521,20 @@ DOCUMENT CONTENT:
                     return today + timedelta(days=offset), date_text
 
                 if offset == "weekday":
-                    # Calculate days until the mentioned weekday
-                    weekdays = {
-                        "monday": 0,
-                        "tuesday": 1,
-                        "wednesday": 2,
-                        "thursday": 3,
-                        "friday": 4,
-                        "saturday": 5,
-                        "sunday": 6,
-                    }
-                    target_day = weekdays.get(date_text.lower())
-                    if target_day is not None:
-                        days_ahead = target_day - today.weekday()
-                        if days_ahead <= 0:
-                            days_ahead += 7
-                        return today + timedelta(days=days_ahead), date_text
+                    result = self._calculate_weekday_date(date_text, today)
+                    if result:
+                        return result, date_text
 
-                if offset == "eow":
-                    # End of week (Friday)
-                    days_until_friday = (4 - today.weekday()) % 7
-                    if days_until_friday == 0:
-                        days_until_friday = 7
-                    return today + timedelta(days=days_until_friday), date_text
+                elif offset == "eow":
+                    return self._calculate_eow_date(today), date_text
 
-                if offset == "eom":
-                    # End of month
-                    if today.month == 12:
-                        eom = date(today.year + 1, 1, 1) - timedelta(days=1)
-                    else:
-                        eom = date(today.year, today.month + 1, 1) - timedelta(days=1)
-                    return eom, date_text
+                elif offset == "eom":
+                    return self._calculate_eom_date(today), date_text
 
-                if offset == "date":
-                    # Try to parse the date
-                    try:
-                        # Handle various date formats
-                        for _fmt in ["%m/%d/%Y", "%m/%d/%y", "%m/%d"]:
-                            try:
-                                parsed = date.today().replace(
-                                    month=int(date_text.split("/")[0]),
-                                    day=int(date_text.split("/")[1]),
-                                )
-                                return parsed, date_text
-                            except (ValueError, IndexError):
-                                continue
-                    except Exception:
-                        pass
+                elif offset == "date":
+                    result = self._parse_date_text(date_text)
+                    if result:
+                        return result, date_text
 
         return None, None
 
