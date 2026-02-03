@@ -43,13 +43,16 @@ import {
   Compass,
   Plus,
   Trash2,
+  Link,
+  Unlink,
 } from 'lucide-react'
-import { apiGet, apiPost, apiPatch } from '@/lib/api'
+import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api'
 import ScoreJustification from './ScoreJustification'
 import DocumentViewerModal from './DocumentViewerModal'
 import ProjectNameModal from './ProjectNameModal'
 import TaskmasterChatSection from './TaskmasterChatSection'
 import GoalAlignmentSection from './GoalAlignmentSection'
+import ProjectDocumentBrowser from './ProjectDocumentBrowser'
 
 // ============================================================================
 // TYPES
@@ -174,6 +177,16 @@ interface Conversation {
   created_at: string
 }
 
+interface LinkedDocument {
+  id: string
+  document_id: string
+  document_name: string
+  title: string | null
+  linked_at: string
+  linked_by: string | null
+  notes: string | null
+}
+
 interface ProjectDetailModalProps {
   project: Project
   open: boolean
@@ -234,6 +247,10 @@ export default function ProjectDetailModal({
   // State
   const [relatedDocs, setRelatedDocs] = useState<RelatedDocument[]>([])
   const [docsLoading, setDocsLoading] = useState(false)
+  const [linkedDocuments, setLinkedDocuments] = useState<LinkedDocument[]>([])
+  const [linkedDocsLoading, setLinkedDocsLoading] = useState(false)
+  const [showDocumentBrowser, setShowDocumentBrowser] = useState(false)
+  const [unlinkingDocId, setUnlinkingDocId] = useState<string | null>(null)
   const [linkedStakeholders, setLinkedStakeholders] = useState<LinkedStakeholder[]>([])
   const [stakeholdersLoading, setStakeholdersLoading] = useState(false)
   const [linkedInitiatives, setLinkedInitiatives] = useState<Initiative[]>([])
@@ -303,7 +320,7 @@ export default function ProjectDetailModal({
   const [shouldAutoGenerateTasks, setShouldAutoGenerateTasks] = useState(false)
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'tasks' | 'related' | 'chat'>('scores')
+  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'tasks' | 'documents' | 'related' | 'chat'>('scores')
 
   // Individual section editing state (replaces global edit mode)
   const [editingSection, setEditingSection] = useState<
@@ -349,6 +366,7 @@ export default function ProjectDetailModal({
   useEffect(() => {
     if (open && project) {
       fetchRelatedDocuments()
+      fetchLinkedDocuments()
       fetchLinkedStakeholders()
       fetchConversations()
       fetchLinkedInitiatives()
@@ -376,6 +394,36 @@ export default function ProjectDetailModal({
     } finally {
       setDocsLoading(false)
     }
+  }
+
+  const fetchLinkedDocuments = async () => {
+    setLinkedDocsLoading(true)
+    try {
+      const docs = await apiGet<LinkedDocument[]>(
+        `/api/projects/${project.id}/documents`
+      )
+      setLinkedDocuments(docs)
+    } catch (error) {
+      console.error('Failed to fetch linked documents:', error)
+    } finally {
+      setLinkedDocsLoading(false)
+    }
+  }
+
+  const handleUnlinkDocument = async (documentId: string) => {
+    setUnlinkingDocId(documentId)
+    try {
+      await apiDelete(`/api/projects/${project.id}/documents/${documentId}`)
+      setLinkedDocuments(prev => prev.filter(d => d.document_id !== documentId))
+    } catch (error) {
+      console.error('Failed to unlink document:', error)
+    } finally {
+      setUnlinkingDocId(null)
+    }
+  }
+
+  const handleDocumentsLinked = () => {
+    fetchLinkedDocuments()
   }
 
   const fetchLinkedStakeholders = async () => {
@@ -801,6 +849,7 @@ export default function ProjectDetailModal({
             { id: 'alignment' as const, label: 'Alignment', icon: Target },
             { id: 'details' as const, label: 'Details', icon: FileText },
             { id: 'tasks' as const, label: 'Tasks', icon: ListTodo },
+            { id: 'documents' as const, label: 'Documents', icon: Link },
             { id: 'related' as const, label: 'Related', icon: ExternalLink },
             { id: 'chat' as const, label: 'Chat', icon: MessageSquare },
           ].map((tab) => (
@@ -1445,6 +1494,93 @@ export default function ProjectDetailModal({
             </div>
           )}
 
+          {/* DOCUMENTS TAB */}
+          {activeTab === 'documents' && (
+            <div className="space-y-6">
+              {/* Header with Link button */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
+                  <Link className="w-4 h-4" />
+                  Linked Documents
+                </h3>
+                <button
+                  onClick={() => setShowDocumentBrowser(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Link from KB
+                </button>
+              </div>
+
+              {/* Loading state */}
+              {linkedDocsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                </div>
+              ) : linkedDocuments.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg">
+                  <FileText className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+                  <p className="text-sm text-muted">No documents linked yet</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Click &quot;Link from KB&quot; to attach relevant documents
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {linkedDocuments.map(doc => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <FileText className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-medium text-primary truncate">
+                            {doc.title || doc.document_name}
+                          </p>
+                          <p className="text-xs text-muted">
+                            Linked {new Date(doc.linked_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setViewingDocument({
+                              document_id: doc.document_id,
+                              document_name: doc.document_name
+                            })
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                          title="View document"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleUnlinkDocument(doc.document_id)}
+                          disabled={unlinkingDocId === doc.document_id}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50"
+                          title="Unlink document"
+                        >
+                          {unlinkingDocId === doc.document_id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Unlink className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Note about auto-discovered documents */}
+              <p className="text-xs text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-4">
+                These are documents you&apos;ve manually linked. Auto-discovered related documents appear in the Related tab.
+              </p>
+            </div>
+          )}
+
           {/* RELATED TAB */}
           {activeTab === 'related' && (
             <div className="space-y-8">
@@ -1872,6 +2008,15 @@ export default function ProjectDetailModal({
         onSubmit={handleProjectNameSubmit}
         projectTitle={project.title}
         newStatus={pendingStatus || 'active'}
+      />
+
+      {/* Document Browser Modal */}
+      <ProjectDocumentBrowser
+        projectId={project.id}
+        projectTitle={project.title}
+        isOpen={showDocumentBrowser}
+        onClose={() => setShowDocumentBrowser(false)}
+        onLinked={handleDocumentsLinked}
       />
     </div>
   )

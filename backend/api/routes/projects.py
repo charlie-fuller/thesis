@@ -229,6 +229,24 @@ class ConversationResponse(BaseModel):
     created_at: str
 
 
+class LinkedDocumentResponse(BaseModel):
+    """A document manually linked to a project."""
+
+    id: str  # Link ID
+    document_id: str
+    document_name: str
+    title: Optional[str] = None
+    linked_at: str
+    linked_by: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class LinkDocumentsRequest(BaseModel):
+    """Request to link documents to a project."""
+
+    document_ids: List[str] = Field(..., min_items=1)
+
+
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
@@ -566,6 +584,168 @@ async def get_project_related_documents(
     )
 
     return related_docs
+
+
+# ============================================================================
+# LINKED DOCUMENTS ENDPOINTS
+# ============================================================================
+
+
+@router.get("/{project_id}/documents", response_model=List[LinkedDocumentResponse])
+async def get_project_linked_documents(
+    project_id: str,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Get documents manually linked to a project.
+
+    Returns documents linked via the project_documents junction table,
+    sorted by linked_at descending (most recent first).
+    """
+    # Verify project exists and belongs to client
+    project_result = (
+        supabase.table("ai_projects")
+        .select("id")
+        .eq("id", project_id)
+        .eq("client_id", current_user["client_id"])
+        .single()
+        .execute()
+    )
+
+    if not project_result.data:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Get linked documents with document details
+    result = (
+        supabase.table("project_documents")
+        .select("id, document_id, linked_at, linked_by, notes, documents(filename, title)")
+        .eq("project_id", project_id)
+        .order("linked_at", desc=True)
+        .execute()
+    )
+
+    linked_docs = []
+    for row in result.data or []:
+        doc_info = row.get("documents", {}) or {}
+        linked_docs.append(
+            LinkedDocumentResponse(
+                id=row["id"],
+                document_id=row["document_id"],
+                document_name=doc_info.get("filename", "Unknown"),
+                title=doc_info.get("title"),
+                linked_at=row["linked_at"],
+                linked_by=row.get("linked_by"),
+                notes=row.get("notes"),
+            )
+        )
+
+    return linked_docs
+
+
+@router.post("/{project_id}/documents/link")
+async def link_documents_to_project(
+    project_id: str,
+    request: LinkDocumentsRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Link KB documents to a project.
+
+    Creates links in the project_documents junction table.
+    Duplicates are handled gracefully (upsert).
+    """
+    # Verify project exists and belongs to client
+    project_result = (
+        supabase.table("ai_projects")
+        .select("id, title")
+        .eq("id", project_id)
+        .eq("client_id", current_user["client_id"])
+        .single()
+        .execute()
+    )
+
+    if not project_result.data:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    user_id = current_user["id"]
+    linked_count = 0
+    errors = []
+
+    for doc_id in request.document_ids:
+        try:
+            # Verify document exists
+            doc_result = (
+                supabase.table("documents")
+                .select("id, filename")
+                .eq("id", doc_id)
+                .single()
+                .execute()
+            )
+
+            if not doc_result.data:
+                errors.append({"document_id": doc_id, "error": "Document not found"})
+                continue
+
+            # Create link (upsert to handle duplicates)
+            supabase.table("project_documents").upsert(
+                {
+                    "project_id": project_id,
+                    "document_id": doc_id,
+                    "linked_by": user_id,
+                },
+                on_conflict="project_id,document_id",
+            ).execute()
+
+            linked_count += 1
+
+        except Exception as e:
+            logger.error(f"Error linking document {doc_id} to project {project_id}: {e}")
+            errors.append({"document_id": doc_id, "error": str(e)})
+
+    return {
+        "success": True,
+        "linked_count": linked_count,
+        "errors": errors if errors else None,
+    }
+
+
+@router.delete("/{project_id}/documents/{document_id}")
+async def unlink_document_from_project(
+    project_id: str,
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Unlink a document from a project.
+
+    Removes the link from project_documents but does not delete the document from KB.
+    """
+    # Verify project exists and belongs to client
+    project_result = (
+        supabase.table("ai_projects")
+        .select("id")
+        .eq("id", project_id)
+        .eq("client_id", current_user["client_id"])
+        .single()
+        .execute()
+    )
+
+    if not project_result.data:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Delete the link
+    result = (
+        supabase.table("project_documents")
+        .delete()
+        .eq("project_id", project_id)
+        .eq("document_id", document_id)
+        .execute()
+    )
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Document link not found")
+
+    return {"success": True, "message": "Document unlinked from project"}
 
 
 @router.get("/{project_id}/conversations", response_model=List[ConversationResponse])
