@@ -47,6 +47,47 @@ def _get_db():
     return _supabase
 
 
+def get_effective_sync_options(config_options: Optional[Dict] = None) -> Dict:
+    """Get effective sync options by merging config with defaults.
+
+    Always ensures default include/exclude patterns are present,
+    even for existing configs created before new patterns were added.
+
+    Args:
+        config_options: User's stored sync options (may be None or partial)
+
+    Returns:
+        Merged sync options with all default patterns included
+    """
+    if not config_options:
+        return DEFAULT_SYNC_OPTIONS.copy()
+
+    # Start with defaults
+    effective = DEFAULT_SYNC_OPTIONS.copy()
+
+    # Merge user options, but for patterns, combine rather than replace
+    for key, value in config_options.items():
+        if key == "include_patterns" and isinstance(value, list):
+            # Combine default and user patterns, removing duplicates
+            combined = list(DEFAULT_SYNC_OPTIONS.get("include_patterns", []))
+            for pattern in value:
+                if pattern not in combined:
+                    combined.append(pattern)
+            effective["include_patterns"] = combined
+        elif key == "exclude_patterns" and isinstance(value, list):
+            # Combine default and user patterns, removing duplicates
+            combined = list(DEFAULT_SYNC_OPTIONS.get("exclude_patterns", []))
+            for pattern in value:
+                if pattern not in combined:
+                    combined.append(pattern)
+            effective["exclude_patterns"] = combined
+        else:
+            # For non-pattern options, user value overrides default
+            effective[key] = value
+
+    return effective
+
+
 # Default sync options
 DEFAULT_SYNC_OPTIONS = {
     "include_patterns": [
@@ -1783,13 +1824,14 @@ def sync_vault(config: Dict, trigger_source: str = "manual", recent_only: bool =
 
     try:
         vault_path = Path(config["vault_path"])
-        sync_options = config.get("sync_options", DEFAULT_SYNC_OPTIONS)
+        # Use effective sync options to ensure default patterns are always included
+        sync_options = get_effective_sync_options(config.get("sync_options"))
 
         # Scan vault for files
         files = scan_vault(
             vault_path=vault_path,
-            include_patterns=sync_options.get("include_patterns", ["**/*.md"]),
-            exclude_patterns=sync_options.get("exclude_patterns", [".obsidian/**"]),
+            include_patterns=sync_options["include_patterns"],
+            exclude_patterns=sync_options["exclude_patterns"],
             max_file_size_mb=sync_options.get("max_file_size_mb", 10),
         )
 
@@ -1923,13 +1965,14 @@ def count_unsynced_files(config: Dict) -> int:
     """
     try:
         vault_path = Path(config["vault_path"])
-        sync_options = config.get("sync_options", DEFAULT_SYNC_OPTIONS)
+        # Use effective sync options to ensure default patterns are always included
+        sync_options = get_effective_sync_options(config.get("sync_options"))
 
         # Scan vault for all eligible files
         all_files = scan_vault(
             vault_path=vault_path,
-            include_patterns=sync_options.get("include_patterns", ["**/*.md"]),
-            exclude_patterns=sync_options.get("exclude_patterns", [".obsidian/**"]),
+            include_patterns=sync_options["include_patterns"],
+            exclude_patterns=sync_options["exclude_patterns"],
             max_file_size_mb=sync_options.get("max_file_size_mb", 10),
         )
 
