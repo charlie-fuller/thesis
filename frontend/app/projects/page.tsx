@@ -149,32 +149,17 @@ interface ProjectCardProps {
   onClick: () => void
   onMoveUp?: () => void
   onMoveDown?: () => void
-  onToggleActive?: () => void
   isFirst?: boolean
   isLast?: boolean
   showTier?: boolean
 }
 
-function ProjectCard({ project, onClick, onMoveUp, onMoveDown, onToggleActive, isFirst, isLast, showTier = false }: ProjectCardProps) {
+function ProjectCard({ project, onClick, onMoveUp, onMoveDown, isFirst, isLast, showTier = false }: ProjectCardProps) {
   const tierColor = TIER_COLORS[project.tier] || TIER_COLORS[4]
   const statusColor = STATUS_COLORS[project.status] || STATUS_COLORS.backlog
-  const isActive = project.status === 'active'
 
   return (
     <div className="bg-card rounded-lg border border-default p-4 hover:shadow-md hover:border-brand/30 transition-all group relative">
-      {/* Active star toggle */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggleActive?.() }}
-        className={`absolute left-2 top-2 p-1 rounded transition-all ${
-          isActive
-            ? 'text-amber-500 hover:text-amber-600'
-            : 'text-gray-300 dark:text-gray-600 opacity-0 group-hover:opacity-100 hover:text-amber-400'
-        }`}
-        title={isActive ? 'Mark as inactive' : 'Mark as active'}
-      >
-        <Star className={`w-4 h-4 ${isActive ? 'fill-current' : ''}`} />
-      </button>
-
       {/* Reorder buttons */}
       <div className="absolute right-2 top-2 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
@@ -342,30 +327,6 @@ export default function ProjectsPage() {
   const handleViewProject = (project: Project) => {
     setSelectedProject(project)
   }
-
-  // Toggle project active status
-  const toggleProjectActive = useCallback(async (projectId: string) => {
-    const project = projects.find(p => p.id === projectId)
-    if (!project) return
-
-    const isCurrentlyActive = project.status === 'active'
-    const newStatus = isCurrentlyActive ? 'backlog' : 'active'
-
-    // Optimistic update
-    setProjects(prev => prev.map(p =>
-      p.id === projectId ? { ...p, status: newStatus } : p
-    ))
-
-    try {
-      await apiPatch(`/api/projects/${projectId}/status`, { status: newStatus })
-      toast.success(isCurrentlyActive ? 'Moved to backlog' : 'Marked as active')
-    } catch (err) {
-      console.error('Failed to toggle project status:', err)
-      toast.error('Failed to update project')
-      // Revert on error
-      fetchProjects()
-    }
-  }, [projects, fetchProjects])
 
   // Move project up or down within its tier
   const moveProject = useCallback(async (projectId: string, direction: 'up' | 'down') => {
@@ -673,7 +634,6 @@ export default function ProjectsPage() {
                 onClick={() => handleViewProject(project)}
                 onMoveUp={() => moveProject(project.id, 'up')}
                 onMoveDown={() => moveProject(project.id, 'down')}
-                onToggleActive={() => toggleProjectActive(project.id)}
                 isFirst={idx === 0}
                 isLast={idx === sortedProjects.length - 1}
                 showTier={false}
@@ -708,7 +668,6 @@ export default function ProjectsPage() {
                           onClick={() => handleViewProject(project)}
                           onMoveUp={() => moveProject(project.id, 'up')}
                           onMoveDown={() => moveProject(project.id, 'down')}
-                          onToggleActive={() => toggleProjectActive(project.id)}
                           isFirst={idx === 0}
                           isLast={idx === tierProjects.length - 1}
                           showTier={true}
