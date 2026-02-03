@@ -189,10 +189,11 @@ export default function InitiativeDetailPage() {
   // Load linked projects
   const loadLinkedProjects = useCallback(async () => {
     try {
-      const result = await apiGet<{ projects: LinkedProject[] }>(
+      // API returns array directly, not wrapped in { projects: [...] }
+      const result = await apiGet<LinkedProject[]>(
         `/api/projects?initiative_id=${initiativeId}`
       )
-      setLinkedProjects(result.projects || [])
+      setLinkedProjects(result || [])
     } catch (err) {
       console.error('Failed to load linked projects:', err)
     }
