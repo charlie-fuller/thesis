@@ -184,7 +184,7 @@ When creating tasks from extracted items:
             today = date.today()
             week_end = today + timedelta(days=7)
 
-            # First, get user's details for assignee matching and client filtering
+            # Get user's details for assignee matching and client filtering
             user_result = (
                 self.supabase.table("users")
                 .select("id, full_name, name, email, client_id")
@@ -206,7 +206,6 @@ When creating tasks from extracted items:
                 )
 
             # Query tasks for this client
-            # Get all tasks for the client, then filter in code for user-specific ones
             result = (
                 self.supabase.table("project_tasks")
                 .select(
@@ -220,90 +219,15 @@ When creating tasks from extracted items:
             if not result.data:
                 return "\n[Task Context: No active tasks found]\n"
 
-            # Filter to user's tasks (assigned to them, or unassigned in single-user client)
-            tasks = []
-            for task in result.data:
-                task_user_id = task.get("assignee_user_id")
-                task_assignee = task.get("assignee_name", "") or ""
-
-                # Include task if:
-                # 1. Assigned to this user by ID
-                # 2. Assigned by name match
-                # 3. No assignee (unassigned tasks visible to all)
-                if task_user_id == context.user_id:
-                    tasks.append(task)
-                elif user_name and user_name.lower() in task_assignee.lower():
-                    tasks.append(task)
-                elif not task_user_id and not task_assignee:
-                    tasks.append(task)
+            # Filter to user's tasks
+            tasks = self._filter_user_tasks(result.data, context.user_id, user_name)
 
             if not tasks:
                 return "\n[Task Context: No tasks assigned to you]\n"
 
-            # Categorize tasks
-            overdue = []
-            due_today = []
-            due_this_week = []
-            due_later = []
-            no_due_date = []
-            blocked = []
-
-            for task in tasks:
-                if task.get("status") == "blocked":
-                    blocked.append(task)
-                    continue
-
-                due_date_str = task.get("due_date")
-                if not due_date_str:
-                    no_due_date.append(task)
-                    continue
-
-                due_date = datetime.strptime(due_date_str, "%Y-%m-%d").date()
-                if due_date < today:
-                    overdue.append(task)
-                elif due_date == today:
-                    due_today.append(task)
-                elif due_date <= week_end:
-                    due_this_week.append(task)
-                else:
-                    due_later.append(task)
-
-            # Build context string
-            context_parts = ["\n[Current Task Status]"]
-            context_parts.append(f"Total active tasks: {len(tasks)}")
-
-            if overdue:
-                context_parts.append(f"\nOVERDUE ({len(overdue)}):")
-                for t in overdue[:5]:
-                    priority_label = self._priority_label(t.get("priority", 3))
-                    context_parts.append(
-                        f"  - [{priority_label}] {t['title']} (due: {t['due_date']})"
-                    )
-
-            if due_today:
-                context_parts.append(f"\nDUE TODAY ({len(due_today)}):")
-                for t in due_today[:5]:
-                    priority_label = self._priority_label(t.get("priority", 3))
-                    context_parts.append(f"  - [{priority_label}] {t['title']}")
-
-            if due_this_week:
-                context_parts.append(f"\nDUE THIS WEEK ({len(due_this_week)}):")
-                for t in due_this_week[:5]:
-                    priority_label = self._priority_label(t.get("priority", 3))
-                    context_parts.append(
-                        f"  - [{priority_label}] {t['title']} (due: {t['due_date']})"
-                    )
-
-            if blocked:
-                context_parts.append(f"\nBLOCKED ({len(blocked)}):")
-                for t in blocked[:3]:
-                    reason = t.get("blocker_reason", "No reason specified")
-                    context_parts.append(f"  - {t['title']}: {reason[:50]}")
-
-            if no_due_date:
-                context_parts.append(f"\nNO DUE DATE ({len(no_due_date)})")
-
-            return "\n".join(context_parts)
+            # Categorize and format tasks
+            categories = self._categorize_tasks(tasks, today, week_end)
+            return self._format_task_context(categories, len(tasks))
 
         except Exception as e:
             logger.error(f"Failed to get task context: {e}")
@@ -313,6 +237,88 @@ When creating tasks from extracted items:
         """Convert priority number to label."""
         labels = {1: "Critical", 2: "High", 3: "Medium", 4: "Low", 5: "Lowest"}
         return labels.get(priority, "Medium")
+
+    def _filter_user_tasks(self, tasks: list, user_id: str, user_name: Optional[str]) -> list:
+        """Filter tasks to those assigned to the user or unassigned."""
+        filtered = []
+        for task in tasks:
+            task_user_id = task.get("assignee_user_id")
+            task_assignee = task.get("assignee_name", "") or ""
+
+            # Include if assigned to user by ID, by name match, or unassigned
+            if task_user_id == user_id:
+                filtered.append(task)
+            elif user_name and user_name.lower() in task_assignee.lower():
+                filtered.append(task)
+            elif not task_user_id and not task_assignee:
+                filtered.append(task)
+        return filtered
+
+    def _categorize_tasks(self, tasks: list, today: date, week_end: date) -> dict:
+        """Categorize tasks by due date and status."""
+        categories = {
+            "overdue": [],
+            "due_today": [],
+            "due_this_week": [],
+            "due_later": [],
+            "no_due_date": [],
+            "blocked": [],
+        }
+
+        for task in tasks:
+            if task.get("status") == "blocked":
+                categories["blocked"].append(task)
+                continue
+
+            due_date_str = task.get("due_date")
+            if not due_date_str:
+                categories["no_due_date"].append(task)
+                continue
+
+            due_date = datetime.strptime(due_date_str, "%Y-%m-%d").date()
+            if due_date < today:
+                categories["overdue"].append(task)
+            elif due_date == today:
+                categories["due_today"].append(task)
+            elif due_date <= week_end:
+                categories["due_this_week"].append(task)
+            else:
+                categories["due_later"].append(task)
+
+        return categories
+
+    def _format_task_context(self, categories: dict, total_count: int) -> str:
+        """Format categorized tasks into a context string."""
+        parts = ["\n[Current Task Status]", f"Total active tasks: {total_count}"]
+
+        if categories["overdue"]:
+            parts.append(f"\nOVERDUE ({len(categories['overdue'])}):")
+            for t in categories["overdue"][:5]:
+                priority_label = self._priority_label(t.get("priority", 3))
+                parts.append(f"  - [{priority_label}] {t['title']} (due: {t['due_date']})")
+
+        if categories["due_today"]:
+            parts.append(f"\nDUE TODAY ({len(categories['due_today'])}):")
+            for t in categories["due_today"][:5]:
+                priority_label = self._priority_label(t.get("priority", 3))
+                parts.append(f"  - [{priority_label}] {t['title']}")
+
+        if categories["due_this_week"]:
+            parts.append(f"\nDUE THIS WEEK ({len(categories['due_this_week'])}):")
+            for t in categories["due_this_week"][:5]:
+                priority_label = self._priority_label(t.get("priority", 3))
+                parts.append(f"  - [{priority_label}] {t['title']} (due: {t['due_date']})")
+
+        if categories["blocked"]:
+            parts.append(f"\nBLOCKED ({len(categories['blocked'])}):")
+            for t in categories["blocked"][:3]:
+                reason = t.get("blocker_reason", "No reason specified")
+                parts.append(f"  - {t['title']}: {reason[:50]}")
+
+        if categories["no_due_date"]:
+            parts.append(f"\nNO DUE DATE ({len(categories['no_due_date'])})")
+
+        return "\n".join(parts)
 
     def should_handoff(self, context: AgentContext, response: str) -> Optional[tuple[str, str]]:
         """Check if we should hand off to another agent."""

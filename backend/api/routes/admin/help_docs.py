@@ -13,6 +13,62 @@ from ._shared import limiter, supabase
 logger = get_logger(__name__)
 router = APIRouter()
 
+# Role access mapping for help document categories
+ROLE_ACCESS_MAP = {
+    "admin": ["admin"],
+    "system": ["admin", "user"],
+    "user": ["user"],
+    "technical": ["admin"],
+}
+
+
+def _extract_sections(md_content: str) -> list[tuple[str, str]]:
+    """Extract sections from markdown content by headings."""
+    sections = []
+    current_heading = "Introduction"
+    current_content = []
+
+    for line in md_content.split("\n"):
+        if line.strip().startswith("#"):
+            if current_content:
+                sections.append((current_heading, "\n".join(current_content)))
+            current_heading = line.strip().lstrip("#").strip()
+            current_content = []
+        else:
+            current_content.append(line)
+
+    if current_content:
+        sections.append((current_heading, "\n".join(current_content)))
+
+    return sections
+
+
+def _chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> list[str]:
+    """Split text into overlapping chunks at sentence boundaries."""
+    chunks = []
+    start = 0
+
+    while start < len(text):
+        end = start + chunk_size
+
+        if end < len(text):
+            sentence_end = max(
+                text.rfind(". ", start, end),
+                text.rfind(".\n", start, end),
+                text.rfind("? ", start, end),
+                text.rfind("! ", start, end),
+            )
+            if sentence_end > start + chunk_size - 100:
+                end = sentence_end + 1
+
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+
+        start = end - overlap if end < len(text) else len(text)
+
+    return chunks
+
 
 @router.get("/help-documents/{document_id}")
 async def get_help_document(
@@ -146,63 +202,12 @@ async def reindex_help_document(
 
         from services.embeddings import create_embedding
 
-        role_access_map = {
-            "admin": ["admin"],
-            "system": ["admin", "user"],
-            "user": ["user"],
-            "technical": ["admin"],
-        }
-
-        def extract_sections(md_content: str):
-            sections = []
-            current_heading = "Introduction"
-            current_content = []
-
-            for line in md_content.split("\n"):
-                if line.strip().startswith("#"):
-                    if current_content:
-                        sections.append((current_heading, "\n".join(current_content)))
-                    current_heading = line.strip().lstrip("#").strip()
-                    current_content = []
-                else:
-                    current_content.append(line)
-
-            if current_content:
-                sections.append((current_heading, "\n".join(current_content)))
-
-            return sections
-
-        def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200):
-            chunks = []
-            start = 0
-
-            while start < len(text):
-                end = start + chunk_size
-
-                if end < len(text):
-                    sentence_end = max(
-                        text.rfind(". ", start, end),
-                        text.rfind(".\n", start, end),
-                        text.rfind("? ", start, end),
-                        text.rfind("! ", start, end),
-                    )
-                    if sentence_end > start + chunk_size - 100:
-                        end = sentence_end + 1
-
-                chunk = text[start:end].strip()
-                if chunk:
-                    chunks.append(chunk)
-
-                start = end - overlap if end < len(text) else len(text)
-
-            return chunks
-
-        sections = extract_sections(content)
+        sections = _extract_sections(content)
         chunks_created = 0
         chunk_index = 0
 
         for heading, section_content in sections:
-            section_chunks = chunk_text(section_content)
+            section_chunks = _chunk_text(section_content)
 
             for chunk_text_content in section_chunks:
                 if len(chunk_text_content.strip()) < 50:
@@ -224,7 +229,7 @@ async def reindex_help_document(
                                 "embedding": emb,
                                 "chunk_index": idx,
                                 "heading_context": head,
-                                "role_access": role_access_map.get(category, ["admin", "user"]),
+                                "role_access": ROLE_ACCESS_MAP.get(category, ["admin", "user"]),
                                 "metadata": {"category": category, "title": title, "section": head},
                             }
                         )
@@ -329,63 +334,12 @@ async def update_help_document(
 
         from services.embeddings import create_embedding
 
-        role_access_map = {
-            "admin": ["admin"],
-            "system": ["admin", "user"],
-            "user": ["user"],
-            "technical": ["admin"],
-        }
-
-        def extract_sections(md_content: str):
-            sections = []
-            current_heading = "Introduction"
-            current_content = []
-
-            for line in md_content.split("\n"):
-                if line.strip().startswith("#"):
-                    if current_content:
-                        sections.append((current_heading, "\n".join(current_content)))
-                    current_heading = line.strip().lstrip("#").strip()
-                    current_content = []
-                else:
-                    current_content.append(line)
-
-            if current_content:
-                sections.append((current_heading, "\n".join(current_content)))
-
-            return sections
-
-        def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200):
-            chunks = []
-            start = 0
-
-            while start < len(text):
-                end = start + chunk_size
-
-                if end < len(text):
-                    sentence_end = max(
-                        text.rfind(". ", start, end),
-                        text.rfind(".\n", start, end),
-                        text.rfind("? ", start, end),
-                        text.rfind("! ", start, end),
-                    )
-                    if sentence_end > start + chunk_size - 100:
-                        end = sentence_end + 1
-
-                chunk = text[start:end].strip()
-                if chunk:
-                    chunks.append(chunk)
-
-                start = end - overlap if end < len(text) else len(text)
-
-            return chunks
-
-        sections = extract_sections(new_content)
+        sections = _extract_sections(new_content)
         chunks_created = 0
         chunk_index = 0
 
         for heading, section_content in sections:
-            section_chunks = chunk_text(section_content)
+            section_chunks = _chunk_text(section_content)
 
             for chunk_text_content in section_chunks:
                 if len(chunk_text_content.strip()) < 50:
@@ -407,7 +361,7 @@ async def update_help_document(
                                 "embedding": emb,
                                 "chunk_index": idx,
                                 "heading_context": head,
-                                "role_access": role_access_map.get(category, ["admin", "user"]),
+                                "role_access": ROLE_ACCESS_MAP.get(category, ["admin", "user"]),
                                 "metadata": {
                                     "category": category,
                                     "title": new_title,

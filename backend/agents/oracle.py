@@ -460,15 +460,12 @@ Respond with ONLY the JSON object, no additional text."""
         except Exception as e:
             logger.error(f"Failed to process stakeholder insights: {e}")
 
-    def _format_analysis(self, analysis: dict) -> str:
-        """Format the analysis as readable markdown."""
+    def _format_meeting_info(self, analysis: dict) -> list[str]:
+        """Format meeting summary and info."""
         parts = []
-
-        # Meeting Summary
         if analysis.get("meeting_summary"):
             parts.append(f"## Meeting Summary\n\n{analysis['meeting_summary']}")
 
-        # Meeting Info
         info_parts = []
         if analysis.get("meeting_date"):
             info_parts.append(f"**Date:** {analysis['meeting_date']}")
@@ -476,65 +473,87 @@ Respond with ONLY the JSON object, no additional text."""
             info_parts.append(f"**Type:** {analysis['meeting_type'].title()}")
         if info_parts:
             parts.append("\n".join(info_parts))
+        return parts
+
+    def _format_attendees(self, attendees: list) -> list[str]:
+        """Format attendee list."""
+        parts = ["\n## Attendees\n"]
+        for attendee in attendees:
+            role = f" - {attendee.get('role', 'Unknown Role')}" if attendee.get("role") else ""
+            org = f" ({attendee.get('organization')})" if attendee.get("organization") else ""
+            parts.append(f"- **{attendee.get('name', 'Unknown')}**{role}{org}")
+        return parts
+
+    def _format_sentiment(self, speakers: list) -> list[str]:
+        """Format sentiment analysis by speaker."""
+        parts = ["\n## Sentiment Analysis\n"]
+        for speaker in speakers:
+            sentiment = speaker.get("overall_sentiment", "neutral").title()
+            score = speaker.get("sentiment_score", 0.5)
+            emoji = "🟢" if score > 0.6 else "🟡" if score > 0.4 else "🔴"
+            parts.append(f"\n### {speaker.get('name', 'Unknown')} - {emoji} {sentiment}")
+
+            if speaker.get("concerns"):
+                parts.append("\n**Concerns:**")
+                for concern in speaker["concerns"]:
+                    parts.append(f"- {concern}")
+
+            if speaker.get("enthusiasm"):
+                parts.append("\n**Enthusiasm:**")
+                for item in speaker["enthusiasm"]:
+                    parts.append(f"- {item}")
+        return parts
+
+    def _format_action_items(self, items: list) -> list[str]:
+        """Format action items list."""
+        parts = ["\n## Action Items\n"]
+        for item in items:
+            owner = f" [@{item.get('owner')}]" if item.get("owner") else ""
+            due = f" (Due: {item.get('due_date')})" if item.get("due_date") else ""
+            parts.append(f"- [ ] {item.get('description', '')}{owner}{due}")
+        return parts
+
+    def _format_simple_list(self, items: list, header: str) -> list[str]:
+        """Format a simple bulleted list with header."""
+        parts = [f"\n## {header}\n"]
+        for item in items:
+            parts.append(f"- {item}")
+        return parts
+
+    def _format_analysis(self, analysis: dict) -> str:
+        """Format the analysis as readable markdown."""
+        parts = []
+
+        # Meeting info
+        parts.extend(self._format_meeting_info(analysis))
 
         # Attendees
         if analysis.get("attendees"):
-            parts.append("\n## Attendees\n")
-            for attendee in analysis["attendees"]:
-                role = f" - {attendee.get('role', 'Unknown Role')}" if attendee.get("role") else ""
-                org = f" ({attendee.get('organization')})" if attendee.get("organization") else ""
-                parts.append(f"- **{attendee.get('name', 'Unknown')}**{role}{org}")
+            parts.extend(self._format_attendees(analysis["attendees"]))
 
         # Sentiment Analysis
         if analysis.get("sentiment_by_speaker"):
-            parts.append("\n## Sentiment Analysis\n")
-            for speaker in analysis["sentiment_by_speaker"]:
-                sentiment = speaker.get("overall_sentiment", "neutral").title()
-                score = speaker.get("sentiment_score", 0.5)
-                emoji = "🟢" if score > 0.6 else "🟡" if score > 0.4 else "🔴"
-                parts.append(f"\n### {speaker.get('name', 'Unknown')} - {emoji} {sentiment}")
-
-                if speaker.get("concerns"):
-                    parts.append("\n**Concerns:**")
-                    for concern in speaker["concerns"]:
-                        parts.append(f"- {concern}")
-
-                if speaker.get("enthusiasm"):
-                    parts.append("\n**Enthusiasm:**")
-                    for item in speaker["enthusiasm"]:
-                        parts.append(f"- {item}")
+            parts.extend(self._format_sentiment(analysis["sentiment_by_speaker"]))
 
         # Key Topics
         if analysis.get("key_topics"):
-            parts.append("\n## Key Topics\n")
-            for topic in analysis["key_topics"]:
-                parts.append(f"- {topic}")
+            parts.extend(self._format_simple_list(analysis["key_topics"], "Key Topics"))
 
         # Action Items
         if analysis.get("action_items"):
-            parts.append("\n## Action Items\n")
-            for item in analysis["action_items"]:
-                owner = f" [@{item.get('owner')}]" if item.get("owner") else ""
-                due = f" (Due: {item.get('due_date')})" if item.get("due_date") else ""
-                parts.append(f"- [ ] {item.get('description', '')}{owner}{due}")
+            parts.extend(self._format_action_items(analysis["action_items"]))
 
         # Decisions
         if analysis.get("decisions"):
-            parts.append("\n## Decisions Made\n")
-            for decision in analysis["decisions"]:
-                parts.append(f"- {decision}")
+            parts.extend(self._format_simple_list(analysis["decisions"], "Decisions Made"))
 
         # Open Questions
         if analysis.get("open_questions"):
-            parts.append("\n## Open Questions\n")
-            for question in analysis["open_questions"]:
-                parts.append(f"- {question}")
+            parts.extend(self._format_simple_list(analysis["open_questions"], "Open Questions"))
 
         # Recommendations
         if analysis.get("recommendations"):
-            parts.append("\n## Recommendations\n")
-            for rec in analysis["recommendations"]:
-                parts.append(f"- {rec}")
+            parts.extend(self._format_simple_list(analysis["recommendations"], "Recommendations"))
 
         return "\n".join(parts)
 
