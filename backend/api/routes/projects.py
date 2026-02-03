@@ -1133,8 +1133,9 @@ async def update_project_status(
     update_data = {"status": request.status}
     if request.next_step is not None:
         update_data["next_step"] = request.next_step
-    if request.project_name:
-        update_data["project_name"] = request.project_name
+    # Allow explicitly setting project_name (including to null for deactivation)
+    if request.project_name is not None:
+        update_data["project_name"] = request.project_name if request.project_name else None
     if request.project_description:
         update_data["project_description"] = request.project_description
 

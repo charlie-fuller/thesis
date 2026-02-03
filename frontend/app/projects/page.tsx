@@ -15,7 +15,8 @@ import {
   TrendingUp,
   AlertTriangle,
   Plus,
-  ArrowUpDown
+  ArrowUpDown,
+  Star
 } from 'lucide-react'
 import { apiGet, apiPatch } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
@@ -141,16 +142,31 @@ interface ProjectCardProps {
   onClick: () => void
   onMoveUp?: () => void
   onMoveDown?: () => void
+  onToggleActive?: () => void
   isFirst?: boolean
   isLast?: boolean
 }
 
-function ProjectCard({ project, onClick, onMoveUp, onMoveDown, isFirst, isLast }: ProjectCardProps) {
+function ProjectCard({ project, onClick, onMoveUp, onMoveDown, onToggleActive, isFirst, isLast }: ProjectCardProps) {
   const tierColor = TIER_COLORS[project.tier] || TIER_COLORS[4]
   const statusColor = STATUS_COLORS[project.status] || STATUS_COLORS.identified
+  const isActive = ['scoping', 'pilot', 'scaling'].includes(project.status)
 
   return (
     <div className="bg-card rounded-lg border border-default p-4 hover:shadow-md hover:border-brand/30 transition-all group relative">
+      {/* Active star toggle */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleActive?.() }}
+        className={`absolute left-2 top-2 p-1 rounded transition-all ${
+          isActive
+            ? 'text-amber-500 hover:text-amber-600'
+            : 'text-gray-300 dark:text-gray-600 opacity-0 group-hover:opacity-100 hover:text-amber-400'
+        }`}
+        title={isActive ? 'Mark as inactive' : 'Mark as active'}
+      >
+        <Star className={`w-4 h-4 ${isActive ? 'fill-current' : ''}`} />
+      </button>
+
       {/* Reorder buttons */}
       <div className="absolute right-2 top-2 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
@@ -276,6 +292,7 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [tierFilter, setTierFilter] = useState<number | ''>('')
   const [sortBy, setSortBy] = useState('manual')
+  const [activeOnly, setActiveOnly] = useState(false)
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -314,6 +331,34 @@ export default function ProjectsPage() {
   const handleViewProject = (project: Project) => {
     setSelectedProject(project)
   }
+
+  // Toggle project active status
+  const toggleProjectActive = useCallback(async (projectId: string) => {
+    const project = projects.find(p => p.id === projectId)
+    if (!project) return
+
+    const isCurrentlyActive = ['scoping', 'pilot', 'scaling'].includes(project.status)
+    const newStatus = isCurrentlyActive ? 'identified' : 'scoping'
+
+    // Optimistic update
+    setProjects(prev => prev.map(p =>
+      p.id === projectId ? { ...p, status: newStatus } : p
+    ))
+
+    try {
+      await apiPatch(`/api/projects/${projectId}/status`, {
+        status: newStatus,
+        // Use empty string to explicitly clear, or set to title to activate
+        project_name: isCurrentlyActive ? '' : (project.project_name || project.title)
+      })
+      toast.success(isCurrentlyActive ? 'Project deactivated' : 'Project activated')
+    } catch (err) {
+      console.error('Failed to toggle project status:', err)
+      toast.error('Failed to update project')
+      // Revert on error
+      fetchProjects()
+    }
+  }, [projects, fetchProjects])
 
   // Move project up or down within its tier
   const moveProject = useCallback(async (projectId: string, direction: 'up' | 'down') => {
@@ -359,9 +404,14 @@ export default function ProjectsPage() {
     }
   }, [projects, fetchProjects])
 
-  // Sort projects
+  // Sort and filter projects
   const sortedProjects = useMemo(() => {
-    const sorted = [...projects]
+    // Filter by active status first if toggle is on
+    let filtered = activeOnly
+      ? projects.filter(p => ['scoping', 'pilot', 'scaling'].includes(p.status))
+      : projects
+
+    const sorted = [...filtered]
     switch (sortBy) {
       case 'manual':
         return sorted.sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
@@ -382,7 +432,7 @@ export default function ProjectsPage() {
       default:
         return sorted
     }
-  }, [projects, sortBy])
+  }, [projects, sortBy, activeOnly])
 
   // Show loading state while auth is being checked
   if (authLoading) {
@@ -406,6 +456,11 @@ export default function ProjectsPage() {
     acc[p.tier] = (acc[p.tier] || 0) + 1
     return acc
   }, {} as Record<number, number>)
+
+  // Count active projects
+  const activeCount = useMemo(() =>
+    projects.filter(p => ['scoping', 'pilot', 'scaling'].includes(p.status)).length
+  , [projects])
 
   return (
     <PageLayout>
@@ -441,13 +496,20 @@ export default function ProjectsPage() {
         )}
 
         {/* Stats Row */}
-        <div className="mb-6 grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="mb-6 grid grid-cols-2 md:grid-cols-6 gap-4">
           <div className="bg-card rounded-lg border border-default p-4">
             <div className="flex items-center gap-2 text-muted mb-1">
               <Target className="w-4 h-4" />
               <span className="text-xs uppercase tracking-wide">Total</span>
             </div>
             <p className="text-2xl font-semibold text-primary">{projects.length}</p>
+          </div>
+          <div className="bg-card rounded-lg border border-default p-4">
+            <div className="flex items-center gap-2 text-muted mb-1">
+              <Star className="w-4 h-4 text-amber-500" />
+              <span className="text-xs uppercase tracking-wide">Active</span>
+            </div>
+            <p className="text-2xl font-semibold text-amber-600 dark:text-amber-400">{activeCount}</p>
           </div>
           {[1, 2, 3, 4].map(tier => (
             <div key={tier} className="bg-card rounded-lg border border-default p-4">
@@ -465,6 +527,32 @@ export default function ProjectsPage() {
             <Filter className="w-4 h-4 text-muted" />
             <span className="text-sm text-muted">Filters:</span>
           </div>
+
+          {/* Active Only Toggle */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={activeOnly}
+                onChange={(e) => setActiveOnly(e.target.checked)}
+                className="sr-only"
+              />
+              <div className={`w-10 h-5 rounded-full transition-colors ${
+                activeOnly ? 'bg-brand' : 'bg-gray-300 dark:bg-gray-600'
+              }`} />
+              <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                activeOnly ? 'translate-x-5' : 'translate-x-0'
+              }`} />
+            </div>
+            <span className={`text-sm font-medium ${activeOnly ? 'text-brand' : 'text-muted'}`}>
+              Active Only
+            </span>
+            {activeOnly && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-brand/10 text-brand">
+                {projects.filter(p => ['scoping', 'pilot', 'scaling'].includes(p.status)).length}
+              </span>
+            )}
+          </label>
 
           <select
             value={departmentFilter}
@@ -511,12 +599,13 @@ export default function ProjectsPage() {
             </select>
           </div>
 
-          {(departmentFilter || statusFilter || tierFilter) && (
+          {(departmentFilter || statusFilter || tierFilter || activeOnly) && (
             <button
               onClick={() => {
                 setDepartmentFilter('')
                 setStatusFilter('')
                 setTierFilter('')
+                setActiveOnly(false)
               }}
               className="text-sm text-muted hover:text-primary"
             >
@@ -578,6 +667,7 @@ export default function ProjectsPage() {
                         onClick={() => handleViewProject(project)}
                         onMoveUp={() => moveProject(project.id, 'up')}
                         onMoveDown={() => moveProject(project.id, 'down')}
+                        onToggleActive={() => toggleProjectActive(project.id)}
                         isFirst={idx === 0}
                         isLast={idx === tierProjects.length - 1}
                       />
@@ -609,6 +699,7 @@ export default function ProjectsPage() {
                         onClick={() => handleViewProject(project)}
                         onMoveUp={() => moveProject(project.id, 'up')}
                         onMoveDown={() => moveProject(project.id, 'down')}
+                        onToggleActive={() => toggleProjectActive(project.id)}
                         isFirst={idx === 0}
                         isLast={idx === tierProjects.length - 1}
                       />
@@ -640,6 +731,7 @@ export default function ProjectsPage() {
                         onClick={() => handleViewProject(project)}
                         onMoveUp={() => moveProject(project.id, 'up')}
                         onMoveDown={() => moveProject(project.id, 'down')}
+                        onToggleActive={() => toggleProjectActive(project.id)}
                         isFirst={idx === 0}
                         isLast={idx === tierProjects.length - 1}
                       />
@@ -671,6 +763,7 @@ export default function ProjectsPage() {
                         onClick={() => handleViewProject(project)}
                         onMoveUp={() => moveProject(project.id, 'up')}
                         onMoveDown={() => moveProject(project.id, 'down')}
+                        onToggleActive={() => toggleProjectActive(project.id)}
                         isFirst={idx === 0}
                         isLast={idx === tierProjects.length - 1}
                       />
