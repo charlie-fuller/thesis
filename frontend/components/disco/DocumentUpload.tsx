@@ -4,20 +4,13 @@ import { useState } from 'react'
 import { Database, FileText } from 'lucide-react'
 import KBDocumentBrowser from './KBDocumentBrowser'
 
-interface UploadedDocument {
-  id: string
-  name: string
-  [key: string]: unknown
-}
-
 interface DocumentUploadProps {
   initiativeId: string
   initiativeName?: string
-  onUploaded: (document: UploadedDocument) => void
   onDocumentsLinked?: () => void
 }
 
-export default function DocumentUpload({ initiativeId, initiativeName = 'Initiative', onUploaded, onDocumentsLinked }: DocumentUploadProps) {
+export default function DocumentUpload({ initiativeId, initiativeName = 'Initiative', onDocumentsLinked }: DocumentUploadProps) {
   const [kbBrowserOpen, setKbBrowserOpen] = useState(false)
 
   return (

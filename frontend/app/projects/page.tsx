@@ -65,7 +65,18 @@ interface Project {
   alignment_justification?: string | null
   readiness_justification?: string | null
   confidence_questions?: string[]
-  goal_alignment_details?: Record<string, unknown>
+  goal_alignment_details?: {
+    pillar_scores: {
+      customer_prospect_journey: { score: number; rationale: string }
+      maximize_value: { score: number; rationale: string }
+      data_first_digital_workforce: { score: number; rationale: string }
+      high_trust_culture: { score: number; rationale: string }
+    }
+    kpi_impacts: string[]
+    summary: string
+    analyzed_at: string
+  } | null
+  initiative_ids?: string[]
 }
 
 // ============================================================================

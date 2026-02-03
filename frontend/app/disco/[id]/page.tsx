@@ -181,16 +181,6 @@ export default function InitiativeDetailPage() {
     loadOutputs()
   }, [loadInitiative, loadDocuments, loadOutputs])
 
-  const handleDocumentUploaded = (doc: Document) => {
-    setDocuments([doc, ...documents])
-    if (initiative) {
-      setInitiative({
-        ...initiative,
-        document_count: initiative.document_count + 1
-      })
-    }
-  }
-
   const handleDocumentDeleted = (docId: string) => {
     setDocuments(documents.filter(d => d.id !== docId))
     if (initiative) {
@@ -437,7 +427,6 @@ export default function InitiativeDetailPage() {
               <DocumentUpload
                 initiativeId={initiativeId}
                 initiativeName={initiative?.name}
-                onUploaded={handleDocumentUploaded}
                 onDocumentsLinked={loadDocuments}
               />
             )}

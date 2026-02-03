@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import PageLayout from '@/components/PageLayout'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import TaskKanbanBoard from '@/components/tasks/TaskKanbanBoard'
 
-export default function TasksPage() {
+function TasksContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
@@ -44,5 +44,17 @@ export default function TasksPage() {
         </div>
       </div>
     </PageLayout>
+  )
+}
+
+export default function TasksPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-page flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    }>
+      <TasksContent />
+    </Suspense>
   )
 }
