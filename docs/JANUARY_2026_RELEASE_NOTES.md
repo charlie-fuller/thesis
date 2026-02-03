@@ -495,3 +495,55 @@ The help assistant is now available on all pages throughout the application.
 - `frontend/components/PageLayout.tsx` (new wrapper component)
 - `frontend/components/PageHeader.tsx` (added `showHelpToggle` prop)
 - `frontend/contexts/HelpChatContext.tsx` (added localStorage persistence)
+
+---
+
+## Early February Updates (February 2-3, 2026)
+
+### Project-Initiative Linking
+
+Projects can now be created directly from chat and linked to DISCo initiatives.
+
+**Features**:
+- "Create Project from Chat" action extracts project details from conversation context
+- Projects linked to initiatives appear in initiative detail view with direct navigation
+- Initiative filter on Projects page shows only projects for selected initiative
+- Bi-directional navigation between initiatives and their related projects
+
+**Files**: `frontend/components/chat/CreateProjectFromChat.tsx`, `frontend/app/projects/page.tsx`
+
+### Projects Page Overhaul
+
+Simplified project management with cleaner UI and better filtering.
+
+**Changes**:
+- Simplified to 4 statuses: Backlog, Active, Completed, Archived
+- Added list/tier view toggle (tier view groups by priority tier)
+- Active-only filter defaults to true (shows active projects by default)
+- Removed star toggle and Total/Active count boxes for cleaner UI
+- Save/Cancel buttons moved to modal footer
+
+**Files**: `frontend/app/projects/page.tsx`, `frontend/components/projects/ProjectModal.tsx`
+
+### Task-Project Integration
+
+Tasks can now be associated with projects for better work tracking.
+
+**Features**:
+- Tasks tab in project modal shows all tasks linked to that project
+- Project filter on Tasks page filters tasks by associated project
+- Task extraction when creating projects from chat
+
+**Files**: `frontend/app/tasks/page.tsx`, `frontend/components/projects/ProjectModal.tsx`
+
+### DISCo Link Documents Enhancements
+
+Added sorting and filtering options to the KB document browser when linking documents to initiatives.
+
+**Features**:
+- Sort by: Most Recent, Oldest First, Name (A-Z), Name (Z-A)
+- Filter by source: All Sources, Vault, Google Drive, Notion, Uploaded
+- "Reset filters" link when non-default filters are active
+- Filters reset when closing the modal
+
+**Files**: `frontend/components/disco/KBDocumentBrowser.tsx`, `backend/api/routes/documents/search.py`
