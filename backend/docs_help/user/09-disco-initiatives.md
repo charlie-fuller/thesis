@@ -24,19 +24,25 @@ Click **Create Initiative**. You'll land on the initiative detail view.
 
 ## The Initiative Detail View
 
-Every initiative has four tabs:
+Every initiative has five tabs:
 
 | Tab | What It's For |
 |-----|---------------|
 | **Documents** | Link documents from the Knowledge Base or upload new ones |
 | **Run Agent** | Execute discovery agents and see streaming output |
 | **Outputs** | View all agent results in one place |
+| **Projects** | See and manage projects linked to this initiative |
 | **Chat** | Ask questions about the initiative - sees all linked documents |
 
 **Documents tab features:**
 - **Link from KB** - Browse and select existing KB documents
 - **Upload** - Add new documents directly (they go to KB automatically)
 - **Unlink** - Remove document association (keeps document in KB)
+
+**Projects tab features:**
+- View all projects linked to this initiative
+- Click a project to navigate to its detail view
+- See project status and tier at a glance
 
 ---
 
@@ -161,16 +167,31 @@ DISCo uses the Knowledge Base as its single source of truth for documents.
 **To link documents:**
 1. Go to the **Documents** tab
 2. Click **Link from KB**
-3. The browser opens with search (60%) and tag filter (40%) split
-4. Type to search or select tags to filter
-5. Click a document to preview it
+3. The browser opens with search and tag filter on the first row
+4. Use sort and source filter on the second row
+5. Click a document's eye icon to preview it
 6. Select documents with checkboxes
-7. Click **Link Selected** in the footer
+7. Click **Link X Document(s)** in the footer
+
+**Sorting options:**
+- **Most Recent** - Newest documents first (default)
+- **Oldest First** - Oldest documents first
+- **Name (A-Z)** - Alphabetical order
+- **Name (Z-A)** - Reverse alphabetical
+
+**Source filter:**
+- **All Sources** - Show all documents
+- **Vault** - Obsidian synced documents
+- **Google Drive** - Drive imports
+- **Notion** - Notion imports
+- **Uploaded** - Manually uploaded files
+
+Click **Reset filters** to return to defaults.
 
 **The browser shows:**
 - Document title and source
-- Preview panel on the right
-- Highlighted selection for previewed document
+- Preview panel on the right (60%)
+- Highlighted border for previewed document
 - Tag badges for quick filtering
 
 **Benefits of KB integration:**

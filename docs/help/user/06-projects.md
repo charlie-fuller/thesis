@@ -72,26 +72,33 @@ Click **+ New Project**.
 
 ## Status Tracking
 
-Projects move through a lifecycle:
+Projects move through a simple lifecycle:
 
-1. **Identified** - You've spotted the project
-2. **Scoping** - Actively assessing feasibility
-3. **Pilot** - Running a proof of concept
-4. **Scaling** - Rolling out more broadly
-5. **Completed** - Done and delivered
-
-Also:
-- **Blocked** - Something's in the way
+1. **Backlog** - Identified but not yet started
+2. **Active** - Currently being worked on
+3. **Completed** - Done and delivered
+4. **Archived** - No longer relevant
 
 Status changes are tracked. You can see the history.
+
+---
+
+## View Modes
+
+Toggle between two views at the top of the page:
+
+**List View** - Simple list of all projects, sorted by tier score
+**Tier View** - Projects grouped by tier (1-4) in collapsible sections
 
 ---
 
 ## Filtering
 
 At the top of the page:
+- **Active Only** - Toggle to show only active projects (on by default)
 - **By Department** - Focus on a specific area
-- **By Status** - See what's in progress vs. blocked
+- **By Status** - See what's in progress vs. completed
+- **By Initiative** - Filter to projects linked to a specific DISCo initiative
 
 ---
 
@@ -103,6 +110,23 @@ This lets you:
 - See which stakeholders own which projects
 - Track who's driving what
 - Connect your project pipeline to your relationship map
+
+---
+
+## Linking to Initiatives
+
+Projects can be linked to DISCo initiatives for traceability.
+
+**From the Projects page:**
+- Use the Initiative filter to see projects for a specific initiative
+- Click a project to open its modal and see/change the linked initiative
+
+**From a DISCo Initiative:**
+- Go to the **Projects** tab on the initiative detail page
+- See all projects linked to that initiative
+- Click a project to navigate to it
+
+This connects your discovery work (DISCo) to your execution tracking (Projects).
 
 ---
 
@@ -123,9 +147,9 @@ Operator can reference your actual pipeline to answer.
 
 ## The Tier Summary
 
-At the top of the Projects page, you'll see summary cards:
-- Count of projects per tier
-- Quick visibility into your portfolio
+In Tier View, you'll see projects grouped by tier with counts:
+- Tier sections expand/collapse
+- Quick visibility into your portfolio distribution
 
 If everything is Tier 4, you might need better projects. If everything is Tier 1, you might need to be more honest about scoring.
 
