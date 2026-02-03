@@ -1764,8 +1764,11 @@ export default function KBDocumentsContent() {
             </button>
             <h3 className="heading-3">Vault</h3>
           </div>
-          {(!obsidianStatus || !obsidianStatus.connected) && obsidianExpanded && (
-            <span className="text-sm text-muted">Not configured - set VAULT_WATCHER_USER_ID to enable</span>
+          {obsidianExpanded && !obsidianStatus && (
+            <span className="text-sm text-muted">Checking vault status...</span>
+          )}
+          {obsidianExpanded && obsidianStatus && !obsidianStatus.connected && (
+            <span className="text-sm text-muted">Vault not configured</span>
           )}
         </div>
 
