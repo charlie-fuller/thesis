@@ -147,6 +147,7 @@ export default function KBDocumentsContent() {
   } | null>(null)
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([])
   const [syncingRecent, setSyncingRecent] = useState(false)
+  const [checkingStatus, setCheckingStatus] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<{pending: Array<{file_path: string, sync_status: string, sync_error?: string}>, failed: Array<{file_path: string, sync_status: string, sync_error?: string}>} | null>(null)
   const [showPendingDetails, setShowPendingDetails] = useState(false)
 
@@ -643,6 +644,18 @@ export default function KBDocumentsContent() {
       }
     } catch (err) {
       logger.error('Error fetching pending files:', err)
+    }
+  }
+
+  // Check for new files in vault
+  async function handleCheckForUpdates() {
+    try {
+      setCheckingStatus(true)
+      await checkObsidianStatusFn()
+    } catch (err) {
+      logger.error('Error checking for updates:', err)
+    } finally {
+      setCheckingStatus(false)
     }
   }
 
@@ -1808,11 +1821,20 @@ export default function KBDocumentsContent() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Check for Updates button */}
+                  <button
+                    onClick={handleCheckForUpdates}
+                    disabled={checkingStatus || obsidianSyncing || syncingRecent}
+                    className="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Scan vault for new or changed files"
+                  >
+                    {checkingStatus ? 'Checking...' : 'Check for Updates'}
+                  </button>
                   {/* Sync Recent button - only show if there are unsynced files */}
                   {(obsidianStatus.unsynced_count ?? 0) > 0 && !obsidianSyncing && !syncingRecent && (
                     <button
                       onClick={handleSyncRecent}
-                      className="btn-secondary text-sm"
+                      className="btn-primary text-sm"
                     >
                       Sync {obsidianStatus.unsynced_count} New
                     </button>
@@ -1820,7 +1842,7 @@ export default function KBDocumentsContent() {
                   <button
                     onClick={handleObsidianFullSync}
                     disabled={obsidianSyncing || syncingRecent}
-                    className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {obsidianSyncing || syncingRecent ? 'Syncing...' : 'Full Resync'}
                   </button>
