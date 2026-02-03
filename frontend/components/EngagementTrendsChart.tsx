@@ -53,6 +53,7 @@ export default function EngagementTrendsChart() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchData is stable
   }, [days]);
 
   const fetchData = async () => {

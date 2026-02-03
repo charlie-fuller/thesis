@@ -40,6 +40,7 @@ function StorageIndicator({
 
   useEffect(() => {
     fetchStorageData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchStorageData is stable
   }, [refreshTrigger])
 
   async function fetchStorageData() {

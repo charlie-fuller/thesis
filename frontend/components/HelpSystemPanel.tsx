@@ -47,6 +47,7 @@ export default function HelpSystemPanel() {
         clearInterval(pollIntervalRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only effect
   }, []);
 
   const fetchHelpStatus = async () => {

@@ -147,7 +147,8 @@ export default function ChatInterface({
       setError(null)
       setTotalTokensUsed(0)  // Reset token count for new conversation
     }
-  }, [conversationId]) // Only run when conversationId prop changes, not when the flag changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally runs only on conversationId change
+  }, [conversationId])
 
   // Handle prompt text from sidebar
   useEffect(() => {

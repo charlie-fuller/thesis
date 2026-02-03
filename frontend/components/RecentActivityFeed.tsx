@@ -34,6 +34,7 @@ export default function RecentActivityFeed() {
 
   useEffect(() => {
     fetchActivity();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchActivity is stable
   }, [limit]);
 
   const fetchActivity = async () => {

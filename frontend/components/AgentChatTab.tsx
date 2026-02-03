@@ -49,6 +49,7 @@ export default function AgentChatTab({
   // Load agent-specific conversations
   useEffect(() => {
     loadConversations()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadConversations is stable, runs on agentId change
   }, [agentId])
 
   async function loadConversations() {

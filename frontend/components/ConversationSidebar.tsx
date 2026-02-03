@@ -68,6 +68,7 @@ export default function ConversationSidebar({
 
   useEffect(() => {
     loadConversations()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadConversations is stable
   }, [clientId, showArchived, debouncedSearchQuery, refreshTrigger])
 
   async function loadConversations() {
