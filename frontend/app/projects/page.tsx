@@ -509,17 +509,17 @@ function ProjectsPageContent() {
                 className="sr-only"
               />
               <div className={`w-10 h-5 rounded-full transition-colors ${
-                activeOnly ? 'bg-brand' : 'bg-gray-300 dark:bg-gray-600'
+                activeOnly ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'
               }`} />
               <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
                 activeOnly ? 'translate-x-5' : 'translate-x-0'
               }`} />
             </div>
-            <span className={`text-sm font-medium ${activeOnly ? 'text-brand' : 'text-muted'}`}>
+            <span className={`text-sm font-medium ${activeOnly ? 'text-indigo-600 dark:text-indigo-400' : 'text-muted'}`}>
               Active Only
             </span>
             {activeOnly && (
-              <span className="text-xs px-1.5 py-0.5 rounded bg-brand/10 text-brand">
+              <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
                 {projects.filter(p => p.status === 'active').length}
               </span>
             )}
