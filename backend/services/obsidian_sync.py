@@ -1980,25 +1980,35 @@ def get_sync_status(user_id: str) -> Dict:
             "pending_changes": 0,
         }
 
-    # Count synced files
-    synced_result = (
-        _get_db()
-        .table("obsidian_sync_state")
-        .select("id", count="exact")
-        .eq("config_id", config["id"])
-        .eq("sync_status", "synced")
-        .execute()
-    )
+    # Count synced files (with error handling for transient DB issues)
+    try:
+        synced_result = (
+            _get_db()
+            .table("obsidian_sync_state")
+            .select("id", count="exact")
+            .eq("config_id", config["id"])
+            .eq("sync_status", "synced")
+            .execute()
+        )
+        synced_count = synced_result.count or 0
+    except Exception as e:
+        logger.warning(f"Error counting synced files: {e}")
+        synced_count = 0
 
-    # Count pending/failed files
-    pending_result = (
-        _get_db()
-        .table("obsidian_sync_state")
-        .select("id", count="exact")
-        .eq("config_id", config["id"])
-        .in_("sync_status", ["pending", "failed"])
-        .execute()
-    )
+    # Count pending/failed files (with error handling for transient DB issues)
+    try:
+        pending_result = (
+            _get_db()
+            .table("obsidian_sync_state")
+            .select("id", count="exact")
+            .eq("config_id", config["id"])
+            .in_("sync_status", ["pending", "failed"])
+            .execute()
+        )
+        pending_count = pending_result.count or 0
+    except Exception as e:
+        logger.warning(f"Error counting pending files: {e}")
+        pending_count = 0
 
     # Get live sync progress if available
     sync_progress = config.get("sync_progress")
@@ -2015,10 +2025,10 @@ def get_sync_status(user_id: str) -> Dict:
         "vault_path": config["vault_path"],
         "vault_name": config["vault_name"],
         "is_active": config["is_active"],
-        "files_synced": synced_result.count or 0,
+        "files_synced": synced_count,
         "last_sync": config.get("last_sync_at"),
         "last_error": config.get("last_error"),
-        "pending_changes": pending_result.count or 0,
+        "pending_changes": pending_count,
         "unsynced_count": unsynced_count,
         "sync_options": config.get("sync_options", {}),
         # Live sync progress
