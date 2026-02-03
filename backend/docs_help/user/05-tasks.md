@@ -86,8 +86,29 @@ Above the board:
 - **Search** by task title
 - **Filter** by priority
 - **Filter** by assignee
+- **Filter** by project - See only tasks linked to a specific project
 
 Useful when the board gets full.
+
+---
+
+## Linking Tasks to Projects
+
+Tasks can be linked to projects for better traceability.
+
+**When creating a task:**
+- Select a project from the dropdown to associate the task with it
+
+**From a project:**
+- Open the project modal and go to the **Tasks** tab
+- See all tasks linked to that project
+- Create new tasks directly from the project
+
+**From the Tasks page:**
+- Use the project filter to see tasks for a specific project
+- Click a project link from within task details
+
+This connects your day-to-day work to your strategic initiatives.
 
 ---
 

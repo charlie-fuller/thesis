@@ -43,6 +43,7 @@ Every initiative has five tabs:
 - View all projects linked to this initiative
 - Click a project to navigate to its detail view
 - See project status and tier at a glance
+- **Active only** toggle (on by default) - hides archived projects
 
 ---
 
