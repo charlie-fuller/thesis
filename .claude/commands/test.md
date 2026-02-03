@@ -10,8 +10,8 @@ Run the Thesis test suite with options for quick unit tests, full pytest regimen
 Question: "Which test mode would you like to run?"
 Header: "Test Mode"
 Options:
-1. "Quick" - "Unit tests only (~370 tests, fastest)"
-2. "Default" - "All pytest stages + 5 basic E2E (~800 tests)"
+1. "Quick" - "Unit tests only (~430 tests, fastest)"
+2. "Default" - "All pytest stages + 5 basic E2E (~860 tests)"
 3. "Full E2E" - "100 comprehensive browser tests on production"
 4. "Quality" - "Type checking, linting, complexity, secret scan"
 5. "Comprehensive" - "Everything: all tests + quality gates (~900+ checks)"
@@ -89,6 +89,19 @@ cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
 
 Record: complexity violations found.
 
+**Known Exemptions (too risky to refactor):**
+- `api/routes/chat.py::chat_stream` (complexity ~57) - Core streaming logic
+- `api/routes/chat.py::get_agent_response` (complexity ~56) - Agent routing logic
+
+**Refactored Functions (Jan 2026):**
+- `agents/taskmaster.py::_get_task_context` - 26 -> ~8 (extracted helpers)
+- `agents/oracle.py::_format_analysis` - 23 -> ~10 (section formatters)
+- `api/routes/admin/help_docs.py::update_help_document` - 21 -> ~12 (module-level helpers)
+- `services/stakeholder_extractor.py::_parse_response` - 17 -> ~8 (extraction helpers)
+- `services/task_extractor.py::_extract_due_date` - 15 -> ~8 (date calculators)
+
+Tests for these helpers: `tests/test_refactored_helpers.py` (~62 tests)
+
 ## Quality Stage 4: Docstring Coverage
 
 Check docstring compliance (Google style):
@@ -165,6 +178,7 @@ Run core unit tests first:
 cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
 DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c230 \
 dotenvx run -f .env -- .venv/bin/python -m pytest \
+  tests/test_refactored_helpers.py \
   tests/test_document_classifier.py \
   tests/test_tasks.py \
   tests/test_projects.py \
@@ -202,6 +216,7 @@ DOTENV_PRIVATE_KEY=4980b243281755774eab2a5107d475ceecdeceb0b7aef97e014d9cfcece1c
 dotenvx run -f .env -- .venv/bin/python -m pytest tests/ \
   --ignore=tests/e2e/ \
   --ignore=tests/e2e_browser_tests.py \
+  --ignore=tests/test_refactored_helpers.py \
   --ignore=tests/test_document_classifier.py \
   --ignore=tests/test_tasks.py \
   --ignore=tests/test_projects.py \
