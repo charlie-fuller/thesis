@@ -123,7 +123,7 @@ function ScoreInput({
     <div className={`p-3 rounded-lg ${highlight ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700' : 'bg-slate-50 dark:bg-slate-800/50'}`}>
       <div className="flex items-center justify-between mb-2">
         <div>
-          <label className="font-medium text-sm">{label}</label>
+          <label className="font-medium text-sm text-slate-900 dark:text-slate-100">{label}</label>
           {highlight && (
             <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">(needs input)</span>
           )}
@@ -390,7 +390,7 @@ export default function CreateProjectFromChatModal({
               {/* Project Code & Title */}
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium mb-1 text-slate-900 dark:text-slate-100">
                     Project Code <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -398,12 +398,12 @@ export default function CreateProjectFromChatModal({
                     value={projectCode}
                     onChange={(e) => setProjectCode(e.target.value.toUpperCase())}
                     placeholder="e.g., F01"
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono"
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono"
                     maxLength={10}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium mb-1 text-slate-900 dark:text-slate-100">
                     Title <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -411,7 +411,7 @@ export default function CreateProjectFromChatModal({
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Project title"
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
                       extractedConfidence && needsAttention(extractedConfidence.title.confidence)
                         ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20'
                         : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'
@@ -422,7 +422,7 @@ export default function CreateProjectFromChatModal({
 
               {/* Department */}
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="block text-sm font-medium mb-1 text-slate-900 dark:text-slate-100">
                   Department <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -433,7 +433,7 @@ export default function CreateProjectFromChatModal({
                       setProjectCode(generateProjectCode(e.target.value))
                     }
                   }}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 dark:text-slate-100 ${
                     extractedConfidence && needsAttention(extractedConfidence.department.confidence)
                       ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20'
                       : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'
@@ -450,13 +450,13 @@ export default function CreateProjectFromChatModal({
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
+                <label className="block text-sm font-medium mb-1 text-slate-900 dark:text-slate-100">Description</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="What does this project aim to accomplish?"
                   rows={3}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
                     extractedConfidence && needsAttention(extractedConfidence.description.confidence)
                       ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20'
                       : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'
@@ -467,13 +467,13 @@ export default function CreateProjectFromChatModal({
               {/* Current & Desired State */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Current State</label>
+                  <label className="block text-sm font-medium mb-1 text-slate-900 dark:text-slate-100">Current State</label>
                   <textarea
                     value={currentState}
                     onChange={(e) => setCurrentState(e.target.value)}
                     placeholder="Current situation/pain point"
                     rows={2}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
                       extractedConfidence && needsAttention(extractedConfidence.current_state.confidence)
                         ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20'
                         : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'
@@ -481,13 +481,13 @@ export default function CreateProjectFromChatModal({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Desired State</label>
+                  <label className="block text-sm font-medium mb-1 text-slate-900 dark:text-slate-100">Desired State</label>
                   <textarea
                     value={desiredState}
                     onChange={(e) => setDesiredState(e.target.value)}
                     placeholder="Target outcome/goal"
                     rows={2}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
                       extractedConfidence && needsAttention(extractedConfidence.desired_state.confidence)
                         ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20'
                         : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'
@@ -498,7 +498,7 @@ export default function CreateProjectFromChatModal({
 
               {/* Scores */}
               <div>
-                <h3 className="text-sm font-medium mb-3">Scoring (1-5)</h3>
+                <h3 className="text-sm font-medium mb-3 text-slate-900 dark:text-slate-100">Scoring (1-5)</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <ScoreInput
                     label="ROI Potential"
