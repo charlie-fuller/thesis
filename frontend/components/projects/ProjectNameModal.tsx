@@ -8,7 +8,7 @@ interface ProjectNameModalProps {
   onClose: () => void
   onSubmit: (projectName: string, projectDescription?: string) => void
   projectTitle?: string
-  newStatus: 'scoping' | 'pilot'
+  newStatus: 'active'
 }
 
 export default function ProjectNameModal({
@@ -16,7 +16,6 @@ export default function ProjectNameModal({
   onClose,
   onSubmit,
   projectTitle,
-  newStatus,
 }: ProjectNameModalProps) {
   const [projectName, setProjectName] = useState('')
   const [projectDescription, setProjectDescription] = useState('')
@@ -58,10 +57,10 @@ export default function ProjectNameModal({
             </div>
             <div>
               <h2 className="text-lg font-semibold text-primary">
-                Name This Project
+                Activate Project
               </h2>
               <p className="text-sm text-secondary">
-                Moving to {newStatus === 'scoping' ? 'Scoping' : 'Pilot'} phase
+                Give this project a name to get started
               </p>
             </div>
           </div>
@@ -126,7 +125,7 @@ export default function ProjectNameModal({
               disabled={!projectName.trim()}
               className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
             >
-              Continue to {newStatus === 'scoping' ? 'Scoping' : 'Pilot'}
+              Activate Project
             </button>
           </div>
         </form>

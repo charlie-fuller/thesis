@@ -185,21 +185,17 @@ interface ProjectDetailModalProps {
 // ============================================================================
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  identified: { label: 'Identified', color: 'text-slate-500' },
-  scoping: { label: 'Scoping', color: 'text-blue-500' },
-  pilot: { label: 'Pilot', color: 'text-amber-500' },
-  scaling: { label: 'Scaling', color: 'text-green-500' },
+  backlog: { label: 'Backlog', color: 'text-slate-500' },
+  active: { label: 'Active', color: 'text-blue-500' },
   completed: { label: 'Completed', color: 'text-green-600' },
-  blocked: { label: 'Blocked', color: 'text-red-500' },
+  archived: { label: 'Archived', color: 'text-gray-500' },
 }
 
 const STATUS_OPTIONS = [
-  { value: 'identified', label: 'Identified' },
-  { value: 'scoping', label: 'Scoping' },
-  { value: 'pilot', label: 'Pilot' },
-  { value: 'scaling', label: 'Scaling' },
+  { value: 'backlog', label: 'Backlog' },
+  { value: 'active', label: 'Active' },
   { value: 'completed', label: 'Completed' },
-  { value: 'blocked', label: 'Blocked' },
+  { value: 'archived', label: 'Archived' },
 ]
 
 const DEPARTMENT_OPTIONS = [
@@ -290,7 +286,7 @@ export default function ProjectDetailModal({
     implementation_effort: null,
     strategic_alignment: null,
     stakeholder_readiness: null,
-    status: 'identified',
+    status: 'backlog',
     project_summary: '',
     roi_justification: '',
     effort_justification: '',
@@ -299,9 +295,9 @@ export default function ProjectDetailModal({
   })
   const [isSaving, setIsSaving] = useState(false)
 
-  // Project name modal state
+  // Project name modal state (for activating projects)
   const [showProjectNameModal, setShowProjectNameModal] = useState(false)
-  const [pendingStatus, setPendingStatus] = useState<'scoping' | 'pilot' | null>(null)
+  const [pendingStatus, setPendingStatus] = useState<'active' | null>(null)
 
   // Auto-generate tasks state (triggers after project creation)
   const [shouldAutoGenerateTasks, setShouldAutoGenerateTasks] = useState(false)
@@ -338,7 +334,7 @@ export default function ProjectDetailModal({
         implementation_effort: project.implementation_effort,
         strategic_alignment: project.strategic_alignment,
         stakeholder_readiness: project.stakeholder_readiness,
-        status: project.status || 'identified',
+        status: project.status || 'backlog',
         // Justification fields
         project_summary: project.project_summary || '',
         roi_justification: project.roi_justification || '',
@@ -570,14 +566,6 @@ export default function ProjectDetailModal({
         case 'header':
           if (editForm.title !== project.title) updateData.title = editForm.title
           if (editForm.status !== project.status) {
-            const requiresProjectName = ['scoping', 'pilot'].includes(editForm.status)
-            const hasProjectName = !!project.project_name
-            if (requiresProjectName && !hasProjectName) {
-              setPendingStatus(editForm.status as 'scoping' | 'pilot')
-              setShowProjectNameModal(true)
-              setIsSaving(false)
-              return
-            }
             updateData.status = editForm.status
           }
           break
@@ -655,7 +643,7 @@ export default function ProjectDetailModal({
 
   const handleConvertToProject = () => {
     // Trigger the project name modal for "Start as Active Project"
-    setPendingStatus('scoping')
+    setPendingStatus('active')
     setShowProjectNameModal(true)
   }
 
@@ -674,7 +662,7 @@ export default function ProjectDetailModal({
 
   if (!open) return null
 
-  const statusConfig = STATUS_CONFIG[project.status] || STATUS_CONFIG.identified
+  const statusConfig = STATUS_CONFIG[project.status] || STATUS_CONFIG.backlog
   const tierConfig = TIER_CONFIG[project.tier as keyof typeof TIER_CONFIG] || TIER_CONFIG[4]
 
   return (
@@ -1412,8 +1400,8 @@ export default function ProjectDetailModal({
                 </section>
               )}
 
-              {/* Convert to Project CTA */}
-              {project.status === 'identified' && !project.project_name && (
+              {/* Activate Project CTA */}
+              {project.status === 'backlog' && (
                 <section className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
                   <div className="flex items-center justify-between">
                     <div>
@@ -1422,15 +1410,15 @@ export default function ProjectDetailModal({
                         Ready to move forward?
                       </h3>
                       <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
-                        Activate this project to start scoping and task planning.
+                        Mark this project as active to start working on it.
                       </p>
                     </div>
                     <button
                       onClick={handleConvertToProject}
-                      className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2 text-sm font-medium"
+                      className="px-4 py-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2 text-sm font-medium"
                     >
                       <Rocket className="w-4 h-4" />
-                      Start as Project
+                      Mark Active
                     </button>
                   </div>
                 </section>
@@ -1939,7 +1927,7 @@ export default function ProjectDetailModal({
         }}
         onSubmit={handleProjectNameSubmit}
         projectTitle={project.title}
-        newStatus={pendingStatus || 'scoping'}
+        newStatus={pendingStatus || 'active'}
       />
     </div>
   )

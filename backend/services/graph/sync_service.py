@@ -1020,7 +1020,7 @@ class GraphSyncService:
                         {
                             "id": opp["id"],
                             "title": opp.get("title", "Untitled Opportunity"),
-                            "status": opp.get("status", "identified"),
+                            "status": opp.get("status", "backlog"),
                             "annual_savings": opp.get("annual_savings", 0),
                             "client_id": client_id,
                         },

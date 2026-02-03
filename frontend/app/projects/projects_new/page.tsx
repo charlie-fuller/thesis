@@ -89,12 +89,10 @@ const TIER_CONFIG = {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle; color: string }> = {
-  identified: { label: 'Identified', icon: Target, color: 'text-slate-500' },
-  scoping: { label: 'Scoping', icon: Clock, color: 'text-blue-500' },
-  pilot: { label: 'Pilot', icon: TrendingUp, color: 'text-amber-500' },
-  scaling: { label: 'Scaling', icon: TrendingUp, color: 'text-green-500' },
+  backlog: { label: 'Backlog', icon: Target, color: 'text-slate-500' },
+  active: { label: 'Active', icon: Clock, color: 'text-blue-500' },
   completed: { label: 'Completed', icon: CheckCircle, color: 'text-green-600' },
-  blocked: { label: 'Blocked', icon: AlertCircle, color: 'text-red-500' },
+  archived: { label: 'Archived', icon: AlertCircle, color: 'text-gray-500' },
 }
 
 const DEPARTMENTS = ['finance', 'legal', 'hr', 'it', 'revops', 'marketing', 'sales', 'onboarding']
@@ -130,7 +128,7 @@ function OpportunityCard({
   opportunity: Opportunity
   onClick: (opportunity: Opportunity) => void
 }) {
-  const statusConfig = STATUS_CONFIG[opportunity.status] || STATUS_CONFIG.identified
+  const statusConfig = STATUS_CONFIG[opportunity.status] || STATUS_CONFIG.backlog
   const StatusIcon = statusConfig.icon
 
   return (
@@ -261,7 +259,7 @@ function PriorityListView({
           </div>
         ) : (
           sorted.map((opp, index) => {
-            const statusConfig = STATUS_CONFIG[opp.status] || STATUS_CONFIG.identified
+            const statusConfig = STATUS_CONFIG[opp.status] || STATUS_CONFIG.backlog
             return (
               <div
                 key={opp.id}

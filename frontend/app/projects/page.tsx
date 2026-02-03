@@ -91,23 +91,17 @@ const TIER_COLORS: Record<number, string> = {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  identified: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-  scoping: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  pilot: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  scaling: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  deployed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  paused: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  backlog: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+  active: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   archived: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500',
 }
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
-  { value: 'identified', label: 'Identified' },
-  { value: 'scoping', label: 'Scoping' },
-  { value: 'pilot', label: 'Pilot' },
-  { value: 'scaling', label: 'Scaling' },
-  { value: 'deployed', label: 'Deployed' },
-  { value: 'paused', label: 'Paused' },
+  { value: 'backlog', label: 'Backlog' },
+  { value: 'active', label: 'Active' },
+  { value: 'completed', label: 'Completed' },
   { value: 'archived', label: 'Archived' },
 ]
 
@@ -160,8 +154,8 @@ interface ProjectCardProps {
 
 function ProjectCard({ project, onClick, onMoveUp, onMoveDown, onToggleActive, isFirst, isLast }: ProjectCardProps) {
   const tierColor = TIER_COLORS[project.tier] || TIER_COLORS[4]
-  const statusColor = STATUS_COLORS[project.status] || STATUS_COLORS.identified
-  const isActive = ['scoping', 'pilot', 'scaling'].includes(project.status)
+  const statusColor = STATUS_COLORS[project.status] || STATUS_COLORS.backlog
+  const isActive = project.status === 'active'
 
   return (
     <div className="bg-card rounded-lg border border-default p-4 hover:shadow-md hover:border-brand/30 transition-all group relative">
@@ -348,8 +342,8 @@ export default function ProjectsPage() {
     const project = projects.find(p => p.id === projectId)
     if (!project) return
 
-    const isCurrentlyActive = ['scoping', 'pilot', 'scaling'].includes(project.status)
-    const newStatus = isCurrentlyActive ? 'identified' : 'scoping'
+    const isCurrentlyActive = project.status === 'active'
+    const newStatus = isCurrentlyActive ? 'backlog' : 'active'
 
     // Optimistic update
     setProjects(prev => prev.map(p =>
@@ -357,12 +351,8 @@ export default function ProjectsPage() {
     ))
 
     try {
-      await apiPatch(`/api/projects/${projectId}/status`, {
-        status: newStatus,
-        // Use empty string to explicitly clear, or set to title to activate
-        project_name: isCurrentlyActive ? '' : (project.project_name || project.title)
-      })
-      toast.success(isCurrentlyActive ? 'Project deactivated' : 'Project activated')
+      await apiPatch(`/api/projects/${projectId}/status`, { status: newStatus })
+      toast.success(isCurrentlyActive ? 'Moved to backlog' : 'Marked as active')
     } catch (err) {
       console.error('Failed to toggle project status:', err)
       toast.error('Failed to update project')
@@ -419,7 +409,7 @@ export default function ProjectsPage() {
   const sortedProjects = useMemo(() => {
     // Filter by active status first if toggle is on
     const filtered = activeOnly
-      ? projects.filter(p => ['scoping', 'pilot', 'scaling'].includes(p.status))
+      ? projects.filter(p => p.status === 'active')
       : projects
 
     const sorted = [...filtered]
@@ -447,7 +437,7 @@ export default function ProjectsPage() {
 
   // Count active projects - must be before early returns (React Hook rule)
   const activeCount = useMemo(() =>
-    projects.filter(p => ['scoping', 'pilot', 'scaling'].includes(p.status)).length
+    projects.filter(p => p.status === 'active').length
   , [projects])
 
   // Group projects by tier for summary
@@ -484,13 +474,6 @@ export default function ProjectsPage() {
               AI implementation opportunities ranked by impact and effort
             </p>
           </div>
-          <button
-            onClick={() => router.push('/pipeline')}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Target className="w-4 h-4" />
-            View Pipeline
-          </button>
         </div>
 
         {/* Error State */}
@@ -560,7 +543,7 @@ export default function ProjectsPage() {
             </span>
             {activeOnly && (
               <span className="text-xs px-1.5 py-0.5 rounded bg-brand/10 text-brand">
-                {projects.filter(p => ['scoping', 'pilot', 'scaling'].includes(p.status)).length}
+                {projects.filter(p => p.status === 'active').length}
               </span>
             )}
           </label>

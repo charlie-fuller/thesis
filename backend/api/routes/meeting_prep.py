@@ -118,28 +118,27 @@ def _calculate_opportunity_clarity_status(opportunities: list) -> StatusItem:
         )
 
     # Count by status
-    scoping_count = sum(1 for o in opportunities if o.get("status") == "scoping")
-    identified_count = sum(1 for o in opportunities if o.get("status") == "identified")
-    pilot_count = sum(1 for o in opportunities if o.get("status") == "pilot")
-    blocked_count = sum(1 for o in opportunities if o.get("status") == "blocked")
+    active_count = sum(1 for o in opportunities if o.get("status") == "active")
+    backlog_count = sum(1 for o in opportunities if o.get("status") == "backlog")
+    archived_count = sum(1 for o in opportunities if o.get("status") == "archived")
 
-    if blocked_count > 0:
+    if archived_count > active_count:
         return StatusItem(
             area="Opportunity Clarity",
             status="red",
-            notes=f"{blocked_count} blocked, {scoping_count} scoping",
+            notes=f"{archived_count} archived, {active_count} active",
         )
-    elif identified_count > scoping_count:
+    elif backlog_count > active_count:
         return StatusItem(
             area="Opportunity Clarity",
             status="yellow",
-            notes=f"{identified_count} need scoping, {pilot_count} in pilot",
+            notes=f"{backlog_count} in backlog, {active_count} active",
         )
     else:
         return StatusItem(
             area="Opportunity Clarity",
             status="green",
-            notes=f"{scoping_count + pilot_count} in progress",
+            notes=f"{active_count} active",
         )
 
 
@@ -369,7 +368,7 @@ async def get_meeting_prep(
             title=o["title"],
             total_score=o.get("total_score", 0),
             tier=o.get("tier", 4),
-            status=o.get("status", "identified"),
+            status=o.get("status", "backlog"),
             next_step=o.get("next_step"),
             role=o.get("stakeholder_role", "involved"),
         )

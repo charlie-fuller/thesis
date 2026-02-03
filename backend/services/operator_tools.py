@@ -45,7 +45,7 @@ class OperatorTools:
             # Count by status
             status_counts = {}
             for opp in opportunities:
-                status = opp.get("status", "identified")
+                status = opp.get("status", "backlog")
                 status_counts[status] = status_counts.get(status, 0) + 1
 
             # Top 5 opportunities

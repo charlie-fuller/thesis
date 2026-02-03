@@ -58,12 +58,10 @@ const DEPARTMENTS = [
 ]
 
 const STATUS_OPTIONS = [
-  { value: 'identified', label: 'Identified', description: 'Opportunity recognized but not yet scoped' },
-  { value: 'scoping', label: 'Scoping', description: 'Actively defining requirements and approach' },
-  { value: 'pilot', label: 'Pilot', description: 'Running a limited proof of concept' },
-  { value: 'scaling', label: 'Scaling', description: 'Expanding from pilot to broader deployment' },
-  { value: 'completed', label: 'Completed', description: 'Fully implemented' },
-  { value: 'blocked', label: 'Blocked', description: 'Progress halted due to blockers' },
+  { value: 'backlog', label: 'Backlog', description: 'Identified but not yet started' },
+  { value: 'active', label: 'Active', description: 'Currently being worked on' },
+  { value: 'completed', label: 'Completed', description: 'Successfully implemented' },
+  { value: 'archived', label: 'Archived', description: 'Dropped or no longer relevant' },
 ]
 
 // ============================================================================
@@ -203,7 +201,7 @@ export default function NewOpportunityPage() {
     implementation_effort: 3,
     strategic_alignment: 3,
     stakeholder_readiness: 3,
-    status: 'identified',
+    status: 'backlog',
     next_step: '',
     blockers: [],
     follow_up_questions: [],

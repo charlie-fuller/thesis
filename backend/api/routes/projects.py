@@ -57,7 +57,7 @@ class ProjectCreate(BaseModel):
     implementation_effort: Optional[int] = Field(None, ge=1, le=5)
     strategic_alignment: Optional[int] = Field(None, ge=1, le=5)
     stakeholder_readiness: Optional[int] = Field(None, ge=1, le=5)
-    status: str = "identified"
+    status: str = "backlog"
     next_step: Optional[str] = None
     blockers: List[str] = []
     follow_up_questions: List[str] = []
@@ -252,7 +252,7 @@ def _format_project(proj: dict, owner_name: Optional[str] = None) -> dict:
         "stakeholder_readiness": proj.get("stakeholder_readiness"),
         "total_score": proj.get("total_score", 0),
         "tier": proj.get("tier", 4),
-        "status": proj.get("status", "identified"),
+        "status": proj.get("status", "backlog"),
         "next_step": proj.get("next_step"),
         "blockers": proj.get("blockers") or [],
         "follow_up_questions": proj.get("follow_up_questions") or [],
@@ -508,7 +508,7 @@ async def get_projects_summary(
         tier_counts[tier] = tier_counts.get(tier, 0) + 1
 
         # Status
-        status = proj.get("status", "identified")
+        status = proj.get("status", "backlog")
         status_counts[status] = status_counts.get(status, 0) + 1
 
         # Department
@@ -1096,12 +1096,9 @@ async def update_project_status(
 ):
     """Update project status.
 
-    Valid statuses: identified, scoping, pilot, scaling, completed, blocked
-
-    When moving to 'scoping' or 'pilot', a project_name is required
-    if not already set on the project.
+    Valid statuses: backlog, active, completed, archived
     """
-    valid_statuses = ["identified", "scoping", "pilot", "scaling", "completed", "blocked"]
+    valid_statuses = ["backlog", "active", "completed", "archived"]
     if request.status not in valid_statuses:
         raise HTTPException(
             status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
@@ -1119,16 +1116,6 @@ async def update_project_status(
 
     if not existing.data:
         raise HTTPException(status_code=404, detail="Project not found")
-
-    # Require project_name when moving to scoping or pilot
-    requires_project_name = request.status in ["scoping", "pilot"]
-    has_project_name = existing.data.get("project_name") or request.project_name
-
-    if requires_project_name and not has_project_name:
-        raise HTTPException(
-            status_code=400,
-            detail="project_name is required when moving to scoping or pilot status",
-        )
 
     update_data = {"status": request.status}
     if request.next_step is not None:
@@ -1530,7 +1517,7 @@ async def accept_project_candidate(
         "stakeholder_readiness": accept_data.stakeholder_readiness
         or cand.get("suggested_readiness")
         or 3,
-        "status": "identified",
+        "status": "backlog",
         "source_type": "meeting",
         "source_id": cand.get("source_document_id"),
         "source_notes": cand.get("source_text"),
