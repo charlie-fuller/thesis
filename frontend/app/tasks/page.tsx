@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import PageLayout from '@/components/PageLayout'
 import LoadingSpinner from '@/components/LoadingSpinner'
@@ -9,7 +9,11 @@ import TaskKanbanBoard from '@/components/tasks/TaskKanbanBoard'
 
 export default function TasksPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
+
+  // Get initial project filter from URL
+  const initialProjectId = searchParams.get('project')
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -36,7 +40,7 @@ export default function TasksPage() {
     <PageLayout>
       <div className="flex-1 p-6">
         <div className="max-w-[1600px] mx-auto">
-          <TaskKanbanBoard />
+          <TaskKanbanBoard initialProjectId={initialProjectId} />
         </div>
       </div>
     </PageLayout>

@@ -77,7 +77,11 @@ const COLUMN_CONFIG = [
   { id: 'completed', title: 'Done', color: 'bg-green-50 dark:bg-green-900/20', headerColor: 'text-green-700 dark:text-green-300' },
 ] as const
 
-export default function TaskKanbanBoard() {
+interface TaskKanbanBoardProps {
+  initialProjectId?: string | null
+}
+
+export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardProps = {}) {
   const [columns, setColumns] = useState<KanbanResponse['columns']>({
     pending: [],
     in_progress: [],
@@ -105,7 +109,7 @@ export default function TaskKanbanBoard() {
     priority: null,
     source_type: null,
     team: null,
-    linked_project_id: null,
+    linked_project_id: initialProjectId || null,
     search: null,
     include_completed: true,
   })

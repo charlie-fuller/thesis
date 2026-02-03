@@ -249,6 +249,18 @@ export default function ProjectDetailModal({
   const [conversationsLoading, setConversationsLoading] = useState(false)
   const [showConversations, setShowConversations] = useState(false)
 
+  // Tasks state
+  interface ProjectTask {
+    id: string
+    title: string
+    status: 'pending' | 'in_progress' | 'blocked' | 'completed'
+    priority: number
+    due_date: string | null
+    assignee_name: string | null
+  }
+  const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([])
+  const [tasksLoading, setTasksLoading] = useState(false)
+
   // Justification generation state
   const [generating, setGenerating] = useState(false)
 
@@ -295,7 +307,7 @@ export default function ProjectDetailModal({
   const [shouldAutoGenerateTasks, setShouldAutoGenerateTasks] = useState(false)
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'related' | 'chat'>('scores')
+  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'tasks' | 'related' | 'chat'>('scores')
 
   // Individual section editing state (replaces global edit mode)
   const [editingSection, setEditingSection] = useState<
@@ -337,13 +349,14 @@ export default function ProjectDetailModal({
     }
   }, [editingSection, project])
 
-  // Fetch related documents, stakeholders, and initiatives on open
+  // Fetch related documents, stakeholders, initiatives, and tasks on open
   useEffect(() => {
     if (open && project) {
       fetchRelatedDocuments()
       fetchLinkedStakeholders()
       fetchConversations()
       fetchLinkedInitiatives()
+      fetchProjectTasks()
     }
   }, [open, project?.id])
 
@@ -448,6 +461,22 @@ export default function ProjectDetailModal({
       console.error('Failed to fetch conversations:', error)
     } finally {
       setConversationsLoading(false)
+    }
+  }
+
+  const fetchProjectTasks = async () => {
+    setTasksLoading(true)
+    try {
+      const response = await apiGet<{ success: boolean; tasks: ProjectTask[] }>(
+        `/api/tasks?linked_project_id=${project.id}&limit=50`
+      )
+      if (response.success) {
+        setProjectTasks(response.tasks || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch project tasks:', error)
+    } finally {
+      setTasksLoading(false)
     }
   }
 
@@ -762,6 +791,7 @@ export default function ProjectDetailModal({
             { id: 'confidence' as const, label: 'Confidence', icon: Gauge },
             { id: 'alignment' as const, label: 'Alignment', icon: Target },
             { id: 'details' as const, label: 'Details', icon: FileText },
+            { id: 'tasks' as const, label: 'Tasks', icon: ListTodo },
             { id: 'related' as const, label: 'Related', icon: ExternalLink },
             { id: 'chat' as const, label: 'Chat', icon: MessageSquare },
           ].map((tab) => (
@@ -1404,6 +1434,96 @@ export default function ProjectDetailModal({
                     </button>
                   </div>
                 </section>
+              )}
+            </div>
+          )}
+
+          {/* TASKS TAB */}
+          {activeTab === 'tasks' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
+                  <ListTodo className="w-4 h-4" />
+                  Project Tasks
+                  {projectTasks.length > 0 && (
+                    <span className="text-xs font-normal">({projectTasks.length})</span>
+                  )}
+                </h3>
+                <a
+                  href={`/tasks?project=${project.id}`}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  View all in Tasks
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+
+              {tasksLoading ? (
+                <div className="flex items-center gap-2 text-muted py-8">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Loading tasks...</span>
+                </div>
+              ) : projectTasks.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-default rounded-lg">
+                  <ListTodo className="w-8 h-8 mx-auto text-muted mb-2" />
+                  <p className="text-sm text-muted">No tasks linked to this project yet.</p>
+                  <p className="text-xs text-muted mt-1">
+                    Tasks can be created from the Chat tab using Taskmaster, or linked manually.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {projectTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="flex items-center gap-3 p-3 border border-default rounded-lg hover:bg-hover transition-colors"
+                    >
+                      {/* Status indicator */}
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        task.status === 'completed' ? 'bg-green-500' :
+                        task.status === 'in_progress' ? 'bg-blue-500' :
+                        task.status === 'blocked' ? 'bg-orange-500' :
+                        'bg-gray-400'
+                      }`} />
+
+                      {/* Task details */}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium truncate ${
+                          task.status === 'completed' ? 'text-muted line-through' : 'text-primary'
+                        }`}>
+                          {task.title}
+                        </p>
+                        {(task.assignee_name || task.due_date) && (
+                          <p className="text-xs text-muted flex items-center gap-2 mt-0.5">
+                            {task.assignee_name && <span>{task.assignee_name}</span>}
+                            {task.assignee_name && task.due_date && <span>•</span>}
+                            {task.due_date && <span>Due {new Date(task.due_date).toLocaleDateString()}</span>}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Priority badge */}
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
+                        task.priority >= 4 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                        task.priority === 3 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                        'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                      }`}>
+                        {task.priority >= 4 ? 'High' : task.priority === 3 ? 'Med' : 'Low'}
+                      </span>
+
+                      {/* Status badge */}
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
+                        task.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                        task.status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                        task.status === 'blocked' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                        'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                      }`}>
+                        {task.status === 'in_progress' ? 'In Progress' :
+                         task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           )}
