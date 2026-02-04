@@ -119,13 +119,15 @@ export default function DiscoProcessMap() {
 
   return (
     <div className="bg-card rounded-lg border border-default p-6">
-      {/* SVG Flowchart - Compact Layout */}
-      <div className="overflow-x-auto text-primary">
-        <svg
-          viewBox="0 0 450 670"
-          className="w-full max-w-[450px] mx-auto"
-          style={{ maxHeight: '670px' }}
-        >
+      {/* Two-column layout: Map on left, Details on right */}
+      <div className="flex gap-6">
+        {/* Left: SVG Flowchart */}
+        <div className="flex-shrink-0 text-primary">
+          <svg
+            viewBox="0 0 450 670"
+            className="w-[400px]"
+            style={{ maxHeight: '670px' }}
+          >
           {/* Definitions */}
           <defs>
             {/* Discovery gradient (blue) */}
@@ -396,58 +398,69 @@ export default function DiscoProcessMap() {
           </g>
 
           {/* ===== LEGEND (bottom) ===== */}
-          <g transform="translate(30, 645)">
-            <rect x="0" y="-10" width="14" height="14" rx="3" fill="rgba(100, 116, 139, 0.15)" stroke="#64748b" strokeWidth="1.5" />
-            <text x="20" y="2" fill={colors.textSecondary} fontSize="10">= Human-in-the-loop checkpoint</text>
-            <text x="250" y="2" fill={colors.textSecondary} fontSize="10">Click agents for details</text>
+          <g transform="translate(30, 630)">
+            <rect x="0" y="-12" width="20" height="20" rx="4" fill="rgba(100, 116, 139, 0.15)" stroke="#64748b" strokeWidth="2" />
+            <text x="28" y="4" fill={colors.textSecondary} fontSize="13" fontWeight="500">= Human-in-the-loop checkpoint</text>
+          </g>
+          <g transform="translate(30, 658)">
+            <text fill={colors.textSecondary} fontSize="13" fontWeight="500">Click agents for details</text>
           </g>
         </svg>
       </div>
 
-      {/* Details Panel */}
-      {selectedStep && (
-        <div className="mt-6 p-4 bg-hover rounded-lg border border-default">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-primary">{selectedStep.title}</h3>
-                <span
-                  className="px-2 py-0.5 rounded text-xs font-medium"
-                  style={{
-                    backgroundColor: stageColors[selectedStep.stage].light,
-                    color: stageColors[selectedStep.stage].text
-                  }}
+        {/* Right: Details Panel */}
+        <div className="flex-1 min-w-[280px]">
+          {selectedStep ? (
+            <div className="p-4 bg-hover rounded-lg border border-default h-full">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-primary">{selectedStep.title}</h3>
+                    <span
+                      className="px-2 py-0.5 rounded text-xs font-medium"
+                      style={{
+                        backgroundColor: stageColors[selectedStep.stage].light,
+                        color: stageColors[selectedStep.stage].text
+                      }}
+                    >
+                      {selectedStep.stage.charAt(0).toUpperCase() + selectedStep.stage.slice(1)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-secondary mt-1">{selectedStep.description}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedStep(null)}
+                  className="text-muted hover:text-primary"
                 >
-                  {selectedStep.stage.charAt(0).toUpperCase() + selectedStep.stage.slice(1)}
-                </span>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <p className="text-sm text-secondary mt-1">{selectedStep.description}</p>
+              <ul className="mt-4 space-y-2">
+                {selectedStep.details.map((detail, index) => (
+                  <li key={index} className="text-sm text-secondary flex items-start">
+                    <span className="mr-2 mt-0.5" style={{ color: stageColors[selectedStep.stage].text }}>-</span>
+                    {detail}
+                  </li>
+                ))}
+              </ul>
+              {selectedStep.checkpoint && (
+                <div className="mt-4 pt-4 border-t border-default">
+                  <p className="text-sm text-muted flex items-center gap-2">
+                    <span className="inline-block w-4 h-4 border-2 border-slate-400 rounded" />
+                    {selectedStep.checkpoint}
+                  </p>
+                </div>
+              )}
             </div>
-            <button
-              onClick={() => setSelectedStep(null)}
-              className="text-muted hover:text-primary"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <ul className="mt-3 space-y-1">
-            {selectedStep.details.map((detail, index) => (
-              <li key={index} className="text-sm text-secondary flex items-start">
-                <span className="mr-2" style={{ color: stageColors[selectedStep.stage].text }}>-</span>
-                {detail}
-              </li>
-            ))}
-          </ul>
-          {selectedStep.checkpoint && (
-            <div className="mt-3 pt-3 border-t border-default">
-              <p className="text-xs text-muted flex items-center gap-2">
-                <span className="inline-block w-3 h-3 border-2 border-slate-400 rounded-sm" />
-                {selectedStep.checkpoint}
+          ) : (
+            <div className="p-4 bg-hover rounded-lg border border-default border-dashed h-full flex items-center justify-center">
+              <p className="text-sm text-muted text-center">
+                Click an agent in the workflow<br />to see details
               </p>
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
