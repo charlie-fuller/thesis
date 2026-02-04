@@ -379,20 +379,23 @@ export default function DiscoProcessMap() {
           {/* Arrow: Checkpoint 4 -> PRD Output (from checkpoint down to PRD) */}
           <path d={`M ${checkpointX + checkpointSize/2} ${startY + rowSpacing*3 + (agentHeight - checkpointSize)/2 + checkpointSize} L ${checkpointX + checkpointSize/2} ${startY + rowSpacing*4 - 15} L ${agentX + agentWidth/2} ${startY + rowSpacing*4 - 15} L ${agentX + agentWidth/2} ${startY + rowSpacing*4 - 5}`} fill="none" stroke="#22c55e" strokeWidth="2" markerEnd="url(#arrowhead)" />
 
-          {/* Final Output: PRD */}
+          {/* Final Output: PRD - orange to differentiate */}
           <g>
             <rect
               x={agentX} y={startY + rowSpacing*4}
               width={agentWidth} height="55"
               rx="10"
-              fill="rgba(34, 197, 94, 0.2)"
-              stroke="#22c55e"
+              fill="rgba(249, 115, 22, 0.2)"
+              stroke="#f97316"
               strokeWidth="2"
             />
-            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 24} textAnchor="middle" fill="#22c55e" fontSize="14" fontWeight="700">
-              PRD Document
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 20} textAnchor="middle" fill="#f97316" fontSize="11" fontWeight="700">
+              Product Requirements Document
             </text>
-            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 42} textAnchor="middle" fill={colors.textSecondary} fontSize="10">
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 36} textAnchor="middle" fill="#f97316" fontSize="13" fontWeight="600">
+              (PRD)
+            </text>
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 50} textAnchor="middle" fill={colors.textSecondary} fontSize="9">
               Complete spec ready for development
             </text>
           </g>
@@ -400,10 +403,16 @@ export default function DiscoProcessMap() {
         </svg>
       </div>
 
-        {/* Right: Details Panel - larger default, centered */}
+        {/* Right: Details Panel - larger default, centered, color matches stage */}
         <div className="flex-1 w-[380px] max-w-[415px] mx-auto">
           {selectedStep ? (
-            <div className="p-4 bg-hover rounded-lg border border-default h-full">
+            <div
+              className="p-4 rounded-lg border-2 h-full"
+              style={{
+                backgroundColor: stageColors[selectedStep.stage].light,
+                borderColor: stageColors[selectedStep.stage].stroke
+              }}
+            >
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
@@ -412,7 +421,8 @@ export default function DiscoProcessMap() {
                       className="px-2 py-0.5 rounded text-xs font-medium"
                       style={{
                         backgroundColor: stageColors[selectedStep.stage].light,
-                        color: stageColors[selectedStep.stage].text
+                        color: stageColors[selectedStep.stage].text,
+                        border: `1px solid ${stageColors[selectedStep.stage].stroke}`
                       }}
                     >
                       {selectedStep.stage.charAt(0).toUpperCase() + selectedStep.stage.slice(1)}
