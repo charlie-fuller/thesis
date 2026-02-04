@@ -1,19 +1,16 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ListChecks,
   Lightbulb,
   Users,
-  ArrowRight,
   Loader2,
   Search,
   X,
   ChevronLeft,
   ChevronRight,
   FileText,
-  Link2,
   Check
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -86,13 +83,10 @@ interface DiscoveryAllResponse {
 type TabType = 'tasks' | 'projects' | 'stakeholders';
 
 export default function UnifiedDiscoveryPanel() {
-  const router = useRouter();
   const { user, session, loading: authLoading } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState<DiscoveryCounts>({ tasks: 0, projects: 0, stakeholders: 0, total: 0 });
-  const [activeTab, setActiveTab] = useState<TabType>('tasks');
-  const [expanded, setExpanded] = useState(false);
 
   // Candidate data
   const [tasks, setTasks] = useState<TaskCandidate[]>([]);
@@ -116,11 +110,6 @@ export default function UnifiedDiscoveryPanel() {
       setProjects(data.projects);
       setStakeholders(data.stakeholders);
       setScanning(data.scanning || null);
-
-      // Set active tab to first non-empty category
-      if (data.tasks.length > 0) setActiveTab('tasks');
-      else if (data.projects.length > 0) setActiveTab('projects');
-      else if (data.stakeholders.length > 0) setActiveTab('stakeholders');
     } catch (err) {
       logger.error('Error fetching discovery data:', err);
     } finally {
@@ -135,197 +124,6 @@ export default function UnifiedDiscoveryPanel() {
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [authLoading, user, session, fetchData]);
-
-  // Get current item based on active tab
-  const getCurrentItem = () => {
-    switch (activeTab) {
-      case 'tasks':
-        return tasks[taskIndex];
-      case 'projects':
-        return projects[oppIndex];
-      case 'stakeholders':
-        return stakeholders[stakeholderIndex];
-      default:
-        return null;
-    }
-  };
-
-  const getCurrentList = () => {
-    switch (activeTab) {
-      case 'tasks':
-        return tasks;
-      case 'projects':
-        return projects;
-      case 'stakeholders':
-        return stakeholders;
-      default:
-        return [];
-    }
-  };
-
-  const getCurrentIndex = () => {
-    switch (activeTab) {
-      case 'tasks':
-        return taskIndex;
-      case 'projects':
-        return oppIndex;
-      case 'stakeholders':
-        return stakeholderIndex;
-      default:
-        return 0;
-    }
-  };
-
-  const setCurrentIndex = (index: number) => {
-    switch (activeTab) {
-      case 'tasks':
-        setTaskIndex(index);
-        break;
-      case 'projects':
-        setOppIndex(index);
-        break;
-      case 'stakeholders':
-        setStakeholderIndex(index);
-        break;
-    }
-  };
-
-  // Navigation
-  const goPrev = () => {
-    const idx = getCurrentIndex();
-    if (idx > 0) setCurrentIndex(idx - 1);
-  };
-
-  const goNext = () => {
-    const idx = getCurrentIndex();
-    const list = getCurrentList();
-    if (idx < list.length - 1) setCurrentIndex(idx + 1);
-  };
-
-  // Accept/Reject handlers
-  const handleAccept = async () => {
-    const item = getCurrentItem();
-    if (!item) return;
-
-    setProcessing(true);
-    try {
-      let endpoint = '';
-      let body: object = {};
-
-      switch (activeTab) {
-        case 'tasks':
-          endpoint = `/api/tasks/candidates/${item.id}/accept`;
-          body = { overrides: {} };
-          break;
-        case 'projects':
-          endpoint = `/api/projects/candidates/${item.id}/accept`;
-          body = { link_to_existing: false };
-          break;
-        case 'stakeholders':
-          endpoint = `/api/stakeholders/candidates/${item.id}/accept`;
-          body = {};
-          break;
-      }
-
-      await apiPost(endpoint, body);
-      const singular = activeTab === 'projects' ? 'Project' : activeTab.slice(0, -1).charAt(0).toUpperCase() + activeTab.slice(0, -1).slice(1);
-      toast.success(`${singular} created`);
-
-      // Remove from list and update counts
-      const list = getCurrentList();
-      const newList = list.filter((_, i) => i !== getCurrentIndex());
-
-      switch (activeTab) {
-        case 'tasks':
-          setTasks(newList as TaskCandidate[]);
-          setCounts(prev => ({ ...prev, tasks: prev.tasks - 1, total: prev.total - 1 }));
-          if (taskIndex >= newList.length && taskIndex > 0) setTaskIndex(taskIndex - 1);
-          break;
-        case 'projects':
-          setProjects(newList as ProjectCandidate[]);
-          setCounts(prev => ({ ...prev, projects: prev.projects - 1, total: prev.total - 1 }));
-          if (oppIndex >= newList.length && oppIndex > 0) setOppIndex(oppIndex - 1);
-          break;
-        case 'stakeholders':
-          setStakeholders(newList as StakeholderCandidate[]);
-          setCounts(prev => ({ ...prev, stakeholders: prev.stakeholders - 1, total: prev.total - 1 }));
-          if (stakeholderIndex >= newList.length && stakeholderIndex > 0) setStakeholderIndex(stakeholderIndex - 1);
-          break;
-      }
-    } catch (err) {
-      logger.error('Error accepting candidate:', err);
-      toast.error('Failed to accept');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleReject = async () => {
-    const item = getCurrentItem();
-    if (!item) return;
-
-    setProcessing(true);
-    try {
-      let endpoint = '';
-
-      switch (activeTab) {
-        case 'tasks':
-          endpoint = `/api/tasks/candidates/${item.id}/reject`;
-          break;
-        case 'projects':
-          endpoint = `/api/projects/candidates/${item.id}/reject`;
-          break;
-        case 'stakeholders':
-          endpoint = `/api/stakeholders/candidates/${item.id}/reject`;
-          break;
-      }
-
-      await apiPost(endpoint, { reason: 'Skipped from discovery panel' });
-      toast.success('Skipped');
-
-      // Remove from list and update counts
-      const list = getCurrentList();
-      const newList = list.filter((_, i) => i !== getCurrentIndex());
-
-      switch (activeTab) {
-        case 'tasks':
-          setTasks(newList as TaskCandidate[]);
-          setCounts(prev => ({ ...prev, tasks: prev.tasks - 1, total: prev.total - 1 }));
-          if (taskIndex >= newList.length && taskIndex > 0) setTaskIndex(taskIndex - 1);
-          break;
-        case 'projects':
-          setProjects(newList as ProjectCandidate[]);
-          setCounts(prev => ({ ...prev, projects: prev.projects - 1, total: prev.total - 1 }));
-          if (oppIndex >= newList.length && oppIndex > 0) setOppIndex(oppIndex - 1);
-          break;
-        case 'stakeholders':
-          setStakeholders(newList as StakeholderCandidate[]);
-          setCounts(prev => ({ ...prev, stakeholders: prev.stakeholders - 1, total: prev.total - 1 }));
-          if (stakeholderIndex >= newList.length && stakeholderIndex > 0) setStakeholderIndex(stakeholderIndex - 1);
-          break;
-      }
-    } catch (err) {
-      logger.error('Error rejecting candidate:', err);
-      toast.error('Failed to skip');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  // View full page for this category
-  const handleViewAll = () => {
-    switch (activeTab) {
-      case 'tasks':
-        router.push('/tasks');
-        break;
-      case 'projects':
-        router.push('/projects');
-        break;
-      case 'stakeholders':
-        router.push('/intelligence?tab=stakeholders');
-        break;
-    }
-  };
 
   // Don't render while loading
   if (loading) return null;
@@ -357,15 +155,228 @@ export default function UnifiedDiscoveryPanel() {
     );
   }
 
-  const currentItem = getCurrentItem();
-  const currentList = getCurrentList();
-  const currentIndex = getCurrentIndex();
+  // Panel component for each category
+  const renderPanel = (
+    type: TabType,
+    items: (TaskCandidate | ProjectCandidate | StakeholderCandidate)[],
+    index: number,
+    setIndex: (i: number) => void,
+    icon: React.ElementType,
+    label: string,
+    colorClass: string,
+    bgClass: string
+  ) => {
+    const item = items[index];
+    if (!item) {
+      return (
+        <div className="flex-1 p-4 border border-default rounded-lg bg-page">
+          <div className="flex items-center gap-2 mb-3">
+            {React.createElement(icon, { className: `w-4 h-4 ${colorClass}` })}
+            <span className="font-medium text-primary">{label}</span>
+            <span className="ml-auto text-xs text-muted">0 items</span>
+          </div>
+          <p className="text-sm text-muted text-center py-4">No {label.toLowerCase()} to review</p>
+        </div>
+      );
+    }
 
-  const tabs = [
-    { key: 'tasks' as TabType, label: 'Tasks', count: counts.tasks, icon: ListChecks, color: 'amber' },
-    { key: 'projects' as TabType, label: 'Projects', count: counts.projects, icon: Lightbulb, color: 'emerald' },
-    { key: 'stakeholders' as TabType, label: 'Stakeholders', count: counts.stakeholders, icon: Users, color: 'purple' },
-  ];
+    const handlePanelAccept = async () => {
+      setProcessing(true);
+      try {
+        let endpoint = '';
+        let body: object = {};
+
+        switch (type) {
+          case 'tasks':
+            endpoint = `/api/tasks/candidates/${item.id}/accept`;
+            body = { overrides: {} };
+            break;
+          case 'projects':
+            endpoint = `/api/projects/candidates/${item.id}/accept`;
+            body = { link_to_existing: false };
+            break;
+          case 'stakeholders':
+            endpoint = `/api/stakeholders/candidates/${item.id}/accept`;
+            body = {};
+            break;
+        }
+
+        await apiPost(endpoint, body);
+        const singular = type === 'projects' ? 'Project' : type.slice(0, -1).charAt(0).toUpperCase() + type.slice(0, -1).slice(1);
+        toast.success(`${singular} created`);
+
+        // Remove from list and update counts
+        const newList = items.filter((_, i) => i !== index);
+        switch (type) {
+          case 'tasks':
+            setTasks(newList as TaskCandidate[]);
+            setCounts(prev => ({ ...prev, tasks: prev.tasks - 1, total: prev.total - 1 }));
+            if (index >= newList.length && index > 0) setTaskIndex(index - 1);
+            break;
+          case 'projects':
+            setProjects(newList as ProjectCandidate[]);
+            setCounts(prev => ({ ...prev, projects: prev.projects - 1, total: prev.total - 1 }));
+            if (index >= newList.length && index > 0) setOppIndex(index - 1);
+            break;
+          case 'stakeholders':
+            setStakeholders(newList as StakeholderCandidate[]);
+            setCounts(prev => ({ ...prev, stakeholders: prev.stakeholders - 1, total: prev.total - 1 }));
+            if (index >= newList.length && index > 0) setStakeholderIndex(index - 1);
+            break;
+        }
+      } catch (err) {
+        logger.error('Error accepting candidate:', err);
+        toast.error('Failed to accept');
+      } finally {
+        setProcessing(false);
+      }
+    };
+
+    const handlePanelReject = async () => {
+      setProcessing(true);
+      try {
+        let endpoint = '';
+        switch (type) {
+          case 'tasks':
+            endpoint = `/api/tasks/candidates/${item.id}/reject`;
+            break;
+          case 'projects':
+            endpoint = `/api/projects/candidates/${item.id}/reject`;
+            break;
+          case 'stakeholders':
+            endpoint = `/api/stakeholders/candidates/${item.id}/reject`;
+            break;
+        }
+
+        await apiPost(endpoint, { reason: 'Skipped from discovery panel' });
+        toast.success('Skipped');
+
+        const newList = items.filter((_, i) => i !== index);
+        switch (type) {
+          case 'tasks':
+            setTasks(newList as TaskCandidate[]);
+            setCounts(prev => ({ ...prev, tasks: prev.tasks - 1, total: prev.total - 1 }));
+            if (index >= newList.length && index > 0) setTaskIndex(index - 1);
+            break;
+          case 'projects':
+            setProjects(newList as ProjectCandidate[]);
+            setCounts(prev => ({ ...prev, projects: prev.projects - 1, total: prev.total - 1 }));
+            if (index >= newList.length && index > 0) setOppIndex(index - 1);
+            break;
+          case 'stakeholders':
+            setStakeholders(newList as StakeholderCandidate[]);
+            setCounts(prev => ({ ...prev, stakeholders: prev.stakeholders - 1, total: prev.total - 1 }));
+            if (index >= newList.length && index > 0) setStakeholderIndex(index - 1);
+            break;
+        }
+      } catch (err) {
+        logger.error('Error rejecting candidate:', err);
+        toast.error('Failed to skip');
+      } finally {
+        setProcessing(false);
+      }
+    };
+
+    return (
+      <div className={`flex-1 border rounded-lg overflow-hidden ${bgClass}`}>
+        {/* Panel Header */}
+        <div className="flex items-center gap-2 p-3 border-b border-default bg-card">
+          {React.createElement(icon, { className: `w-4 h-4 ${colorClass}` })}
+          <span className="font-medium text-primary">{label}</span>
+          <span className={`ml-auto px-1.5 py-0.5 text-xs rounded-full ${colorClass} bg-opacity-20`}>
+            {items.length}
+          </span>
+        </div>
+
+        {/* Panel Content */}
+        <div className="p-3">
+          {/* Source badge */}
+          <div className="flex items-center gap-2 text-xs text-muted mb-2">
+            <FileText className="w-3 h-3" />
+            <span className="truncate">{item.source_document_name ?? 'Unknown source'}</span>
+          </div>
+
+          {/* Title */}
+          <h4 className="font-semibold text-primary text-sm mb-1 line-clamp-1">
+            {'title' in item ? item.title : (item as StakeholderCandidate).name}
+          </h4>
+
+          {/* Description preview */}
+          {'description' in item && item.description && (
+            <p className="text-xs text-secondary line-clamp-2 mb-2">
+              {item.description}
+            </p>
+          )}
+
+          {/* Type-specific metadata */}
+          {type === 'tasks' && (
+            <div className="flex gap-2 text-xs text-muted">
+              {(item as TaskCandidate).team && <span>{(item as TaskCandidate).team}</span>}
+            </div>
+          )}
+          {type === 'projects' && (
+            <div className="flex gap-3 text-xs text-muted">
+              <span>ROI: {(item as ProjectCandidate).suggested_roi_potential || 3}/5</span>
+              <span>Effort: {(item as ProjectCandidate).suggested_effort || 3}/5</span>
+            </div>
+          )}
+          {type === 'stakeholders' && (
+            <div className="flex gap-2 flex-wrap">
+              {(item as StakeholderCandidate).role && (
+                <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
+                  {(item as StakeholderCandidate).role}
+                </span>
+              )}
+              {(item as StakeholderCandidate).department && (
+                <span className="text-xs bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">
+                  {(item as StakeholderCandidate).department}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Panel Actions */}
+        <div className="flex items-center justify-between p-2 border-t border-default bg-page">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => index > 0 && setIndex(index - 1)}
+              disabled={index === 0 || processing}
+              className="p-1 text-muted hover:text-primary disabled:opacity-30 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs text-secondary">{index + 1}/{items.length}</span>
+            <button
+              onClick={() => index < items.length - 1 && setIndex(index + 1)}
+              disabled={index === items.length - 1 || processing}
+              className="p-1 text-muted hover:text-primary disabled:opacity-30 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handlePanelReject}
+              disabled={processing}
+              className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50"
+              title="Skip"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handlePanelAccept}
+              disabled={processing}
+              className="p-1.5 text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors disabled:opacity-50"
+              title="Accept"
+            >
+              {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="card overflow-hidden">
@@ -383,186 +394,48 @@ export default function UnifiedDiscoveryPanel() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {scanning?.active && (
-              <div className="flex items-center gap-2 text-xs text-amber-500">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span>Analyzing {scanning.pending_documents} more...</span>
-              </div>
-            )}
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="px-3 py-1.5 text-sm font-medium text-secondary hover:text-primary transition-colors"
-            >
-              {expanded ? 'Collapse' : 'Expand'}
-            </button>
-          </div>
+          {scanning?.active && (
+            <div className="flex items-center gap-2 text-xs text-amber-500">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span>Analyzing {scanning.pending_documents} more...</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-default">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => {
-              setActiveTab(tab.key);
-              setCurrentIndex(0);
-            }}
-            disabled={tab.count === 0}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors relative ${
-              activeTab === tab.key
-                ? 'text-primary bg-card'
-                : tab.count > 0
-                ? 'text-secondary hover:text-primary bg-page'
-                : 'text-muted bg-page cursor-not-allowed'
-            }`}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <tab.icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-              {tab.count > 0 && (
-                <span className={`px-1.5 py-0.5 text-xs rounded-full ${
-                  activeTab === tab.key
-                    ? `bg-${tab.color}-500/20 text-${tab.color}-500`
-                    : 'bg-gray-200 dark:bg-gray-700 text-secondary'
-                }`}>
-                  {tab.count}
-                </span>
-              )}
-            </div>
-            {activeTab === tab.key && (
-              <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-${tab.color}-500`} />
-            )}
-          </button>
-        ))}
+      {/* Vertical Panel Layout */}
+      <div className="p-4 space-y-4">
+        {renderPanel(
+          'tasks',
+          tasks,
+          taskIndex,
+          setTaskIndex,
+          ListChecks,
+          'Tasks',
+          'text-amber-500',
+          'border-amber-500/30'
+        )}
+        {renderPanel(
+          'projects',
+          projects,
+          oppIndex,
+          setOppIndex,
+          Lightbulb,
+          'Projects',
+          'text-emerald-500',
+          'border-emerald-500/30'
+        )}
+        {renderPanel(
+          'stakeholders',
+          stakeholders,
+          stakeholderIndex,
+          setStakeholderIndex,
+          Users,
+          'Stakeholders',
+          'text-purple-500',
+          'border-purple-500/30'
+        )}
       </div>
-
-      {/* Content */}
-      {currentList.length > 0 && currentItem && (
-        <div className={`transition-all duration-300 ${expanded ? 'max-h-[600px]' : 'max-h-[200px]'}`}>
-          {/* Quick preview */}
-          <div className="p-4">
-            {/* Source badge */}
-            <div className="flex items-center gap-2 text-xs text-muted mb-2">
-              <FileText className="w-3 h-3" />
-              <span>{currentItem.source_document_name ?? 'Unknown source'}</span>
-              <span className={`ml-auto px-2 py-0.5 rounded font-medium ${
-                currentItem.confidence === 'high'
-                  ? 'bg-green-500/20 text-green-400'
-                  : 'bg-yellow-500/20 text-yellow-400'
-              }`}>
-                {currentItem.confidence}
-              </span>
-            </div>
-
-            {/* Title */}
-            <h4 className="font-semibold text-primary mb-1">
-              {'title' in currentItem ? currentItem.title : (currentItem as StakeholderCandidate).name}
-            </h4>
-
-            {/* Description preview */}
-            {'description' in currentItem && currentItem.description && (
-              <p className="text-sm text-secondary line-clamp-2">
-                {currentItem.description}
-              </p>
-            )}
-
-            {/* Stakeholder role/dept */}
-            {activeTab === 'stakeholders' && (
-              <div className="flex gap-2 mt-2">
-                {(currentItem as StakeholderCandidate).role && (
-                  <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">
-                    {(currentItem as StakeholderCandidate).role}
-                  </span>
-                )}
-                {(currentItem as StakeholderCandidate).department && (
-                  <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded">
-                    {(currentItem as StakeholderCandidate).department}
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* Opportunity scores preview */}
-            {activeTab === 'projects' && (
-              <div className="flex gap-4 mt-2 text-xs text-muted">
-                <span>ROI: {(currentItem as ProjectCandidate).suggested_roi_potential || 3}/5</span>
-                <span>Effort: {(currentItem as ProjectCandidate).suggested_effort || 3}/5</span>
-              </div>
-            )}
-
-            {/* Task team/due date */}
-            {activeTab === 'tasks' && (
-              <div className="flex gap-3 mt-2 text-xs text-muted">
-                {(currentItem as TaskCandidate).team && (
-                  <span>Team: {(currentItem as TaskCandidate).team}</span>
-                )}
-                {(currentItem as TaskCandidate).suggested_due_date && (
-                  <span>Due: {(currentItem as TaskCandidate).suggested_due_date}</span>
-                )}
-              </div>
-            )}
-
-            {/* Match warning for projects */}
-            {activeTab === 'projects' && (currentItem as ProjectCandidate).matched_project_id && (
-              <div className="mt-2 flex items-center gap-1 text-xs text-amber-500">
-                <Link2 className="w-3 h-3" />
-                <span>Potential duplicate detected</span>
-              </div>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center justify-between p-4 border-t border-default bg-page">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={goPrev}
-                disabled={currentIndex === 0 || processing}
-                className="p-1.5 text-muted hover:text-primary disabled:opacity-30 transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <span className="text-sm text-secondary">
-                {currentIndex + 1} of {currentList.length}
-              </span>
-              <button
-                onClick={goNext}
-                disabled={currentIndex === currentList.length - 1 || processing}
-                className="p-1.5 text-muted hover:text-primary disabled:opacity-30 transition-colors"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleReject}
-                disabled={processing}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
-              >
-                <X className="w-4 h-4" />
-                Skip
-              </button>
-              <button
-                onClick={handleAccept}
-                disabled={processing}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
-              >
-                {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                Accept
-              </button>
-              <button
-                onClick={handleViewAll}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-secondary hover:text-primary transition-colors"
-              >
-                View All
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

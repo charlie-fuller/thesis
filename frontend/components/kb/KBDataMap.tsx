@@ -28,7 +28,7 @@ const dataNodes: DataNode[] = [
   {
     id: 'local_vault',
     title: 'Local Vault',
-    description: 'Local docs sync',
+    description: 'Filesystem Sync',
     category: 'source',
     details: [
       'Bidirectional sync with local vault',
@@ -59,18 +59,6 @@ const dataNodes: DataNode[] = [
       'Linked to specific agents',
       'Searchable message history',
       'Context for future queries'
-    ]
-  },
-  {
-    id: 'meetings',
-    title: 'Meeting Transcripts',
-    description: 'Meeting notes and transcripts',
-    category: 'source',
-    details: [
-      'Auto-detected from vault',
-      'Participants extracted',
-      'Action items identified',
-      'Decisions tracked'
     ]
   },
   // Storage
@@ -341,7 +329,7 @@ export default function KBDataMap() {
               Local Vault
             </text>
             <text x="120" y="182" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              Markdown sync
+              Filesystem Sync
             </text>
           </g>
 
@@ -375,34 +363,18 @@ export default function KBDataMap() {
             </text>
           </g>
 
-          {/* Meeting Transcripts */}
-          <g
-            className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[4])}
-          >
-            <rect x="40" y="380" width="160" height="60" rx="8"
-              fill={categoryColors.source.fill} stroke={categoryColors.source.stroke} strokeWidth="2" />
-            <text x="120" y="405" textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
-              Meeting Transcripts
-            </text>
-            <text x="120" y="422" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              Auto-extracted
-            </text>
-          </g>
-
           {/* ===== ARROWS: Sources -> Documents ===== */}
           <path d="M 200 90 L 280 180" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowBlue)" />
           <path d="M 200 170 L 280 180" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowBlue)" />
           <path d="M 200 250 L 280 210" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowBlue)" />
           <path d="M 200 330 L 280 220" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowBlue)" />
-          <path d="M 200 410 L 280 230" fill="none" stroke={colors.arrow} strokeWidth="2" markerEnd="url(#arrowBlue)" />
 
           {/* ===== STORAGE (middle-left) ===== */}
 
           {/* Documents Table (central hub) */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[5])}
+            onClick={() => setSelectedNode(dataNodes[4])}
           >
             <rect x="290" y="150" width="180" height="100" rx="10"
               fill={categoryColors.storage.fill} stroke={categoryColors.storage.stroke} strokeWidth="3" />
@@ -420,7 +392,7 @@ export default function KBDataMap() {
           {/* Document Chunks */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[6])}
+            onClick={() => setSelectedNode(dataNodes[5])}
           >
             <rect x="290" y="280" width="180" height="70" rx="8"
               fill={categoryColors.storage.fill} stroke={categoryColors.storage.stroke} strokeWidth="2" />
@@ -435,7 +407,7 @@ export default function KBDataMap() {
           {/* Vector Embeddings */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[7])}
+            onClick={() => setSelectedNode(dataNodes[6])}
           >
             <rect x="290" y="380" width="180" height="70" rx="8"
               fill={categoryColors.storage.fill} stroke={categoryColors.storage.stroke} strokeWidth="2" />
@@ -456,7 +428,7 @@ export default function KBDataMap() {
           {/* Document Classifier */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[8])}
+            onClick={() => setSelectedNode(dataNodes[7])}
           >
             <rect x="550" y="150" width="180" height="70" rx="8"
               fill={categoryColors.processing.fill} stroke={categoryColors.processing.stroke} strokeWidth="2" />
@@ -471,7 +443,7 @@ export default function KBDataMap() {
           {/* Entity Extractor */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[9])}
+            onClick={() => setSelectedNode(dataNodes[8])}
           >
             <rect x="550" y="250" width="180" height="70" rx="8"
               fill={categoryColors.processing.fill} stroke={categoryColors.processing.stroke} strokeWidth="2" />
@@ -492,7 +464,7 @@ export default function KBDataMap() {
           {/* Semantic Search */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[14])}
+            onClick={() => setSelectedNode(dataNodes[13])}
           >
             <rect x="550" y="380" width="180" height="70" rx="8"
               fill={categoryColors.output.fill} stroke={categoryColors.output.stroke} strokeWidth="2" />
@@ -512,7 +484,7 @@ export default function KBDataMap() {
           {/* Agents */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[10])}
+            onClick={() => setSelectedNode(dataNodes[9])}
           >
             <rect x="820" y="100" width="180" height="80" rx="8"
               fill={categoryColors.entity.fill} stroke={categoryColors.entity.stroke} strokeWidth="2" />
@@ -530,7 +502,7 @@ export default function KBDataMap() {
           {/* Tasks */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[11])}
+            onClick={() => setSelectedNode(dataNodes[10])}
           >
             <rect x="820" y="200" width="180" height="70" rx="8"
               fill={categoryColors.entity.fill} stroke={categoryColors.entity.stroke} strokeWidth="2" />
@@ -545,7 +517,7 @@ export default function KBDataMap() {
           {/* Projects */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[12])}
+            onClick={() => setSelectedNode(dataNodes[11])}
           >
             <rect x="820" y="290" width="180" height="70" rx="8"
               fill={categoryColors.entity.fill} stroke={categoryColors.entity.stroke} strokeWidth="2" />
@@ -560,7 +532,7 @@ export default function KBDataMap() {
           {/* Stakeholders */}
           <g
             className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[13])}
+            onClick={() => setSelectedNode(dataNodes[12])}
           >
             <rect x="820" y="380" width="180" height="70" rx="8"
               fill={categoryColors.entity.fill} stroke={categoryColors.entity.stroke} strokeWidth="2" />
@@ -587,28 +559,6 @@ export default function KBDataMap() {
 
           {/* ===== BIDIRECTIONAL: Chat <-> Agents ===== */}
           <path d="M 200 330 C 250 330 250 140 815 140" fill="none" stroke={colors.arrowLight} strokeWidth="1" strokeDasharray="4 2" />
-
-          {/* ===== LEGEND ===== */}
-          <g transform="translate(40, 480)">
-            <text x="0" y="0" fill={colors.textSecondary} fontSize="12" fontWeight="600">Legend</text>
-
-            <rect x="0" y="15" width="16" height="12" rx="2" fill={categoryColors.source.fill} stroke={categoryColors.source.stroke} strokeWidth="1" />
-            <text x="22" y="25" fill={colors.textSecondary} fontSize="10">Sources</text>
-
-            <rect x="85" y="15" width="16" height="12" rx="2" fill={categoryColors.storage.fill} stroke={categoryColors.storage.stroke} strokeWidth="1" />
-            <text x="107" y="25" fill={colors.textSecondary} fontSize="10">Storage</text>
-
-            <rect x="170" y="15" width="16" height="12" rx="2" fill={categoryColors.processing.fill} stroke={categoryColors.processing.stroke} strokeWidth="1" />
-            <text x="192" y="25" fill={colors.textSecondary} fontSize="10">Processing</text>
-
-            <rect x="275" y="15" width="16" height="12" rx="2" fill={categoryColors.entity.fill} stroke={categoryColors.entity.stroke} strokeWidth="1" />
-            <text x="297" y="25" fill={colors.textSecondary} fontSize="10">Entities</text>
-
-            <rect x="360" y="15" width="16" height="12" rx="2" fill={categoryColors.output.fill} stroke={categoryColors.output.stroke} strokeWidth="1" />
-            <text x="382" y="25" fill={colors.textSecondary} fontSize="10">Search</text>
-
-            <text x="435" y="25" fill={colors.textSecondary} fontSize="10">Click any box for details</text>
-          </g>
         </svg>
       </div>
 

@@ -72,6 +72,26 @@ export default function HomePage() {
                 System Health
               </button>
               <button
+                onClick={() => setActiveTab('analytics')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  activeTab === 'analytics'
+                    ? 'border-brand text-brand'
+                    : 'border-transparent text-muted hover:text-primary'
+                }`}
+              >
+                Analytics
+              </button>
+              <button
+                onClick={() => setActiveTab('process-map')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  activeTab === 'process-map'
+                    ? 'border-brand text-brand'
+                    : 'border-transparent text-muted hover:text-primary'
+                }`}
+              >
+                Process Map
+              </button>
+              <button
                 onClick={() => setActiveTab('knowledge-graph')}
                 className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
                   activeTab === 'knowledge-graph'
@@ -83,37 +103,12 @@ export default function HomePage() {
               </button>
             </>
           )}
-          {isAdmin && (
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                activeTab === 'analytics'
-                  ? 'border-brand text-brand'
-                  : 'border-transparent text-muted hover:text-primary'
-              }`}
-            >
-              Analytics
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              onClick={() => setActiveTab('process-map')}
-              className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                activeTab === 'process-map'
-                  ? 'border-brand text-brand'
-                  : 'border-transparent text-muted hover:text-primary'
-              }`}
-            >
-              Process Map
-            </button>
-          )}
         </div>
 
         {/* System Health Tab */}
         {activeTab === 'system' && (
           <div className="space-y-6">
             <UnifiedDiscoveryPanel />
-            <InterfaceHealthPanel />
           </div>
         )}
 
@@ -251,8 +246,9 @@ export default function HomePage() {
 
         {/* Analytics Tab */}
         {activeTab === 'analytics' && (
-          <div>
+          <div className="space-y-6">
             <LazyUsageAnalytics />
+            <InterfaceHealthPanel />
           </div>
         )}
 
