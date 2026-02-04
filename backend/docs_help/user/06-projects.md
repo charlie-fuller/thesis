@@ -90,6 +90,12 @@ Toggle between two views at the top of the page:
 **List View** - Simple list of all projects, sorted by tier score
 **Tier View** - Projects grouped by tier (1-4) in collapsible sections
 
+**Sort Options** (in List View):
+- Date created
+- Name (A-Z / Z-A)
+- Tier score
+- Custom order (with up/down reorder buttons)
+
 ---
 
 ## Filtering

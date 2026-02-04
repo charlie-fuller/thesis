@@ -45,8 +45,10 @@ Each card shows:
 - Title
 - Priority badge (colored)
 - Assignee (if set)
-- Due date (if set)
+- Due date (if set) - shown in red if overdue
 - Comments count
+
+**Overdue indicator:** Tasks past their due date display with red text and a warning indicator. This helps you quickly spot items that need attention.
 
 Click a card to open its detail view.
 
@@ -82,11 +84,20 @@ The agents surface what needs to happen next.
 
 ## Filtering and Searching
 
-Above the board:
-- **Search** by task title
-- **Filter** by priority
-- **Filter** by assignee
-- **Filter** by project - See only tasks linked to a specific project
+Above the board, you'll find several filter options:
+
+**Search** - Type to filter by task title or description
+
+**Filters:**
+- **Assignee** - Dropdown to filter by who's assigned
+- **Priority** - Checkboxes for P1/P2/P3/P4
+- **Team** - Filter by team
+- **Due Date** - Filter by date range
+- **Project** - See only tasks linked to a specific project (also via URL: `/tasks?project=xxx`)
+
+**Include Completed** - Toggle to show/hide completed tasks in the Done column
+
+**Clear Filters** - Reset all filters to default
 
 Useful when the board gets full.
 

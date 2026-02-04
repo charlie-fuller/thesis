@@ -10,10 +10,17 @@ It's the closest thing to having a room full of specialists actually think toget
 
 ## Creating a Meeting Room
 
+**From the Meeting Rooms page:**
 1. Click **Meeting Room** in the navigation
 2. Click **New Meeting**
 3. Give it a name (optional - it'll auto-generate one)
 4. Select 2-5 agents
+
+**From the Chat interface:**
+1. Go to **Chat** in the navigation
+2. Click the **Meeting Rooms** tab in the sidebar
+3. Click **New Meeting Room**
+4. Configure and create
 
 **Which agents?** Think about who would actually be in this meeting in real life:
 - Security review? Guardian, Architect, Counselor, maybe Strategist for the political angle
@@ -67,10 +74,15 @@ That connection is intentional. They're thinking together, not just presenting s
 
 This is the thing I keep coming back to.
 
-Toggle **Autonomous Discussion** when creating a meeting, then pose a topic:
+**The Autonomous Panel** appears in every meeting room and includes:
+- **Topic input** - Enter a discussion topic
+- **Turn count** - Set how many turns before stopping (or unlimited)
+- **Start/Stop buttons** - Control the discussion
+
+Enter your topic and click **Start**:
 > "Discuss the risks and opportunities of implementing customer-facing AI without human review."
 
-Then watch.
+Then watch. Click **Stop** at any time to end the autonomous discussion.
 
 The agents discuss amongst themselves. They:
 - Ask each other questions
@@ -111,6 +123,18 @@ At any point, ask:
 > "Create an executive brief"
 
 Reporter will synthesize the entire conversation into shareable output with domain labels (not agent names) so you can share it with stakeholders.
+
+---
+
+## Exporting to Knowledge Base
+
+You can export meeting conversations to your Knowledge Base for future reference:
+
+1. Click the **Export to KB** button in the meeting room header
+2. Confirm the export
+3. The conversation becomes a searchable KB document
+
+This lets agents reference past meeting discussions in future conversations.
 
 ---
 
