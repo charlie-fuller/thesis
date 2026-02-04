@@ -547,3 +547,59 @@ Added sorting and filtering options to the KB document browser when linking docu
 - Filters reset when closing the modal
 
 **Files**: `frontend/components/disco/KBDocumentBrowser.tsx`, `backend/api/routes/documents/search.py`
+
+---
+
+## February 2026 Updates (February 3, 2026)
+
+### KB Tag Manager Overhaul
+
+Replaced the existing Tag Manager with a new unified document browser that matches the DISCO document linking UX.
+
+**Features**:
+- Same layout as DISCO browser: Search (60%) + Tag filter (40%) header row
+- Sort/source filter row with "Reset filters" link
+- Split view: Document list (40%) + Preview/Tags panel (60%)
+- Right panel toggles between "Preview" and "Manage Tags" modes
+- Multi-select documents for bulk tag operations
+- Create new tags inline, add/remove tags with color indicators (green/red)
+- Apply changes with single button click
+
+**Files**: `frontend/components/kb/KBDocumentBrowserTab.tsx`, `frontend/components/kb/KBDocumentsContent.tsx`
+
+### Agents Tab in Intelligence
+
+The standalone Agents page has been consolidated into the Intelligence page as a new tab.
+
+**Changes**:
+- Agents tab appears after Engagement in the Intelligence page
+- Standalone `/agents` route now redirects to `/intelligence?tab=agents`
+- Agent grid displays version, KB docs, chats, and meetings count
+- Removed Agents from main navigation
+
+### Navigation Reorder
+
+Simplified navigation with KB in a more prominent position.
+
+**New Order**: Dashboard → KB → Chat → Tasks → Projects → Intelligence → DISCO
+
+**Rationale**: Knowledge Base is foundational to all agents' context, so it's positioned early in the workflow.
+
+### Knowledge Graph Removed from KB Data Map
+
+Simplified the KB data flow visualization by removing the Knowledge Graph section.
+
+**Changes**:
+- Removed Knowledge Graph node and arrows from data map
+- Reduced visual complexity for clearer understanding
+- Focus on document → agent → response flow
+
+### Vault Sync Improvements
+
+- **Check for Updates button**: Manually scan for files modified since last sync
+- **Inline status messages**: Vault status now displays inline with title (reduced panel height)
+- **CSV and RTF support**: Added to default remote vault sync patterns
+
+### DISCO Terminology
+
+Renamed "DISCo" to "DISCO" (capital O) throughout the application for consistency with the acronym (Discovery, Intelligence, Synthesis, Convergence, Operationalize).
