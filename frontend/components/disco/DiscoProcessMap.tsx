@@ -119,13 +119,13 @@ export default function DiscoProcessMap() {
 
   return (
     <div className="bg-card rounded-lg border border-default p-6">
-      {/* Two-column layout: Map on left, Details on right */}
+      {/* Two-column layout: Map on left (2/3), Details on right (1/3) */}
       <div className="flex gap-6">
-        {/* Left: SVG Flowchart */}
-        <div className="flex-shrink-0 text-primary">
+        {/* Left: SVG Flowchart - takes 2/3 of space */}
+        <div className="flex-[2] text-primary">
           <svg
             viewBox="0 0 450 670"
-            className="w-[400px]"
+            className="w-full max-w-[500px]"
             style={{ maxHeight: '670px' }}
           >
           {/* Definitions */}
@@ -408,8 +408,8 @@ export default function DiscoProcessMap() {
         </svg>
       </div>
 
-        {/* Right: Details Panel */}
-        <div className="flex-1 min-w-[280px]">
+        {/* Right: Details Panel - takes 1/3 of space */}
+        <div className="flex-1 min-w-[200px] max-w-[300px]">
           {selectedStep ? (
             <div className="p-4 bg-hover rounded-lg border border-default h-full">
               <div className="flex items-start justify-between">
