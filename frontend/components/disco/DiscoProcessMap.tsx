@@ -121,12 +121,12 @@ export default function DiscoProcessMap() {
     <div className="bg-card rounded-lg border border-default p-6">
       {/* Two-column layout: Map on left (2/3), Details on right (1/3) */}
       <div className="flex gap-6">
-        {/* Left: SVG Flowchart - takes 2/3 of space */}
+        {/* Left: SVG Flowchart - enlarged by 20% */}
         <div className="flex-[2] text-primary">
           <svg
             viewBox="0 0 450 670"
-            className="w-full max-w-[500px]"
-            style={{ maxHeight: '670px' }}
+            className="w-full max-w-[600px]"
+            style={{ maxHeight: '800px' }}
           >
           {/* Definitions */}
           <defs>
@@ -168,11 +168,11 @@ export default function DiscoProcessMap() {
           </defs>
 
           {/* ===== TITLE ===== */}
-          <text x="225" y="25" textAnchor="middle" fill={colors.textPrimary} fontSize="16" fontWeight="700">
+          <text x="225" y="28" textAnchor="middle" fill={colors.textPrimary} fontSize="22" fontWeight="700">
             DISCo Workflow
           </text>
-          <text x="225" y="42" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-            4 Agents + 4 Human Checkpoints
+          <text x="225" y="48" textAnchor="middle" fill={colors.textSecondary} fontSize="14" fontWeight="500">
+            Click agents for details
           </text>
 
           {/* ===== ROW 1: DISCOVERY GUIDE + CHECKPOINT 1 ===== */}
@@ -397,19 +397,11 @@ export default function DiscoProcessMap() {
             </text>
           </g>
 
-          {/* ===== LEGEND (bottom) ===== */}
-          <g transform="translate(30, 630)">
-            <rect x="0" y="-12" width="20" height="20" rx="4" fill="rgba(100, 116, 139, 0.15)" stroke="#64748b" strokeWidth="2" />
-            <text x="28" y="4" fill={colors.textSecondary} fontSize="13" fontWeight="500">= Human-in-the-loop checkpoint</text>
-          </g>
-          <g transform="translate(30, 658)">
-            <text fill={colors.textSecondary} fontSize="13" fontWeight="500">Click agents for details</text>
-          </g>
         </svg>
       </div>
 
-        {/* Right: Details Panel - takes 1/3 of space */}
-        <div className="flex-1 min-w-[200px] max-w-[300px]">
+        {/* Right: Details Panel - expanded 15% */}
+        <div className="flex-1 min-w-[220px] max-w-[345px]">
           {selectedStep ? (
             <div className="p-4 bg-hover rounded-lg border border-default h-full">
               <div className="flex items-start justify-between">
