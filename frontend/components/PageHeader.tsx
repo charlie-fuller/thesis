@@ -35,13 +35,12 @@ export default function PageHeader({
   // Navigation links
   const userLinks = [
     { href: '/', label: 'Dashboard' },
+    { href: '/kb', label: 'KB' },
     { href: '/chat', label: 'Chat' },
     { href: '/tasks', label: 'Tasks' },
     { href: '/projects', label: 'Projects' },
     { href: '/intelligence', label: 'Intelligence' },
-    { href: '/agents', label: 'Agents' },
-    { href: '/kb', label: 'KB' },
-    // Conditionally add PuRDy link for users with access
+    // Conditionally add DISCo link for users with access
     ...(hasDiscoAccess ? [{ href: '/disco', label: 'DISCo' }] : []),
   ]
 
