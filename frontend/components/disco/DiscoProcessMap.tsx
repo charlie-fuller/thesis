@@ -379,27 +379,73 @@ export default function DiscoProcessMap() {
           {/* Arrow: Checkpoint 4 -> PRD Output (from checkpoint down to PRD) */}
           <path d={`M ${checkpointX + checkpointSize/2} ${startY + rowSpacing*3 + (agentHeight - checkpointSize)/2 + checkpointSize} L ${checkpointX + checkpointSize/2} ${startY + rowSpacing*4 - 15} L ${agentX + agentWidth/2} ${startY + rowSpacing*4 - 15} L ${agentX + agentWidth/2} ${startY + rowSpacing*4 - 5}`} fill="none" stroke="#22c55e" strokeWidth="2" markerEnd="url(#arrowhead)" />
 
-          {/* Final Output: O - Operationalize - pointer to Operationalize Map */}
+          {/* Final Output: Approved Documents - matches Operationalize Map entry */}
+          <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 5} textAnchor="middle" fill={colors.textSecondary} fontSize="9" fontWeight="600">
+            APPROVED DOCUMENT
+          </text>
+
+          {/* Three document type boxes - matching Operationalize Map colors */}
+          {/* PRD - violet */}
           <g>
             <rect
-              x={agentX} y={startY + rowSpacing*4}
-              width={agentWidth} height="70"
-              rx="10"
-              fill="rgba(249, 115, 22, 0.2)"
-              stroke="#f97316"
-              strokeWidth="2"
-              strokeDasharray="6 3"
+              x={agentX} y={startY + rowSpacing*4 + 12}
+              width="80" height="35"
+              rx="6"
+              fill="rgba(139, 92, 246, 0.15)"
+              stroke="#8b5cf6"
+              strokeWidth="1.5"
+              strokeDasharray="4 2"
             />
-            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 18} textAnchor="middle" fill="#f97316" fontSize="10" fontWeight="700">
-              O: OPERATIONALIZE
+            <text x={agentX + 40} y={startY + rowSpacing*4 + 28} textAnchor="middle" fill="#8b5cf6" fontSize="9" fontWeight="600">
+              PRD
             </text>
-            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 36} textAnchor="middle" fill={colors.textPrimary} fontSize="12" fontWeight="600">
-              PRD / Evaluation / Decision
-            </text>
-            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 52} textAnchor="middle" fill="#f97316" fontSize="9" fontWeight="500">
-              See Operationalize Map tab →
+            <text x={agentX + 40} y={startY + rowSpacing*4 + 40} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
+              Build/Dev
             </text>
           </g>
+
+          {/* Evaluation - cyan */}
+          <g>
+            <rect
+              x={agentX + 90} y={startY + rowSpacing*4 + 12}
+              width="80" height="35"
+              rx="6"
+              fill="rgba(6, 182, 212, 0.15)"
+              stroke="#06b6d4"
+              strokeWidth="1.5"
+              strokeDasharray="4 2"
+            />
+            <text x={agentX + 130} y={startY + rowSpacing*4 + 28} textAnchor="middle" fill="#06b6d4" fontSize="9" fontWeight="600">
+              Evaluation
+            </text>
+            <text x={agentX + 130} y={startY + rowSpacing*4 + 40} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
+              Compare
+            </text>
+          </g>
+
+          {/* Decision - amber */}
+          <g>
+            <rect
+              x={agentX + 180} y={startY + rowSpacing*4 + 12}
+              width="80" height="35"
+              rx="6"
+              fill="rgba(245, 158, 11, 0.15)"
+              stroke="#f59e0b"
+              strokeWidth="1.5"
+              strokeDasharray="4 2"
+            />
+            <text x={agentX + 220} y={startY + rowSpacing*4 + 28} textAnchor="middle" fill="#f59e0b" fontSize="9" fontWeight="600">
+              Decision
+            </text>
+            <text x={agentX + 220} y={startY + rowSpacing*4 + 40} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
+              Govern
+            </text>
+          </g>
+
+          {/* Pointer to Operationalize Map */}
+          <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 62} textAnchor="middle" fill="#f97316" fontSize="9" fontWeight="500">
+            See Operationalize Map tab →
+          </text>
 
         </svg>
       </div>
