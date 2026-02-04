@@ -39,13 +39,18 @@ from watchdog.observers import Observer
 load_dotenv()
 
 # Configuration
-REMOTE_API_URL = os.getenv("REMOTE_API_URL", "https://thesis-production.up.railway.app")
+REMOTE_API_URL = os.getenv("REMOTE_API_URL", "https://thesis-production-badf.up.railway.app")
 VAULT_PATH = os.getenv("VAULT_PATH", os.getenv("OBSIDIAN_VAULT_PATH", ""))
 SUPABASE_URL = os.getenv("SUPABASE_URL", os.getenv("NEXT_PUBLIC_SUPABASE_URL", ""))
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY", ""))
 
-# File patterns
-INCLUDE_EXTENSIONS = {".md", ".txt"}  # Text files only for now
+# File patterns - text-based files only (binary files like PDF/DOCX need multipart upload)
+INCLUDE_EXTENSIONS = {
+    ".md",  # Markdown
+    ".txt",  # Text
+    ".csv",  # CSV data (text-based)
+    ".rtf",  # Rich text (text-based)
+}
 EXCLUDE_PATTERNS = {
     ".obsidian",
     ".trash",
@@ -296,8 +301,73 @@ class RemoteVaultSyncer:
         self._running = False
 
 
-def get_auth_token() -> Optional[str]:
-    """Get auth token via Supabase login."""
+TOKEN_FILE = Path.home() / ".thesis" / "vault_sync_token.json"
+
+
+def save_auth_tokens(access_token: str, refresh_token: str):
+    """Save auth tokens to file for persistent use."""
+    TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+    import json
+
+    with open(TOKEN_FILE, "w") as f:
+        json.dump({"access_token": access_token, "refresh_token": refresh_token}, f)
+    TOKEN_FILE.chmod(0o600)  # Secure permissions
+    print(f"  Tokens saved to {TOKEN_FILE}")
+
+
+def load_auth_tokens() -> Optional[Dict[str, str]]:
+    """Load saved auth tokens."""
+    if not TOKEN_FILE.exists():
+        return None
+    try:
+        import json
+
+        with open(TOKEN_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def refresh_auth_token(refresh_token: str) -> Optional[Dict[str, str]]:
+    """Refresh access token using refresh token."""
+    if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+        return None
+    try:
+        client = httpx.Client()
+        response = client.post(
+            f"{SUPABASE_URL}/auth/v1/token?grant_type=refresh_token",
+            headers={"apikey": SUPABASE_ANON_KEY, "Content-Type": "application/json"},
+            json={"refresh_token": refresh_token},
+        )
+        response.raise_for_status()
+        data = response.json()
+        return {
+            "access_token": data.get("access_token"),
+            "refresh_token": data.get("refresh_token", refresh_token),
+        }
+    except Exception as e:
+        print(f"Token refresh failed: {e}")
+        return None
+
+
+def get_auth_token(interactive: bool = True) -> Optional[str]:
+    """Get auth token - tries saved token first, then prompts if needed."""
+    # Try loading saved tokens
+    saved = load_auth_tokens()
+    if saved:
+        print("  Found saved auth tokens, refreshing...")
+        refreshed = refresh_auth_token(saved.get("refresh_token", ""))
+        if refreshed and refreshed.get("access_token"):
+            save_auth_tokens(refreshed["access_token"], refreshed["refresh_token"])
+            print("  Token refreshed successfully!")
+            return refreshed["access_token"]
+        print("  Saved tokens expired or invalid.")
+
+    if not interactive:
+        print("ERROR: No valid saved token and running non-interactively.")
+        print(f"Run once interactively to authenticate, or provide --token")
+        return None
+
     if not SUPABASE_URL or not SUPABASE_ANON_KEY:
         print("ERROR: SUPABASE_URL and SUPABASE_ANON_KEY required for authentication")
         print("Set these in your .env file or environment")
@@ -318,10 +388,13 @@ def get_auth_token() -> Optional[str]:
         )
         response.raise_for_status()
         data = response.json()
-        token = data.get("access_token")
-        if token:
+        access_token = data.get("access_token")
+        refresh_token = data.get("refresh_token")
+        if access_token:
             print("Authentication successful!")
-        return token
+            if refresh_token:
+                save_auth_tokens(access_token, refresh_token)
+        return access_token
     except httpx.HTTPStatusError as e:
         print(f"Authentication failed: {e.response.text}")
         return None
@@ -338,9 +411,14 @@ def main():
     parser.add_argument(
         "--api-url",
         default=REMOTE_API_URL,
-        help="Remote API URL (default: thesis-production.up.railway.app)",
+        help="Remote API URL (default: thesis-production-badf.up.railway.app)",
     )
     parser.add_argument("--token", help="Auth token (will prompt if not provided)")
+    parser.add_argument(
+        "--daemon",
+        action="store_true",
+        help="Run as daemon (non-interactive, uses saved token)",
+    )
     parser.add_argument(
         "--initial-sync",
         type=int,
@@ -370,9 +448,11 @@ def main():
     print(f"Vault: {vault_path}")
 
     # Get auth token
-    token = args.token or get_auth_token()
+    token = args.token or get_auth_token(interactive=not args.daemon)
     if not token:
         print("\nERROR: Could not get auth token")
+        if args.daemon:
+            print("Run once without --daemon to authenticate and save token.")
         sys.exit(1)
 
     # Create syncer
