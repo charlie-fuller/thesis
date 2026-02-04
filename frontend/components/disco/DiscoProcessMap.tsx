@@ -400,8 +400,8 @@ export default function DiscoProcessMap() {
         </svg>
       </div>
 
-        {/* Right: Details Panel - 20% wider, centered */}
-        <div className="flex-1 min-w-[260px] max-w-[415px] mx-auto">
+        {/* Right: Details Panel - larger default, centered */}
+        <div className="flex-1 w-[380px] max-w-[415px] mx-auto">
           {selectedStep ? (
             <div className="p-4 bg-hover rounded-lg border border-default h-full">
               <div className="flex items-start justify-between">
