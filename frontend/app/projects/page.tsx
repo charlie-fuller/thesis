@@ -24,6 +24,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import PageLayout from '@/components/PageLayout'
 import ProjectDetailModal from '@/components/projects/ProjectDetailModal'
+import ProjectCreateModal from '@/components/projects/ProjectCreateModal'
 import toast from 'react-hot-toast'
 
 // ============================================================================
@@ -281,6 +282,7 @@ function ProjectsPageContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   // Get initiative filter from URL
   const initiativeFilter = searchParams.get('initiative') || ''
@@ -430,6 +432,13 @@ function ProjectsPageContent() {
         {/* Page Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-primary">Projects</h1>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New Project
+          </button>
         </div>
 
         {/* Error State */}
@@ -679,6 +688,13 @@ function ProjectsPageContent() {
           onClose={() => setSelectedProject(null)}
         />
       )}
+
+      {/* Project Create Modal */}
+      <ProjectCreateModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreated={fetchProjects}
+      />
     </PageLayout>
   )
 }

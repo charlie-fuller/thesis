@@ -54,19 +54,27 @@ Total score determines the tier. It's a simple framework, but it forces you to t
 
 ## Creating Projects
 
-Click **+ New Project**.
+Click **+ New Project** in the page header.
 
 **Required:**
-- Name
-- Description
-- All four scores
+- Project Code (e.g., PRJ-001, F02, IT-003)
+- Title
 
 **Optional:**
+- Description
 - Department
-- Owner (links to a stakeholder)
-- Status
+- Status (Backlog or Active)
+- Scores (ROI, Effort, Strategic Alignment, Readiness) - 1 to 5 each
+- Current State / Desired State
+- Next Step
 
-**The form walks you through the scoring.** Each dimension has guidelines for what each score means.
+**Scoring Guidelines:**
+- **ROI Potential**: 5 = High value, transformative impact; 1 = Minimal benefit
+- **Implementation Effort**: 5 = Easy, quick win; 1 = Major initiative, complex
+- **Strategic Alignment**: 5 = Directly aligned with strategy; 1 = Nice to have
+- **Stakeholder Readiness**: 5 = Champions exist, low resistance; 1 = Significant resistance
+
+Scores can be added later and updated as you learn more about the project.
 
 ---
 
