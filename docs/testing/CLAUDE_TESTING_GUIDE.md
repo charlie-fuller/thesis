@@ -171,7 +171,7 @@ mcp__chrome-devtools__list_network_requests()
 
 ## Test Scenarios Reference
 
-The full list of 60+ E2E test scenarios is in:
+The full list of 178 E2E test scenarios is in:
 `backend/tests/e2e_browser_tests.py`
 
 ### Scenarios by Category
@@ -179,13 +179,19 @@ The full list of 60+ E2E test scenarios is in:
 | Category | Count | Key Tests |
 |----------|-------|-----------|
 | Auth | 8 | Login, logout, session, protected routes |
-| Chat | 10 | Send message, @mentions, history, streaming |
-| Knowledge Base | 12 | Upload, search, filter, CRUD |
-| Tasks | 10 | Kanban, drag-drop, CRUD |
-| Opportunities | 12 | Pipeline, scoring, tier calc, CRUD |
-| Meeting Rooms | 8 | Create, agents, autonomous mode |
+| Chat | 29 | Send message, @mentions, context filters, tabs |
+| Knowledge Base | 17 | Upload, search, filter, conversations tab |
+| Tasks | 21 | Kanban, filters, drag-drop, CRUD |
+| Projects | 19 | Pipeline, view toggle, filters, reorder |
+| Meeting Rooms | 18 | Create, autonomous mode, export to KB |
+| Help | 12 | Search, contextual suggestions |
+| DISCO | 19 | Initiatives, workflow, agent runs |
+| Dashboard | 12 | Tabs, Discovery Inbox, carousels |
+| Pipeline | 7 | Priority queue, commitments |
+| Intelligence | 7 | Strategy, stakeholders, agents |
 | Performance | 6 | Core Web Vitals, load testing |
-| **Total** | **66** | |
+| Granola | 3 | Sync, scan, status |
+| **Total** | **178** | |
 
 ### Priority Order for Testing
 
@@ -196,6 +202,197 @@ Run tests in this order for fastest feedback:
 3. **Validation** (form validation tests)
 4. **Error Handling** (API error tests)
 5. **Edge Cases** (as needed)
+
+---
+
+## Unattended E2E Test Execution
+
+### Overview
+
+E2E tests can run unattended against either:
+- **Local servers** (localhost:3000 / localhost:8000)
+- **Production** (thesis-mvp.vercel.app) - read-only tests only
+
+### Test Data Naming Convention
+
+**CRITICAL**: All test data MUST use the `E2E-` prefix for automatic cleanup.
+
+| Data Type | Naming Pattern | Example |
+|-----------|----------------|---------|
+| Tasks | `E2E-Test-{description}` | `E2E-Test-Task-Creation` |
+| Projects | `E2E-{code}` | `E2E-T01` |
+| Meeting Rooms | `E2E-{name}` | `E2E-Test-Meeting` |
+| Initiatives | `E2E-{name}` | `E2E-Test-Initiative` |
+| Conversations | Auto-named, filter by `E2E` in title | |
+| Documents | `E2E-test-{name}.pdf` | `E2E-test-document.pdf` |
+
+### Pre-Test Cleanup
+
+Before running create/update/delete tests, clean up any leftover test data:
+
+```sql
+-- Run via Supabase SQL Editor or psql connection
+-- Cleanup test tasks
+DELETE FROM tasks WHERE title LIKE 'E2E-%';
+
+-- Cleanup test projects
+DELETE FROM opportunities WHERE opportunity_code LIKE 'E2E-%' OR title LIKE 'E2E-%';
+
+-- Cleanup test meeting rooms
+DELETE FROM meeting_rooms WHERE name LIKE 'E2E-%';
+
+-- Cleanup test initiatives
+DELETE FROM disco_initiatives WHERE name LIKE 'E2E-%';
+
+-- Cleanup test documents
+DELETE FROM documents WHERE filename LIKE 'E2E-%' OR title LIKE 'E2E-%';
+
+-- Cleanup test stakeholders
+DELETE FROM stakeholders WHERE name LIKE 'E2E-%';
+
+-- Cleanup test conversations
+DELETE FROM conversations WHERE title LIKE 'E2E-%';
+```
+
+### Post-Test Cleanup
+
+After test execution, run the same cleanup SQL to remove test artifacts.
+
+### Automated Cleanup Script
+
+Create a file `backend/scripts/e2e_cleanup.py`:
+
+```python
+"""E2E Test Data Cleanup Script"""
+import asyncio
+from services.database import get_supabase_client
+
+async def cleanup_e2e_data():
+    """Remove all E2E test data from the database."""
+    client = get_supabase_client()
+
+    tables_patterns = [
+        ("tasks", "title", "E2E-%"),
+        ("opportunities", "title", "E2E-%"),
+        ("meeting_rooms", "name", "E2E-%"),
+        ("disco_initiatives", "name", "E2E-%"),
+        ("documents", "title", "E2E-%"),
+        ("stakeholders", "name", "E2E-%"),
+        ("conversations", "title", "E2E-%"),
+    ]
+
+    for table, column, pattern in tables_patterns:
+        try:
+            result = client.table(table).delete().like(column, pattern).execute()
+            print(f"Cleaned {table}: {len(result.data)} rows deleted")
+        except Exception as e:
+            print(f"Error cleaning {table}: {e}")
+
+if __name__ == "__main__":
+    asyncio.run(cleanup_e2e_data())
+```
+
+### Unattended Execution Checklist
+
+Before launching unattended E2E tests:
+
+- [ ] **Target environment determined** (local or production)
+- [ ] **User logged in** via Chrome DevTools MCP
+- [ ] **Pre-test cleanup completed** (if running write tests)
+- [ ] **Test categories selected** (read-only for production)
+
+### Test Categories by Safety Level
+
+| Level | Categories | Safe for Production |
+|-------|------------|---------------------|
+| **Read-Only** | Dashboard, Chat (view), KB (view), Tasks (view), Projects (view), Intelligence, Help | Yes |
+| **Create** | Tasks, Projects, Meeting Rooms, Initiatives, Documents | Local only |
+| **Update** | Task status, Project scores, Room settings | Local only |
+| **Delete** | All delete tests | Local only |
+
+### Unattended Execution Instructions for Claude
+
+When asked to run E2E tests unattended, follow this workflow:
+
+```
+1. ENVIRONMENT CHECK
+   - Use mcp__chrome-devtools__list_pages to verify browser connection
+   - Check if on localhost:3000 or thesis-mvp.vercel.app
+   - If production: only run read-only tests
+   - If local: run full suite
+
+2. PRE-FLIGHT
+   - Navigate to home page
+   - Take snapshot to verify logged-in state
+   - If not logged in: run auth_login_success first
+
+3. TEST EXECUTION ORDER
+   a. Dashboard tests (12 tests) - verify tabs, Discovery Inbox
+   b. Chat tests (29 tests) - verify filters, tabs, agents
+   c. Tasks tests (21 tests) - verify kanban, filters
+   d. Projects tests (19 tests) - verify pipeline, filters
+   e. Intelligence tests (7 tests) - verify tabs, stakeholders
+   f. DISCO tests (19 tests) - verify initiatives, workflow
+   g. KB tests (17 tests) - verify documents, search
+   h. Meeting tests (18 tests) - verify rooms, autonomous
+   i. Help tests (12 tests) - verify search, navigation
+
+4. FOR EACH TEST
+   - Navigate to the target page
+   - Take snapshot to get element UIDs
+   - Execute test steps
+   - Verify expected result
+   - Record PASS/FAIL with notes
+   - Continue to next test (don't stop on failure)
+
+5. CLEANUP (if local and write tests ran)
+   - Run cleanup SQL or script
+   - Verify test data removed
+
+6. REPORT
+   - Summarize: X passed, Y failed, Z skipped
+   - List any failures with details
+   - Note any infrastructure issues
+```
+
+### Running Specific Test Categories
+
+To run a specific category, tell Claude:
+
+```
+Run E2E tests for the {category} category:
+- Dashboard: Test all dashboard tabs and Discovery Inbox
+- Chat: Test context filters, tabs, agent selection
+- Tasks: Test kanban, filters, CRUD operations
+- Projects: Test pipeline views, filters, scoring
+- etc.
+```
+
+### Handling Test Failures
+
+When a test fails:
+
+1. **Don't stop** - continue with remaining tests
+2. **Record the failure** with:
+   - Test ID
+   - Step that failed
+   - Expected vs actual result
+   - Screenshot if relevant (use take_screenshot)
+3. **Check console** for JS errors
+4. **Check network** for failed API calls
+
+### Production vs Local Testing Matrix
+
+| Test Type | Production | Local |
+|-----------|------------|-------|
+| Navigation tests | Yes | Yes |
+| Filter tests | Yes | Yes |
+| Search tests | Yes | Yes |
+| Create tests | No | Yes |
+| Update tests | No | Yes |
+| Delete tests | No | Yes |
+| Form validation | No | Yes |
+| Error handling | No | Yes |
 
 ---
 
