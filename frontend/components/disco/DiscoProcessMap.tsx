@@ -379,24 +379,24 @@ export default function DiscoProcessMap() {
           {/* Arrow: Checkpoint 4 -> PRD Output (from checkpoint down to PRD) */}
           <path d={`M ${checkpointX + checkpointSize/2} ${startY + rowSpacing*3 + (agentHeight - checkpointSize)/2 + checkpointSize} L ${checkpointX + checkpointSize/2} ${startY + rowSpacing*4 - 15} L ${agentX + agentWidth/2} ${startY + rowSpacing*4 - 15} L ${agentX + agentWidth/2} ${startY + rowSpacing*4 - 5}`} fill="none" stroke="#22c55e" strokeWidth="2" markerEnd="url(#arrowhead)" />
 
-          {/* Final Output: PRD - orange to differentiate */}
+          {/* Final Output: O - Operationalize - orange to differentiate */}
           <g>
             <rect
               x={agentX} y={startY + rowSpacing*4}
-              width={agentWidth} height="55"
+              width={agentWidth} height="70"
               rx="10"
               fill="rgba(249, 115, 22, 0.2)"
               stroke="#f97316"
               strokeWidth="2"
             />
-            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 20} textAnchor="middle" fill="#f97316" fontSize="11" fontWeight="700">
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 18} textAnchor="middle" fill="#f97316" fontSize="10" fontWeight="700">
+              O: OPERATIONALIZE
+            </text>
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 36} textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
               Product Requirements Document
             </text>
-            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 36} textAnchor="middle" fill="#f97316" fontSize="13" fontWeight="600">
-              (PRD)
-            </text>
-            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 50} textAnchor="middle" fill={colors.textSecondary} fontSize="9">
-              Complete spec ready for development
+            <text x={agentX + agentWidth/2} y={startY + rowSpacing*4 + 52} textAnchor="middle" fill={colors.textSecondary} fontSize="9">
+              (PRD) - Complete spec ready for development
             </text>
           </g>
 
