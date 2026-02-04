@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/admin/stats.py
+# hypothesis_version: 6.151.3
+
+[500, '/stats', '60/minute', 'conversations', 'documents', 'exact', 'id', 'messages', 'success', 'total_conversations', 'total_documents', 'total_messages', 'total_users', 'users']

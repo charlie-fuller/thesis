@@ -1,12 +1,12 @@
-# DISCo Overview
+# DISCO Overview
 
-## What Is DISCo?
+## What Is DISCO?
 
-DISCo (Discovery-Insights-Synthesis-Convergence) is a product discovery methodology where humans do the discovery and AI does the synthesis. Human facilitators conduct stakeholder interviews, workshops, and observation sessions. AI agents then analyze what was learned, find patterns, identify gaps, and structure findings into engineering-ready Product Requirements Documents. The process moves through four sequential phases, ensuring nothing gets lost between conversation and specification.
+DISCO (Discovery-Insights-Synthesis-Convergence) is a product discovery methodology where humans do the discovery and AI does the synthesis. Human facilitators conduct stakeholder interviews, workshops, and observation sessions. AI agents then analyze what was learned, find patterns, identify gaps, and structure findings into engineering-ready Product Requirements Documents. The process moves through four sequential phases, ensuring nothing gets lost between conversation and specification.
 
 ## Starting Inputs
 
-Before DISCo begins, gather the raw materials that frame the problem space:
+Before DISCO begins, gather the raw materials that frame the problem space:
 
 - **Problem Statement**: Initial hypothesis of what needs solving
 - **Existing Research**: Market research, competitive analysis, prior studies
@@ -46,7 +46,7 @@ Generates actionable outputs. The PRD Generator creates engineering-ready specif
 
 ## The Human Discovery Process
 
-**Discovery is fundamentally human work.** AI cannot interview stakeholders, observe users, or sense the politics in a room. DISCo's AI agents prepare humans for discovery and process what they learn, but the actual discovery happens through human conversation and observation.
+**Discovery is fundamentally human work.** AI cannot interview stakeholders, observe users, or sense the politics in a room. DISCO's AI agents prepare humans for discovery and process what they learn, but the actual discovery happens through human conversation and observation.
 
 **What Humans Do:**
 - Conduct stakeholder interviews and workshops
@@ -64,7 +64,7 @@ Generates actionable outputs. The PRD Generator creates engineering-ready specif
 **The Session Workflow:**
 1. Discovery Planner generates session agenda and interview questions
 2. Human facilitator conducts live sessions with stakeholders
-3. Session notes, transcripts, and artifacts are uploaded to DISCo
+3. Session notes, transcripts, and artifacts are uploaded to DISCO
 4. Coverage Tracker assesses what's been learned vs. what gaps remain
 5. Additional sessions are scheduled until coverage is sufficient
 6. Only then does the process move to Insights phase
@@ -87,7 +87,7 @@ Generates actionable outputs. The PRD Generator creates engineering-ready specif
 
 ## The Value Proposition
 
-Transform chaotic discovery into structured initiatives. DISCo pairs human empathy and judgment in live discovery sessions with AI's ability to synthesize, pattern-match, and structure findings. No insight gets lost, every decision is documented, and engineering receives clear specifications grounded in validated stakeholder research.
+Transform chaotic discovery into structured initiatives. DISCO pairs human empathy and judgment in live discovery sessions with AI's ability to synthesize, pattern-match, and structure findings. No insight gets lost, every decision is documented, and engineering receives clear specifications grounded in validated stakeholder research.
 
 ---
 
@@ -96,7 +96,7 @@ Transform chaotic discovery into structured initiatives. DISCo pairs human empat
 Use this prompt when generating your graphic in NotebookLM:
 
 ```
-Create an infographic explaining DISCo, a product discovery methodology where humans do the discovery and AI does the synthesis.
+Create an infographic explaining DISCO, a product discovery methodology where humans do the discovery and AI does the synthesis.
 
 STRUCTURE:
 - Show the flow: Starting Inputs → Discovery (human) → Insights (AI) → Synthesis → Convergence

@@ -81,9 +81,9 @@ This document contains detailed architecture documentation. For essential Claude
 21. **Project Naming Workflow** - Required names for projects in active phases
 22. **Meeting Scanner** - Heuristic-based document classification extracts projects, tasks, stakeholders from meeting notes (transcripts, summaries, 1:1s)
 
-### DISCo (Discovery → Insights → Synthesis → Convergence)
-23. **DISCo KB Integration** - Uses Knowledge Base as single source of truth for documents. Link existing KB documents to initiatives via browser modal with search/tag filtering. Chat includes linked document list for visibility plus vector search for content queries.
-24. **DISCo Pipeline** - AI-assisted product discovery with 4 consolidated stage-aligned agents and human-in-the-loop checkpoints:
+### DISCO (Discovery → Insights → Synthesis → Convergence)
+23. **DISCO KB Integration** - Uses Knowledge Base as single source of truth for documents. Link existing KB documents to initiatives via browser modal with search/tag filtering. Chat includes linked document list for visibility plus vector search for content queries.
+24. **DISCO Pipeline** - AI-assisted product discovery with 4 consolidated stage-aligned agents and human-in-the-loop checkpoints:
     - **Discovery Guide**: Validates problem, plans discovery sessions, tracks coverage (consolidates: Triage, Discovery Planner, Coverage Tracker)
     - **Insight Analyst**: Extracts patterns and creates decision document (consolidates: Insight Extractor, Consolidator)
     - **Initiative Builder**: Clusters insights into scored initiative bundles (consolidates: Strategist)
@@ -162,7 +162,7 @@ This document contains detailed architecture documentation. For essential Claude
 ### Career Intelligence
 - `compass_status_reports` - Career status reports with rubric scores
 
-### DISCo Tables (formerly PuRDy - `purdy_*` table names still accepted for backwards compatibility)
+### DISCO Tables (formerly PuRDy - `purdy_*` table names still accepted for backwards compatibility)
 - `disco_initiatives` - Initiative container
 - `disco_initiative_members` - Multi-user sharing
 - `disco_documents` - Per-initiative documents
@@ -204,10 +204,10 @@ Run migrations in order from `/database/migrations/`:
 | 021-023 | obsidian_sync, opportunity_conversations, add_manual_agent | Obsidian, Opportunities, Manual |
 | 025-028 | opportunity_justifications through document_task_scan_tracking | Opportunity features |
 | 030-036 | stakeholder_candidates through task_candidates_opportunity_link | Discovery pipeline |
-| 038 | disco_schema | DISCo tables (formerly purdy_schema) |
+| 038 | disco_schema | DISCO tables (formerly purdy_schema) |
 | 040 | add_compass_agent | Compass agent |
 | 047 | disco_outcome_tracking | Outcome tracking (formerly purdy_outcome_tracking) |
-| 048 | disco_synthesis | DISCo bundles + PRDs tables |
+| 048 | disco_synthesis | DISCO bundles + PRDs tables |
 | 056 | rename_opportunities_to_projects | Rename opportunities → projects throughout |
 | 061 | disco_checkpoints | Human-in-the-loop checkpoints for consolidated agents |
 
@@ -229,7 +229,7 @@ Run migrations in order from `/database/migrations/`:
 - `/backend/services/project_*.py` - Project services (context, chat, justification, confidence, taskmaster, kb_sync)
 - `/backend/services/stakeholder_*.py` - Stakeholder services (extractor, scanner, deduplicator, linker)
 - `/backend/services/task_*.py` - Task services (auto_extractor, extractor)
-- `/backend/services/disco/` - DISCo services (4 consolidated agents + 8 legacy) (formerly `purdy/`, path alias still supported)
+- `/backend/services/disco/` - DISCO services (4 consolidated agents + 8 legacy) (formerly `purdy/`, path alias still supported)
 - `/backend/services/graph/` - Neo4j services
 
 ### Backend API Routes
@@ -239,7 +239,7 @@ Run migrations in order from `/database/migrations/`:
 - `/backend/api/routes/documents.py` - Document CRUD
 - `/backend/api/routes/tasks.py` - Task management
 - `/backend/api/routes/projects.py` - Project pipeline (also `/api/opportunities/*` for backward compatibility)
-- `/backend/api/routes/disco.py` - DISCo endpoints (formerly `purdy.py`, route `/api/purdy/*` still accepted)
+- `/backend/api/routes/disco.py` - DISCO endpoints (formerly `purdy.py`, route `/api/purdy/*` still accepted)
 
 ### Frontend Core
 - `/frontend/app/layout.tsx` - Root layout
@@ -250,10 +250,10 @@ Run migrations in order from `/database/migrations/`:
 - `/frontend/app/meeting-room/` - Meeting rooms
 - `/frontend/app/tasks/` - Kanban board
 - `/frontend/app/projects/` - Project pipeline
-- `/frontend/app/disco/` - DISCo feature (formerly `purdy/`, route `/purdy` still redirects)
-- `/frontend/components/disco/` - DISCo components (7 files) (formerly `purdy/`)
+- `/frontend/app/disco/` - DISCO feature (formerly `purdy/`, route `/purdy` still redirects)
+- `/frontend/components/disco/` - DISCO components (7 files) (formerly `purdy/`)
 
-### DISCo Agent Prompts
+### DISCO Agent Prompts
 - `/backend/disco_agents/` - Agent prompt definitions (versioned markdown) (formerly `purdy_agents/`, path alias still supported)
   - `triage-v4.2.md`, `discovery-planner-v4.1.md`, `coverage-tracker-v4.1.md`
   - `insight-extractor-v4.2.md`, `consolidator-v4.2.md`, `tech-evaluation-v4.0.md`

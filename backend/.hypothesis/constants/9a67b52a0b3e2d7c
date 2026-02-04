@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/admin/cache.py
+# hypothesis_version: 6.151.3
+
+[500, '/clear-search-cache', '10/minute', 'message', 'success']

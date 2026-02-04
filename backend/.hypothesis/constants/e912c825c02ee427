@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/disco/__init__.py
+# hypothesis_version: 6.151.3
+
+['add_member', 'ask_question', 'build_agent_context', 'check_permission', 'condense_output', 'create_conversation', 'create_initiative', 'delete_document', 'delete_initiative', 'get_agent_types', 'get_conversation', 'get_document', 'get_documents', 'get_initiative', 'get_kb_files', 'list_initiatives', 'list_members', 'load_agent_prompt', 'parse_agent_output', 'remove_member', 'run_agent', 'search_system_kb', 'update_initiative', 'update_member_role', 'upload_document', 'upload_document_file']

@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/graph_sync_scheduler.py
+# hypothesis_version: 6.151.3
+
+[3600, 'UTC', 'Unknown', 'clients', 'errors', 'id', 'id, name', 'jobs', 'message', 'name', 'next_run_time', 'running', 'started', 'status', 'synced']

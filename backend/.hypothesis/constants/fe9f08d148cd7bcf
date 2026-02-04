@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/agents/reporter.py
+# hypothesis_version: 6.151.3
+
+[2048, '\n\nUser request:\n', 'Reporter', 'Unknown', 'action item', 'action items', 'agent', 'agent_display_name', 'agent_name', 'bottom line', 'bottomline', 'brief', 'briefing', 'conclude', 'conclusion', 'content', 'document', 'documentation', 'forward to', 'give me the', 'highlight', 'highlights', 'key point', 'key points', 'meeting_history', 'next step', 'next steps', 'recap', 'recapitulate', 'reporter', 'role', 'send to', 'share with', 'sum up', 'summarise', 'summarize', 'summary', 'take away', 'takeaway', 'takeaways', 'tl;dr', 'tldr', 'user', 'what did we', 'what have we', 'what should i take', 'wrap up', 'wrap-up']

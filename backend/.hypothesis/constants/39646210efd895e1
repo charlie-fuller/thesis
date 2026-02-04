@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/project_chat.py
+# hypothesis_version: 6.151.3
+
+[0.25, 200, 2048, 'ANTHROPIC_API_KEY', 'ai_projects', 'client_id', 'content', 'created_at', 'document_id', 'document_name', 'id', 'name', 'owner_name', 'project_id', 'question', 'relevance_score', 'response', 'role', 'snippet', 'source_documents', 'sources', 'stakeholders', 'user', 'user_id']

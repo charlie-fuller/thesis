@@ -1,8 +1,8 @@
-# DISCo Rebrand Session - January 25, 2026
+# DISCO Rebrand Session - January 25, 2026
 
 ## Summary
 
-Rebranded PuRDy to DISCo (Discovery, Intelligence, Synthesis, Convergence) and reorganized repository structure.
+Rebranded PuRDy to DISCO (Discovery, Intelligence, Synthesis, Convergence) and reorganized repository structure.
 
 ## Changes Made
 
@@ -11,10 +11,10 @@ Rebranded PuRDy to DISCo (Discovery, Intelligence, Synthesis, Convergence) and r
 - Merged KB and initiatives from purdy-cf into thesis
 - Archived purdy-cf to `/vaults/Contentful/GitHub/archived/purdy-cf`
 
-### UI Rebrand (PuRDy to DISCo)
-- Nav link: "PuRDy" -> "DISCo"
-- Page title: "DISCo - Discovery, Intelligence, Synthesis, Convergence"
-- Status cards updated to DISCo workflow stages:
+### UI Rebrand (PuRDy to DISCO)
+- Nav link: "PuRDy" -> "DISCO"
+- Page title: "DISCO - Discovery, Intelligence, Synthesis, Convergence"
+- Status cards updated to DISCO workflow stages:
   - Draft, Triaged, Discovery, Intelligence, Synthesis, Convergence, Archived
 
 ### Route Changes

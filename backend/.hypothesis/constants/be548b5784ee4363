@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/disco/system_kb_service.py
+# hypothesis_version: 6.151.3
+
+[0.2, 297, 300, '\x00', '#', '*', '*.md', '...', 'DISCO_REPO_PATH', 'KB', 'analysis', 'analysis-lenses.md', 'build-vs-buy.md', 'by_category', 'category', 'chunk_index', 'content', 'created', 'decision', 'description', 'disco_system_kb', 'embedding', 'errors', 'exact', 'filename', 'files_processed', 'general', 'id', 'id, content', 'internal', 'internal-systems.md', 'kb_id', 'match_count', 'match_threshold', 'metadata', 'methodology', 'now()', 'project-failures.md', 'query_embedding', 'question-banks.md', 'risk', 'skipped', 'total_chunks', 'total_files', 'triage-questions.md', 'updated', 'updated_at']

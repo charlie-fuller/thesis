@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/auth.py
+# hypothesis_version: 6.151.3
+
+[401, 403, '-----BEGIN', 'Bearer', 'EC', 'ES', 'ES256', 'ES384', 'ES512', 'HS', 'HS256', 'HS384', 'HS512', 'SUPABASE_JWT_SECRET', 'WWW-Authenticate', 'admin', 'alg', 'alg_family', 'all', 'app_access', 'authenticated', 'client_id', 'disco', 'email', 'id', 'is_public', 'key', 'kty', 'purdy', 'resource', 'role', 'secret', 'sub', 'thesis', 'user', 'users', '{']

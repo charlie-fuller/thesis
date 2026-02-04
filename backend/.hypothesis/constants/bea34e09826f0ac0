@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/agents/base_agent.py
+# hypothesis_version: 6.151.3
+
+[100, 4096, '*', '--', 'agent_id', 'agents', 'content', 'conversations', 'id', 'instructions', 'is_active', 'name', 'role', 'updated_at', 'user']

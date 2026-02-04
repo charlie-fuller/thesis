@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/disco/synthesis.py
+# hypothesis_version: 6.151.3
+
+[400, 403, 404, 500, 'Bundle not found', 'Cache-Control', 'Connection', 'Initiative not found', 'No updates provided', 'PRD not found', 'X-Accel-Buffering', 'approved', 'bundle', 'bundles', 'bundles_created', 'bundles_error', 'complete', 'comprehensive', 'content_markdown', 'count', 'data', 'editor', 'error', 'feedback', 'id', 'initiative_id', 'keep-alive', 'no', 'no-cache', 'prd', 'prds', 'proposed', 'status', 'strategist', 'success', 'text/event-stream', 'type', 'viewer']

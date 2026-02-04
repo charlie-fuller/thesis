@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/project_taskmaster.py
+# hypothesis_version: 6.151.3
+
+[2048, '2 weeks', '@', 'ANTHROPIC_API_KEY', 'ai_projects', 'assignee_name', 'client_id', 'confidence', 'content', 'current_state', 'department', 'description', 'description:', 'desired_state', 'due:', 'due_date', 'due_date_text', 'due_text', 'email', 'extraction_pattern', 'full_name', 'full_name, email', 'high', 'id', 'linked_project_id', 'month', 'next week', 'next_step', 'no date', 'none', 'pending', 'priority', 'priority:', 'project_description', 'response', 'role', 'source_document_name', 'source_project_id', 'source_text', 'status', 'suggested_due_date', 'suggested_priority', 'task_candidates', 'task_titles', 'taskmaster_chat', 'tasks_created', 'team', 'this week', 'title', 'title:', 'today', 'tomorrow', 'two weeks', 'user', 'user_id', 'users']

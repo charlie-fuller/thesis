@@ -169,7 +169,7 @@ export default function DiscoProcessMap() {
 
           {/* ===== TITLE - centered over workflow content ===== */}
           <text x="200" y="28" textAnchor="middle" fill={colors.textPrimary} fontSize="22" fontWeight="700">
-            DISCo Workflow
+            DISCO Workflow
           </text>
           <text x="200" y="48" textAnchor="middle" fill={colors.textSecondary} fontSize="14" fontWeight="500">
             Click agents for details
@@ -407,7 +407,7 @@ export default function DiscoProcessMap() {
         <div className="flex-1 w-[380px] max-w-[415px] mx-auto">
           {selectedStep ? (
             <div
-              className="p-4 rounded-lg border-2 h-full"
+              className="p-4 rounded-lg border-2 h-full flex flex-col justify-center"
               style={{
                 backgroundColor: stageColors[selectedStep.stage].light,
                 borderColor: stageColors[selectedStep.stage].stroke

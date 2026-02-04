@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/clients.py
+# hypothesis_version: 6.151.3
+
+[200, 404, 500, '*', '/api/clients', '/{client_id}', 'Client not found', 'client', 'client_id', 'clients', 'conversation_count', 'conversations', 'count', 'created_at', 'document_count', 'documents', 'exact', 'id', 'limit', 'offset', 'success', 'total', 'user_count', 'users']

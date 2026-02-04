@@ -24,7 +24,7 @@ Save to Mem0 when:
 
 Multi-agent platform for enterprise GenAI strategy. 21 specialized agents for research, finance, IT/governance, legal, meeting analysis, and more.
 
-**Key features**: Agent chat with @mentions, Knowledge Base with auto-classification, Meeting Rooms with autonomous discussion, Kanban tasks, Projects pipeline, Stakeholder tracking, Obsidian sync, DISCo product discovery.
+**Key features**: Agent chat with @mentions, Knowledge Base with auto-classification, Meeting Rooms with autonomous discussion, Kanban tasks, Projects pipeline, Stakeholder tracking, Obsidian sync, DISCO product discovery.
 
 See `/docs/ARCHITECTURE.md` for full agent roster, capabilities, and database schema.
 
@@ -52,7 +52,7 @@ See `/docs/ARCHITECTURE.md` for full agent roster, capabilities, and database sc
   /api/routes    - FastAPI endpoints
   /agents        - Agent implementations (21 agents)
   /services      - Business logic
-    /disco       - DISCo services (Discovery-Insights-Synthesis-Convergence)
+    /disco       - DISCO services (Discovery-Insights-Synthesis-Convergence)
   /system_instructions - Agent prompts (XML)
 
 /database

@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/disco/initiatives.py
+# hypothesis_version: 6.151.3
+
+[400, 403, 404, 500, '/initiatives', '/initiatives/as-tags', 'Initiative deleted', 'Initiative not found', 'Member removed', 'active', 'count', 'editor', 'id', 'initiative', 'initiative_id', 'initiatives', 'member', 'members', 'message', 'name', 'status', 'success', 'tag', 'tags', 'type', 'viewer']

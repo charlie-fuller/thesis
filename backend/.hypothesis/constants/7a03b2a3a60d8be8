@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/instruction_loader.py
+# hypothesis_version: 6.151.3
+
+['*.xml', 'agent_name', 'agents', 'file_path', 'modified_at', 'r', 'shared', 'size', 'system_instructions', 'utf-8', 'w']

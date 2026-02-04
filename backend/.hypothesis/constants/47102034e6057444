@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/embeddings.py
+# hypothesis_version: 6.151.3
+
+[0.5, 'VOYAGE_API_KEY', 'completed', 'content', 'document', 'embedding', 'embedding_status', 'failed', 'id', 'id, content', 'match_count', 'match_threshold', 'meeting_room_id', 'p_client_id', 'p_meeting_room_id', 'p_user_id', 'pending', 'query_embedding']

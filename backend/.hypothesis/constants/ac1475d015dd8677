@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/conversations.py
+# hypothesis_version: 6.151.3
+
+[100, 403, 404, 500, '*', '...', '/api/conversations', '/create', '/{conversation_id}', 'ANTHROPIC_API_KEY', 'Access denied', 'New Conversation', 'admin', 'agent_id', 'archived', 'client_id', 'content', 'conversation', 'conversation_id', 'conversations', 'count', 'created_at', 'documents', 'error', 'exact', 'filename', 'id', 'message', 'message_count', 'message_documents', 'message_id', 'messages', 'mime_type', 'role', 'success', 'title', 'total', 'updated_at', 'user', 'user_id']

@@ -1,16 +1,16 @@
-# DISCo Process Overview
+# DISCO Process Overview
 
-**Discovery-Insights-Synthesis-Convergence (DISCo)** (formerly PuRDy - Product Requirements Discovery)
+**Discovery-Insights-Synthesis-Convergence (DISCO)** (formerly PuRDy - Product Requirements Discovery)
 **Version:** 4.2
 **Last Updated:** 2026-01-25
 
 ---
 
-## What is DISCo?
+## What is DISCO?
 
-DISCo is a multi-agent system that transforms raw product discovery into actionable decision documents. It bridges the gap between "someone has an idea" and "leadership can make an informed GO/NO-GO decision."
+DISCO is a multi-agent system that transforms raw product discovery into actionable decision documents. It bridges the gap between "someone has an idea" and "leadership can make an informed GO/NO-GO decision."
 
-**The Core Insight:** Product discovery typically drowns in transcripts, notes, and research that never gets synthesized into something executives can act on. DISCo solves this by structuring the entire journey from intake to recommendation.
+**The Core Insight:** Product discovery typically drowns in transcripts, notes, and research that never gets synthesized into something executives can act on. DISCO solves this by structuring the entire journey from intake to recommendation.
 
 ---
 
@@ -18,7 +18,7 @@ DISCo is a multi-agent system that transforms raw product discovery into actiona
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              DISCo PIPELINE                                  │
+│                              DISCO PIPELINE                                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │   INTAKE              DISCOVERY                 SYNTHESIS                    │
@@ -126,7 +126,7 @@ Discovery Planner produces a plan that Chris (or any facilitator) can pick up an
    - Captures quantification data
    - Notes surprises and contradictions
 3. After each session:
-   - Uploads transcript to DISCo (within 24 hours)
+   - Uploads transcript to DISCO (within 24 hours)
    - Runs Coverage Tracker to assess progress
 
 ### The Discovery Loop
@@ -315,7 +315,7 @@ Run Tech Evaluation when the initiative requires:
 
 ## Success Metrics
 
-| Metric | Target | How DISCo Helps |
+| Metric | Target | How DISCO Helps |
 |--------|--------|-----------------|
 | Decision Velocity | <7 days | Structured handoffs, clear next steps |
 | 30-Second Clarity | 100% | Decision-first format, brevity enforcement |
@@ -337,4 +337,4 @@ Run Tech Evaluation when the initiative requires:
 
 ---
 
-*DISCo v4.2 - From idea to decision in days, not months*
+*DISCO v4.2 - From idea to decision in days, not months*

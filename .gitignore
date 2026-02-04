@@ -81,3 +81,5 @@ DEPLOYMENT_STATUS.md
 # Allow encrypted .env.vault to be committed
 !.env.vault
 !backend/.env.vault
+.vercel
+.env*.local

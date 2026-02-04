@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/vault_watcher_scheduler.py
+# hypothesis_version: 6.151.3
+
+['added', 'deleted', 'files_added', 'files_deleted', 'files_updated', 'message', 'running', 'skipped', 'updated', 'user_id', 'vault_name', 'vault_path', 'watcher_init']

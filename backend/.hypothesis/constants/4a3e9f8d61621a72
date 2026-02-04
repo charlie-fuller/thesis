@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/transcripts.py
+# hypothesis_version: 6.151.3
+
+[0.8, 400, 404, 500, '*', '.markdown', '.md', '.txt', '/', '/analyze', '/api/transcripts', '/upload', '/{transcript_id}', 'ANTHROPIC_API_KEY', 'Transcript not found', 'Unknown', 'Untitled Meeting', 'action_items', 'attendees', 'client_id', 'completed', 'confidence', 'content', 'created_at', 'exact', 'extracted_quote', 'id', 'insight_type', 'is_resolved', 'meeting_date', 'meeting_transcripts', 'message', 'name', 'processing_status', 'sentiment_summary', 'stakeholder_insights', 'stakeholders', 'summary', 'title', 'transcript-analysis', 'transcripts', 'user_id', 'utf-8']

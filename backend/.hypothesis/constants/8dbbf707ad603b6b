@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/storage_service.py
+# hypothesis_version: 6.151.3
+
+['%Y%m%d_%H%M%S', '3600', 'SUPABASE_URL', 'cache-control', 'content-type', 'content_type', 'conversation-images', 'false', 'file_size', 'gif', 'image/gif', 'image/jpeg', 'image/png', 'image/webp', 'jpeg', 'jpg', 'limit', 'png', 'storage_path', 'storage_url', 'upsert', 'webp']

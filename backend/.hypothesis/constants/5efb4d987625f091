@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/admin/health.py
+# hypothesis_version: 6.151.3
+
+[500, 1000, '/health', 'ANTHROPIC_API_KEY', 'Unknown error', 'VOYAGE_API_KEY', 'anthropic', 'api key', 'auth_error', 'authentication', 'checking', 'connected', 'content', 'error', 'exact', 'health', 'health check', 'healthy', 'id', 'latency', 'neo4j', 'not_configured', 'query', 'railway', 'rate limit', 'rate_limited', 'responseTime', 'role', 'running', 'status', 'success', 'supabase', 'too many requests', 'unauthorized', 'uptime', 'user', 'users', 'voyage-large-2', 'voyageAI']

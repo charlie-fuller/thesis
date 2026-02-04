@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/image_generation.py
+# hypothesis_version: 6.151.3
+
+[200, 864, 960, 1024, 1280, 1536, '16:9', '1:1', '4:3', '9:16', 'Content-Type', 'Fast ⚡', 'Portrait (mobile)', 'Quality 🎨', 'Square', 'Standard', 'application/json', 'aspect_ratio', 'aspect_ratios', 'candidates', 'content', 'contents', 'data', 'default_model', 'description', 'display_name', 'enhanced_prompt', 'error', 'fast', 'height', 'image/png', 'image_data', 'inlineData', 'mimeType', 'mime_type', 'model', 'model_key', 'models', 'name', 'parts', 'prompt', 'quality', 'slow', 'speed', 'success', 'text', 'width', 'x-goog-api-key']

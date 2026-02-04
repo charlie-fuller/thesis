@@ -1,6 +1,6 @@
-# DISCo v4.3 Feedback Session Guide
+# DISCO v4.3 Feedback Session Guide
 
-**Purpose:** Get Chris and Tyler's input on whether the DISCo pipeline outputs are actually useful before further iteration.
+**Purpose:** Get Chris and Tyler's input on whether the DISCO pipeline outputs are actually useful before further iteration.
 
 **Time Estimate:** 45-60 minutes total (can split across sessions)
 
@@ -210,4 +210,4 @@ Use this to capture feedback:
 
 ---
 
-*Feedback Session Guide - DISCo v4.3*
+*Feedback Session Guide - DISCO v4.3*

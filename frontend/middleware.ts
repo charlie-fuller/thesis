@@ -46,6 +46,14 @@ export async function middleware(req: NextRequest) {
     }
   );
 
+  // Use getUser() instead of getSession() to properly refresh tokens
+  // getUser() validates the JWT and refreshes the session if needed
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  // Get session for access token (after getUser refreshes it)
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -68,7 +76,8 @@ export async function middleware(req: NextRequest) {
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
 
   // If trying to access protected route without session, redirect to login
-  if (isProtectedRoute && !session) {
+  // Use user from getUser() which properly validates the token
+  if (isProtectedRoute && !user) {
     const redirectUrl = new URL('/auth/login', req.url);
     redirectUrl.searchParams.set('redirectTo', pathname);
     return NextResponse.redirect(redirectUrl);
@@ -76,16 +85,16 @@ export async function middleware(req: NextRequest) {
 
   // Fetch user profile with role and app_access for permission checks
   let profile: { role: string; app_access: string[] | null } | null = null;
-  if (session && (isProtectedRoute || isAuthRoute)) {
+  if (user && (isProtectedRoute || isAuthRoute)) {
     const { data } = await supabase
       .from('users')
       .select('role, app_access')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single();
     profile = data;
   }
 
-  if (session && profile) {
+  if (user && profile) {
     const isAdmin = profile.role === 'admin';
     const appAccess = profile.app_access || ['thesis']; // Default to thesis access
     const hasThesisAccess = isAdmin || appAccess.includes('thesis') || appAccess.includes('all');
@@ -132,5 +141,21 @@ export const config = {
     '/profile/:path*',
     '/auth/:path*',
     '/disco/:path*',
+    '/kb/:path*',
+    '/kb',
+    '/tasks/:path*',
+    '/tasks',
+    '/projects/:path*',
+    '/projects',
+    '/stakeholders/:path*',
+    '/stakeholders',
+    '/meeting-room/:path*',
+    '/meeting-room',
+    '/pipeline/:path*',
+    '/pipeline',
+    '/transcripts/:path*',
+    '/transcripts',
+    '/intelligence/:path*',
+    '/intelligence',
   ],
 };

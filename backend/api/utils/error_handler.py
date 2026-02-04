@@ -2,10 +2,25 @@
 
 Provides custom exception classes, standardized error responses, and
 FastAPI exception handlers for consistent error handling across the application.
+
+This is the SINGLE SOURCE OF TRUTH for error handling in Thesis.
+All error responses follow this format:
+
+    {
+        "success": False,
+        "error": {
+            "code": "ERROR_CODE",       # Machine-readable code
+            "message": "Human message",  # User-friendly message
+            "type": "ExceptionClass",    # Exception class name
+            "timestamp": "ISO8601",      # When error occurred
+            "details": {...}             # Optional additional info
+        }
+    }
 """
 
 import os
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any, Dict, Optional
 
 from fastapi import HTTPException, Request, status
@@ -14,6 +29,56 @@ from fastapi.responses import JSONResponse
 from logger_config import get_logger
 
 logger = get_logger(__name__)
+
+
+# ============================================================================
+# Error Codes Enum (Machine-Readable)
+# ============================================================================
+
+
+class ErrorCode(str, Enum):
+    """Standardized error codes for consistent API responses."""
+
+    # Authentication & Authorization
+    AUTHENTICATION_ERROR = "AUTHENTICATION_ERROR"
+    AUTHORIZATION_ERROR = "AUTHORIZATION_ERROR"
+    TOKEN_EXPIRED = "TOKEN_EXPIRED"
+
+    # Resource errors
+    NOT_FOUND = "NOT_FOUND"
+    CONFLICT = "CONFLICT"
+
+    # Validation
+    VALIDATION_ERROR = "VALIDATION_ERROR"
+    INVALID_INPUT = "INVALID_INPUT"
+
+    # Rate limiting
+    RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
+
+    # Document processing
+    DOCUMENT_PROCESSING_ERROR = "DOCUMENT_PROCESSING_ERROR"
+    UNSUPPORTED_FILE_TYPE = "UNSUPPORTED_FILE_TYPE"
+    FILE_SIZE_EXCEEDED = "FILE_SIZE_EXCEEDED"
+    TEXT_EXTRACTION_FAILED = "TEXT_EXTRACTION_FAILED"
+
+    # External services
+    EXTERNAL_SERVICE_ERROR = "EXTERNAL_SERVICE_ERROR"
+    ANTHROPIC_API_ERROR = "ANTHROPIC_API_ERROR"
+    VOYAGE_API_ERROR = "VOYAGE_API_ERROR"
+    GOOGLE_DRIVE_ERROR = "GOOGLE_DRIVE_ERROR"
+    NOTION_ERROR = "NOTION_ERROR"
+
+    # Database
+    DATABASE_ERROR = "DATABASE_ERROR"
+    DATABASE_CONNECTION_ERROR = "DATABASE_CONNECTION_ERROR"
+    QUERY_EXECUTION_ERROR = "QUERY_EXECUTION_ERROR"
+
+    # Embeddings
+    EMBEDDING_ERROR = "EMBEDDING_ERROR"
+    VECTOR_SEARCH_ERROR = "VECTOR_SEARCH_ERROR"
+
+    # General
+    SERVER_ERROR = "SERVER_ERROR"
 
 
 def get_cors_headers(request: Request) -> dict:
@@ -85,6 +150,37 @@ class TokenExpiredError(AuthenticationError):
     pass
 
 
+# Not Found Errors
+class NotFoundError(ThesisError):
+    """Raised when a resource cannot be found."""
+
+    def __init__(
+        self,
+        resource: str,
+        resource_id: Optional[str] = None,
+        message: Optional[str] = None,
+    ):
+        """Initialize NotFoundError.
+
+        Args:
+            resource: Type of resource (e.g., "Document", "User").
+            resource_id: Optional ID of the resource.
+            message: Optional custom message.
+        """
+        if message:
+            error_message = message
+        else:
+            error_message = f"{resource} not found"
+            if resource_id:
+                error_message += f": {resource_id}"
+
+        super().__init__(
+            message=error_message,
+            error_code=ErrorCode.NOT_FOUND.value,
+            details={"resource": resource, "id": resource_id} if resource_id else None,
+        )
+
+
 # Document Processing Errors
 class DocumentProcessingError(ThesisError):
     """Base class for document processing errors."""
@@ -92,10 +188,11 @@ class DocumentProcessingError(ThesisError):
     pass
 
 
-class DocumentNotFoundError(DocumentProcessingError):
+class DocumentNotFoundError(NotFoundError):
     """Raised when a document cannot be found."""
 
-    pass
+    def __init__(self, document_id: Optional[str] = None):
+        super().__init__(resource="Document", resource_id=document_id)
 
 
 class TextExtractionError(DocumentProcessingError):
@@ -217,19 +314,21 @@ def create_error_response(
     """Create a standardized error response dictionary.
 
     Args:
-        error: The exception that occurred
-        status_code: HTTP status code to return
-        include_details: Whether to include detailed error information
+        error: The exception that occurred.
+        status_code: HTTP status code to return.
+        include_details: Whether to include detailed error information.
 
     Returns:
-        Dictionary with standardized error response format
+        Dictionary with standardized error response format.
     """
     response = {
+        "success": False,
         "error": {
+            "code": ErrorCode.SERVER_ERROR.value,  # Default
             "type": error.__class__.__name__,
             "message": str(error),
             "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
+        },
     }
 
     # Add error code if available (custom exceptions)
@@ -240,6 +339,57 @@ def create_error_response(
         if include_details and error.details:
             response["error"]["details"] = error.details
 
+    return response
+
+
+# ============================================================================
+# Success Response Formatting
+# ============================================================================
+
+
+def format_success_response(data: Any, message: Optional[str] = None) -> Dict[str, Any]:
+    """Format a successful API response.
+
+    Args:
+        data: Response data.
+        message: Optional success message.
+
+    Returns:
+        Standardized success response.
+    """
+    response: Dict[str, Any] = {"success": True, "data": data}
+
+    if message:
+        response["message"] = message
+
+    return response
+
+
+def format_error_response(
+    code: str,
+    message: str,
+    details: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Format an error API response.
+
+    Args:
+        code: Machine-readable error code (use ErrorCode enum).
+        message: Human-readable error message.
+        details: Optional additional details.
+
+    Returns:
+        Standardized error response.
+    """
+    response: Dict[str, Any] = {
+        "success": False,
+        "error": {
+            "code": code,
+            "message": message,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    }
+    if details:
+        response["error"]["details"] = details
     return response
 
 
@@ -334,15 +484,27 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
         },
     )
 
+    # Map status codes to error codes
+    status_to_code = {
+        400: ErrorCode.VALIDATION_ERROR.value,
+        401: ErrorCode.AUTHENTICATION_ERROR.value,
+        403: ErrorCode.AUTHORIZATION_ERROR.value,
+        404: ErrorCode.NOT_FOUND.value,
+        409: ErrorCode.CONFLICT.value,
+        429: ErrorCode.RATE_LIMIT_EXCEEDED.value,
+    }
+    error_code = status_to_code.get(exc.status_code, ErrorCode.SERVER_ERROR.value)
+
     return JSONResponse(
         status_code=exc.status_code,
         content={
+            "success": False,
             "error": {
+                "code": error_code,
                 "type": "HTTPException",
                 "message": exc.detail,
-                "status_code": exc.status_code,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
+            },
         },
         headers=get_cors_headers(request),
     )
@@ -370,11 +532,13 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
+            "success": False,
             "error": {
+                "code": ErrorCode.SERVER_ERROR.value,
                 "type": "InternalServerError",
                 "message": "An unexpected error occurred. Please try again later.",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
+            },
         },
         headers=get_cors_headers(request),
     )
@@ -465,12 +629,16 @@ def wrap_external_service_error(
 # ============================================================================
 
 __all__ = [
+    # Error codes
+    "ErrorCode",
     # Base exceptions
     "ThesisError",
     # Authentication
     "AuthenticationError",
     "AuthorizationError",
     "TokenExpiredError",
+    # Not found
+    "NotFoundError",
     # Document processing
     "DocumentProcessingError",
     "DocumentNotFoundError",
@@ -495,8 +663,11 @@ __all__ = [
     "ValidationError",
     "InvalidInputError",
     "RateLimitError",
-    # Utilities
+    # Response formatting
     "create_error_response",
+    "format_success_response",
+    "format_error_response",
+    # Utilities
     "get_status_code_for_exception",
     "ErrorContext",
     "wrap_external_service_error",

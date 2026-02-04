@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/documents/tags_and_metadata.py
+# hypothesis_version: 6.151.3
+
+[100, 400, 404, 500, '%Y-%m-%d', '/{document_id}/tags', 'Document not found', 'Tag cannot be empty', 'Tag not found', 'already_exists', 'created_at', 'daily', 'document', 'document_id', 'document_tags', 'documents', 'frontmatter', 'id', 'id, source', 'id, tag, source', 'id, uploaded_by', 'manual', 'monthly', 'original_date', 'removed_tag', 'source', 'success', 'sync_cadence', 'tag', 'tags', 'uploaded_by', 'weekly']

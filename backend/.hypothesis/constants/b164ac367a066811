@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/database.py
+# hypothesis_version: 6.151.3
+
+[0.1, 'SUPABASE_KEY', 'SUPABASE_URL', 'T', 'broken pipe', 'connection', 'errno 32']

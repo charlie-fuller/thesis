@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/disco/admin.py
+# hypothesis_version: 6.151.3
+
+[400, 404, 500, '%Y-%m-%d', '/agents', '/agents/{agent_type}', '/analytics/usage', '/system-kb', '/system-kb/search', '/system-kb/sync', 'T', 'agent_totals', 'agent_type', 'agents', 'date', 'disco_runs', 'files', 'message', 'prompt', 'results', 'started_at', 'success', 'total_runs', 'trends']

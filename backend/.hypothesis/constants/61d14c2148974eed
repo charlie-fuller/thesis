@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/chat_agent_service.py
+# hypothesis_version: 6.151.3
+
+[0.0, 1.0, 100, '--', 'ANTHROPIC_API_KEY', 'Atlas (Research)', 'Capital (Finance)', 'Coordinator', 'Counselor (Legal)', 'Echo (Brand Voice)', 'Pioneer (Innovation)', 'Sage (People/Change)', 'Scholar (L&D)', 'agent_id', 'agent_name', 'agents', 'architect', 'assistant', 'atlas', 'capital', 'catalyst', 'change', 'comms', 'conversation_id', 'conversations', 'coordinator', 'counselor', 'created_at', 'current_agent', 'echo', 'executive', 'finance', 'governance', 'guardian', 'id', 'innovation', 'instructions', 'is_active', 'it', 'legal', 'messages', 'metadata', 'name', 'nexus', 'operations', 'operator', 'oracle', 'people', 'pioneer', 'research', 'role', 'sage', 'scholar', 'strategist', 'systems', 'technical', 'training', 'transcript', 'voice']

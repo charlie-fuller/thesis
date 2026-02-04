@@ -149,13 +149,13 @@ A file watcher monitors your vault. Changes (create/modify/delete) sync to the K
 
 ---
 
-## DISCo Initiatives
+## DISCO Initiatives
 
-**What is DISCo?**
+**What is DISCO?**
 Discovery, Intelligence, Synthesis, Convergence, Operationalize. It's a structured product discovery workflow with 8 specialized agents.
 
-**What's the difference between DISCo and regular Chat?**
-Chat is for questions and exploration. DISCo is a structured workflow that takes you from idea through to PRD, with specific agents for each stage.
+**What's the difference between DISCO and regular Chat?**
+Chat is for questions and exploration. DISCO is a structured workflow that takes you from idea through to PRD, with specific agents for each stage.
 
 **What do GO/NO-GO/INVESTIGATE mean?**
 These are Triage decisions. **GO** (green) means proceed with discovery. **NO-GO** (red) means stop - not worth pursuing. **INVESTIGATE** (amber) means gather more info before deciding.
@@ -214,5 +214,5 @@ Note what happened, what you expected, and any error messages. Report to your ad
 - [Quick Start](./00-quick-start.md) - The 5-minute intro
 - [Agent Guide](./01-agents.md) - Deep dive on each agent
 - [Meeting Rooms](./03-meeting-rooms.md) - Where the magic happens
-- [DISCo Initiatives](./09-disco-initiatives.md) - Product discovery workflow
+- [DISCO Initiatives](./09-disco-initiatives.md) - Product discovery workflow
 - [Discovery Inbox](./10-discovery-inbox.md) - Auto-extracted candidates

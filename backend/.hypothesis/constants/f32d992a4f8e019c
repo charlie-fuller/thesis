@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/documents/agents_and_classification.py
+# hypothesis_version: 6.151.3
+
+[0.8, 404, 500, '*', 'Document not found', 'Global (all agents)', 'added_by', 'agent_id', 'agent_knowledge_base', 'agents', 'classification', 'confidence', 'created_at', 'detected_type', 'display_name', 'document', 'document_id', 'documents', 'id', 'id, filename', 'id, uploaded_by', 'is_global', 'linked_agents', 'manual', 'message', 'method', 'name', 'now()', 'priority', 'raw_scores', 'relevance_score', 'requires_user_review', 'review_reason', 'reviewed', 'reviewed_at', 'reviewed_by', 'status', 'success', 'uploaded_by', 'user_confirmed']

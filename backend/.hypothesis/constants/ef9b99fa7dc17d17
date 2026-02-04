@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/disco/prd_service.py
+# hypothesis_version: 6.151.3
+
+[0.5, 0.6, 4000, 8000, '\n**Stakeholders**:\n', '*', 'Building context...', 'Bundle not found', 'Failed to create PRD', 'Initiative not found', 'Saving PRD...', 'agent_type', 'approved', 'approved_at', 'approved_by', 'bundle_id', 'bundling_rationale', 'complete', 'confidence_level', 'content', 'content_markdown', 'content_structured', 'created_at', 'data', 'disco_initiatives', 'disco_outputs', 'disco_prds', 'draft', 'error', 'executive_summary', 'id', 'included_items', 'initiative_id', 'name', 'prd_generator', 'problem_statement', 'recommendation', 'requirements', 'risks', 'role', 'run_id', 'source', 'source_output_id', 'stakeholders', 'status', 'tier_routing', 'title', 'type', 'user', 'version']

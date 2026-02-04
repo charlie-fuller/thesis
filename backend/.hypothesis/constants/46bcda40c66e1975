@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/graph.py
+# hypothesis_version: 6.151.3
+
+[403, 500, 503, 1000, '/agents/routing', '/api/graph', '/concerns/shared', '/health', '/infer/clusters', '/infer/concepts', '/infer/influences', '/influence/path', '/schema/init', '/schema/verify', '/stats', '/sync/full', '/sync/incremental', '/sync/stakeholders', '/sync/trigger', '/visualization', 'Current agent ID', "The user's question", 'admin', 'advocates', 'aligned', 'blockers', 'client_id', 'completed', 'concept', 'concerns', 'error', 'graph', 'id', 'influence_chains', 'influencers', 'links', 'meeting_id', 'nodes', 'opportunity_id', 'patterns', 'result', 'role', 'running', 'shared_concerns', 'source', 'stakeholder_id', 'status', 'success', 'target', 'target_id', 'total_links', 'total_nodes', 'unhealthy']

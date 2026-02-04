@@ -1,6 +1,6 @@
-# DISCo Detailed Stage Guide
+# DISCO Detailed Stage Guide
 
-This document provides detailed information for each DISCo stage, along with infographic prompts that maintain visual consistency across the series.
+This document provides detailed information for each DISCO stage, along with infographic prompts that maintain visual consistency across the series.
 
 ---
 
@@ -52,7 +52,7 @@ AVOID ACROSS ALL:
 > For the full Year 1 → Year 2 strategy narrative and infographic prompts, see:
 > **`/strategy/Year-2-AI-Strategy-Visual-Summary.md`**
 
-DISCo is the **OPERATIONALIZE** pillar of the Year 2 AI Strategy—the engine that turns domain expertise into shipped solutions with measurable ROI.
+DISCO is the **OPERATIONALIZE** pillar of the Year 2 AI Strategy—the engine that turns domain expertise into shipped solutions with measurable ROI.
 
 ---
 
@@ -60,7 +60,7 @@ DISCo is the **OPERATIONALIZE** pillar of the Year 2 AI Strategy—the engine th
 
 ### Detailed Information
 
-**Purpose:** Gather the raw materials that frame the problem space before any DISCo work begins.
+**Purpose:** Gather the raw materials that frame the problem space before any DISCO work begins.
 
 **Key Inputs:**
 
@@ -81,12 +81,12 @@ DISCo is the **OPERATIONALIZE** pillar of the Year 2 AI Strategy—the engine th
 - [ ] Constraints are confirmed, not assumed
 - [ ] Supporting documents represent multiple perspectives
 
-**Output:** A populated DISCo initiative ready for Triage
+**Output:** A populated DISCO initiative ready for Triage
 
 ### Infographic Prompt
 
 ```
-Create an infographic for "DISCo Stage 0: Starting Inputs"
+Create an infographic for "DISCO Stage 0: Starting Inputs"
 
 CONTENT TO SHOW:
 - Central concept: Gathering raw materials before discovery begins
@@ -102,7 +102,7 @@ CONTENT TO SHOW:
 - "Ready for Triage" output indicator at bottom
 
 VISUAL EMPHASIS:
-- This is preparation work, not yet in the DISCo phases
+- This is preparation work, not yet in the DISCO phases
 - Show variety of input sources
 - Indicate that humans gather these materials
 - Clean, organized collection aesthetic
@@ -161,12 +161,12 @@ Possible decisions:
 - Contradictions between stated and observed
 - Political dynamics and relationships
 
-**Output:** Session recordings, notes, artifacts uploaded to DISCo
+**Output:** Session recordings, notes, artifacts uploaded to DISCO
 
 ### Infographic Prompt
 
 ```
-Create an infographic for "DISCo Stage 1: Discovery"
+Create an infographic for "DISCO Stage 1: Discovery"
 
 CONTENT TO SHOW:
 - Two-part structure: Triage (AI) → Discovery Planning (AI) → Human Sessions
@@ -258,7 +258,7 @@ Creates comprehensive decision document (900 words max):
 ### Infographic Prompt
 
 ```
-Create an infographic for "DISCo Stage 2: Insights"
+Create an infographic for "DISCO Stage 2: Insights"
 
 CONTENT TO SHOW:
 - Three-agent pipeline: Coverage Tracker → Insight Extractor → Consolidator
@@ -350,7 +350,7 @@ Each proposed bundle contains:
 ### Infographic Prompt
 
 ```
-Create an infographic for "DISCo Stage 3: Synthesis"
+Create an infographic for "DISCO Stage 3: Synthesis"
 
 CONTENT TO SHOW:
 - Input: Decision document and extracted insights
@@ -444,7 +444,7 @@ VISUAL EMPHASIS:
 ### Infographic Prompt
 
 ```
-Create an infographic for "DISCo Stage 4: Convergence"
+Create an infographic for "DISCO Stage 4: Convergence"
 
 CONTENT TO SHOW:
 - Input: Approved bundles from Synthesis phase
@@ -498,7 +498,7 @@ Use these concise prompts for each infographic. Refer to the detailed sections a
 
 ### Stage 0: Starting Inputs
 ```
-Infographic: "DISCo Stage 0 - Starting Inputs"
+Infographic: "DISCO Stage 0 - Starting Inputs"
 
 Show six input types flowing into a central "Initiative" container:
 - Problem Statement, Existing Research, Golden Examples
@@ -511,7 +511,7 @@ Style: Navy/coral palette, clean layout, simple icons for each input type.
 
 ### Stage 1: Discovery
 ```
-Infographic: "DISCo Stage 1 - Discovery"
+Infographic: "DISCO Stage 1 - Discovery"
 
 Three sections left to right:
 1. TRIAGE: GO/NO-GO gate with four criteria (Real, Costly, Solvable, Ours)
@@ -525,7 +525,7 @@ Style: Navy/coral palette. Humans in coral accent. Session area is the hero.
 
 ### Stage 2: Insights
 ```
-Infographic: "DISCo Stage 2 - Insights"
+Infographic: "DISCO Stage 2 - Insights"
 
 Three-agent pipeline with coverage loop:
 1. COVERAGE TRACKER: Progress bars, status check (Ready/Gaps/Blocked). Loop back arrow if gaps remain.
@@ -539,7 +539,7 @@ Style: Navy/coral palette. Processing/analysis aesthetic. Document outputs.
 
 ### Stage 3: Synthesis
 ```
-Infographic: "DISCo Stage 3 - Synthesis"
+Infographic: "DISCO Stage 3 - Synthesis"
 
 Two parts:
 1. STRATEGIST: Scattered insights clustering into bundles. Show 2-3 bundle cards with IFU scores (Impact, Feasibility, Urgency).
@@ -552,7 +552,7 @@ Style: Navy/coral palette. Human checkpoint in coral. Decision-point emphasis.
 
 ### Stage 4: Convergence
 ```
-Infographic: "DISCo Stage 4 - Convergence"
+Infographic: "DISCO Stage 4 - Convergence"
 
 Three parts:
 1. PRD GENERATOR: Bundle transforming into structured PRD document (show section outline)
@@ -566,7 +566,7 @@ Style: Navy/coral palette. Document/specification aesthetic. Finish line feeling
 
 ### Stage 5: Operationalization
 ```
-Infographic: "DISCo Stage 5 - Operationalization"
+Infographic: "DISCO Stage 5 - Operationalization"
 
 Three sections:
 1. IMPLEMENTATION: PRD flowing into sprint board, engineering team building
@@ -629,7 +629,7 @@ Track against success criteria defined in PRD:
 |--------|----------|
 | Metrics on track | Continue monitoring, eventual close |
 | Minor gaps | Iterate within current initiative |
-| Major gaps | New DISCo discovery cycle |
+| Major gaps | New DISCO discovery cycle |
 | Unexpected success | Consider expansion initiative |
 
 **Output:** Working solution in production with measured outcomes and captured lessons
@@ -637,7 +637,7 @@ Track against success criteria defined in PRD:
 ### Infographic Prompt
 
 ```
-Create an infographic for "DISCo Stage 5: Operationalization"
+Create an infographic for "DISCO Stage 5: Operationalization"
 
 CONTENT TO SHOW:
 - Input: Approved PRDs from Capabilities phase
@@ -668,7 +668,7 @@ ITERATION LOOP:
 OUTPUT:
 - "Live in Production" indicator
 - Outcomes measured against success criteria
-- Lessons learned captured for future DISCo cycles
+- Lessons learned captured for future DISCO cycles
 
 FLOW:
 Approved PRD → Development → Staged Deployment → Production → Measure Outcomes → Iterate/Close

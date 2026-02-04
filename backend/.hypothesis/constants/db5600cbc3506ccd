@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/agents/facilitator.py
+# hypothesis_version: 6.151.3
+
+[200, 250, 500, ' and ', ', ', 'Brand Voice', 'Business Operations', 'Executive Strategy', 'Facilitator', 'Innovation & R&D', 'Legal & Compliance', 'Meeting Intelligence', 'Specialist', 'Systems Thinking', '```', 'agent_display_name', 'agent_name', 'agents_to_invoke', 'architect', 'atlas', 'capital', 'catalyst', 'content', 'counselor', 'echo', 'facilitator', 'facilitator_intro', 'facilitator_message', 'followup', 'good afternoon', 'good evening', 'good morning', 'greeting', 'guardian', 'hello', 'hey', 'hi', 'intent_type', 'json', 'nexus', 'operator', 'oracle', 'pioneer', 'question', 'role', 'sage', 'scholar', 'should_clarify', 'should_invoke_nexus', 'strategist', 'unclear', 'user']

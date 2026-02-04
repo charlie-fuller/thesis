@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/documents/crud.py
+# hypothesis_version: 6.151.3
+
+[403, 404, 500, 3600, '*', '/bulk', '/{document_id}', '10/minute', '30/minute', 'Document not found', 'admin', 'batch', 'chunk_count', 'chunk_index', 'content', 'content, chunk_index', 'deleted_count', 'disco_initiatives', 'document', 'document_chunks', 'document_id', 'documents', 'download_url', 'error', 'errors', 'expires_in', 'filename', 'has_disco_usage', 'id', 'id, uploaded_by', 'initiative_id', 'initiative_name', 'initiatives', 'linked', 'message', 'mime_type', 'name', 'role', 'signedURL', 'status', 'storage_path', 'success', 'title', 'unknown', 'uploaded_by']

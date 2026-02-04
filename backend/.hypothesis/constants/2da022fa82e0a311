@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/agents/glean_evaluator.py
+# hypothesis_version: 6.151.3
+
+[200, 4096, 'Can We Glean This?', 'alternative', 'architect', 'architecture', 'assessment', 'budget', 'capital', 'compliance', 'content', 'cost breakdown', 'custom build', 'decision', 'financial analysis', 'gdpr', 'glean', 'glean_evaluator', 'go', 'guardian', 'hipaa', 'integration', 'no-go', 'platform', 'rag', 'recommendation', 'roi', 'security audit', 'soc2', 'technical design']

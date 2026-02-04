@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/disco/chat.py
+# hypothesis_version: 6.151.3
+
+[500, 1500, ', ', 'ANTHROPIC_API_KEY', 'Assistant', 'Unknown', 'Unknown Initiative', 'User', '```', 'confidence', 'content', 'conversation', 'current_state', 'department', 'description', 'desired_state', 'error', 'existing_projects', 'extracted', 'id', 'initiative_id', 'initiative_name', 'json', 'messages', 'name', 'none', 'project_code', 'projects', 'roi_potential', 'role', 'source_context', 'source_summary', 'strategic_alignment', 'success', 'tasks', 'title', 'user', 'value', 'viewer']

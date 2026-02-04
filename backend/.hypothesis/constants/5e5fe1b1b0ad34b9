@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/disco/__init__.py
+# hypothesis_version: 6.151.3
+
+['/api/disco', 'AgentRunRequest', 'BundleApproval', 'BundleCreate', 'BundleMerge', 'BundleSplit', 'BundleUpdate', 'ChatQuestion', 'CheckpointApprove', 'CheckpointReset', 'DocumentUploadText', 'ExtractedField', 'ExtractedScore', 'InitiativeCreate', 'InitiativeUpdate', 'LinkDocumentsRequest', 'MemberInvite', 'MemberRoleUpdate', 'PRDUpdate', 'check_disco_access', 'disco', 'require_disco_access', 'router']

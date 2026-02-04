@@ -1,6 +1,6 @@
-# DISCo Initiatives
+# DISCO Initiatives
 
-DISCo stands for Discovery, Intelligence, Synthesis, Convergence, Operationalize. It's your AI-assisted product discovery workflow - 8 specialized agents that help you evaluate whether an idea is worth pursuing, and if so, turn it into something actionable.
+DISCO stands for Discovery, Intelligence, Synthesis, Convergence, Operationalize. It's your AI-assisted product discovery workflow - 8 specialized agents that help you evaluate whether an idea is worth pursuing, and if so, turn it into something actionable.
 
 Think of it as a structured way to go from "we should look into this" to "here's the PRD."
 
@@ -8,7 +8,7 @@ Think of it as a structured way to go from "we should look into this" to "here's
 
 ## Getting Started
 
-Click **DISCo** in the navigation bar.
+Click **DISCO** in the navigation bar.
 
 If you have existing initiatives, you'll see them as cards. Click **New Initiative** to create one.
 
@@ -49,7 +49,7 @@ Every initiative has five tabs:
 
 ## The Workflow Stages
 
-DISCo moves through four stages, each with specific agents:
+DISCO moves through four stages, each with specific agents:
 
 ### Stage 1: Discovery
 Get the lay of the land. Is this worth pursuing?
@@ -163,7 +163,7 @@ Viewers can see everything. Editors can run agents and manage documents.
 
 ## Linking Documents from KB
 
-DISCo uses the Knowledge Base as its single source of truth for documents.
+DISCO uses the Knowledge Base as its single source of truth for documents.
 
 **To link documents:**
 1. Go to the **Documents** tab
@@ -239,5 +239,5 @@ The chat always knows what documents are linked, so you can ask meta-questions l
 ## What's Next?
 
 - [Discovery Inbox](./10-discovery-inbox.md) - Auto-extracted candidates from your documents
-- [Knowledge Base](./04-knowledge-base.md) - Managing the documents that feed DISCo
+- [Knowledge Base](./04-knowledge-base.md) - Managing the documents that feed DISCO
 - [Projects](./06-projects.md) - Where approved initiatives become projects

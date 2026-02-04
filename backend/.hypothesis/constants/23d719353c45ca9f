@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/disco/synthesis_service.py
+# hypothesis_version: 6.151.3
+
+[' - ', '*', '*, users(email)', '- ', '-\\s*source:\\s*(.+)$', 'Feasibility', 'Impact', 'Urgency', 'action', 'approve', 'approved', 'approved_at', 'approved_by', 'bundle_id', 'bundling_rationale', 'changes', 'complexity_rationale', 'complexity_tier', 'created_at', 'dependencies', 'description', 'disco_bundles', 'edit', 'feasibility_score', 'feedback', 'id', 'impact_rationale', 'impact_score', 'included_items', 'initiative_id', 'item_indices', 'merge', 'merged', 'name', 'proposed', 'rationale', 'reject', 'rejected', 'score', 'source', 'source_output_id', 'split', 'stake', 'stakeholders', 'status', 'urgency_rationale', 'urgency_score', 'user_id']

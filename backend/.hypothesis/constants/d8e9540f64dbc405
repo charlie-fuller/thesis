@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/project_confidence.py
+# hypothesis_version: 6.151.3
+
+[100, '*', ': ', 'Unknown', 'ai_projects', 'average_confidence', 'baseline state', 'blockers', 'blockers_documented', 'business owner', 'champion', 'client_id', 'confidence_questions', 'constraints', 'current process', 'current_state', 'department', 'description', 'desired_state', 'distribution', 'effort_justification', 'error', 'errors', 'failed', 'has_justifications', 'high', 'id', 'low', 'moderate', 'next_step', 'owner_stakeholder_id', 'points', 'problem or project', 'project_summary', 'question', 'rationale', 'roi_indicators', 'roi_justification', 'roi_potential', 'scores_complete', 'scoring_confidence', 'source_notes', 'source_type', 'strategic_alignment', 'success look like', 'target end state', 'this project', 'title', 'total', 'updated', 'very_low']

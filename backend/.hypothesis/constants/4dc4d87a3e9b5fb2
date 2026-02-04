@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/services/graph/relationship_extractor.py
+# hypothesis_version: 6.151.3
+
+[1.0, 10.0, 500, 10000, '...', 'ANTHROPIC_API_KEY', 'analyzed_pairs', 'category', 'ceo', 'cfo', 'chief', 'client_id', 'cluster_name', 'cluster_pair', 'clusters_found', 'concepts_created', 'content', 'coo', 'cto', 'director', 'discusses_links', 'errors', 'general', 'head', 'id', 'influenced_id', 'influencer_id', 'influences_created', 'lead', 'manager', 'meeting_count', 'meeting_id', 'meeting_ids', 'meeting_transcripts', 'meetings', 'meetings_processed', 'name', 'role', 'senior', 'size', 'stakeholder1', 'stakeholder2', 'stakeholder_id', 'stakeholders', 'strength', 'summary', 'total_concepts', 'user', 'vice president', 'vp', '|']

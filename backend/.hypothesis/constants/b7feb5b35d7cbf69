@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/documents/admin.py
+# hypothesis_version: 6.151.3
+
+[100, 400, 404, 500, '*', '/', '/cleanup/by-path', 'Document not found', 'affected_tags', 'batch', 'chunk_count', 'chunk_index', 'chunks', 'deleted_count', 'document', 'document_chunks', 'document_id', 'document_id, tag', 'document_tags', 'documents', 'dry_run', 'error', 'errors', 'exact', 'filename', 'id', 'limit', 'message', 'obsidian_file_path', 'offset', 'path', 'pattern', 'returned_count', 'success', 'tag', 'tags', 'total_count', 'uploaded_at', 'would_delete_count']

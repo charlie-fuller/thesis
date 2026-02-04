@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/documents/upload.py
+# hypothesis_version: 6.151.3
+
+[400, 500, ' -_', '%Y-%m-%d', '.', '/save-from-chat', '/upload', '30/minute', 'SUPABASE_URL', '_', 'added_by', 'agent_id', 'agent_knowledge_base', 'auto_classify', 'client_id', 'content-type', 'document_id', 'documents', 'file_size', 'filename', 'id', 'is_global', 'linked_agents', 'message', 'mime_type', 'original_date', 'priority', 'processed', 'storage_path', 'storage_url', 'success', 'text/markdown', 'title', 'true', 'txt', 'uploaded_by', 'utf-8']

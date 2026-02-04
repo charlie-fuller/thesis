@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/validation.py
+# hypothesis_version: 6.151.3
+
+[b'%PDF', b'<?xml', b'GIF87a', b'GIF89a', b'MZ', b'PK\x03\x04', b'RIFF', b'WEBP', b'[', b'{', b'\x7fELF', b'\x89PNG\r\n\x1a\n', b'\xff\xd8\xff', 100, 400, 413, 500, 1024, '.', '.csv', '.docx', '.jpeg', '.jpg', '.json', '.md', '.pdf', '.png', '.txt', '.webp', '.xml', 'File is empty', 'Image file is empty', 'No file provided', 'application/csv', 'application/json', 'application/pdf', 'application/xml', 'application/zip', 'id', 'image/gif', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'text/csv', 'text/markdown', 'text/plain', 'text/x-c', 'text/x-c++', 'text/x-markdown', 'text/xml', 'utf-8']

@@ -1,0 +1,4 @@
+# file: /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend/api/routes/admin/users_and_clients.py
+# hypothesis_version: 6.151.3
+
+[100, 400, 500, '%Y%m%d_%H%M%S', '%Y-%m-%d', '-', '/clients', '/conversations', '/users', '=', 'ASSISTANT', 'Content-Disposition', 'USER', 'Unknown', 'Untitled', 'application/json', 'client', 'client_id', 'clients', 'content', 'conversation_id', 'conversations', 'created_at', 'email', 'end_date', 'exact', 'export_info', 'generated_at', 'id', 'id, email, name', 'id, name', 'json', 'message_count', 'messages', 'name', 'role', 'start_date', 'success', 'text/plain', 'timestamp', 'title', 'total_conversations', 'total_messages', 'txt', 'updated_at', 'user', 'users', 'utf-8']
