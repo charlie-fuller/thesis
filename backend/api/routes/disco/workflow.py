@@ -156,10 +156,11 @@ async def api_list_outputs(
     current_user: dict = Depends(require_disco_access),
 ):
     """List outputs for an initiative."""
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    # Resolve to UUID and check access
+    resolved_id = await require_initiative_access(initiative_id, current_user, "viewer")
 
     try:
-        query = supabase.table("disco_outputs").select("*").eq("initiative_id", initiative_id)
+        query = supabase.table("disco_outputs").select("*").eq("initiative_id", resolved_id)
 
         if agent_type:
             query = query.eq("agent_type", agent_type)

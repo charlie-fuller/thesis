@@ -284,14 +284,15 @@ async def api_get_linked_kb_documents(
     Returns documents from the main KB that have been linked to this initiative
     via the disco_initiative_documents junction table.
     """
-    await require_initiative_access(initiative_id, current_user, "viewer")
+    # Resolve to UUID and check access
+    resolved_id = await require_initiative_access(initiative_id, current_user, "viewer")
 
     try:
         # Get linked document IDs from junction table
         links_result = await asyncio.to_thread(
             lambda: supabase.table("disco_initiative_documents")
             .select("document_id, linked_at, linked_by")
-            .eq("initiative_id", initiative_id)
+            .eq("initiative_id", resolved_id)
             .order("linked_at", desc=True)
             .execute()
         )

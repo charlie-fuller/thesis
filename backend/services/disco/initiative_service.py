@@ -76,12 +76,23 @@ async def create_initiative(name: str, user_id: str, description: Optional[str] 
         raise
 
 
+def _is_valid_uuid(value: str) -> bool:
+    """Check if a string is a valid UUID."""
+    try:
+        from uuid import UUID
+
+        UUID(value)
+        return True
+    except (ValueError, AttributeError):
+        return False
+
+
 @with_db_retry(max_retries=2)
 async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
-    """Get a single initiative by ID.
+    """Get a single initiative by ID or name.
 
     Args:
-        initiative_id: Initiative UUID
+        initiative_id: Initiative UUID or name (slug)
         user_id: Requesting user's ID (for access check)
 
     Returns:
@@ -93,31 +104,44 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
         # Use get_supabase() dynamically to support connection retry
         db = get_supabase()
 
-        # Fetch initiative with creator info
-        result = await asyncio.to_thread(
-            lambda: db.table("disco_initiatives")
-            .select("*, users!disco_initiatives_created_by_fkey(id, name, email)")
-            .eq("id", initiative_id)
-            .single()
-            .execute()
-        )
+        # Determine if we're looking up by UUID or by name
+        if _is_valid_uuid(initiative_id):
+            # Fetch initiative by UUID
+            result = await asyncio.to_thread(
+                lambda: db.table("disco_initiatives")
+                .select("*, users!disco_initiatives_created_by_fkey(id, name, email)")
+                .eq("id", initiative_id)
+                .single()
+                .execute()
+            )
+        else:
+            # Fetch initiative by name (slug)
+            result = await asyncio.to_thread(
+                lambda: db.table("disco_initiatives")
+                .select("*, users!disco_initiatives_created_by_fkey(id, name, email)")
+                .eq("name", initiative_id)
+                .single()
+                .execute()
+            )
 
         if not result.data:
             return None
 
         initiative = result.data
+        # Use the actual UUID for subsequent queries
+        actual_initiative_id = initiative["id"]
 
-        # Check user access
-        has_access = await check_user_access(initiative_id, user_id)
+        # Check user access (use actual UUID)
+        has_access = await check_user_access(actual_initiative_id, user_id)
         if not has_access:
-            logger.warning(f"User {user_id} denied access to initiative {initiative_id}")
+            logger.warning(f"User {user_id} denied access to initiative {actual_initiative_id}")
             return None
 
         # Get user's role in this initiative
         member_result = await asyncio.to_thread(
             lambda: db.table("disco_initiative_members")
             .select("role")
-            .eq("initiative_id", initiative_id)
+            .eq("initiative_id", actual_initiative_id)
             .eq("user_id", user_id)
             .single()
             .execute()
@@ -127,7 +151,10 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
 
         # Get document count
         doc_count = await asyncio.to_thread(
-            lambda: db.table("disco_documents").select("id", count="exact").eq("initiative_id", initiative_id).execute()
+            lambda: db.table("disco_documents")
+            .select("id", count="exact")
+            .eq("initiative_id", actual_initiative_id)
+            .execute()
         )
         initiative["document_count"] = doc_count.count or 0
 
@@ -135,7 +162,7 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
         outputs_result = await asyncio.to_thread(
             lambda: db.table("disco_outputs")
             .select("agent_type, version, created_at, recommendation, confidence_level")
-            .eq("initiative_id", initiative_id)
+            .eq("initiative_id", actual_initiative_id)
             .order("created_at", desc=True)
             .execute()
         )

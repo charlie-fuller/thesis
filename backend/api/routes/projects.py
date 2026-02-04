@@ -9,6 +9,7 @@ Note: This replaces the old /api/opportunities endpoints. The frontend should be
 updated to use /api/projects instead.
 """
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -322,6 +323,30 @@ async def _get_owner_names(supabase, project_ids: List[str]) -> dict:
 # ============================================================================
 
 
+def _is_valid_uuid(value: str) -> bool:
+    """Check if a string is a valid UUID."""
+    try:
+        from uuid import UUID
+
+        UUID(value)
+        return True
+    except (ValueError, AttributeError):
+        return False
+
+
+async def _resolve_initiative_id(initiative_id: str, supabase) -> Optional[str]:
+    """Resolve an initiative ID (UUID or name) to its UUID."""
+    if _is_valid_uuid(initiative_id):
+        return initiative_id
+
+    # Look up by name
+    result = await asyncio.to_thread(
+        lambda: supabase.table("disco_initiatives").select("id").eq("name", initiative_id).single().execute()
+    )
+
+    return result.data["id"] if result.data else None
+
+
 @router.get("/", response_model=List[ProjectResponse])
 async def list_projects(
     department: Optional[str] = None,
@@ -349,7 +374,13 @@ async def list_projects(
     if owner_stakeholder_id:
         query = query.eq("owner_stakeholder_id", owner_stakeholder_id)
     if initiative_id:
-        query = query.contains("initiative_ids", [initiative_id])
+        # Resolve initiative_id if it's a name
+        resolved_id = await _resolve_initiative_id(initiative_id, supabase)
+        if resolved_id:
+            query = query.contains("initiative_ids", [resolved_id])
+        else:
+            # Initiative not found, return empty results
+            return []
 
     result = query.order("total_score", desc=True).range(offset, offset + limit - 1).execute()
 

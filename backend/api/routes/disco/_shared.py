@@ -262,9 +262,53 @@ async def require_disco_access(
     return current_user
 
 
-async def require_initiative_access(initiative_id: str, current_user: dict, required_role: str = "viewer") -> bool:
-    """Check user has access to initiative."""
-    has_permission = await check_permission(initiative_id, current_user["id"], required_role)
+def _is_valid_uuid(value: str) -> bool:
+    """Check if a string is a valid UUID."""
+    try:
+        from uuid import UUID
+
+        UUID(value)
+        return True
+    except (ValueError, AttributeError):
+        return False
+
+
+async def resolve_initiative_id(initiative_id: str) -> str:
+    """Resolve an initiative ID (UUID or name) to its UUID.
+
+    Args:
+        initiative_id: Either a UUID or initiative name
+
+    Returns:
+        The initiative's UUID
+
+    Raises:
+        HTTPException: If initiative not found
+    """
+    if _is_valid_uuid(initiative_id):
+        return initiative_id
+
+    # Look up by name
+    result = await asyncio.to_thread(
+        lambda: supabase.table("disco_initiatives").select("id").eq("name", initiative_id).single().execute()
+    )
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Initiative not found")
+
+    return result.data["id"]
+
+
+async def require_initiative_access(initiative_id: str, current_user: dict, required_role: str = "viewer") -> str:
+    """Check user has access to initiative.
+
+    Returns:
+        The resolved initiative UUID (useful when input was a name)
+    """
+    # Resolve to UUID if needed
+    resolved_id = await resolve_initiative_id(initiative_id)
+
+    has_permission = await check_permission(resolved_id, current_user["id"], required_role)
     if not has_permission:
         raise HTTPException(status_code=403, detail=f"Insufficient permissions. Required: {required_role}")
-    return True
+    return resolved_id
