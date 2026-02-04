@@ -7,36 +7,36 @@ type OutputStep = {
   id: string
   title: string
   description: string
-  category: 'output' | 'post-process' | 'destination'
+  category: 'input' | 'post-process' | 'destination'
   details: string[]
   color: string
 }
 
 const outputSteps: OutputStep[] = [
-  // Output Types
+  // Input Document Types (from Convergence)
   {
     id: 'prd',
     title: 'PRD',
     description: 'Product Requirements Document',
-    category: 'output',
+    category: 'input',
     color: '#8b5cf6', // violet
     details: [
+      'Generated in Convergence stage',
       'Best for: Build/development initiatives',
       'Executive Summary & Problem Statement',
       'Goals, Requirements, User Stories',
-      'Technical Considerations & Risks',
-      'Acceptance Criteria'
+      'Technical Considerations & Risks'
     ]
   },
   {
     id: 'evaluation',
     title: 'Evaluation Framework',
     description: 'Vendor/Platform Comparison',
-    category: 'output',
+    category: 'input',
     color: '#06b6d4', // cyan
     details: [
+      'Generated in Convergence stage',
       'Best for: Tool selection, vendor comparison',
-      'Evaluation Scope & Criteria',
       'Weighted Scoring Matrix',
       'Platform Comparison Table',
       'Recommendation & Next Steps'
@@ -46,13 +46,13 @@ const outputSteps: OutputStep[] = [
     id: 'decision',
     title: 'Decision Framework',
     description: 'Governance & Strategy',
-    category: 'output',
+    category: 'input',
     color: '#f59e0b', // amber
     details: [
+      'Generated in Convergence stage',
       'Best for: Policy, strategy, governance',
-      'Decision Context & Stakeholder Analysis',
-      'Decision Criteria & Options Analysis',
-      'Risk/Benefit Assessment',
+      'Stakeholder Analysis',
+      'Options & Risk Assessment',
       'Implementation Considerations'
     ]
   },
@@ -60,7 +60,7 @@ const outputSteps: OutputStep[] = [
   {
     id: 'project-extract',
     title: 'Project Extraction',
-    description: 'AI extracts project fields from PRD',
+    description: 'AI extracts project fields from document',
     category: 'post-process',
     color: '#22c55e', // green
     details: [
@@ -78,7 +78,7 @@ const outputSteps: OutputStep[] = [
     category: 'post-process',
     color: '#ec4899', // pink
     details: [
-      'Summarizes all approved bundles',
+      'Summarizes all approved documents',
       'Provides prioritization recommendations',
       'Strategic alignment overview',
       'Resource & timeline considerations',
@@ -92,7 +92,7 @@ const outputSteps: OutputStep[] = [
     category: 'post-process',
     color: '#3b82f6', // blue
     details: [
-      'Output becomes searchable document',
+      'Document becomes searchable',
       'Available via initiative chat Q&A',
       'RAG-enabled for future queries',
       'Full traceability maintained',
@@ -132,23 +132,14 @@ const outputSteps: OutputStep[] = [
 
 // Colors by category
 const categoryColors = {
-  output: {
-    fill: 'rgba(139, 92, 246, 0.15)',
-    stroke: '#8b5cf6',
-    text: '#8b5cf6',
-    label: 'Output Types'
+  input: {
+    label: 'From Convergence'
   },
   'post-process': {
-    fill: 'rgba(34, 197, 94, 0.15)',
-    stroke: '#22c55e',
-    text: '#22c55e',
     label: 'Post-Processing'
   },
   destination: {
-    fill: 'rgba(100, 116, 139, 0.15)',
-    stroke: '#64748b',
-    text: '#64748b',
-    label: 'Destinations'
+    label: 'Destination'
   }
 }
 
@@ -163,8 +154,8 @@ export default function DiscoOperationalizeMap() {
 
   // Layout constants - compact version
   const boxWidth = 100
-  const boxHeight = 50
-  const startY = 60
+  const boxHeight = 45
+  const startY = 55
 
   return (
     <div className="bg-card rounded-lg border border-default p-6">
@@ -173,9 +164,9 @@ export default function DiscoOperationalizeMap() {
         {/* Left: SVG Flowchart */}
         <div className="flex-[2] text-primary">
           <svg
-            viewBox="0 0 420 450"
+            viewBox="0 0 420 380"
             className="w-full max-w-[550px]"
-            style={{ maxHeight: '600px' }}
+            style={{ maxHeight: '500px' }}
           >
             {/* Definitions */}
             <defs>
@@ -204,61 +195,38 @@ export default function DiscoOperationalizeMap() {
             </defs>
 
             {/* Title */}
-            <text x="210" y="22" textAnchor="middle" fill={colors.textPrimary} fontSize="18" fontWeight="700">
+            <text x="210" y="20" textAnchor="middle" fill={colors.textPrimary} fontSize="18" fontWeight="700">
               Operationalize Map
             </text>
-            <text x="210" y="38" textAnchor="middle" fill={colors.textSecondary} fontSize="11" fontWeight="500">
-              Exit paths from DISCO Convergence
+            <text x="210" y="36" textAnchor="middle" fill={colors.textSecondary} fontSize="11" fontWeight="500">
+              After document approval in Convergence
             </text>
 
-            {/* ===== ROW 1: APPROVED BUNDLE (Entry Point) ===== */}
-            <g>
-              <rect
-                x={160} y={startY}
-                width={boxWidth} height={boxHeight}
-                rx="6"
-                fill="rgba(249, 115, 22, 0.2)"
-                stroke="#f97316"
-                strokeWidth="2"
-              />
-              <text x={210} y={startY + 18} textAnchor="middle" fill="#f97316" fontSize="8" fontWeight="700">
-                FROM CONVERGENCE
-              </text>
-              <text x={210} y={startY + 32} textAnchor="middle" fill={colors.textPrimary} fontSize="10" fontWeight="600">
-                Approved Bundle
-              </text>
-              <text x={210} y={startY + 44} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
-                Select output type
-              </text>
-            </g>
+            {/* ===== ROW 1: APPROVED DOCUMENT (Entry Point) ===== */}
+            <text x="210" y={startY + 5} textAnchor="middle" fill={colors.textSecondary} fontSize="9" fontWeight="600">
+              APPROVED DOCUMENT (from Convergence)
+            </text>
 
-            {/* Arrows from bundle to 3 output types */}
-            <path d={`M 160 ${startY + boxHeight/2} L 70 ${startY + boxHeight/2} L 70 ${startY + 70}`} fill="none" stroke={colors.arrow} strokeWidth="1.5" markerEnd="url(#arrowhead-op)" />
-            <path d={`M 210 ${startY + boxHeight} L 210 ${startY + 70}`} fill="none" stroke={colors.arrow} strokeWidth="1.5" markerEnd="url(#arrowhead-op)" />
-            <path d={`M 260 ${startY + boxHeight/2} L 350 ${startY + boxHeight/2} L 350 ${startY + 70}`} fill="none" stroke={colors.arrow} strokeWidth="1.5" markerEnd="url(#arrowhead-op)" />
-
-            {/* ===== ROW 2: THREE OUTPUT TYPES ===== */}
+            {/* Three document types as entry - dashed to show they come from Convergence */}
             {/* PRD */}
             <g
               className="cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => setSelectedStep(outputSteps[0])}
             >
               <rect
-                x={20} y={startY + 75}
-                width={boxWidth} height={boxHeight + 5}
+                x={20} y={startY + 15}
+                width={boxWidth} height={boxHeight}
                 rx="6"
                 fill="rgba(139, 92, 246, 0.15)"
                 stroke="#8b5cf6"
-                strokeWidth="2"
+                strokeWidth="1.5"
+                strokeDasharray="4 2"
               />
-              <text x={70} y={startY + 90} textAnchor="middle" fill="#8b5cf6" fontSize="8" fontWeight="700">
-                BUILD/DEV
-              </text>
-              <text x={70} y={startY + 104} textAnchor="middle" fill={colors.textPrimary} fontSize="10" fontWeight="600">
+              <text x={70} y={startY + 32} textAnchor="middle" fill="#8b5cf6" fontSize="9" fontWeight="600">
                 PRD
               </text>
-              <text x={70} y={startY + 116} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
-                Product Requirements
+              <text x={70} y={startY + 46} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
+                Build/Dev
               </text>
             </g>
 
@@ -268,21 +236,19 @@ export default function DiscoOperationalizeMap() {
               onClick={() => setSelectedStep(outputSteps[1])}
             >
               <rect
-                x={160} y={startY + 75}
-                width={boxWidth} height={boxHeight + 5}
+                x={160} y={startY + 15}
+                width={boxWidth} height={boxHeight}
                 rx="6"
                 fill="rgba(6, 182, 212, 0.15)"
                 stroke="#06b6d4"
-                strokeWidth="2"
+                strokeWidth="1.5"
+                strokeDasharray="4 2"
               />
-              <text x={210} y={startY + 90} textAnchor="middle" fill="#06b6d4" fontSize="8" fontWeight="700">
-                COMPARE
-              </text>
-              <text x={210} y={startY + 104} textAnchor="middle" fill={colors.textPrimary} fontSize="10" fontWeight="600">
+              <text x={210} y={startY + 32} textAnchor="middle" fill="#06b6d4" fontSize="9" fontWeight="600">
                 Evaluation
               </text>
-              <text x={210} y={startY + 116} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
-                Framework
+              <text x={210} y={startY + 46} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
+                Compare
               </text>
             </g>
 
@@ -292,57 +258,34 @@ export default function DiscoOperationalizeMap() {
               onClick={() => setSelectedStep(outputSteps[2])}
             >
               <rect
-                x={300} y={startY + 75}
-                width={boxWidth} height={boxHeight + 5}
+                x={300} y={startY + 15}
+                width={boxWidth} height={boxHeight}
                 rx="6"
                 fill="rgba(245, 158, 11, 0.15)"
                 stroke="#f59e0b"
-                strokeWidth="2"
+                strokeWidth="1.5"
+                strokeDasharray="4 2"
               />
-              <text x={350} y={startY + 90} textAnchor="middle" fill="#f59e0b" fontSize="8" fontWeight="700">
-                GOVERN
-              </text>
-              <text x={350} y={startY + 104} textAnchor="middle" fill={colors.textPrimary} fontSize="10" fontWeight="600">
+              <text x={350} y={startY + 32} textAnchor="middle" fill="#f59e0b" fontSize="9" fontWeight="600">
                 Decision
               </text>
-              <text x={350} y={startY + 116} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
-                Framework
+              <text x={350} y={startY + 46} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
+                Govern
               </text>
             </g>
 
-            {/* Human Checkpoint - Document Review */}
-            <g>
-              <rect
-                x={160} y={startY + 150}
-                width={boxWidth} height={40}
-                rx="6"
-                fill="rgba(100, 116, 139, 0.15)"
-                stroke="#64748b"
-                strokeWidth="2"
-              />
-              <g transform={`translate(${170}, ${startY + 156})`}>
-                <circle cx="8" cy="6" r="5" fill="#64748b" />
-                <path d="M0 20 Q8 12 16 20" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
-              </g>
-              <text x={220} y={startY + 168} textAnchor="start" fill="#64748b" fontSize="8" fontWeight="600">
-                Human Review
-              </text>
-              <text x={220} y={startY + 180} textAnchor="start" fill={colors.textSecondary} fontSize="7">
-                Approve / Edit
-              </text>
-            </g>
+            {/* Arrows from documents to post-processing label */}
+            <path d={`M 70 ${startY + 60} L 70 ${startY + 85} L 210 ${startY + 85}`} fill="none" stroke={colors.arrow} strokeWidth="1.5" />
+            <path d={`M 210 ${startY + 60} L 210 ${startY + 85}`} fill="none" stroke={colors.arrow} strokeWidth="1.5" />
+            <path d={`M 350 ${startY + 60} L 350 ${startY + 85} L 210 ${startY + 85}`} fill="none" stroke={colors.arrow} strokeWidth="1.5" />
+            <path d={`M 210 ${startY + 85} L 210 ${startY + 100}`} fill="none" stroke="#22c55e" strokeWidth="2" markerEnd="url(#arrowhead-green)" />
 
-            {/* Arrows from outputs to checkpoint */}
-            <path d={`M 70 ${startY + 130} L 70 ${startY + 170} L 155 ${startY + 170}`} fill="none" stroke={colors.arrow} strokeWidth="1.5" markerEnd="url(#arrowhead-op)" />
-            <path d={`M 210 ${startY + 130} L 210 ${startY + 145}`} fill="none" stroke={colors.arrow} strokeWidth="1.5" markerEnd="url(#arrowhead-op)" />
-            <path d={`M 350 ${startY + 130} L 350 ${startY + 170} L 265 ${startY + 170}`} fill="none" stroke={colors.arrow} strokeWidth="1.5" markerEnd="url(#arrowhead-op)" />
-
-            {/* Arrow from checkpoint to post-processing */}
-            <path d={`M 210 ${startY + 190} L 210 ${startY + 215}`} fill="none" stroke="#22c55e" strokeWidth="1.5" markerEnd="url(#arrowhead-green)" />
-
-            {/* ===== ROW 3: POST-PROCESSING OPTIONS ===== */}
-            <text x={210} y={startY + 230} textAnchor="middle" fill={colors.textSecondary} fontSize="9" fontWeight="600">
-              POST-PROCESSING
+            {/* ===== ROW 2: POST-PROCESSING OPTIONS ===== */}
+            <text x={210} y={startY + 118} textAnchor="middle" fill="#f97316" fontSize="10" fontWeight="700">
+              O: OPERATIONALIZE
+            </text>
+            <text x={210} y={startY + 132} textAnchor="middle" fill={colors.textSecondary} fontSize="9" fontWeight="500">
+              Post-Processing Options
             </text>
 
             {/* Project Extraction */}
@@ -351,21 +294,21 @@ export default function DiscoOperationalizeMap() {
               onClick={() => setSelectedStep(outputSteps[3])}
             >
               <rect
-                x={20} y={startY + 240}
-                width={boxWidth} height={boxHeight}
+                x={20} y={startY + 145}
+                width={boxWidth} height={boxHeight + 5}
                 rx="6"
                 fill="rgba(34, 197, 94, 0.15)"
                 stroke="#22c55e"
                 strokeWidth="2"
               />
-              <text x={70} y={startY + 256} textAnchor="middle" fill="#22c55e" fontSize="8" fontWeight="700">
+              <text x={70} y={startY + 162} textAnchor="middle" fill="#22c55e" fontSize="8" fontWeight="700">
                 AI EXTRACT
               </text>
-              <text x={70} y={startY + 270} textAnchor="middle" fill={colors.textPrimary} fontSize="9" fontWeight="600">
+              <text x={70} y={startY + 176} textAnchor="middle" fill={colors.textPrimary} fontSize="9" fontWeight="600">
                 Project Creation
               </text>
-              <text x={70} y={startY + 282} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
-                From PRD fields
+              <text x={70} y={startY + 188} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
+                From document
               </text>
             </g>
 
@@ -375,20 +318,20 @@ export default function DiscoOperationalizeMap() {
               onClick={() => setSelectedStep(outputSteps[4])}
             >
               <rect
-                x={160} y={startY + 240}
-                width={boxWidth} height={boxHeight}
+                x={160} y={startY + 145}
+                width={boxWidth} height={boxHeight + 5}
                 rx="6"
                 fill="rgba(236, 72, 153, 0.15)"
                 stroke="#ec4899"
                 strokeWidth="2"
               />
-              <text x={210} y={startY + 256} textAnchor="middle" fill="#ec4899" fontSize="8" fontWeight="700">
+              <text x={210} y={startY + 162} textAnchor="middle" fill="#ec4899" fontSize="8" fontWeight="700">
                 SUMMARIZE
               </text>
-              <text x={210} y={startY + 270} textAnchor="middle" fill={colors.textPrimary} fontSize="9" fontWeight="600">
+              <text x={210} y={startY + 176} textAnchor="middle" fill={colors.textPrimary} fontSize="9" fontWeight="600">
                 Exec Summary
               </text>
-              <text x={210} y={startY + 282} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
+              <text x={210} y={startY + 188} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
                 Leadership brief
               </text>
             </g>
@@ -399,32 +342,33 @@ export default function DiscoOperationalizeMap() {
               onClick={() => setSelectedStep(outputSteps[5])}
             >
               <rect
-                x={300} y={startY + 240}
-                width={boxWidth} height={boxHeight}
+                x={300} y={startY + 145}
+                width={boxWidth} height={boxHeight + 5}
                 rx="6"
                 fill="rgba(59, 130, 246, 0.15)"
                 stroke="#3b82f6"
                 strokeWidth="2"
               />
-              <text x={350} y={startY + 256} textAnchor="middle" fill="#3b82f6" fontSize="8" fontWeight="700">
+              <text x={350} y={startY + 162} textAnchor="middle" fill="#3b82f6" fontSize="8" fontWeight="700">
                 STORE
               </text>
-              <text x={350} y={startY + 270} textAnchor="middle" fill={colors.textPrimary} fontSize="9" fontWeight="600">
+              <text x={350} y={startY + 176} textAnchor="middle" fill={colors.textPrimary} fontSize="9" fontWeight="600">
                 KB Integration
               </text>
-              <text x={350} y={startY + 282} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
+              <text x={350} y={startY + 188} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
                 Searchable docs
               </text>
             </g>
 
-            {/* Arrows from checkpoint to post-processing */}
-            <path d={`M 170 ${startY + 190} L 70 ${startY + 210} L 70 ${startY + 235}`} fill="none" stroke="#22c55e" strokeWidth="1.5" markerEnd="url(#arrowhead-green)" />
-            <path d={`M 250 ${startY + 190} L 350 ${startY + 210} L 350 ${startY + 235}`} fill="none" stroke="#22c55e" strokeWidth="1.5" markerEnd="url(#arrowhead-green)" />
-
-            {/* ===== ROW 4: DESTINATIONS ===== */}
-            <text x={210} y={startY + 315} textAnchor="middle" fill={colors.textSecondary} fontSize="9" fontWeight="600">
+            {/* ===== ROW 3: DESTINATIONS ===== */}
+            <text x={210} y={startY + 225} textAnchor="middle" fill={colors.textSecondary} fontSize="9" fontWeight="600">
               DESTINATIONS
             </text>
+
+            {/* Arrows from post-processing to destinations */}
+            <path d={`M 70 ${startY + 195} L 70 ${startY + 215} L 120 ${startY + 215} L 120 ${startY + 230}`} fill="none" stroke="#22c55e" strokeWidth="1.5" markerEnd="url(#arrowhead-green)" />
+            <path d={`M 210 ${startY + 195} L 210 ${startY + 215} L 300 ${startY + 215} L 300 ${startY + 230}`} fill="none" stroke="#64748b" strokeWidth="1.5" />
+            <path d={`M 350 ${startY + 195} L 350 ${startY + 215} L 300 ${startY + 215} L 300 ${startY + 230}`} fill="none" stroke="#64748b" strokeWidth="1.5" />
 
             {/* Projects Pipeline */}
             <g
@@ -432,20 +376,20 @@ export default function DiscoOperationalizeMap() {
               onClick={() => setSelectedStep(outputSteps[6])}
             >
               <rect
-                x={60} y={startY + 325}
-                width={boxWidth + 20} height={boxHeight}
+                x={60} y={startY + 235}
+                width={boxWidth + 20} height={boxHeight + 5}
                 rx="6"
                 fill="rgba(34, 197, 94, 0.2)"
                 stroke="#22c55e"
                 strokeWidth="2"
               />
-              <text x={120} y={startY + 342} textAnchor="middle" fill="#22c55e" fontSize="8" fontWeight="700">
+              <text x={120} y={startY + 252} textAnchor="middle" fill="#22c55e" fontSize="8" fontWeight="700">
                 EXECUTE
               </text>
-              <text x={120} y={startY + 356} textAnchor="middle" fill={colors.textPrimary} fontSize="10" fontWeight="600">
+              <text x={120} y={startY + 266} textAnchor="middle" fill={colors.textPrimary} fontSize="10" fontWeight="600">
                 Projects Pipeline
               </text>
-              <text x={120} y={startY + 368} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
+              <text x={120} y={startY + 278} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
                 Kanban board
               </text>
             </g>
@@ -456,32 +400,27 @@ export default function DiscoOperationalizeMap() {
               onClick={() => setSelectedStep(outputSteps[7])}
             >
               <rect
-                x={240} y={startY + 325}
-                width={boxWidth + 20} height={boxHeight}
+                x={240} y={startY + 235}
+                width={boxWidth + 20} height={boxHeight + 5}
                 rx="6"
                 fill="rgba(100, 116, 139, 0.2)"
                 stroke="#64748b"
                 strokeWidth="2"
               />
-              <text x={300} y={startY + 342} textAnchor="middle" fill="#64748b" fontSize="8" fontWeight="700">
+              <text x={300} y={startY + 252} textAnchor="middle" fill="#64748b" fontSize="8" fontWeight="700">
                 EXPORT
               </text>
-              <text x={300} y={startY + 356} textAnchor="middle" fill={colors.textPrimary} fontSize="10" fontWeight="600">
+              <text x={300} y={startY + 266} textAnchor="middle" fill={colors.textPrimary} fontSize="10" fontWeight="600">
                 External Systems
               </text>
-              <text x={300} y={startY + 368} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
+              <text x={300} y={startY + 278} textAnchor="middle" fill={colors.textSecondary} fontSize="7">
                 Jira, Confluence, etc.
               </text>
             </g>
 
-            {/* Arrows from post-processing to destinations */}
-            <path d={`M 70 ${startY + 290} L 70 ${startY + 308} L 120 ${startY + 308} L 120 ${startY + 320}`} fill="none" stroke="#22c55e" strokeWidth="1.5" markerEnd="url(#arrowhead-green)" />
-            <path d={`M 210 ${startY + 290} L 210 ${startY + 308} L 300 ${startY + 308} L 300 ${startY + 320}`} fill="none" stroke="#64748b" strokeWidth="1.5" />
-            <path d={`M 350 ${startY + 290} L 350 ${startY + 308} L 300 ${startY + 308} L 300 ${startY + 320}`} fill="none" stroke="#64748b" strokeWidth="1.5" />
-
             {/* Traceability note */}
-            <text x={210} y={startY + 398} textAnchor="middle" fill={colors.textSecondary} fontSize="8" fontStyle="italic">
-              Full traceability: Project → PRD → Bundle → Insights → Discovery
+            <text x={210} y={startY + 315} textAnchor="middle" fill={colors.textSecondary} fontSize="8" fontStyle="italic">
+              Full traceability: Project → Document → Bundle → Insights → Discovery
             </text>
 
           </svg>

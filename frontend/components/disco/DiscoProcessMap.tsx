@@ -59,15 +59,15 @@ const processSteps: ProcessStep[] = [
   {
     id: 'requirements-generator',
     title: 'Requirements Generator',
-    description: 'Produces PRD with tech recommendations',
+    description: 'Generates output document from bundle',
     stage: 'convergence',
     details: [
-      'Generates PRD from approved bundles',
-      'Includes user stories and acceptance criteria',
-      'Evaluates technical approaches',
-      'Documents technical requirements and risks'
+      'User selects output type: PRD, Evaluation, or Decision Framework',
+      'PRD: For build/development initiatives',
+      'Evaluation: For vendor/tool comparisons',
+      'Decision: For governance/policy decisions'
     ],
-    checkpoint: 'Checkpoint 4: PRD Approved'
+    checkpoint: 'Checkpoint 4: Document Approved'
   }
 ]
 
@@ -347,7 +347,7 @@ export default function DiscoProcessMap() {
               Requirements Generator
             </text>
             <text x={agentX + agentWidth/2} y={startY + rowSpacing*3 + 52} textAnchor="middle" fill={colors.textSecondary} fontSize="9">
-              Produces PRD with tech recommendations
+              PRD / Evaluation / Decision output
             </text>
           </g>
 
