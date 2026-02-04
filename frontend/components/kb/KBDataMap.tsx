@@ -234,9 +234,7 @@ export default function KBDataMap() {
     <div className="bg-card rounded-lg border border-default p-6">
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-primary">Knowledge Base Data Flow</h2>
-        <p className="text-sm text-secondary mt-1">
-          How documents flow from sources through processing to agents and entities
-        </p>
+        <p className="text-sm text-secondary mt-1">Click any box for details</p>
       </div>
 
       {/* SVG Data Map */}
@@ -288,16 +286,16 @@ export default function KBDataMap() {
           </defs>
 
           {/* ===== COLUMN LABELS ===== */}
-          <text x="120" y="30" textAnchor="middle" fill="#3b82f6" fontSize="14" fontWeight="700">
+          <text x="120" y="30" textAnchor="middle" fill="#3b82f6" fontSize="18" fontWeight="700">
             SOURCES
           </text>
-          <text x="380" y="30" textAnchor="middle" fill="#8b5cf6" fontSize="14" fontWeight="700">
+          <text x="380" y="30" textAnchor="middle" fill="#8b5cf6" fontSize="18" fontWeight="700">
             STORAGE
           </text>
-          <text x="640" y="30" textAnchor="middle" fill="#f59e0b" fontSize="14" fontWeight="700">
+          <text x="640" y="30" textAnchor="middle" fill="#f59e0b" fontSize="18" fontWeight="700">
             PROCESSING
           </text>
-          <text x="910" y="30" textAnchor="middle" fill="#22c55e" fontSize="14" fontWeight="700">
+          <text x="910" y="30" textAnchor="middle" fill="#22c55e" fontSize="18" fontWeight="700">
             ENTITIES / OUTPUTS
           </text>
 
@@ -557,8 +555,8 @@ export default function KBDataMap() {
           {/* Search -> Agents (context) */}
           <path d="M 730 400 L 780 400 L 780 160 L 815 160" fill="none" stroke={categoryColors.output.stroke} strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowBlue)" />
 
-          {/* ===== BIDIRECTIONAL: Chat <-> Agents ===== */}
-          <path d="M 200 330 C 250 330 250 140 815 140" fill="none" stroke={colors.arrowLight} strokeWidth="1" strokeDasharray="4 2" />
+          {/* ===== Chat -> Agents (routed around outside top) ===== */}
+          <path d="M 120 300 L 120 55 L 910 55 L 910 95" fill="none" stroke={colors.arrowLight} strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowLight)" />
         </svg>
       </div>
 
