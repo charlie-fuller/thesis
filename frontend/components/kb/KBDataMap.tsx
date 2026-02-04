@@ -555,8 +555,8 @@ export default function KBDataMap() {
           {/* Search -> Agents (context) */}
           <path d="M 730 400 L 780 400 L 780 160 L 815 160" fill="none" stroke={categoryColors.output.stroke} strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowBlue)" />
 
-          {/* ===== Chat -> Agents (routed around outside top) ===== */}
-          <path d="M 120 300 L 120 55 L 910 55 L 910 95" fill="none" stroke={colors.arrowLight} strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowLight)" />
+          {/* ===== Chat -> Agents (routed around outside bottom) ===== */}
+          <path d="M 120 360 L 120 500 L 1050 500 L 1050 140 L 1005 140" fill="none" stroke={colors.arrowLight} strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowLight)" />
         </svg>
       </div>
 
