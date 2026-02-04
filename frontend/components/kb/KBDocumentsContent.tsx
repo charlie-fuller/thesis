@@ -1821,20 +1821,20 @@ export default function KBDocumentsContent() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Check for Updates button */}
+                  {/* Check for New Files button */}
                   <button
                     onClick={handleCheckForUpdates}
                     disabled={checkingStatus || obsidianSyncing || syncingRecent}
-                    className="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Scan vault for new or changed files"
                   >
-                    {checkingStatus ? 'Checking...' : 'Check for Updates'}
+                    {checkingStatus ? 'Checking...' : 'Check for New Files'}
                   </button>
                   {/* Sync Recent button - only show if there are unsynced files */}
                   {(obsidianStatus.unsynced_count ?? 0) > 0 && !obsidianSyncing && !syncingRecent && (
                     <button
                       onClick={handleSyncRecent}
-                      className="btn-primary text-sm"
+                      className="btn-primary"
                     >
                       Sync {obsidianStatus.unsynced_count} New
                     </button>
