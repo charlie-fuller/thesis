@@ -1777,13 +1777,21 @@ export default function KBDocumentsContent() {
             </button>
             <h3 className="heading-3">Vault</h3>
           </div>
-          {obsidianExpanded && !obsidianStatus && (
-            <span className="text-sm text-muted">Checking vault status...</span>
-          )}
-          {obsidianExpanded && obsidianStatus && !obsidianStatus.connected && (
-            <span className="text-sm text-muted">Vault not configured</span>
-          )}
         </div>
+
+        {/* Loading state - centered */}
+        {obsidianExpanded && !obsidianStatus && (
+          <div className="mt-4 flex justify-center">
+            <span className="text-sm text-muted">Checking vault status...</span>
+          </div>
+        )}
+
+        {/* Not configured state - centered */}
+        {obsidianExpanded && obsidianStatus && !obsidianStatus.connected && (
+          <div className="mt-4 flex justify-center">
+            <span className="text-sm text-muted">Vault not configured</span>
+          </div>
+        )}
 
         {obsidianExpanded && obsidianStatus?.connected && (
           <>
