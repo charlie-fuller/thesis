@@ -73,9 +73,7 @@ class StakeholderScanner:
 
         try:
             # Get documents to scan
-            documents = await self._get_scannable_documents(
-                client_id, force_rescan, since_days, limit
-            )
+            documents = await self._get_scannable_documents(client_id, force_rescan, since_days, limit)
 
             if not documents:
                 logger.info("No documents to scan for stakeholders")
@@ -210,9 +208,7 @@ class StakeholderScanner:
         # Create candidates
         for idx, stakeholder in enumerate(extracted):
             # Check for existing candidate with same name from this document
-            existing = await find_duplicate_candidates(
-                self.supabase, client_id, stakeholder.name, stakeholder.email
-            )
+            existing = await find_duplicate_candidates(self.supabase, client_id, stakeholder.name, stakeholder.email)
 
             if existing:
                 # Already have a candidate for this person

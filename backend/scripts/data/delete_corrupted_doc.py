@@ -18,9 +18,7 @@ print(f"Attempting to delete corrupted document: {corrupted_doc_id}")
 
 # First, delete all chunks for this document
 print("Deleting document chunks...")
-chunks_response = (
-    client.table("document_chunks").delete().eq("document_id", corrupted_doc_id).execute()
-)
+chunks_response = client.table("document_chunks").delete().eq("document_id", corrupted_doc_id).execute()
 print(f"✓ Deleted {len(chunks_response.data) if chunks_response.data else 0} chunks")
 
 # Then delete the document record itself

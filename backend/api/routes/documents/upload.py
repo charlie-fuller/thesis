@@ -101,13 +101,9 @@ async def upload_document(
             try:
                 from datetime import datetime
 
-                parsed_original_date = (
-                    datetime.strptime(original_date.strip(), "%Y-%m-%d").date().isoformat()
-                )
+                parsed_original_date = datetime.strptime(original_date.strip(), "%Y-%m-%d").date().isoformat()
             except ValueError:
-                logger.warning(
-                    f"Invalid original_date format: {original_date}, expected YYYY-MM-DD"
-                )
+                logger.warning(f"Invalid original_date format: {original_date}, expected YYYY-MM-DD")
 
         doc_record = {
             "client_id": client_id,
@@ -123,9 +119,7 @@ async def upload_document(
         if parsed_original_date:
             doc_record["original_date"] = parsed_original_date
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("documents").insert(doc_record).execute()
-        )
+        result = await asyncio.to_thread(lambda: supabase.table("documents").insert(doc_record).execute())
 
         document = result.data[0]
         document_id = document["id"]
@@ -156,9 +150,7 @@ async def upload_document(
                     logger.warning(f"Failed to link document to agent {agent_id}: {link_error}")
 
         # Determine if auto-classification should run
-        should_auto_classify = (
-            len(parsed_agent_ids) == 0 and auto_classify and auto_classify.lower() == "true"
-        )
+        should_auto_classify = len(parsed_agent_ids) == 0 and auto_classify and auto_classify.lower() == "true"
 
         if should_auto_classify:
 
@@ -168,9 +160,7 @@ async def upload_document(
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
-                    loop.run_until_complete(
-                        process_document_with_classification(document_id, auto_classify=True)
-                    )
+                    loop.run_until_complete(process_document_with_classification(document_id, auto_classify=True))
                 finally:
                     loop.close()
 
@@ -255,9 +245,7 @@ async def save_from_chat(
             "processed": False,
         }
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("documents").insert(doc_record).execute()
-        )
+        result = await asyncio.to_thread(lambda: supabase.table("documents").insert(doc_record).execute())
 
         document = result.data[0]
         document_id = document["id"]

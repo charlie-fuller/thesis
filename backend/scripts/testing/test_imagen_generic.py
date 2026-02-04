@@ -75,9 +75,7 @@ async def test_generic_prompts():
                                     print("\n✅ FOUND IMAGE DATA!")
 
                                     # Save
-                                    output_path = (
-                                        Path(__file__).parent / f"generated_image_{i + 1}.png"
-                                    )
+                                    output_path = Path(__file__).parent / f"generated_image_{i + 1}.png"
                                     if isinstance(data, str):
                                         image_bytes = base64.b64decode(data)
                                     else:

@@ -55,9 +55,7 @@ class TestDocumentUpload:
         """Test that unsupported file types are rejected."""
         response = authenticated_client.post(
             "/api/documents/upload",
-            files={
-                "file": ("test.exe", io.BytesIO(b"fake exe content"), "application/x-msdownload")
-            },
+            files={"file": ("test.exe", io.BytesIO(b"fake exe content"), "application/x-msdownload")},
         )
 
         assert response.status_code == 400
@@ -114,9 +112,7 @@ class TestDocumentProcessing:
         long_text = "This is a test sentence. " * 100  # ~2500 chars
 
         # Should produce at least 3 chunks
-        expected_chunks = len(long_text) // (
-            TEXT_CHUNKING.DEFAULT_CHUNK_SIZE - TEXT_CHUNKING.DEFAULT_OVERLAP
-        )
+        expected_chunks = len(long_text) // (TEXT_CHUNKING.DEFAULT_CHUNK_SIZE - TEXT_CHUNKING.DEFAULT_OVERLAP)
         assert expected_chunks >= 2
 
     def test_chunk_overlap_maintains_context(self):
@@ -136,9 +132,7 @@ class TestDocumentProcessing:
 class TestDocumentListing:
     """Tests for document listing and retrieval."""
 
-    @pytest.mark.xfail(
-        reason="Route uses module-level supabase import that can't be patched after import"
-    )
+    @pytest.mark.xfail(reason="Route uses module-level supabase import that can't be patched after import")
     @patch("database.get_supabase")
     def test_list_documents_success(self, mock_get_supabase, authenticated_client, sample_document):
         """Test listing user's documents."""
@@ -155,16 +149,12 @@ class TestDocumentListing:
         assert "documents" in data
         assert len(data["documents"]) == 1
 
-    @pytest.mark.xfail(
-        reason="Route uses module-level supabase import that can't be patched after import"
-    )
+    @pytest.mark.xfail(reason="Route uses module-level supabase import that can't be patched after import")
     @patch("database.get_supabase")
     def test_list_documents_empty(self, mock_get_supabase, authenticated_client):
         """Test listing documents when user has none."""
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[]
-        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
         mock_get_supabase.return_value = mock_supabase
 
         response = authenticated_client.get("/api/documents")
@@ -182,9 +172,7 @@ class TestDocumentListing:
 class TestDocumentDeletion:
     """Tests for document deletion."""
 
-    @pytest.mark.xfail(
-        reason="Route uses module-level supabase import that can't be patched after import"
-    )
+    @pytest.mark.xfail(reason="Route uses module-level supabase import that can't be patched after import")
     @patch("database.get_supabase")
     def test_delete_own_document(self, mock_get_supabase, authenticated_client):
         """Test that users can delete their own documents."""
@@ -196,9 +184,7 @@ class TestDocumentDeletion:
                 "storage_path": "path/to/doc",
             }
         )
-        mock_supabase.table.return_value.delete.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[]
-        )
+        mock_supabase.table.return_value.delete.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
         mock_supabase.storage.from_.return_value.remove.return_value = MagicMock()
         mock_get_supabase.return_value = mock_supabase
 
@@ -206,9 +192,7 @@ class TestDocumentDeletion:
 
         assert response.status_code == 200
 
-    @pytest.mark.xfail(
-        reason="Route uses module-level supabase import that can't be patched after import"
-    )
+    @pytest.mark.xfail(reason="Route uses module-level supabase import that can't be patched after import")
     def test_delete_document_not_found(self, authenticated_client, mock_supabase):
         """Test deletion of non-existent document."""
         mock_supabase.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
@@ -231,9 +215,7 @@ class TestDocumentSearch:
     @patch("document_processor.search_similar_chunks")
     def test_search_documents_success(self, mock_search):
         """Test successful document search."""
-        mock_search.return_value = [
-            {"content": "Matching content", "document_id": "doc-123", "similarity": 0.9}
-        ]
+        mock_search.return_value = [{"content": "Matching content", "document_id": "doc-123", "similarity": 0.9}]
 
         from document_processor import search_similar_chunks
 
@@ -249,9 +231,7 @@ class TestDocumentSearch:
 
         from document_processor import search_similar_chunks
 
-        results = search_similar_chunks(
-            query="obscure query with no matches", client_id="test-client", limit=5
-        )
+        results = search_similar_chunks(query="obscure query with no matches", client_id="test-client", limit=5)
 
         assert len(results) == 0
 
@@ -351,8 +331,7 @@ class TestFileTypeValidation:
 
         assert FILE_LIMITS.MIME_TYPES["pdf"] == "application/pdf"
         assert (
-            FILE_LIMITS.MIME_TYPES["docx"]
-            == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            FILE_LIMITS.MIME_TYPES["docx"] == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
         assert FILE_LIMITS.MIME_TYPES["txt"] == "text/plain"
 

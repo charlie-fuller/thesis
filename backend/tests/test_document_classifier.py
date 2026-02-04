@@ -473,16 +473,11 @@ class DocumentClassifier:
         if len(sorted_scores) == 1:
             return sorted_scores[0] >= self.MEDIUM_CONFIDENCE_THRESHOLD
 
-        return (
-            sorted_scores[0] >= self.HIGH_CONFIDENCE_THRESHOLD
-            and sorted_scores[0] - sorted_scores[1] >= 0.20
-        )
+        return sorted_scores[0] >= self.HIGH_CONFIDENCE_THRESHOLD and sorted_scores[0] - sorted_scores[1] >= 0.20
 
     def _build_llm_prompt(self, sample_text: str) -> str:
         """Build the LLM classification prompt."""
-        agent_list = "\n".join(
-            [f"- {name}: {desc}" for name, desc in self.AGENT_DESCRIPTIONS.items()]
-        )
+        agent_list = "\n".join([f"- {name}: {desc}" for name, desc in self.AGENT_DESCRIPTIONS.items()])
 
         return f"""You are classifying a document to determine which Thesis agents should have access to it.
 
@@ -527,10 +522,7 @@ Analyze the document sample and determine which agents would find this document 
             for agent_info in data.get("agents", []):
                 agent_name = agent_info.get("name", "").lower()
                 confidence = float(agent_info.get("confidence", 0.0))
-                if (
-                    agent_name in self.AGENT_KEYWORDS
-                    and confidence >= self.LOW_CONFIDENCE_THRESHOLD
-                ):
+                if agent_name in self.AGENT_KEYWORDS and confidence >= self.LOW_CONFIDENCE_THRESHOLD:
                     scores[agent_name] = confidence
 
             detected_type = data.get("document_type", "unknown")
@@ -582,9 +574,7 @@ Analyze the document sample and determine which agents would find this document 
                 final_scores[agent] = score
 
         classifications = []
-        for agent_name, confidence in sorted(
-            final_scores.items(), key=lambda x: x[1], reverse=True
-        ):
+        for agent_name, confidence in sorted(final_scores.items(), key=lambda x: x[1], reverse=True):
             if confidence < self.LOW_CONFIDENCE_THRESHOLD:
                 continue
 
@@ -736,9 +726,7 @@ class TestKeywordScoring:
 
     def test_financial_keywords_match_capital_agent(self, classifier):
         """Financial keywords should score high for Capital agent."""
-        text = (
-            "The ROI analysis shows a 15% return on investment. Budget allocation for Q2 is $500K."
-        )
+        text = "The ROI analysis shows a 15% return on investment. Budget allocation for Q2 is $500K."
         scores = classifier._score_keywords(text)
 
         assert "capital" in scores
@@ -859,9 +847,7 @@ class TestLLMClassification:
     @pytest.mark.asyncio
     async def test_llm_classification_parses_response(self, classifier_with_llm):
         """LLM classification should parse valid JSON response."""
-        scores, doc_type, tokens = await classifier_with_llm._classify_with_llm(
-            "Sample research text"
-        )
+        scores, doc_type, tokens = await classifier_with_llm._classify_with_llm("Sample research text")
 
         assert "atlas" in scores
         assert scores["atlas"] == 0.85

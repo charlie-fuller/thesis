@@ -83,9 +83,7 @@ Provide practical, enterprise-grade technical guidance for AI implementations.""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Architecture decision: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Architecture decision: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -123,15 +121,11 @@ Provide practical, enterprise-grade technical guidance for AI implementations.""
             return ("guardian", "Query requires security/governance expertise")
 
         # Hand off to Pioneer for emerging technology evaluation
-        if any(
-            word in message_lower for word in ["emerging", "cutting edge", "experimental", "future"]
-        ):
+        if any(word in message_lower for word in ["emerging", "cutting edge", "experimental", "future"]):
             return ("pioneer", "Query requires emerging technology expertise")
 
         # Hand off to Operator for operational implementation
-        if any(
-            word in message_lower for word in ["deploy", "operate", "monitor", "production support"]
-        ):
+        if any(word in message_lower for word in ["deploy", "operate", "monitor", "production support"]):
             return ("operator", "Query requires operational expertise")
 
         return None

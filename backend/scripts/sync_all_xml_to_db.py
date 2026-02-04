@@ -89,9 +89,7 @@ def main():
             existing_instructions = existing.get("instructions", "")
 
             # Check if existing is a placeholder (starts with "--" or is very short)
-            is_placeholder = (
-                existing_instructions.startswith("--") or len(existing_instructions) < 200
-            )
+            is_placeholder = existing_instructions.startswith("--") or len(existing_instructions) < 200
 
             if is_placeholder:
                 # Update the placeholder with real XML content
@@ -104,9 +102,7 @@ def main():
                         }
                     ).eq("id", existing["id"]).execute()
 
-                    print(
-                        f"  ✅ UPDATED: {agent_name} - Replaced placeholder with XML ({len(content)} chars)"
-                    )
+                    print(f"  ✅ UPDATED: {agent_name} - Replaced placeholder with XML ({len(content)} chars)")
                     synced += 1
                     continue
                 except Exception as e:
@@ -115,9 +111,7 @@ def main():
                     continue
             else:
                 # Real content already exists
-                print(
-                    f"  SKIP: {agent_name} - Already has real instructions ({len(existing_instructions)} chars)"
-                )
+                print(f"  SKIP: {agent_name} - Already has real instructions ({len(existing_instructions)} chars)")
                 skipped += 1
                 continue
 
@@ -135,9 +129,9 @@ def main():
             ).execute()
 
             # Update agent timestamp
-            supabase.table("agents").update(
-                {"updated_at": datetime.now(timezone.utc).isoformat()}
-            ).eq("id", agent_id).execute()
+            supabase.table("agents").update({"updated_at": datetime.now(timezone.utc).isoformat()}).eq(
+                "id", agent_id
+            ).execute()
 
             print(f"  ✅ SYNCED: {agent_name} - Created version 1.0 ({len(content)} chars)")
             synced += 1

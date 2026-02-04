@@ -83,9 +83,7 @@ Help craft authentic, transparent internal communications that build trust."""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Communications insight: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Communications insight: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -117,17 +115,11 @@ Help craft authentic, transparent internal communications that build trust."""
         message_lower = context.user_message.lower()
 
         # Hand off to Sage for deep people/change management
-        if any(
-            word in message_lower
-            for word in ["resistance", "burnout", "champion program", "community"]
-        ):
+        if any(word in message_lower for word in ["resistance", "burnout", "champion program", "community"]):
             return ("sage", "Query requires people/change management expertise")
 
         # Hand off to Scholar for training content
-        if any(
-            word in message_lower
-            for word in ["training", "curriculum", "learning program", "skill development"]
-        ):
+        if any(word in message_lower for word in ["training", "curriculum", "learning program", "skill development"]):
             return ("scholar", "Query requires L&D expertise")
 
         # Hand off to Strategist for executive communications

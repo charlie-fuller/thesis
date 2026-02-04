@@ -40,11 +40,7 @@ async def get_document_agents(
         validate_uuid(document_id, "document_id")
 
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, uploaded_by")
-            .eq("id", document_id)
-            .single()
-            .execute()
+            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
         )
 
         if not doc_result.data:
@@ -102,11 +98,7 @@ async def update_document_agents(
         validate_uuid(document_id, "document_id")
 
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, uploaded_by")
-            .eq("id", document_id)
-            .single()
-            .execute()
+            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
         )
 
         if not doc_result.data:
@@ -119,10 +111,7 @@ async def update_document_agents(
 
         # Delete all existing links for this document
         await asyncio.to_thread(
-            lambda: supabase.table("agent_knowledge_base")
-            .delete()
-            .eq("document_id", document_id)
-            .execute()
+            lambda: supabase.table("agent_knowledge_base").delete().eq("document_id", document_id).execute()
         )
 
         # Create new links
@@ -175,9 +164,7 @@ async def update_document_agents(
             "document_id": document_id,
             "is_global": is_global,
             "linked_agents": linked_agents,
-            "message": "Global (all agents)"
-            if is_global
-            else f"Linked to {len(linked_agents)} agent(s)",
+            "message": "Global (all agents)" if is_global else f"Linked to {len(linked_agents)} agent(s)",
         }
 
     except HTTPException:
@@ -209,11 +196,7 @@ async def get_document_classification(
         validate_uuid(document_id, "document_id")
 
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, filename")
-            .eq("id", document_id)
-            .single()
-            .execute()
+            lambda: supabase.table("documents").select("id, filename").eq("id", document_id).single().execute()
         )
 
         if not doc_result.data:
@@ -306,11 +289,7 @@ async def confirm_classification(
         validate_uuid(document_id, "document_id")
 
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, uploaded_by")
-            .eq("id", document_id)
-            .single()
-            .execute()
+            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
         )
 
         if not doc_result.data:
@@ -323,10 +302,7 @@ async def confirm_classification(
 
         # Delete all existing links
         await asyncio.to_thread(
-            lambda: supabase.table("agent_knowledge_base")
-            .delete()
-            .eq("document_id", document_id)
-            .execute()
+            lambda: supabase.table("agent_knowledge_base").delete().eq("document_id", document_id).execute()
         )
 
         # Create confirmed links

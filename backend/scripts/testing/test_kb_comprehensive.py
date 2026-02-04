@@ -106,9 +106,7 @@ try:
 
             # Check if content is readable
             if content:
-                printable_ratio = sum(c.isprintable() or c.isspace() for c in content) / len(
-                    content
-                )
+                printable_ratio = sum(c.isprintable() or c.isspace() for c in content) / len(content)
                 print(f"   Printable ratio: {printable_ratio:.2%}")
                 if printable_ratio < 0.9:
                     print("   ⚠️  WARNING: Content may be corrupted!")
@@ -157,9 +155,7 @@ try:
         print(f"Using sample embedding (length: {len(test_embedding)})")
 
         # Test the function
-        result = supabase.rpc(
-            "match_document_chunks", {"query_embedding": test_embedding, "match_count": 5}
-        ).execute()
+        result = supabase.rpc("match_document_chunks", {"query_embedding": test_embedding, "match_count": 5}).execute()
 
         print("✅ Function executed successfully!")
         print(f"   Results returned: {len(result.data)}")
@@ -305,9 +301,7 @@ print("=" * 80)
 print("\n📊 Key Findings:")
 print(f"   Documents in DB: {len(docs_result.data) if 'docs_result' in locals() else 'Unknown'}")
 print(f"   Chunks in DB: {total_chunks if 'total_chunks' in locals() else 'Unknown'}")
-print(
-    f"   Chunks with embeddings: {chunks_with_embeddings if 'chunks_with_embeddings' in locals() else 'Unknown'}"
-)
+print(f"   Chunks with embeddings: {chunks_with_embeddings if 'chunks_with_embeddings' in locals() else 'Unknown'}")
 
 print("\n🔍 Next Steps:")
 if "total_chunks" in locals() and total_chunks == 0:

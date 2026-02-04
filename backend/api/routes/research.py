@@ -180,9 +180,7 @@ async def trigger_research(
         from services.research_scheduler import trigger_research_now
 
         if not request.focus_area and not request.custom_query:
-            raise HTTPException(
-                status_code=400, detail="Must provide either focus_area or custom_query"
-            )
+            raise HTTPException(status_code=400, detail="Must provide either focus_area or custom_query")
 
         # Run research in background
         async def run_research():
@@ -237,9 +235,7 @@ async def trigger_research(
 
 
 @router.get("/schedule")
-async def get_research_schedule(
-    client_id: Optional[str] = None, current_user: dict = Depends(get_current_user)
-):
+async def get_research_schedule(client_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     """Get the research schedule.
 
     Returns both global schedule and client-specific schedule if client_id provided.
@@ -309,9 +305,7 @@ async def update_schedule_item(
         if request.priority is not None:
             update_data["priority"] = request.priority
 
-        result = (
-            supabase.table("research_schedule").update(update_data).eq("id", schedule_id).execute()
-        )
+        result = supabase.table("research_schedule").update(update_data).eq("id", schedule_id).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Schedule item not found")
@@ -331,9 +325,7 @@ async def update_schedule_item(
 
 
 @router.get("/gaps")
-async def list_knowledge_gaps(
-    status: str = "open", limit: int = 20, current_user: dict = Depends(get_current_user)
-):
+async def list_knowledge_gaps(status: str = "open", limit: int = 20, current_user: dict = Depends(get_current_user)):
     """List knowledge gaps identified across agent conversations.
 
     These are questions/topics that agents couldn't fully answer.
@@ -357,15 +349,11 @@ async def list_knowledge_gaps(
 
 
 @router.post("/gaps/{gap_id}/research")
-async def research_gap(
-    gap_id: str, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)
-):
+async def research_gap(gap_id: str, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     """Trigger research to fill a specific knowledge gap."""
     try:
         # Get the gap
-        gap_result = (
-            supabase.table("knowledge_gaps").select("*").eq("id", gap_id).single().execute()
-        )
+        gap_result = supabase.table("knowledge_gaps").select("*").eq("id", gap_id).single().execute()
 
         if not gap_result.data:
             raise HTTPException(status_code=404, detail="Knowledge gap not found")
@@ -373,9 +361,7 @@ async def research_gap(
         gap = gap_result.data
 
         # Update gap status
-        supabase.table("knowledge_gaps").update({"status": "researching"}).eq(
-            "id", gap_id
-        ).execute()
+        supabase.table("knowledge_gaps").update({"status": "researching"}).eq("id", gap_id).execute()
 
         # Trigger research
         from services.research_scheduler import trigger_research_now
@@ -398,15 +384,11 @@ async def research_gap(
                         }
                     ).eq("id", gap_id).execute()
                 else:
-                    supabase.table("knowledge_gaps").update({"status": "open"}).eq(
-                        "id", gap_id
-                    ).execute()
+                    supabase.table("knowledge_gaps").update({"status": "open"}).eq("id", gap_id).execute()
 
             except Exception as e:
                 logger.error(f"Gap research failed: {e}")
-                supabase.table("knowledge_gaps").update({"status": "open"}).eq(
-                    "id", gap_id
-                ).execute()
+                supabase.table("knowledge_gaps").update({"status": "open"}).eq("id", gap_id).execute()
 
         background_tasks.add_task(run_gap_research)
 
@@ -438,12 +420,7 @@ async def list_research_sources(
     Tier 4: Blogs, vendor marketing
     """
     try:
-        query = (
-            supabase.table("research_sources")
-            .select("*")
-            .order("credibility_tier")
-            .order("times_cited", desc=True)
-        )
+        query = supabase.table("research_sources").select("*").order("credibility_tier").order("times_cited", desc=True)
 
         if tier:
             query = query.eq("credibility_tier", tier)

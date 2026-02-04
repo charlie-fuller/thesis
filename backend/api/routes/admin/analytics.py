@@ -35,9 +35,7 @@ async def get_usage_trends(
         agents_result = await asyncio.to_thread(
             lambda: supabase.table("agents").select("id, name, display_name").execute()
         )
-        agent_display_names = {
-            a["name"]: a.get("display_name", a["name"]) for a in (agents_result.data or [])
-        }
+        agent_display_names = {a["name"]: a.get("display_name", a["name"]) for a in (agents_result.data or [])}
 
         # Get all assistant messages in range WITH metadata
         messages = await asyncio.to_thread(
@@ -93,9 +91,7 @@ async def get_usage_trends(
 
         # Count messages by date AND extract agent from metadata
         for msg in messages.data or []:
-            date = (
-                datetime.fromisoformat(msg["created_at"].replace("Z", "+00:00")).date().isoformat()
-            )
+            date = datetime.fromisoformat(msg["created_at"].replace("Z", "+00:00")).date().isoformat()
             if date in trends_by_date:
                 trends_by_date[date]["messages"] += 1
 
@@ -111,9 +107,7 @@ async def get_usage_trends(
 
         # Count meeting room messages by date and agent
         for msg in meeting_messages.data or []:
-            date = (
-                datetime.fromisoformat(msg["created_at"].replace("Z", "+00:00")).date().isoformat()
-            )
+            date = datetime.fromisoformat(msg["created_at"].replace("Z", "+00:00")).date().isoformat()
             if date in trends_by_date:
                 trends_by_date[date]["messages"] += 1
                 agent_name = msg.get("agent_name", "Unknown")
@@ -127,19 +121,13 @@ async def get_usage_trends(
 
         # Count conversations by date
         for convo in convos.data or []:
-            date = (
-                datetime.fromisoformat(convo["created_at"].replace("Z", "+00:00"))
-                .date()
-                .isoformat()
-            )
+            date = datetime.fromisoformat(convo["created_at"].replace("Z", "+00:00")).date().isoformat()
             if date in trends_by_date:
                 trends_by_date[date]["conversations"] += 1
 
         # Count documents by date
         for doc in docs.data or []:
-            date = (
-                datetime.fromisoformat(doc["uploaded_at"].replace("Z", "+00:00")).date().isoformat()
-            )
+            date = datetime.fromisoformat(doc["uploaded_at"].replace("Z", "+00:00")).date().isoformat()
             if date in trends_by_date:
                 trends_by_date[date]["documents"] += 1
 
@@ -200,10 +188,7 @@ async def get_active_users(
 
         seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
         active_7_convos = await asyncio.to_thread(
-            lambda: supabase.table("conversations")
-            .select("user_id")
-            .gte("updated_at", seven_days_ago)
-            .execute()
+            lambda: supabase.table("conversations").select("user_id").gte("updated_at", seven_days_ago).execute()
         )
 
         active_7_user_ids = set()
@@ -213,10 +198,7 @@ async def get_active_users(
 
         thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
         active_30_convos = await asyncio.to_thread(
-            lambda: supabase.table("conversations")
-            .select("user_id")
-            .gte("updated_at", thirty_days_ago)
-            .execute()
+            lambda: supabase.table("conversations").select("user_id").gte("updated_at", thirty_days_ago).execute()
         )
 
         active_30_user_ids = set()
@@ -350,9 +332,7 @@ async def get_upload_health(current_user: dict = Depends(require_admin)):
                     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "unknown"
                     failed_by_type[ext] = failed_by_type.get(ext, 0) + 1
 
-            success_rate = (
-                (counts["completed"] / counts["total"] * 100) if counts["total"] > 0 else 100
-            )
+            success_rate = (counts["completed"] / counts["total"] * 100) if counts["total"] > 0 else 100
             return counts, success_rate, failed_by_type
 
         counts_24h, rate_24h, failed_types_24h = await get_status_counts(one_day_ago)
@@ -507,16 +487,12 @@ async def clear_upload_issues(
         failures_count = 0
         for doc in failed_docs:
             await asyncio.to_thread(
-                lambda doc_id=doc["id"]: supabase.table("documents")
-                .delete()
-                .eq("id", doc_id)
-                .execute()
+                lambda doc_id=doc["id"]: supabase.table("documents").delete().eq("id", doc_id).execute()
             )
             failures_count += 1
 
         logger.info(
-            f"Admin {current_user.get('email')} cleared upload issues: "
-            f"{stuck_count} stuck, {failures_count} failures"
+            f"Admin {current_user.get('email')} cleared upload issues: {stuck_count} stuck, {failures_count} failures"
         )
 
         return {
@@ -560,10 +536,7 @@ async def get_interface_health(current_user: dict = Depends(require_admin)):
         )
 
         active_users_task = asyncio.to_thread(
-            lambda: supabase.table("conversations")
-            .select("user_id")
-            .gte("updated_at", seven_days_ago)
-            .execute()
+            lambda: supabase.table("conversations").select("user_id").gte("updated_at", seven_days_ago).execute()
         )
 
         recent_messages_task = asyncio.to_thread(
@@ -581,9 +554,7 @@ async def get_interface_health(current_user: dict = Depends(require_admin)):
             convos_result,
             active_users_result,
             recent_messages_result,
-        ) = await asyncio.gather(
-            messages_task, convos_task, active_users_task, recent_messages_task
-        )
+        ) = await asyncio.gather(messages_task, convos_task, active_users_task, recent_messages_task)
 
         messages = messages_result.data or []
 
@@ -630,14 +601,10 @@ async def get_interface_health(current_user: dict = Depends(require_admin)):
             logger.warning(f"turns_to_useable_output query failed: {str(e)}")
 
         response_status = (
-            "healthy"
-            if avg_response_length <= 500
-            else ("warning" if avg_response_length <= 800 else "critical")
+            "healthy" if avg_response_length <= 500 else ("warning" if avg_response_length <= 800 else "critical")
         )
         stuck_status = (
-            "healthy"
-            if len(stuck_conversations) == 0
-            else ("warning" if len(stuck_conversations) <= 2 else "critical")
+            "healthy" if len(stuck_conversations) == 0 else ("warning" if len(stuck_conversations) <= 2 else "critical")
         )
 
         logger.info(
@@ -955,8 +922,7 @@ async def get_keyword_trends(
         date_range = f"{start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}"
 
         logger.info(
-            f"Keyword trends: {len(keywords)} keywords, "
-            f"{len(questions)} questions, {domain_keyword_count} domain terms"
+            f"Keyword trends: {len(keywords)} keywords, {len(questions)} questions, {domain_keyword_count} domain terms"
         )
 
         return {

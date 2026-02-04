@@ -132,9 +132,7 @@ def load_user_system_instructions(
     # PRIORITY 3: Fall back to default
     if not template:
         if DEFAULT_PROMPT_FILE.exists():
-            logger.info(
-                f"   📋 Loading default system instructions (no user-specific found for {user_id})"
-            )
+            logger.info(f"   📋 Loading default system instructions (no user-specific found for {user_id})")
             with open(DEFAULT_PROMPT_FILE, "r", encoding="utf-8") as f:
                 template = f.read()
         else:
@@ -290,11 +288,7 @@ def get_system_instructions_for_version(version_id: str, user_data: Optional[Dic
 
         try:
             result = (
-                supabase.table("system_instruction_versions")
-                .select("content")
-                .eq("id", version_id)
-                .single()
-                .execute()
+                supabase.table("system_instruction_versions").select("content").eq("id", version_id).single().execute()
             )
 
             if not result.data:

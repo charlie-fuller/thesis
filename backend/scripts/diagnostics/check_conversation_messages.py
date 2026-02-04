@@ -51,9 +51,7 @@ for i, conv in enumerate(conversations[:10], 1):
         print("   First message preview:")
         first_msg = messages[0]
         content_preview = (
-            first_msg["content"][:150] + "..."
-            if len(first_msg["content"]) > 150
-            else first_msg["content"]
+            first_msg["content"][:150] + "..." if len(first_msg["content"]) > 150 else first_msg["content"]
         )
         print(f"      [{first_msg['role']}] {content_preview}")
 
@@ -61,9 +59,7 @@ for i, conv in enumerate(conversations[:10], 1):
             print("   Last message preview:")
             last_msg = messages[-1]
             content_preview = (
-                last_msg["content"][:150] + "..."
-                if len(last_msg["content"]) > 150
-                else last_msg["content"]
+                last_msg["content"][:150] + "..." if len(last_msg["content"]) > 150 else last_msg["content"]
             )
             print(f"      [{last_msg['role']}] {content_preview}")
     else:

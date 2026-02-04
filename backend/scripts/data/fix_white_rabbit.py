@@ -38,13 +38,7 @@ def analyze_document():
     logger.info(f"   Error: {doc.get('processing_error')}")
 
     # Check chunks
-    chunks = (
-        supabase.table("document_chunks")
-        .select("id, content")
-        .eq("document_id", DOC_ID)
-        .limit(3)
-        .execute()
-    )
+    chunks = supabase.table("document_chunks").select("id, content").eq("document_id", DOC_ID).limit(3).execute()
 
     logger.info(f"\n   Sample chunks (first 3 of {doc.get('chunk_count')}):")
     for i, chunk in enumerate(chunks.data, 1):
@@ -116,9 +110,7 @@ def verify_fix():
     # Test search
     from document_processor import search_similar_chunks
 
-    results = search_similar_chunks(
-        query="white rabbits", client_id=doc["client_id"], limit=3, min_similarity=0.0
-    )
+    results = search_similar_chunks(query="white rabbits", client_id=doc["client_id"], limit=3, min_similarity=0.0)
 
     logger.info("\n   Search test for 'white rabbits':")
     logger.info(f"   Found {len(results)} results")

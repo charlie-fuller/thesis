@@ -20,9 +20,7 @@ class StorageService:
     def __init__(self):
         """Initialize Supabase client."""
         self.supabase_url = os.getenv("SUPABASE_URL")
-        self.supabase_key = os.getenv(
-            "SUPABASE_SERVICE_ROLE_KEY"
-        )  # Service role for admin operations
+        self.supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")  # Service role for admin operations
 
         if not self.supabase_url or not self.supabase_key:
             raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
@@ -108,9 +106,7 @@ class StorageService:
 
             # Get public URL - construct manually to avoid CDN issues
             # Format: https://PROJECT_REF.supabase.co/storage/v1/object/public/BUCKET/PATH
-            public_url = (
-                f"{self.supabase_url}/storage/v1/object/public/{self.bucket_name}/{storage_path}"
-            )
+            public_url = f"{self.supabase_url}/storage/v1/object/public/{self.bucket_name}/{storage_path}"
 
             logger.info(f"Image uploaded successfully: {public_url}")
 

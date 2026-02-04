@@ -262,13 +262,9 @@ async def require_disco_access(
     return current_user
 
 
-async def require_initiative_access(
-    initiative_id: str, current_user: dict, required_role: str = "viewer"
-) -> bool:
+async def require_initiative_access(initiative_id: str, current_user: dict, required_role: str = "viewer") -> bool:
     """Check user has access to initiative."""
     has_permission = await check_permission(initiative_id, current_user["id"], required_role)
     if not has_permission:
-        raise HTTPException(
-            status_code=403, detail=f"Insufficient permissions. Required: {required_role}"
-        )
+        raise HTTPException(status_code=403, detail=f"Insufficient permissions. Required: {required_role}")
     return True

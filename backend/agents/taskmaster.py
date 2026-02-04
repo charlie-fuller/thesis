@@ -201,9 +201,7 @@ When creating tasks from extracted items:
 
             if not client_id:
                 logger.warning(f"No client_id found for user {context.user_id}")
-                return (
-                    "\n[Task Context: Unable to load tasks - user not associated with a client]\n"
-                )
+                return "\n[Task Context: Unable to load tasks - user not associated with a client]\n"
 
             # Query tasks for this client
             result = (
@@ -325,24 +323,17 @@ When creating tasks from extracted items:
         message_lower = context.user_message.lower()
 
         # Hand off to Oracle for transcript analysis
-        if any(
-            word in message_lower
-            for word in ["analyze transcript", "meeting notes", "what was discussed"]
-        ):
+        if any(word in message_lower for word in ["analyze transcript", "meeting notes", "what was discussed"]):
             return ("oracle", "Query requires transcript analysis expertise")
 
         # Hand off to Compass for career-related task prioritization
         if any(
-            word in message_lower
-            for word in ["career goal", "performance review", "1:1 prep", "manager conversation"]
+            word in message_lower for word in ["career goal", "performance review", "1:1 prep", "manager conversation"]
         ):
             return ("compass", "Query requires career coaching expertise")
 
         # Hand off to Operator for business operations context
-        if any(
-            word in message_lower
-            for word in ["opportunity pipeline", "project triage", "business metrics"]
-        ):
+        if any(word in message_lower for word in ["opportunity pipeline", "project triage", "business metrics"]):
             return ("operator", "Query requires business operations expertise")
 
         return None

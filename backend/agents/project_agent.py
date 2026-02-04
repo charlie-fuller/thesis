@@ -89,9 +89,7 @@ Follow Smart Brevity: 100-150 words max, no emojis, end with dig-deeper links.""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Project insight: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Project insight: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -130,31 +128,19 @@ Follow Smart Brevity: 100-150 words max, no emojis, end with dig-deeper links.""
         message_lower = context.user_message.lower()
 
         # Hand off to Taskmaster for detailed task management
-        if any(
-            phrase in message_lower
-            for phrase in ["create task", "add task", "task list", "my tasks"]
-        ):
+        if any(phrase in message_lower for phrase in ["create task", "add task", "task list", "my tasks"]):
             return ("taskmaster", "Query requires task management capabilities")
 
         # Hand off to Capital for detailed financial analysis
-        if any(
-            phrase in message_lower
-            for phrase in ["roi calculation", "cost-benefit", "financial model", "npv"]
-        ):
+        if any(phrase in message_lower for phrase in ["roi calculation", "cost-benefit", "financial model", "npv"]):
             return ("capital", "Query requires detailed financial analysis")
 
         # Hand off to Operator for process/operational details
-        if any(
-            phrase in message_lower
-            for phrase in ["process flow", "workflow", "automation", "operational metrics"]
-        ):
+        if any(phrase in message_lower for phrase in ["process flow", "workflow", "automation", "operational metrics"]):
             return ("operator", "Query requires operational process expertise")
 
         # Hand off to Initiative Agent for initiative-level discussions
-        if any(
-            phrase in message_lower
-            for phrase in ["initiative overview", "disco process", "discovery phase"]
-        ):
+        if any(phrase in message_lower for phrase in ["initiative overview", "disco process", "discovery phase"]):
             return ("initiative_agent", "Query requires initiative-level context")
 
         return None

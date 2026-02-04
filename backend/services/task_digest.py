@@ -178,9 +178,7 @@ class TaskDigestService:
             return result.data[0]["id"]
         return None
 
-    def _build_markdown(
-        self, title: str, summary: str, snapshot: TaskSnapshot, health: int, today: date
-    ) -> str:
+    def _build_markdown(self, title: str, summary: str, snapshot: TaskSnapshot, health: int, today: date) -> str:
         """Build markdown content for the digest."""
         lines = [
             f"# {title}",
@@ -247,9 +245,7 @@ class TaskDigestService:
 
         if snapshot.overdue:
             focus = snapshot.overdue[0]
-            lines.append(
-                f"Start with **{focus.title}** - it's {focus.days_overdue} day(s) overdue."
-            )
+            lines.append(f"Start with **{focus.title}** - it's {focus.days_overdue} day(s) overdue.")
         elif snapshot.due_today:
             focus = snapshot.due_today[0]
             lines.append(f"Prioritize **{focus.title}** - due today.")

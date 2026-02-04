@@ -168,9 +168,7 @@ When preparing for a manager conversation:
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Career update: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Career update: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -217,15 +215,13 @@ When preparing for a manager conversation:
 
         # Hand off to Sage for deeper change management or people challenges
         if any(
-            word in message_lower
-            for word in ["team resistance", "burnout", "culture change", "adoption challenge"]
+            word in message_lower for word in ["team resistance", "burnout", "culture change", "adoption challenge"]
         ):
             return ("sage", "Query requires people/change management expertise")
 
         # Hand off to Scholar for training program design
         if any(
-            word in message_lower
-            for word in ["training program", "learning path", "curriculum", "upskilling plan"]
+            word in message_lower for word in ["training program", "learning path", "curriculum", "upskilling plan"]
         ):
             return ("scholar", "Query requires L&D expertise")
 
@@ -243,8 +239,7 @@ When preparing for a manager conversation:
 
         # Hand off to Oracle for meeting transcript analysis
         if any(
-            word in message_lower
-            for word in ["analyze meeting", "transcript", "what did they say", "meeting notes"]
+            word in message_lower for word in ["analyze meeting", "transcript", "what did they say", "meeting notes"]
         ):
             return ("oracle", "Query involves transcript analysis")
 

@@ -13,7 +13,6 @@ from auth import get_current_user
 from database import get_supabase
 from logger_config import get_logger
 from services.obsidian_sync import (
-    DEFAULT_SYNC_OPTIONS,
     ObsidianSyncError,
     create_vault_config,
     deactivate_vault_config,
@@ -64,9 +63,7 @@ class UpdateSyncOptionsRequest(BaseModel):
 class DisconnectRequest(BaseModel):
     """Request body for disconnecting vault."""
 
-    remove_documents: bool = Field(
-        False, description="Whether to delete synced documents from the knowledge base"
-    )
+    remove_documents: bool = Field(False, description="Whether to delete synced documents from the knowledge base")
 
 
 # ============================================================================
@@ -75,9 +72,7 @@ class DisconnectRequest(BaseModel):
 
 
 @router.post("/configure")
-async def configure_obsidian_vault(
-    request: ConfigureVaultRequest, current_user: dict = Depends(get_current_user)
-):
+async def configure_obsidian_vault(request: ConfigureVaultRequest, current_user: dict = Depends(get_current_user)):
     """Configure an Obsidian vault for syncing.
 
     Creates or updates the vault configuration for the current user.
@@ -86,12 +81,7 @@ async def configure_obsidian_vault(
     try:
         # Get user's client_id
         user_result = await asyncio.to_thread(
-            lambda: _get_db()
-            .table("users")
-            .select("client_id")
-            .eq("id", current_user["id"])
-            .single()
-            .execute()
+            lambda: _get_db().table("users").select("client_id").eq("id", current_user["id"]).single().execute()
         )
 
         if not user_result.data:
@@ -144,9 +134,7 @@ async def get_obsidian_status(current_user: dict = Depends(get_current_user)):
 
 
 @router.patch("/settings")
-async def update_obsidian_settings(
-    request: UpdateSyncOptionsRequest, current_user: dict = Depends(get_current_user)
-):
+async def update_obsidian_settings(request: UpdateSyncOptionsRequest, current_user: dict = Depends(get_current_user)):
     """Update sync options for the configured vault."""
     try:
         config = await asyncio.to_thread(get_vault_config, current_user["id"])
@@ -161,9 +149,7 @@ async def update_obsidian_settings(
         existing_options = config.get("sync_options", {})
         merged_options = {**existing_options, **request.sync_options}
 
-        updated = await asyncio.to_thread(
-            update_vault_config, config["id"], {"sync_options": merged_options}
-        )
+        updated = await asyncio.to_thread(update_vault_config, config["id"], {"sync_options": merged_options})
 
         return {"success": True, "sync_options": updated.get("sync_options", merged_options)}
 
@@ -182,9 +168,7 @@ async def update_obsidian_settings(
 
 
 @router.post("/sync")
-async def trigger_obsidian_sync(
-    background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)
-):
+async def trigger_obsidian_sync(background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     """Trigger a full sync of the configured Obsidian vault.
 
     Runs in the background and returns immediately.
@@ -200,9 +184,7 @@ async def trigger_obsidian_sync(
             )
 
         if not config.get("is_active"):
-            raise HTTPException(
-                status_code=400, detail="Vault sync is not active. Please reconfigure the vault."
-            )
+            raise HTTPException(status_code=400, detail="Vault sync is not active. Please reconfigure the vault.")
 
         # Run sync in background
         background_tasks.add_task(sync_vault, config, "manual")
@@ -223,9 +205,7 @@ async def trigger_obsidian_sync(
 
 
 @router.post("/sync/recent")
-async def trigger_recent_sync(
-    background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)
-):
+async def trigger_recent_sync(background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     """Sync only new/pending/failed files (skip already synced files).
 
     This is faster than a full sync when you just want to pick up new files
@@ -241,9 +221,7 @@ async def trigger_recent_sync(
             )
 
         if not config.get("is_active"):
-            raise HTTPException(
-                status_code=400, detail="Vault sync is not active. Please reconfigure the vault."
-            )
+            raise HTTPException(status_code=400, detail="Vault sync is not active. Please reconfigure the vault.")
 
         # Run sync in background with recent_only=True
         background_tasks.add_task(
@@ -269,9 +247,7 @@ async def trigger_recent_sync(
 
 
 @router.post("/sync/full")
-async def trigger_full_sync(
-    background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)
-):
+async def trigger_full_sync(background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     """Trigger a full resync of all files in the vault.
 
     This resyncs all files regardless of their current sync state.
@@ -285,11 +261,7 @@ async def trigger_full_sync(
 
         # Clear sync states to force full resync
         await asyncio.to_thread(
-            lambda: _get_db()
-            .table("obsidian_sync_state")
-            .delete()
-            .eq("config_id", config["id"])
-            .execute()
+            lambda: _get_db().table("obsidian_sync_state").delete().eq("config_id", config["id"]).execute()
         )
 
         # Run sync in background
@@ -313,9 +285,7 @@ async def trigger_full_sync(
 
 
 @router.delete("/disconnect")
-async def disconnect_obsidian(
-    remove_documents: bool = False, current_user: dict = Depends(get_current_user)
-):
+async def disconnect_obsidian(remove_documents: bool = False, current_user: dict = Depends(get_current_user)):
     """Disconnect Obsidian vault integration.
 
     Optionally removes all synced documents from the knowledge base.
@@ -581,9 +551,7 @@ async def retry_failed_file(
         state = await asyncio.to_thread(get_sync_state, config["id"], file_path)
 
         if not state:
-            raise HTTPException(
-                status_code=404, detail=f"File not found in sync state: {file_path}"
-            )
+            raise HTTPException(status_code=404, detail=f"File not found in sync state: {file_path}")
 
         # Build absolute path
         vault_path = Path(config["vault_path"])
@@ -634,9 +602,7 @@ async def debug_vault_scan(current_user: dict = Depends(get_current_user), limit
         max_file_size_mb = sync_options.get("max_file_size_mb", 10)
 
         # Scan vault
-        files = await asyncio.to_thread(
-            scan_vault, vault_path, include_patterns, exclude_patterns, max_file_size_mb
-        )
+        files = await asyncio.to_thread(scan_vault, vault_path, include_patterns, exclude_patterns, max_file_size_mb)
 
         # Get relative paths and group by directory depth
         files_info = []
@@ -741,12 +707,7 @@ async def upload_remote_file(
 
         # Get user's client_id
         user_result = await asyncio.to_thread(
-            lambda: _get_db()
-            .table("users")
-            .select("client_id")
-            .eq("id", current_user["id"])
-            .single()
-            .execute()
+            lambda: _get_db().table("users").select("client_id").eq("id", current_user["id"]).single().execute()
         )
         client_id = user_result.data.get("client_id") if user_result.data else None
 
@@ -830,9 +791,7 @@ async def upload_remote_file(
         if doc_type:
             doc_data["document_type"] = doc_type
 
-        await asyncio.to_thread(
-            lambda: _get_db().table("documents").upsert(doc_data, on_conflict="id").execute()
-        )
+        await asyncio.to_thread(lambda: _get_db().table("documents").upsert(doc_data, on_conflict="id").execute())
 
         # Update sync state
         sync_state = {

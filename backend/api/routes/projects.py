@@ -44,9 +44,7 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 class ProjectCreate(BaseModel):
     """Create a new project."""
 
-    project_code: str = Field(
-        ..., min_length=2, max_length=10, description="Short code like F01, L02"
-    )
+    project_code: str = Field(..., min_length=2, max_length=10, description="Short code like F01, L02")
     title: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     department: Optional[str] = None
@@ -66,12 +64,8 @@ class ProjectCreate(BaseModel):
     source_id: Optional[str] = None  # e.g., initiative_id for initiative_chat source
     source_notes: Optional[str] = None
     initiative_ids: List[str] = Field(default=[], description="List of linked DISCo initiative IDs")
-    scoring_confidence: Optional[int] = Field(
-        None, ge=0, le=100, description="Confidence in scoring (0-100)"
-    )
-    confidence_questions: List[str] = Field(
-        default=[], description="Questions that would raise confidence"
-    )
+    scoring_confidence: Optional[int] = Field(None, ge=0, le=100, description="Confidence in scoring (0-100)")
+    confidence_questions: List[str] = Field(default=[], description="Questions that would raise confidence")
 
 
 class ProjectUpdate(BaseModel):
@@ -305,12 +299,7 @@ async def _get_owner_names(supabase, project_ids: List[str]) -> dict:
         return {}
 
     # Get projects with owner IDs
-    result = (
-        supabase.table("ai_projects")
-        .select("id, owner_stakeholder_id")
-        .in_("id", project_ids)
-        .execute()
-    )
+    result = supabase.table("ai_projects").select("id, owner_stakeholder_id").in_("id", project_ids).execute()
 
     owner_ids = [p["owner_stakeholder_id"] for p in result.data if p.get("owner_stakeholder_id")]
 
@@ -324,9 +313,7 @@ async def _get_owner_names(supabase, project_ids: List[str]) -> dict:
 
     # Map project ID to owner name
     return {
-        p["id"]: stakeholder_map.get(p["owner_stakeholder_id"])
-        for p in result.data
-        if p.get("owner_stakeholder_id")
+        p["id"]: stakeholder_map.get(p["owner_stakeholder_id"]) for p in result.data if p.get("owner_stakeholder_id")
     }
 
 
@@ -483,9 +470,7 @@ async def get_top_projects(
 
 
 @router.get("/blocked")
-async def get_blocked_projects(
-    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_blocked_projects(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get all blocked projects."""
     result = (
         supabase.table("ai_projects")
@@ -504,9 +489,7 @@ async def get_blocked_projects(
 
 
 @router.get("/summary")
-async def get_projects_summary(
-    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_projects_summary(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get a summary of all projects.
 
     Returns counts by tier, status, and department.
@@ -674,13 +657,7 @@ async def link_documents_to_project(
     for doc_id in request.document_ids:
         try:
             # Verify document exists
-            doc_result = (
-                supabase.table("documents")
-                .select("id, filename")
-                .eq("id", doc_id)
-                .single()
-                .execute()
-            )
+            doc_result = supabase.table("documents").select("id, filename").eq("id", doc_id).single().execute()
 
             if not doc_result.data:
                 errors.append({"document_id": doc_id, "error": "Document not found"})
@@ -800,9 +777,7 @@ async def ask_question_about_project(
     The conversation is stored and can be retrieved later via
     GET /{project_id}/conversations.
     """
-    logger.warning(
-        f"Deprecated endpoint /projects/{project_id}/ask called. Use /chat?project_id={project_id} instead."
-    )
+    logger.warning(f"Deprecated endpoint /projects/{project_id}/ask called. Use /chat?project_id={project_id} instead.")
     # Verify project exists and belongs to client
     proj = (
         supabase.table("ai_projects")
@@ -1042,22 +1017,12 @@ async def analyze_project_goal_alignment(
         raise HTTPException(status_code=404, detail="Project not found")
 
     try:
-        score, details = await analyze_goal_alignment(
-            project_id=project_id, client_id=current_user["client_id"]
-        )
+        score, details = await analyze_goal_alignment(project_id=project_id, client_id=current_user["client_id"])
         return {
             "project_id": project_id,
             "goal_alignment_score": score,
             "goal_alignment_details": details,
-            "level": (
-                "high"
-                if score >= 80
-                else "moderate"
-                if score >= 60
-                else "low"
-                if score >= 40
-                else "minimal"
-            ),
+            "level": ("high" if score >= 80 else "moderate" if score >= 60 else "low" if score >= 40 else "minimal"),
         }
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from None
@@ -1072,9 +1037,7 @@ async def analyze_project_goal_alignment(
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
-async def get_project(
-    project_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_project(project_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get a single project by ID."""
     result = (
         supabase.table("ai_projects")
@@ -1139,9 +1102,7 @@ async def create_project(
         result = supabase.table("ai_projects").insert(data).execute()
     except Exception as e:
         if "duplicate" in str(e).lower():
-            raise HTTPException(
-                status_code=409, detail=f"Project code {project.project_code} already exists"
-            ) from None
+            raise HTTPException(status_code=409, detail=f"Project code {project.project_code} already exists") from None
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
     created_proj = result.data[0]
@@ -1157,17 +1118,9 @@ async def create_project(
     )
     if has_scores:
         try:
-            await generate_project_justifications(
-                project_id=created_proj["id"], client_id=current_user["client_id"]
-            )
+            await generate_project_justifications(project_id=created_proj["id"], client_id=current_user["client_id"])
             # Refetch to get updated justifications
-            updated = (
-                supabase.table("ai_projects")
-                .select("*")
-                .eq("id", created_proj["id"])
-                .single()
-                .execute()
-            )
+            updated = supabase.table("ai_projects").select("*").eq("id", created_proj["id"]).single().execute()
             created_proj = updated.data
         except Exception as e:
             logger.warning(f"Failed to generate justifications on create: {e}")
@@ -1225,9 +1178,7 @@ async def update_project_scores(
     # Get existing project with current scores
     existing = (
         supabase.table("ai_projects")
-        .select(
-            "id, roi_potential, implementation_effort, strategic_alignment, stakeholder_readiness"
-        )
+        .select("id, roi_potential, implementation_effort, strategic_alignment, stakeholder_readiness")
         .eq("id", project_id)
         .eq("client_id", current_user["client_id"])
         .single()
@@ -1257,9 +1208,7 @@ async def update_project_scores(
         )
         if regenerated:
             # Refetch to get updated justifications
-            refreshed = (
-                supabase.table("ai_projects").select("*").eq("id", project_id).single().execute()
-            )
+            refreshed = supabase.table("ai_projects").select("*").eq("id", project_id).single().execute()
             updated_proj = refreshed.data
     except Exception as e:
         logger.warning(f"Failed to regenerate justifications on score update: {e}")
@@ -1289,9 +1238,7 @@ async def update_project_status(
     """
     valid_statuses = ["backlog", "active", "completed", "archived"]
     if request.status not in valid_statuses:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
 
     # Verify ownership and get current data
     existing = (
@@ -1381,9 +1328,7 @@ async def get_project_stakeholders(
             "stakeholder_id": link["stakeholder_id"],
             "stakeholder_name": link["stakeholders"]["name"] if link.get("stakeholders") else None,
             "stakeholder_role": link["stakeholders"]["role"] if link.get("stakeholders") else None,
-            "stakeholder_department": link["stakeholders"]["department"]
-            if link.get("stakeholders")
-            else None,
+            "stakeholder_department": link["stakeholders"]["department"] if link.get("stakeholders") else None,
             "role": link["role"],
             "notes": link.get("notes"),
             "created_at": link["created_at"],
@@ -1442,9 +1387,7 @@ async def link_stakeholder_to_project(
         )
     except Exception as e:
         if "duplicate" in str(e).lower():
-            raise HTTPException(
-                status_code=409, detail="Stakeholder already linked to this project"
-            ) from None
+            raise HTTPException(status_code=409, detail="Stakeholder already linked to this project") from None
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
     return {
@@ -1527,9 +1470,7 @@ class ProjectCandidateAccept(BaseModel):
     implementation_effort: Optional[int] = Field(None, ge=1, le=5)
     strategic_alignment: Optional[int] = Field(None, ge=1, le=5)
     stakeholder_readiness: Optional[int] = Field(None, ge=1, le=5)
-    link_to_existing: bool = (
-        False  # If true, link source to existing project instead of creating new
-    )
+    link_to_existing: bool = False  # If true, link source to existing project instead of creating new
 
 
 class ProjectCandidateReject(BaseModel):
@@ -1589,9 +1530,7 @@ async def list_project_candidates(
 
 
 @router.get("/candidates/count")
-async def get_project_candidates_count(
-    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_project_candidates_count(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get count of pending project candidates.
 
     Used for dashboard badge display.
@@ -1644,11 +1583,7 @@ async def accept_project_candidate(
     if accept_data.link_to_existing and cand.get("matched_project_id"):
         # Just update the existing project's source_notes with this new info
         existing_proj = (
-            supabase.table("ai_projects")
-            .select("*")
-            .eq("id", cand["matched_project_id"])
-            .single()
-            .execute()
+            supabase.table("ai_projects").select("*").eq("id", cand["matched_project_id"]).single().execute()
         )
 
         if existing_proj.data:
@@ -1697,15 +1632,9 @@ async def accept_project_candidate(
         "description": accept_data.description or cand.get("description"),
         "department": dept,
         "roi_potential": accept_data.roi_potential or cand.get("suggested_roi_potential") or 3,
-        "implementation_effort": accept_data.implementation_effort
-        or cand.get("suggested_effort")
-        or 3,
-        "strategic_alignment": accept_data.strategic_alignment
-        or cand.get("suggested_alignment")
-        or 3,
-        "stakeholder_readiness": accept_data.stakeholder_readiness
-        or cand.get("suggested_readiness")
-        or 3,
+        "implementation_effort": accept_data.implementation_effort or cand.get("suggested_effort") or 3,
+        "strategic_alignment": accept_data.strategic_alignment or cand.get("suggested_alignment") or 3,
+        "stakeholder_readiness": accept_data.stakeholder_readiness or cand.get("suggested_readiness") or 3,
         "status": "backlog",
         "source_type": "meeting",
         "source_id": cand.get("source_document_id"),
@@ -1729,17 +1658,9 @@ async def accept_project_candidate(
 
         # Generate justifications for the new project
         try:
-            await generate_project_justifications(
-                project_id=new_proj["id"], client_id=current_user["client_id"]
-            )
+            await generate_project_justifications(project_id=new_proj["id"], client_id=current_user["client_id"])
             # Refetch to get updated justifications
-            updated = (
-                supabase.table("ai_projects")
-                .select("*")
-                .eq("id", new_proj["id"])
-                .single()
-                .execute()
-            )
+            updated = supabase.table("ai_projects").select("*").eq("id", new_proj["id"]).single().execute()
             new_proj = updated.data
         except Exception as e:
             logger.warning(f"Failed to generate justifications for accepted candidate: {e}")
@@ -1857,9 +1778,7 @@ async def link_project_candidate(
             linked_note += f'\nQuote: "{candidate_quote[:200]}..."'
         new_description = existing_desc + linked_note
 
-        supabase.table("ai_projects").update({"description": new_description}).eq(
-            "id", body.project_id
-        ).execute()
+        supabase.table("ai_projects").update({"description": new_description}).eq("id", body.project_id).execute()
 
     # Mark candidate as accepted with reference to the linked project
     now = datetime.now(timezone.utc).isoformat()

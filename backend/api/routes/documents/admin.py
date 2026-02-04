@@ -126,10 +126,7 @@ async def find_documents_by_path_pattern(
         tags_by_doc = {}
         if doc_ids:
             tags_result = await asyncio.to_thread(
-                lambda: supabase.table("document_tags")
-                .select("document_id, tag")
-                .in_("document_id", doc_ids)
-                .execute()
+                lambda: supabase.table("document_tags").select("document_id, tag").in_("document_id", doc_ids).execute()
             )
             for tag_record in tags_result.data or []:
                 doc_id = tag_record["document_id"]
@@ -197,10 +194,7 @@ async def delete_documents_by_path_pattern(
         affected_tags = set()
         if doc_ids:
             tags_result = await asyncio.to_thread(
-                lambda: supabase.table("document_tags")
-                .select("tag")
-                .in_("document_id", doc_ids)
-                .execute()
+                lambda: supabase.table("document_tags").select("tag").in_("document_id", doc_ids).execute()
             )
             for t in tags_result.data or []:
                 affected_tags.add(t["tag"])
@@ -213,13 +207,9 @@ async def delete_documents_by_path_pattern(
                 "would_delete_count": len(documents),
                 "affected_tags": sorted(affected_tags),
                 "documents": [
-                    {"id": d["id"], "filename": d["filename"], "path": d["obsidian_file_path"]}
-                    for d in documents[:50]
+                    {"id": d["id"], "filename": d["filename"], "path": d["obsidian_file_path"]} for d in documents[:50]
                 ],
-                "message": (
-                    f"Would delete {len(documents)} documents. "
-                    "Set dry_run=false to actually delete."
-                ),
+                "message": (f"Would delete {len(documents)} documents. Set dry_run=false to actually delete."),
             }
 
         # Actually delete using batch operations
@@ -230,26 +220,18 @@ async def delete_documents_by_path_pattern(
             try:
                 # Batch delete chunks for all documents
                 await asyncio.to_thread(
-                    lambda: supabase.table("document_chunks")
-                    .delete()
-                    .in_("document_id", doc_ids)
-                    .execute()
+                    lambda: supabase.table("document_chunks").delete().in_("document_id", doc_ids).execute()
                 )
 
                 # Batch delete documents (tags deleted via CASCADE)
-                await asyncio.to_thread(
-                    lambda: supabase.table("documents").delete().in_("id", doc_ids).execute()
-                )
+                await asyncio.to_thread(lambda: supabase.table("documents").delete().in_("id", doc_ids).execute())
 
                 deleted_count = len(doc_ids)
 
             except Exception as e:
                 errors.append({"batch": True, "error": str(e)})
 
-        logger.info(
-            f"Deleted {deleted_count} documents matching pattern '{pattern}' "
-            f"by admin {current_user['id']}"
-        )
+        logger.info(f"Deleted {deleted_count} documents matching pattern '{pattern}' by admin {current_user['id']}")
 
         return {
             "success": True,

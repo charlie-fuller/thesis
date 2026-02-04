@@ -58,9 +58,7 @@ class GenerateTitleRequest(BaseModel):
 
 
 @router.post("/create")
-async def create_conversation(
-    request: ConversationCreateRequest, current_user: dict = Depends(get_current_user)
-):
+async def create_conversation(request: ConversationCreateRequest, current_user: dict = Depends(get_current_user)):
     """Create a new conversation."""
     try:
         # Auto-assign default client if not provided (single-tenant mode)
@@ -86,9 +84,7 @@ async def create_conversation(
             conversation_data["initiative_id"] = request.initiative_id
 
         # Create conversation in database
-        result = await asyncio.to_thread(
-            lambda: supabase.table("conversations").insert(conversation_data).execute()
-        )
+        result = await asyncio.to_thread(lambda: supabase.table("conversations").insert(conversation_data).execute())
 
         conversation = result.data[0]
         logger.info(f"✅ Conversation created: {conversation['id']}")
@@ -154,9 +150,7 @@ async def get_conversation(conversation_id: str, current_user: dict = Depends(ge
 
 
 @router.get("/{conversation_id}/messages")
-async def get_conversation_messages(
-    conversation_id: str, current_user: dict = Depends(get_current_user)
-):
+async def get_conversation_messages(conversation_id: str, current_user: dict = Depends(get_current_user)):
     """Get all messages in a conversation."""
     try:
         validate_uuid(conversation_id, "conversation_id")
@@ -233,10 +227,7 @@ async def update_conversation(
 
         # Update conversation title
         result = await asyncio.to_thread(
-            lambda: supabase.table("conversations")
-            .update({"title": request.title})
-            .eq("id", conversation_id)
-            .execute()
+            lambda: supabase.table("conversations").update({"title": request.title}).eq("id", conversation_id).execute()
         )
 
         if not result.data:
@@ -259,16 +250,11 @@ async def delete_conversation(conversation_id: str, current_user: dict = Depends
 
         # Delete messages first (foreign key constraint)
         await asyncio.to_thread(
-            lambda: supabase.table("messages")
-            .delete()
-            .eq("conversation_id", conversation_id)
-            .execute()
+            lambda: supabase.table("messages").delete().eq("conversation_id", conversation_id).execute()
         )
 
         # Delete conversation
-        await asyncio.to_thread(
-            lambda: supabase.table("conversations").delete().eq("id", conversation_id).execute()
-        )
+        await asyncio.to_thread(lambda: supabase.table("conversations").delete().eq("id", conversation_id).execute())
 
         return {"success": True, "message": "Conversation deleted successfully"}
 
@@ -324,10 +310,7 @@ Message: {request.message[:500]}""",
 
         # Update the conversation title in the database
         result = await asyncio.to_thread(
-            lambda: supabase.table("conversations")
-            .update({"title": title})
-            .eq("id", conversation_id)
-            .execute()
+            lambda: supabase.table("conversations").update({"title": title}).eq("id", conversation_id).execute()
         )
 
         if not result.data:
@@ -370,9 +353,7 @@ async def list_conversations(
         is_admin = current_user.get("role") == "admin"
 
         # Build query
-        query = supabase.table("conversations").select(
-            "*, clients(name), users(name, email)", count="exact"
-        )
+        query = supabase.table("conversations").select("*, clients(name), users(name, email)", count="exact")
 
         # Apply filters
         if not is_admin:
@@ -410,10 +391,7 @@ async def list_conversations(
             conv_ids = [c["id"] for c in conversations]
             # Single query to get all messages for these conversations
             msg_result = await asyncio.to_thread(
-                lambda: supabase.table("messages")
-                .select("conversation_id")
-                .in_("conversation_id", conv_ids)
-                .execute()
+                lambda: supabase.table("messages").select("conversation_id").in_("conversation_id", conv_ids).execute()
             )
             # Count messages per conversation
             msg_counts = {}
@@ -461,9 +439,7 @@ async def add_conversation_to_knowledge_base(
 
 
 @router.post("/{conversation_id}/remove-from-kb")
-async def remove_conversation_from_knowledge_base(
-    conversation_id: str, current_user: dict = Depends(get_current_user)
-):
+async def remove_conversation_from_knowledge_base(conversation_id: str, current_user: dict = Depends(get_current_user)):
     """Remove conversation from knowledge base."""
     try:
         validate_uuid(conversation_id, "conversation_id")
@@ -488,18 +464,13 @@ async def remove_conversation_from_knowledge_base(
 
 
 @router.post("/{conversation_id}/archive")
-async def archive_conversation(
-    conversation_id: str, current_user: dict = Depends(get_current_user)
-):
+async def archive_conversation(conversation_id: str, current_user: dict = Depends(get_current_user)):
     """Archive a conversation."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
         result = await asyncio.to_thread(
-            lambda: supabase.table("conversations")
-            .update({"archived": True})
-            .eq("id", conversation_id)
-            .execute()
+            lambda: supabase.table("conversations").update({"archived": True}).eq("id", conversation_id).execute()
         )
 
         if not result.data:
@@ -515,18 +486,13 @@ async def archive_conversation(
 
 
 @router.post("/{conversation_id}/restore")
-async def restore_conversation(
-    conversation_id: str, current_user: dict = Depends(get_current_user)
-):
+async def restore_conversation(conversation_id: str, current_user: dict = Depends(get_current_user)):
     """Restore an archived conversation."""
     try:
         validate_uuid(conversation_id, "conversation_id")
 
         result = await asyncio.to_thread(
-            lambda: supabase.table("conversations")
-            .update({"archived": False})
-            .eq("id", conversation_id)
-            .execute()
+            lambda: supabase.table("conversations").update({"archived": False}).eq("id", conversation_id).execute()
         )
 
         if not result.data:

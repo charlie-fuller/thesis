@@ -26,9 +26,7 @@ async def get_admin_stats(
         current_user: Injected by FastAPI dependency.
     """
     try:
-        users_result = await asyncio.to_thread(
-            lambda: supabase.table("users").select("id", count="exact").execute()
-        )
+        users_result = await asyncio.to_thread(lambda: supabase.table("users").select("id", count="exact").execute())
         total_users = users_result.count or 0
 
         convos_result = await asyncio.to_thread(
@@ -36,9 +34,7 @@ async def get_admin_stats(
         )
         total_conversations = convos_result.count or 0
 
-        docs_result = await asyncio.to_thread(
-            lambda: supabase.table("documents").select("id", count="exact").execute()
-        )
+        docs_result = await asyncio.to_thread(lambda: supabase.table("documents").select("id", count="exact").execute())
         total_documents = docs_result.count or 0
 
         messages_result = await asyncio.to_thread(

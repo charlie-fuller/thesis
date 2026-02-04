@@ -212,12 +212,7 @@ async def get_pipeline_overview(
     # -------------------------------------------------------------------------
     # COMMITMENTS - Tasks with due dates (what you owe people)
     # -------------------------------------------------------------------------
-    task_query = (
-        supabase.table("project_tasks")
-        .select("*")
-        .eq("client_id", client_id)
-        .neq("status", "completed")
-    )
+    task_query = supabase.table("project_tasks").select("*").eq("client_id", client_id).neq("status", "completed")
 
     if department:
         # Filter by related stakeholder department or assignee department
@@ -274,9 +269,7 @@ async def get_pipeline_overview(
     if department:
         sh_query = sh_query.ilike("department", f"%{department}%")
 
-    sh_result = (
-        sh_query.order("last_interaction", desc=True, nullsfirst=False).limit(limit).execute()
-    )
+    sh_result = sh_query.order("last_interaction", desc=True, nullsfirst=False).limit(limit).execute()
 
     stakeholder_pulse = []
     for sh in sh_result.data:
@@ -344,9 +337,7 @@ async def get_priority_queue(
     client_id = current_user.get("client_id")
 
     query = (
-        supabase.table("ai_projects")
-        .select("*, stakeholders!owner_stakeholder_id(name)")
-        .eq("client_id", client_id)
+        supabase.table("ai_projects").select("*, stakeholders!owner_stakeholder_id(name)").eq("client_id", client_id)
     )
 
     if department:
@@ -453,9 +444,7 @@ async def get_commitments(
 
 
 @router.get("/granola/status", response_model=GranolaScanStatus)
-async def get_granola_status(
-    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_granola_status(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get the current status of Granola vault scanning."""
     from services.granola_scanner import get_scan_status
 
@@ -625,9 +614,7 @@ def _run_background_scan(job_id: str, user_id: str, client_id: str, force_rescan
     async def _async_scan():
         try:
             _scan_jobs[job_id]["status"] = "running"
-            result = await do_scan(
-                user_id, client_id, force_rescan=force_rescan, since_date=since_date
-            )
+            result = await do_scan(user_id, client_id, force_rescan=force_rescan, since_date=since_date)
             stats = result.get("stats", {})
             _scan_jobs[job_id].update(
                 {
@@ -643,9 +630,7 @@ def _run_background_scan(job_id: str, user_id: str, client_id: str, force_rescan
                 }
             )
         except Exception as e:
-            _scan_jobs[job_id].update(
-                {"status": "failed", "error": str(e), "completed_at": datetime.now().isoformat()}
-            )
+            _scan_jobs[job_id].update({"status": "failed", "error": str(e), "completed_at": datetime.now().isoformat()})
 
     # Run in new event loop for background thread
     loop = asyncio.new_event_loop()
@@ -662,9 +647,7 @@ def _run_background_scan(job_id: str, user_id: str, client_id: str, force_rescan
 @router.post("/granola/scan", response_model=GranolaScanResult)
 async def scan_granola_vault(
     force_rescan: bool = Query(False, description="Re-process already scanned files"),
-    since_date: Optional[date] = Query(
-        None, description="Only scan meetings on or after this date (YYYY-MM-DD)"
-    ),
+    since_date: Optional[date] = Query(None, description="Only scan meetings on or after this date (YYYY-MM-DD)"),
     days_back: Optional[int] = Query(
         None, description="Only scan meetings from the last N days (alternative to since_date)"
     ),
@@ -751,9 +734,7 @@ async def scan_granola_vault(
         )
 
     try:
-        result = await do_scan(
-            user_id, client_id, force_rescan=force_rescan, since_date=effective_since_date
-        )
+        result = await do_scan(user_id, client_id, force_rescan=force_rescan, since_date=effective_since_date)
 
         stats = result.get("stats", {})
 
@@ -762,9 +743,7 @@ async def scan_granola_vault(
         if stats.get("files_failed", 0) > 0:
             results_list = result.get("results", [])
             failed_details = [
-                {"file": r.get("file"), "error": r.get("error")}
-                for r in results_list
-                if r.get("status") == "failed"
+                {"file": r.get("file"), "error": r.get("error")} for r in results_list if r.get("status") == "failed"
             ]
             logger.warning(f"Scan failures: {failed_details}")
 
@@ -811,9 +790,7 @@ async def get_scan_job_status(job_id: str, current_user: dict = Depends(get_curr
 
 
 @router.get("/granola/debug")
-async def debug_granola_documents(
-    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def debug_granola_documents(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Debug endpoint to check Granola documents and their storage URLs.
 
     Returns info about documents that would be scanned.

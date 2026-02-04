@@ -118,17 +118,13 @@ async def create_organization(
     )
 
     if not entry_id:
-        raise HTTPException(
-            status_code=409, detail=f"Organization '{request.canonical_name}' already exists"
-        )
+        raise HTTPException(status_code=409, detail=f"Organization '{request.canonical_name}' already exists")
 
     return {"id": entry_id, "canonical_name": request.canonical_name}
 
 
 @router.get("/organizations/{org_id}")
-async def get_organization(
-    org_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_organization(org_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get a specific organization."""
     client_id = current_user.get("client_id")
     if not client_id:
@@ -238,17 +234,13 @@ async def create_person(
     )
 
     if not entry_id:
-        raise HTTPException(
-            status_code=409, detail=f"Person '{request.canonical_name}' already exists"
-        )
+        raise HTTPException(status_code=409, detail=f"Person '{request.canonical_name}' already exists")
 
     return {"id": entry_id, "canonical_name": request.canonical_name}
 
 
 @router.get("/persons/{person_id}")
-async def get_person(
-    person_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_person(person_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get a specific person."""
     client_id = current_user.get("client_id")
     if not client_id:
@@ -305,9 +297,7 @@ async def add_person_alias(
 
 
 @router.post("/bootstrap", response_model=BootstrapResponse)
-async def bootstrap_registry(
-    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def bootstrap_registry(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Populate registries from existing stakeholder data.
 
     Creates person entries for all stakeholders and organization entries

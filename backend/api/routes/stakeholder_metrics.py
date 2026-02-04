@@ -128,9 +128,7 @@ def _format_metric(
 
 
 @router.get("/validation-summary")
-async def get_validation_summary(
-    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_validation_summary(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get a summary of metric validation status across all stakeholders.
 
     Returns counts by validation status and lists metrics needing validation.
@@ -158,9 +156,7 @@ async def get_validation_summary(
                     "metric_name": metric["metric_name"],
                     "stakeholder_id": metric["stakeholder_id"],
                     "stakeholder_name": stakeholder.get("name") if stakeholder else None,
-                    "stakeholder_department": stakeholder.get("department")
-                    if stakeholder
-                    else None,
+                    "stakeholder_department": stakeholder.get("department") if stakeholder else None,
                     "validation_status": status,
                     "questions_to_confirm": metric.get("questions_to_confirm") or [],
                 }
@@ -276,9 +272,7 @@ async def create_metric(
 
     # Validate validation_status
     if metric.validation_status not in ("red", "yellow", "green"):
-        raise HTTPException(
-            status_code=400, detail="validation_status must be red, yellow, or green"
-        )
+        raise HTTPException(status_code=400, detail="validation_status must be red, yellow, or green")
 
     data = {
         "stakeholder_id": stakeholder_id,
@@ -309,9 +303,7 @@ async def create_metric(
 
 
 @router.get("/{metric_id}", response_model=MetricResponse)
-async def get_metric(
-    metric_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_metric(metric_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get a single metric by ID."""
     result = (
         supabase.table("stakeholder_metrics")
@@ -364,9 +356,7 @@ async def update_metric(
         "yellow",
         "green",
     ):
-        raise HTTPException(
-            status_code=400, detail="validation_status must be red, yellow, or green"
-        )
+        raise HTTPException(status_code=400, detail="validation_status must be red, yellow, or green")
 
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -418,9 +408,7 @@ async def validate_metric(
 
 
 @router.delete("/{metric_id}")
-async def delete_metric(
-    metric_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def delete_metric(metric_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Delete a metric."""
     # Verify ownership
     existing = (
@@ -494,8 +482,6 @@ async def create_metrics_bulk(
     try:
         result = supabase.table("stakeholder_metrics").insert(data).execute()
     except Exception:
-        raise HTTPException(
-            status_code=500, detail="An error occurred. Please try again."
-        ) from None
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from None
 
     return {"created": len(result.data), "metrics": [_format_metric(m) for m in result.data]}

@@ -25,9 +25,7 @@ except Exception as e:
 print("\n2. Testing Auth Endpoints")
 print("-" * 80)
 try:
-    response = requests.get(
-        f"{supabase_url}/auth/v1/health", headers={"apikey": service_key}, timeout=5
-    )
+    response = requests.get(f"{supabase_url}/auth/v1/health", headers={"apikey": service_key}, timeout=5)
     print(f"Auth Health Status: {response.status_code}")
     print(f"Response: {response.text}")
 except Exception as e:

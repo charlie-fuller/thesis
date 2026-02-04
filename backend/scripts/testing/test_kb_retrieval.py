@@ -68,9 +68,7 @@ print("=" * 80)
 print("TEST 2: RAG Retrieval")
 print("=" * 80)
 try:
-    context_chunks = search_similar_chunks(
-        test_query, user["client_id"], limit=5, min_similarity=0.40
-    )
+    context_chunks = search_similar_chunks(test_query, user["client_id"], limit=5, min_similarity=0.40)
 
     print(f"✅ Retrieved {len(context_chunks)} relevant chunks")
     print()
@@ -136,9 +134,7 @@ Instructions:
     print(response_text)
     print("-" * 80)
     print()
-    print(
-        f"📊 Tokens used: {message.usage.input_tokens} input, {message.usage.output_tokens} output"
-    )
+    print(f"📊 Tokens used: {message.usage.input_tokens} input, {message.usage.output_tokens} output")
     print(f"📚 Context chunks used: {len(context_chunks)}")
 
 except Exception as e:

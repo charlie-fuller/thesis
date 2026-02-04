@@ -139,9 +139,7 @@ class EntityRegistryManager:
             logger.error(f"Error getting organization: {e}")
             return None
 
-    async def list_organizations(
-        self, client_id: str, limit: int = 100, offset: int = 0
-    ) -> list[OrganizationEntry]:
+    async def list_organizations(self, client_id: str, limit: int = 100, offset: int = 0) -> list[OrganizationEntry]:
         """List organizations in the registry."""
         try:
             result = (
@@ -161,9 +159,7 @@ class EntityRegistryManager:
     async def add_organization_alias(self, org_id: str, alias: str) -> bool:
         """Add an alias to an organization."""
         try:
-            self.supabase.rpc(
-                "add_organization_alias", {"p_org_id": org_id, "p_alias": alias}
-            ).execute()
+            self.supabase.rpc("add_organization_alias", {"p_org_id": org_id, "p_alias": alias}).execute()
             return True
         except Exception as e:
             logger.error(f"Error adding organization alias: {e}")
@@ -252,9 +248,7 @@ class EntityRegistryManager:
             logger.error(f"Error getting person: {e}")
             return None
 
-    async def list_persons(
-        self, client_id: str, limit: int = 100, offset: int = 0
-    ) -> list[PersonEntry]:
+    async def list_persons(self, client_id: str, limit: int = 100, offset: int = 0) -> list[PersonEntry]:
         """List persons in the registry."""
         try:
             result = (
@@ -274,9 +268,7 @@ class EntityRegistryManager:
     async def add_person_alias(self, person_id: str, alias: str) -> bool:
         """Add an alias to a person."""
         try:
-            self.supabase.rpc(
-                "add_person_alias", {"p_person_id": person_id, "p_alias": alias}
-            ).execute()
+            self.supabase.rpc("add_person_alias", {"p_person_id": person_id, "p_alias": alias}).execute()
             return True
         except Exception as e:
             logger.error(f"Error adding person alias: {e}")
@@ -328,9 +320,7 @@ class EntityRegistryManager:
                 return True
             else:
                 # Corrected value not in registry - add it with original as alias
-                await self.add_person(
-                    client_id=client_id, canonical_name=corrected_value, aliases=[original_value]
-                )
+                await self.add_person(client_id=client_id, canonical_name=corrected_value, aliases=[original_value])
                 logger.info(f"Created person '{corrected_value}' with alias '{original_value}'")
                 return True
 

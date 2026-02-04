@@ -14,12 +14,7 @@ def process_stuck_documents():
     supabase = get_supabase()
 
     # Find all documents stuck in 'pending' status
-    result = (
-        supabase.table("documents")
-        .select("id, filename")
-        .eq("processing_status", "pending")
-        .execute()
-    )
+    result = supabase.table("documents").select("id, filename").eq("processing_status", "pending").execute()
 
     pending_docs = result.data
 

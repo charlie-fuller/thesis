@@ -139,8 +139,8 @@ class TestGetCurrentUser:
 
         # Mock database error
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.single.return_value.execute.side_effect = Exception(
-            "DB Error"
+        mock_supabase.table.return_value.select.return_value.eq.return_value.single.return_value.execute.side_effect = (
+            Exception("DB Error")
         )
         mock_get_supabase.return_value = mock_supabase
 
@@ -213,30 +213,24 @@ class TestAPIAuthentication:
 
     def test_protected_endpoint_with_invalid_token(self, test_client):
         """Test that invalid tokens are rejected."""
-        response = test_client.get(
-            "/api/conversations", headers={"Authorization": "Bearer invalid-token"}
-        )
+        response = test_client.get("/api/conversations", headers={"Authorization": "Bearer invalid-token"})
 
         assert response.status_code == 401
 
     @patch("database.get_supabase")
-    def test_protected_endpoint_with_valid_token(
-        self, mock_get_supabase, test_client, valid_jwt_token
-    ):
+    def test_protected_endpoint_with_valid_token(self, mock_get_supabase, test_client, valid_jwt_token):
         """Test that valid tokens are accepted."""
         # Mock supabase
         mock_supabase = MagicMock()
         mock_supabase.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
             data={"role": "user", "client_id": "test-client"}
         )
-        mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.execute.return_value = MagicMock(
-            data=[]
+        mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.execute.return_value = (
+            MagicMock(data=[])
         )
         mock_get_supabase.return_value = mock_supabase
 
-        response = test_client.get(
-            "/api/conversations", headers={"Authorization": f"Bearer {valid_jwt_token}"}
-        )
+        response = test_client.get("/api/conversations", headers={"Authorization": f"Bearer {valid_jwt_token}"})
 
         # Should not be 401 or 403
         assert response.status_code not in [401, 403]
@@ -675,9 +669,7 @@ class TestAlgorithmMismatch:
 
         header_dict = json_module.loads(header)
         header_dict["alg"] = "none"
-        new_header = (
-            base64.urlsafe_b64encode(json_module.dumps(header_dict).encode()).rstrip(b"=").decode()
-        )
+        new_header = base64.urlsafe_b64encode(json_module.dumps(header_dict).encode()).rstrip(b"=").decode()
         tampered_token = f"{new_header}.{parts[1]}."
 
         payload = decode_jwt(tampered_token)

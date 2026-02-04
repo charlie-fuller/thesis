@@ -177,11 +177,7 @@ async def api_link_kb_documents(
 
         # Get initiative name for auto-tagging
         initiative_result = await asyncio.to_thread(
-            lambda: supabase.table("disco_initiatives")
-            .select("id, name")
-            .eq("id", initiative_id)
-            .single()
-            .execute()
+            lambda: supabase.table("disco_initiatives").select("id, name").eq("id", initiative_id).single().execute()
         )
 
         if not initiative_result.data:
@@ -193,9 +189,7 @@ async def api_link_kb_documents(
         linked_documents = []
         errors = []
 
-        logger.info(
-            f"[DISCO] Linking {len(data.document_ids)} documents to initiative {initiative_id}"
-        )
+        logger.info(f"[DISCO] Linking {len(data.document_ids)} documents to initiative {initiative_id}")
 
         for doc_id in data.document_ids:
             try:
@@ -216,9 +210,7 @@ async def api_link_kb_documents(
                 # Log ownership for debugging
                 doc_owner = doc_result.data.get("uploaded_by")
                 if doc_owner != user_id:
-                    logger.info(
-                        f"[DISCO] User {user_id} linking document {doc_id} owned by {doc_owner}"
-                    )
+                    logger.info(f"[DISCO] User {user_id} linking document {doc_id} owned by {doc_owner}")
 
                 # Create link in junction table (upsert to handle duplicates)
                 link_result = await asyncio.to_thread(
@@ -265,8 +257,7 @@ async def api_link_kb_documents(
                 errors.append({"document_id": doc_id, "error": str(e)})
 
         logger.info(
-            f"[DISCO] Linked {len(linked_documents)} of {len(data.document_ids)} docs "
-            f"to initiative {initiative_id}"
+            f"[DISCO] Linked {len(linked_documents)} of {len(data.document_ids)} docs to initiative {initiative_id}"
         )
 
         return {
@@ -340,9 +331,7 @@ async def api_get_linked_kb_documents(
                 )
             else:
                 # Document was deleted but link remains
-                logger.warning(
-                    f"[DISCO] Linked document {doc_id} not found (may have been deleted)"
-                )
+                logger.warning(f"[DISCO] Linked document {doc_id} not found (may have been deleted)")
                 linked_documents.append(
                     {
                         "id": doc_id,

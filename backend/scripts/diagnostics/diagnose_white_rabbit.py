@@ -39,24 +39,14 @@ def main():
     else:
         print("✗ No documents found with 'rabbit' in filename")
         print("\nTrying broader search in all documents...")
-        all_docs = (
-            supabase.table("documents")
-            .select("*")
-            .order("uploaded_at", desc=True)
-            .limit(10)
-            .execute()
-        )
+        all_docs = supabase.table("documents").select("*").order("uploaded_at", desc=True).limit(10).execute()
         print("\nLast 10 uploaded documents:")
         for doc in all_docs.data:
-            print(
-                f"  - {doc['filename']} (ID: {doc['id'][:8]}..., Chunks: {doc.get('chunk_count', 0)})"
-            )
+            print(f"  - {doc['filename']} (ID: {doc['id'][:8]}..., Chunks: {doc.get('chunk_count', 0)})")
 
     # Step 2: Search document_chunks for white rabbit content
     print("\n[STEP 2] Searching chunks table for 'white rabbit' content...")
-    chunks_result = (
-        supabase.table("document_chunks").select("*").ilike("content", "%white rabbit%").execute()
-    )
+    chunks_result = supabase.table("document_chunks").select("*").ilike("content", "%white rabbit%").execute()
 
     if chunks_result.data:
         print(f"✓ Found {len(chunks_result.data)} chunk(s) containing 'white rabbit':")
@@ -116,9 +106,7 @@ def main():
             exploratory_threshold = 0.40
 
             above_factual = [r for r in results if r.get("similarity", 0.0) >= factual_threshold]
-            above_exploratory = [
-                r for r in results if r.get("similarity", 0.0) >= exploratory_threshold
-            ]
+            above_exploratory = [r for r in results if r.get("similarity", 0.0) >= exploratory_threshold]
 
             print(f"  Results >= 0.50 (factual threshold): {len(above_factual)}")
             print(f"  Results >= 0.40 (exploratory threshold): {len(above_exploratory)}")
@@ -153,10 +141,7 @@ def main():
     if chunks_result.data:
         client_id = chunks_result.data[0]["client_id"]
         total_chunks = (
-            supabase.table("document_chunks")
-            .select("id", count="exact")
-            .eq("client_id", client_id)
-            .execute()
+            supabase.table("document_chunks").select("id", count="exact").eq("client_id", client_id).execute()
         )
         print(f"  Total chunks for client {client_id[:8]}...: {total_chunks.count}")
 
@@ -170,9 +155,7 @@ def main():
         print(f"  Chunks with embeddings: {chunks_with_embeddings.count}")
 
         if total_chunks.count != chunks_with_embeddings.count:
-            print(
-                f"  ⚠️  WARNING: {total_chunks.count - chunks_with_embeddings.count} chunks missing embeddings!"
-            )
+            print(f"  ⚠️  WARNING: {total_chunks.count - chunks_with_embeddings.count} chunks missing embeddings!")
 
     print("\n" + "=" * 80)
     print("DIAGNOSTIC COMPLETE")

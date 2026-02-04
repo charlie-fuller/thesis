@@ -119,9 +119,7 @@ def _make_specific_question(template: str, project: dict) -> str:
     elif "success look like" in template or "target end state" in template:
         return f"{context_prefix}What measurable outcomes would indicate this was successful (e.g., 30% time reduction, $50K savings)?"
     elif "business owner" in template or "champion" in template:
-        return (
-            f"{context_prefix}Who has budget authority and will drive adoption of this initiative?"
-        )
+        return f"{context_prefix}Who has budget authority and will drive adoption of this initiative?"
     elif "department or business unit" in template:
         return f'Which team or department would be the primary beneficiary and owner of "{title}"?'
     elif "quantifiable benefits" in template:
@@ -185,9 +183,7 @@ def evaluate_project_confidence(project: dict) -> Tuple[int, List[str]]:
     if project.get("owner_stakeholder_id"):
         points += RUBRIC["owner_stakeholder_id"]["points"]
     else:
-        questions.append(
-            _make_specific_question(RUBRIC["owner_stakeholder_id"]["question"], project)
-        )
+        questions.append(_make_specific_question(RUBRIC["owner_stakeholder_id"]["question"], project))
 
     # Check department
     if project.get("department"):
@@ -234,9 +230,7 @@ def evaluate_project_confidence(project: dict) -> Tuple[int, List[str]]:
     if blockers is not None:  # Array exists (could be empty, meaning "reviewed, none found")
         points += RUBRIC["blockers_documented"]["points"]
     else:
-        questions.append(
-            _make_specific_question(RUBRIC["blockers_documented"]["question"], project)
-        )
+        questions.append(_make_specific_question(RUBRIC["blockers_documented"]["question"], project))
 
     # Calculate percentage (0-100)
     confidence = round((points / MAX_CONFIDENCE) * 100)
@@ -244,10 +238,7 @@ def evaluate_project_confidence(project: dict) -> Tuple[int, List[str]]:
     # Limit questions to top 5 most impactful (they're already ordered by rubric weight)
     questions = questions[:5]
 
-    logger.debug(
-        f"Project confidence: {confidence}% ({points}/{MAX_CONFIDENCE} points), "
-        f"{len(questions)} questions"
-    )
+    logger.debug(f"Project confidence: {confidence}% ({points}/{MAX_CONFIDENCE} points), {len(questions)} questions")
 
     return confidence, questions
 
@@ -302,10 +293,7 @@ async def evaluate_all_projects(client_id: str) -> dict:
             ).eq("id", project["id"]).execute()
 
             updated_count += 1
-            logger.info(
-                f"Updated confidence for '{project['title']}': {confidence}% "
-                f"({len(questions)} questions)"
-            )
+            logger.info(f"Updated confidence for '{project['title']}': {confidence}% ({len(questions)} questions)")
 
         except Exception as e:
             errors.append(

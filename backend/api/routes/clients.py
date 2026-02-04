@@ -67,10 +67,7 @@ async def list_clients(
 
         # Get conversation counts grouped by client_id
         conv_result = await asyncio.to_thread(
-            lambda: supabase.table("conversations")
-            .select("client_id")
-            .in_("client_id", client_ids)
-            .execute()
+            lambda: supabase.table("conversations").select("client_id").in_("client_id", client_ids).execute()
         )
         conv_counts = {}
         for row in conv_result.data or []:
@@ -79,10 +76,7 @@ async def list_clients(
 
         # Get document counts grouped by client_id
         docs_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("client_id")
-            .in_("client_id", client_ids)
-            .execute()
+            lambda: supabase.table("documents").select("client_id").in_("client_id", client_ids).execute()
         )
         docs_counts = {}
         for row in docs_result.data or []:
@@ -91,10 +85,7 @@ async def list_clients(
 
         # Get user counts grouped by client_id
         users_result = await asyncio.to_thread(
-            lambda: supabase.table("users")
-            .select("client_id")
-            .in_("client_id", client_ids)
-            .execute()
+            lambda: supabase.table("users").select("client_id").in_("client_id", client_ids).execute()
         )
         users_counts = {}
         for row in users_result.data or []:
@@ -160,26 +151,17 @@ async def get_client(client_id: str, current_user: dict = Depends(get_current_us
 
         # Count conversations
         conv_result = await asyncio.to_thread(
-            lambda: supabase.table("conversations")
-            .select("id", count="exact")
-            .eq("client_id", client_id)
-            .execute()
+            lambda: supabase.table("conversations").select("id", count="exact").eq("client_id", client_id).execute()
         )
 
         # Count documents
         docs_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id", count="exact")
-            .eq("client_id", client_id)
-            .execute()
+            lambda: supabase.table("documents").select("id", count="exact").eq("client_id", client_id).execute()
         )
 
         # Count users
         users_result = await asyncio.to_thread(
-            lambda: supabase.table("users")
-            .select("id", count="exact")
-            .eq("client_id", client_id)
-            .execute()
+            lambda: supabase.table("users").select("id", count="exact").eq("client_id", client_id).execute()
         )
 
         enriched_client = {

@@ -32,9 +32,7 @@ def analyze_help_data(days: int = 90):
 
     print(f"\n{'=' * 60}")
     print("HELP SYSTEM GAP ANALYSIS")
-    print(
-        f"Period: Last {days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})"
-    )
+    print(f"Period: Last {days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})")
     print(f"{'=' * 60}\n")
 
     # Get all help messages
@@ -213,9 +211,7 @@ def analyze_help_data(days: int = 90):
     if all_responses:
         avg_overall = sum(r["avg_similarity"] for r in all_responses) / len(all_responses)
         print(f"Average confidence score: {avg_overall:.1%}")
-        print(
-            f"Low confidence rate: {len(low_confidence_responses) / len(all_responses) * 100:.1f}%"
-        )
+        print(f"Low confidence rate: {len(low_confidence_responses) / len(all_responses) * 100:.1f}%")
 
     # Identify topics with lowest confidence
     topic_confidence = defaultdict(list)
@@ -228,9 +224,7 @@ def analyze_help_data(days: int = 90):
 
     print("\nDocuments by Average Match Confidence:")
     print("-" * 40)
-    for doc, scores in sorted(
-        topic_confidence.items(), key=lambda x: sum(x[1]) / len(x[1]) if x[1] else 0
-    ):
+    for doc, scores in sorted(topic_confidence.items(), key=lambda x: sum(x[1]) / len(x[1]) if x[1] else 0):
         avg = sum(scores) / len(scores) if scores else 0
         status = "❌ LOW" if avg < 0.75 else "⚠️ MEDIUM" if avg < 0.85 else "✅ GOOD"
         print(f"  {status} {avg:.1%} - {doc} ({len(scores)} matches)")
@@ -287,14 +281,10 @@ def analyze_help_data(days: int = 90):
         count = len(categorized[topic])
         # Check if this topic has low confidence
         topic_low_conf = sum(
-            1
-            for r in low_confidence_responses
-            if any(topic in str(s.get("title", "")).lower() for s in r["sources"])
+            1 for r in low_confidence_responses if any(topic in str(s.get("title", "")).lower() for s in r["sources"])
         )
         if topic_low_conf > 0:
-            print(
-                f"  • {topic.upper()}: {count} questions, {topic_low_conf} low confidence responses"
-            )
+            print(f"  • {topic.upper()}: {count} questions, {topic_low_conf} low confidence responses")
             recommendations.append(f"Expand documentation on {topic}")
 
     print("\nMEDIUM PRIORITY (uncategorized questions - may indicate missing topics):")

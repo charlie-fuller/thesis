@@ -224,10 +224,7 @@ async def get_response_with_rag(question: str, client) -> str:
 
         # Build context string
         context = "\n\n".join(
-            [
-                f"[Document Context {i + 1}]: {chunk.get('content', '')}"
-                for i, chunk in enumerate(context_chunks)
-            ]
+            [f"[Document Context {i + 1}]: {chunk.get('content', '')}" for i, chunk in enumerate(context_chunks)]
         )
 
         # Get response with context
@@ -242,9 +239,7 @@ async def get_response_with_rag(question: str, client) -> str:
         message = client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=1024,
-            system=system_prompt.format(
-                context=context if context else "No specific context available."
-            ),
+            system=system_prompt.format(context=context if context else "No specific context available."),
             messages=[{"role": "user", "content": question}],
         )
 
@@ -402,9 +397,7 @@ async def run_evaluation():
 
         # Get response WITHOUT context
         response_no_context = await get_response_without_rag(test["question"], client)
-        eval_no_context = await evaluate_response(
-            test["question"], response_no_context, False, client
-        )
+        eval_no_context = await evaluate_response(test["question"], response_no_context, False, client)
 
         results.append(
             EvaluationResult(
@@ -422,9 +415,7 @@ async def run_evaluation():
 
         # Get response WITH context
         response_with_context = await get_response_with_rag(test["question"], client)
-        eval_with_context = await evaluate_response(
-            test["question"], response_with_context, True, client
-        )
+        eval_with_context = await evaluate_response(test["question"], response_with_context, True, client)
 
         results.append(
             EvaluationResult(
@@ -491,9 +482,7 @@ async def run_evaluation():
     print("=" * 60)
 
     if summary.overall_improvement > 20:
-        print(
-            "✅ RAG is providing significant value (+{:.1f}%)".format(summary.overall_improvement)
-        )
+        print("✅ RAG is providing significant value (+{:.1f}%)".format(summary.overall_improvement))
     elif summary.overall_improvement > 10:
         print("📊 RAG is providing moderate value (+{:.1f}%)".format(summary.overall_improvement))
     else:

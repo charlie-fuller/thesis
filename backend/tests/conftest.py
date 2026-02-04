@@ -4,6 +4,7 @@ This file contains shared fixtures and configuration used across all test module
 """
 
 import os
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -18,25 +19,28 @@ if _env_path.exists():
 import pytest
 from fastapi.testclient import TestClient
 
+# Detect if we're running ONLY integration tests
+# Check sys.argv for test_integration.py to avoid mock pollution
+_running_integration_only = any("test_integration.py" in arg for arg in sys.argv)
+
 # Set test environment variables before importing app
-# BUT preserve real values for integration tests if they exist
-os.environ["TESTING"] = "true"
+# BUT skip for integration-only runs to preserve real credentials
+if not _running_integration_only:
+    os.environ["TESTING"] = "true"
 
+    # Only set fallback test values if no real credentials are present
+    # This allows integration tests to run with real .env values
+    def _set_if_not_real(key: str, test_value: str, min_real_length: int = 30):
+        """Set environment variable only if current value looks like a placeholder."""
+        current = os.environ.get(key, "")
+        if not current or len(current) < min_real_length or "test" in current.lower():
+            os.environ[key] = test_value
 
-# Only set fallback test values if no real credentials are present
-# This allows integration tests to run with real .env values
-def _set_if_not_real(key: str, test_value: str, min_real_length: int = 30):
-    """Set environment variable only if current value looks like a placeholder."""
-    current = os.environ.get(key, "")
-    if not current or len(current) < min_real_length or "test" in current.lower():
-        os.environ[key] = test_value
-
-
-_set_if_not_real("SUPABASE_JWT_SECRET", "test-jwt-secret-key-for-testing-only", 50)
-_set_if_not_real("SUPABASE_URL", "https://test.supabase.co", 20)
-_set_if_not_real("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key", 50)
-_set_if_not_real("ANTHROPIC_API_KEY", "test-anthropic-key", 20)
-_set_if_not_real("VOYAGE_API_KEY", "test-voyage-key", 20)
+    _set_if_not_real("SUPABASE_JWT_SECRET", "test-jwt-secret-key-for-testing-only", 50)
+    _set_if_not_real("SUPABASE_URL", "https://test.supabase.co", 20)
+    _set_if_not_real("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key", 50)
+    _set_if_not_real("ANTHROPIC_API_KEY", "test-anthropic-key", 20)
+    _set_if_not_real("VOYAGE_API_KEY", "test-voyage-key", 20)
 
 
 # ============================================================================
@@ -51,9 +55,7 @@ def mock_supabase():
 
     # Mock table operations
     mock.table.return_value.select.return_value.execute.return_value = MagicMock(data=[])
-    mock.table.return_value.insert.return_value.execute.return_value = MagicMock(
-        data=[{"id": "test-id"}]
-    )
+    mock.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "test-id"}])
     mock.table.return_value.update.return_value.execute.return_value = MagicMock(data=[])
     mock.table.return_value.delete.return_value.execute.return_value = MagicMock(data=[])
 
@@ -220,9 +222,7 @@ def test_client():
     """Create a test client with mocked dependencies."""
     mock_supabase = MagicMock()
     mock_supabase.table.return_value.select.return_value.execute.return_value = MagicMock(data=[])
-    mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
-        data=[{"id": "test-id"}]
-    )
+    mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "test-id"}])
 
     with patch("database.get_supabase", return_value=mock_supabase):
         from main import app
@@ -237,19 +237,17 @@ def authenticated_client(valid_jwt_token, regular_user):
     mock_supabase = MagicMock()
 
     # Default mock for conversations list
-    mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.execute.return_value = MagicMock(
-        data=[]
+    mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.execute.return_value = (
+        MagicMock(data=[])
     )
 
     # Mock user lookup for auth
-    mock_supabase.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
-        data={"role": "user", "client_id": regular_user["client_id"]}
+    mock_supabase.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = (
+        MagicMock(data={"role": "user", "client_id": regular_user["client_id"]})
     )
 
     # Mock documents list
-    mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = (
-        MagicMock(data=[])
-    )
+    mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
 
     with patch("database.get_supabase", return_value=mock_supabase):
         from main import app
@@ -265,8 +263,8 @@ def admin_client(valid_jwt_token, admin_user):
     mock_supabase = MagicMock()
 
     # Mock user lookup for auth
-    mock_supabase.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
-        data={"role": "admin", "client_id": admin_user["client_id"]}
+    mock_supabase.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = (
+        MagicMock(data={"role": "admin", "client_id": admin_user["client_id"]})
     )
 
     with patch("database.get_supabase", return_value=mock_supabase):

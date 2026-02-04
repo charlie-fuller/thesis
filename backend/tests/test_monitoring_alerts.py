@@ -71,9 +71,7 @@ class TestMetricsCollection:
     def test_agent_usage_metrics(self):
         """Agent usage metrics are collected."""
         # Make chat request
-        self._make_request(
-            "/api/chat", method="POST", json={"message": "@atlas Tell me about trends"}
-        )
+        self._make_request("/api/chat", method="POST", json={"message": "@atlas Tell me about trends"})
 
         agent_metrics = self._get_recent_metrics("agent_invocations")
 
@@ -166,9 +164,7 @@ class TestLogFormatting:
         context_fields = ["request_id", "user_id", "path", "method"]
 
         for field in context_fields:
-            assert field in log or field in log.get(
-                "context", {}
-            ), f"Log missing context field: {field}"
+            assert field in log or field in log.get("context", {}), f"Log missing context field: {field}"
 
     def test_sensitive_data_redacted(self):
         """Sensitive data is redacted from logs."""
@@ -223,9 +219,7 @@ class TestLogFormatting:
         }
         # Include stack_trace for ERROR level logs
         if level == "ERROR":
-            log_data["stack_trace"] = (
-                'Traceback (most recent call last):\n  File "test.py", line 1\nError: Test error'
-            )
+            log_data["stack_trace"] = 'Traceback (most recent call last):\n  File "test.py", line 1\nError: Test error'
             log_data["exception"] = "TestException"
         return json.dumps(log_data)
 
@@ -413,9 +407,7 @@ class TestSLOCompliance:
 
         metrics = self._get_latency_metrics(days=7)
 
-        assert (
-            metrics["p95_ms"] <= target_p95_ms
-        ), f"P95 latency {metrics['p95_ms']}ms exceeds SLO {target_p95_ms}ms"
+        assert metrics["p95_ms"] <= target_p95_ms, f"P95 latency {metrics['p95_ms']}ms exceeds SLO {target_p95_ms}ms"
 
     def test_error_rate_slo(self):
         """System meets error rate SLO."""
@@ -435,9 +427,7 @@ class TestSLOCompliance:
 
         metrics = self._get_throughput_metrics()
 
-        assert (
-            metrics["max_rps"] >= target_rps
-        ), f"Max throughput {metrics['max_rps']} below SLO {target_rps}"
+        assert metrics["max_rps"] >= target_rps, f"Max throughput {metrics['max_rps']} below SLO {target_rps}"
 
     def test_slo_burn_rate_alert(self):
         """Burn rate alerts are configured for SLOs."""

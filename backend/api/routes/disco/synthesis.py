@@ -568,9 +568,7 @@ async def api_generate_executive_summary(
             raise HTTPException(status_code=403, detail="No access to this initiative")
 
         async def generate():
-            async for event in generate_executive_summary(
-                initiative_id=initiative_id, user_id=current_user["id"]
-            ):
+            async for event in generate_executive_summary(initiative_id=initiative_id, user_id=current_user["id"]):
                 event_type = event["type"]
                 data = event.get("data", "")
 

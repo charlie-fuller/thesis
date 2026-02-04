@@ -124,9 +124,7 @@ def main():
     ]
 
     print(f"🚀 Inserting {len(conversations)} synthetic conversations for {CHARLIE_EMAIL}")
-    print(
-        f"📅 Date range: {date_schedule[0].strftime('%Y-%m-%d')} to {date_schedule[-1].strftime('%Y-%m-%d')}"
-    )
+    print(f"📅 Date range: {date_schedule[0].strftime('%Y-%m-%d')} to {date_schedule[-1].strftime('%Y-%m-%d')}")
     print(f"📊 Expected Ideation Velocity: {len(conversations) / 4:.1f} drafts/week (goal: ≥2)")
     print()
 

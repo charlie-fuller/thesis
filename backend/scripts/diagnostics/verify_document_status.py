@@ -37,9 +37,7 @@ def main():
             for i, doc in enumerate(docs.data, 1):
                 status = doc.get("processing_status", "unknown")
                 chunks = doc.get("chunk_count", 0)
-                status_icon = (
-                    "✅" if status == "completed" else "⏳" if status == "processing" else "❌"
-                )
+                status_icon = "✅" if status == "completed" else "⏳" if status == "processing" else "❌"
 
                 print(f"\n{i}. {status_icon} {doc['filename']}")
                 print(f"   ID: {doc['id'][:8]}...")
@@ -51,9 +49,7 @@ def main():
 
         # Check for rabbit-related documents specifically
         print("\n\n🐰 Searching for documents with 'rabbit' in filename...")
-        rabbit_docs = (
-            supabase.table("documents").select("*").ilike("filename", "%rabbit%").execute()
-        )
+        rabbit_docs = supabase.table("documents").select("*").ilike("filename", "%rabbit%").execute()
 
         if rabbit_docs.data:
             print(f"   ✅ Found {len(rabbit_docs.data)} document(s):")
@@ -90,10 +86,7 @@ def main():
         total_docs = supabase.table("documents").select("id", count="exact").execute()
         total_chunks = supabase.table("document_chunks").select("id", count="exact").execute()
         chunks_with_embeddings = (
-            supabase.table("document_chunks")
-            .select("id", count="exact")
-            .not_.is_("embedding", "null")
-            .execute()
+            supabase.table("document_chunks").select("id", count="exact").not_.is_("embedding", "null").execute()
         )
 
         print(f"   Total documents: {total_docs.count}")

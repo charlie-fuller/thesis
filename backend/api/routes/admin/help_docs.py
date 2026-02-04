@@ -95,10 +95,7 @@ async def get_help_document(
         doc = doc_result.data[0]
 
         chunk_result = await asyncio.to_thread(
-            lambda: supabase.table("help_chunks")
-            .select("id", count="exact")
-            .eq("document_id", document_id)
-            .execute()
+            lambda: supabase.table("help_chunks").select("id", count="exact").eq("document_id", document_id).execute()
         )
         doc["chunk_count"] = chunk_result.count or 0
 
@@ -184,15 +181,10 @@ async def reindex_help_document(
 
         logger.info(f"Reindexing document: {title}")
 
-        await asyncio.to_thread(
-            lambda: supabase.table("help_chunks").delete().eq("document_id", document_id).execute()
-        )
+        await asyncio.to_thread(lambda: supabase.table("help_chunks").delete().eq("document_id", document_id).execute())
 
         content_result = await asyncio.to_thread(
-            lambda: supabase.table("help_documents")
-            .select("content")
-            .eq("id", document_id)
-            .execute()
+            lambda: supabase.table("help_documents").select("content").eq("id", document_id).execute()
         )
 
         if not content_result.data or not content_result.data[0].get("content"):
@@ -218,10 +210,9 @@ async def reindex_help_document(
                     embedding = create_embedding(embedding_content, input_type="document")
 
                     await asyncio.to_thread(
-                        lambda emb=embedding,
-                        idx=chunk_index,
-                        head=heading,
-                        chunk=chunk_text_content: supabase.table("help_chunks")
+                        lambda emb=embedding, idx=chunk_index, head=heading, chunk=chunk_text_content: supabase.table(
+                            "help_chunks"
+                        )
                         .insert(
                             {
                                 "document_id": document_id,
@@ -328,9 +319,7 @@ async def update_help_document(
 
         logger.info(f"Updated help document: {new_title} by admin {current_user['id']}")
 
-        await asyncio.to_thread(
-            lambda: supabase.table("help_chunks").delete().eq("document_id", document_id).execute()
-        )
+        await asyncio.to_thread(lambda: supabase.table("help_chunks").delete().eq("document_id", document_id).execute())
 
         from services.embeddings import create_embedding
 
@@ -350,10 +339,9 @@ async def update_help_document(
                     embedding = create_embedding(embedding_content, input_type="document")
 
                     await asyncio.to_thread(
-                        lambda emb=embedding,
-                        idx=chunk_index,
-                        head=heading,
-                        chunk=chunk_text_content: supabase.table("help_chunks")
+                        lambda emb=embedding, idx=chunk_index, head=heading, chunk=chunk_text_content: supabase.table(
+                            "help_chunks"
+                        )
                         .insert(
                             {
                                 "document_id": document_id,
@@ -415,10 +403,7 @@ async def get_help_analytics(
 
         messages_result = await asyncio.to_thread(
             lambda: supabase.table("help_messages")
-            .select(
-                "id, conversation_id, role, content, sources, "
-                "feedback, feedback_timestamp, timestamp"
-            )
+            .select("id, conversation_id, role, content, sources, feedback, feedback_timestamp, timestamp")
             .gte("timestamp", start_date.isoformat())
             .order("timestamp", desc=True)
             .execute()
@@ -497,9 +482,7 @@ async def get_help_analytics(
 
         low_confidence_responses.sort(key=lambda x: x["avg_similarity"])
 
-        avg_confidence = (
-            round(total_similarity / similarity_count, 3) if similarity_count > 0 else 0
-        )
+        avg_confidence = round(total_similarity / similarity_count, 3) if similarity_count > 0 else 0
         feedback_rate = (
             round(
                 (feedback_counts["positive"] + feedback_counts["negative"]) / total_responses * 100,
@@ -511,9 +494,7 @@ async def get_help_analytics(
 
         if avg_confidence >= 0.8 and feedback_counts["negative"] <= feedback_counts["positive"]:
             health_status = "healthy"
-        elif (
-            avg_confidence >= 0.7 or feedback_counts["negative"] <= feedback_counts["positive"] * 2
-        ):
+        elif avg_confidence >= 0.7 or feedback_counts["negative"] <= feedback_counts["positive"] * 2:
             health_status = "warning"
         else:
             health_status = "critical"
@@ -591,10 +572,7 @@ async def export_help_conversations(
         user_ids = list({c["user_id"] for c in conversations if c.get("user_id")})
         users_result = (
             await asyncio.to_thread(
-                lambda: supabase.table("users")
-                .select("id, email, name")
-                .in_("id", user_ids)
-                .execute()
+                lambda: supabase.table("users").select("id, email, name").in_("id", user_ids).execute()
             )
             if user_ids
             else type("obj", (object,), {"data": []})()
@@ -633,9 +611,7 @@ async def export_help_conversations(
                 }
             )
 
-        logger.info(
-            f"Exported {len(export_data)} help conversations for admin {current_user['id']}"
-        )
+        logger.info(f"Exported {len(export_data)} help conversations for admin {current_user['id']}")
 
         return {
             "success": True,

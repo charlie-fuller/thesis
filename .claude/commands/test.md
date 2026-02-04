@@ -4,25 +4,30 @@ Run the Thesis test suite with options for quick unit tests, full pytest regimen
 
 ## STEP 1: Ask User Which Mode to Run
 
-**IMPORTANT:** Before running any tests, use `AskUserQuestion` to ask the user which test mode they want:
+**IMPORTANT:** Before running any tests, use `AskUserQuestion` to ask the user which test mode they want.
 
-```
-Question: "Which test mode would you like to run?"
-Header: "Test Mode"
-Options:
-1. "Quick" - "Unit tests only (~430 tests, fastest)"
-2. "Default" - "All pytest stages + 5 basic E2E (~860 tests)"
-3. "Full E2E" - "100 comprehensive browser tests on production"
-4. "Quality" - "Type checking, linting, complexity, secret scan"
-5. "Comprehensive" - "Everything: all tests + quality gates (~900+ checks)"
-```
+Since AskUserQuestion only supports 4 options, use TWO questions:
 
-Based on the user's selection:
+**Question 1:** "What type of testing do you need?"
+- Header: "Test Type"
+- Options:
+  1. "Functional Tests (Recommended)" - "pytest unit/integration tests + basic E2E"
+  2. "Code Quality" - "Type checking, linting, complexity, secret scan"
+  3. "Full E2E" - "100 comprehensive browser tests on production"
+  4. "Comprehensive" - "Everything: functional + quality + E2E (~1000+ checks)"
+
+If user selects "Functional Tests", ask **Question 2:** "How thorough?"
+- Header: "Test Depth"
+- Options:
+  1. "Quick (Recommended)" - "Unit tests only (~430 tests, fastest)"
+  2. "Default" - "All pytest stages + 5 basic E2E (~860 tests)"
+
+Based on the user's final selection:
 - **Quick** → Execute "OPTION: --quick" section only
 - **Default** → Execute "DEFAULT MODE" section (Stages 1-4 + basic E2E)
 - **Full E2E** → Execute "OPTION: --full" section (100 E2E scenarios)
 - **Quality** → Execute "OPTION: --quality" section (code quality gates)
-- **Comprehensive** → Execute DEFAULT MODE + OPTION: --quality (everything)
+- **Comprehensive** → Execute DEFAULT MODE + OPTION: --full + OPTION: --quality (everything)
 
 ---
 
@@ -1042,12 +1047,13 @@ CONSOLE ERRORS FOUND:
 
 # OPTION: --comprehensive (Everything)
 
-Run ALL tests AND all code quality gates. This is the most thorough validation.
+Run ALL tests AND all code quality gates. This is the most thorough validation for major releases.
 
 ## Execution Order
 
 1. **Run DEFAULT MODE first** (Stages 1-4 + basic E2E)
-2. **Then run QUALITY MODE** (all 6 quality stages)
+2. **Run QUALITY MODE** (all 6 quality stages)
+3. **Run FULL E2E MODE** (100 production E2E scenarios)
 
 ## Comprehensive Summary
 
@@ -1065,7 +1071,7 @@ FUNCTIONAL TESTS (DEFAULT MODE)
 Stage 1 - Unit Tests:        XX passed, XX failed, XX skipped
 Stage 2 - Integration Tests: XX passed, XX failed, XX skipped
 Stage 3 - Extended Tests:    XX passed, XX failed, XX skipped
-Stage 4 - E2E Browser Tests: XX passed, XX failed
+Stage 4 - Basic E2E Tests:   XX passed, XX failed
 --------------------------------------------
 Functional Total:            XXX passed, XXX failed
 
@@ -1080,12 +1086,33 @@ Stage 6 - Frontend Lint:     XX errors
 --------------------------------------------
 Quality Total:               XX issues
 
+FULL E2E TESTS (100 SCENARIOS)
+--------------------------------------------
+Phase 1 - Auth & Session:    X/4 passed
+Phase 2 - Dashboard:         X/5 passed
+Phase 3 - Chat Basic:        X/8 passed
+Phase 4 - Chat AI & KB:      X/7 passed
+Phase 5 - Meeting Rooms:     X/5 passed
+Phase 6 - Tasks Board:       X/10 passed
+Phase 7 - Tasks Advanced:    X/6 passed
+Phase 8 - Projects:          X/10 passed
+Phase 9 - KB Navigation:     X/8 passed
+Phase 10 - KB Documents:     X/8 passed
+Phase 11 - Agents:           X/6 passed
+Phase 12 - Intelligence:     X/5 passed
+Phase 13 - DISCo:            X/8 passed
+Phase 14 - Admin Help:       X/5 passed
+Phase 15 - Cleanup:          X/5 passed
+--------------------------------------------
+Full E2E Total:              XX/100 passed
+
 ============================================
 OVERALL RESULT: [PASS/WARN/FAIL]
 ============================================
 
 Pass Criteria:
 - All functional tests pass
+- All E2E tests pass (or documented as N/A)
 - No secrets found (critical)
 - Lint errors = 0
 - Type errors = advisory (Week 1-2)
@@ -1216,7 +1243,7 @@ Tests pass individually but fail together - module state pollution. Use `pytest-
 | default | All pytest + 5 E2E | ~800 tests |
 | --full | Production E2E | 100 scenarios |
 | --quality | Code quality gates | 6 check categories |
-| comprehensive | All tests + quality | ~900+ checks |
+| comprehensive | Functional + Quality + Full E2E | ~1000+ checks |
 
 ### Mode Summary
 
@@ -1226,7 +1253,7 @@ Tests pass individually but fail together - module state pollution. Use `pytest-
 | Default | Pytest stages 1-4 + 5 basic E2E | Standard CI validation |
 | Full E2E | 100 browser scenarios | Pre-release production validation |
 | Quality | Type check, lint, complexity, secrets | Code review preparation |
-| Comprehensive | Default + Quality | Full validation before major releases |
+| Comprehensive | Default + Quality + Full E2E | Full validation before major releases |
 
 ### Quality Gate Breakdown
 

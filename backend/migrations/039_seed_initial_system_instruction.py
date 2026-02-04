@@ -52,12 +52,7 @@ def seed_initial_version(bind_existing_conversations: bool = True):
     logger.info(f"📋 Loaded default.txt ({file_size:,} bytes)")
 
     # Check if version 1.3 already exists
-    existing = (
-        supabase.table("system_instruction_versions")
-        .select("id")
-        .eq("version_number", "1.3")
-        .execute()
-    )
+    existing = supabase.table("system_instruction_versions").select("id").eq("version_number", "1.3").execute()
 
     if existing.data:
         logger.warning("⚠️ Version 1.3 already exists. Skipping seed.")
@@ -105,9 +100,7 @@ def main():
     """Main entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Seed the initial system instruction version (1.3)"
-    )
+    parser = argparse.ArgumentParser(description="Seed the initial system instruction version (1.3)")
     parser.add_argument(
         "--skip-bind",
         action="store_true",

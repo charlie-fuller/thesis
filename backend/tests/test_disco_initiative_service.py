@@ -84,9 +84,7 @@ class TestCreateInitiative:
         with patch("services.disco.initiative_service.get_supabase", return_value=mock_sb):
             from services.disco.initiative_service import create_initiative
 
-            result = await create_initiative(
-                name="Test Initiative", user_id="user-123", description="Test description"
-            )
+            result = await create_initiative(name="Test Initiative", user_id="user-123", description="Test description")
 
             assert result is not None
             assert result["name"] == "Test Initiative"
@@ -498,9 +496,7 @@ class TestEdgeCases:
         with patch("services.disco.initiative_service.get_supabase", return_value=mock_sb):
             from services.disco.initiative_service import create_initiative
 
-            result = await create_initiative(
-                name="Test <script>alert('xss')</script>", user_id="user-123"
-            )
+            result = await create_initiative(name="Test <script>alert('xss')</script>", user_id="user-123")
 
             # Name should be stored as-is (sanitization happens at API layer)
             assert result is not None

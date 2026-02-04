@@ -520,10 +520,7 @@ class DocumentClassifier:
             return sorted_scores[0] >= self.MEDIUM_CONFIDENCE_THRESHOLD
 
         # Clear winner if top score is significantly higher than second
-        return (
-            sorted_scores[0] >= self.HIGH_CONFIDENCE_THRESHOLD
-            and sorted_scores[0] - sorted_scores[1] >= 0.20
-        )
+        return sorted_scores[0] >= self.HIGH_CONFIDENCE_THRESHOLD and sorted_scores[0] - sorted_scores[1] >= 0.20
 
     def _build_llm_prompt(self, sample_text: str, candidates: Optional[list[str]] = None) -> str:
         """Build the LLM classification prompt.
@@ -545,9 +542,7 @@ class DocumentClassifier:
             agent_note = "From these candidate agents, select the most relevant:"
         else:
             # Fallback: send all agents (less efficient but comprehensive)
-            agent_list = "\n".join(
-                [f"- {name}: {desc}" for name, desc in self.AGENT_DESCRIPTIONS.items()]
-            )
+            agent_list = "\n".join([f"- {name}: {desc}" for name, desc in self.AGENT_DESCRIPTIONS.items()])
             agent_note = "Select which agents should have access to this document:"
 
         return f"""Classify this document for agent relevance.
@@ -604,10 +599,7 @@ Return JSON with the most relevant agents (max 3):
             for agent_info in data.get("agents", []):
                 agent_name = agent_info.get("name", "").lower()
                 confidence = float(agent_info.get("confidence", 0.0))
-                if (
-                    agent_name in self.AGENT_KEYWORDS
-                    and confidence >= self.LOW_CONFIDENCE_THRESHOLD
-                ):
+                if agent_name in self.AGENT_KEYWORDS and confidence >= self.LOW_CONFIDENCE_THRESHOLD:
                     scores[agent_name] = confidence
 
             detected_type = data.get("document_type", "unknown")
@@ -618,9 +610,7 @@ Return JSON with the most relevant agents (max 3):
             logger.error(f"LLM classification failed: {e}")
             return {}, "unknown", 0
 
-    def _determine_review_needed(
-        self, classifications: list[AgentClassification]
-    ) -> tuple[bool, Optional[str]]:
+    def _determine_review_needed(self, classifications: list[AgentClassification]) -> tuple[bool, Optional[str]]:
         """Determine if user review is needed.
 
         Returns:
@@ -648,9 +638,7 @@ Return JSON with the most relevant agents (max 3):
         # Low confidence - needs review
         return True, f"Low confidence ({top.confidence:.0%}) for {top.agent_name}"
 
-    async def classify(
-        self, document_id: str, sample_chunks: list[str]
-    ) -> DocumentClassificationResult:
+    async def classify(self, document_id: str, sample_chunks: list[str]) -> DocumentClassificationResult:
         """Classify a document for agent relevance.
 
         Args:
@@ -677,9 +665,7 @@ Return JSON with the most relevant agents (max 3):
             method = "hybrid"
             # Pass keyword candidates to LLM for more efficient classification
             candidates = list(keyword_scores.keys()) if keyword_scores else None
-            llm_scores, detected_type, tokens_used = await self._classify_with_llm(
-                combined_text, candidates
-            )
+            llm_scores, detected_type, tokens_used = await self._classify_with_llm(combined_text, candidates)
             logger.info(f"LLM scores for document {document_id}: {llm_scores}")
 
         # Merge scores (LLM takes precedence for ambiguous cases)
@@ -690,9 +676,7 @@ Return JSON with the most relevant agents (max 3):
 
         # Build classifications list
         classifications: list[AgentClassification] = []
-        for agent_name, confidence in sorted(
-            final_scores.items(), key=lambda x: x[1], reverse=True
-        ):
+        for agent_name, confidence in sorted(final_scores.items(), key=lambda x: x[1], reverse=True):
             if confidence < self.LOW_CONFIDENCE_THRESHOLD:
                 continue
 
@@ -730,9 +714,7 @@ Return JSON with the most relevant agents (max 3):
             processing_time_ms=processing_time_ms,
         )
 
-    async def store_classification(
-        self, result: DocumentClassificationResult, auto_link_agents: bool = True
-    ) -> bool:
+    async def store_classification(self, result: DocumentClassificationResult, auto_link_agents: bool = True) -> bool:
         """Store classification result in database.
 
         Args:
@@ -780,9 +762,7 @@ Return JSON with the most relevant agents (max 3):
             logger.error(f"Failed to store classification for {result.document_id}: {e}")
             return False
 
-    async def _link_agent_to_document(
-        self, document_id: str, classification: AgentClassification, source: str
-    ) -> bool:
+    async def _link_agent_to_document(self, document_id: str, classification: AgentClassification, source: str) -> bool:
         """Create agent_knowledge_base link with relevance scoring."""
         try:
             # Check if link already exists
@@ -824,9 +804,7 @@ Return JSON with the most relevant agents (max 3):
             return True
 
         except Exception as e:
-            logger.error(
-                f"Failed to link agent {classification.agent_name} to document {document_id}: {e}"
-            )
+            logger.error(f"Failed to link agent {classification.agent_name} to document {document_id}: {e}")
             return False
 
 

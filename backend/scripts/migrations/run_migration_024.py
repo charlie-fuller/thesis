@@ -26,9 +26,7 @@ print("=" * 80)
 
 try:
     # Check if table already exists
-    check_result = (
-        supabase.table("system_instruction_document_mappings").select("id").limit(1).execute()
-    )
+    check_result = supabase.table("system_instruction_document_mappings").select("id").limit(1).execute()
     print("✅ Table 'system_instruction_document_mappings' already exists!")
     print("   Migration may have been applied already.")
 except Exception as e:

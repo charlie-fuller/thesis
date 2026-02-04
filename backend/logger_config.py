@@ -32,9 +32,7 @@ def setup_logging(log_level=None):
     console_handler.setLevel(log_level)
 
     # Format: timestamp - level - module - message
-    formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(name)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-    )
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     console_handler.setFormatter(formatter)
 
     logger.addHandler(console_handler)

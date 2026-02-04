@@ -76,9 +76,7 @@ async def ask_about_project(project_id: str, question: str, client_id: str, user
         project["owner_name"] = project["stakeholders"].get("name")
 
     # 2. Get scoring-relevant documents
-    related_docs = get_scoring_related_documents(
-        project=project, client_id=client_id, limit=5, min_similarity=0.25
-    )
+    related_docs = get_scoring_related_documents(project=project, client_id=client_id, limit=5, min_similarity=0.25)
 
     # 3. Build context string
     context = build_project_context(project, related_docs)
@@ -145,9 +143,7 @@ Please answer the question based on the project details and any relevant informa
     return {"response": answer, "sources": related_docs}
 
 
-async def get_project_conversations(
-    project_id: str, client_id: str, limit: int = 20, offset: int = 0
-) -> List[Dict]:
+async def get_project_conversations(project_id: str, client_id: str, limit: int = 20, offset: int = 0) -> List[Dict]:
     """Get conversation history for a project.
 
     Args:

@@ -76,9 +76,7 @@ class StakeholderDeduplicator:
             logger.error(f"Failed to fetch existing stakeholders: {e}")
             return []
 
-    def _find_best_match(
-        self, extracted: ExtractedStakeholder, existing: list[dict]
-    ) -> Optional[StakeholderMatch]:
+    def _find_best_match(self, extracted: ExtractedStakeholder, existing: list[dict]) -> Optional[StakeholderMatch]:
         """Find the best matching existing stakeholder."""
         best_match = None
         best_score = 0.0
@@ -101,9 +99,7 @@ class StakeholderDeduplicator:
 
         return best_match
 
-    def _calculate_match_score(
-        self, extracted: ExtractedStakeholder, existing: dict
-    ) -> tuple[float, list[str]]:
+    def _calculate_match_score(self, extracted: ExtractedStakeholder, existing: dict) -> tuple[float, list[str]]:
         """Calculate match score between extracted and existing stakeholder.
 
         Returns:

@@ -82,10 +82,7 @@ async def sync_kb_from_filesystem() -> Dict:
 
             # Check if file exists in DB
             existing = await asyncio.to_thread(
-                lambda fn=filename: supabase.table("disco_system_kb")
-                .select("id, content")
-                .eq("filename", fn)
-                .execute()
+                lambda fn=filename: supabase.table("disco_system_kb").select("id, content").eq("filename", fn).execute()
             )
 
             if existing.data:
@@ -120,11 +117,9 @@ async def sync_kb_from_filesystem() -> Dict:
                 description = extract_description(content)
 
                 await asyncio.to_thread(
-                    lambda kid=kb_id,
-                    fn=filename,
-                    c=content,
-                    cat=category,
-                    desc=description: supabase.table("disco_system_kb")
+                    lambda kid=kb_id, fn=filename, c=content, cat=category, desc=description: supabase.table(
+                        "disco_system_kb"
+                    )
                     .insert(
                         {
                             "id": kid,
@@ -149,9 +144,7 @@ async def sync_kb_from_filesystem() -> Dict:
             if chunks:
                 chunk_texts = [c["content"] for c in chunks]
                 embeddings = await asyncio.to_thread(
-                    lambda ct=chunk_texts: generate_embeddings(
-                        ct, input_type=EMBEDDING.INPUT_TYPE_DOCUMENT
-                    )
+                    lambda ct=chunk_texts: generate_embeddings(ct, input_type=EMBEDDING.INPUT_TYPE_DOCUMENT)
                 )
 
                 chunks_to_insert = []

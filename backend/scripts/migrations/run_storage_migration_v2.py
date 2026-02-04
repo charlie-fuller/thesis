@@ -52,9 +52,7 @@ print("\n💡 Alternatively, here's a quick check to see if the columns already 
 
 # Check if columns exist
 try:
-    result = (
-        client.table("users").select("id, email, storage_quota, storage_used").limit(1).execute()
-    )
+    result = client.table("users").select("id, email, storage_quota, storage_used").limit(1).execute()
     print("\n✅ Storage columns already exist!")
     print(f"   Found user with storage data: {result.data[0] if result.data else 'No users yet'}")
 except Exception as e:

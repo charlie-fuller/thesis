@@ -54,9 +54,7 @@ _meeting_orchestrator = None
 
 
 @router.post("")
-async def create_meeting_room(
-    request: MeetingRoomCreateRequest, current_user: dict = Depends(get_current_user)
-):
+async def create_meeting_room(request: MeetingRoomCreateRequest, current_user: dict = Depends(get_current_user)):
     """Create a new meeting room with selected agent participants."""
     try:
         user_id = current_user["id"]
@@ -76,9 +74,7 @@ async def create_meeting_room(
         missing_agents = [aid for aid in agent_ids if aid not in found_agents]
 
         if missing_agents:
-            raise HTTPException(
-                status_code=400, detail=f"Invalid or inactive agent IDs: {missing_agents}"
-            )
+            raise HTTPException(status_code=400, detail=f"Invalid or inactive agent IDs: {missing_agents}")
 
         # Validate project_id and initiative_id if provided
         if request.project_id:
@@ -103,9 +99,7 @@ async def create_meeting_room(
         if request.initiative_id:
             meeting_data["initiative_id"] = request.initiative_id
 
-        meeting_result = await asyncio.to_thread(
-            lambda: supabase.table("meeting_rooms").insert(meeting_data).execute()
-        )
+        meeting_result = await asyncio.to_thread(lambda: supabase.table("meeting_rooms").insert(meeting_data).execute())
 
         meeting = meeting_result.data[0]
         meeting_id = meeting["id"]
@@ -121,9 +115,7 @@ async def create_meeting_room(
             for idx, agent_id in enumerate(agent_ids)
         ]
 
-        await asyncio.to_thread(
-            lambda: supabase.table("meeting_room_participants").insert(participants_data).execute()
-        )
+        await asyncio.to_thread(lambda: supabase.table("meeting_room_participants").insert(participants_data).execute())
 
         logger.info(f"Added {len(agent_ids)} participants to meeting {meeting_id}")
 
@@ -381,20 +373,14 @@ async def delete_meeting_room(meeting_id: str, current_user: dict = Depends(get_
 
         # Verify ownership first
         meeting_result = await asyncio.to_thread(
-            lambda: supabase.table("meeting_rooms")
-            .select("id")
-            .eq("id", meeting_id)
-            .eq("user_id", user_id)
-            .execute()
+            lambda: supabase.table("meeting_rooms").select("id").eq("id", meeting_id).eq("user_id", user_id).execute()
         )
 
         if not meeting_result.data:
             raise HTTPException(status_code=404, detail="Meeting room not found")
 
         # Delete meeting (cascades to participants and messages)
-        await asyncio.to_thread(
-            lambda: supabase.table("meeting_rooms").delete().eq("id", meeting_id).execute()
-        )
+        await asyncio.to_thread(lambda: supabase.table("meeting_rooms").delete().eq("id", meeting_id).execute())
 
         logger.info(f"Deleted meeting room: {meeting_id}")
 
@@ -424,11 +410,7 @@ async def add_participant(
 
         # Verify meeting ownership
         meeting_result = await asyncio.to_thread(
-            lambda: supabase.table("meeting_rooms")
-            .select("id")
-            .eq("id", meeting_id)
-            .eq("user_id", user_id)
-            .execute()
+            lambda: supabase.table("meeting_rooms").select("id").eq("id", meeting_id).eq("user_id", user_id).execute()
         )
 
         if not meeting_result.data:
@@ -500,11 +482,7 @@ async def update_participant(
 
         # Verify meeting ownership
         meeting_result = await asyncio.to_thread(
-            lambda: supabase.table("meeting_rooms")
-            .select("id")
-            .eq("id", meeting_id)
-            .eq("user_id", user_id)
-            .execute()
+            lambda: supabase.table("meeting_rooms").select("id").eq("id", meeting_id).eq("user_id", user_id).execute()
         )
 
         if not meeting_result.data:
@@ -541,9 +519,7 @@ async def update_participant(
 
 
 @router.delete("/{meeting_id}/participants/{participant_id}")
-async def remove_participant(
-    meeting_id: str, participant_id: str, current_user: dict = Depends(get_current_user)
-):
+async def remove_participant(meeting_id: str, participant_id: str, current_user: dict = Depends(get_current_user)):
     """Remove a participant from a meeting."""
     try:
         validate_uuid(meeting_id, "meeting_id")
@@ -552,11 +528,7 @@ async def remove_participant(
 
         # Verify meeting ownership
         meeting_result = await asyncio.to_thread(
-            lambda: supabase.table("meeting_rooms")
-            .select("id")
-            .eq("id", meeting_id)
-            .eq("user_id", user_id)
-            .execute()
+            lambda: supabase.table("meeting_rooms").select("id").eq("id", meeting_id).eq("user_id", user_id).execute()
         )
 
         if not meeting_result.data:
@@ -616,11 +588,7 @@ async def get_meeting_messages(
 
         # Verify meeting ownership
         meeting_result = await asyncio.to_thread(
-            lambda: supabase.table("meeting_rooms")
-            .select("id")
-            .eq("id", meeting_id)
-            .eq("user_id", user_id)
-            .execute()
+            lambda: supabase.table("meeting_rooms").select("id").eq("id", meeting_id).eq("user_id", user_id).execute()
         )
 
         if not meeting_result.data:
@@ -811,9 +779,7 @@ async def stream_meeting_chat(
                 "bye",
             }
             message_lower = chat_request.message.lower().strip()
-            is_simple_message = (
-                message_lower in simple_messages or len(chat_request.message.split()) <= 2
-            )
+            is_simple_message = message_lower in simple_messages or len(chat_request.message.split()) <= 2
 
             if not is_simple_message:
                 logger.info("[Meeting Chat] Searching knowledge base for context...")
@@ -868,12 +834,8 @@ async def stream_meeting_chat(
         except Exception as import_err:
             import traceback
 
-            logger.error(
-                f"[Meeting Chat] Failed to import MeetingContext: {import_err}\n{traceback.format_exc()}"
-            )
-            raise HTTPException(
-                status_code=500, detail=f"Import error: {str(import_err)}"
-            ) from None
+            logger.error(f"[Meeting Chat] Failed to import MeetingContext: {import_err}\n{traceback.format_exc()}")
+            raise HTTPException(status_code=500, detail=f"Import error: {str(import_err)}") from None
 
         meeting_context = MeetingContext(
             user_id=user_id,
@@ -888,9 +850,7 @@ async def stream_meeting_chat(
             kb_context=kb_context,  # Vector search KB context (Voyage AI)
             graph_context=graph_context,  # Graph relationship context (Neo4j)
         )
-        graph_items = len(graph_context.get("stakeholders", [])) + len(
-            graph_context.get("concerns", [])
-        )
+        graph_items = len(graph_context.get("stakeholders", [])) + len(graph_context.get("concerns", []))
         logger.info(
             f"[Meeting Chat] MeetingContext created for turn {turn_number} with {len(kb_context)} KB chunks and {graph_items} graph items"
         )
@@ -951,9 +911,7 @@ async def stream_meeting_chat(
                     seen_docs[doc_id] = source_info
 
                 # Convert to list sorted by similarity (highest first)
-                context_sources["kb_sources"] = sorted(
-                    seen_docs.values(), key=lambda x: x["similarity"], reverse=True
-                )
+                context_sources["kb_sources"] = sorted(seen_docs.values(), key=lambda x: x["similarity"], reverse=True)
 
                 # Format graph sources
                 if graph_context:
@@ -1222,9 +1180,7 @@ async def start_autonomous_discussion(
                     seen_docs[doc_id] = source_info
 
                 # Convert to list sorted by similarity (highest first)
-                context_sources["kb_sources"] = sorted(
-                    seen_docs.values(), key=lambda x: x["similarity"], reverse=True
-                )
+                context_sources["kb_sources"] = sorted(seen_docs.values(), key=lambda x: x["similarity"], reverse=True)
 
                 # Format graph sources
                 if graph_context:
@@ -1291,9 +1247,7 @@ async def start_autonomous_discussion(
 
 
 @router.post("/{meeting_id}/autonomous/stop")
-async def stop_autonomous_discussion(
-    meeting_id: str, current_user: dict = Depends(get_current_user)
-):
+async def stop_autonomous_discussion(meeting_id: str, current_user: dict = Depends(get_current_user)):
     """Stop an ongoing autonomous discussion."""
     try:
         validate_uuid(meeting_id, "meeting_id")

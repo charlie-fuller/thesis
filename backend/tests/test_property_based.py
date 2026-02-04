@@ -59,9 +59,7 @@ project_tier = st.sampled_from(["A", "B", "C", "D"])
 score_strategy = st.integers(min_value=0, max_value=100)
 
 # Message content strategy (realistic chat messages)
-message_content = st.text(
-    alphabet=st.characters(blacklist_categories=("Cs", "Cc")), min_size=1, max_size=5000
-)
+message_content = st.text(alphabet=st.characters(blacklist_categories=("Cs", "Cc")), min_size=1, max_size=5000)
 
 # File name strategy
 filename_strategy = st.from_regex(r"[a-zA-Z0-9_\-]+\.(pdf|docx|txt|md)", fullmatch=True)

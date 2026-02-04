@@ -215,9 +215,7 @@ class OperatorTools:
             # Get linked opportunities
             opps_result = (
                 self.supabase.table("opportunity_stakeholder_link")
-                .select(
-                    "role, ai_projects(opportunity_code, title, total_score, tier, status, next_step)"
-                )
+                .select("role, ai_projects(opportunity_code, title, total_score, tier, status, next_step)")
                 .eq("stakeholder_id", stakeholder_id)
                 .execute()
             )
@@ -270,9 +268,7 @@ class OperatorTools:
                     }
                     for m in (metrics_result.data or [])
                 ],
-                "opportunities": sorted(
-                    linked_opps, key=lambda x: x.get("total_score", 0), reverse=True
-                ),
+                "opportunities": sorted(linked_opps, key=lambda x: x.get("total_score", 0), reverse=True),
             }
 
         except Exception as e:
@@ -304,9 +300,7 @@ class OperatorTools:
                         "code": o["opportunity_code"],
                         "title": o["title"],
                         "department": o.get("department"),
-                        "owner": o.get("stakeholders", {}).get("name")
-                        if o.get("stakeholders")
-                        else None,
+                        "owner": o.get("stakeholders", {}).get("name") if o.get("stakeholders") else None,
                         "status": o.get("status"),
                         "score": o.get("total_score"),
                         "next_step": o.get("next_step"),

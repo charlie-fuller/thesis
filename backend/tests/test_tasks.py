@@ -401,8 +401,7 @@ class TestKanbanBoard:
         filtered = [
             t
             for t in tasks
-            if search_lower in (t.get("title") or "").lower()
-            or search_lower in (t.get("description") or "").lower()
+            if search_lower in (t.get("title") or "").lower() or search_lower in (t.get("description") or "").lower()
         ]
 
         assert len(filtered) == 2  # Matches in title and description
@@ -485,9 +484,7 @@ class TestTaskPositioning:
 
         updates = []
         for item in reorder_items:
-            updates.append(
-                {"id": item["task_id"], "status": item["status"], "position": item["position"]}
-            )
+            updates.append({"id": item["task_id"], "status": item["status"], "position": item["position"]})
 
         assert len(updates) == 3
         assert updates[0]["position"] == 0
@@ -799,11 +796,7 @@ class TestOverdueTasks:
         ]
 
         overdue_count = len(
-            [
-                t
-                for t in tasks
-                if t.get("due_date") and t["due_date"] < today and t["status"] != "completed"
-            ]
+            [t for t in tasks if t.get("due_date") and t["due_date"] < today and t["status"] != "completed"]
         )
 
         assert overdue_count == 2

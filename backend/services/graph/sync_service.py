@@ -148,12 +148,8 @@ class GraphSyncService:
         results["duration_seconds"] = (datetime.now(timezone.utc) - start_time).total_seconds()
 
         # Calculate totals
-        total_synced = sum(
-            v.get("synced", 0) for k, v in results.items() if isinstance(v, dict) and "synced" in v
-        )
-        total_errors = sum(
-            v.get("errors", 0) for k, v in results.items() if isinstance(v, dict) and "errors" in v
-        )
+        total_synced = sum(v.get("synced", 0) for k, v in results.items() if isinstance(v, dict) and "synced" in v)
+        total_errors = sum(v.get("errors", 0) for k, v in results.items() if isinstance(v, dict) and "errors" in v)
         results["totals"] = {"synced": total_synced, "errors": total_errors}
 
         logger.info(f"Full sync completed: {total_synced} entities synced, {total_errors} errors")
@@ -175,9 +171,7 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0}
 
         try:
-            response = (
-                self.supabase.table("clients").select("*").eq("id", client_id).single().execute()
-            )
+            response = self.supabase.table("clients").select("*").eq("id", client_id).single().execute()
 
             if response.data:
                 client = response.data
@@ -313,12 +307,7 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0}
 
         try:
-            response = (
-                self.supabase.table("conversations")
-                .select("*")
-                .eq("client_id", client_id)
-                .execute()
-            )
+            response = self.supabase.table("conversations").select("*").eq("client_id", client_id).execute()
 
             conversations = response.data or []
             logger.info(f"Syncing {len(conversations)} conversations for client {client_id}")
@@ -363,12 +352,7 @@ class GraphSyncService:
 
         try:
             # Get conversations for this client
-            conv_response = (
-                self.supabase.table("conversations")
-                .select("id")
-                .eq("client_id", client_id)
-                .execute()
-            )
+            conv_response = self.supabase.table("conversations").select("id").eq("client_id", client_id).execute()
 
             conv_ids = [c["id"] for c in (conv_response.data or [])]
 
@@ -432,12 +416,7 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0, "participants": 0}
 
         try:
-            response = (
-                self.supabase.table("meeting_rooms")
-                .select("*")
-                .eq("client_id", client_id)
-                .execute()
-            )
+            response = self.supabase.table("meeting_rooms").select("*").eq("client_id", client_id).execute()
 
             rooms = response.data or []
             logger.info(f"Syncing {len(rooms)} meeting rooms for client {client_id}")
@@ -501,12 +480,7 @@ class GraphSyncService:
 
         try:
             # Get meeting rooms for this client
-            room_response = (
-                self.supabase.table("meeting_rooms")
-                .select("id")
-                .eq("client_id", client_id)
-                .execute()
-            )
+            room_response = self.supabase.table("meeting_rooms").select("id").eq("client_id", client_id).execute()
 
             room_ids = [r["id"] for r in (room_response.data or [])]
 
@@ -526,10 +500,7 @@ class GraphSyncService:
                     for msg in messages:
                         content_preview = (msg.get("content", "") or "")[:300]
                         metadata = msg.get("metadata") or {}
-                        is_autonomous = (
-                            metadata.get("autonomous", False)
-                            or msg.get("discussion_round") is not None
-                        )
+                        is_autonomous = metadata.get("autonomous", False) or msg.get("discussion_round") is not None
 
                         await self.neo4j.execute_write(
                             CYPHER_TEMPLATES["upsert_meeting_room_message"],
@@ -671,9 +642,7 @@ class GraphSyncService:
 
         try:
             # Fetch stakeholders from Supabase
-            response = (
-                self.supabase.table("stakeholders").select("*").eq("client_id", client_id).execute()
-            )
+            response = self.supabase.table("stakeholders").select("*").eq("client_id", client_id).execute()
 
             stakeholders = response.data or []
             logger.info(f"Syncing {len(stakeholders)} stakeholders for client {client_id}")
@@ -758,12 +727,7 @@ class GraphSyncService:
 
         try:
             # Fetch meetings from Supabase
-            response = (
-                self.supabase.table("meeting_transcripts")
-                .select("*")
-                .eq("client_id", client_id)
-                .execute()
-            )
+            response = self.supabase.table("meeting_transcripts").select("*").eq("client_id", client_id).execute()
 
             meetings = response.data or []
             logger.info(f"Syncing {len(meetings)} meetings for client {client_id}")
@@ -804,9 +768,7 @@ class GraphSyncService:
                         sentiment_map[name] = speaker.get("sentiment_score", 0.5)
 
                     for attendee in attendees:
-                        attendee_name = (
-                            attendee.get("name", "") if isinstance(attendee, dict) else attendee
-                        )
+                        attendee_name = attendee.get("name", "") if isinstance(attendee, dict) else attendee
                         if not attendee_name:
                             continue
 
@@ -946,9 +908,7 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0, "uploader_links": 0}
 
         try:
-            response = (
-                self.supabase.table("documents").select("*").eq("client_id", client_id).execute()
-            )
+            response = self.supabase.table("documents").select("*").eq("client_id", client_id).execute()
 
             documents = response.data or []
             logger.info(f"Syncing {len(documents)} documents for client {client_id}")
@@ -1003,12 +963,7 @@ class GraphSyncService:
         result = {"synced": 0, "errors": 0, "relationships": 0}
 
         try:
-            response = (
-                self.supabase.table("roi_opportunities")
-                .select("*")
-                .eq("client_id", client_id)
-                .execute()
-            )
+            response = self.supabase.table("roi_opportunities").select("*").eq("client_id", client_id).execute()
 
             opportunities = response.data or []
             logger.info(f"Syncing {len(opportunities)} ROI opportunities for client {client_id}")
@@ -1030,11 +985,7 @@ class GraphSyncService:
                     # Create SUPPORTS relationships from champion stakeholders
                     champions = opp.get("champions") or []
                     for champion in champions:
-                        champion_id = (
-                            champion.get("stakeholder_id")
-                            if isinstance(champion, dict)
-                            else champion
-                        )
+                        champion_id = champion.get("stakeholder_id") if isinstance(champion, dict) else champion
                         if champion_id:
                             await self.neo4j.execute_write(
                                 CYPHER_TEMPLATES["create_supports"],
@@ -1051,9 +1002,7 @@ class GraphSyncService:
                     # Create BLOCKS relationships from blocker stakeholders
                     blockers = opp.get("blockers") or []
                     for blocker in blockers:
-                        blocker_id = (
-                            blocker.get("stakeholder_id") if isinstance(blocker, dict) else blocker
-                        )
+                        blocker_id = blocker.get("stakeholder_id") if isinstance(blocker, dict) else blocker
                         if blocker_id:
                             await self.neo4j.execute_write(
                                 CYPHER_TEMPLATES["create_blocks"],
@@ -1077,9 +1026,7 @@ class GraphSyncService:
 
         return result
 
-    async def incremental_sync(
-        self, client_id: str, since: datetime, entity_types: Optional[list[str]] = None
-    ) -> dict:
+    async def incremental_sync(self, client_id: str, since: datetime, entity_types: Optional[list[str]] = None) -> dict:
         """Perform incremental sync for recently updated entities.
 
         Args:
@@ -1337,9 +1284,7 @@ class GraphSyncService:
                             )
                             result["expertise_links"] += 1
                         except Exception as e:
-                            logger.error(
-                                f"Failed to link agent {agent['id']} to expertise {concept_name}: {e}"
-                            )
+                            logger.error(f"Failed to link agent {agent['id']} to expertise {concept_name}: {e}")
 
                 except Exception as e:
                     logger.error(f"Failed to sync agent {agent['id']}: {e}")
@@ -1392,9 +1337,7 @@ class GraphSyncService:
                             "to_agent_id": handoff.get("to_agent_id"),
                             "conversation_id": handoff.get("conversation_id"),
                             "reason": handoff.get("reason", ""),
-                            "timestamp": handoff.get(
-                                "created_at", datetime.now(timezone.utc).isoformat()
-                            ),
+                            "timestamp": handoff.get("created_at", datetime.now(timezone.utc).isoformat()),
                         },
                     )
                     result["synced"] += 1
@@ -1561,10 +1504,7 @@ class GraphSyncService:
         try:
             # Get stakeholders
             stakeholder_response = (
-                self.supabase.table("stakeholders")
-                .select("id, name")
-                .eq("client_id", client_id)
-                .execute()
+                self.supabase.table("stakeholders").select("id, name").eq("client_id", client_id).execute()
             )
 
             stakeholders = stakeholder_response.data or []
@@ -1606,9 +1546,7 @@ class GraphSyncService:
                     name_parts = name_lower.split()
                     last_name = name_parts[-1] if name_parts else ""
 
-                    if name_lower in combined_content or (
-                        len(last_name) > 3 and last_name in combined_content
-                    ):
+                    if name_lower in combined_content or (len(last_name) > 3 and last_name in combined_content):
                         try:
                             # Find context snippet
                             context = ""
@@ -1629,9 +1567,7 @@ class GraphSyncService:
                                 {
                                     "stakeholder_id": stakeholder["id"],
                                     "document_id": doc_id,
-                                    "context": context[:200]
-                                    if context
-                                    else "Name found in document content",
+                                    "context": context[:200] if context else "Name found in document content",
                                 },
                             )
                             result["mentions_found"] += 1

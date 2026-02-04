@@ -669,12 +669,7 @@ def get_vault_config(user_id: str) -> Optional[Dict]:
     """
     try:
         result = (
-            _get_db()
-            .table("obsidian_vault_configs")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("is_active", True)
-            .execute()
+            _get_db().table("obsidian_vault_configs").select("*").eq("user_id", user_id).eq("is_active", True).execute()
         )
 
         return result.data[0] if result.data else None
@@ -703,9 +698,7 @@ def get_vault_config_by_id(config_id: str) -> Optional[Dict]:
         return None
 
 
-def create_vault_config(
-    user_id: str, client_id: str, vault_path: str, sync_options: Optional[Dict] = None
-) -> Dict:
+def create_vault_config(user_id: str, client_id: str, vault_path: str, sync_options: Optional[Dict] = None) -> Dict:
     """Create a new vault configuration.
 
     Args:
@@ -729,12 +722,7 @@ def create_vault_config(
 
     # Check for existing active config
     existing = (
-        _get_db()
-        .table("obsidian_vault_configs")
-        .select("id")
-        .eq("user_id", user_id)
-        .eq("is_active", True)
-        .execute()
+        _get_db().table("obsidian_vault_configs").select("id").eq("user_id", user_id).eq("is_active", True).execute()
     )
 
     if existing.data:
@@ -784,9 +772,7 @@ def update_vault_config(config_id: str, updates: Dict) -> Dict:
         Updated config record
     """
     try:
-        result = (
-            _get_db().table("obsidian_vault_configs").update(updates).eq("id", config_id).execute()
-        )
+        result = _get_db().table("obsidian_vault_configs").update(updates).eq("id", config_id).execute()
 
         return result.data[0] if result.data else {}
 
@@ -819,9 +805,7 @@ def update_sync_progress(
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        _get_db().table("obsidian_vault_configs").update({"sync_progress": progress_data}).eq(
-            "id", config_id
-        ).execute()
+        _get_db().table("obsidian_vault_configs").update({"sync_progress": progress_data}).eq("id", config_id).execute()
 
     except Exception as e:
         # Don't fail the sync if progress update fails
@@ -831,9 +815,7 @@ def update_sync_progress(
 def clear_sync_progress(config_id: str) -> None:
     """Clear sync progress after sync completes."""
     try:
-        _get_db().table("obsidian_vault_configs").update({"sync_progress": None}).eq(
-            "id", config_id
-        ).execute()
+        _get_db().table("obsidian_vault_configs").update({"sync_progress": None}).eq("id", config_id).execute()
     except Exception as e:
         logger.warning(f"Failed to clear sync progress: {e}")
 
@@ -883,9 +865,7 @@ def deactivate_vault_config(config_id: str, remove_documents: bool = False) -> D
         _get_db().table("obsidian_sync_state").delete().eq("config_id", config_id).execute()
 
         # Deactivate config
-        _get_db().table("obsidian_vault_configs").update({"is_active": False}).eq(
-            "id", config_id
-        ).execute()
+        _get_db().table("obsidian_vault_configs").update({"is_active": False}).eq("id", config_id).execute()
 
         return {"status": "success", "config_id": config_id, "documents_removed": documents_removed}
 
@@ -935,9 +915,7 @@ def get_all_sync_states(config_id: str) -> Dict[str, Dict]:
         Dict mapping file_path to sync state
     """
     try:
-        result = (
-            _get_db().table("obsidian_sync_state").select("*").eq("config_id", config_id).execute()
-        )
+        result = _get_db().table("obsidian_sync_state").select("*").eq("config_id", config_id).execute()
 
         return {s["file_path"]: s for s in result.data}
 
@@ -985,9 +963,7 @@ def update_sync_state(
     if document_id is not None:
         state_data["document_id"] = document_id
     if file_mtime is not None:
-        state_data["file_mtime"] = (
-            file_mtime.isoformat() if isinstance(file_mtime, datetime) else file_mtime
-        )
+        state_data["file_mtime"] = file_mtime.isoformat() if isinstance(file_mtime, datetime) else file_mtime
     if file_hash is not None:
         state_data["file_hash"] = file_hash
     if file_size is not None:
@@ -1016,13 +992,7 @@ def update_sync_state(
         # Try update first
         existing = get_sync_state(config_id, file_path)
         if existing:
-            result = (
-                _get_db()
-                .table("obsidian_sync_state")
-                .update(state_data)
-                .eq("id", existing["id"])
-                .execute()
-            )
+            result = _get_db().table("obsidian_sync_state").update(state_data).eq("id", existing["id"]).execute()
         else:
             state_data["created_at"] = now
             result = _get_db().table("obsidian_sync_state").insert(state_data).execute()
@@ -1049,9 +1019,7 @@ def mark_sync_state_deleted(config_id: str, file_path: str) -> None:
 # ============================================================================
 
 
-def create_sync_log(
-    config_id: str, user_id: str, sync_type: str = "full", trigger_source: str = "manual"
-) -> str:
+def create_sync_log(config_id: str, user_id: str, sync_type: str = "full", trigger_source: str = "manual") -> str:
     """Create a sync log entry.
 
     Args:
@@ -1409,9 +1377,7 @@ def _create_obsidian_document(
     # 2. Replace em-dashes, en-dashes with hyphens
     safe_filename = safe_filename.replace("—", "-").replace("–", "-")
     # 3. Replace fancy quotes/apostrophes with standard ones
-    safe_filename = (
-        safe_filename.replace(""", "'").replace(""", "'").replace('"', '"').replace('"', '"')
-    )
+    safe_filename = safe_filename.replace(""", "'").replace(""", "'").replace('"', '"').replace('"', '"')
     # 4. Remove remaining special chars (keep alphanumeric, spaces, hyphens, dots, underscores, apostrophes)
     safe_filename = re.sub(r"[^\w\s\-\.'']", "", safe_filename).strip()
     # 5. Collapse multiple spaces into single space
@@ -1426,9 +1392,7 @@ def _create_obsidian_document(
         upload_result = (
             _get_db()
             .storage.from_("documents")
-            .upload(
-                path=storage_path, file=file_content, file_options={"content-type": "text/markdown"}
-            )
+            .upload(path=storage_path, file=file_content, file_options={"content-type": "text/markdown"})
         )
         # Check for upload errors (Supabase returns error in response, not exception)
         if hasattr(upload_result, "error") and upload_result.error:
@@ -1522,9 +1486,7 @@ def _update_obsidian_document(
         raise ObsidianSyncError(f"Cannot update with empty content: {document_id}")
 
     # Get existing document
-    doc_result = (
-        _get_db().table("documents").select("storage_url, filename").eq("id", document_id).execute()
-    )
+    doc_result = _get_db().table("documents").select("storage_url, filename").eq("id", document_id).execute()
 
     if not doc_result.data:
         raise ObsidianSyncError(f"Document not found: {document_id}")
@@ -1566,11 +1528,7 @@ def _update_obsidian_document(
     if original_date:
         # Check if original_date is already set
         existing_doc = (
-            _get_db()
-            .table("documents")
-            .select("original_date, document_type")
-            .eq("id", document_id)
-            .execute()
+            _get_db().table("documents").select("original_date, document_type").eq("id", document_id).execute()
         )
         if existing_doc.data and not existing_doc.data[0].get("original_date"):
             update_data["original_date"] = original_date.isoformat()
@@ -1584,15 +1542,11 @@ def _update_obsidian_document(
                 )
                 update_data["document_type"] = classification["document_type"]
                 update_data["primary_use_case"] = classification["primary_use_case"]
-                update_data["classification_confidence"] = classification[
-                    "classification_confidence"
-                ]
+                update_data["classification_confidence"] = classification["classification_confidence"]
                 update_data["classification_method"] = classification["classification_method"]
     else:
         # No original_date provided, but still check if we need to backfill classification
-        existing_doc = (
-            _get_db().table("documents").select("document_type").eq("id", document_id).execute()
-        )
+        existing_doc = _get_db().table("documents").select("document_type").eq("id", document_id).execute()
         if existing_doc.data and not existing_doc.data[0].get("document_type"):
             classification = classify_document_by_filename(filename, relative_path)
             if classification.get("document_type"):
@@ -1601,9 +1555,7 @@ def _update_obsidian_document(
                 )
                 update_data["document_type"] = classification["document_type"]
                 update_data["primary_use_case"] = classification["primary_use_case"]
-                update_data["classification_confidence"] = classification[
-                    "classification_confidence"
-                ]
+                update_data["classification_confidence"] = classification["classification_confidence"]
                 update_data["classification_method"] = classification["classification_method"]
 
     result = _get_db().table("documents").update(update_data).eq("id", document_id).execute()
@@ -1699,11 +1651,7 @@ def _extract_path_tags(relative_path: str) -> List[str]:
         "babel-",  # babel packages
     )
 
-    parts = [
-        p
-        for p in parts
-        if p.lower() not in excluded_patterns and not p.startswith(excluded_prefixes)
-    ]
+    parts = [p for p in parts if p.lower() not in excluded_patterns and not p.startswith(excluded_prefixes)]
 
     return parts
 
@@ -1722,9 +1670,7 @@ def _sync_document_tags(document_id: str, tags: List[str], source: str = "frontm
     # Delete existing tags of this source type (preserve other sources)
     if source in ("frontmatter", "path"):
         try:
-            _get_db().table("document_tags").delete().eq("document_id", document_id).eq(
-                "source", source
-            ).execute()
+            _get_db().table("document_tags").delete().eq("document_id", document_id).eq("source", source).execute()
         except Exception as e:
             logger.warning(f"Failed to delete existing {source} tags: {e}")
 
@@ -1751,11 +1697,7 @@ def _link_document_to_agents(document_id: str, user_id: str, agent_names: List[s
     """
     # Get agent IDs for the specified names
     agents_result = (
-        _get_db()
-        .table("agents")
-        .select("id, name")
-        .in_("name", [name.lower() for name in agent_names])
-        .execute()
+        _get_db().table("agents").select("id, name").in_("name", [name.lower() for name in agent_names]).execute()
     )
 
     agent_map = {a["name"].lower(): a["id"] for a in agents_result.data}
@@ -1844,9 +1786,7 @@ def sync_vault(config: Dict, trigger_source: str = "manual", recent_only: bool =
 
         # Initialize progress tracking
         total_files = len(files)
-        update_sync_progress(
-            config["id"], is_syncing=True, total_files=total_files, files_processed=0
-        )
+        update_sync_progress(config["id"], is_syncing=True, total_files=total_files, files_processed=0)
 
         # Sync each file
         for idx, file_path in enumerate(files):
@@ -1883,9 +1823,7 @@ def sync_vault(config: Dict, trigger_source: str = "manual", recent_only: bool =
                 stats["files_skipped"] += 1
             elif result["status"] == "failed":
                 stats["files_failed"] += 1
-                error_details.append(
-                    {"file_path": relative_path, "error": result.get("error", "Unknown error")}
-                )
+                error_details.append({"file_path": relative_path, "error": result.get("error", "Unknown error")})
 
         # Handle deleted files
         sync_on_delete = sync_options.get("sync_on_delete", False)
@@ -1895,9 +1833,7 @@ def sync_vault(config: Dict, trigger_source: str = "manual", recent_only: bool =
                     # Delete the document
                     try:
                         doc_id = state["document_id"]
-                        _get_db().table("document_chunks").delete().eq(
-                            "document_id", doc_id
-                        ).execute()
+                        _get_db().table("document_chunks").delete().eq("document_id", doc_id).execute()
                         _get_db().table("documents").delete().eq("id", doc_id).execute()
                         logger.info(f"   Deleted: {existing_path}")
                     except Exception as e:
@@ -1916,9 +1852,7 @@ def sync_vault(config: Dict, trigger_source: str = "manual", recent_only: bool =
         )
 
         # Complete sync log
-        complete_sync_log(
-            log_id, "completed", stats, error_details=error_details if error_details else None
-        )
+        complete_sync_log(log_id, "completed", stats, error_details=error_details if error_details else None)
 
         logger.info("\n Sync complete!")
         logger.info(f"   Added: {stats['files_added']}")
@@ -2092,9 +2026,7 @@ class ObsidianVaultWatcher:
     syncs them to the Thesis Knowledge Base.
     """
 
-    def __init__(
-        self, config: Dict, on_sync_complete: Optional[Callable[[str, Dict], None]] = None
-    ):
+    def __init__(self, config: Dict, on_sync_complete: Optional[Callable[[str, Dict], None]] = None):
         """Initialize the vault watcher.
 
         Args:
@@ -2108,9 +2040,7 @@ class ObsidianVaultWatcher:
 
         self._observer = None
         self._debounce_timers: Dict[str, float] = {}  # file_path -> scheduled_time
-        self._pending_changes: Dict[
-            str, Tuple[str, Path]
-        ] = {}  # file_path -> (event_type, file_path)
+        self._pending_changes: Dict[str, Tuple[str, Path]] = {}  # file_path -> (event_type, file_path)
         self._lock = asyncio.Lock()
         self._running = False
         self._event_loop: Optional[asyncio.AbstractEventLoop] = None
@@ -2222,9 +2152,7 @@ class ObsidianVaultWatcher:
                     if existing_state and existing_state.get("document_id"):
                         if self.sync_options.get("sync_on_delete", False):
                             doc_id = existing_state["document_id"]
-                            _get_db().table("document_chunks").delete().eq(
-                                "document_id", doc_id
-                            ).execute()
+                            _get_db().table("document_chunks").delete().eq("document_id", doc_id).execute()
                             _get_db().table("documents").delete().eq("id", doc_id).execute()
                         mark_sync_state_deleted(self.config["id"], relative_path)
                         stats["files_deleted"] = 1
@@ -2258,9 +2186,7 @@ class ObsidianVaultWatcher:
             from watchdog.events import FileSystemEventHandler
             from watchdog.observers import Observer
         except ImportError:
-            raise ObsidianSyncError(
-                "watchdog library not installed. Install with: pip install watchdog"
-            ) from None
+            raise ObsidianSyncError("watchdog library not installed. Install with: pip install watchdog") from None
 
         if self._running:
             return

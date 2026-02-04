@@ -20,10 +20,7 @@ def fix_stuck_documents():
 
     # Find all documents stuck in 'pending' status
     result = (
-        supabase.table("documents")
-        .select("id, filename, uploaded_by")
-        .eq("processing_status", "pending")
-        .execute()
+        supabase.table("documents").select("id, filename, uploaded_by").eq("processing_status", "pending").execute()
     )
 
     pending_docs = result.data
@@ -44,13 +41,7 @@ def fix_stuck_documents():
     for doc in pending_docs:
         try:
             # Get a user token for this user
-            user_result = (
-                supabase.table("users")
-                .select("id, email")
-                .eq("id", doc["uploaded_by"])
-                .single()
-                .execute()
-            )
+            user_result = supabase.table("users").select("id, email").eq("id", doc["uploaded_by"]).single().execute()
 
             if not user_result.data:
                 print(f"   ❌ User not found for document {doc['filename']}")

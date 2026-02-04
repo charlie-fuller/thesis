@@ -36,9 +36,7 @@ async def get_system_health(current_user: dict = Depends(require_admin)):
         # 1. Check Supabase (Database) Health
         try:
             db_start = time.time()
-            await asyncio.to_thread(
-                lambda: supabase.table("users").select("id", count="exact").limit(1).execute()
-            )
+            await asyncio.to_thread(lambda: supabase.table("users").select("id", count="exact").limit(1).execute())
             db_time = round((time.time() - db_start) * 1000)
             health_data["supabase"] = {"status": "connected", "responseTime": db_time}
         except Exception as e:
@@ -86,19 +84,13 @@ async def get_system_health(current_user: dict = Depends(require_admin)):
                 voyage_start = time.time()
                 vo = voyageai.Client(api_key=api_key)
                 await asyncio.to_thread(
-                    lambda: vo.embed(
-                        texts=["health check"], model="voyage-large-2", input_type="query"
-                    )
+                    lambda: vo.embed(texts=["health check"], model="voyage-large-2", input_type="query")
                 )
                 voyage_latency = round(time.time() - voyage_start, 2)
                 health_data["voyageAI"] = {"status": "connected", "latency": voyage_latency}
         except Exception as e:
             error_str = str(e).lower()
-            if (
-                "authentication" in error_str
-                or "unauthorized" in error_str
-                or "api key" in error_str
-            ):
+            if "authentication" in error_str or "unauthorized" in error_str or "api key" in error_str:
                 logger.error("Voyage AI authentication failed - invalid API key")
                 health_data["voyageAI"] = {"status": "auth_error", "latency": 0}
             elif "rate limit" in error_str or "too many requests" in error_str:

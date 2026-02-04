@@ -111,9 +111,7 @@ class DiscoveryAllResponse(BaseModel):
 
 
 @router.get("/counts", response_model=DiscoveryCounts)
-async def get_discovery_counts(
-    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_discovery_counts(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get counts of pending candidates across all types.
 
     Used for dashboard badge display showing total pending items.
@@ -123,9 +121,7 @@ async def get_discovery_counts(
         raise HTTPException(status_code=400, detail="User has no client_id assigned")
 
     # Only show candidates from the last N weeks
-    cutoff_date = (
-        datetime.now(timezone.utc) - timedelta(weeks=DISCOVERY_MAX_AGE_WEEKS)
-    ).isoformat()
+    cutoff_date = (datetime.now(timezone.utc) - timedelta(weeks=DISCOVERY_MAX_AGE_WEEKS)).isoformat()
 
     # Get task candidates count
     tasks_result = (
@@ -184,9 +180,7 @@ async def get_all_pending_candidates(
         raise HTTPException(status_code=400, detail="User has no client_id assigned")
 
     # Only show candidates from the last N weeks
-    cutoff_date = (
-        datetime.now(timezone.utc) - timedelta(weeks=DISCOVERY_MAX_AGE_WEEKS)
-    ).isoformat()
+    cutoff_date = (datetime.now(timezone.utc) - timedelta(weeks=DISCOVERY_MAX_AGE_WEEKS)).isoformat()
 
     # Get pending task candidates
     tasks_result = (

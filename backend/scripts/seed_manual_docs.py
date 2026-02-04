@@ -73,13 +73,9 @@ def parse_args():
 
     parser.add_argument("--client-id", required=True, help="UUID of the client for the documents")
 
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Show what would be seeded without making changes"
-    )
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be seeded without making changes")
 
-    parser.add_argument(
-        "--refresh", action="store_true", help="Re-sync changed files (updates existing docs)"
-    )
+    parser.add_argument("--refresh", action="store_true", help="Re-sync changed files (updates existing docs)")
 
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
 
@@ -91,9 +87,7 @@ def setup_logging(verbose: bool = False):
     import logging
 
     level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=level, format="%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-    )
+    logging.basicConfig(level=level, format="%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
     return logging.getLogger(__name__)
 
@@ -220,9 +214,7 @@ def seed_documents(args, logger):
         logger.debug(f"  Hash: {file_hash}")
 
         # Check if document already exists
-        existing = (
-            supabase.table("documents").select("id").eq("storage_path", storage_path).execute()
-        )
+        existing = supabase.table("documents").select("id").eq("storage_path", storage_path).execute()
 
         if existing.data:
             doc = existing.data[0]
@@ -278,9 +270,7 @@ def seed_documents(args, logger):
             )
 
             # Get storage URL
-            storage_url = (
-                f"{os.getenv('SUPABASE_URL')}/storage/v1/object/public/documents/{storage_path}"
-            )
+            storage_url = f"{os.getenv('SUPABASE_URL')}/storage/v1/object/public/documents/{storage_path}"
 
             # Create document record
             doc_record = {

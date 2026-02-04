@@ -17,9 +17,7 @@ try:
     # Try to query a record with the new columns
     result = (
         supabase.table("google_drive_tokens")
-        .select(
-            "sync_frequency, last_auto_sync, next_sync_scheduled, default_folder_id, default_folder_name"
-        )
+        .select("sync_frequency, last_auto_sync, next_sync_scheduled, default_folder_id, default_folder_name")
         .limit(1)
         .execute()
     )

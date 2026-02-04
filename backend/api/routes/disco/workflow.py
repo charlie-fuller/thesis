@@ -64,9 +64,7 @@ async def api_start_run(
     await require_initiative_access(initiative_id, current_user, "editor")
 
     # Check if multi-pass is requested and valid
-    use_multi_pass = data.multi_pass and data.agent_type in MULTI_PASS_CONFIG.get(
-        "supported_agents", []
-    )
+    use_multi_pass = data.multi_pass and data.agent_type in MULTI_PASS_CONFIG.get("supported_agents", [])
 
     async def event_stream():
         # Send initial padding to force proxy buffer flush
@@ -311,13 +309,10 @@ async def api_delete_output(
             raise HTTPException(status_code=404, detail="Output not found")
 
         # Delete the output
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_outputs").delete().eq("id", output_id).execute()
-        )
+        await asyncio.to_thread(lambda: supabase.table("disco_outputs").delete().eq("id", output_id).execute())
 
         logger.info(
-            f"[DISCO] Deleted output {output_id} "
-            f"({output_result.data['agent_type']} v{output_result.data['version']})"
+            f"[DISCO] Deleted output {output_id} ({output_result.data['agent_type']} v{output_result.data['version']})"
         )
 
         return {"success": True, "deleted_output_id": output_id}
@@ -406,9 +401,7 @@ async def api_list_checkpoints(
     try:
         # Initialize checkpoints if they don't exist
         await asyncio.to_thread(
-            lambda: supabase.rpc(
-                "initialize_disco_checkpoints", {"p_initiative_id": initiative_id}
-            ).execute()
+            lambda: supabase.rpc("initialize_disco_checkpoints", {"p_initiative_id": initiative_id}).execute()
         )
 
         # Fetch checkpoints
@@ -503,10 +496,7 @@ async def api_get_checkpoint(
                     {"item": "Evidence supports conclusions", "completed": False},
                     {"item": "No critical gaps or contradictions", "completed": False},
                 ],
-                "human_action": (
-                    "Review the decision document and validate the leverage point "
-                    "before proceeding."
-                ),
+                "human_action": ("Review the decision document and validate the leverage point before proceeding."),
             },
             3: {
                 "title": "Ready for PRD Generation?",
@@ -519,9 +509,7 @@ async def api_get_checkpoint(
                     {"item": "Dependencies are correctly mapped", "completed": False},
                     {"item": "Selected bundles for PRD generation", "completed": False},
                 ],
-                "human_action": (
-                    "Approve, reject, merge, or split bundles as needed before generating PRDs."
-                ),
+                "human_action": ("Approve, reject, merge, or split bundles as needed before generating PRDs."),
             },
             4: {
                 "title": "Ready for Engineering Handoff?",
@@ -595,10 +583,7 @@ async def api_approve_checkpoint(
             update_data["checklist_items"] = body.checklist_items
 
         await asyncio.to_thread(
-            lambda: supabase.table("disco_checkpoints")
-            .update(update_data)
-            .eq("id", checkpoint["id"])
-            .execute()
+            lambda: supabase.table("disco_checkpoints").update(update_data).eq("id", checkpoint["id"]).execute()
         )
 
         # Unlock the next checkpoint if not the last one
@@ -675,10 +660,7 @@ async def api_reset_checkpoint(
             update_data["notes"] = f"Reset: {body.reason}"
 
         await asyncio.to_thread(
-            lambda: supabase.table("disco_checkpoints")
-            .update(update_data)
-            .eq("id", checkpoint["id"])
-            .execute()
+            lambda: supabase.table("disco_checkpoints").update(update_data).eq("id", checkpoint["id"]).execute()
         )
 
         # Also reset subsequent checkpoints to locked
@@ -692,8 +674,7 @@ async def api_reset_checkpoint(
             )
 
         logger.info(
-            f"[DISCO] Checkpoint {checkpoint_number} reset for initiative "
-            f"{initiative_id} by user {current_user['id']}"
+            f"[DISCO] Checkpoint {checkpoint_number} reset for initiative {initiative_id} by user {current_user['id']}"
         )
 
         return {

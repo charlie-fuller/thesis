@@ -163,9 +163,7 @@ async def clear_all_data(connection: Neo4jConnection, confirm: bool = False) -> 
         await connection.execute_write("MATCH ()-[r]->() DELETE r")
 
         # Delete all nodes
-        result = await connection.execute_write(
-            "MATCH (n) DELETE n RETURN count(n) as deleted_nodes"
-        )
+        result = await connection.execute_write("MATCH (n) DELETE n RETURN count(n) as deleted_nodes")
 
         deleted_count = result[0]["deleted_nodes"] if result else 0
 

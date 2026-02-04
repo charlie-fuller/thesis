@@ -98,9 +98,7 @@ async def save_digest_to_kb(user=Depends(get_current_user)):
         digest = await digest_service.generate_digest(user["id"])
 
         # Get user's client_id
-        user_result = (
-            supabase.table("users").select("client_id").eq("id", user["id"]).single().execute()
-        )
+        user_result = supabase.table("users").select("client_id").eq("id", user["id"]).single().execute()
 
         if not user_result.data:
             raise HTTPException(status_code=400, detail="User not found")

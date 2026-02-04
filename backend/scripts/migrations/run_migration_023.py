@@ -25,9 +25,7 @@ try:
     print("⚠️  Note: Column addition requires manual SQL execution in Supabase")
     print("   Please run this SQL in Supabase SQL Editor:")
     print()
-    print(
-        "   ALTER TABLE documents ADD COLUMN IF NOT EXISTS is_core_document BOOLEAN DEFAULT false;"
-    )
+    print("   ALTER TABLE documents ADD COLUMN IF NOT EXISTS is_core_document BOOLEAN DEFAULT false;")
     print("   CREATE INDEX IF NOT EXISTS idx_documents_is_core ON documents(is_core_document);")
     print()
     input("Press Enter after you've run the SQL above...")
@@ -52,17 +50,13 @@ try:
         "README.md",
     ]
 
-    docs_result = (
-        supabase.table("documents").select("id, filename").eq("client_id", client_id).execute()
-    )
+    docs_result = supabase.table("documents").select("id, filename").eq("client_id", client_id).execute()
 
     if docs_result.data:
         for doc in docs_result.data:
             if doc["filename"] in core_filenames:
                 # Mark as core
-                supabase.table("documents").update({"is_core_document": True}).eq(
-                    "id", doc["id"]
-                ).execute()
+                supabase.table("documents").update({"is_core_document": True}).eq("id", doc["id"]).execute()
                 print(f"   ✅ Marked as core: {doc['filename']}")
 
     print(f"\n✅ Marked {len(core_filenames)} documents as core")
@@ -76,12 +70,7 @@ print()
 # Step 3: Verify
 print("Step 3: Verifying migration...")
 try:
-    result = (
-        supabase.table("documents")
-        .select("filename, is_core_document")
-        .eq("client_id", client_id)
-        .execute()
-    )
+    result = supabase.table("documents").select("filename, is_core_document").eq("client_id", client_id).execute()
 
     if result.data:
         print("\nCore document status:")

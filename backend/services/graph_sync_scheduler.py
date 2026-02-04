@@ -82,14 +82,10 @@ def process_graph_sync():
 
                     # Count totals from results
                     synced_count = sum(
-                        v.get("synced", 0)
-                        for k, v in sync_result.items()
-                        if isinstance(v, dict) and "synced" in v
+                        v.get("synced", 0) for k, v in sync_result.items() if isinstance(v, dict) and "synced" in v
                     )
                     error_count = sum(
-                        v.get("errors", 0)
-                        for k, v in sync_result.items()
-                        if isinstance(v, dict) and "errors" in v
+                        v.get("errors", 0) for k, v in sync_result.items() if isinstance(v, dict) and "errors" in v
                     )
 
                     total_synced += synced_count

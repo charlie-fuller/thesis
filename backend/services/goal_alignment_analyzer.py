@@ -188,11 +188,7 @@ def _parse_analysis_response(response_text: str) -> tuple[int, dict]:
     kpi_impacts = []
     if "KPI_IMPACTS:" in response_text:
         start = response_text.find("KPI_IMPACTS:") + len("KPI_IMPACTS:")
-        end = (
-            response_text.find("SUMMARY:", start)
-            if "SUMMARY:" in response_text[start:]
-            else len(response_text)
-        )
+        end = response_text.find("SUMMARY:", start) if "SUMMARY:" in response_text[start:] else len(response_text)
         impacts_text = response_text[start:end].strip()
         if impacts_text and impacts_text.lower() != "none":
             kpi_impacts = [kpi.strip() for kpi in impacts_text.split(",") if kpi.strip()]
@@ -249,17 +245,15 @@ async def analyze_goal_alignment(
     client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
     try:
-        response = client.messages.create(
-            model=MODEL, max_tokens=1024, messages=[{"role": "user", "content": prompt}]
-        )
+        response = client.messages.create(model=MODEL, max_tokens=1024, messages=[{"role": "user", "content": prompt}])
 
         response_text = response.content[0].text
         score, details = _parse_analysis_response(response_text)
 
         # Update the project in database
-        supabase.table("ai_projects").update(
-            {"goal_alignment_score": score, "goal_alignment_details": details}
-        ).eq("id", project_id).execute()
+        supabase.table("ai_projects").update({"goal_alignment_score": score, "goal_alignment_details": details}).eq(
+            "id", project_id
+        ).execute()
 
         logger.info(f"Analyzed goal alignment for project {project_id}: score={score}/100")
 

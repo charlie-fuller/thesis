@@ -506,9 +506,7 @@ When recommending AI models or vendors:
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Security/governance: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Security/governance: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -545,24 +543,15 @@ When recommending AI models or vendors:
         message_lower = context.user_message.lower()
 
         # Hand off to Capital for security budget questions
-        if any(
-            word in message_lower
-            for word in ["security budget", "compliance cost", "audit pricing"]
-        ):
+        if any(word in message_lower for word in ["security budget", "compliance cost", "audit pricing"]):
             return ("capital", "Query requires financial analysis")
 
         # Hand off to Counselor for legal/regulatory interpretation
-        if any(
-            word in message_lower
-            for word in ["legal interpretation", "regulatory requirement", "liability"]
-        ):
+        if any(word in message_lower for word in ["legal interpretation", "regulatory requirement", "liability"]):
             return ("counselor", "Query requires legal expertise")
 
         # Hand off to Atlas for security research
-        if any(
-            word in message_lower
-            for word in ["security research", "industry benchmark", "best practice study"]
-        ):
+        if any(word in message_lower for word in ["security research", "industry benchmark", "best practice study"]):
             return ("atlas", "Query requires research expertise")
 
         return None

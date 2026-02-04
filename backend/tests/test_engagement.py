@@ -383,18 +383,14 @@ class EngagementCalculator:
             changed=changed,
         )
 
-    async def calculate_for_client(
-        self, client_id: str, calculation_type: str = "scheduled"
-    ) -> dict:
+    async def calculate_for_client(self, client_id: str, calculation_type: str = "scheduled") -> dict:
         """Calculate engagement for all stakeholders in a client.
 
         Returns:
             dict with summary: {total, changed, promotions, demotions, errors}
         """
         # Get all stakeholders for client
-        result = (
-            self.supabase.table("stakeholders").select("id").eq("client_id", client_id).execute()
-        )
+        result = self.supabase.table("stakeholders").select("id").eq("client_id", client_id).execute()
 
         stakeholders = result.data or []
 
@@ -937,9 +933,7 @@ class TestSignalCollection:
                 "last_interaction": None,
             }
         )
-        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(
-            data=[]
-        )
+        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(data=[])
 
         calculator = EngagementCalculator(supabase=mock_sb)
         signals = await calculator.collect_signals("test-stakeholder")
@@ -986,9 +980,7 @@ class TestCalculationFlow:
         )
 
         # Verify history was recorded
-        insert_calls = [
-            c for c in mock_sb.table.call_args_list if "engagement_level_history" in str(c)
-        ]
+        insert_calls = [c for c in mock_sb.table.call_args_list if "engagement_level_history" in str(c)]
         assert len(insert_calls) > 0
 
     @pytest.mark.asyncio
@@ -1102,9 +1094,7 @@ class TestClientBatchCalculation:
     async def test_calculate_for_client_empty_stakeholders(self):
         """Client with no stakeholders returns empty summary."""
         mock_sb = Mock()
-        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(
-            data=[]
-        )
+        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(data=[])
 
         calculator = EngagementCalculator(supabase=mock_sb)
         summary = await calculator.calculate_for_client(client_id="empty-client")

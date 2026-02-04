@@ -137,11 +137,7 @@ def get_user_tokens(user_id: str) -> Optional[Dict]:
     """
     try:
         result = (
-            supabase.table("google_drive_tokens")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("is_active", True)
-            .execute()
+            supabase.table("google_drive_tokens").select("*").eq("user_id", user_id).eq("is_active", True).execute()
         )
 
         if not result.data:
@@ -168,9 +164,7 @@ def get_or_refresh_token(user_id: str) -> Credentials:
     token_record = get_user_tokens(user_id)
 
     if not token_record:
-        raise GoogleDriveSyncError(
-            "No Google Drive connection found. Please connect your Google Drive first."
-        )
+        raise GoogleDriveSyncError("No Google Drive connection found. Please connect your Google Drive first.")
 
     try:
         # Decrypt tokens
@@ -194,9 +188,7 @@ def get_or_refresh_token(user_id: str) -> Credentials:
         )
 
         # Check if token is expired or about to expire (within 5 minutes)
-        token_expires_at = datetime.fromisoformat(
-            token_record["token_expires_at"].replace("Z", "+00:00")
-        )
+        token_expires_at = datetime.fromisoformat(token_record["token_expires_at"].replace("Z", "+00:00"))
         now = datetime.now(timezone.utc)
 
         if now >= token_expires_at - timedelta(minutes=5):
@@ -216,9 +208,7 @@ def get_or_refresh_token(user_id: str) -> Credentials:
             if credentials.refresh_token:
                 update_data["refresh_token_encrypted"] = encrypt_token(credentials.refresh_token)
 
-            supabase.table("google_drive_tokens").update(update_data).eq(
-                "user_id", user_id
-            ).execute()
+            supabase.table("google_drive_tokens").update(update_data).eq("user_id", user_id).execute()
 
             logger.info("   ✓ Token refreshed successfully")
 
@@ -265,9 +255,7 @@ def is_valid_text_content(text: str, min_printable_ratio: float = 0.70) -> bool:
     printable_ratio = printable_count / len(text) if len(text) > 0 else 0
 
     if printable_ratio < min_printable_ratio:
-        logger.warning(
-            f"      ⚠️  Low printable ratio: {printable_ratio:.2%} (threshold: {min_printable_ratio:.2%})"
-        )
+        logger.warning(f"      ⚠️  Low printable ratio: {printable_ratio:.2%} (threshold: {min_printable_ratio:.2%})")
         return False
 
     # Check 4: Excessive XML tags (.docx XML internals)
@@ -507,9 +495,7 @@ def list_folder_files(user_id: str, folder_id: str) -> List[Dict]:
                 }
             )
 
-        logger.info(
-            f"   ✓ Found {len(file_list)} files (excluded {len(files) - len(file_list)} folders)"
-        )
+        logger.info(f"   ✓ Found {len(file_list)} files (excluded {len(files) - len(file_list)} folders)")
         return file_list
 
     except Exception as e:
@@ -565,9 +551,7 @@ def create_placeholder_documents(user_id: str, file_ids: List[str]) -> List[Dict
         )
 
         existing_docs_map = {
-            doc["google_drive_file_id"]: doc
-            for doc in existing_docs_result.data
-            if doc.get("google_drive_file_id")
+            doc["google_drive_file_id"]: doc for doc in existing_docs_result.data if doc.get("google_drive_file_id")
         }
         logger.info(f"   📋 Found {len(existing_docs_map)} existing documents")
 
@@ -579,9 +563,7 @@ def create_placeholder_documents(user_id: str, file_ids: List[str]) -> List[Dict
                 # Check if document already exists
                 if file_id in existing_docs_map:
                     existing_doc = existing_docs_map[file_id]
-                    logger.info(
-                        f"   ✓ Document already exists: {existing_doc['filename']} (ID: {existing_doc['id']})"
-                    )
+                    logger.info(f"   ✓ Document already exists: {existing_doc['filename']} (ID: {existing_doc['id']})")
                     # Update last_synced_at and reset processed status for re-sync
                     supabase.table("documents").update(
                         {
@@ -594,11 +576,7 @@ def create_placeholder_documents(user_id: str, file_ids: List[str]) -> List[Dict
                     continue
 
                 # Fetch file metadata from Google Drive
-                file_metadata = (
-                    service.files()
-                    .get(fileId=file_id, fields="id,name,mimeType,webViewLink")
-                    .execute()
-                )
+                file_metadata = service.files().get(fileId=file_id, fields="id,name,mimeType,webViewLink").execute()
 
                 filename = file_metadata.get("name", "Untitled")
                 mime_type = file_metadata.get("mimeType", "text/plain")
@@ -644,9 +622,7 @@ def create_placeholder_documents(user_id: str, file_ids: List[str]) -> List[Dict
         raise GoogleDriveSyncError(f"Failed to create placeholder documents: {e}") from None
 
 
-def sync_files(
-    user_id: str, file_ids: List[str], placeholder_doc_ids: Optional[List[str]] = None
-) -> Dict:
+def sync_files(user_id: str, file_ids: List[str], placeholder_doc_ids: Optional[List[str]] = None) -> Dict:
     """Sync specific files from Google Drive by their file IDs.
 
     Args:
@@ -691,9 +667,7 @@ def sync_files(
         file_extractor = {
             ".docx": SimpleDocxReader(),  # Properly extract text from Google Docs exported as .docx
         }
-        reader = GoogleDriveReader(
-            authorized_user_info=authorized_user_info, file_extractor=file_extractor
-        )
+        reader = GoogleDriveReader(authorized_user_info=authorized_user_info, file_extractor=file_extractor)
 
         # Load documents by file IDs
         logger.info("   📥 Fetching documents...")
@@ -722,9 +696,7 @@ def sync_files(
 
         # Create lookup map by google_drive_file_id
         existing_docs_map = {
-            doc["google_drive_file_id"]: doc
-            for doc in existing_docs_result.data
-            if doc.get("google_drive_file_id")
+            doc["google_drive_file_id"]: doc for doc in existing_docs_result.data if doc.get("google_drive_file_id")
         }
         logger.info(f"   ✓ Found {len(existing_docs_map)} existing Google Drive documents")
 
@@ -736,16 +708,11 @@ def sync_files(
         # GoogleDriveReader doesn't reliably include file_id in metadata
         for idx, (file_id, doc) in enumerate(zip(file_ids, documents, strict=False), 1):
             try:
-                logger.info(
-                    f"\n   📄 [{idx}/{len(documents)}] Processing: {doc.metadata.get('file_name', 'Unknown')}"
-                )
+                logger.info(f"\n   📄 [{idx}/{len(documents)}] Processing: {doc.metadata.get('file_name', 'Unknown')}")
 
                 # Extract metadata
                 file_name = (
-                    doc.metadata.get("file_name")
-                    or doc.metadata.get("name")
-                    or doc.metadata.get("title")
-                    or "untitled"
+                    doc.metadata.get("file_name") or doc.metadata.get("name") or doc.metadata.get("title") or "untitled"
                 )
                 web_view_link = doc.metadata.get("web_view_link", "")
                 mime_type = doc.metadata.get("mime_type", "text/plain")
@@ -783,9 +750,7 @@ def sync_files(
 
                 # Check if text is actually readable (not binary garbage)
                 if not is_valid_text_content(doc.text):
-                    logger.warning(
-                        "      ⚠️  Document text appears corrupted or binary, skipping..."
-                    )
+                    logger.warning("      ⚠️  Document text appears corrupted or binary, skipping...")
                     # Mark placeholder as failed
                     if existing_doc:
                         supabase.table("documents").update(
@@ -808,9 +773,7 @@ def sync_files(
                 file_content = doc.text.encode("utf-8")
 
                 # Check if it's a placeholder document (created immediately for UI)
-                is_placeholder = existing_doc and existing_doc.get("storage_url", "").startswith(
-                    "placeholder/"
-                )
+                is_placeholder = existing_doc and existing_doc.get("storage_url", "").startswith("placeholder/")
 
                 if existing_doc and not is_placeholder:
                     # Update existing real document (re-sync)
@@ -839,9 +802,7 @@ def sync_files(
                         path=storage_path, file=file_content, file_options={"upsert": "true"}
                     )
 
-                    storage_url = (
-                        f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
-                    )
+                    storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
 
                     # Update placeholder with real content
                     now = datetime.now(timezone.utc).isoformat()
@@ -851,9 +812,7 @@ def sync_files(
                         "processed": False,  # Will be set to True after embedding
                     }
 
-                    supabase.table("documents").update(update_data).eq(
-                        "id", existing_doc["id"]
-                    ).execute()
+                    supabase.table("documents").update(update_data).eq("id", existing_doc["id"]).execute()
 
                     logger.info("      ✓ Populated placeholder document")
 
@@ -944,9 +903,7 @@ def sync_files(
         raise
 
 
-def sync_folder(
-    user_id: str, folder_id: Optional[str] = None, folder_name: Optional[str] = None
-) -> Dict:
+def sync_folder(user_id: str, folder_id: Optional[str] = None, folder_name: Optional[str] = None) -> Dict:
     """Sync documents from a Google Drive folder.
 
     Args:
@@ -993,9 +950,7 @@ def sync_folder(
         file_extractor = {
             ".docx": SimpleDocxReader(),  # Properly extract text from Google Docs exported as .docx
         }
-        reader = GoogleDriveReader(
-            authorized_user_info=authorized_user_info, file_extractor=file_extractor
-        )
+        reader = GoogleDriveReader(authorized_user_info=authorized_user_info, file_extractor=file_extractor)
 
         # Load documents with timeout protection (10 minutes max)
         logger.info("   📥 Fetching documents...")
@@ -1016,9 +971,7 @@ def sync_folder(
             ) from None
         except Exception as e:
             # Log the error but try to continue with any documents we did get
-            logger.warning(
-                f"   ⚠️  Error during document fetch (will process any retrieved documents): {e}"
-            )
+            logger.warning(f"   ⚠️  Error during document fetch (will process any retrieved documents): {e}")
             # If we got some documents before the error, we'll process those
             if not documents:
                 raise GoogleDriveSyncError(f"Failed to fetch documents: {e}") from None
@@ -1049,9 +1002,7 @@ def sync_folder(
 
         # Create lookup map by google_drive_file_id
         existing_docs_map = {
-            doc["google_drive_file_id"]: doc
-            for doc in existing_docs_result.data
-            if doc.get("google_drive_file_id")
+            doc["google_drive_file_id"]: doc for doc in existing_docs_result.data if doc.get("google_drive_file_id")
         }
         logger.info(f"   ✓ Found {len(existing_docs_map)} existing Google Drive documents")
 
@@ -1061,18 +1012,13 @@ def sync_folder(
         # Process each document
         for idx, doc in enumerate(documents, 1):
             try:
-                logger.info(
-                    f"\n   📄 [{idx}/{len(documents)}] Processing: {doc.metadata.get('file_name', 'Unknown')}"
-                )
+                logger.info(f"\n   📄 [{idx}/{len(documents)}] Processing: {doc.metadata.get('file_name', 'Unknown')}")
 
                 # Extract metadata
                 file_id = doc.metadata.get("file_id")
                 # Try multiple possible keys for filename
                 file_name = (
-                    doc.metadata.get("file_name")
-                    or doc.metadata.get("name")
-                    or doc.metadata.get("title")
-                    or "untitled"
+                    doc.metadata.get("file_name") or doc.metadata.get("name") or doc.metadata.get("title") or "untitled"
                 )
                 web_view_link = doc.metadata.get("web_view_link", "")
                 mime_type = doc.metadata.get("mime_type", "text/plain")
@@ -1099,9 +1045,7 @@ def sync_folder(
 
                 # Check if text is actually readable (not binary garbage)
                 if not is_valid_text_content(doc.text):
-                    logger.warning(
-                        "      ⚠️  Document text appears corrupted or binary, skipping..."
-                    )
+                    logger.warning("      ⚠️  Document text appears corrupted or binary, skipping...")
                     stats["documents_skipped"] += 1
                     stats["errors"].append(
                         {
@@ -1170,18 +1114,10 @@ def sync_folder(
                 logger.error(f"      ❌ Error processing document: {error_msg}")
 
                 # Check for specific Google Drive API errors
-                if (
-                    "exportSizeLimitExceeded" in error_msg
-                    or "too large to be exported" in error_msg
-                ):
+                if "exportSizeLimitExceeded" in error_msg or "too large to be exported" in error_msg:
                     logger.warning("      ⚠️  File too large to export (Google Drive limit)")
-                elif (
-                    "fileNotDownloadable" in error_msg
-                    or "Use Export with Docs Editors files" in error_msg
-                ):
-                    logger.warning(
-                        "      ⚠️  File type not downloadable (Google Docs/Sheets/Slides export issue)"
-                    )
+                elif "fileNotDownloadable" in error_msg or "Use Export with Docs Editors files" in error_msg:
+                    logger.warning("      ⚠️  File type not downloadable (Google Docs/Sheets/Slides export issue)")
 
                 stats["errors"].append(
                     {
@@ -1273,10 +1209,7 @@ def _complete_sync_log(
             if error_count > 0:
                 first_errors = stats["errors"][:3]
                 error_details = "; ".join(
-                    [
-                        f"{e.get('file_name', 'Unknown')}: {str(e.get('error', 'Unknown'))[:50]}"
-                        for e in first_errors
-                    ]
+                    [f"{e.get('file_name', 'Unknown')}: {str(e.get('error', 'Unknown'))[:50]}" for e in first_errors]
                 )
                 error_summary += error_details
                 if error_count > 3:

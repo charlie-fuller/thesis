@@ -239,9 +239,7 @@ def parse_stakeholder_profile(filepath: str) -> dict:
         profile["win_conditions"] = [item.strip() for item in win_items if item.strip()][:5]
 
     # Extract communication style
-    comm_section = re.search(
-        r"## Communication Preferences[^\n]*\n(.*?)(?=\n## |\Z)", content, re.DOTALL
-    )
+    comm_section = re.search(r"## Communication Preferences[^\n]*\n(.*?)(?=\n## |\Z)", content, re.DOTALL)
     if comm_section:
         style_match = re.search(r"\*\*Style:\*\*\s*([^\n]+)", comm_section.group(1))
         if style_match:
@@ -252,9 +250,7 @@ def parse_stakeholder_profile(filepath: str) -> dict:
             profile["communication_style"] = text
 
     # Extract open questions
-    questions_section = re.search(
-        r"## Questions to Explore[^\n]*\n(.*?)(?=\n## |\Z)", content, re.DOTALL
-    )
+    questions_section = re.search(r"## Questions to Explore[^\n]*\n(.*?)(?=\n## |\Z)", content, re.DOTALL)
     if questions_section:
         q_items = re.findall(r"\d+\.\s*([^\n]+)", questions_section.group(1))
         profile["open_questions"] = [q.strip() for q in q_items if q.strip()][:10]
@@ -314,15 +310,9 @@ def parse_metrics_markdown(filepath: str) -> list[dict]:
                     validation_status = "red"
                     if len(cols) > 3:
                         status_col = cols[3].lower()
-                        if (
-                            "🟢" in cols[3]
-                            or "confirmed" in status_col
-                            or "validated" in status_col
-                        ):
+                        if "🟢" in cols[3] or "confirmed" in status_col or "validated" in status_col:
                             validation_status = "green"
-                        elif (
-                            "🟡" in cols[3] or "estimated" in status_col or "partial" in status_col
-                        ):
+                        elif "🟡" in cols[3] or "estimated" in status_col or "partial" in status_col:
                             validation_status = "yellow"
 
                     source = cols[4] if len(cols) > 4 else None
@@ -347,9 +337,7 @@ def parse_metrics_markdown(filepath: str) -> list[dict]:
 # ============================================================================
 
 
-def get_or_create_stakeholder(
-    supabase: Client, client_id: str, name: str, profile: dict = None
-) -> str:
+def get_or_create_stakeholder(supabase: Client, client_id: str, name: str, profile: dict = None) -> str:
     """Get existing stakeholder by name or create new one. Returns stakeholder ID."""
     # Try to find existing
     result = (
@@ -391,9 +379,7 @@ def get_or_create_stakeholder(
     return result.data[0]["id"]
 
 
-def migrate_opportunities(
-    supabase: Client, client_id: str, opportunities: list[dict], dry_run: bool = False
-):
+def migrate_opportunities(supabase: Client, client_id: str, opportunities: list[dict], dry_run: bool = False):
     """Insert or update opportunities in database."""
     results = {"created": 0, "updated": 0, "errors": []}
 
@@ -407,15 +393,11 @@ def migrate_opportunities(
             owner_id = None
             if owner_name and owner_name not in ("TBD", "-", ""):
                 if owner_name not in stakeholder_cache:
-                    stakeholder_cache[owner_name] = get_or_create_stakeholder(
-                        supabase, client_id, owner_name
-                    )
+                    stakeholder_cache[owner_name] = get_or_create_stakeholder(supabase, client_id, owner_name)
                 owner_id = stakeholder_cache[owner_name]
 
             if dry_run:
-                print(
-                    f"  [DRY-RUN] Would create opportunity: {opp['opportunity_code']} - {opp['title']}"
-                )
+                print(f"  [DRY-RUN] Would create opportunity: {opp['opportunity_code']} - {opp['title']}")
                 results["created"] += 1
                 continue
 
@@ -432,9 +414,7 @@ def migrate_opportunities(
 
             if existing.data:
                 # Update
-                supabase.table("ai_opportunities").update(data).eq(
-                    "id", existing.data[0]["id"]
-                ).execute()
+                supabase.table("ai_opportunities").update(data).eq("id", existing.data[0]["id"]).execute()
                 results["updated"] += 1
             else:
                 # Insert
@@ -447,9 +427,7 @@ def migrate_opportunities(
     return results
 
 
-def migrate_stakeholder_profiles(
-    supabase: Client, client_id: str, profiles: list[dict], dry_run: bool = False
-):
+def migrate_stakeholder_profiles(supabase: Client, client_id: str, profiles: list[dict], dry_run: bool = False):
     """Update stakeholder profiles with project-triage fields."""
     results = {"updated": 0, "created": 0, "errors": []}
 
@@ -464,9 +442,7 @@ def migrate_stakeholder_profiles(
                 continue
 
             # Find or create stakeholder
-            stakeholder_id = get_or_create_stakeholder(
-                supabase, client_id, profile["name"], profile
-            )
+            stakeholder_id = get_or_create_stakeholder(supabase, client_id, profile["name"], profile)
 
             # Update with profile data
             update_data = {
@@ -530,9 +506,7 @@ def migrate_metrics(supabase: Client, client_id: str, metrics: list[dict], dry_r
             stakeholder_id = stakeholder_cache[stakeholder_name]
 
             if dry_run:
-                print(
-                    f"  [DRY-RUN] Would create metric: {metric['metric_name']} for {stakeholder_name}"
-                )
+                print(f"  [DRY-RUN] Would create metric: {metric['metric_name']} for {stakeholder_name}")
                 results["created"] += 1
                 continue
 
@@ -557,9 +531,7 @@ def migrate_metrics(supabase: Client, client_id: str, metrics: list[dict], dry_r
 
             if existing.data:
                 # Update
-                supabase.table("stakeholder_metrics").update(data).eq(
-                    "id", existing.data[0]["id"]
-                ).execute()
+                supabase.table("stakeholder_metrics").update(data).eq("id", existing.data[0]["id"]).execute()
             else:
                 # Insert
                 supabase.table("stakeholder_metrics").insert(data).execute()
@@ -579,18 +551,14 @@ def migrate_metrics(supabase: Client, client_id: str, metrics: list[dict], dry_r
 
 def main():
     parser = argparse.ArgumentParser(description="Migrate project-triage data to thesis database")
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Preview changes without writing to database"
-    )
+    parser.add_argument("--dry-run", action="store_true", help="Preview changes without writing to database")
     parser.add_argument(
         "--source",
         type=str,
         help="Path to project-triage directory",
         default="/Users/charlie.fuller/vaults/Contentful/agents/project-triage",
     )
-    parser.add_argument(
-        "--supabase-url", type=str, help="Supabase URL (or set SUPABASE_URL env var)"
-    )
+    parser.add_argument("--supabase-url", type=str, help="Supabase URL (or set SUPABASE_URL env var)")
     parser.add_argument(
         "--supabase-key",
         type=str,
@@ -603,9 +571,7 @@ def main():
     # Get Supabase credentials
     supabase_url = args.supabase_url or os.environ.get("SUPABASE_URL")
     supabase_key = (
-        args.supabase_key
-        or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-        or os.environ.get("SUPABASE_SERVICE_KEY")
+        args.supabase_key or os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_SERVICE_KEY")
     )
 
     if not supabase_url or not supabase_key:

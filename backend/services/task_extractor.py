@@ -224,9 +224,7 @@ class TaskExtractor:
             for pattern, pattern_name in INFERRED_PATTERNS:
                 matches = re.finditer(pattern, text, re.IGNORECASE | re.MULTILINE)
                 for match in matches:
-                    task = self._process_match(
-                        match, pattern_name, source_document, "medium", user_name
-                    )
+                    task = self._process_match(match, pattern_name, source_document, "medium", user_name)
                     if task:
                         tasks.append(task)
 

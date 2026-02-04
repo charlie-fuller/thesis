@@ -111,9 +111,7 @@ Provide practical, operations-focused guidance for AI implementation."""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Operations insight: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Operations insight: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -150,10 +148,7 @@ Provide practical, operations-focused guidance for AI implementation."""
         message_lower = context.user_message.lower()
 
         # Hand off to Architect for technical architecture questions
-        if any(
-            word in message_lower
-            for word in ["architecture", "system design", "integration pattern"]
-        ):
+        if any(word in message_lower for word in ["architecture", "system design", "integration pattern"]):
             return ("architect", "Query requires technical architecture expertise")
 
         # Hand off to Sage for people/change management
@@ -161,9 +156,7 @@ Provide practical, operations-focused guidance for AI implementation."""
             return ("sage", "Query requires people/change management expertise")
 
         # Hand off to Capital for detailed ROI analysis
-        if any(
-            word in message_lower for word in ["roi calculation", "cost-benefit", "financial model"]
-        ):
+        if any(word in message_lower for word in ["roi calculation", "cost-benefit", "financial model"]):
             return ("capital", "Query requires detailed financial analysis")
 
         return None

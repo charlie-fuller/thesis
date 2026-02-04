@@ -29,9 +29,7 @@ class EchoAgent(BaseAgent):
     """
 
     def __init__(self, supabase: Client, anthropic_client: anthropic.Anthropic):
-        super().__init__(
-            name="echo", display_name="Echo", supabase=supabase, anthropic_client=anthropic_client
-        )
+        super().__init__(name="echo", display_name="Echo", supabase=supabase, anthropic_client=anthropic_client)
 
     def _get_default_instruction(self) -> str:
         """Load system instruction from XML file or return fallback."""
@@ -81,9 +79,7 @@ Help create detailed, implementable brand voice specifications."""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Brand voice insight: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Brand voice insight: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -116,24 +112,15 @@ Help create detailed, implementable brand voice specifications."""
         message_lower = context.user_message.lower()
 
         # Hand off to Catalyst for internal communications application
-        if any(
-            word in message_lower
-            for word in ["internal communication", "employee messaging", "announcement"]
-        ):
+        if any(word in message_lower for word in ["internal communication", "employee messaging", "announcement"]):
             return ("catalyst", "Query requires internal communications expertise")
 
         # Hand off to Scholar for training content voice
-        if any(
-            word in message_lower
-            for word in ["training material", "learning content", "educational"]
-        ):
+        if any(word in message_lower for word in ["training material", "learning content", "educational"]):
             return ("scholar", "Query requires L&D content expertise")
 
         # Hand off to Strategist for executive communication voice
-        if any(
-            word in message_lower
-            for word in ["executive communication", "board presentation", "investor"]
-        ):
+        if any(word in message_lower for word in ["executive communication", "board presentation", "investor"]):
             return ("strategist", "Query requires executive communications expertise")
 
         return None

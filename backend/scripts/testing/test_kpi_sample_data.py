@@ -70,9 +70,7 @@ def generate_test_data(user_id: str, num_weeks: int = 4):
 
     # Get user's client_id for validation
     try:
-        user_result = (
-            supabase.table("users").select("client_id").eq("id", user_id).single().execute()
-        )
+        user_result = supabase.table("users").select("client_id").eq("id", user_id).single().execute()
         if not user_result.data:
             print(f"❌ Error: User {user_id} not found")
             return
@@ -141,9 +139,7 @@ def generate_test_data(user_id: str, num_weeks: int = 4):
                     # User message
                     if turn == 0:
                         # First message determines strategic vs operational
-                        user_content = random.choice(
-                            STRATEGIC_KEYWORDS if is_strategic else OPERATIONAL_QUERIES
-                        )
+                        user_content = random.choice(STRATEGIC_KEYWORDS if is_strategic else OPERATIONAL_QUERIES)
                     else:
                         user_content = (
                             "Thanks, can you refine that further?"
@@ -228,9 +224,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate sample KPI test data")
     parser.add_argument("--user-id", required=True, help="User UUID to generate data for")
     parser.add_argument("--weeks", type=int, default=4, help="Number of weeks of data to generate")
-    parser.add_argument(
-        "--cleanup", action="store_true", help="Clean up existing test data before generating"
-    )
+    parser.add_argument("--cleanup", action="store_true", help="Clean up existing test data before generating")
 
     args = parser.parse_args()
 

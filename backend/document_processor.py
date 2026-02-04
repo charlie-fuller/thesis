@@ -115,15 +115,11 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
         try:
             from docx import Document
         except ImportError:
-            raise ValueError(
-                "DOCX support not available - install python-docx: pip install python-docx"
-            ) from None
+            raise ValueError("DOCX support not available - install python-docx: pip install python-docx") from None
 
         try:
             doc = Document(BytesIO(file_data))
-            text = "\n\n".join(
-                [paragraph.text for paragraph in doc.paragraphs if paragraph.text.strip()]
-            )
+            text = "\n\n".join([paragraph.text for paragraph in doc.paragraphs if paragraph.text.strip()])
             if not text.strip():
                 raise ValueError("Document appears to be empty or contains no readable text")
             return text
@@ -158,9 +154,7 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
     elif file_ext == "pptx":
         # Extract text from PowerPoint presentation
         if not PPTX_SUPPORT:
-            raise ValueError(
-                "PPTX support not available - install python-pptx: pip install python-pptx"
-            )
+            raise ValueError("PPTX support not available - install python-pptx: pip install python-pptx")
         try:
             prs = Presentation(BytesIO(file_data))
             text_parts = []
@@ -201,14 +195,13 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
             else:
                 if not full_text.strip():
                     raise ValueError(
-                        "PDF appears to be image-based and OCR is not available. Install pytesseract and pdf2image for OCR support."
+                        "PDF appears to be image-based and OCR is not available. "
+                        "Install pytesseract and pdf2image for OCR support."
                     )
                 return full_text
 
         except ImportError:
-            raise ValueError(
-                "PDF support not available - install pypdf: pip install pypdf"
-            ) from None
+            raise ValueError("PDF support not available - install pypdf: pip install pypdf") from None
         except Exception as e:
             # If text extraction failed, try OCR as last resort
             if OCR_SUPPORT and "image-based" not in str(e):
@@ -232,9 +225,7 @@ def extract_text_from_file(file_data: bytes, filename: str) -> str:
         try:
             from striprtf.striprtf import rtf_to_text
         except ImportError:
-            raise ValueError(
-                "RTF support not available - install striprtf: pip install striprtf"
-            ) from None
+            raise ValueError("RTF support not available - install striprtf: pip install striprtf") from None
 
         try:
             # RTF files are text-based, decode first
@@ -357,7 +348,8 @@ def generate_embeddings(
     total_batches = (len(texts) + batch_size - 1) // batch_size
 
     logger.info(
-        f"   Processing {len(texts)} texts in {total_batches} batches (batch_size={batch_size}, input_type={input_type})..."
+        f"   Processing {len(texts)} texts in {total_batches} batches "
+        f"(batch_size={batch_size}, input_type={input_type})..."
     )
 
     try:
@@ -365,14 +357,10 @@ def generate_embeddings(
             batch_num = (i // batch_size) + 1
             batch = texts[i : i + batch_size]
 
-            logger.info(
-                f"      Processing batch {batch_num}/{total_batches} ({len(batch)} texts)..."
-            )
+            logger.info(f"      Processing batch {batch_num}/{total_batches} ({len(batch)} texts)...")
 
             # Call Voyage AI API with retry logic
-            embeddings = _call_voyage_embed_api(
-                batch=batch, model=EMBEDDING.MODEL_NAME, input_type=input_type
-            )
+            embeddings = _call_voyage_embed_api(batch=batch, model=EMBEDDING.MODEL_NAME, input_type=input_type)
             all_embeddings.extend(embeddings)
 
         logger.info(f"   ✓ Successfully generated {len(all_embeddings)} embeddings")
@@ -409,9 +397,7 @@ def process_document(document_id: str) -> Dict:
         logger.info(f"   Client ID: {document['client_id']}")
 
         # Set status to processing
-        supabase.table("documents").update({"processing_status": "processing"}).eq(
-            "id", document_id
-        ).execute()
+        supabase.table("documents").update({"processing_status": "processing"}).eq("id", document_id).execute()
 
         # Download file from storage
         storage_path = document["storage_url"].split("/documents/")[-1]
@@ -515,9 +501,7 @@ def process_document(document_id: str) -> Dict:
     except Exception as e:
         # Handle unexpected errors
         error_message = f"Unexpected error: {str(e)}"
-        logger.exception(
-            "   ❌ Unexpected processing error", extra={"document_id": document_id}, exc_info=True
-        )
+        logger.exception("   ❌ Unexpected processing error", extra={"document_id": document_id}, exc_info=True)
 
         # Update document with error status
         try:
@@ -601,8 +585,7 @@ async def process_document_with_classification(
             "review_reason": classification_result.review_reason,
             "detected_type": classification_result.detected_type,
             "agents": [
-                {"name": c.agent_name, "confidence": c.confidence}
-                for c in classification_result.classifications
+                {"name": c.agent_name, "confidence": c.confidence} for c in classification_result.classifications
             ],
             "processing_time_ms": classification_result.processing_time_ms,
         }
@@ -624,9 +607,7 @@ async def process_document_with_classification(
         sync_result = await check_and_sync_opportunities_for_document(document_id)
         result["opportunity_sync"] = {
             "status": "completed",
-            "opportunities_updated": sync_result.get("opportunities_updated", 0)
-            if sync_result
-            else 0,
+            "opportunities_updated": sync_result.get("opportunities_updated", 0) if sync_result else 0,
         }
         logger.info(f"Opportunity sync completed for document {document_id}")
     except Exception as e:
@@ -638,13 +619,7 @@ async def process_document_with_classification(
     # Note: Path is case-sensitive, matches Obsidian vault structure
     MEETING_SUMMARIES_FOLDER = "Granola/Meeting-summaries"
     try:
-        doc_result = (
-            supabase.table("documents")
-            .select("obsidian_file_path")
-            .eq("id", document_id)
-            .single()
-            .execute()
-        )
+        doc_result = supabase.table("documents").select("obsidian_file_path").eq("id", document_id).single().execute()
 
         obsidian_path = doc_result.data.get("obsidian_file_path", "") if doc_result.data else ""
         is_meeting_summary = obsidian_path.startswith(MEETING_SUMMARIES_FOLDER)
@@ -652,9 +627,7 @@ async def process_document_with_classification(
         if is_meeting_summary:
             from services.task_auto_extractor import extract_tasks_from_document
 
-            task_result = await extract_tasks_from_document(
-                document_id=document_id, supabase=supabase, auto_store=True
-            )
+            task_result = await extract_tasks_from_document(document_id=document_id, supabase=supabase, auto_store=True)
             result["task_extraction"] = {
                 "status": task_result.get("status", "unknown"),
                 "tasks_found": task_result.get("tasks_found", 0),
@@ -687,13 +660,7 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
     logger.info(f"\n💬 Processing conversation to KB: {conversation_id}")
 
     # Get conversation metadata and verify ownership
-    conv_result = (
-        supabase.table("conversations")
-        .select("*")
-        .eq("id", conversation_id)
-        .eq("user_id", user_id)
-        .execute()
-    )
+    conv_result = supabase.table("conversations").select("*").eq("id", conversation_id).eq("user_id", user_id).execute()
 
     if not conv_result.data:
         raise ValueError(f"Conversation {conversation_id} not found or access denied")
@@ -705,9 +672,7 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
     # Check if conversation is already in knowledge base
     if conversation.get("in_knowledge_base"):
         logger.warning("   ⚠️  Conversation already in knowledge base")
-        raise ValueError(
-            f"Conversation '{conversation.get('title', 'Untitled')}' is already in your knowledge base"
-        )
+        raise ValueError(f"Conversation '{conversation.get('title', 'Untitled')}' is already in your knowledge base")
 
     # Get all messages from the conversation
     messages_result = (
@@ -796,9 +761,9 @@ def process_conversation_to_kb(conversation_id: str, user_id: str) -> Dict:
         )
 
         # Only mark conversation as in knowledge base if ALL chunks succeeded
-        supabase.table("conversations").update(
-            {"in_knowledge_base": True, "added_to_kb_at": "now()"}
-        ).eq("id", conversation_id).execute()
+        supabase.table("conversations").update({"in_knowledge_base": True, "added_to_kb_at": "now()"}).eq(
+            "id", conversation_id
+        ).execute()
 
         logger.info("   ✓ Marked conversation as in knowledge base")
 
@@ -844,20 +809,14 @@ def remove_conversation_from_kb(conversation_id: str, user_id: str) -> Dict:
 
     # Verify ownership
     conv_result = (
-        supabase.table("conversations")
-        .select("id")
-        .eq("id", conversation_id)
-        .eq("user_id", user_id)
-        .execute()
+        supabase.table("conversations").select("id").eq("id", conversation_id).eq("user_id", user_id).execute()
     )
 
     if not conv_result.data:
         raise ValueError(f"Conversation {conversation_id} not found or access denied")
 
     # Delete all chunks for this conversation
-    delete_result = (
-        supabase.table("document_chunks").delete().eq("conversation_id", conversation_id).execute()
-    )
+    delete_result = supabase.table("document_chunks").delete().eq("conversation_id", conversation_id).execute()
 
     chunks_deleted = len(delete_result.data) if delete_result.data else 0
     logger.info(f"   ✓ Deleted {chunks_deleted} chunks")
@@ -1141,9 +1100,7 @@ def search_similar_chunks(
     if document_ids:
         logger.info(f"   Filtering by document IDs: {document_ids}")
     if agent_ids:
-        logger.info(
-            f"   Filtering by agent IDs: {agent_ids} (fallback threshold: {fallback_threshold})"
-        )
+        logger.info(f"   Filtering by agent IDs: {agent_ids} (fallback threshold: {fallback_threshold})")
 
     # Try to get from cache first (1-hour TTL)
     # Cache key includes all parameters to ensure exact match
@@ -1161,29 +1118,19 @@ def search_similar_chunks(
     if conversation_id:
         try:
             # Query all messages in the conversation
-            messages_result = (
-                supabase.table("messages")
-                .select("id")
-                .eq("conversation_id", conversation_id)
-                .execute()
-            )
+            messages_result = supabase.table("messages").select("id").eq("conversation_id", conversation_id).execute()
 
             if messages_result.data:
                 message_ids = [msg["id"] for msg in messages_result.data]
 
                 # Get all documents referenced in this conversation
                 docs_result = (
-                    supabase.table("message_documents")
-                    .select("document_id")
-                    .in_("message_id", message_ids)
-                    .execute()
+                    supabase.table("message_documents").select("document_id").in_("message_id", message_ids).execute()
                 )
 
                 if docs_result.data:
                     conversation_doc_ids = list({d["document_id"] for d in docs_result.data})
-                    logger.info(
-                        f"   Found {len(conversation_doc_ids)} documents referenced in conversation"
-                    )
+                    logger.info(f"   Found {len(conversation_doc_ids)} documents referenced in conversation")
         except Exception as e:
             logger.warning(f"   Failed to fetch conversation documents: {e}")
 
@@ -1200,9 +1147,7 @@ def search_similar_chunks(
     if min_similarity == 0.0:  # Only adjust if not explicitly set
         if query_type == "document_reference":
             min_similarity = SEARCH.SIMILARITY_THRESHOLDS["document_reference"]
-            logger.info(
-                f"   Adjusted min_similarity to {min_similarity} for document reference query (permissive)"
-            )
+            logger.info(f"   Adjusted min_similarity to {min_similarity} for document reference query (permissive)")
         elif query_type == "factual":
             min_similarity = SEARCH.SIMILARITY_THRESHOLDS["factual"]
             logger.info(f"   Adjusted min_similarity to {min_similarity} for factual query")
@@ -1211,9 +1156,7 @@ def search_similar_chunks(
             logger.info(f"   Adjusted min_similarity to {min_similarity} for exploratory query")
 
     # Generate embedding for query using "query" input type for better search relevance
-    query_embedding = generate_embeddings(
-        [preprocessed_query], input_type=EMBEDDING.INPUT_TYPE_QUERY
-    )[0]
+    query_embedding = generate_embeddings([preprocessed_query], input_type=EMBEDDING.INPUT_TYPE_QUERY)[0]
 
     # Detect if query is about meetings/transcripts/action items - use document_type filtering
     query_lower = query.lower()
@@ -1312,9 +1255,7 @@ def search_similar_chunks(
                     f"   Date filter active: only {len(chunks)} recent chunks found (respecting user's recency request)"
                 )
 
-            if (
-                len(chunks) >= 1
-            ):  # Found results with type filter (allow sparse results when date-filtered)
+            if len(chunks) >= 1:  # Found results with type filter (allow sparse results when date-filtered)
                 used_document_type_filter = True
                 logger.info(f"   Found {len(chunks)} chunks from transcripts/notes")
 
@@ -1327,9 +1268,7 @@ def search_similar_chunks(
                             try:
                                 # Parse ISO format date
                                 if isinstance(chunk_date, str):
-                                    chunk_dt = datetime.fromisoformat(
-                                        chunk_date.replace("Z", "+00:00")
-                                    )
+                                    chunk_dt = datetime.fromisoformat(chunk_date.replace("Z", "+00:00"))
                                 else:
                                     chunk_dt = chunk_date
                                 # Boost recent documents by 20%
@@ -1343,21 +1282,18 @@ def search_similar_chunks(
                     chunks.sort(key=lambda x: x.get("similarity", 0), reverse=True)
                     logger.info("   Applied recency boost for work query")
             else:
-                logger.info(
-                    f"   Only found {len(chunks)} chunks from transcripts/notes, will try broader search"
-                )
+                logger.info(f"   Only found {len(chunks)} chunks from transcripts/notes, will try broader search")
                 chunks = []  # Reset to trigger regular search
         except Exception as rpc_error:
-            logger.warning(
-                f"   Document type filtered search failed: {rpc_error}, falling back to standard search"
-            )
+            logger.warning(f"   Document type filtered search failed: {rpc_error}, falling back to standard search")
             chunks = []
 
     # Only run standard search if we didn't already get results from document_type filter
     if not used_document_type_filter:
         if agent_ids:
             logger.info(
-                f"   Calling match_document_chunks_with_agent_filter with threshold={min_similarity}, agents={agent_ids}"
+                f"   Calling match_document_chunks_with_agent_filter "
+                f"with threshold={min_similarity}, agents={agent_ids}"
             )
             logger.info(f"   Query embedding length: {len(query_embedding)}")
 
@@ -1380,9 +1316,7 @@ def search_similar_chunks(
                 if chunks:
                     used_fallback = chunks[0].get("used_fallback", False)
                     if used_fallback:
-                        logger.info(
-                            "   Agent filter had insufficient results, used fallback to all documents"
-                        )
+                        logger.info("   Agent filter had insufficient results, used fallback to all documents")
 
                 logger.info(f"   Found {len(chunks)} results (fallback={used_fallback})")
                 if chunks:
@@ -1392,7 +1326,8 @@ def search_similar_chunks(
                 chunks = []
         else:
             logger.info(
-                f"   Calling match_document_chunks with threshold={min_similarity}, client_id={client_id}, user_id={user_id}"
+                f"   Calling match_document_chunks with threshold={min_similarity}, "
+                f"client_id={client_id}, user_id={user_id}"
             )
             logger.info(f"   Query embedding length: {len(query_embedding)}")
 
@@ -1401,8 +1336,7 @@ def search_similar_chunks(
                     "match_document_chunks",
                     {
                         "query_embedding": query_embedding,
-                        "match_count": limit
-                        * 3,  # Get more results to prioritize conversation docs
+                        "match_count": limit * 3,  # Get more results to prioritize conversation docs
                         "match_threshold": min_similarity,
                         "p_client_id": client_id,
                         "p_user_id": user_id,
@@ -1425,9 +1359,7 @@ def search_similar_chunks(
     # Filter by document IDs if provided
     if document_ids:
         chunks = [c for c in chunks if c.get("document_id") in document_ids]
-        logger.info(
-            f"   After document ID filtering: {len(chunks)} results from specified documents"
-        )
+        logger.info(f"   After document ID filtering: {len(chunks)} results from specified documents")
 
     # Filter by minimum similarity score
     if min_similarity > 0.0:
@@ -1444,9 +1376,7 @@ def search_similar_chunks(
             title = metadata.get("title", "").lower() if metadata.get("title") else ""
 
             # Boost chunks from documents with meeting/transcript in filename or title
-            if any(
-                kw in filename or kw in title for kw in ["transcript", "meeting", "session", "call"]
-            ):
+            if any(kw in filename or kw in title for kw in ["transcript", "meeting", "session", "call"]):
                 chunk["similarity"] = min(1.0, chunk.get("similarity", 0.0) * 1.5)  # 50% boost
                 chunk["title_boosted"] = True
                 logger.debug(f"   Boosted transcript/meeting doc: {filename}")

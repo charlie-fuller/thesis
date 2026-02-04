@@ -178,9 +178,7 @@ async def list_categories(supabase: Client = Depends(get_supabase)):
 
 
 @router.post("/check", response_model=list[ConnectorCheckResult])
-async def check_connectors(
-    request: ConnectorCheckRequest, supabase: Client = Depends(get_supabase)
-):
+async def check_connectors(request: ConnectorCheckRequest, supabase: Client = Depends(get_supabase)):
     """Check availability of multiple connectors by name.
 
     Returns availability status for each requested connector.
@@ -223,9 +221,7 @@ async def check_connectors(
 
 
 @router.post("/request")
-async def log_connector_request(
-    request: ConnectorRequestInput, supabase: Client = Depends(get_supabase)
-):
+async def log_connector_request(request: ConnectorRequestInput, supabase: Client = Depends(get_supabase)):
     """Log a connector request for gap tracking.
 
     Increments request_count if connector was already requested.
@@ -255,9 +251,7 @@ async def log_connector_request(
 
 
 @router.get("/gaps", response_model=list[ConnectorGap])
-async def get_connector_gaps(
-    priority: Optional[str] = None, limit: int = 20, supabase: Client = Depends(get_supabase)
-):
+async def get_connector_gaps(priority: Optional[str] = None, limit: int = 20, supabase: Client = Depends(get_supabase)):
     """Get prioritized list of connector gaps/requests.
 
     Use this to understand what connectors are being requested most.
@@ -301,9 +295,7 @@ async def search_connectors(query: str, supabase: Client = Depends(get_supabase)
 
 
 @router.post("/disco/score", response_model=DiscoScoreResponse)
-async def calculate_disco_score(
-    request: DiscoIntegrationRequest, supabase: Client = Depends(get_supabase)
-):
+async def calculate_disco_score(request: DiscoIntegrationRequest, supabase: Client = Depends(get_supabase)):
     """Calculate DISCO integration feasibility score for a list of integrations.
 
     Scoring:
@@ -360,14 +352,10 @@ async def calculate_disco_score(
         data_source = DiscoDataSource(
             source=data_source_data.get("source", "AWC-Glean Data Source Connector Tracking"),
             last_updated=data_source_data.get("last_updated", "2026-01-29"),
-            note=data_source_data.get(
-                "note", "Check with IT/AWC team for latest connector status."
-            ),
+            note=data_source_data.get("note", "Check with IT/AWC team for latest connector status."),
         )
 
-        return DiscoScoreResponse(
-            integrations=integrations, summary=summary, data_source=data_source
-        )
+        return DiscoScoreResponse(integrations=integrations, summary=summary, data_source=data_source)
     except HTTPException:
         raise
     except Exception as e:

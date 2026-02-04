@@ -112,11 +112,7 @@ def test_conversation_data():
         ]
 
         messages_result = (
-            supabase.table("messages")
-            .select("id, content, conversation_id")
-            .eq("role", "user")
-            .limit(100)
-            .execute()
+            supabase.table("messages").select("id, content, conversation_id").eq("role", "user").limit(100).execute()
         )
 
         strategic_count = 0
@@ -209,10 +205,7 @@ def test_kpi_query_logic():
         if client_id:
             # This is what the current code does - query by client_id
             conversations_result = (
-                supabase.table("conversations")
-                .select("id, created_at")
-                .eq("client_id", client_id)
-                .execute()
+                supabase.table("conversations").select("id, created_at").eq("client_id", client_id).execute()
             )
 
             if "code" in conversations_result.__dict__ and conversations_result.code == "PGRST116":
@@ -225,10 +218,7 @@ def test_kpi_query_logic():
         print("\n   Testing CORRECT implementation (using user_id)...")
         # This is what it SHOULD do - query by user_id
         conversations_result = (
-            supabase.table("conversations")
-            .select("id, user_id, created_at")
-            .eq("user_id", user_id)
-            .execute()
+            supabase.table("conversations").select("id, user_id, created_at").eq("user_id", user_id).execute()
         )
 
         print(f"   Found {len(conversations_result.data)} conversations by user_id")
@@ -236,12 +226,7 @@ def test_kpi_query_logic():
         if conversations_result.data:
             # Count turns for first conversation
             conv_id = conversations_result.data[0]["id"]
-            messages_result = (
-                supabase.table("messages")
-                .select("id, role")
-                .eq("conversation_id", conv_id)
-                .execute()
-            )
+            messages_result = supabase.table("messages").select("id, role").eq("conversation_id", conv_id).execute()
 
             user_turns = len([m for m in messages_result.data if m["role"] == "user"])
             print(f"   Sample conversation has {user_turns} user turns")

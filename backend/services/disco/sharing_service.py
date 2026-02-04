@@ -42,11 +42,7 @@ async def add_member(initiative_id: str, user_email: str, role: str, inviter_id:
     try:
         # Find user by email
         user_result = await asyncio.to_thread(
-            lambda: supabase.table("users")
-            .select("id, email, name")
-            .eq("email", user_email)
-            .single()
-            .execute()
+            lambda: supabase.table("users").select("id, email, name").eq("email", user_email).single().execute()
         )
 
         if not user_result.data:
@@ -82,9 +78,7 @@ async def add_member(initiative_id: str, user_email: str, role: str, inviter_id:
         member_id = str(uuid4())
         result = await asyncio.to_thread(
             lambda: supabase.table("disco_initiative_members")
-            .insert(
-                {"id": member_id, "initiative_id": initiative_id, "user_id": user_id, "role": role}
-            )
+            .insert({"id": member_id, "initiative_id": initiative_id, "user_id": user_id, "role": role})
             .execute()
         )
 
@@ -176,9 +170,7 @@ async def list_members(initiative_id: str) -> List[Dict]:
         raise
 
 
-async def update_member_role(
-    initiative_id: str, user_id: str, new_role: str, updater_id: str
-) -> Dict:
+async def update_member_role(initiative_id: str, user_id: str, new_role: str, updater_id: str) -> Dict:
     """Update a member's role.
 
     Args:

@@ -100,9 +100,7 @@ class BaseAgent(ABC):
         Called once when the agent is first loaded.
         """
         try:
-            result = (
-                self.supabase.table("agents").select("*").eq("name", self.name).single().execute()
-            )
+            result = self.supabase.table("agents").select("*").eq("name", self.name).single().execute()
             if result.data:
                 self._agent_id = result.data["id"]
                 # Load active instruction from agent_instruction_versions (single source of truth)
@@ -140,9 +138,7 @@ class BaseAgent(ABC):
                     # Only use if it's real content, not a placeholder
                     if not instruction.startswith("--") and len(instruction) > 100:
                         self._system_instruction = instruction
-                        logger.info(
-                            f"Loaded active instruction for {self.name} from DB ({len(instruction)} chars)"
-                        )
+                        logger.info(f"Loaded active instruction for {self.name} from DB ({len(instruction)} chars)")
                         return True
             except Exception as e:
                 logger.error(f"Failed to load instruction from DB for {self.name}: {e}")
@@ -152,9 +148,7 @@ class BaseAgent(ABC):
             xml_instruction = load_instruction_from_file(self.name)
             if xml_instruction and len(xml_instruction) > 100:
                 self._system_instruction = xml_instruction
-                logger.info(
-                    f"Loaded instruction for {self.name} from XML file ({len(xml_instruction)} chars)"
-                )
+                logger.info(f"Loaded instruction for {self.name} from XML file ({len(xml_instruction)} chars)")
                 return True
 
         # Fall back to Python default
@@ -228,9 +222,7 @@ class BaseAgent(ABC):
         """
         return None
 
-    async def save_memory(
-        self, content: str, context: AgentContext, metadata: Optional[dict] = None
-    ) -> None:
+    async def save_memory(self, content: str, context: AgentContext, metadata: Optional[dict] = None) -> None:
         """Save a memory to Mem0 for future context.
 
         Memories are tagged with the agent name and relevant metadata.

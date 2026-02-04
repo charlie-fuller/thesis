@@ -83,9 +83,7 @@ Provide clear-eyed, hype-free guidance on emerging AI technologies."""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Innovation assessment: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Innovation assessment: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -117,21 +115,15 @@ Provide clear-eyed, hype-free guidance on emerging AI technologies."""
         message_lower = context.user_message.lower()
 
         # Hand off to Architect for implementation architecture
-        if any(
-            word in message_lower for word in ["implement", "architecture", "integrate", "build"]
-        ):
+        if any(word in message_lower for word in ["implement", "architecture", "integrate", "build"]):
             return ("architect", "Query requires technical architecture expertise")
 
         # Hand off to Atlas for research and case studies
-        if any(
-            word in message_lower for word in ["research", "case study", "benchmark", "evidence"]
-        ):
+        if any(word in message_lower for word in ["research", "case study", "benchmark", "evidence"]):
             return ("atlas", "Query requires research intelligence")
 
         # Hand off to Strategist for executive positioning
-        if any(
-            word in message_lower for word in ["executive", "board", "business case", "justify"]
-        ):
+        if any(word in message_lower for word in ["executive", "board", "business case", "justify"]):
             return ("strategist", "Query requires executive strategy expertise")
 
         return None

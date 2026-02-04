@@ -68,9 +68,7 @@ async def create_bundle(
         "source_output_id": source_output_id,
     }
 
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_bundles").insert(bundle_data).execute()
-    )
+    result = await asyncio.to_thread(lambda: supabase.table("disco_bundles").insert(bundle_data).execute())
 
     if not result.data:
         raise Exception("Failed to create bundle")
@@ -100,9 +98,7 @@ async def list_bundles(initiative_id: str, status: Optional[str] = None) -> List
     return result.data or []
 
 
-async def update_bundle(
-    bundle_id: str, updates: Dict, user_id: str, feedback: Optional[str] = None
-) -> Dict:
+async def update_bundle(bundle_id: str, updates: Dict, user_id: str, feedback: Optional[str] = None) -> Dict:
     """Update a bundle and optionally record feedback.
 
     Args:
@@ -115,9 +111,7 @@ async def update_bundle(
         Updated bundle record
     """
     # Remove any fields that shouldn't be updated directly
-    safe_updates = {
-        k: v for k, v in updates.items() if k not in ["id", "initiative_id", "created_at"]
-    }
+    safe_updates = {k: v for k, v in updates.items() if k not in ["id", "initiative_id", "created_at"]}
 
     result = await asyncio.to_thread(
         lambda: supabase.table("disco_bundles").update(safe_updates).eq("id", bundle_id).execute()
@@ -173,19 +167,14 @@ async def approve_bundle(bundle_id: str, user_id: str, feedback: Optional[str] =
 async def reject_bundle(bundle_id: str, user_id: str, feedback: str) -> Dict:
     """Reject a bundle (won't proceed to PRD)."""
     result = await asyncio.to_thread(
-        lambda: supabase.table("disco_bundles")
-        .update({"status": "rejected"})
-        .eq("id", bundle_id)
-        .execute()
+        lambda: supabase.table("disco_bundles").update({"status": "rejected"}).eq("id", bundle_id).execute()
     )
 
     if not result.data:
         raise ValueError(f"Bundle not found: {bundle_id}")
 
     # Record rejection feedback
-    await record_bundle_feedback(
-        bundle_id=bundle_id, user_id=user_id, action="reject", feedback=feedback
-    )
+    await record_bundle_feedback(bundle_id=bundle_id, user_id=user_id, action="reject", feedback=feedback)
 
     logger.info(f"Rejected bundle {bundle_id}")
     return result.data[0]
@@ -248,10 +237,7 @@ async def merge_bundles(
     # Mark original bundles as merged
     for bid in bundle_ids:
         await asyncio.to_thread(
-            lambda b=bid: supabase.table("disco_bundles")
-            .update({"status": "merged"})
-            .eq("id", b)
-            .execute()
+            lambda b=bid: supabase.table("disco_bundles").update({"status": "merged"}).eq("id", b).execute()
         )
         await record_bundle_feedback(
             bundle_id=bid,
@@ -309,10 +295,7 @@ async def split_bundle(
 
     # Mark original as merged (effectively replaced)
     await asyncio.to_thread(
-        lambda: supabase.table("disco_bundles")
-        .update({"status": "merged"})
-        .eq("id", bundle_id)
-        .execute()
+        lambda: supabase.table("disco_bundles").update({"status": "merged"}).eq("id", bundle_id).execute()
     )
 
     await record_bundle_feedback(
@@ -348,9 +331,7 @@ async def record_bundle_feedback(
         "changes": changes,
     }
 
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_bundle_feedback").insert(feedback_data).execute()
-    )
+    result = await asyncio.to_thread(lambda: supabase.table("disco_bundle_feedback").insert(feedback_data).execute())
 
     if not result.data:
         raise Exception("Failed to record feedback")
@@ -408,9 +389,7 @@ def parse_synthesis_output(content_markdown: str, output_id: str) -> List[Dict]:
         urgency = _extract_score(match, "Urgency")
 
         # Extract complexity tier
-        tier_match = re.search(
-            r"\*\*Complexity Tier\*\*:\s*(Light|Medium|Heavy)", match, re.IGNORECASE
-        )
+        tier_match = re.search(r"\*\*Complexity Tier\*\*:\s*(Light|Medium|Heavy)", match, re.IGNORECASE)
         complexity = tier_match.group(1) if tier_match else None
 
         # Extract included items
@@ -420,9 +399,7 @@ def parse_synthesis_output(content_markdown: str, output_id: str) -> List[Dict]:
         stakeholders = _extract_stakeholders(match)
 
         # Extract rationale
-        rationale_match = re.search(
-            r"\*\*Rationale for Bundling\*\*:\s*(.+?)(?=\n---|\n###|\Z)", match, re.DOTALL
-        )
+        rationale_match = re.search(r"\*\*Rationale for Bundling\*\*:\s*(.+?)(?=\n---|\n###|\Z)", match, re.DOTALL)
         rationale = rationale_match.group(1).strip() if rationale_match else None
 
         bundles.append(
@@ -491,9 +468,7 @@ def _extract_stakeholders(text: str) -> List[Dict]:
     stakeholders = []
 
     # Look for stakeholders section
-    stakeholders_match = re.search(
-        r"\*\*Affected Stakeholders\*\*:\s*\n(.+?)(?=\n\*\*|\n\||\Z)", text, re.DOTALL
-    )
+    stakeholders_match = re.search(r"\*\*Affected Stakeholders\*\*:\s*\n(.+?)(?=\n\*\*|\n\||\Z)", text, re.DOTALL)
     if stakeholders_match:
         stakeholders_text = stakeholders_match.group(1)
         # Parse bullet points
@@ -501,9 +476,7 @@ def _extract_stakeholders(text: str) -> List[Dict]:
             line = line.strip()
             if line.startswith("- "):
                 parts = line[2:].split(" - ", 1)
-                stakeholders.append(
-                    {"name": parts[0].strip(), "stake": parts[1].strip() if len(parts) > 1 else ""}
-                )
+                stakeholders.append({"name": parts[0].strip(), "stake": parts[1].strip() if len(parts) > 1 else ""})
 
     return stakeholders
 

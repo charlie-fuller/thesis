@@ -60,9 +60,7 @@ try:
     print()
     print("OPTION 1: Supabase Dashboard (Recommended)")
     print("-" * 80)
-    print(
-        f"1. Go to: {SUPABASE_URL.replace('https://', 'https://supabase.com/dashboard/project/')}"
-    )
+    print(f"1. Go to: {SUPABASE_URL.replace('https://', 'https://supabase.com/dashboard/project/')}")
     print("2. Click 'SQL Editor' in the left sidebar")
     print("3. Click 'New Query'")
     print("4. Copy the SQL from: backend/migrations/022_add_messages_metadata_column.sql")
@@ -70,9 +68,7 @@ try:
     print()
     print("OPTION 2: Using psql CLI")
     print("-" * 80)
-    print(
-        "psql postgresql://postgres:[PASSWORD]@db.quizuqhnapsemfvjublt.supabase.co:5432/postgres \\"
-    )
+    print("psql postgresql://postgres:[PASSWORD]@db.quizuqhnapsemfvjublt.supabase.co:5432/postgres \\")
     print("  -f backend/migrations/022_add_messages_metadata_column.sql")
     print()
     print("=" * 80)

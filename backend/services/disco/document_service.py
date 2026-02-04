@@ -99,9 +99,7 @@ async def upload_document(
             batch_size = DATABASE.BATCH_INSERT_SIZE
             for batch_start in range(0, len(chunks_to_insert), batch_size):
                 batch = chunks_to_insert[batch_start : batch_start + batch_size]
-                await asyncio.to_thread(
-                    lambda b=batch: supabase.table("disco_document_chunks").insert(b).execute()
-                )
+                await asyncio.to_thread(lambda b=batch: supabase.table("disco_document_chunks").insert(b).execute())
 
             logger.info(f"Stored {len(chunks_to_insert)} chunks for document {document_id}")
 
@@ -112,17 +110,13 @@ async def upload_document(
         logger.error(f"Error uploading document: {e}")
         # Cleanup on failure
         try:
-            await asyncio.to_thread(
-                lambda: supabase.table("disco_documents").delete().eq("id", document_id).execute()
-            )
+            await asyncio.to_thread(lambda: supabase.table("disco_documents").delete().eq("id", document_id).execute())
         except Exception:
             pass
         raise
 
 
-async def upload_document_file(
-    initiative_id: str, file_data: bytes, filename: str, user_id: str
-) -> Dict:
+async def upload_document_file(initiative_id: str, file_data: bytes, filename: str, user_id: str) -> Dict:
     """Upload a file, extract text, and process it.
 
     Args:
@@ -165,11 +159,7 @@ async def get_documents(
     logger.info(f"Fetching documents for initiative {initiative_id}")
 
     try:
-        query = (
-            supabase.table("disco_documents")
-            .select("*", count="exact")
-            .eq("initiative_id", initiative_id)
-        )
+        query = supabase.table("disco_documents").select("*", count="exact").eq("initiative_id", initiative_id)
 
         if document_type:
             query = query.eq("document_type", document_type)
@@ -229,9 +219,7 @@ async def delete_document(document_id: str, initiative_id: str) -> bool:
             raise ValueError(f"Document {document_id} not found in initiative {initiative_id}")
 
         # Delete document (cascades to chunks)
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_documents").delete().eq("id", document_id).execute()
-        )
+        await asyncio.to_thread(lambda: supabase.table("disco_documents").delete().eq("id", document_id).execute())
 
         logger.info(f"Deleted document {document_id}")
         return True
@@ -283,10 +271,7 @@ async def search_initiative_docs(
         if chunks:
             doc_ids = list({c["document_id"] for c in chunks})
             docs_result = await asyncio.to_thread(
-                lambda: supabase.table("disco_documents")
-                .select("id, filename")
-                .in_("id", doc_ids)
-                .execute()
+                lambda: supabase.table("disco_documents").select("id, filename").in_("id", doc_ids).execute()
             )
             doc_names = {d["id"]: d["filename"] for d in (docs_result.data or [])}
 
@@ -396,10 +381,7 @@ async def get_linked_document_names(initiative_id: str) -> List[Dict]:
 
         # Fetch document metadata from KB
         docs_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, filename, title")
-            .in_("id", doc_ids)
-            .execute()
+            lambda: supabase.table("documents").select("id, filename, title").in_("id", doc_ids).execute()
         )
 
         return docs_result.data or []
@@ -470,15 +452,9 @@ async def search_linked_kb_docs(
         if chunks:
             chunk_doc_ids = list({c["document_id"] for c in chunks})
             docs_result = await asyncio.to_thread(
-                lambda: supabase.table("documents")
-                .select("id, filename, title")
-                .in_("id", chunk_doc_ids)
-                .execute()
+                lambda: supabase.table("documents").select("id, filename, title").in_("id", chunk_doc_ids).execute()
             )
-            doc_names = {
-                d["id"]: d.get("title") or d.get("filename", "Unknown")
-                for d in (docs_result.data or [])
-            }
+            doc_names = {d["id"]: d.get("title") or d.get("filename", "Unknown") for d in (docs_result.data or [])}
 
             for chunk in chunks:
                 chunk["filename"] = doc_names.get(chunk["document_id"], "Unknown")
@@ -523,11 +499,7 @@ async def get_all_initiative_content(initiative_id: str) -> str:
         for doc_id in doc_ids:
             # Get document metadata
             doc_result = await asyncio.to_thread(
-                lambda d=doc_id: supabase.table("documents")
-                .select("filename, title")
-                .eq("id", d)
-                .single()
-                .execute()
+                lambda d=doc_id: supabase.table("documents").select("filename, title").eq("id", d).single().execute()
             )
 
             if not doc_result.data:

@@ -50,9 +50,7 @@ async def create_prd(
         "source_output_id": source_output_id,
     }
 
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_prds").insert(prd_data).execute()
-    )
+    result = await asyncio.to_thread(lambda: supabase.table("disco_prds").insert(prd_data).execute())
 
     if not result.data:
         raise Exception("Failed to create PRD")
@@ -73,15 +71,9 @@ async def get_prd(prd_id: str) -> Optional[Dict]:
     return result.data
 
 
-async def list_prds(
-    initiative_id: str, bundle_id: Optional[str] = None, status: Optional[str] = None
-) -> List[Dict]:
+async def list_prds(initiative_id: str, bundle_id: Optional[str] = None, status: Optional[str] = None) -> List[Dict]:
     """List PRDs for an initiative."""
-    query = (
-        supabase.table("disco_prds")
-        .select("*, disco_bundles(name, status)")
-        .eq("initiative_id", initiative_id)
-    )
+    query = supabase.table("disco_prds").select("*, disco_bundles(name, status)").eq("initiative_id", initiative_id)
 
     if bundle_id:
         query = query.eq("bundle_id", bundle_id)
@@ -97,11 +89,7 @@ async def list_prds(
 async def update_prd(prd_id: str, updates: Dict) -> Dict:
     """Update a PRD."""
     # Remove protected fields
-    safe_updates = {
-        k: v
-        for k, v in updates.items()
-        if k not in ["id", "bundle_id", "initiative_id", "created_at"]
-    }
+    safe_updates = {k: v for k, v in updates.items() if k not in ["id", "bundle_id", "initiative_id", "created_at"]}
 
     result = await asyncio.to_thread(
         lambda: supabase.table("disco_prds").update(safe_updates).eq("id", prd_id).execute()
@@ -171,9 +159,7 @@ async def increment_prd_version(prd_id: str, new_content: str) -> Dict:
 # ============================================================================
 
 
-async def generate_prd_for_bundle(
-    bundle_id: str, initiative_id: str, user_id: str
-) -> AsyncGenerator[Dict, None]:
+async def generate_prd_for_bundle(bundle_id: str, initiative_id: str, user_id: str) -> AsyncGenerator[Dict, None]:
     """Generate a PRD for an approved bundle.
 
     Yields streaming events:
@@ -340,9 +326,7 @@ Please generate a complete PRD following the structure defined in your instructi
 def extract_prd_title(content: str) -> Optional[str]:
     """Extract the PRD title from markdown content."""
     # Look for first h1
-    match = re.search(
-        r"^#\s+(.+?)(?:\s*-\s*Product Requirements Document)?$", content, re.MULTILINE
-    )
+    match = re.search(r"^#\s+(.+?)(?:\s*-\s*Product Requirements Document)?$", content, re.MULTILINE)
     if match:
         return match.group(1).strip()
     return None
@@ -385,9 +369,7 @@ def parse_prd_sections(content: str) -> Dict:
 # ============================================================================
 
 
-async def generate_executive_summary(
-    initiative_id: str, user_id: str
-) -> AsyncGenerator[Dict, None]:
+async def generate_executive_summary(initiative_id: str, user_id: str) -> AsyncGenerator[Dict, None]:
     """Generate an executive summary document across all approved bundles/PRDs.
 
     This creates a high-level overview suitable for leadership review.
@@ -401,11 +383,7 @@ async def generate_executive_summary(
 
     # Get initiative
     result = await asyncio.to_thread(
-        lambda: supabase.table("disco_initiatives")
-        .select("*")
-        .eq("id", initiative_id)
-        .single()
-        .execute()
+        lambda: supabase.table("disco_initiatives").select("*").eq("id", initiative_id).single().execute()
     )
     initiative = result.data
     if not initiative:
@@ -448,9 +426,7 @@ async def generate_executive_summary(
         # Include PRD executive summary if available
         prd = prd_map.get(bundle["id"])
         if prd and prd.get("content_structured", {}).get("executive_summary"):
-            context += (
-                f"**PRD Executive Summary**:\n{prd['content_structured']['executive_summary']}\n\n"
-            )
+            context += f"**PRD Executive Summary**:\n{prd['content_structured']['executive_summary']}\n\n"
 
     context += """
 ---

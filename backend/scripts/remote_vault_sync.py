@@ -148,9 +148,7 @@ class RemoteVaultSyncer:
     def check_status(self) -> dict:
         """Check connection to remote API."""
         try:
-            response = self.client.get(
-                f"{self.api_url}/api/obsidian/status", headers=self._get_headers()
-            )
+            response = self.client.get(f"{self.api_url}/api/obsidian/status", headers=self._get_headers())
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -365,7 +363,7 @@ def get_auth_token(interactive: bool = True) -> Optional[str]:
 
     if not interactive:
         print("ERROR: No valid saved token and running non-interactively.")
-        print(f"Run once interactively to authenticate, or provide --token")
+        print("Run once interactively to authenticate, or provide --token")
         return None
 
     if not SUPABASE_URL or not SUPABASE_ANON_KEY:
@@ -404,9 +402,7 @@ def get_auth_token(interactive: bool = True) -> Optional[str]:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Sync local vault to remote Thesis backend (Railway)"
-    )
+    parser = argparse.ArgumentParser(description="Sync local vault to remote Thesis backend (Railway)")
     parser.add_argument("--vault-path", default=VAULT_PATH, help="Path to Obsidian vault")
     parser.add_argument(
         "--api-url",
@@ -426,9 +422,7 @@ def main():
         metavar="N",
         help="Number of recent files to sync on startup (default: 50, 0 to skip)",
     )
-    parser.add_argument(
-        "--watch-only", action="store_true", help="Only watch for changes, skip initial sync"
-    )
+    parser.add_argument("--watch-only", action="store_true", help="Only watch for changes, skip initial sync")
 
     args = parser.parse_args()
 
@@ -441,9 +435,9 @@ def main():
         print(f"ERROR: Vault path does not exist: {vault_path}")
         sys.exit(1)
 
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print("  Remote Vault Sync Client")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
     print(f"API:   {args.api_url}")
     print(f"Vault: {vault_path}")
 

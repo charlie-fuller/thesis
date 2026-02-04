@@ -358,9 +358,7 @@ Respond with ONLY the JSON object, no additional text."""
             meeting_date = None
             if analysis.get("meeting_date"):
                 try:
-                    meeting_date = (
-                        datetime.strptime(analysis["meeting_date"], "%Y-%m-%d").date().isoformat()
-                    )
+                    meeting_date = datetime.strptime(analysis["meeting_date"], "%Y-%m-%d").date().isoformat()
                 except (ValueError, TypeError):
                     meeting_date = None
 
@@ -579,9 +577,7 @@ Respond with ONLY the JSON object, no additional text."""
         message_lower = context.user_message.lower()
 
         # Hand off to Capital for ROI/cost questions
-        if any(
-            word in message_lower for word in ["roi", "cost", "budget", "savings", "investment"]
-        ):
+        if any(word in message_lower for word in ["roi", "cost", "budget", "savings", "investment"]):
             return ("capital", "Query involves financial analysis")
 
         # Hand off to Guardian for security/compliance
@@ -593,9 +589,7 @@ Respond with ONLY the JSON object, no additional text."""
             return ("counselor", "Query involves legal considerations")
 
         # Hand off to Atlas for research
-        if any(
-            word in message_lower for word in ["research", "study", "best practice", "industry"]
-        ):
+        if any(word in message_lower for word in ["research", "study", "best practice", "industry"]):
             return ("atlas", "Query requires research")
 
         return None

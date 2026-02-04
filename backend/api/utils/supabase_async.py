@@ -97,9 +97,7 @@ async def async_select(
     return await asyncio.to_thread(query)
 
 
-async def async_insert(
-    table: str, data: List[Dict[str, Any]] | Dict[str, Any], batch_size: int = 500
-) -> Any:
+async def async_insert(table: str, data: List[Dict[str, Any]] | Dict[str, Any], batch_size: int = 500) -> Any:
     """Simplified INSERT with automatic batching for large datasets.
 
     Args:

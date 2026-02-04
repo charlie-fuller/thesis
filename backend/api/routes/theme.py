@@ -85,11 +85,7 @@ async def get_theme_settings(current_user: dict = Depends(get_current_user)):
         client_id = current_user.get("client_id")
 
         result = await asyncio.to_thread(
-            lambda: supabase.table("theme_settings")
-            .select("*")
-            .eq("client_id", client_id)
-            .single()
-            .execute()
+            lambda: supabase.table("theme_settings").select("*").eq("client_id", client_id).single().execute()
         )
 
         if not result.data:
@@ -105,9 +101,7 @@ async def get_theme_settings(current_user: dict = Depends(get_current_user)):
 
 
 @router.put("/api/theme")
-async def update_theme_settings(
-    settings: ThemeSettings, current_user: dict = Depends(get_current_user)
-):
+async def update_theme_settings(settings: ThemeSettings, current_user: dict = Depends(get_current_user)):
     """Update theme settings (admin only)."""
     try:
         # Check admin role
@@ -124,27 +118,18 @@ async def update_theme_settings(
 
         # Check if theme settings exist
         existing = await asyncio.to_thread(
-            lambda: supabase.table("theme_settings")
-            .select("id")
-            .eq("client_id", client_id)
-            .single()
-            .execute()
+            lambda: supabase.table("theme_settings").select("id").eq("client_id", client_id).single().execute()
         )
 
         if existing.data:
             # Update existing
             result = await asyncio.to_thread(
-                lambda: supabase.table("theme_settings")
-                .update(update_data)
-                .eq("client_id", client_id)
-                .execute()
+                lambda: supabase.table("theme_settings").update(update_data).eq("client_id", client_id).execute()
             )
         else:
             # Insert new
             update_data["client_id"] = client_id
-            result = await asyncio.to_thread(
-                lambda: supabase.table("theme_settings").insert(update_data).execute()
-            )
+            result = await asyncio.to_thread(lambda: supabase.table("theme_settings").insert(update_data).execute())
 
         logger.info(f"Theme settings updated for client {client_id}")
 
@@ -178,9 +163,7 @@ async def reset_theme_settings(current_user: dict = Depends(get_current_user)):
         default_theme["client_id"] = client_id
 
         result = await asyncio.to_thread(
-            lambda: supabase.table("theme_settings")
-            .upsert(default_theme, on_conflict="client_id")
-            .execute()
+            lambda: supabase.table("theme_settings").upsert(default_theme, on_conflict="client_id").execute()
         )
 
         logger.info(f"Theme settings reset for client {client_id}")
@@ -212,9 +195,7 @@ async def upload_logo(file: UploadFile = File(...), current_user: dict = Depends
 
         # Validate file type
         if file.content_type not in ALLOWED_LOGO_TYPES:
-            raise HTTPException(
-                status_code=400, detail="Invalid file type. Allowed: PNG, JPEG, GIF, SVG, WebP"
-            )
+            raise HTTPException(status_code=400, detail="Invalid file type. Allowed: PNG, JPEG, GIF, SVG, WebP")
 
         # Read and validate file size
         file_content = await file.read()
@@ -242,11 +223,7 @@ async def upload_logo(file: UploadFile = File(...), current_user: dict = Depends
 
         # Update theme settings with new logo URL
         existing = await asyncio.to_thread(
-            lambda: supabase.table("theme_settings")
-            .select("id")
-            .eq("client_id", client_id)
-            .single()
-            .execute()
+            lambda: supabase.table("theme_settings").select("id").eq("client_id", client_id).single().execute()
         )
 
         if existing.data:

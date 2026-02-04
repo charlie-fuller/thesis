@@ -127,10 +127,7 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
 
         # Get document count
         doc_count = await asyncio.to_thread(
-            lambda: db.table("disco_documents")
-            .select("id", count="exact")
-            .eq("initiative_id", initiative_id)
-            .execute()
+            lambda: db.table("disco_documents").select("id", count="exact").eq("initiative_id", initiative_id).execute()
         )
         initiative["document_count"] = doc_count.count or 0
 
@@ -160,9 +157,7 @@ async def get_initiative(initiative_id: str, user_id: str) -> Optional[Dict]:
 
 
 @with_db_retry(max_retries=2)
-async def list_initiatives(
-    user_id: str, status_filter: Optional[str] = None, limit: int = 50, offset: int = 0
-) -> Dict:
+async def list_initiatives(user_id: str, status_filter: Optional[str] = None, limit: int = 50, offset: int = 0) -> Dict:
     """List all initiatives accessible to a user.
 
     Args:
@@ -182,10 +177,7 @@ async def list_initiatives(
 
         # Get initiative IDs where user is a member
         member_result = await asyncio.to_thread(
-            lambda: db.table("disco_initiative_members")
-            .select("initiative_id, role")
-            .eq("user_id", user_id)
-            .execute()
+            lambda: db.table("disco_initiative_members").select("initiative_id, role").eq("user_id", user_id).execute()
         )
 
         if not member_result.data:
@@ -216,10 +208,7 @@ async def list_initiatives(
 
         # Get document counts for all initiatives
         doc_counts = await asyncio.to_thread(
-            lambda: db.table("disco_documents")
-            .select("initiative_id")
-            .in_("initiative_id", initiative_ids)
-            .execute()
+            lambda: db.table("disco_documents").select("initiative_id").in_("initiative_id", initiative_ids).execute()
         )
 
         # Count documents per initiative
@@ -268,10 +257,7 @@ async def update_initiative(initiative_id: str, user_id: str, updates: Dict) -> 
         # Use get_supabase() dynamically to support connection retry
         db = get_supabase()
         result = await asyncio.to_thread(
-            lambda: db.table("disco_initiatives")
-            .update(filtered_updates)
-            .eq("id", initiative_id)
-            .execute()
+            lambda: db.table("disco_initiatives").update(filtered_updates).eq("id", initiative_id).execute()
         )
 
         if not result.data:
@@ -316,9 +302,7 @@ async def delete_initiative(initiative_id: str, user_id: str) -> bool:
 
     try:
         # Delete initiative (cascades to all related tables)
-        await asyncio.to_thread(
-            lambda: db.table("disco_initiatives").delete().eq("id", initiative_id).execute()
-        )
+        await asyncio.to_thread(lambda: db.table("disco_initiatives").delete().eq("id", initiative_id).execute())
 
         logger.info(f"Deleted initiative: {initiative_id}")
         return True

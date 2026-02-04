@@ -46,9 +46,7 @@ FILENAME_DATE_PATTERN = re.compile(r"(\d{4}-\d{2}-\d{2})")
 
 # Pattern to identify Granola meeting documents in storage paths
 # Supports both Meeting-summaries and Transcripts folders
-GRANOLA_PATH_PATTERN = re.compile(
-    r"Granola[/\\](Meeting-summaries|Transcripts)[/\\]", re.IGNORECASE
-)
+GRANOLA_PATH_PATTERN = re.compile(r"Granola[/\\](Meeting-summaries|Transcripts)[/\\]", re.IGNORECASE)
 
 # =============================================================================
 # DOCUMENT CLASSIFICATION HEURISTICS
@@ -549,9 +547,7 @@ async def find_matching_project(
                 continue
 
             # Check if this document is a source for any project
-            linked_proj = (
-                supabase.table("ai_projects").select("id, title").eq("source_id", doc_id).execute()
-            )
+            linked_proj = supabase.table("ai_projects").select("id, title").eq("source_id", doc_id).execute()
 
             if linked_proj.data:
                 proj = linked_proj.data[0]
@@ -610,18 +606,14 @@ async def fetch_document_content(storage_url: str) -> Optional[str]:
                 logger.info(f"Successfully fetched {len(content)} chars")
                 return content
             else:
-                logger.warning(
-                    f"Failed to fetch document: HTTP {response.status_code} - {response.text[:200]}"
-                )
+                logger.warning(f"Failed to fetch document: HTTP {response.status_code} - {response.text[:200]}")
                 return None
     except Exception as e:
         logger.error(f"Error fetching document content: {type(e).__name__}: {e}")
         return None
 
 
-async def extract_structured_data(
-    content: str, title: str, meeting_date: Optional[date]
-) -> Dict[str, Any]:
+async def extract_structured_data(content: str, title: str, meeting_date: Optional[date]) -> Dict[str, Any]:
     """Use Claude to extract opportunities, tasks, and stakeholders from meeting content.
 
     Returns dict with:
@@ -821,9 +813,7 @@ async def scan_document(
 
         # Store extracted projects as candidates (only Tier 1-2: total score >= 14)
         projects_created = 0
-        raw_projects = extracted.get(
-            "opportunities", []
-        )  # Keep extraction key for backwards compat
+        raw_projects = extracted.get("opportunities", [])  # Keep extraction key for backwards compat
 
         # Track project titles to candidate IDs for task linking
         project_title_to_candidate_id: Dict[str, str] = {}
@@ -860,9 +850,7 @@ async def scan_document(
 
                 # Block on rejected or batch duplicates
                 if proj_match and proj_match.should_block(deduplicator.config):
-                    logger.debug(
-                        f"Skipping project ({proj_match.match_type}): {proj_match.match_reason}"
-                    )
+                    logger.debug(f"Skipping project ({proj_match.match_type}): {proj_match.match_reason}")
                     continue
 
                 candidate_data = {
@@ -899,9 +887,7 @@ async def scan_document(
                 # Update batch cache with actual ID
                 if result.data:
                     candidate_id = result.data[0]["id"]
-                    deduplicator.update_batch_cache_id(
-                        "opportunity", batch_id, proj_title, candidate_id
-                    )
+                    deduplicator.update_batch_cache_id("opportunity", batch_id, proj_title, candidate_id)
                     # Track project title -> candidate ID for task linking
                     project_title_to_candidate_id[proj_title.lower()] = candidate_id
 
@@ -922,16 +908,12 @@ async def scan_document(
 
                 # Check against excluded assignees list
                 if assignee in EXCLUDED_ASSIGNEES:
-                    logger.debug(
-                        f"Skipping task - excluded assignee: {assignee} - {task_title[:50]}"
-                    )
+                    logger.debug(f"Skipping task - excluded assignee: {assignee} - {task_title[:50]}")
                     continue
 
                 # Also skip if assignee is specified but NOT Charlie (catch-all for names not in list)
                 if assignee and assignee not in ["charlie", "me", "i", "myself", ""]:
-                    logger.debug(
-                        f"Skipping task assigned to someone else: {assignee} - {task_title[:50]}"
-                    )
+                    logger.debug(f"Skipping task assigned to someone else: {assignee} - {task_title[:50]}")
                     continue
 
                 # Generate embedding for semantic matching
@@ -953,9 +935,7 @@ async def scan_document(
 
                 # Block on rejected or batch duplicates
                 if task_match and task_match.should_block(deduplicator.config):
-                    logger.debug(
-                        f"Skipping task ({task_match.match_type}): {task_match.match_reason}"
-                    )
+                    logger.debug(f"Skipping task ({task_match.match_type}): {task_match.match_reason}")
                     continue
 
                 candidate_data = {
@@ -984,18 +964,14 @@ async def scan_document(
                 if linked_project_title:
                     linked_proj_key = linked_project_title.lower().strip()
                     if linked_proj_key in project_title_to_candidate_id:
-                        candidate_data["linked_project_candidate_id"] = (
-                            project_title_to_candidate_id[linked_proj_key]
-                        )
+                        candidate_data["linked_project_candidate_id"] = project_title_to_candidate_id[linked_proj_key]
                         logger.info(f"Linked task '{task_title[:50]}' to project candidate")
                     else:
                         # Try fuzzy match if exact match fails
                         for proj_title_key, proj_cand_id in project_title_to_candidate_id.items():
                             if fuzzy_match(linked_proj_key, proj_title_key) > 0.8:
                                 candidate_data["linked_project_candidate_id"] = proj_cand_id
-                                logger.info(
-                                    f"Fuzzy-linked task '{task_title[:50]}' to project candidate"
-                                )
+                                logger.info(f"Fuzzy-linked task '{task_title[:50]}' to project candidate")
                                 break
 
                 # Track match info for pending/existing matches (don't block, just track)
@@ -1013,9 +989,7 @@ async def scan_document(
 
                 # Update batch cache with actual ID
                 if result.data:
-                    deduplicator.update_batch_cache_id(
-                        "task", batch_id, task_title, result.data[0]["id"]
-                    )
+                    deduplicator.update_batch_cache_id("task", batch_id, task_title, result.data[0]["id"])
 
             except Exception as e:
                 logger.warning(f"Failed to create task candidate: {e}")
@@ -1051,9 +1025,7 @@ async def scan_document(
 
                 # Block on rejected or batch duplicates
                 if sh_match and sh_match.should_block(deduplicator.config):
-                    logger.debug(
-                        f"Skipping stakeholder ({sh_match.match_type}): {sh_match.match_reason}"
-                    )
+                    logger.debug(f"Skipping stakeholder ({sh_match.match_type}): {sh_match.match_reason}")
                     continue
 
                 candidate_data = {
@@ -1086,9 +1058,7 @@ async def scan_document(
 
                 # Update batch cache with actual ID
                 if result.data:
-                    deduplicator.update_batch_cache_id(
-                        "stakeholder", batch_id, name, result.data[0]["id"]
-                    )
+                    deduplicator.update_batch_cache_id("stakeholder", batch_id, name, result.data[0]["id"])
 
             except Exception as e:
                 logger.warning(f"Failed to create stakeholder candidate: {e}")
@@ -1195,9 +1165,7 @@ async def scan_meeting_documents(
             elif not doc_date:
                 # Skip docs without any detectable date (safer than including old docs)
                 logger.debug(f"Skipping doc with no date: {doc.get('filename', 'Unknown')[:50]}")
-        logger.info(
-            f"Date filter: {original_count} -> {len(documents)} documents (since {effective_since_date})"
-        )
+        logger.info(f"Date filter: {original_count} -> {len(documents)} documents (since {effective_since_date})")
     except Exception as e:
         logger.error(f"Failed to query meeting documents: {e}")
         raise GranolaScannerError(f"Failed to query documents: {e}") from None
@@ -1283,9 +1251,7 @@ def get_scan_status(user_id: str, since_date: Optional[date] = None) -> Dict[str
         # so we fetch all docs and filter in Python
         result = (
             supabase.table("documents")
-            .select(
-                "id, filename, original_date, granola_scanned_at, obsidian_file_path, uploaded_at"
-            )
+            .select("id, filename, original_date, granola_scanned_at, obsidian_file_path, uploaded_at")
             .eq("user_id", user_id)
             .limit(2000)
             .execute()

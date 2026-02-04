@@ -109,9 +109,7 @@ async def notion_callback(code: str, state: str):
         )
 
         # Delete used state
-        await asyncio.to_thread(
-            lambda: supabase.table("oauth_states").delete().eq("state", state).execute()
-        )
+        await asyncio.to_thread(lambda: supabase.table("oauth_states").delete().eq("state", state).execute())
 
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
         return RedirectResponse(url=f"{frontend_url}/documents?notion_connected=true")
@@ -220,9 +218,7 @@ async def get_notion_sync_settings(current_user: dict = Depends(get_current_user
 
 
 @router.patch("/sync-settings")
-async def update_notion_sync_settings(
-    request: SyncSettingsRequest, current_user: dict = Depends(get_current_user)
-):
+async def update_notion_sync_settings(request: SyncSettingsRequest, current_user: dict = Depends(get_current_user)):
     """Update sync settings."""
     try:
         update_data = {"sync_frequency": request.sync_frequency}
@@ -230,10 +226,7 @@ async def update_notion_sync_settings(
             update_data["default_page_ids"] = request.default_page_ids
 
         result = await asyncio.to_thread(
-            lambda: supabase.table("notion_tokens")
-            .update(update_data)
-            .eq("user_id", current_user["id"])
-            .execute()
+            lambda: supabase.table("notion_tokens").update(update_data).eq("user_id", current_user["id"]).execute()
         )
 
         return {"success": True, "settings": result.data[0] if result.data else None}

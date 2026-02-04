@@ -332,9 +332,7 @@ async def get_scheduled_topics_for_today() -> list[dict]:
 # ============================================================================
 
 
-async def has_recent_research(
-    topic: str, focus_area: str, days: int = 7, client_id: Optional[str] = None
-) -> bool:
+async def has_recent_research(topic: str, focus_area: str, days: int = 7, client_id: Optional[str] = None) -> bool:
     """Check if similar research was done recently.
 
     Prevents duplicate research on the same topic.
@@ -388,9 +386,7 @@ async def filter_duplicate_topics(topics: list[ResearchTopic]) -> list[ResearchT
 
 async def get_next_research_topic(client_id: Optional[str] = None) -> Optional[ResearchTopic]:
     """Get the single highest-priority research topic to execute next."""
-    priorities = await get_research_priorities(
-        client_id=client_id, include_global=True, max_topics=5
-    )
+    priorities = await get_research_priorities(client_id=client_id, include_global=True, max_topics=5)
 
     if not priorities.topics:
         return None
@@ -411,12 +407,7 @@ async def get_research_summary() -> dict:
     """
     try:
         # Count pending tasks
-        pending = (
-            supabase.table("research_tasks")
-            .select("id", count="exact")
-            .eq("status", "pending")
-            .execute()
-        )
+        pending = supabase.table("research_tasks").select("id", count="exact").eq("status", "pending").execute()
 
         # Count completed today
         today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
@@ -429,12 +420,7 @@ async def get_research_summary() -> dict:
         )
 
         # Count open gaps
-        gaps = (
-            supabase.table("knowledge_gaps")
-            .select("id", count="exact")
-            .eq("status", "open")
-            .execute()
-        )
+        gaps = supabase.table("knowledge_gaps").select("id", count="exact").eq("status", "open").execute()
 
         # Get today's schedule
         scheduled = await get_scheduled_topics_for_today()

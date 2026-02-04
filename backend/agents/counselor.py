@@ -486,9 +486,7 @@ This is the work that matters.
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Legal guidance: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Legal guidance: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -524,23 +522,15 @@ This is the work that matters.
         message_lower = context.user_message.lower()
 
         # Hand off to Capital for contract cost questions
-        if any(
-            word in message_lower
-            for word in ["contract cost", "legal fees budget", "licensing cost"]
-        ):
+        if any(word in message_lower for word in ["contract cost", "legal fees budget", "licensing cost"]):
             return ("capital", "Query requires financial analysis")
 
         # Hand off to Guardian for compliance implementation
-        if any(
-            word in message_lower
-            for word in ["implement compliance", "security controls", "audit process"]
-        ):
+        if any(word in message_lower for word in ["implement compliance", "security controls", "audit process"]):
             return ("guardian", "Query requires IT/governance expertise")
 
         # Hand off to Atlas for legal research
-        if any(
-            word in message_lower for word in ["legal research", "case law", "regulatory trends"]
-        ):
+        if any(word in message_lower for word in ["legal research", "case law", "regulatory trends"]):
             return ("atlas", "Query requires research expertise")
 
         return None

@@ -323,9 +323,7 @@ class TestEntityRegistryManager:
     @pytest.mark.asyncio
     async def test_add_organization(self, manager, mock_supabase):
         """Test adding organization to registry."""
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{"id": "org123"}]
-        )
+        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "org123"}])
 
         result = await manager.add_organization(
             client_id="client123", canonical_name="Contentful", aliases=["Content Full"]
@@ -337,9 +335,7 @@ class TestEntityRegistryManager:
     @pytest.mark.asyncio
     async def test_add_organization_duplicate(self, manager, mock_supabase):
         """Test adding duplicate organization returns None."""
-        mock_supabase.table.return_value.insert.return_value.execute.side_effect = Exception(
-            "duplicate key value"
-        )
+        mock_supabase.table.return_value.insert.return_value.execute.side_effect = Exception("duplicate key value")
 
         result = await manager.add_organization(client_id="client123", canonical_name="Contentful")
 
@@ -421,9 +417,7 @@ class TestEntityRegistryManager:
         )
 
         # Mock insert for persons
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{"id": "new123"}]
-        )
+        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "new123"}])
 
         stats = await manager.bootstrap_from_stakeholders("client123")
 

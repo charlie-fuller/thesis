@@ -39,11 +39,7 @@ async def get_document_tags(
         validate_uuid(document_id, "document_id")
 
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, uploaded_by")
-            .eq("id", document_id)
-            .single()
-            .execute()
+            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
         )
 
         if not doc_result.data:
@@ -93,11 +89,7 @@ async def add_document_tag(
             raise HTTPException(status_code=400, detail="Tag must be 100 characters or less")
 
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, uploaded_by")
-            .eq("id", document_id)
-            .single()
-            .execute()
+            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
         )
 
         if not doc_result.data:
@@ -171,11 +163,7 @@ async def remove_document_tag(
         tag = tag.strip()
 
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, uploaded_by")
-            .eq("id", document_id)
-            .single()
-            .execute()
+            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
         )
 
         if not doc_result.data:
@@ -205,11 +193,7 @@ async def remove_document_tag(
 
         # Delete the tag
         await asyncio.to_thread(
-            lambda: supabase.table("document_tags")
-            .delete()
-            .eq("document_id", document_id)
-            .eq("tag", tag)
-            .execute()
+            lambda: supabase.table("document_tags").delete().eq("document_id", document_id).eq("tag", tag).execute()
         )
 
         logger.info(f"Removed tag '{tag}' from document {document_id}")
@@ -245,11 +229,7 @@ async def update_document_original_date(
         validate_uuid(document_id, "document_id")
 
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, uploaded_by")
-            .eq("id", document_id)
-            .single()
-            .execute()
+            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
         )
 
         if not doc_result.data:
@@ -264,19 +244,14 @@ async def update_document_original_date(
             try:
                 from datetime import datetime
 
-                parsed_date = (
-                    datetime.strptime(request.original_date.strip(), "%Y-%m-%d").date().isoformat()
-                )
+                parsed_date = datetime.strptime(request.original_date.strip(), "%Y-%m-%d").date().isoformat()
             except ValueError:
                 raise HTTPException(
                     status_code=400, detail="Invalid date format. Please use YYYY-MM-DD format."
                 ) from None
 
         await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .update({"original_date": parsed_date})
-            .eq("id", document_id)
-            .execute()
+            lambda: supabase.table("documents").update({"original_date": parsed_date}).eq("id", document_id).execute()
         )
 
         logger.info(f"Updated original_date for document {document_id}: {parsed_date}")

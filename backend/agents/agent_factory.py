@@ -120,9 +120,7 @@ async def create_coordinator(
     return coordinator
 
 
-async def create_specialist(
-    name: str, supabase: Client, anthropic_client: anthropic.Anthropic
-) -> Optional[object]:
+async def create_specialist(name: str, supabase: Client, anthropic_client: anthropic.Anthropic) -> Optional[object]:
     """Create a single specialist agent by name.
 
     Args:

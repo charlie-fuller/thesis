@@ -75,10 +75,7 @@ def run_weekly_engagement():
             if client_result.get("changes"):
                 logger.info(f"  Client {client_result['client_id']}:")
                 for change in client_result["changes"]:
-                    logger.info(
-                        f"    {change['previous_level']} -> {change['new_level']}: "
-                        f"{change['reason']}"
-                    )
+                    logger.info(f"    {change['previous_level']} -> {change['new_level']}: {change['reason']}")
 
         logger.info("")
         logger.info("=" * 60)
@@ -113,9 +110,7 @@ async def trigger_manual_calculation(client_id: Optional[str] = None) -> dict:
 
         if client_id:
             logger.info(f"Manual engagement calculation triggered for client: {client_id}")
-            result = await calculator.calculate_for_client(
-                client_id=client_id, calculation_type="manual"
-            )
+            result = await calculator.calculate_for_client(client_id=client_id, calculation_type="manual")
         else:
             logger.info("Manual engagement calculation triggered for all clients")
             result = await calculator.calculate_all_clients()

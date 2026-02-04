@@ -54,9 +54,7 @@ def main():
                 print("  ✅ Role set to 'admin'")
             else:
                 print("  ⚠️  User not found in users table, creating...")
-                supabase.table("users").upsert(
-                    {"id": user_id, "email": email, "role": "admin"}
-                ).execute()
+                supabase.table("users").upsert({"id": user_id, "email": email, "role": "admin"}).execute()
                 print("  ✅ User created with admin role")
 
         except Exception as e:

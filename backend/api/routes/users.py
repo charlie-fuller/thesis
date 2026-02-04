@@ -65,9 +65,7 @@ async def list_users(request: Request, current_user: dict = Depends(require_admi
 
 @router.post("")
 @limiter.limit("10/minute")
-async def create_user(
-    request: Request, user_data: UserCreateRequest, current_user: dict = Depends(require_admin)
-):
+async def create_user(request: Request, user_data: UserCreateRequest, current_user: dict = Depends(require_admin)):
     """Create a new user (admin only)."""
     try:
         # Generate secure temporary password
@@ -167,9 +165,7 @@ async def upload_avatar(
         # Validate file type
         allowed_types = ["image/jpeg", "image/png", "image/gif", "image/webp"]
         if file.content_type not in allowed_types:
-            raise HTTPException(
-                status_code=400, detail=f"Invalid file type. Allowed: {', '.join(allowed_types)}"
-            )
+            raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(allowed_types)}")
 
         # Validate file size (max 5MB)
         contents = await file.read()
@@ -197,10 +193,7 @@ async def upload_avatar(
 
         # Update user record with avatar URL
         await asyncio.to_thread(
-            lambda: supabase.table("users")
-            .update({"avatar_url": public_url})
-            .eq("id", user_id)
-            .execute()
+            lambda: supabase.table("users").update({"avatar_url": public_url}).eq("id", user_id).execute()
         )
 
         logger.info(f"✅ Avatar uploaded for user {user_id}")
@@ -216,9 +209,7 @@ async def upload_avatar(
 
 @router.delete("/{user_id}/avatar")
 @limiter.limit("30/minute")
-async def delete_avatar(
-    request: Request, user_id: str, current_user: dict = Depends(get_current_user)
-):
+async def delete_avatar(request: Request, user_id: str, current_user: dict = Depends(get_current_user)):
     """Delete user's avatar."""
     try:
         validate_uuid(user_id, "user_id")
@@ -228,11 +219,7 @@ async def delete_avatar(
 
         # Get current avatar URL to determine file path
         user_result = await asyncio.to_thread(
-            lambda: supabase.table("users")
-            .select("avatar_url")
-            .eq("id", user_id)
-            .single()
-            .execute()
+            lambda: supabase.table("users").select("avatar_url").eq("id", user_id).single().execute()
         )
 
         if user_result.data and user_result.data.get("avatar_url"):
@@ -241,9 +228,7 @@ async def delete_avatar(
                 # Extract path from URL - try common extensions
                 for ext in ["jpg", "jpeg", "png", "gif", "webp"]:
                     storage_path = f"{user_id}/avatar.{ext}"
-                    await asyncio.to_thread(
-                        lambda p=storage_path: supabase.storage.from_("avatars").remove([p])
-                    )
+                    await asyncio.to_thread(lambda p=storage_path: supabase.storage.from_("avatars").remove([p]))
             except Exception as e:
                 logger.debug(f"Could not remove avatar from storage: {e}")
 
@@ -265,9 +250,7 @@ async def delete_avatar(
 
 @router.post("/{user_id}/resend-invitation")
 @limiter.limit("5/minute")
-async def resend_invitation(
-    request: Request, user_id: str, current_user: dict = Depends(require_admin)
-):
+async def resend_invitation(request: Request, user_id: str, current_user: dict = Depends(require_admin)):
     """Resend password reset email to user."""
     try:
         validate_uuid(user_id, "user_id")
@@ -360,9 +343,7 @@ async def list_user_documents(current_user: dict = Depends(get_current_user)):
                     doc_id = tag_record["document_id"]
                     if doc_id not in tags_by_doc:
                         tags_by_doc[doc_id] = []
-                    tags_by_doc[doc_id].append(
-                        {"tag": tag_record["tag"], "source": tag_record["source"]}
-                    )
+                    tags_by_doc[doc_id].append({"tag": tag_record["tag"], "source": tag_record["source"]})
             except Exception as tag_error:
                 # Table might not exist yet - just log and continue without tags
                 logger.debug(f"Could not fetch document tags: {tag_error}")
@@ -393,11 +374,7 @@ async def get_storage_info(current_user: dict = Depends(get_current_user)):
         storage_quota = 524288000  # 500MB default
         try:
             user_result = await asyncio.to_thread(
-                lambda: supabase.table("users")
-                .select("storage_quota")
-                .eq("id", user_id)
-                .maybe_single()
-                .execute()
+                lambda: supabase.table("users").select("storage_quota").eq("id", user_id).maybe_single().execute()
             )
             if user_result.data:
                 storage_quota = user_result.data.get("storage_quota") or storage_quota
@@ -406,10 +383,7 @@ async def get_storage_info(current_user: dict = Depends(get_current_user)):
 
         # Calculate actual storage used from documents table
         docs_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("file_size")
-            .eq("uploaded_by", user_id)
-            .execute()
+            lambda: supabase.table("documents").select("file_size").eq("uploaded_by", user_id).execute()
         )
 
         storage_used = sum(doc.get("file_size", 0) or 0 for doc in (docs_result.data or []))
@@ -419,9 +393,7 @@ async def get_storage_info(current_user: dict = Depends(get_current_user)):
             "storage_quota": storage_quota,
             "storage_used": storage_used,
             "storage_available": max(0, storage_quota - storage_used),
-            "usage_percentage": round((storage_used / storage_quota * 100), 2)
-            if storage_quota > 0
-            else 0,
+            "usage_percentage": round((storage_used / storage_quota * 100), 2) if storage_quota > 0 else 0,
         }
 
     except HTTPException:
@@ -499,10 +471,7 @@ async def list_user_documents_paginated(
             else:
                 # Cache miss - count documents directly (slower, but initializes cache)
                 count_result = await asyncio.to_thread(
-                    lambda: supabase.table("documents")
-                    .select("id", count="exact")
-                    .eq("uploaded_by", user_id)
-                    .execute()
+                    lambda: supabase.table("documents").select("id", count="exact").eq("uploaded_by", user_id).execute()
                 )
                 total_estimate = count_result.count or len(documents)
         except Exception as count_err:
@@ -527,9 +496,7 @@ async def list_user_documents_paginated(
                     doc_id = tag_record["document_id"]
                     if doc_id not in tags_by_doc:
                         tags_by_doc[doc_id] = []
-                    tags_by_doc[doc_id].append(
-                        {"tag": tag_record["tag"], "source": tag_record["source"]}
-                    )
+                    tags_by_doc[doc_id].append({"tag": tag_record["tag"], "source": tag_record["source"]})
 
                 # Attach tags to documents
                 for doc in documents:
@@ -597,10 +564,7 @@ async def get_user_document_counts(current_user: dict = Depends(get_current_user
 
         # Fallback: calculate counts directly
         docs_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("source_platform")
-            .eq("uploaded_by", user_id)
-            .execute()
+            lambda: supabase.table("documents").select("source_platform").eq("uploaded_by", user_id).execute()
         )
 
         docs = docs_result.data or []

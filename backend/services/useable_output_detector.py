@@ -131,9 +131,7 @@ def calculate_turns_to_message(conversation_id: str, message_id: str) -> int:
         return 0
 
 
-def mark_useable_output(
-    conversation_id: str, message_id: str, method: str, user_id: Optional[str] = None
-) -> bool:
+def mark_useable_output(conversation_id: str, message_id: str, method: str, user_id: Optional[str] = None) -> bool:
     """Mark a message as useable output in the database.
 
     Args:
@@ -148,11 +146,7 @@ def mark_useable_output(
     try:
         # Check if already marked (don't override)
         existing = (
-            _get_db()
-            .table("conversations")
-            .select("useable_output_message_id")
-            .eq("id", conversation_id)
-            .execute()
+            _get_db().table("conversations").select("useable_output_message_id").eq("id", conversation_id).execute()
         )
 
         if existing.data and existing.data[0].get("useable_output_message_id"):
@@ -231,9 +225,7 @@ def auto_detect_useable_output(conversation_id: str) -> Optional[Tuple[str, str,
                 if i > 0 and messages.data[i - 1]["role"] == "assistant":
                     assistant_msg_id = messages.data[i - 1]["id"]
                     turns = calculate_turns_to_message(conversation_id, assistant_msg_id)
-                    logger.info(
-                        f"Auto-detected useable output via keywords in conversation {conversation_id}"
-                    )
+                    logger.info(f"Auto-detected useable output via keywords in conversation {conversation_id}")
                     return (assistant_msg_id, "keyword_detected", turns)
 
         # Fallback: If conversation has ended naturally (no activity recently)
@@ -263,11 +255,7 @@ def process_conversation_for_useable_output(conversation_id: str) -> bool:
     try:
         # Check if already marked
         existing = (
-            _get_db()
-            .table("conversations")
-            .select("useable_output_message_id")
-            .eq("id", conversation_id)
-            .execute()
+            _get_db().table("conversations").select("useable_output_message_id").eq("id", conversation_id).execute()
         )
 
         if existing.data and existing.data[0].get("useable_output_message_id"):

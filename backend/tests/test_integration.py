@@ -51,13 +51,15 @@ _is_test_url = "test.supabase.co" in SUPABASE_URL or not SUPABASE_URL
 _has_real_key = SUPABASE_KEY and len(SUPABASE_KEY) > 50  # Real keys are long
 
 # Skip entire module if no real credentials
-# Also mark all tests as forked to avoid mock pollution from other test files
+# Note: Previously used pytest.mark.forked to avoid mock pollution, but this causes
+# signal 11 crashes on macOS due to multi-threaded fork issues. Instead, we rely on
+# _restore_real_modules() and module reloading in fixtures for isolation.
 pytestmark = [
     pytest.mark.skipif(
         _is_test_url or not _has_real_key,
         reason="Real Supabase credentials not configured - run with real .env",
     ),
-    pytest.mark.forked,  # Run each test in separate process to avoid mock pollution
+    pytest.mark.integration,  # Mark as integration test for selective running
 ]
 
 
@@ -78,15 +80,35 @@ def _restore_real_modules():
                 del sys.modules[mod_name]
 
     # Also remove submodules that might be mocked
-    to_remove = [
-        k for k in sys.modules.keys() if any(k.startswith(f"{m}.") for m in mocked_modules)
-    ]
+    to_remove = [k for k in sys.modules.keys() if any(k.startswith(f"{m}.") for m in mocked_modules)]
     for k in to_remove:
         if hasattr(sys.modules[k], "_mock_name") or type(sys.modules[k]).__name__ in (
             "MagicMock",
             "Mock",
         ):
             del sys.modules[k]
+
+
+# ============================================================================
+# Module Setup - Run before any tests to ensure clean state
+# ============================================================================
+
+
+def setup_module(module):
+    """Setup function run once before any tests in this module.
+
+    This replaces pytest.mark.forked which caused signal 11 crashes on macOS.
+    We manually restore real modules and reset singletons for proper isolation.
+    """
+    _restore_real_modules()
+
+    # Reset database singleton if it exists
+    try:
+        from database import DatabaseService
+
+        DatabaseService.reset_client()
+    except (ImportError, AttributeError):
+        pass
 
 
 # ============================================================================
@@ -275,9 +297,7 @@ class TestHealthEndpoints:
 
     def test_cors_preflight(self, integration_client):
         """CORS preflight returns correct headers."""
-        response = integration_client.options(
-            "/api/agents", headers={"Origin": "http://localhost:3000"}
-        )
+        response = integration_client.options("/api/agents", headers={"Origin": "http://localhost:3000"})
         # Should be 200 or include CORS headers
         assert response.status_code in [200, 204]
 
@@ -341,9 +361,7 @@ class TestTaskEndpoints:
     """Test task CRUD operations."""
 
     @pytest.fixture
-    def test_task_id(
-        self, integration_client, auth_headers, real_supabase, test_user_id
-    ) -> Generator[str, None, None]:
+    def test_task_id(self, integration_client, auth_headers, real_supabase, test_user_id) -> Generator[str, None, None]:
         """Create a test task and clean up after."""
         task_data = {
             "title": f"Integration Test Task {uuid.uuid4().hex[:8]}",
@@ -441,9 +459,7 @@ class TestTaskEndpoints:
             "priority": 1,
         }
 
-        response = integration_client.patch(
-            f"/api/tasks/{test_task_id}", json=update_data, headers=auth_headers
-        )
+        response = integration_client.patch(f"/api/tasks/{test_task_id}", json=update_data, headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
@@ -455,9 +471,7 @@ class TestTaskEndpoints:
         """Update task status (Kanban operation)."""
         # Create a fresh task for this test
         task_data = {"title": f"Status update test {uuid.uuid4().hex[:8]}"}
-        create_response = integration_client.post(
-            "/api/tasks", json=task_data, headers=auth_headers
-        )
+        create_response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
         if create_response.status_code != 200:
             pytest.skip(f"Could not create task: {create_response.text}")
 
@@ -467,9 +481,7 @@ class TestTaskEndpoints:
 
         try:
             status_data = {"status": "in_progress"}
-            response = integration_client.patch(
-                f"/api/tasks/{task_id}/status", json=status_data, headers=auth_headers
-            )
+            response = integration_client.patch(f"/api/tasks/{task_id}/status", json=status_data, headers=auth_headers)
             assert response.status_code == 200
 
             data = response.json()
@@ -483,9 +495,7 @@ class TestTaskEndpoints:
         """Delete a task."""
         # Create a task to delete
         task_data = {"title": f"Task to delete {uuid.uuid4().hex[:8]}"}
-        create_response = integration_client.post(
-            "/api/tasks", json=task_data, headers=auth_headers
-        )
+        create_response = integration_client.post("/api/tasks", json=task_data, headers=auth_headers)
         task_id = create_response.json().get("task", {}).get("id")
 
         if not task_id:
@@ -533,9 +543,7 @@ class TestProjectEndpoints:
     """Test project pipeline endpoints."""
 
     @pytest.fixture
-    def test_project_id(
-        self, integration_client, auth_headers, real_supabase
-    ) -> Generator[str, None, None]:
+    def test_project_id(self, integration_client, auth_headers, real_supabase) -> Generator[str, None, None]:
         """Create a test project and clean up after."""
         opp_code = f"T{uuid.uuid4().hex[:4].upper()}"
         opp_data = {
@@ -624,9 +632,7 @@ class TestProjectEndpoints:
             "roi_potential": 5,
         }
 
-        response = integration_client.patch(
-            f"/api/projects/{test_project_id}", json=update_data, headers=auth_headers
-        )
+        response = integration_client.patch(f"/api/projects/{test_project_id}", json=update_data, headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
@@ -870,9 +876,7 @@ class TestErrorHandling:
     def test_422_validation_error(self, integration_client, auth_headers):
         """422 errors for validation failures."""
         # Send invalid JSON
-        response = integration_client.post(
-            "/api/tasks", json={"priority": "not-a-number"}, headers=auth_headers
-        )
+        response = integration_client.post("/api/tasks", json={"priority": "not-a-number"}, headers=auth_headers)
         assert response.status_code == 422
 
         data = response.json()

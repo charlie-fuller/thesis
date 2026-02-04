@@ -245,9 +245,7 @@ class TestPatternMatching:
         vault_path = Path("/vault")
         file_path = Path("/vault/notes/my-note.md")
 
-        result = should_include_file(
-            file_path, vault_path, include_patterns=["**/*.md"], exclude_patterns=[]
-        )
+        result = should_include_file(file_path, vault_path, include_patterns=["**/*.md"], exclude_patterns=[])
 
         assert result is True
 
@@ -284,9 +282,7 @@ class TestPatternMatching:
         vault_path = Path("/vault")
         file_path = Path("/vault/.git/config")
 
-        result = should_include_file(
-            file_path, vault_path, include_patterns=["**/*.md"], exclude_patterns=[".git/**"]
-        )
+        result = should_include_file(file_path, vault_path, include_patterns=["**/*.md"], exclude_patterns=[".git/**"])
 
         assert result is False
 
@@ -297,9 +293,7 @@ class TestPatternMatching:
         vault_path = Path("/vault")
         file_path = Path("/vault/image.png")
 
-        result = should_include_file(
-            file_path, vault_path, include_patterns=["**/*.md"], exclude_patterns=[]
-        )
+        result = should_include_file(file_path, vault_path, include_patterns=["**/*.md"], exclude_patterns=[])
 
         assert result is False
 
@@ -345,9 +339,7 @@ class TestVaultScanning:
             (vault_path / ".obsidian").mkdir()
             (vault_path / ".obsidian" / "config.md").write_text("config")
 
-            files = scan_vault(
-                vault_path, include_patterns=["**/*.md"], exclude_patterns=[".obsidian/**"]
-            )
+            files = scan_vault(vault_path, include_patterns=["**/*.md"], exclude_patterns=[".obsidian/**"])
 
             file_names = [f.name for f in files]
 
@@ -395,8 +387,8 @@ class TestSyncState:
         from services.obsidian_sync import update_sync_state
 
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[]
+        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = (
+            MagicMock(data=[])
         )
         mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
             data=[
@@ -453,9 +445,7 @@ class TestVaultConfiguration:
         from services.obsidian_sync import ObsidianSyncError, create_vault_config
 
         with pytest.raises(ObsidianSyncError) as exc_info:
-            create_vault_config(
-                user_id="user-123", client_id="client-123", vault_path="/nonexistent/path/to/vault"
-            )
+            create_vault_config(user_id="user-123", client_id="client-123", vault_path="/nonexistent/path/to/vault")
 
         assert "does not exist" in str(exc_info.value)
 
@@ -504,16 +494,12 @@ This is test content.""")
 
             # Mock chain: table().select().eq().eq().execute()
             mock_select_chain = MagicMock()
-            mock_select_chain.eq.return_value.eq.return_value.execute.return_value = MagicMock(
-                data=[]
-            )
+            mock_select_chain.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
             mock_select_chain.eq.return_value.execute.return_value = MagicMock(data=[])
             mock_supabase.table.return_value.select.return_value = mock_select_chain
 
             # Mock storage upload
-            mock_supabase.storage.from_.return_value.upload.return_value = MagicMock(
-                path="test-path"
-            )
+            mock_supabase.storage.from_.return_value.upload.return_value = MagicMock(path="test-path")
 
             # Mock document insert
             mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
@@ -528,9 +514,7 @@ This is test content.""")
                             "services.obsidian_sync._create_obsidian_document",
                             return_value="doc-123",
                         ):
-                            with patch(
-                                "services.obsidian_sync.SUPABASE_URL", "https://test.supabase.co"
-                            ):
+                            with patch("services.obsidian_sync.SUPABASE_URL", "https://test.supabase.co"):
                                 result = sync_file(config, file_path, existing_state=None)
 
                                 assert result["status"] == "added"
@@ -572,9 +556,7 @@ class TestObsidianAPIRoutes:
             mock_create.side_effect = ObsidianSyncError("Vault path does not exist")
             mock_db.return_value = MagicMock()
 
-            response = authenticated_client.post(
-                "/api/obsidian/configure", json={"vault_path": "/nonexistent/path"}
-            )
+            response = authenticated_client.post("/api/obsidian/configure", json={"vault_path": "/nonexistent/path"})
 
             assert response.status_code == 400
             assert "does not exist" in response.json()["detail"]
@@ -762,8 +744,8 @@ class TestDeleteHandling:
         from services.obsidian_sync import mark_sync_state_deleted
 
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[{"id": "state-123", "file_path": "note.md"}]
+        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = (
+            MagicMock(data=[{"id": "state-123", "file_path": "note.md"}])
         )
         mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(
             data=[{"sync_status": "deleted"}]
@@ -836,9 +818,7 @@ metadata:
         vault_path = Path("/vault")
         file_path = Path("/other/location/note.md")
 
-        result = should_include_file(
-            file_path, vault_path, include_patterns=["**/*.md"], exclude_patterns=[]
-        )
+        result = should_include_file(file_path, vault_path, include_patterns=["**/*.md"], exclude_patterns=[])
 
         assert result is False
 
@@ -862,9 +842,7 @@ metadata:
         """Test hash computation with unicode content."""
         from services.obsidian_sync import compute_file_hash
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".md", delete=False, encoding="utf-8"
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as f:
             f.write("# Unicode Test\n\n日本語テスト\n\n🚀 Emoji content")
             temp_path = Path(f.name)
 
@@ -889,8 +867,8 @@ class TestVaultConfigEdgeCases:
         from services.obsidian_sync import get_vault_config
 
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[]
+        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = (
+            MagicMock(data=[])
         )
 
         with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
@@ -904,14 +882,12 @@ class TestVaultConfigEdgeCases:
         mock_supabase = MagicMock()
 
         # Mock existing active config
-        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[{"id": "old-config-123"}]
+        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = (
+            MagicMock(data=[{"id": "old-config-123"}])
         )
 
         # Mock update (deactivate)
-        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[]
-        )
+        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
 
         # Mock insert (new config)
         mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
@@ -920,9 +896,7 @@ class TestVaultConfigEdgeCases:
 
         with tempfile.TemporaryDirectory() as vault_dir:
             with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
-                create_vault_config(
-                    user_id="user-123", client_id="client-123", vault_path=vault_dir
-                )
+                create_vault_config(user_id="user-123", client_id="client-123", vault_path=vault_dir)
 
                 # Verify update was called to deactivate old config
                 update_calls = list(mock_supabase.table.return_value.update.call_args_list)
@@ -933,9 +907,7 @@ class TestVaultConfigEdgeCases:
         from services.obsidian_sync import ObsidianSyncError, update_vault_config
 
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.side_effect = (
-            Exception("DB Error")
-        )
+        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.side_effect = Exception("DB Error")
 
         with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             with pytest.raises(ObsidianSyncError) as exc_info:
@@ -1009,9 +981,7 @@ class TestSyncStateEdgeCases:
         from services.obsidian_sync import get_all_sync_states
 
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[]
-        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
 
         with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
             result = get_all_sync_states("config-123")

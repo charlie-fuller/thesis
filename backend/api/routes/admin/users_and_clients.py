@@ -45,9 +45,7 @@ async def get_all_clients(current_user: dict = Depends(require_admin)):
         current_user: Injected by FastAPI dependency.
     """
     try:
-        result = await asyncio.to_thread(
-            lambda: supabase.table("clients").select("id, name").order("name").execute()
-        )
+        result = await asyncio.to_thread(lambda: supabase.table("clients").select("id, name").order("name").execute())
 
         logger.info(f"Retrieved {len(result.data)} clients")
 
@@ -80,9 +78,7 @@ async def get_all_conversations(
         if client_id:
             query = query.eq("client_id", client_id)
 
-        result = await asyncio.to_thread(
-            lambda: query.order("updated_at", desc=True).limit(limit).execute()
-        )
+        result = await asyncio.to_thread(lambda: query.order("updated_at", desc=True).limit(limit).execute())
 
         conversations_with_counts = []
         for conv in result.data:
@@ -134,9 +130,7 @@ async def export_conversations(
                 start_dt = datetime.strptime(start_date, "%Y-%m-%d")
                 query = query.gte("created_at", start_dt.isoformat())
             except ValueError:
-                raise HTTPException(
-                    status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD"
-                ) from None
+                raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD") from None
 
         if end_date:
             try:
@@ -144,9 +138,7 @@ async def export_conversations(
                 end_dt = end_dt + timedelta(days=1)
                 query = query.lt("created_at", end_dt.isoformat())
             except ValueError:
-                raise HTTPException(
-                    status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD"
-                ) from None
+                raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD") from None
 
         result = await asyncio.to_thread(lambda: query.order("created_at", desc=True).execute())
 
@@ -173,16 +165,12 @@ async def export_conversations(
                     "updated_at": conv.get("updated_at"),
                     "user": {
                         "id": conv.get("users", {}).get("id") if conv.get("users") else None,
-                        "name": conv.get("users", {}).get("name")
-                        if conv.get("users")
-                        else "Unknown",
+                        "name": conv.get("users", {}).get("name") if conv.get("users") else "Unknown",
                         "email": conv.get("users", {}).get("email") if conv.get("users") else None,
                     },
                     "client": {
                         "id": conv.get("clients", {}).get("id") if conv.get("clients") else None,
-                        "name": conv.get("clients", {}).get("name")
-                        if conv.get("clients")
-                        else "Unknown",
+                        "name": conv.get("clients", {}).get("name") if conv.get("clients") else "Unknown",
                     },
                     "message_count": len(messages),
                     "messages": [

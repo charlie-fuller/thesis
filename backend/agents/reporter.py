@@ -121,9 +121,7 @@ You respond when the user asks for:
                     meeting_context += f"\n**{agent}**: {content}\n"
                 elif role == "user":
                     meeting_context += f"\n**User**: {content}\n"
-            messages[0]["content"] = (
-                meeting_context + "\n\nUser request:\n" + messages[0]["content"]
-            )
+            messages[0]["content"] = meeting_context + "\n\nUser request:\n" + messages[0]["content"]
 
         response = self.anthropic.messages.create(
             model="claude-sonnet-4-20250514",

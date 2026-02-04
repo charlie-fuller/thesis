@@ -36,9 +36,7 @@ class StakeholderLinker:
 
         return opportunity_ids, task_ids
 
-    async def _find_related_opportunities(
-        self, stakeholder: ExtractedStakeholder, client_id: str
-    ) -> list[str]:
+    async def _find_related_opportunities(self, stakeholder: ExtractedStakeholder, client_id: str) -> list[str]:
         """Find opportunities related to this stakeholder."""
         opportunity_ids = []
 
@@ -99,9 +97,7 @@ class StakeholderLinker:
             logger.error(f"Error finding related opportunities: {e}")
             return []
 
-    async def _find_related_tasks(
-        self, stakeholder: ExtractedStakeholder, client_id: str
-    ) -> list[str]:
+    async def _find_related_tasks(self, stakeholder: ExtractedStakeholder, client_id: str) -> list[str]:
         """Find tasks related to this stakeholder."""
         task_ids = []
 
@@ -211,9 +207,7 @@ class StakeholderLinker:
 
         # Split and filter
         words = text.lower().split()
-        keywords = [
-            w.strip(".,;:-()[]") for w in words if w.lower() not in stop_words and len(w) > 2
-        ]
+        keywords = [w.strip(".,;:-()[]") for w in words if w.lower() not in stop_words and len(w) > 2]
 
         return keywords
 
@@ -262,9 +256,9 @@ async def link_stakeholder_to_entities(
     for task_id in task_ids:
         try:
             # Check if task has stakeholder_id column
-            supabase_client.table("project_tasks").update({"stakeholder_id": stakeholder_id}).eq(
-                "id", task_id
-            ).is_("stakeholder_id", None).execute()
+            supabase_client.table("project_tasks").update({"stakeholder_id": stakeholder_id}).eq("id", task_id).is_(
+                "stakeholder_id", None
+            ).execute()
 
             results["tasks_linked"] += 1
 

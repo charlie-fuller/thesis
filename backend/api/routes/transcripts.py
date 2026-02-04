@@ -144,9 +144,7 @@ async def upload_transcript(
         raise HTTPException(status_code=400, detail="File must be UTF-8 encoded text") from None
 
     # Analyze the transcript
-    request = TranscriptAnalysisRequest(
-        content=text_content, title=title or file.filename, meeting_date=meeting_date
-    )
+    request = TranscriptAnalysisRequest(content=text_content, title=title or file.filename, meeting_date=meeting_date)
 
     return await analyze_transcript(request, current_user, supabase)
 
@@ -168,10 +166,7 @@ async def list_transcripts(
     """List all transcripts for the current user."""
     # Get count first
     count_result = (
-        supabase.table("meeting_transcripts")
-        .select("id", count="exact")
-        .eq("user_id", current_user["id"])
-        .execute()
+        supabase.table("meeting_transcripts").select("id", count="exact").eq("user_id", current_user["id"]).execute()
     )
 
     total = count_result.count if count_result.count is not None else 0

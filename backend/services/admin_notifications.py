@@ -28,9 +28,7 @@ if RESEND_API_KEY:
         logger.info("[Admin Notifications] Resend email service configured")
     except ImportError:
         RESEND_AVAILABLE = False
-        logger.warning(
-            "[Admin Notifications] Resend library not installed. Emails will not be sent."
-        )
+        logger.warning("[Admin Notifications] Resend library not installed. Emails will not be sent.")
         logger.warning("[Admin Notifications] To enable: pip install resend-python")
 else:
     RESEND_AVAILABLE = False
@@ -74,11 +72,7 @@ async def send_interview_complete_notification(
     try:
         # Get user info from interview session
         extraction_result = (
-            supabase.table("interview_extractions")
-            .select("metadata")
-            .eq("id", extraction_id)
-            .single()
-            .execute()
+            supabase.table("interview_extractions").select("metadata").eq("id", extraction_id).single().execute()
         )
 
         if not extraction_result.data:
@@ -95,22 +89,12 @@ async def send_interview_complete_notification(
 
         if session_id:
             session_result = (
-                supabase.table("interview_sessions")
-                .select("user_id")
-                .eq("session_id", session_id)
-                .single()
-                .execute()
+                supabase.table("interview_sessions").select("user_id").eq("session_id", session_id).single().execute()
             )
 
             if session_result.data:
                 user_id = session_result.data["user_id"]
-                user_result = (
-                    supabase.table("users")
-                    .select("name, email")
-                    .eq("id", user_id)
-                    .single()
-                    .execute()
-                )
+                user_result = supabase.table("users").select("name, email").eq("id", user_id).single().execute()
 
                 if user_result.data:
                     user_name = user_result.data.get("name", "Unknown User")
@@ -215,9 +199,7 @@ View Solomon Review Dashboard: {review_url}
                         emails_sent += 1
                         logger.info(f"[Admin Notifications] Email sent to: {admin_email}")
                     except Exception as email_error:
-                        logger.error(
-                            f"[Admin Notifications] Failed to send to {admin_email}: {str(email_error)}"
-                        )
+                        logger.error(f"[Admin Notifications] Failed to send to {admin_email}: {str(email_error)}")
 
                 return {"success": emails_sent > 0, "emails_sent": emails_sent, "method": "email"}
 

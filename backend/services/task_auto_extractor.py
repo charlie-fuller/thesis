@@ -76,18 +76,11 @@ async def extract_tasks_from_document(
         # Get user name if not provided
         if not user_name and document.get("user_id"):
             user_result = (
-                supabase.table("users")
-                .select("full_name, email")
-                .eq("id", document["user_id"])
-                .single()
-                .execute()
+                supabase.table("users").select("full_name, email").eq("id", document["user_id"]).single().execute()
             )
 
             if user_result.data:
-                user_name = (
-                    user_result.data.get("full_name")
-                    or user_result.data.get("email", "").split("@")[0]
-                )
+                user_name = user_result.data.get("full_name") or user_result.data.get("email", "").split("@")[0]
 
         # Extract tasks using LLM (Claude Haiku) with regex fallback
         import os
@@ -123,9 +116,9 @@ async def extract_tasks_from_document(
 
         # Mark document as scanned (regardless of whether tasks found)
         try:
-            supabase.table("documents").update(
-                {"tasks_scanned_at": datetime.now(timezone.utc).isoformat()}
-            ).eq("id", document_id).execute()
+            supabase.table("documents").update({"tasks_scanned_at": datetime.now(timezone.utc).isoformat()}).eq(
+                "id", document_id
+            ).execute()
         except Exception as e:
             logger.warning(f"Failed to mark document as scanned: {e}")
 
@@ -190,9 +183,7 @@ async def extract_tasks_from_document(
         return {"status": "error", "error": str(e)}
 
 
-async def get_pending_task_candidates(
-    user_id: str, client_id: str, supabase: Client, limit: int = 20
-) -> list[dict]:
+async def get_pending_task_candidates(user_id: str, client_id: str, supabase: Client, limit: int = 20) -> list[dict]:
     """Get pending task candidates for a user to review.
 
     Args:
@@ -232,9 +223,7 @@ async def accept_task_candidate(
         dict with created task info
     """
     # Get candidate
-    candidate_result = (
-        supabase.table("task_candidates").select("*").eq("id", candidate_id).single().execute()
-    )
+    candidate_result = supabase.table("task_candidates").select("*").eq("id", candidate_id).single().execute()
 
     if not candidate_result.data:
         return {"status": "error", "message": "Candidate not found"}

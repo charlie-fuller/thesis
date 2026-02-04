@@ -36,10 +36,7 @@ async def find_projects_affected_by_document(
 
     # Get the document's chunks
     chunks_result = (
-        supabase.table("document_chunks")
-        .select("id, embedding, content")
-        .eq("document_id", document_id)
-        .execute()
+        supabase.table("document_chunks").select("id, embedding, content").eq("document_id", document_id).execute()
     )
 
     if not chunks_result.data:
@@ -89,9 +86,7 @@ async def find_projects_affected_by_document(
             if project_words and chunk_words:
                 overlap = len(project_words & chunk_words)
                 # Normalize by smaller set size
-                relevance = (
-                    overlap / min(len(project_words), len(chunk_words)) if overlap > 0 else 0
-                )
+                relevance = overlap / min(len(project_words), len(chunk_words)) if overlap > 0 else 0
 
                 # Boost for department matches
                 dept = (project.get("department") or "").lower()
@@ -161,8 +156,7 @@ async def sync_projects_after_document_change(
                 )
                 updated_count += 1
                 logger.info(
-                    f"Regenerated justifications for project {project['title']} "
-                    f"(relevance: {project['relevance']:.2f})"
+                    f"Regenerated justifications for project {project['title']} (relevance: {project['relevance']:.2f})"
                 )
             except Exception as e:
                 errors.append({"id": project["id"], "error": str(e)})
@@ -172,9 +166,7 @@ async def sync_projects_after_document_change(
         "document_id": document_id,
         "projects_checked": len(affected),
         "projects_updated": updated_count,
-        "projects": [
-            {"id": p["id"], "title": p["title"], "relevance": p["relevance"]} for p in to_update
-        ],
+        "projects": [{"id": p["id"], "title": p["title"], "relevance": p["relevance"]} for p in to_update],
         "errors": errors if errors else None,
     }
 
@@ -187,9 +179,7 @@ async def check_and_sync_projects_for_document(document_id: str):
     supabase = get_supabase()
 
     # Get document's client_id
-    doc_result = (
-        supabase.table("documents").select("client_id").eq("id", document_id).single().execute()
-    )
+    doc_result = supabase.table("documents").select("client_id").eq("id", document_id).single().execute()
 
     if not doc_result.data:
         logger.warning(f"Document {document_id} not found for project sync")

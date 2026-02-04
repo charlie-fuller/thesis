@@ -43,9 +43,7 @@ def backfill_original_dates(dry_run: bool = False, limit: int = None):
     # Get documents without original_date
     query = (
         supabase.table("documents")
-        .select(
-            "id, filename, title, storage_url, obsidian_file_path, obsidian_vault_path, source_platform"
-        )
+        .select("id, filename, title, storage_url, obsidian_file_path, obsidian_vault_path, source_platform")
         .is_("original_date", "null")
     )
 
@@ -117,9 +115,9 @@ def backfill_original_dates(dry_run: bool = False, limit: int = None):
                 print(f"  [DRY RUN] Would update: {display_name} -> {original_date}")
             else:
                 try:
-                    supabase.table("documents").update(
-                        {"original_date": original_date.isoformat()}
-                    ).eq("id", doc_id).execute()
+                    supabase.table("documents").update({"original_date": original_date.isoformat()}).eq(
+                        "id", doc_id
+                    ).execute()
                     print(f"  Updated: {display_name} -> {original_date}")
                 except Exception as e:
                     print(f"  ERROR updating {display_name}: {e}")
@@ -144,9 +142,7 @@ def backfill_original_dates(dry_run: bool = False, limit: int = None):
 
 def main():
     parser = argparse.ArgumentParser(description="Backfill original_date for documents")
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Show what would be done without making changes"
-    )
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be done without making changes")
     parser.add_argument("--limit", type=int, help="Limit number of documents to process")
     args = parser.parse_args()
 

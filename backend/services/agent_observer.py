@@ -130,9 +130,7 @@ def detect_followup_question(user_message: str) -> bool:
 # ============================================================================
 
 
-async def get_recent_agent_conversations(
-    days: int = 7, client_id: Optional[str] = None
-) -> list[dict]:
+async def get_recent_agent_conversations(days: int = 7, client_id: Optional[str] = None) -> list[dict]:
     """Get recent conversations where agents participated."""
     try:
         since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
@@ -239,9 +237,7 @@ async def analyze_conversation_for_gaps(conversation_id: str) -> list[KnowledgeG
 # ============================================================================
 
 
-async def summarize_agent_focus_areas(
-    days: int = 7, client_id: Optional[str] = None
-) -> list[AgentTopicSummary]:
+async def summarize_agent_focus_areas(days: int = 7, client_id: Optional[str] = None) -> list[AgentTopicSummary]:
     """Summarize what each agent has been focusing on."""
     summaries = []
 
@@ -261,9 +257,7 @@ async def summarize_agent_focus_areas(
         # Summarize each agent
         for agent_name, convs in by_agent.items():
             # Extract topics from conversation titles
-            topics = list(
-                {conv.get("title", "Unknown")[:50] for conv in convs if conv.get("title")}
-            )[:10]
+            topics = list({conv.get("title", "Unknown")[:50] for conv in convs if conv.get("title")})[:10]
 
             # Get last active time
             last_active = max(conv.get("updated_at", "") for conv in convs) if convs else ""
@@ -288,9 +282,7 @@ async def summarize_agent_focus_areas(
 # ============================================================================
 
 
-async def identify_knowledge_gaps(
-    client_id: Optional[str] = None, days: int = 7
-) -> list[KnowledgeGap]:
+async def identify_knowledge_gaps(client_id: Optional[str] = None, days: int = 7) -> list[KnowledgeGap]:
     """Identify knowledge gaps across all recent agent conversations."""
     all_gaps = []
 
@@ -532,12 +524,7 @@ async def get_platform_context(client_id: Optional[str] = None) -> PlatformConte
         active_stakeholders = await get_active_stakeholders(client_id, days=30)
 
         try:
-            opps = (
-                supabase.table("roi_opportunities")
-                .select("*")
-                .in_("status", ["identified", "evaluating"])
-                .execute()
-            )
+            opps = supabase.table("roi_opportunities").select("*").in_("status", ["identified", "evaluating"]).execute()
             pending_opportunities = opps.data or []
         except Exception as e:
             logger.error(f"Failed to get opportunities: {e}")

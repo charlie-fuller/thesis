@@ -124,9 +124,7 @@ def get_scoring_related_documents(
                 doc_chunks[doc_id] = chunk
 
         # Sort by similarity and take top N
-        sorted_docs = sorted(
-            doc_chunks.values(), key=lambda x: x.get("similarity", 0.0), reverse=True
-        )[:limit]
+        sorted_docs = sorted(doc_chunks.values(), key=lambda x: x.get("similarity", 0.0), reverse=True)[:limit]
 
         # Format for frontend
         formatted_results = []
@@ -271,15 +269,9 @@ def build_project_context(project: Dict, related_documents: List[Dict]) -> str:
     # Scoring
     context_parts.append("\nScoring (1-5 scale, max 20 total):")
     context_parts.append(f"  - ROI Potential: {project.get('roi_potential', 'Not scored')}/5")
-    context_parts.append(
-        f"  - Implementation Effort: {project.get('implementation_effort', 'Not scored')}/5"
-    )
-    context_parts.append(
-        f"  - Strategic Alignment: {project.get('strategic_alignment', 'Not scored')}/5"
-    )
-    context_parts.append(
-        f"  - Stakeholder Readiness: {project.get('stakeholder_readiness', 'Not scored')}/5"
-    )
+    context_parts.append(f"  - Implementation Effort: {project.get('implementation_effort', 'Not scored')}/5")
+    context_parts.append(f"  - Strategic Alignment: {project.get('strategic_alignment', 'Not scored')}/5")
+    context_parts.append(f"  - Stakeholder Readiness: {project.get('stakeholder_readiness', 'Not scored')}/5")
     context_parts.append(f"  - Total Score: {project.get('total_score', 0)}/20")
     context_parts.append(f"  - Tier: {project.get('tier', 4)}")
 

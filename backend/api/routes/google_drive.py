@@ -109,12 +109,8 @@ async def google_drive_callback(code: str, state: str):
             expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
             if datetime.now(timezone.utc) > expires_at:
                 # Delete expired state
-                await asyncio.to_thread(
-                    lambda: supabase.table("oauth_states").delete().eq("state", state).execute()
-                )
-                raise HTTPException(
-                    status_code=400, detail="OAuth state has expired. Please try again."
-                )
+                await asyncio.to_thread(lambda: supabase.table("oauth_states").delete().eq("state", state).execute())
+                raise HTTPException(status_code=400, detail="OAuth state has expired. Please try again.")
 
         user_id = state_result.data["user_id"]
 
@@ -138,9 +134,7 @@ async def google_drive_callback(code: str, state: str):
 
         # Encrypt and store tokens
         encrypted_token = encrypt_token(credentials.token)
-        encrypted_refresh = (
-            encrypt_token(credentials.refresh_token) if credentials.refresh_token else None
-        )
+        encrypted_refresh = encrypt_token(credentials.refresh_token) if credentials.refresh_token else None
 
         await asyncio.to_thread(
             lambda: supabase.table("google_drive_tokens")
@@ -149,9 +143,7 @@ async def google_drive_callback(code: str, state: str):
                     "user_id": user_id,
                     "access_token_encrypted": encrypted_token,
                     "refresh_token_encrypted": encrypted_refresh,
-                    "token_expires_at": credentials.expiry.isoformat()
-                    if credentials.expiry
-                    else None,
+                    "token_expires_at": credentials.expiry.isoformat() if credentials.expiry else None,
                     "scopes": credentials.scopes,
                     "is_active": True,
                 },
@@ -161,9 +153,7 @@ async def google_drive_callback(code: str, state: str):
         )
 
         # Delete used state
-        await asyncio.to_thread(
-            lambda: supabase.table("oauth_states").delete().eq("state", state).execute()
-        )
+        await asyncio.to_thread(lambda: supabase.table("oauth_states").delete().eq("state", state).execute())
 
         # Return HTML that closes the popup and notifies the parent window
         return HTMLResponse(
@@ -213,9 +203,7 @@ async def get_picker_token(current_user: dict = Depends(get_current_user)):
             "success": True,
             "access_token": credentials.token,
             "client_id": os.getenv("GOOGLE_CLIENT_ID"),
-            "app_id": os.getenv("GOOGLE_CLIENT_ID", "").split("-")[
-                0
-            ],  # App ID is the numeric prefix of client ID
+            "app_id": os.getenv("GOOGLE_CLIENT_ID", "").split("-")[0],  # App ID is the numeric prefix of client ID
         }
     except Exception as e:
         logger.error(f"❌ Picker token error: {str(e)}")
@@ -247,9 +235,7 @@ async def sync_google_drive(
         if request.file_ids:
             # Create placeholder documents synchronously BEFORE background task
             # This ensures they appear in the UI immediately
-            await asyncio.to_thread(
-                create_placeholder_documents, current_user["id"], request.file_ids
-            )
+            await asyncio.to_thread(create_placeholder_documents, current_user["id"], request.file_ids)
 
             background_tasks.add_task(sync_files, current_user["id"], request.file_ids)
             message = f"Sync started for {len(request.file_ids)} file(s) in background"
@@ -342,9 +328,7 @@ async def get_sync_settings(current_user: dict = Depends(get_current_user)):
 
 
 @router.patch("/sync-settings")
-async def update_sync_settings(
-    request: SyncSettingsRequest, current_user: dict = Depends(get_current_user)
-):
+async def update_sync_settings(request: SyncSettingsRequest, current_user: dict = Depends(get_current_user)):
     """Update sync settings."""
     try:
         update_data = {"sync_frequency": request.sync_frequency}

@@ -35,9 +35,7 @@ class SageAgent(BaseAgent):
     """
 
     def __init__(self, supabase: Client, anthropic_client: anthropic.Anthropic):
-        super().__init__(
-            name="sage", display_name="Sage", supabase=supabase, anthropic_client=anthropic_client
-        )
+        super().__init__(name="sage", display_name="Sage", supabase=supabase, anthropic_client=anthropic_client)
 
     def _get_default_instruction(self) -> str:
         return """<system>.
@@ -478,9 +476,7 @@ Your warmth and empathy are not weakness - they are your primary tools for enabl
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"People insight: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"People insight: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -522,36 +518,23 @@ Your warmth and empathy are not weakness - they are your primary tools for enabl
         message_lower = context.user_message.lower()
 
         # Hand off to Atlas for research needs
-        if any(
-            word in message_lower
-            for word in ["research", "case study", "best practice", "industry trend"]
-        ):
+        if any(word in message_lower for word in ["research", "case study", "best practice", "industry trend"]):
             return ("atlas", "Query requires research synthesis")
 
         # Hand off to Capital for financial justification
-        if any(
-            word in message_lower for word in ["roi", "budget", "cost", "financial justification"]
-        ):
+        if any(word in message_lower for word in ["roi", "budget", "cost", "financial justification"]):
             return ("capital", "Query requires financial analysis")
 
         # Hand off to Guardian for governance/security concerns
-        if any(
-            word in message_lower
-            for word in ["security concern", "compliance", "policy", "governance"]
-        ):
+        if any(word in message_lower for word in ["security concern", "compliance", "policy", "governance"]):
             return ("guardian", "Query requires governance expertise")
 
         # Hand off to Counselor for legal/HR legal matters
-        if any(
-            word in message_lower for word in ["employment law", "hr policy", "legal liability"]
-        ):
+        if any(word in message_lower for word in ["employment law", "hr policy", "legal liability"]):
             return ("counselor", "Query requires legal expertise")
 
         # Hand off to Oracle for specific transcript analysis
-        if any(
-            word in message_lower
-            for word in ["analyze transcript", "meeting notes", "extract sentiment"]
-        ):
+        if any(word in message_lower for word in ["analyze transcript", "meeting notes", "extract sentiment"]):
             return ("oracle", "Query involves transcript analysis")
 
         return None

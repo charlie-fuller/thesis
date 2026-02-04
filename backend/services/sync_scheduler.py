@@ -91,9 +91,7 @@ def process_automatic_syncs():
                 logger.info(f"      📅 Frequency: {frequency}")
 
                 # Execute sync (sync_folder handles token retrieval internally)
-                sync_result = sync_folder(
-                    user_id=user_id, folder_id=folder_id, folder_name=folder_name
-                )
+                sync_result = sync_folder(user_id=user_id, folder_id=folder_id, folder_name=folder_name)
 
                 # Calculate next sync time
                 next_sync = calculate_next_sync_time(frequency)
@@ -114,20 +112,16 @@ def process_automatic_syncs():
                 logger.info(f"      ⏰ Next sync: {next_sync.strftime('%Y-%m-%d %H:%M UTC')}")
 
             except Exception as user_error:
-                logger.error(
-                    f"      ❌ Error syncing for user {user_token.get('user_id')}: {str(user_error)}"
-                )
+                logger.error(f"      ❌ Error syncing for user {user_token.get('user_id')}: {str(user_error)}")
 
                 # Still update next_sync_scheduled to avoid retry spam
                 # but keep a reasonable retry interval
                 next_retry = now + timedelta(hours=1)
                 try:
-                    supabase.table("google_drive_tokens").update(
-                        {"next_sync_scheduled": next_retry.isoformat()}
-                    ).eq("user_id", user_token.get("user_id")).execute()
-                    logger.info(
-                        f"      🔄 Scheduled retry in 1 hour: {next_retry.strftime('%Y-%m-%d %H:%M UTC')}"
-                    )
+                    supabase.table("google_drive_tokens").update({"next_sync_scheduled": next_retry.isoformat()}).eq(
+                        "user_id", user_token.get("user_id")
+                    ).execute()
+                    logger.info(f"      🔄 Scheduled retry in 1 hour: {next_retry.strftime('%Y-%m-%d %H:%M UTC')}")
                 except Exception as update_error:
                     logger.error(f"      ⚠️  Could not update retry time: {str(update_error)}")
 

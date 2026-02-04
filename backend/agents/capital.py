@@ -591,9 +591,7 @@ NEVER recommend or suggest approaches that:
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Financial analysis: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Financial analysis: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -629,24 +627,15 @@ NEVER recommend or suggest approaches that:
         message_lower = context.user_message.lower()
 
         # Hand off to Atlas for market research
-        if any(
-            word in message_lower
-            for word in ["market research", "industry benchmark", "competitor analysis"]
-        ):
+        if any(word in message_lower for word in ["market research", "industry benchmark", "competitor analysis"]):
             return ("atlas", "Query requires market research")
 
         # Hand off to Guardian for security/compliance cost questions
-        if any(
-            word in message_lower
-            for word in ["security audit cost", "compliance budget", "soc2 cost"]
-        ):
+        if any(word in message_lower for word in ["security audit cost", "compliance budget", "soc2 cost"]):
             return ("guardian", "Query involves security/compliance specifics")
 
         # Hand off to Counselor for contract/legal cost questions
-        if any(
-            word in message_lower
-            for word in ["contract negotiation", "licensing cost", "legal fees"]
-        ):
+        if any(word in message_lower for word in ["contract negotiation", "licensing cost", "legal fees"]):
             return ("counselor", "Query involves legal/contract specifics")
 
         return None

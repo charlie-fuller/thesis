@@ -49,17 +49,10 @@ def main():
         )
 
     # Get initiative names
-    initiative_ids = list(
-        {o.get("initiative_id") for o in result.data if o.get("initiative_id")}
-    )
+    initiative_ids = list({o.get("initiative_id") for o in result.data if o.get("initiative_id")})
     initiatives = {}
     if initiative_ids:
-        init_result = (
-            supabase.table("disco_initiatives")
-            .select("id, name")
-            .in_("id", initiative_ids)
-            .execute()
-        )
+        init_result = supabase.table("disco_initiatives").select("id, name").in_("id", initiative_ids).execute()
         initiatives = {i["id"]: i["name"] for i in (init_result.data or [])}
 
     print(f"\n{'=' * 80}")

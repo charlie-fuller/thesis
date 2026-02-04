@@ -31,9 +31,7 @@ def reset_password_by_email(email: str, new_password: str):
         print(f"\n🔍 Looking up user: {email}")
 
         # Method 1: Try to get from users table first
-        users_result = (
-            supabase.table("users").select("id, email, name").eq("email", email).execute()
-        )
+        users_result = supabase.table("users").select("id, email, name").eq("email", email).execute()
 
         if users_result.data:
             user = users_result.data[0]

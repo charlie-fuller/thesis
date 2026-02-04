@@ -670,13 +670,9 @@ If no specialists are needed (simple question), return:
             reasoning = result.get("reasoning", "LLM classification")
 
             if not specialists:
-                return ConsultationPlan(
-                    mode=ConsultationMode.DIRECT, specialists=[], reasoning=reasoning
-                )
+                return ConsultationPlan(mode=ConsultationMode.DIRECT, specialists=[], reasoning=reasoning)
             elif len(specialists) == 1:
-                return ConsultationPlan(
-                    mode=ConsultationMode.SINGLE, specialists=specialists, reasoning=reasoning
-                )
+                return ConsultationPlan(mode=ConsultationMode.SINGLE, specialists=specialists, reasoning=reasoning)
             else:
                 return ConsultationPlan(
                     mode=ConsultationMode.MULTI,
@@ -692,9 +688,7 @@ If no specialists are needed (simple question), return:
                 reasoning="Fallback to Atlas due to classification error",
             )
 
-    async def consult_specialist(
-        self, specialist_name: str, context: AgentContext
-    ) -> Optional[AgentResponse]:
+    async def consult_specialist(self, specialist_name: str, context: AgentContext) -> Optional[AgentResponse]:
         """Consult a specialist agent and get their response."""
         specialist = self._specialists.get(specialist_name)
         if not specialist:
@@ -725,9 +719,7 @@ If no specialists are needed (simple question), return:
             logger.error(f"Error consulting {specialist_name}: {e}")
             return None
 
-    async def synthesize_responses(
-        self, responses: list[tuple[str, AgentResponse]], context: AgentContext
-    ) -> str:
+    async def synthesize_responses(self, responses: list[tuple[str, AgentResponse]], context: AgentContext) -> str:
         """Synthesize multiple specialist responses into a unified output.
 
         Takes a list of (specialist_name, response) tuples and combines them.
@@ -947,13 +939,7 @@ Your response should read as a single, coherent answer - not as separate section
         """Log a handoff to a specialist agent."""
         try:
             # Get specialist agent ID
-            specialist_result = (
-                self.supabase.table("agents")
-                .select("id")
-                .eq("name", to_specialist)
-                .single()
-                .execute()
-            )
+            specialist_result = self.supabase.table("agents").select("id").eq("name", to_specialist).single().execute()
 
             to_agent_id = specialist_result.data["id"] if specialist_result.data else None
 
@@ -1023,9 +1009,7 @@ Your response should read as a single, coherent answer - not as separate section
 
             # Get shared concerns
             if "concern" in message_lower or "issue" in message_lower or "problem" in message_lower:
-                concerns = await query_service.find_shared_concerns(
-                    context.client_id, min_stakeholders=2
-                )
+                concerns = await query_service.find_shared_concerns(context.client_id, min_stakeholders=2)
                 if concerns:
                     graph_context["shared_concerns"] = concerns[:5]
 
@@ -1060,9 +1044,7 @@ Your response should read as a single, coherent answer - not as separate section
         if "key_influencers" in graph_context:
             parts.append("\n**Key Influencers:**")
             for inf in graph_context["key_influencers"][:5]:
-                parts.append(
-                    f"- {inf['name']} ({inf['role']}) - Influence Score: {inf.get('influence_score', 'N/A')}"
-                )
+                parts.append(f"- {inf['name']} ({inf['role']}) - Influence Score: {inf.get('influence_score', 'N/A')}")
 
         if "shared_concerns" in graph_context:
             parts.append("\n**Shared Concerns Across Stakeholders:**")

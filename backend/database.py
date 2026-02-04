@@ -35,9 +35,7 @@ class DatabaseService:
             supabase_url = os.environ.get("SUPABASE_URL")
             # Prefer service role key for backend operations (bypasses RLS)
             # Fall back to SUPABASE_KEY for backwards compatibility
-            supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get(
-                "SUPABASE_KEY"
-            )
+            supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY")
 
             if not supabase_url or not supabase_key:
                 raise ValueError(
@@ -88,11 +86,7 @@ def with_db_retry(max_retries: int = 2):
                     last_error = e
                     error_msg = str(e).lower()
                     # Check for connection-related errors
-                    if (
-                        "broken pipe" in error_msg
-                        or "errno 32" in error_msg
-                        or "connection" in error_msg
-                    ):
+                    if "broken pipe" in error_msg or "errno 32" in error_msg or "connection" in error_msg:
                         if attempt < max_retries:
                             logger.warning(
                                 f"Database connection error in {func.__name__}, "

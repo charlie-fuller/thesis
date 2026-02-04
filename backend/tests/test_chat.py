@@ -19,12 +19,8 @@ class TestChatRequestValidation:
         """Test chat with a valid message."""
         # Setup mocks
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[]
-        )
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{"id": "msg-123"}]
-        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+        mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "msg-123"}])
         mock_get_supabase.return_value = mock_supabase
 
         # Mock streaming response
@@ -46,17 +42,13 @@ class TestChatRequestValidation:
 
     def test_chat_without_authentication(self, test_client):
         """Test that unauthenticated requests are rejected."""
-        response = test_client.post(
-            "/api/chat", json={"conversation_id": "conv-123", "message": "Hello"}
-        )
+        response = test_client.post("/api/chat", json={"conversation_id": "conv-123", "message": "Hello"})
 
         assert response.status_code == 403
 
     def test_chat_with_empty_message(self, authenticated_client):
         """Test that empty messages are rejected."""
-        response = authenticated_client.post(
-            "/api/chat", json={"conversation_id": "conv-123", "message": ""}
-        )
+        response = authenticated_client.post("/api/chat", json={"conversation_id": "conv-123", "message": ""})
 
         assert response.status_code == 422  # Validation error
 
@@ -64,9 +56,7 @@ class TestChatRequestValidation:
         """Test that messages exceeding 10000 chars are rejected."""
         long_message = "a" * 10001
 
-        response = authenticated_client.post(
-            "/api/chat", json={"conversation_id": "conv-123", "message": long_message}
-        )
+        response = authenticated_client.post("/api/chat", json={"conversation_id": "conv-123", "message": long_message})
 
         assert response.status_code == 422  # Validation error
 
@@ -137,9 +127,7 @@ class TestRAGContext:
 
         from document_processor import search_similar_chunks
 
-        results = search_similar_chunks(
-            query="What are training best practices?", client_id="test-client", limit=5
-        )
+        results = search_similar_chunks(query="What are training best practices?", client_id="test-client", limit=5)
 
         assert len(results) == 1
         assert "Training best practices" in results[0]["content"]
@@ -229,9 +217,7 @@ class TestChatErrorHandling:
 
     @patch("database.get_supabase")
     @patch("api.routes.chat.anthropic_client")
-    def test_anthropic_api_error_handled(
-        self, mock_anthropic, mock_get_supabase, authenticated_client
-    ):
+    def test_anthropic_api_error_handled(self, mock_anthropic, mock_get_supabase, authenticated_client):
         """Test handling of Anthropic API errors."""
         mock_anthropic.messages.stream.side_effect = Exception("API Error")
 

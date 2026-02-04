@@ -41,9 +41,7 @@ class TestRaceConditions:
 
         # Each should have unique ID
         conversation_ids = [r["conversation_id"] for r in results]
-        assert len(conversation_ids) == len(
-            set(conversation_ids)
-        ), "Conversation IDs should be unique"
+        assert len(conversation_ids) == len(set(conversation_ids)), "Conversation IDs should be unique"
 
     @pytest.mark.concurrent
     async def test_message_ordering(self):
@@ -101,9 +99,7 @@ class TestRaceConditions:
 
         # Verify final count
         final_count = await self._get_counter(counter_id)
-        assert (
-            final_count == increment_count
-        ), f"Counter should be {increment_count}, got {final_count}"
+        assert final_count == increment_count, f"Counter should be {increment_count}, got {final_count}"
 
     # Helper methods
     async def _create_conversation(self, user_id: str, title: str) -> dict:
@@ -348,9 +344,7 @@ class TestSessionConsistency:
 
         # Each should have correct request_id
         for i, result in enumerate(results):
-            assert (
-                result["request_id"] == request_ids[i]
-            ), f"Request context leaked for {request_ids[i]}"
+            assert result["request_id"] == request_ids[i], f"Request context leaked for {request_ids[i]}"
 
     # Helper methods
     async def _set_session_data(self, user_id: str, data: dict) -> None:
@@ -384,9 +378,7 @@ class TestConcurrentAPI:
             conversation_id = await self._create_conversation(user_id)
 
             for i in range(messages_per_user):
-                await self._send_chat_message(
-                    user_id, conversation_id, f"Message {i} from {user_id}"
-                )
+                await self._send_chat_message(user_id, conversation_id, f"Message {i} from {user_id}")
                 await asyncio.sleep(random.uniform(0, 0.05))
 
             return {"user_id": user_id, "messages_sent": messages_per_user}
@@ -405,9 +397,7 @@ class TestConcurrentAPI:
         upload_count = 10
 
         async def upload_document(user_id: str):
-            return await self._upload_document(
-                user_id, f"document_{user_id}.pdf", b"PDF content here"
-            )
+            return await self._upload_document(user_id, f"document_{user_id}.pdf", b"PDF content here")
 
         tasks = [upload_document(f"user-{i}") for i in range(upload_count)]
         results = await asyncio.gather(*tasks)
@@ -478,9 +468,7 @@ class TestLoadScenarios:
             actions = 0
 
             while time.time() < end_time:
-                activity = random.choices(
-                    list(activities.keys()), weights=list(activities.values())
-                )[0]
+                activity = random.choices(list(activities.keys()), weights=list(activities.values()))[0]
 
                 if activity == "chat":
                     await self._send_chat_message(user_id, "conv", "Hello")

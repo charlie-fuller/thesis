@@ -141,21 +141,13 @@ class ChatAgentService:
         if instruction_file_exists(agent_name):
             instruction = load_instruction_from_file(agent_name)
             if instruction:
-                logger.info(
-                    f"Loaded instruction for {agent_name} from XML ({len(instruction)} chars)"
-                )
+                logger.info(f"Loaded instruction for {agent_name} from XML ({len(instruction)} chars)")
 
         # Priority 2: Fall back to database if no XML file exists
         if not instruction:
             try:
                 # First get agent ID
-                agent_result = (
-                    self.supabase.table("agents")
-                    .select("id")
-                    .eq("name", agent_name)
-                    .single()
-                    .execute()
-                )
+                agent_result = self.supabase.table("agents").select("id").eq("name", agent_name).single().execute()
 
                 if agent_result.data:
                     agent_id = agent_result.data["id"]
@@ -175,9 +167,7 @@ class ChatAgentService:
                         # Only use if it's real content, not a placeholder
                         if not db_instruction.startswith("--") and len(db_instruction) > 100:
                             instruction = db_instruction
-                            logger.info(
-                                f"Loaded instruction for {agent_name} from DB ({len(instruction)} chars)"
-                            )
+                            logger.info(f"Loaded instruction for {agent_name} from DB ({len(instruction)} chars)")
             except Exception as e:
                 logger.error(f"Failed to load instruction from DB for {agent_name}: {e}")
 

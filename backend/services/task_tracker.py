@@ -55,9 +55,7 @@ class TaskTracker:
     def __init__(self, supabase: Client):
         self.supabase = supabase
 
-    async def get_user_task_snapshot(
-        self, user_id: str, client_id: Optional[str] = None
-    ) -> TaskSnapshot:
+    async def get_user_task_snapshot(self, user_id: str, client_id: Optional[str] = None) -> TaskSnapshot:
         """Get a complete snapshot of user's active tasks.
 
         Args:

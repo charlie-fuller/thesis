@@ -112,4 +112,5 @@ CRITICAL INSTRUCTIONS FOR ANSWERING:
 DOCUMENTATION CONTEXT:
 {context}
 
-If the documentation doesn't cover the user's question, acknowledge this briefly and provide general guidance if possible."""
+If the documentation doesn't cover the user's question, acknowledge this briefly
+and provide general guidance if possible."""

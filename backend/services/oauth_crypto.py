@@ -38,9 +38,7 @@ def _get_encryption_key() -> bytes:
     key_hex = os.getenv("OAUTH_ENCRYPTION_KEY")
 
     if not key_hex:
-        raise OAuthCryptoError(
-            "OAUTH_ENCRYPTION_KEY not set in environment. Generate one with: openssl rand -hex 32"
-        )
+        raise OAuthCryptoError("OAUTH_ENCRYPTION_KEY not set in environment. Generate one with: openssl rand -hex 32")
 
     if len(key_hex) != 64:  # 32 bytes = 64 hex characters
         raise OAuthCryptoError(
@@ -118,8 +116,7 @@ def decrypt_token(ciphertext: str) -> str:
 
     except Exception as e:
         raise OAuthCryptoError(
-            f"Decryption failed: {e}. "
-            "This usually means the encryption key changed or data was tampered with."
+            f"Decryption failed: {e}. This usually means the encryption key changed or data was tampered with."
         ) from None
 
 

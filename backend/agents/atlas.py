@@ -48,9 +48,7 @@ class AtlasAgent(BaseAgent):
     """
 
     def __init__(self, supabase: Client, anthropic_client: anthropic.Anthropic):
-        super().__init__(
-            name="atlas", display_name="Atlas", supabase=supabase, anthropic_client=anthropic_client
-        )
+        super().__init__(name="atlas", display_name="Atlas", supabase=supabase, anthropic_client=anthropic_client)
 
     def _get_default_instruction(self) -> str:
         return """<system>.
@@ -617,14 +615,10 @@ Apply Lean principles to AI research and recommendations:
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Research query: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Research query: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
-    async def process_with_web_research(
-        self, context: AgentContext, focus_area: str = "general"
-    ) -> AgentResponse:
+    async def process_with_web_research(self, context: AgentContext, focus_area: str = "general") -> AgentResponse:
         """Process a research query with web search enhancement.
 
         Used by the research scheduler for proactive research tasks.
@@ -637,9 +631,7 @@ Apply Lean principles to AI research and recommendations:
 
         # Perform web research
         try:
-            web_context, citations = await research_topic_with_web(
-                topic=topic, focus_area=focus_area, max_sources=8
-            )
+            web_context, citations = await research_topic_with_web(topic=topic, focus_area=focus_area, max_sources=8)
         except Exception as e:
             logger.warning(f"Web research failed, proceeding without: {e}")
             web_context = ""
@@ -689,9 +681,7 @@ Apply Lean principles to AI research and recommendations:
             },
         )
 
-    async def synthesize_research(
-        self, topic: str, web_sources: list, context: Optional[dict] = None
-    ) -> str:
+    async def synthesize_research(self, topic: str, web_sources: list, context: Optional[dict] = None) -> str:
         """Synthesize research from web sources into a cohesive output.
 
         Used when web search has already been performed externally.
@@ -721,9 +711,7 @@ Focus on evidence-based insights and actionable recommendations.
         # Build enhanced system prompt
         enhanced_system = self.system_instruction
         if web_context.formatted_context:
-            web_section = WEB_RESEARCH_CONTEXT_TEMPLATE.format(
-                web_context=web_context.formatted_context
-            )
+            web_section = WEB_RESEARCH_CONTEXT_TEMPLATE.format(web_context=web_context.formatted_context)
             enhanced_system = enhanced_system + "\n\n" + web_section
 
         response = self.anthropic.messages.create(
@@ -774,30 +762,19 @@ Focus on evidence-based insights and actionable recommendations.
         message_lower = context.user_message.lower()
 
         # Hand off to Capital for ROI/cost questions
-        if any(
-            word in message_lower
-            for word in ["roi calculation", "budget", "cost-benefit", "financial model"]
-        ):
+        if any(word in message_lower for word in ["roi calculation", "budget", "cost-benefit", "financial model"]):
             return ("capital", "Query requires detailed financial analysis")
 
         # Hand off to Guardian for security/compliance specifics
-        if any(
-            word in message_lower
-            for word in ["security policy", "compliance framework", "audit requirement"]
-        ):
+        if any(word in message_lower for word in ["security policy", "compliance framework", "audit requirement"]):
             return ("guardian", "Query requires security/governance expertise")
 
         # Hand off to Counselor for legal specifics
-        if any(
-            word in message_lower
-            for word in ["contract review", "liability", "ip rights", "licensing terms"]
-        ):
+        if any(word in message_lower for word in ["contract review", "liability", "ip rights", "licensing terms"]):
             return ("counselor", "Query requires legal expertise")
 
         # Hand off to Oracle for transcript analysis
-        if any(
-            word in message_lower for word in ["transcript", "meeting notes", "analyze this call"]
-        ):
+        if any(word in message_lower for word in ["transcript", "meeting notes", "analyze this call"]):
             return ("oracle", "Query involves transcript analysis")
 
         return None

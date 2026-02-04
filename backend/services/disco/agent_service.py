@@ -138,9 +138,7 @@ DISCO_REPO_PATH = os.environ.get("DISCO_REPO_PATH") or os.environ.get("DISCO_REP
 DISCO_MODEL_SONNET = os.environ.get("DISCO_MODEL_SONNET") or os.environ.get(
     "DISCO_MODEL_SONNET", "claude-sonnet-4-20250514"
 )
-DISCO_MODEL_OPUS = os.environ.get("DISCO_MODEL_OPUS") or os.environ.get(
-    "PURDY_MODEL_OPUS", "claude-opus-4-5-20251101"
-)
+DISCO_MODEL_OPUS = os.environ.get("DISCO_MODEL_OPUS") or os.environ.get("PURDY_MODEL_OPUS", "claude-opus-4-5-20251101")
 
 # Triage uses Sonnet for speed, all others use Opus for quality
 # Discovery Guide in triage mode also uses Sonnet for speed
@@ -390,9 +388,7 @@ def get_agent_types(include_legacy: bool = False) -> List[Dict]:
     agents = [{"type": agent_type, **info} for agent_type, info in AGENT_DESCRIPTIONS.items()]
 
     if include_legacy:
-        legacy = [
-            {"type": agent_type, **info} for agent_type, info in LEGACY_AGENT_DESCRIPTIONS.items()
-        ]
+        legacy = [{"type": agent_type, **info} for agent_type, info in LEGACY_AGENT_DESCRIPTIONS.items()]
         agents.extend(legacy)
 
     return agents
@@ -583,9 +579,7 @@ async def collect_with_status_messages(
 
     def run_collection():
         try:
-            response, usage = _collect_claude_response(
-                model, system_prompt, user_prompt, temperature, max_tokens
-            )
+            response, usage = _collect_claude_response(model, system_prompt, user_prompt, temperature, max_tokens)
             result_holder["response"] = response
             result_holder["usage"] = usage
         except Exception as e:
@@ -679,9 +673,7 @@ def load_methodology_overview() -> str:
     return ""
 
 
-async def build_agent_context(
-    initiative_id: str, agent_type: str, include_system_kb: bool = True
-) -> Dict:
+async def build_agent_context(initiative_id: str, agent_type: str, include_system_kb: bool = True) -> Dict:
     """Build context for an agent run.
 
     Gathers:
@@ -738,9 +730,7 @@ async def build_agent_context(
                         "id": output.get("id"),
                     }
                 )
-                output_parts.append(
-                    f"\n\n=== Previous {output['agent_type']} Output (v{output['version']}) ===\n"
-                )
+                output_parts.append(f"\n\n=== Previous {output['agent_type']} Output (v{output['version']}) ===\n")
                 if output.get("recommendation"):
                     output_parts.append(f"Recommendation: {output['recommendation']}\n")
                 if output.get("confidence_level"):
@@ -850,9 +840,7 @@ async def _fetch_kb_tagged_documents(tags: List[str], user_id: str) -> str:
         # Get documents with the first tag
         result = await asyncio.to_thread(
             lambda: supabase.table("document_tags")
-            .select(
-                "document_id, documents!inner(id, filename, title, obsidian_file_path, uploaded_by)"
-            )
+            .select("document_id, documents!inner(id, filename, title, obsidian_file_path, uploaded_by)")
             .eq("tag", first_tag)
             .eq("documents.uploaded_by", user_id)
             .execute()
@@ -913,12 +901,7 @@ async def _fetch_kb_tagged_documents(tags: List[str], user_id: str) -> str:
 
             content = "\n".join([c["content"] for c in (chunks_result.data or [])])
             if content:
-                title = (
-                    doc.get("title")
-                    or doc.get("filename")
-                    or doc.get("obsidian_file_path")
-                    or "Untitled"
-                )
+                title = doc.get("title") or doc.get("filename") or doc.get("obsidian_file_path") or "Untitled"
                 content_parts.append(f"\n\n=== {title} ===\n")
                 source = doc.get("obsidian_file_path") or doc.get("filename") or "Unknown"
                 content_parts.append(f"Source: {source}\n")
@@ -1099,9 +1082,7 @@ async def run_agent(
         }
 
         # Log the data being stored
-        logger.info(
-            f"[PURDY] Storing output - id: {output_id}, agent_type: {agent_type}, version: {next_version}"
-        )
+        logger.info(f"[PURDY] Storing output - id: {output_id}, agent_type: {agent_type}, version: {next_version}")
         logger.info(f"[PURDY] Output data keys: {list(output_data.keys())}")
         logger.info(f"[PURDY] content_markdown length: {len(full_response)}")
         logger.info(
@@ -1123,9 +1104,7 @@ async def run_agent(
                 logger.error(f"[PURDY] Insert returned no data! Result: {insert_result}")
                 raise Exception("Failed to insert output - no data returned")
 
-            logger.info(
-                f"[PURDY] Insert SUCCESS: {insert_result.data[0].get('id') if insert_result.data else 'no id'}"
-            )
+            logger.info(f"[PURDY] Insert SUCCESS: {insert_result.data[0].get('id') if insert_result.data else 'no id'}")
         except Exception as insert_err:
             logger.error(f"[PURDY] Insert FAILED: {insert_err}")
             raise
@@ -1338,11 +1317,7 @@ FINALLY, create the discovery plan with:
     }
 
     parts.append("## Your Task\n")
-    parts.append(
-        agent_instructions.get(
-            agent_type, "Please analyze this initiative and provide your assessment."
-        )
-    )
+    parts.append(agent_instructions.get(agent_type, "Please analyze this initiative and provide your assessment."))
 
     return "\n".join(parts)
 
@@ -1559,14 +1534,10 @@ async def run_agent_multi_pass(
             pass_model = pass_config["model"]
 
             yield {"type": "status", "data": f"Pass {i}/3: {pass_label} (temp={pass_temp})..."}
-            logger.info(
-                f"[PURDY-MP] Starting Pass {i}: {pass_label} (temp={pass_temp}, model={pass_model})"
-            )
+            logger.info(f"[PURDY-MP] Starting Pass {i}: {pass_label} (temp={pass_temp}, model={pass_model})")
 
             pass_response = ""
-            pass_status_messages = [
-                f"Pass {i}/3: {random.choice(FUN_STATUS_MESSAGES)}" for _ in range(20)
-            ]
+            pass_status_messages = [f"Pass {i}/3: {random.choice(FUN_STATUS_MESSAGES)}" for _ in range(20)]
 
             try:
                 async for item in collect_with_status_messages(
@@ -1806,11 +1777,7 @@ async def get_run(run_id: str) -> Optional[Dict]:
     """Get a run record by ID."""
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table("disco_runs")
-            .select("*, disco_outputs(*)")
-            .eq("id", run_id)
-            .single()
-            .execute()
+            lambda: supabase.table("disco_runs").select("*, disco_outputs(*)").eq("id", run_id).single().execute()
         )
         return result.data
     except Exception as e:

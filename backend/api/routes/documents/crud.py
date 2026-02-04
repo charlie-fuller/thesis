@@ -191,19 +191,13 @@ async def delete_document(
                     .eq("document_id", document_id)
                     .execute()
                 )
-                logger.info(
-                    f"Removed {len(disco_links)} DISCo initiative links for "
-                    f"document {document_id}"
-                )
+                logger.info(f"Removed {len(disco_links)} DISCo initiative links for document {document_id}")
             except Exception as e:
                 logger.warning(f"Could not delete DISCo links: {e}")
 
         # Delete chunks
         await retry_supabase_operation(
-            lambda: supabase.table("document_chunks")
-            .delete()
-            .eq("document_id", document_id)
-            .execute()
+            lambda: supabase.table("document_chunks").delete().eq("document_id", document_id).execute()
         )
 
         # Delete from storage
@@ -216,9 +210,7 @@ async def delete_document(
                 logger.warning(f"Could not delete from storage: {e}")
 
         # Delete document record
-        await retry_supabase_operation(
-            lambda: supabase.table("documents").delete().eq("id", document_id).execute()
-        )
+        await retry_supabase_operation(lambda: supabase.table("documents").delete().eq("id", document_id).execute())
 
         logger.info(f"Document deleted: {document_id}")
 
@@ -263,16 +255,11 @@ async def bulk_delete_documents(
             try:
                 # Batch delete chunks for all documents
                 await asyncio.to_thread(
-                    lambda: supabase.table("document_chunks")
-                    .delete()
-                    .in_("document_id", valid_doc_ids)
-                    .execute()
+                    lambda: supabase.table("document_chunks").delete().in_("document_id", valid_doc_ids).execute()
                 )
 
                 # Batch delete documents
-                await asyncio.to_thread(
-                    lambda: supabase.table("documents").delete().in_("id", valid_doc_ids).execute()
-                )
+                await asyncio.to_thread(lambda: supabase.table("documents").delete().in_("id", valid_doc_ids).execute())
 
                 deleted_count = len(valid_doc_ids)
 
@@ -308,9 +295,7 @@ async def download_document(
         check_owner_or_admin(current_user, document["uploaded_by"], "document")
 
         signed_url = await asyncio.to_thread(
-            lambda: supabase.storage.from_("documents").create_signed_url(
-                document["storage_path"], 3600
-            )
+            lambda: supabase.storage.from_("documents").create_signed_url(document["storage_path"], 3600)
         )
 
         return {
@@ -336,11 +321,7 @@ async def get_document_initiative_links(
         validate_uuid(document_id, "document_id")
 
         doc_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, uploaded_by")
-            .eq("id", document_id)
-            .single()
-            .execute()
+            lambda: supabase.table("documents").select("id, uploaded_by").eq("id", document_id).single().execute()
         )
 
         if not doc_result.data:

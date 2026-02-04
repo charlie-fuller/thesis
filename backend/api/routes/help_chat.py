@@ -320,9 +320,7 @@ If the documentation doesn't cover the user's question, acknowledge this briefly
         error_trace = traceback.format_exc()
         logger.error(f"Error in help chat: {e}")
         logger.error(f"Full traceback: {error_trace}")
-        raise HTTPException(
-            status_code=500, detail=f"Error generating help response: {str(e)}"
-        ) from None
+        raise HTTPException(status_code=500, detail=f"Error generating help response: {str(e)}") from None
 
 
 @router.get("/conversations")
@@ -347,10 +345,7 @@ async def get_help_conversations(request: Request, current_user: dict = Depends(
         result = []
         for conv in conversations.data:
             messages = (
-                supabase.table("help_messages")
-                .select("id", count="exact")
-                .eq("conversation_id", conv["id"])
-                .execute()
+                supabase.table("help_messages").select("id", count="exact").eq("conversation_id", conv["id"]).execute()
             )
 
             result.append({**conv, "message_count": messages.count})
@@ -364,20 +359,14 @@ async def get_help_conversations(request: Request, current_user: dict = Depends(
 
 @router.get("/conversations/{conversation_id}")
 @limiter.limit("60/minute")
-async def get_help_conversation(
-    request: Request, conversation_id: str, current_user: dict = Depends(get_current_user)
-):
+async def get_help_conversation(request: Request, conversation_id: str, current_user: dict = Depends(get_current_user)):
     """Get full conversation history with messages."""
     user_id = current_user["id"]
 
     try:
         # Verify ownership
         conv = (
-            supabase.table("help_conversations")
-            .select("*")
-            .eq("id", conversation_id)
-            .eq("user_id", user_id)
-            .execute()
+            supabase.table("help_conversations").select("*").eq("id", conversation_id).eq("user_id", user_id).execute()
         )
 
         if not conv.data:
@@ -412,11 +401,7 @@ async def delete_help_conversation(
     try:
         # Verify ownership
         conv = (
-            supabase.table("help_conversations")
-            .select("id")
-            .eq("id", conversation_id)
-            .eq("user_id", user_id)
-            .execute()
+            supabase.table("help_conversations").select("id").eq("id", conversation_id).eq("user_id", user_id).execute()
         )
 
         if not conv.data:
@@ -446,20 +431,13 @@ async def submit_help_feedback(
     - feedback: 1 for thumbs up, -1 for thumbs down
     """
     if feedback not in [-1, 1]:
-        raise HTTPException(
-            status_code=400, detail="Feedback must be 1 (thumbs up) or -1 (thumbs down)"
-        )
+        raise HTTPException(status_code=400, detail="Feedback must be 1 (thumbs up) or -1 (thumbs down)")
 
     user_id = current_user["id"]
 
     try:
         # Verify message exists and belongs to user's conversation
-        message = (
-            supabase.table("help_messages")
-            .select("id, conversation_id")
-            .eq("id", message_id)
-            .execute()
-        )
+        message = supabase.table("help_messages").select("id, conversation_id").eq("id", message_id).execute()
 
         if not message.data:
             raise HTTPException(status_code=404, detail="Message not found")
@@ -468,11 +446,7 @@ async def submit_help_feedback(
 
         # Verify user owns the conversation
         conv = (
-            supabase.table("help_conversations")
-            .select("id")
-            .eq("id", conversation_id)
-            .eq("user_id", user_id)
-            .execute()
+            supabase.table("help_conversations").select("id").eq("id", conversation_id).eq("user_id", user_id).execute()
         )
 
         if not conv.data:
@@ -734,9 +708,7 @@ async def test_help_search(query: str = "How do I customize the theme?"):
         min_date = None
         if is_recency_query:
             min_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-            logger.info(
-                f"Test search: Detected recency query - filtering to docs after {min_date[:10]}"
-            )
+            logger.info(f"Test search: Detected recency query - filtering to docs after {min_date[:10]}")
 
         # Step 1: Test embedding generation
         query_embedding = create_embedding(test_query, input_type="query")
@@ -830,9 +802,7 @@ def _run_indexing_background(force: bool):
                 "total_chunks": chunk_count.count,
             }
 
-        logger.info(
-            f"Background indexing complete: {doc_count.count} docs, {chunk_count.count} chunks"
-        )
+        logger.info(f"Background indexing complete: {doc_count.count} docs, {chunk_count.count} chunks")
 
     except Exception as e:
         logger.error(f"Background indexing error: {e}")
@@ -913,9 +883,7 @@ async def index_help_docs(
         _indexing_state["completed_at"] = None
         _indexing_state["result"] = None
 
-    logger.info(
-        f"Admin {current_user['id']} triggered background help docs indexing (force={force})"
-    )
+    logger.info(f"Admin {current_user['id']} triggered background help docs indexing (force={force})")
 
     # Run indexing in background
     background_tasks.add_task(_run_indexing_background, force)

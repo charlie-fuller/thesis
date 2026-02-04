@@ -139,9 +139,7 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Glean assessment: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Glean assessment: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -175,24 +173,15 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
         message_lower = context.user_message.lower()
 
         # Hand off to Architect for deep technical architecture questions
-        if any(
-            word in message_lower
-            for word in ["architecture", "rag", "custom build", "technical design"]
-        ):
+        if any(word in message_lower for word in ["architecture", "rag", "custom build", "technical design"]):
             return ("architect", "Query requires deep technical architecture expertise")
 
         # Hand off to Guardian for security/compliance deep-dives
-        if any(
-            word in message_lower
-            for word in ["soc2", "hipaa", "gdpr", "security audit", "compliance"]
-        ):
+        if any(word in message_lower for word in ["soc2", "hipaa", "gdpr", "security audit", "compliance"]):
             return ("guardian", "Query requires security/compliance expertise")
 
         # Hand off to Capital for detailed cost analysis
-        if any(
-            word in message_lower
-            for word in ["budget", "roi", "cost breakdown", "financial analysis"]
-        ):
+        if any(word in message_lower for word in ["budget", "roi", "cost breakdown", "financial analysis"]):
             return ("capital", "Query requires detailed financial analysis")
 
         return None
@@ -220,14 +209,10 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
 
         # User count assessment
         if user_count >= 500:
-            assessment["factors"].append(
-                {"name": "user_count", "impact": "positive", "note": "Strong user base"}
-            )
+            assessment["factors"].append({"name": "user_count", "impact": "positive", "note": "Strong user base"})
             assessment["score"] += 0.2
         elif user_count >= 100:
-            assessment["factors"].append(
-                {"name": "user_count", "impact": "neutral", "note": "Meets minimum"}
-            )
+            assessment["factors"].append({"name": "user_count", "impact": "neutral", "note": "Meets minimum"})
         else:
             assessment["factors"].append(
                 {"name": "user_count", "impact": "negative", "note": "Below minimum 100 users"}
@@ -236,18 +221,12 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
 
         # Budget assessment (~$60K minimum)
         if budget >= 80000:
-            assessment["factors"].append(
-                {"name": "budget", "impact": "positive", "note": "Strong budget"}
-            )
+            assessment["factors"].append({"name": "budget", "impact": "positive", "note": "Strong budget"})
             assessment["score"] += 0.2
         elif budget >= 60000:
-            assessment["factors"].append(
-                {"name": "budget", "impact": "neutral", "note": "Meets baseline"}
-            )
+            assessment["factors"].append({"name": "budget", "impact": "neutral", "note": "Meets baseline"})
         else:
-            assessment["factors"].append(
-                {"name": "budget", "impact": "negative", "note": "Below $60K baseline"}
-            )
+            assessment["factors"].append({"name": "budget", "impact": "negative", "note": "Below $60K baseline"})
             assessment["score"] -= 0.3
 
         # Use case assessment
@@ -344,9 +323,7 @@ You are Compass, a personal career development coach. Your purpose is to help pr
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Career update: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Career update: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -390,15 +367,13 @@ You are Compass, a personal career development coach. Your purpose is to help pr
 
         # Hand off to Sage for deeper change management or people challenges
         if any(
-            word in message_lower
-            for word in ["team resistance", "burnout", "culture change", "adoption challenge"]
+            word in message_lower for word in ["team resistance", "burnout", "culture change", "adoption challenge"]
         ):
             return ("sage", "Query requires people/change management expertise")
 
         # Hand off to Scholar for training program design
         if any(
-            word in message_lower
-            for word in ["training program", "learning path", "curriculum", "upskilling plan"]
+            word in message_lower for word in ["training program", "learning path", "curriculum", "upskilling plan"]
         ):
             return ("scholar", "Query requires L&D expertise")
 
@@ -416,8 +391,7 @@ You are Compass, a personal career development coach. Your purpose is to help pr
 
         # Hand off to Oracle for meeting transcript analysis
         if any(
-            word in message_lower
-            for word in ["analyze meeting", "transcript", "what did they say", "meeting notes"]
+            word in message_lower for word in ["analyze meeting", "transcript", "what did they say", "meeting notes"]
         ):
             return ("oracle", "Query involves transcript analysis")
 
@@ -568,9 +542,7 @@ You are Compass, a personal career development coach. Your purpose is to help pr
 def mock_supabase_client():
     """Create mock Supabase client."""
     client = Mock()
-    client.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(
-        data=[]
-    )
+    client.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(data=[])
     client.table.return_value.insert.return_value.execute.return_value = Mock(data=[])
     return client
 
@@ -768,9 +740,7 @@ class TestGleanMemorySaveDecisions:
 
     def test_no_save_for_short_responses(self, glean_agent):
         """Should not save very short responses (clarifying questions)."""
-        result = glean_agent._should_save_to_memory(
-            "What is the weather?", "Could you clarify your question?"
-        )
+        result = glean_agent._should_save_to_memory("What is the weather?", "Could you clarify your question?")
 
         assert result is False
 
@@ -976,9 +946,7 @@ class TestCompassStakeholderContext:
 
     def test_inject_stakeholder_basic_info(self, compass_agent, sample_context):
         """Should inject basic stakeholder information."""
-        sample_context.stakeholders = [
-            {"name": "John Smith", "role": "VP Engineering", "engagement_level": "champion"}
-        ]
+        sample_context.stakeholders = [{"name": "John Smith", "role": "VP Engineering", "engagement_level": "champion"}]
 
         result = compass_agent.inject_stakeholder_context(sample_context)
 
@@ -1180,8 +1148,7 @@ class TestCompassMemorySaveDecisions:
         """Should not save for topics unrelated to career tracking."""
         result = compass_agent._should_save_to_memory(
             "What's the weather like?",
-            "I'm not able to help with weather questions. Perhaps try a weather service instead."
-            + " " * 200,
+            "I'm not able to help with weather questions. Perhaps try a weather service instead." + " " * 200,
         )
 
         # Even though response is long, no important indicators present

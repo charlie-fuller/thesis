@@ -107,7 +107,8 @@ def decode_jwt(token: str) -> Optional[dict]:
             if token_alg.startswith("ES") and key_alg_family != "ES":
                 logger.error(
                     f"JWT uses {token_alg} but SUPABASE_JWT_SECRET is not a public key. "
-                    "For ES256, use the JWT Signing Key (JWK format) from Supabase Dashboard -> Settings -> API -> JWT Settings."
+                    "For ES256, use the JWT Signing Key (JWK format) from Supabase Dashboard "
+                    "-> Settings -> API -> JWT Settings."
                 )
             elif token_alg.startswith("HS") and key_alg_family == "ES":
                 logger.error(
@@ -133,9 +134,7 @@ def decode_jwt(token: str) -> Optional[dict]:
         logger.error("JWT validation error: Invalid audience claim")
         return None
     except jwt.InvalidSignatureError:
-        logger.error(
-            "JWT validation error: Signature verification failed - check SUPABASE_JWT_SECRET"
-        )
+        logger.error("JWT validation error: Signature verification failed - check SUPABASE_JWT_SECRET")
         return None
     except PyJWTError as e:
         logger.error(f"JWT validation error: {type(e).__name__}: {e}")
@@ -171,13 +170,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
     # Fetch user role, client_id, and app_access from database using centralized connection
     try:
         supabase = get_supabase()
-        user_result = (
-            supabase.table("users")
-            .select("role, client_id, app_access")
-            .eq("id", user_id)
-            .single()
-            .execute()
-        )
+        user_result = supabase.table("users").select("role, client_id, app_access").eq("id", user_id).single().execute()
 
         if not user_result.data:
             # User exists in auth but not in users table - this is a data consistency issue
@@ -238,13 +231,7 @@ def get_current_user_optional(
     # Fetch user role, client_id, and app_access from database using centralized connection
     try:
         supabase = get_supabase()
-        user_result = (
-            supabase.table("users")
-            .select("role, client_id, app_access")
-            .eq("id", user_id)
-            .single()
-            .execute()
-        )
+        user_result = supabase.table("users").select("role, client_id, app_access").eq("id", user_id).single().execute()
 
         if not user_result.data:
             # User exists in auth but not in users table - this is a data consistency issue
@@ -294,9 +281,7 @@ def require_role(allowed_roles: list):
         user_role = current_user.get("role", "user")
 
         if user_role not in allowed_roles:
-            raise HTTPException(
-                status_code=403, detail=f"Access denied. Required roles: {', '.join(allowed_roles)}"
-            )
+            raise HTTPException(status_code=403, detail=f"Access denied. Required roles: {', '.join(allowed_roles)}")
 
         return current_user
 
@@ -355,9 +340,7 @@ require_thesis_access = require_app_access(["thesis"])
 # ============================================================================
 
 
-def check_owner_or_admin(
-    current_user: dict, resource_user_id: str, resource_name: str = "resource"
-) -> None:
+def check_owner_or_admin(current_user: dict, resource_user_id: str, resource_name: str = "resource") -> None:
     """Check if current user is admin or owns the resource.
 
     Args:
@@ -378,9 +361,7 @@ def check_owner_or_admin(
         )
 
 
-def check_client_member_or_admin(
-    current_user: dict, resource_client_id: str, resource_name: str = "resource"
-) -> None:
+def check_client_member_or_admin(current_user: dict, resource_client_id: str, resource_name: str = "resource") -> None:
     """Check if current user is admin or belongs to the client.
 
     Args:

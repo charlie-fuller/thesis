@@ -9,10 +9,9 @@ Usage:
 
 import sys
 
-from services.quick_prompt_generator import generate_addie_prompts, save_quick_prompts
-
 from database import get_supabase
 from logger_config import get_logger
+from services.quick_prompt_generator import generate_addie_prompts, save_quick_prompts
 
 logger = get_logger(__name__)
 supabase = get_supabase()
@@ -51,9 +50,7 @@ def seed_addie_prompts_for_all_users():
                 )
 
                 if existing.data and len(existing.data) > 0:
-                    logger.info(
-                        f"[Seed ADDIE Prompts] User {email} already has ADDIE prompts, skipping..."
-                    )
+                    logger.info(f"[Seed ADDIE Prompts] User {email} already has ADDIE prompts, skipping...")
                     continue
 
                 logger.info(f"[Seed ADDIE Prompts] Generating prompts for user {email}...")
@@ -70,14 +67,10 @@ def seed_addie_prompts_for_all_users():
                 save_result = save_quick_prompts(prompts)
 
                 if save_result["success"]:
-                    logger.info(
-                        f"[Seed ADDIE Prompts] Successfully saved {save_result['count']} prompts for {email}"
-                    )
+                    logger.info(f"[Seed ADDIE Prompts] Successfully saved {save_result['count']} prompts for {email}")
                     success_count += 1
                 else:
-                    logger.error(
-                        f"[Seed ADDIE Prompts] Failed to save prompts for {email}: {save_result.get('error')}"
-                    )
+                    logger.error(f"[Seed ADDIE Prompts] Failed to save prompts for {email}: {save_result.get('error')}")
                     error_count += 1
 
             except Exception as e:
@@ -85,9 +78,7 @@ def seed_addie_prompts_for_all_users():
                 error_count += 1
                 continue
 
-        logger.info(
-            f"[Seed ADDIE Prompts] Complete! Success: {success_count}, Errors: {error_count}"
-        )
+        logger.info(f"[Seed ADDIE Prompts] Complete! Success: {success_count}, Errors: {error_count}")
 
         return {
             "success": True,
@@ -111,9 +102,7 @@ def seed_addie_prompts_for_user(user_id: str):
         logger.info(f"[Seed ADDIE Prompts] Generating prompts for user {user_id}...")
 
         # Get user info
-        user_result = (
-            supabase.table("users").select("id, client_id, email").eq("id", user_id).execute()
-        )
+        user_result = supabase.table("users").select("id, client_id, email").eq("id", user_id).execute()
 
         if not user_result.data or len(user_result.data) == 0:
             logger.error(f"[Seed ADDIE Prompts] User {user_id} not found")
@@ -123,9 +112,7 @@ def seed_addie_prompts_for_user(user_id: str):
         client_id = user.get("client_id")
 
         # Generate ADDIE prompts
-        prompts = generate_addie_prompts(
-            user_id=user_id, client_id=client_id, phases=None, max_per_phase=3
-        )
+        prompts = generate_addie_prompts(user_id=user_id, client_id=client_id, phases=None, max_per_phase=3)
 
         # Save to database
         result = save_quick_prompts(prompts)

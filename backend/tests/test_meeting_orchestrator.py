@@ -88,9 +88,7 @@ class TestMeetingOrchestrator:
         on_topic_message = "Let's discuss the ROI projections for the AI initiative."
         off_topic_message = "Did you see the game last night?"
 
-        orchestrator.is_on_topic = MagicMock(
-            side_effect=lambda msg, topic: "AI" in msg or "ROI" in msg
-        )
+        orchestrator.is_on_topic = MagicMock(side_effect=lambda msg, topic: "AI" in msg or "ROI" in msg)
 
         topic = "AI implementation strategy"
 
@@ -377,6 +375,4 @@ class TestSmartBrevityInMeetings:
 
         for agent, response in MOCK_AGENT_RESPONSES.items():
             for phrase in filler_phrases:
-                assert (
-                    phrase.lower() not in response.lower()
-                ), f"{agent} uses filler phrase: {phrase}"
+                assert phrase.lower() not in response.lower(), f"{agent} uses filler phrase: {phrase}"

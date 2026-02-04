@@ -168,9 +168,7 @@ NEVER let a single expert's view become group consensus unchallenged.
         if len(participant_names) <= 3:
             names_str = ", ".join(participant_names)
         else:
-            names_str = (
-                ", ".join(participant_names[:3]) + f", and {len(participant_names) - 3} others"
-            )
+            names_str = ", ".join(participant_names[:3]) + f", and {len(participant_names) - 3} others"
 
         return f"Welcome! Today we have {names_str} with us. What would you like us to explore together?"
 
@@ -272,9 +270,7 @@ RULES:
         }
         return expertise_map.get(agent_name.lower(), "Specialist")
 
-    async def generate_synthesis(
-        self, topic: str, agent_contributions: list[dict], user_context: str = None
-    ) -> str:
+    async def generate_synthesis(self, topic: str, agent_contributions: list[dict], user_context: str = None) -> str:
         """Generate a synthesis of agent contributions.
 
         Args:
@@ -320,9 +316,7 @@ Be concise. Use bullet points if helpful. End with a question to the user."""
             logger.error(f"Error generating synthesis: {e}")
             return "Let me summarize where we are. We've heard several perspectives. What would be most helpful to explore further?"
 
-    async def generate_balance_prompt(
-        self, last_speaker: str, agents_not_spoken: list[str], topic: str
-    ) -> str:
+    async def generate_balance_prompt(self, last_speaker: str, agents_not_spoken: list[str], topic: str) -> str:
         """Generate a prompt to balance participation.
 
         Args:

@@ -90,8 +90,7 @@ def get_credentials() -> dict:
     """
     creds = {
         "supabase_url": _get_credential("SUPABASE_URL"),
-        "supabase_key": _get_credential("SUPABASE_SERVICE_ROLE_KEY")
-        or _get_credential("SUPABASE_KEY"),
+        "supabase_key": _get_credential("SUPABASE_SERVICE_ROLE_KEY") or _get_credential("SUPABASE_KEY"),
         "supabase_jwt_secret": _get_credential("SUPABASE_JWT_SECRET"),
         "anthropic_api_key": _get_credential("ANTHROPIC_API_KEY"),
         "voyage_api_key": _get_credential("VOYAGE_API_KEY"),

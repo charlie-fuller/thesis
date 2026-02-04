@@ -348,9 +348,7 @@ class EngagementCalculator:
                 }
             ).eq("id", stakeholder_id).execute()
 
-            logger.info(
-                f"Engagement changed: {stakeholder_id} {previous_level} -> {new_level} ({reason})"
-            )
+            logger.info(f"Engagement changed: {stakeholder_id} {previous_level} -> {new_level} ({reason})")
         else:
             # Update timestamp even if no change
             self.supabase.table("stakeholders").update(
@@ -382,18 +380,14 @@ class EngagementCalculator:
             changed=changed,
         )
 
-    async def calculate_for_client(
-        self, client_id: str, calculation_type: str = "scheduled"
-    ) -> dict:
+    async def calculate_for_client(self, client_id: str, calculation_type: str = "scheduled") -> dict:
         """Calculate engagement for all stakeholders in a client.
 
         Returns:
             dict with summary: {total, changed, promotions, demotions, errors}
         """
         # Get all stakeholders for client
-        result = (
-            self.supabase.table("stakeholders").select("id").eq("client_id", client_id).execute()
-        )
+        result = self.supabase.table("stakeholders").select("id").eq("client_id", client_id).execute()
 
         stakeholders = result.data or []
 

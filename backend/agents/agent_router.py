@@ -371,9 +371,7 @@ class AgentRouter:
         # 1. Check for explicit agent mention
         for mention, agent in self.AGENT_MENTIONS.items():
             if mention in message_lower:
-                return RoutingDecision(
-                    primary_agent=agent, confidence=1.0, reason=f"Explicit mention of {mention}"
-                )
+                return RoutingDecision(primary_agent=agent, confidence=1.0, reason=f"Explicit mention of {mention}")
 
         # 2. Check conversation context for continuity
         if conversation_context and conversation_context.get("current_agent"):
@@ -403,11 +401,7 @@ class AgentRouter:
             best_agent = max(keyword_scores.items(), key=lambda x: x[1])
             if best_agent[1] >= 2:  # At least 2 keyword matches for confidence
                 # Check for supporting agents (secondary matches)
-                supporting = [
-                    agent
-                    for agent, score in keyword_scores.items()
-                    if agent != best_agent[0] and score >= 1
-                ]
+                supporting = [agent for agent, score in keyword_scores.items() if agent != best_agent[0] and score >= 1]
                 return RoutingDecision(
                     primary_agent=best_agent[0],
                     confidence=min(0.9, 0.5 + best_agent[1] * 0.1),
@@ -482,16 +476,12 @@ Format: AGENT_NAME: reason"""
             reason = parts[1].strip() if len(parts) > 1 else "LLM classification"
 
             if agent in self.AGENT_KEYWORDS:
-                return RoutingDecision(
-                    primary_agent=agent, confidence=0.85, reason=f"LLM classification: {reason}"
-                )
+                return RoutingDecision(primary_agent=agent, confidence=0.85, reason=f"LLM classification: {reason}")
         except Exception as e:
             logger.error(f"LLM routing failed: {e}")
 
         # Fallback to default
-        return RoutingDecision(
-            primary_agent="atlas", confidence=0.5, reason="Fallback to research agent"
-        )
+        return RoutingDecision(primary_agent="atlas", confidence=0.5, reason="Fallback to research agent")
 
     def get_agent_for_handoff(self, from_agent: str, reason: str) -> Optional[str]:
         """Determine which agent to hand off to based on the handoff reason.

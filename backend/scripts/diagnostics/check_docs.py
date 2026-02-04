@@ -12,22 +12,12 @@ supabase_key = os.getenv("SUPABASE_KEY")
 client = create_client(supabase_url, supabase_key)
 
 # Query documents with chunk count
-response = (
-    client.table("documents")
-    .select("id, filename, uploaded_at, file_type")
-    .eq("filename", "untitled")
-    .execute()
-)
+response = client.table("documents").select("id, filename, uploaded_at, file_type").eq("filename", "untitled").execute()
 
 print(f"Found {len(response.data)} 'untitled' documents:")
 for doc in response.data:
     # Count chunks for this document
-    chunks_response = (
-        client.table("document_chunks")
-        .select("id", count="exact")
-        .eq("document_id", doc["id"])
-        .execute()
-    )
+    chunks_response = client.table("document_chunks").select("id", count="exact").eq("document_id", doc["id"]).execute()
     chunk_count = chunks_response.count if chunks_response.count else 0
 
     print(f"\n- ID: {doc['id']}")

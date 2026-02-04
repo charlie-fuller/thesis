@@ -256,9 +256,7 @@ async def get_engagement_trends(
     # Group by week and count engagement levels
     from collections import defaultdict
 
-    weekly_data = defaultdict(
-        lambda: {"champion": 0, "supporter": 0, "neutral": 0, "skeptic": 0, "blocker": 0}
-    )
+    weekly_data = defaultdict(lambda: {"champion": 0, "supporter": 0, "neutral": 0, "skeptic": 0, "blocker": 0})
 
     for record in result.data:
         # Get week start (Monday)
@@ -299,9 +297,7 @@ async def get_engagement_changes(
     # Get history records where level changed (previous_level is not null)
     result = (
         supabase.table("engagement_level_history")
-        .select(
-            "stakeholder_id, engagement_level, previous_level, calculation_reason, calculated_at"
-        )
+        .select("stakeholder_id, engagement_level, previous_level, calculation_reason, calculated_at")
         .eq("client_id", client_id)
         .gte("calculated_at", start_date.isoformat())
         .not_.is_("previous_level", "null")
@@ -315,9 +311,7 @@ async def get_engagement_changes(
 
     # Get stakeholder names
     stakeholder_ids = list({r["stakeholder_id"] for r in result.data})
-    stakeholders = (
-        supabase.table("stakeholders").select("id, name").in_("id", stakeholder_ids).execute()
-    )
+    stakeholders = supabase.table("stakeholders").select("id, name").in_("id", stakeholder_ids).execute()
 
     name_map = {s["id"]: s["name"] for s in stakeholders.data}
 
@@ -378,9 +372,7 @@ async def trigger_engagement_recalculation(
 
 
 @router.get("/dashboard")
-async def get_stakeholder_dashboard(
-    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_stakeholder_dashboard(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get dashboard metrics for stakeholders.
 
     Returns:
@@ -442,9 +434,7 @@ async def get_stakeholder_dashboard(
         "recent_concerns": [
             {
                 "id": c["id"],
-                "stakeholder_name": c["stakeholders"]["name"]
-                if c.get("stakeholders")
-                else "Unknown",
+                "stakeholder_name": c["stakeholders"]["name"] if c.get("stakeholders") else "Unknown",
                 "content": c["content"],
                 "created_at": c["created_at"],
             }
@@ -469,11 +459,7 @@ async def list_stakeholder_candidates(
     supabase=Depends(get_supabase),
 ):
     """List stakeholder candidates for review."""
-    query = (
-        supabase.table("stakeholder_candidates")
-        .select("*")
-        .eq("client_id", current_user["client_id"])
-    )
+    query = supabase.table("stakeholder_candidates").select("*").eq("client_id", current_user["client_id"])
 
     if status:
         query = query.eq("status", status)
@@ -503,9 +489,7 @@ async def list_stakeholder_candidates(
 
 
 @router.get("/candidates/count")
-async def get_candidate_count(
-    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_candidate_count(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get count of pending stakeholder candidates."""
     result = (
         supabase.table("stakeholder_candidates")
@@ -583,9 +567,7 @@ async def accept_stakeholder_candidate(
     if opportunity_ids or task_ids:
         from services.stakeholder_linker import link_stakeholder_to_entities
 
-        await link_stakeholder_to_entities(
-            supabase, new_stakeholder["id"], opportunity_ids, task_ids
-        )
+        await link_stakeholder_to_entities(supabase, new_stakeholder["id"], opportunity_ids, task_ids)
 
     # Update candidate status
     supabase.table("stakeholder_candidates").update(
@@ -692,9 +674,7 @@ async def merge_stakeholder_candidate(
         update_data["interests"] = existing_interests
 
     # Update target stakeholder
-    supabase.table("stakeholders").update(update_data).eq(
-        "id", merge.target_stakeholder_id
-    ).execute()
+    supabase.table("stakeholders").update(update_data).eq("id", merge.target_stakeholder_id).execute()
 
     # Link to related entities
     opportunity_ids = c.get("related_opportunity_ids", [])
@@ -703,9 +683,7 @@ async def merge_stakeholder_candidate(
     if opportunity_ids or task_ids:
         from services.stakeholder_linker import link_stakeholder_to_entities
 
-        await link_stakeholder_to_entities(
-            supabase, merge.target_stakeholder_id, opportunity_ids, task_ids
-        )
+        await link_stakeholder_to_entities(supabase, merge.target_stakeholder_id, opportunity_ids, task_ids)
 
     # Update candidate status
     supabase.table("stakeholder_candidates").update(
@@ -736,13 +714,9 @@ async def bulk_process_candidates(
     for candidate_id in candidate_ids:
         try:
             if action == "accept":
-                await accept_stakeholder_candidate(
-                    candidate_id, CandidateAccept(), current_user, supabase
-                )
+                await accept_stakeholder_candidate(candidate_id, CandidateAccept(), current_user, supabase)
             else:
-                await reject_stakeholder_candidate(
-                    candidate_id, CandidateReject(), current_user, supabase
-                )
+                await reject_stakeholder_candidate(candidate_id, CandidateReject(), current_user, supabase)
             results["processed"] += 1
         except HTTPException as e:
             results["errors"].append(f"{candidate_id}: {e.detail}")
@@ -925,9 +899,7 @@ async def get_stakeholder_engagement_history(
     # Get engagement history
     result = (
         supabase.table("engagement_level_history")
-        .select(
-            "engagement_level, previous_level, calculation_reason, signals, calculated_at, calculation_type"
-        )
+        .select("engagement_level, previous_level, calculation_reason, signals, calculated_at, calculation_type")
         .eq("stakeholder_id", stakeholder_id)
         .order("calculated_at", desc=True)
         .limit(limit)
@@ -995,12 +967,8 @@ async def get_stakeholder_insights(
             quote=i.get("extracted_quote"),
             confidence=i.get("confidence", 0.8),
             is_resolved=i.get("is_resolved", False),
-            meeting_title=i["meeting_transcripts"]["title"]
-            if i.get("meeting_transcripts")
-            else None,
-            meeting_date=i["meeting_transcripts"]["meeting_date"]
-            if i.get("meeting_transcripts")
-            else None,
+            meeting_title=i["meeting_transcripts"]["title"] if i.get("meeting_transcripts") else None,
+            meeting_date=i["meeting_transcripts"]["meeting_date"] if i.get("meeting_transcripts") else None,
             created_at=i["created_at"],
         )
         for i in result.data

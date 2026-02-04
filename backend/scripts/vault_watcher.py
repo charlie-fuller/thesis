@@ -63,9 +63,7 @@ def parse_args():
 
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
 
-    parser.add_argument(
-        "--initial-sync", action="store_true", help="Perform initial sync before starting watcher"
-    )
+    parser.add_argument("--initial-sync", action="store_true", help="Perform initial sync before starting watcher")
 
     return parser.parse_args()
 
@@ -127,9 +125,7 @@ async def run_watcher(args):
     logger = get_logger(__name__)
 
     user_id = args.user_id
-    vault_path_override = (
-        args.vault_path or os.getenv("VAULT_PATH") or os.getenv("OBSIDIAN_VAULT_PATH")
-    )
+    vault_path_override = args.vault_path or os.getenv("VAULT_PATH") or os.getenv("OBSIDIAN_VAULT_PATH")
 
     logger.info("Starting Vault Watcher")
     logger.info(f"User ID: {user_id}")
@@ -147,9 +143,7 @@ async def run_watcher(args):
             supabase = get_supabase()
 
             # Get user's client_id
-            user_result = (
-                supabase.table("users").select("client_id").eq("id", user_id).single().execute()
-            )
+            user_result = supabase.table("users").select("client_id").eq("id", user_id).single().execute()
 
             if not user_result.data or not user_result.data.get("client_id"):
                 logger.error("User not found or has no client association")
@@ -157,9 +151,7 @@ async def run_watcher(args):
 
             client_id = user_result.data["client_id"]
 
-            config = create_vault_config(
-                user_id=user_id, client_id=client_id, vault_path=vault_path_override
-            )
+            config = create_vault_config(user_id=user_id, client_id=client_id, vault_path=vault_path_override)
         elif not config:
             logger.error("No vault configured and no override path provided")
             logger.error("Configure a vault first via API or provide --vault-path")

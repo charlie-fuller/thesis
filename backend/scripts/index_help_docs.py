@@ -171,12 +171,7 @@ def process_document(file_path: Path, force: bool = False) -> Dict:
     title = file_path.stem.replace("-", " ").title()  # Convert filename to title
 
     # Check if already indexed
-    existing = (
-        supabase.table("help_documents")
-        .select("id, updated_at")
-        .eq("file_path", relative_path)
-        .execute()
-    )
+    existing = supabase.table("help_documents").select("id, updated_at").eq("file_path", relative_path).execute()
 
     document_id = None
 
@@ -283,14 +278,10 @@ def index_all_help_docs(force: bool = False, progress_callback=None):
         logger.info("Force mode: Deleting all existing chunks and documents for fresh reindex...")
         try:
             # Delete chunks first (foreign key constraint)
-            supabase.table("help_chunks").delete().neq(
-                "id", "00000000-0000-0000-0000-000000000000"
-            ).execute()
+            supabase.table("help_chunks").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
             logger.info("All existing chunks deleted")
             # Delete documents too so they get fully recreated
-            supabase.table("help_documents").delete().neq(
-                "id", "00000000-0000-0000-0000-000000000000"
-            ).execute()
+            supabase.table("help_documents").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
             logger.info("All existing documents deleted")
         except Exception as e:
             logger.error(f"Error deleting data: {e}")
@@ -357,9 +348,7 @@ def index_all_help_docs(force: bool = False, progress_callback=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Index help documentation for RAG search")
-    parser.add_argument(
-        "--force", action="store_true", help="Reindex all documents even if they already exist"
-    )
+    parser.add_argument("--force", action="store_true", help="Reindex all documents even if they already exist")
 
     args = parser.parse_args()
 

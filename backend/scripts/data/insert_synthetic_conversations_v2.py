@@ -130,9 +130,7 @@ def main():
     ]
 
     print(f"🚀 Inserting {len(conversations)} synthetic conversations for {CHARLIE_EMAIL}")
-    print(
-        f"📅 Date range: {date_schedule[0].strftime('%Y-%m-%d')} to {date_schedule[-1].strftime('%Y-%m-%d')}"
-    )
+    print(f"📅 Date range: {date_schedule[0].strftime('%Y-%m-%d')} to {date_schedule[-1].strftime('%Y-%m-%d')}")
     print("📊 Based on Charlie's actual configured functions:")
     print("   - Conceptual_Modeler (2 convos)")
     print("   - Independence_Identifier (2 convos)")

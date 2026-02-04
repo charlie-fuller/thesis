@@ -148,9 +148,7 @@ DOCUMENT CONTENT:
             response_text = response_text.strip()
         return response_text
 
-    def _normalize_field(
-        self, value: str | None, valid_values: tuple[str, ...], default: str
-    ) -> str | None:
+    def _normalize_field(self, value: str | None, valid_values: tuple[str, ...], default: str) -> str | None:
         """Normalize a field value to lowercase and validate against allowed values."""
         if not value:
             return None
@@ -182,9 +180,7 @@ DOCUMENT CONTENT:
             ("positive", "neutral", "negative"),
             "neutral",
         )
-        influence = self._normalize_field(
-            item.get("influence_level"), ("high", "medium", "low"), "medium"
-        )
+        influence = self._normalize_field(item.get("influence_level"), ("high", "medium", "low"), "medium")
 
         return ExtractedStakeholder(
             name=name,
@@ -202,9 +198,7 @@ DOCUMENT CONTENT:
             confidence=self._calculate_confidence(item),
         )
 
-    def _parse_response(
-        self, response_text: str, source_document: str
-    ) -> list[ExtractedStakeholder]:
+    def _parse_response(self, response_text: str, source_document: str) -> list[ExtractedStakeholder]:
         """Parse LLM response into ExtractedStakeholder objects."""
         try:
             response_text = self._clean_json_response(response_text)

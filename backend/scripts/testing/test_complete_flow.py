@@ -41,9 +41,7 @@ async def test_complete_flow():
         # Step 1: Generate image
         print("\n🎨 Step 1: Generating image...")
         image_service = get_image_generation_service()
-        result = await image_service.generate_image(
-            prompt=prompt, model="fast", aspect_ratio="16:9"
-        )
+        result = await image_service.generate_image(prompt=prompt, model="fast", aspect_ratio="16:9")
 
         if not result.get("success"):
             print(f"❌ Image generation failed: {result}")
@@ -133,12 +131,7 @@ async def test_complete_flow():
 
         # Step 5: Verify retrieval
         print("\n🔍 Step 5: Verifying image retrieval...")
-        retrieve_result = (
-            db.table("conversation_images")
-            .select("*")
-            .eq("conversation_id", conversation_id)
-            .execute()
-        )
+        retrieve_result = db.table("conversation_images").select("*").eq("conversation_id", conversation_id).execute()
 
         if not retrieve_result.data or len(retrieve_result.data) == 0:
             print("❌ Failed to retrieve image")

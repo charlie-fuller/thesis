@@ -345,9 +345,7 @@ async def get_kanban_board(
 
 
 @router.post("/reorder")
-async def reorder_tasks(
-    request: TaskBulkReorderRequest, current_user: dict = Depends(get_current_user)
-):
+async def reorder_tasks(request: TaskBulkReorderRequest, current_user: dict = Depends(get_current_user)):
     """Bulk reorder tasks (for Kanban drag-drop reordering within columns)."""
     try:
         client_id = current_user.get("client_id") or get_default_client_id()
@@ -361,9 +359,7 @@ async def reorder_tasks(
                 validate_uuid(item.task_id, "task_id")
 
                 result = await asyncio.to_thread(
-                    lambda tid=item.task_id, s=item.status.value, p=item.position: supabase.table(
-                        "project_tasks"
-                    )
+                    lambda tid=item.task_id, s=item.status.value, p=item.position: supabase.table("project_tasks")
                     .update({"status": s, "position": p, "updated_by": user_id})
                     .eq("id", tid)
                     .eq("client_id", client_id)
@@ -391,9 +387,7 @@ async def reorder_tasks(
 
 
 @router.post("/extract/transcript/{transcript_id}")
-async def extract_tasks_from_transcript(
-    transcript_id: str, current_user: dict = Depends(get_current_user)
-):
+async def extract_tasks_from_transcript(transcript_id: str, current_user: dict = Depends(get_current_user)):
     """Extract tasks from a meeting transcript's action_items."""
     try:
         validate_uuid(transcript_id, "transcript_id")
@@ -458,11 +452,7 @@ async def extract_tasks_from_transcript(
             due_date_str = item.get("due_date")
             if due_date_str:
                 try:
-                    due_date = (
-                        datetime.fromisoformat(due_date_str.replace("Z", "+00:00"))
-                        .date()
-                        .isoformat()
-                    )
+                    due_date = datetime.fromisoformat(due_date_str.replace("Z", "+00:00")).date().isoformat()
                 except (ValueError, AttributeError):
                     pass
 
@@ -541,11 +531,7 @@ async def list_tasks(
         client_id = current_user.get("client_id") or get_default_client_id()
 
         # Build query
-        query = (
-            supabase.table("v_tasks_with_assignee")
-            .select("*", count="exact")
-            .eq("client_id", client_id)
-        )
+        query = supabase.table("v_tasks_with_assignee").select("*", count="exact").eq("client_id", client_id)
 
         # Apply filters
         if status:
@@ -693,23 +679,15 @@ async def create_task(request: TaskCreate, current_user: dict = Depends(get_curr
             "source_research_task_id": request.source_research_task_id,
             "source_project_id": request.source_project_id,
             "source_text": request.source_text,
-            "source_extracted_at": datetime.now(timezone.utc).isoformat()
-            if request.source_text
-            else None,
-            "blocker_reason": request.blocker_reason
-            if request.status == TaskStatus.BLOCKED
-            else None,
-            "blocked_at": datetime.now(timezone.utc).isoformat()
-            if request.status == TaskStatus.BLOCKED
-            else None,
+            "source_extracted_at": datetime.now(timezone.utc).isoformat() if request.source_text else None,
+            "blocker_reason": request.blocker_reason if request.status == TaskStatus.BLOCKED else None,
+            "blocked_at": datetime.now(timezone.utc).isoformat() if request.status == TaskStatus.BLOCKED else None,
             "created_by": user_id,
             "updated_by": user_id,
             "position": position,
         }
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("project_tasks").insert(task_record).execute()
-        )
+        result = await asyncio.to_thread(lambda: supabase.table("project_tasks").insert(task_record).execute())
 
         task = result.data[0]
         logger.info(f"Task created: {task['id']}")
@@ -767,18 +745,12 @@ async def get_task_candidates(
     try:
         client_id = current_user.get("client_id") or get_default_client_id()
 
-        query = (
-            supabase.table("task_candidates")
-            .select("*, documents(filename, title)")
-            .eq("client_id", client_id)
-        )
+        query = supabase.table("task_candidates").select("*, documents(filename, title)").eq("client_id", client_id)
 
         if status != "all":
             query = query.eq("status", status)
 
-        result = await asyncio.to_thread(
-            lambda: query.order("created_at", desc=True).limit(limit).execute()
-        )
+        result = await asyncio.to_thread(lambda: query.order("created_at", desc=True).limit(limit).execute())
 
         candidates = []
         for c in result.data or []:
@@ -792,9 +764,7 @@ async def get_task_candidates(
                     "due_date_text": c["due_date_text"],
                     "assignee_name": c["assignee_name"],
                     "source_document_id": c["source_document_id"],
-                    "source_document_name": doc.get("title")
-                    or doc.get("filename")
-                    or c.get("source_document_name"),
+                    "source_document_name": doc.get("title") or doc.get("filename") or c.get("source_document_name"),
                     "source_text": c["source_text"],
                     "confidence": c["confidence"],
                     "status": c["status"],
@@ -840,9 +810,7 @@ async def get_candidate_count(current_user=Depends(get_current_user)):
 
 @router.delete("/candidates/clear")
 async def clear_task_candidates(
-    status: Optional[str] = Query(
-        None, description="Filter by status: pending, accepted, rejected, or all"
-    ),
+    status: Optional[str] = Query(None, description="Filter by status: pending, accepted, rejected, or all"),
     current_user=Depends(get_current_user),
 ):
     """Clear task candidates. By default clears pending candidates only.
@@ -937,9 +905,7 @@ async def reject_task_candidate(
 
 
 @router.post("/candidates/{candidate_id}/link")
-async def link_task_candidate(
-    candidate_id: str, body: LinkCandidateRequest, current_user=Depends(get_current_user)
-):
+async def link_task_candidate(candidate_id: str, body: LinkCandidateRequest, current_user=Depends(get_current_user)):
     """Link a task candidate to an existing task instead of creating a new one.
 
     This is used when a duplicate is detected and the user wants to associate
@@ -1072,12 +1038,7 @@ async def get_scan_stats(current_user=Depends(get_current_user)):
         client_id = current_user.get("client_id") or get_default_client_id()
 
         # Get total document count
-        docs_result = (
-            supabase.table("documents")
-            .select("id", count="exact")
-            .eq("client_id", client_id)
-            .execute()
-        )
+        docs_result = supabase.table("documents").select("id", count="exact").eq("client_id", client_id).execute()
         total_docs = docs_result.count or 0
 
         # Get documents with original_date (scannable)
@@ -1116,10 +1077,7 @@ async def get_scan_stats(current_user=Depends(get_current_user)):
 
         # Get documents that have been scanned (have candidates)
         scanned_docs_result = (
-            supabase.table("task_candidates")
-            .select("source_document_id")
-            .eq("client_id", client_id)
-            .execute()
+            supabase.table("task_candidates").select("source_document_id").eq("client_id", client_id).execute()
         )
         scanned_doc_ids = {c["source_document_id"] for c in (scanned_docs_result.data or [])}
 
@@ -1144,9 +1102,7 @@ MEETING_SUMMARIES_FOLDER = "Granola/Meeting-summaries"
 @router.post("/scan-documents")
 async def scan_documents_for_tasks(
     limit: int = Query(5, ge=1, le=50, description="Number of recent documents to scan (max 50)"),
-    since_days: int = Query(
-        7, ge=1, le=365, description="Only scan documents with original_date in the last N days"
-    ),
+    since_days: int = Query(7, ge=1, le=365, description="Only scan documents with original_date in the last N days"),
     force_rescan: bool = Query(False, description="Rescan documents even if already scanned"),
     current_user=Depends(get_current_user),
 ):
@@ -1197,9 +1153,7 @@ async def scan_documents_for_tasks(
         query = query.gte("original_date", cutoff)
 
         # Order by original_date (falls back to uploaded_at for docs without original_date)
-        docs_result = (
-            query.order("original_date", desc=True, nullsfirst=False).limit(limit).execute()
-        )
+        docs_result = query.order("original_date", desc=True, nullsfirst=False).limit(limit).execute()
 
         if not docs_result.data:
             return {
@@ -1400,9 +1354,7 @@ async def get_task(task_id: str, current_user: dict = Depends(get_current_user))
 
 
 @router.patch("/{task_id}")
-async def update_task(
-    task_id: str, request: TaskUpdate, current_user: dict = Depends(get_current_user)
-):
+async def update_task(task_id: str, request: TaskUpdate, current_user: dict = Depends(get_current_user)):
     """Update a task."""
     try:
         validate_uuid(task_id, "task_id")
@@ -1463,10 +1415,7 @@ async def update_task(
             update_record["linked_project_id"] = request.linked_project_id or None
 
         result = await asyncio.to_thread(
-            lambda: supabase.table("project_tasks")
-            .update(update_record)
-            .eq("id", task_id)
-            .execute()
+            lambda: supabase.table("project_tasks").update(update_record).eq("id", task_id).execute()
         )
 
         task = result.data[0]
@@ -1506,9 +1455,7 @@ async def delete_task(task_id: str, current_user: dict = Depends(get_current_use
             raise HTTPException(status_code=404, detail="Task not found")
 
         # Delete task (cascade will handle comments and history)
-        await asyncio.to_thread(
-            lambda: supabase.table("project_tasks").delete().eq("id", task_id).execute()
-        )
+        await asyncio.to_thread(lambda: supabase.table("project_tasks").delete().eq("id", task_id).execute())
 
         logger.info(f"Task deleted: {task_id}")
 
@@ -1522,9 +1469,7 @@ async def delete_task(task_id: str, current_user: dict = Depends(get_current_use
 
 
 @router.patch("/{task_id}/status")
-async def update_task_status(
-    task_id: str, request: TaskStatusUpdate, current_user: dict = Depends(get_current_user)
-):
+async def update_task_status(task_id: str, request: TaskStatusUpdate, current_user: dict = Depends(get_current_user)):
     """Update task status (optimized for Kanban drag-drop)."""
     try:
         validate_uuid(task_id, "task_id")
@@ -1565,10 +1510,7 @@ async def update_task_status(
             update_record["blocker_reason"] = request.blocker_reason
 
         result = await asyncio.to_thread(
-            lambda: supabase.table("project_tasks")
-            .update(update_record)
-            .eq("id", task_id)
-            .execute()
+            lambda: supabase.table("project_tasks").update(update_record).eq("id", task_id).execute()
         )
 
         task = result.data[0]
@@ -1628,9 +1570,7 @@ async def list_task_comments(task_id: str, current_user: dict = Depends(get_curr
                     "id": comment["id"],
                     "task_id": comment["task_id"],
                     "user_id": comment.get("user_id"),
-                    "user_email": comment.get("users", {}).get("email")
-                    if comment.get("users")
-                    else None,
+                    "user_email": comment.get("users", {}).get("email") if comment.get("users") else None,
                     "content": comment["content"],
                     "created_at": comment["created_at"],
                     "updated_at": comment["updated_at"],
@@ -1647,9 +1587,7 @@ async def list_task_comments(task_id: str, current_user: dict = Depends(get_curr
 
 
 @router.post("/{task_id}/comments")
-async def create_task_comment(
-    task_id: str, request: TaskCommentCreate, current_user: dict = Depends(get_current_user)
-):
+async def create_task_comment(task_id: str, request: TaskCommentCreate, current_user: dict = Depends(get_current_user)):
     """Add a comment to a task."""
     try:
         validate_uuid(task_id, "task_id")
@@ -1676,9 +1614,7 @@ async def create_task_comment(
             "content": request.content,
         }
 
-        result = await asyncio.to_thread(
-            lambda: supabase.table("task_comments").insert(comment_record).execute()
-        )
+        result = await asyncio.to_thread(lambda: supabase.table("task_comments").insert(comment_record).execute())
 
         comment = result.data[0]
         logger.info(f"Comment added to task {task_id}")
@@ -1748,9 +1684,7 @@ async def get_task_history(
                     "id": entry["id"],
                     "task_id": entry["task_id"],
                     "user_id": entry.get("user_id"),
-                    "user_email": entry.get("users", {}).get("email")
-                    if entry.get("users")
-                    else None,
+                    "user_email": entry.get("users", {}).get("email") if entry.get("users") else None,
                     "field_name": entry["field_name"],
                     "old_value": entry["old_value"],
                     "new_value": entry["new_value"],

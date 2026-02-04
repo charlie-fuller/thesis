@@ -65,9 +65,7 @@ class EntityValidator:
     4. Phonetic match (Double Metaphone for names)
     """
 
-    def __init__(
-        self, supabase_client, fuzzy_threshold: float = 0.85, phonetic_threshold: float = 0.7
-    ):
+    def __init__(self, supabase_client, fuzzy_threshold: float = 0.85, phonetic_threshold: float = 0.7):
         self.supabase = supabase_client
         self.fuzzy_threshold = fuzzy_threshold
         self.phonetic_threshold = phonetic_threshold
@@ -83,9 +81,7 @@ class EntityValidator:
                 logger.warning("Phonetic matching unavailable - metaphone not installed")
         return self._phonetic_matcher
 
-    async def validate_person_name(
-        self, name: str, client_id: str, context: Optional[str] = None
-    ) -> ValidationResult:
+    async def validate_person_name(self, name: str, client_id: str, context: Optional[str] = None) -> ValidationResult:
         """Validate a person's name against the registry.
 
         Args:

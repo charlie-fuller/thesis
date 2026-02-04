@@ -60,9 +60,7 @@ async def generate_all(client_id: str = None):
     for i, opp in enumerate(needs_generation, 1):
         print(f"[{i}/{len(needs_generation)}] Generating for: {opp['title'][:50]}...")
         try:
-            await generate_opportunity_justifications(
-                opportunity_id=opp["id"], client_id=opp["client_id"]
-            )
+            await generate_opportunity_justifications(opportunity_id=opp["id"], client_id=opp["client_id"])
             success += 1
             print("  ✓ Done")
         except Exception as e:
@@ -76,9 +74,7 @@ async def generate_all(client_id: str = None):
 def main():
     parser = argparse.ArgumentParser(description="Generate justifications for all opportunities")
     parser.add_argument("--client-id", help="Limit to specific client UUID")
-    parser.add_argument(
-        "--all", action="store_true", help="Regenerate ALL, even those with existing justifications"
-    )
+    parser.add_argument("--all", action="store_true", help="Regenerate ALL, even those with existing justifications")
     args = parser.parse_args()
 
     asyncio.run(generate_all(client_id=args.client_id))

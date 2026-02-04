@@ -64,13 +64,7 @@ def get_user_tokens(user_id: str) -> Optional[Dict]:
     """
     try:
         logger.info(f"   🔍 Querying notion_tokens for user_id={user_id}, is_active=True")
-        result = (
-            supabase.table("notion_tokens")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("is_active", True)
-            .execute()
-        )
+        result = supabase.table("notion_tokens").select("*").eq("user_id", user_id).eq("is_active", True).execute()
 
         logger.info(f"   🔍 Query returned {len(result.data)} token record(s)")
 
@@ -78,9 +72,7 @@ def get_user_tokens(user_id: str) -> Optional[Dict]:
             logger.warning(f"   ⚠️  No active token found for user {user_id}")
             return None
 
-        logger.info(
-            f"   ✓ Found active token for workspace: {result.data[0].get('workspace_name')}"
-        )
+        logger.info(f"   ✓ Found active token for workspace: {result.data[0].get('workspace_name')}")
         return result.data[0]
 
     except Exception as e:
@@ -103,9 +95,7 @@ def get_notion_token(user_id: str) -> str:
     token_record = get_user_tokens(user_id)
 
     if not token_record:
-        raise NotionSyncError(
-            "No Notion connection found. Please connect your Notion workspace first."
-        )
+        raise NotionSyncError("No Notion connection found. Please connect your Notion workspace first.")
 
     try:
         # Decrypt token
@@ -317,9 +307,7 @@ def get_accessible_pages(user_id: str) -> List[Dict]:
                 body["start_cursor"] = start_cursor
 
             # Make API request
-            response = requests.post(
-                "https://api.notion.com/v1/search", headers=headers, json=body, timeout=30
-            )
+            response = requests.post("https://api.notion.com/v1/search", headers=headers, json=body, timeout=30)
 
             if response.status_code != 200:
                 raise NotionSyncError(f"Notion API error: {response.status_code} - {response.text}")
@@ -408,9 +396,7 @@ def _fetch_page_title(page_id: str, integration_token: str) -> str:
         }
 
         # First, try to get the page metadata
-        response = requests.get(
-            f"https://api.notion.com/v1/pages/{page_id}", headers=headers, timeout=30
-        )
+        response = requests.get(f"https://api.notion.com/v1/pages/{page_id}", headers=headers, timeout=30)
 
         if response.status_code != 200:
             logger.warning(f"   ⚠️  Failed to fetch page {page_id}: {response.status_code}")
@@ -519,9 +505,7 @@ def create_placeholder_documents(user_id: str, page_ids: List[str]) -> List[Dict
         for page_id in page_ids:
             try:
                 # Fetch page metadata from Notion API
-                response = requests.get(
-                    f"https://api.notion.com/v1/pages/{page_id}", headers=headers, timeout=30
-                )
+                response = requests.get(f"https://api.notion.com/v1/pages/{page_id}", headers=headers, timeout=30)
 
                 if response.status_code != 200:
                     logger.error(f"   ❌ Failed to fetch page {page_id}: {response.status_code}")
@@ -633,27 +617,19 @@ def sync_pages(
             # Fetch all accessible pages
             # Note: Notion requires explicit page IDs, we can't fetch "all" pages
             # For MVP, we'll require users to specify page_ids
-            raise NotionSyncError(
-                "Please specify page IDs to sync. Notion requires explicit page access."
-            )
+            raise NotionSyncError("Please specify page IDs to sync. Notion requires explicit page access.")
 
         logger.info(f"   ✓ Found {len(documents)} pages")
 
         # Optimize: Fetch all existing documents once
         logger.info("   📋 Fetching existing documents...")
         existing_docs_result = (
-            supabase.table("documents")
-            .select("*")
-            .eq("user_id", user_id)
-            .not_.is_("notion_page_id", "null")
-            .execute()
+            supabase.table("documents").select("*").eq("user_id", user_id).not_.is_("notion_page_id", "null").execute()
         )
 
         # Create lookup map by notion_page_id
         existing_docs_map = {
-            doc["notion_page_id"]: doc
-            for doc in existing_docs_result.data
-            if doc.get("notion_page_id")
+            doc["notion_page_id"]: doc for doc in existing_docs_result.data if doc.get("notion_page_id")
         }
         logger.info(f"   ✓ Found {len(existing_docs_map)} existing Notion documents")
 
@@ -681,9 +657,7 @@ def sync_pages(
                 existing_doc = existing_docs_map.get(page_id)
 
                 # Check if it's a placeholder document (created immediately for UI)
-                is_placeholder = existing_doc and existing_doc.get("storage_url", "").startswith(
-                    "placeholder/"
-                )
+                is_placeholder = existing_doc and existing_doc.get("storage_url", "").startswith("placeholder/")
 
                 if existing_doc and not is_placeholder:
                     # Update existing real document (re-sync)
@@ -713,9 +687,7 @@ def sync_pages(
                         path=storage_path, file=file_content, file_options={"upsert": "true"}
                     )
 
-                    storage_url = (
-                        f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
-                    )
+                    storage_url = f"{SUPABASE_URL}/storage/v1/object/public/documents/{storage_path}"
 
                     # Update placeholder with real content
                     now = datetime.now(timezone.utc).isoformat()
@@ -726,9 +698,7 @@ def sync_pages(
                         "processed": False,  # Will be set to True after embedding
                     }
 
-                    supabase.table("documents").update(update_data).eq(
-                        "id", existing_doc["id"]
-                    ).execute()
+                    supabase.table("documents").update(update_data).eq("id", existing_doc["id"]).execute()
 
                     logger.info("      ✓ Populated placeholder document")
 
@@ -761,9 +731,7 @@ def sync_pages(
 
             except Exception as e:
                 logger.error(f"      ❌ Error: {e}")
-                stats["errors"].append(
-                    {"page_title": doc.metadata.get("title", "Unknown"), "error": str(e)}
-                )
+                stats["errors"].append({"page_title": doc.metadata.get("title", "Unknown"), "error": str(e)})
                 stats["documents_skipped"] += 1
 
         # Update sync log with results
@@ -919,9 +887,7 @@ def disconnect_user(user_id: str) -> Dict:
     try:
         now = datetime.now(timezone.utc).isoformat()
 
-        supabase.table("notion_tokens").update({"is_active": False, "revoked_at": now}).eq(
-            "user_id", user_id
-        ).execute()
+        supabase.table("notion_tokens").update({"is_active": False, "revoked_at": now}).eq("user_id", user_id).execute()
 
         return {"status": "success", "message": "Notion disconnected"}
 

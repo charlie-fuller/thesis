@@ -27,9 +27,7 @@ class RelationshipExtractor:
     - Stakeholder clustering based on shared concerns and meetings
     """
 
-    def __init__(
-        self, supabase: Client, neo4j: Neo4jConnection, anthropic_client: Optional[Anthropic] = None
-    ):
+    def __init__(self, supabase: Client, neo4j: Neo4jConnection, anthropic_client: Optional[Anthropic] = None):
         """Initialize the relationship extractor.
 
         Args:
@@ -280,12 +278,7 @@ class RelationshipExtractor:
         result = {"meetings_processed": 0, "total_concepts": 0, "errors": 0}
 
         try:
-            response = (
-                self.supabase.table("meeting_transcripts")
-                .select("id")
-                .eq("client_id", client_id)
-                .execute()
-            )
+            response = self.supabase.table("meeting_transcripts").select("id").eq("client_id", client_id).execute()
 
             meetings = response.data or []
             logger.info(f"Extracting concepts from {len(meetings)} meetings")
@@ -442,9 +435,7 @@ Data Security | governance""",
                 if "|" in line:
                     parts = line.split("|")
                     if len(parts) >= 2:
-                        concepts.append(
-                            {"name": parts[0].strip().lower(), "category": parts[1].strip().lower()}
-                        )
+                        concepts.append({"name": parts[0].strip().lower(), "category": parts[1].strip().lower()})
 
             return concepts
 

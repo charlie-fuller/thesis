@@ -160,9 +160,7 @@ def validate_uuid(value: str, field_name: str = "id") -> str:
         uuid.UUID(value)
         return value
     except ValueError:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid {field_name} format. Must be a valid UUID."
-        ) from None
+        raise HTTPException(status_code=400, detail=f"Invalid {field_name} format. Must be a valid UUID.") from None
 
 
 def validate_file_upload(file: UploadFile) -> None:
@@ -195,9 +193,7 @@ def validate_file_upload(file: UploadFile) -> None:
 
     # Check content type if provided
     if file.content_type and file.content_type not in ALLOWED_FILE_TYPES:
-        raise HTTPException(
-            status_code=400, detail=f"Content type '{file.content_type}' not allowed"
-        )
+        raise HTTPException(status_code=400, detail=f"Content type '{file.content_type}' not allowed")
 
 
 def validate_file_size(file_content: bytes) -> None:
@@ -212,9 +208,7 @@ def validate_file_size(file_content: bytes) -> None:
     file_size = len(file_content)
 
     if file_size > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=413, detail=f"File too large. Maximum size: {MAX_FILE_SIZE / 1024 / 1024}MB"
-        )
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum size: {MAX_FILE_SIZE / 1024 / 1024}MB")
 
     if file_size == 0:
         raise HTTPException(status_code=400, detail="File is empty")
@@ -262,9 +256,7 @@ def validate_file_magic(file_content: bytes, claimed_content_type: Optional[str]
         all_allowed_mimes.update(ALLOWED_IMAGE_TYPES)
 
         if detected_mime not in all_allowed_mimes:
-            logger.warning(
-                f"File magic validation failed: detected '{detected_mime}' not in allowed types"
-            )
+            logger.warning(f"File magic validation failed: detected '{detected_mime}' not in allowed types")
             raise HTTPException(
                 status_code=400,
                 detail=f"File content type '{detected_mime}' not allowed. File may be disguised.",
@@ -274,10 +266,7 @@ def validate_file_magic(file_content: bytes, claimed_content_type: Optional[str]
         if claimed_content_type and claimed_content_type in MAGIC_MIME_MAPPINGS:
             expected_mimes = MAGIC_MIME_MAPPINGS[claimed_content_type]
             if detected_mime not in expected_mimes:
-                logger.warning(
-                    f"File magic mismatch: claimed '{claimed_content_type}' "
-                    f"but detected '{detected_mime}'"
-                )
+                logger.warning(f"File magic mismatch: claimed '{claimed_content_type}' but detected '{detected_mime}'")
                 raise HTTPException(
                     status_code=400,
                     detail="File content doesn't match declared type. File may be disguised.",
@@ -339,9 +328,7 @@ def sanitize_string(value: Optional[str], max_length: int = 500) -> Optional[str
 
     # Check length
     if len(sanitized) > max_length:
-        raise HTTPException(
-            status_code=400, detail=f"Input too long. Maximum length: {max_length} characters"
-        )
+        raise HTTPException(status_code=400, detail=f"Input too long. Maximum length: {max_length} characters")
 
     return sanitized if sanitized else None
 
@@ -465,9 +452,7 @@ def validate_image_magic(file_content: bytes, claimed_content_type: Optional[str
     if not MAGIC_AVAILABLE:
         # Use basic magic number detection as fallback
         detected_mime = _detect_mime_basic(file_content)
-        logger.debug(
-            f"Basic image magic detected: {detected_mime}, claimed: {claimed_content_type}"
-        )
+        logger.debug(f"Basic image magic detected: {detected_mime}, claimed: {claimed_content_type}")
 
         # Must be an actual image type
         if detected_mime not in valid_image_mimes:
@@ -486,9 +471,7 @@ def validate_image_magic(file_content: bytes, claimed_content_type: Optional[str
         # Must be an actual image type
         if detected_mime not in valid_image_mimes:
             logger.warning(f"Image magic validation failed: '{detected_mime}' is not an image")
-            raise HTTPException(
-                status_code=400, detail=f"File is not a valid image. Detected type: {detected_mime}"
-            )
+            raise HTTPException(status_code=400, detail=f"File is not a valid image. Detected type: {detected_mime}")
 
         return detected_mime
 

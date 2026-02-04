@@ -113,9 +113,7 @@ def _calculate_engagement_status(stakeholder: dict, insights_data: list) -> Stat
 def _calculate_opportunity_clarity_status(opportunities: list) -> StatusItem:
     """Calculate opportunity clarity status."""
     if not opportunities:
-        return StatusItem(
-            area="Opportunity Clarity", status="yellow", notes="No opportunities identified yet"
-        )
+        return StatusItem(area="Opportunity Clarity", status="yellow", notes="No opportunities identified yet")
 
     # Count by status
     active_count = sum(1 for o in opportunities if o.get("status") == "active")
@@ -155,9 +153,7 @@ def _calculate_metrics_validation_status(metrics: list) -> StatusItem:
     validation_rate = green_count / total if total > 0 else 0
 
     if validation_rate >= 0.7:
-        return StatusItem(
-            area="Metrics Validated", status="green", notes=f"{green_count}/{total} validated"
-        )
+        return StatusItem(area="Metrics Validated", status="green", notes=f"{green_count}/{total} validated")
     elif validation_rate >= 0.3:
         return StatusItem(
             area="Metrics Validated",
@@ -165,18 +161,14 @@ def _calculate_metrics_validation_status(metrics: list) -> StatusItem:
             notes=f"{red_count} unvalidated, {yellow_count} partial",
         )
     else:
-        return StatusItem(
-            area="Metrics Validated", status="red", notes=f"{red_count} need validation"
-        )
+        return StatusItem(area="Metrics Validated", status="red", notes=f"{red_count} need validation")
 
 
 def _calculate_blockers_status(opportunities: list, insights: list) -> StatusItem:
     """Calculate blockers status from opportunities and unresolved concerns."""
     blocked_opps = [o for o in opportunities if o.get("status") == "blocked"]
     unresolved_concerns = [
-        i
-        for i in insights
-        if i.get("insight_type") in ("concern", "objection") and not i.get("is_resolved")
+        i for i in insights if i.get("insight_type") in ("concern", "objection") and not i.get("is_resolved")
     ]
 
     total_blockers = len(blocked_opps) + len(unresolved_concerns)
@@ -190,9 +182,7 @@ def _calculate_blockers_status(opportunities: list, insights: list) -> StatusIte
             notes=f"{total_blockers} active ({len(blocked_opps)} opps, {len(unresolved_concerns)} concerns)",
         )
     else:
-        return StatusItem(
-            area="Blockers", status="red", notes=f"{total_blockers} blockers need resolution"
-        )
+        return StatusItem(area="Blockers", status="red", notes=f"{total_blockers} blockers need resolution")
 
 
 def _build_questions_list(stakeholder: dict, metrics: list, opportunities: list) -> List[str]:
@@ -307,12 +297,7 @@ async def get_meeting_prep(
     opportunities_with_role.sort(key=lambda x: x.get("total_score", 0), reverse=True)
 
     # Get stakeholder insights (for blockers calculation)
-    insights_result = (
-        supabase.table("stakeholder_insights")
-        .select("*")
-        .eq("stakeholder_id", stakeholder_id)
-        .execute()
-    )
+    insights_result = supabase.table("stakeholder_insights").select("*").eq("stakeholder_id", stakeholder_id).execute()
 
     insights = insights_result.data
 
@@ -337,9 +322,7 @@ async def get_meeting_prep(
                 if "T" in last_contact:
                     contact_date = datetime.fromisoformat(last_contact.replace("Z", "+00:00"))
                 else:
-                    contact_date = datetime.strptime(last_contact, "%Y-%m-%d").replace(
-                        tzinfo=timezone.utc
-                    )
+                    contact_date = datetime.strptime(last_contact, "%Y-%m-%d").replace(tzinfo=timezone.utc)
             else:
                 contact_date = last_contact
 
@@ -442,9 +425,7 @@ async def list_meeting_prep_summaries(
                     if "T" in last_contact:
                         contact_date = datetime.fromisoformat(last_contact.replace("Z", "+00:00"))
                     else:
-                        contact_date = datetime.strptime(last_contact, "%Y-%m-%d").replace(
-                            tzinfo=timezone.utc
-                        )
+                        contact_date = datetime.strptime(last_contact, "%Y-%m-%d").replace(tzinfo=timezone.utc)
                 else:
                     contact_date = last_contact
                 days_since = (datetime.now(timezone.utc) - contact_date).days
@@ -508,8 +489,6 @@ async def mark_stakeholder_contacted(
 
     today = datetime.now(timezone.utc).date()
 
-    supabase.table("stakeholders").update({"last_contact": str(today)}).eq(
-        "id", stakeholder_id
-    ).execute()
+    supabase.table("stakeholders").update({"last_contact": str(today)}).eq("id", stakeholder_id).execute()
 
     return {"message": "Contact date updated", "last_contact": str(today)}

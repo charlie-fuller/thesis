@@ -128,9 +128,7 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
             .execute()
         )
 
-        logger.info(
-            f"Documents query returned {len(docs_result.data) if docs_result.data else 0} documents"
-        )
+        logger.info(f"Documents query returned {len(docs_result.data) if docs_result.data else 0} documents")
 
         if docs_result.data:
             # Get document IDs to fetch chunks
@@ -205,9 +203,7 @@ async def get_career_context(user_id: str, client_id: str) -> dict:
                 )
 
                 # Check for career-relevant keywords
-                is_career_relevant = any(
-                    kw in title_lower or kw in content_lower for kw in career_keywords
-                )
+                is_career_relevant = any(kw in title_lower or kw in content_lower for kw in career_keywords)
 
                 doc_entry = {
                     "title": title,
@@ -493,13 +489,9 @@ async def generate_career_status_report(
             "executive_summary": assessment.get("executive_summary"),
             "strategic_impact_justification": assessment.get("strategic_impact_justification"),
             "execution_quality_justification": assessment.get("execution_quality_justification"),
-            "relationship_building_justification": assessment.get(
-                "relationship_building_justification"
-            ),
+            "relationship_building_justification": assessment.get("relationship_building_justification"),
             "growth_mindset_justification": assessment.get("growth_mindset_justification"),
-            "leadership_presence_justification": assessment.get(
-                "leadership_presence_justification"
-            ),
+            "leadership_presence_justification": assessment.get("leadership_presence_justification"),
             "areas_of_strength": assessment.get("areas_of_strength", []),
             "growth_opportunities": assessment.get("growth_opportunities", []),
             "recommended_actions": assessment.get("recommended_actions", []),

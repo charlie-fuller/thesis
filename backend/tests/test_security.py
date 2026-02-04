@@ -212,9 +212,7 @@ class TestInputFuzzing:
         """SQL injection attempts should not cause 500 errors."""
         # Mocking - the actual test would send this to real endpoints
         client.post.return_value = MagicMock(status_code=400)
-        response = client.post(
-            "/api/chat/send", json={"message": malicious_input}, headers=auth_headers
-        )
+        response = client.post("/api/chat/send", json={"message": malicious_input}, headers=auth_headers)
         # Should return 200 (handled safely) or 400 (validation error), never 500
         assert response.status_code in [200, 400, 422]
 
@@ -231,9 +229,7 @@ class TestInputFuzzing:
     def test_xss_prevented(self, client, auth_headers, xss_payload):
         """XSS payloads should be handled safely."""
         client.post.return_value = MagicMock(status_code=200)
-        response = client.post(
-            "/api/chat/send", json={"message": xss_payload}, headers=auth_headers
-        )
+        response = client.post("/api/chat/send", json={"message": xss_payload}, headers=auth_headers)
         # Should not cause server error
         assert response.status_code in [200, 400, 422]
 
@@ -271,9 +267,7 @@ class TestInputFuzzing:
     def test_template_injection_prevented(self, client, auth_headers, template_injection):
         """Template injection attempts should be handled safely."""
         client.post.return_value = MagicMock(status_code=200)
-        response = client.post(
-            "/api/chat/send", json={"message": template_injection}, headers=auth_headers
-        )
+        response = client.post("/api/chat/send", json={"message": template_injection}, headers=auth_headers)
         assert response.status_code in [200, 400, 422]
 
     def test_oversized_input_rejected(self, client, auth_headers):
@@ -302,9 +296,7 @@ class TestInputFuzzing:
 
         for unicode_input in unicode_inputs:
             client.post.return_value = MagicMock(status_code=200)
-            response = client.post(
-                "/api/chat/send", json={"message": unicode_input}, headers=auth_headers
-            )
+            response = client.post("/api/chat/send", json={"message": unicode_input}, headers=auth_headers)
             assert response.status_code in [200, 400, 422]
 
 
@@ -331,9 +323,7 @@ class TestRateLimiting:
                 client.post.return_value = MagicMock(status_code=200)
             else:
                 client.post.return_value = MagicMock(status_code=429)
-            response = client.post(
-                "/api/chat/send", json={"message": f"Test {i}"}, headers=auth_headers
-            )
+            response = client.post("/api/chat/send", json={"message": f"Test {i}"}, headers=auth_headers)
             responses.append(response.status_code)
 
         # Last few should be rate limited

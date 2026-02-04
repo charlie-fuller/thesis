@@ -34,9 +34,7 @@ mock_project_context = Mock()
 mock_project_context.get_scoring_related_documents = Mock(return_value=[])
 
 mock_project_chat = Mock()
-mock_project_chat.ask_about_project = AsyncMock(
-    return_value={"response": "Test response", "sources": []}
-)
+mock_project_chat.ask_about_project = AsyncMock(return_value={"response": "Test response", "sources": []})
 mock_project_chat.get_project_conversations = AsyncMock(return_value=[])
 
 
@@ -210,9 +208,7 @@ class OperatorContextInjector:
             "total": len(projects),
             "by_tier": tier_counts,
             "by_status": status_counts,
-            "top_projects": sorted(projects, key=lambda x: x.get("total_score", 0), reverse=True)[
-                :5
-            ],
+            "top_projects": sorted(projects, key=lambda x: x.get("total_score", 0), reverse=True)[:5],
         }
 
     def get_blocked_projects(self, projects: List[dict]) -> List[dict]:
@@ -270,22 +266,14 @@ def mock_supabase_client():
     client = Mock()
 
     # Default chain returns
-    client.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(
-        data=[]
-    )
-    client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = Mock(
-        data=[]
-    )
+    client.table.return_value.select.return_value.eq.return_value.execute.return_value = Mock(data=[])
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = Mock(data=[])
     client.table.return_value.select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value = Mock(
         data=None
     )
     client.table.return_value.insert.return_value.execute.return_value = Mock(data=[])
-    client.table.return_value.update.return_value.eq.return_value.execute.return_value = Mock(
-        data=[]
-    )
-    client.table.return_value.delete.return_value.eq.return_value.execute.return_value = Mock(
-        data=[]
-    )
+    client.table.return_value.update.return_value.eq.return_value.execute.return_value = Mock(data=[])
+    client.table.return_value.delete.return_value.eq.return_value.execute.return_value = Mock(data=[])
 
     return client
 
@@ -1000,9 +988,7 @@ class TestRelatedDocuments:
             },
         }
         mock_project_context.get_scoring_related_documents.return_value = [sample_doc]
-        result = mock_project_context.get_scoring_related_documents(
-            project={"id": "test-id"}, client_id="test-client"
-        )
+        result = mock_project_context.get_scoring_related_documents(project={"id": "test-id"}, client_id="test-client")
         assert len(result) == 1
         doc = result[0]
         assert "chunk_id" in doc
@@ -1027,9 +1013,7 @@ class TestRelatedDocuments:
     def test_related_documents_limit_respected(self):
         """Document limit parameter is respected."""
         # Test that limit parameter works
-        mock_project_context.get_scoring_related_documents.return_value = [
-            {"chunk_id": str(i)} for i in range(5)
-        ]
+        mock_project_context.get_scoring_related_documents.return_value = [{"chunk_id": str(i)} for i in range(5)]
         result = mock_project_context.get_scoring_related_documents(
             project={"id": "test-id"}, client_id="test-client", limit=5
         )
@@ -1131,9 +1115,7 @@ class TestProjectConversations:
     async def test_get_conversations_returns_list(self):
         """Conversations endpoint returns a list."""
         mock_project_chat.get_project_conversations.return_value = []
-        result = await mock_project_chat.get_project_conversations(
-            project_id="test-opp-id", client_id="test-client"
-        )
+        result = await mock_project_chat.get_project_conversations(project_id="test-opp-id", client_id="test-client")
         assert isinstance(result, list)
 
     @pytest.mark.asyncio
@@ -1147,9 +1129,7 @@ class TestProjectConversations:
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         mock_project_chat.get_project_conversations.return_value = [sample_convo]
-        result = await mock_project_chat.get_project_conversations(
-            project_id="test-opp-id", client_id="test-client"
-        )
+        result = await mock_project_chat.get_project_conversations(project_id="test-opp-id", client_id="test-client")
         assert len(result) == 1
         convo = result[0]
         assert "id" in convo

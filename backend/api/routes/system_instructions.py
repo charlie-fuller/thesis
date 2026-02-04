@@ -108,11 +108,7 @@ def validate_instruction_file(file: UploadFile) -> None:
 async def get_version_by_id(version_id: str) -> dict:
     """Fetch a version by ID, raises 404 if not found."""
     result = await asyncio.to_thread(
-        lambda: supabase.table("system_instruction_versions")
-        .select("*")
-        .eq("id", version_id)
-        .single()
-        .execute()
+        lambda: supabase.table("system_instruction_versions").select("*").eq("id", version_id).single().execute()
     )
 
     if not result.data:
@@ -205,9 +201,7 @@ async def upload_system_instructions(
 
         version = result.data[0]
 
-        logger.info(
-            f"✅ System instruction version {version_number} created by {current_user['email']}"
-        )
+        logger.info(f"✅ System instruction version {version_number} created by {current_user['email']}")
 
         return {
             "success": True,
@@ -269,10 +263,7 @@ async def list_versions(
         user_names = {}
         if user_ids:
             users_result = await asyncio.to_thread(
-                lambda: supabase.table("users")
-                .select("id, name, email")
-                .in_("id", list(user_ids))
-                .execute()
+                lambda: supabase.table("users").select("id, name, email").in_("id", list(user_ids)).execute()
             )
             for u in users_result.data or []:
                 user_names[u["id"]] = u.get("name") or u.get("email", "Unknown")
@@ -303,11 +294,7 @@ async def get_active_version(current_user: dict = Depends(get_current_user)):
     """
     try:
         result = await asyncio.to_thread(
-            lambda: supabase.table("system_instruction_versions")
-            .select("*")
-            .eq("is_active", True)
-            .single()
-            .execute()
+            lambda: supabase.table("system_instruction_versions").select("*").eq("is_active", True).single().execute()
         )
 
         if not result.data:
@@ -337,16 +324,10 @@ async def get_version(version_id: str, current_user: dict = Depends(require_admi
         # Get creator name
         if version.get("created_by"):
             user_result = await asyncio.to_thread(
-                lambda: supabase.table("users")
-                .select("name, email")
-                .eq("id", version["created_by"])
-                .single()
-                .execute()
+                lambda: supabase.table("users").select("name, email").eq("id", version["created_by"]).single().execute()
             )
             if user_result.data:
-                version["created_by_name"] = user_result.data.get("name") or user_result.data.get(
-                    "email"
-                )
+                version["created_by_name"] = user_result.data.get("name") or user_result.data.get("email")
 
         return {"success": True, "version": version}
 
@@ -436,9 +417,7 @@ async def activate_version(version_id: str, current_user: dict = Depends(require
 
 
 @router.post("/versions/compare")
-async def compare_versions(
-    request: VersionCompareRequest, current_user: dict = Depends(require_admin)
-):
+async def compare_versions(request: VersionCompareRequest, current_user: dict = Depends(require_admin)):
     """Generate a diff between two versions.
 
     Returns unified diff format with statistics.
@@ -494,9 +473,7 @@ async def compare_versions(
 
 
 @router.post("/versions/compare/summary")
-async def compare_versions_with_summary(
-    request: VersionCompareRequest, current_user: dict = Depends(require_admin)
-):
+async def compare_versions_with_summary(request: VersionCompareRequest, current_user: dict = Depends(require_admin)):
     """Generate an AI-powered narrative summary comparing two versions.
 
     Uses Claude to analyze the differences and provide human-readable insights.
@@ -608,9 +585,7 @@ Keep your response professional and focused on actionable insights for the admin
         raise
     except anthropic.APIError as e:
         logger.error(f"❌ Anthropic API error: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"AI summary generation failed: {str(e)}"
-        ) from None
+        raise HTTPException(status_code=500, detail=f"AI summary generation failed: {str(e)}") from None
     except Exception as e:
         logger.error(f"❌ Summary generation error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
@@ -744,10 +719,7 @@ async def delete_version(version_id: str, current_user: dict = Depends(require_a
 
         # Delete the version
         await asyncio.to_thread(
-            lambda: supabase.table("system_instruction_versions")
-            .delete()
-            .eq("id", version_id)
-            .execute()
+            lambda: supabase.table("system_instruction_versions").delete().eq("id", version_id).execute()
         )
 
         logger.info(f"✅ Version {version['version_number']} deleted by {current_user['email']}")

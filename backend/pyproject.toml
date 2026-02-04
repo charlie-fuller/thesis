@@ -1,9 +1,9 @@
 [tool.black]
-line-length = 100
+line-length = 120
 target-version = ['py312']
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
@@ -19,14 +19,44 @@ select = [
 ]
 # Allow missing module/package docstrings initially (D100, D104)
 # Allow missing public function docstrings initially (D103)
-# These can be tightened after week 2
-ignore = ["D100", "D104", "D103"]
+# B008: FastAPI Depends/Query in defaults is accepted pattern
+# D101, D102, D105, D107: Docstring requirements relaxed for now
+ignore = [
+    "D100",  # Missing module docstring
+    "D104",  # Missing package docstring
+    "D103",  # Missing public function docstring
+    "D101",  # Missing public class docstring
+    "D102",  # Missing public method docstring
+    "D105",  # Missing magic method docstring
+    "D107",  # Missing __init__ docstring
+    "D106",  # Missing nested class docstring
+    "D417",  # Missing argument descriptions
+    "B008",  # Depends/Query in defaults (FastAPI pattern)
+    "E402",  # Module imports not at top (often intentional)
+    "C901",  # Function complexity (refactor separately)
+]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Agent files contain long prose strings in system prompts
+"agents/*.py" = ["E501"]
+# Test files can have long assertion messages and test data
+"tests/*.py" = ["E501"]
+# Scripts often have long strings for help text
+"scripts/**/*.py" = ["E501"]
+# Migration files may have long SQL strings
+"migrations/*.py" = ["E501"]
+# API routes contain long prompt templates and log messages
+"api/routes/*.py" = ["E501"]
+"api/routes/**/*.py" = ["E501"]
+# Services contain long prompt strings and complex queries
+"services/*.py" = ["E501"]
+"services/**/*.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

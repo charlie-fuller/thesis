@@ -32,15 +32,8 @@ else:
 
 # Also test get_document_meeting_date directly
 print("\n\nTesting get_document_meeting_date on sample docs:")
-docs = (
-    supabase.table("documents")
-    .select("id, filename, original_date, obsidian_file_path")
-    .limit(5)
-    .execute()
-)
+docs = supabase.table("documents").select("id, filename, original_date, obsidian_file_path").limit(5).execute()
 
 for doc in docs.data or []:
     meeting_date = get_document_meeting_date(doc)
-    print(
-        f"  {doc.get('filename', 'Unknown')[:40]}: original_date={doc.get('original_date')}, parsed={meeting_date}"
-    )
+    print(f"  {doc.get('filename', 'Unknown')[:40]}: original_date={doc.get('original_date')}, parsed={meeting_date}")

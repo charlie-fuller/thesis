@@ -19,20 +19,14 @@ router = APIRouter(prefix="/api/images", tags=["images"])
 class ImageGenerationRequest(BaseModel):
     """Request model for image generation."""
 
-    prompt: str = Field(
-        ..., min_length=1, max_length=2000, description="Text description of the image to generate"
-    )
-    model: Optional[str] = Field(
-        None, description="Optional model override (default: gemini-2.5-flash-image)"
-    )
+    prompt: str = Field(..., min_length=1, max_length=2000, description="Text description of the image to generate")
+    model: Optional[str] = Field(None, description="Optional model override (default: gemini-2.5-flash-image)")
 
 
 class BatchImageGenerationRequest(BaseModel):
     """Request model for batch image generation."""
 
-    prompts: List[str] = Field(
-        ..., min_length=1, max_length=5, description="List of text prompts (max 5)"
-    )
+    prompts: List[str] = Field(..., min_length=1, max_length=5, description="List of text prompts (max 5)")
     model: Optional[str] = Field(None, description="Optional model override")
 
 
@@ -55,9 +49,7 @@ class BatchImageGenerationResponse(BaseModel):
 
 
 @router.post("/generate", response_model=ImageGenerationResponse)
-async def generate_image(
-    request: ImageGenerationRequest, current_user: dict = Depends(get_current_user)
-):
+async def generate_image(request: ImageGenerationRequest, current_user: dict = Depends(get_current_user)):
     """Generate a single image from a text prompt.
 
     Requires authentication.
@@ -76,28 +68,20 @@ async def generate_image(
 
 
 @router.post("/generate-batch", response_model=BatchImageGenerationResponse)
-async def generate_images_batch(
-    request: BatchImageGenerationRequest, current_user: dict = Depends(get_current_user)
-):
+async def generate_images_batch(request: BatchImageGenerationRequest, current_user: dict = Depends(get_current_user)):
     """Generate multiple images from a list of prompts.
 
     Requires authentication. Maximum 5 prompts per request.
     """
     try:
-        logger.info(
-            f"User {current_user.get('id')} requesting batch image generation ({len(request.prompts)} images)"
-        )
+        logger.info(f"User {current_user.get('id')} requesting batch image generation ({len(request.prompts)} images)")
 
         service = get_image_generation_service()
-        results = await service.generate_multiple_images(
-            prompts=request.prompts, model=request.model
-        )
+        results = await service.generate_multiple_images(prompts=request.prompts, model=request.model)
 
         successful = sum(1 for r in results if r.get("success", False))
 
-        return BatchImageGenerationResponse(
-            results=results, total=len(request.prompts), successful=successful
-        )
+        return BatchImageGenerationResponse(results=results, total=len(request.prompts), successful=successful)
 
     except Exception as e:
         logger.error(f"Batch image generation failed: {str(e)}")
@@ -115,9 +99,7 @@ async def list_available_models(current_user: dict = Depends(get_current_user)):
 
     return {
         "models": [{"key": key, **value} for key, value in model_info["models"].items()],
-        "aspect_ratios": [
-            {"ratio": ratio, **details} for ratio, details in model_info["aspect_ratios"].items()
-        ],
+        "aspect_ratios": [{"ratio": ratio, **details} for ratio, details in model_info["aspect_ratios"].items()],
         "default_model": model_info["default_model"],
     }
 
@@ -132,9 +114,7 @@ class ConversationImageRequest(BaseModel):
 
     conversation_id: str = Field(..., description="ID of the conversation")
     message_id: Optional[str] = Field(None, description="Optional message ID to associate with")
-    prompt: str = Field(
-        ..., min_length=1, max_length=2000, description="Text description of the image"
-    )
+    prompt: str = Field(..., min_length=1, max_length=2000, description="Text description of the image")
     aspect_ratio: str = Field(default="16:9", description="Aspect ratio (1:1, 16:9, 9:16, 4:3)")
     model: Optional[str] = Field(default="fast", description="Model to use (fast or quality)")
 
@@ -174,11 +154,7 @@ async def generate_image_in_conversation(
 
         # Verify conversation belongs to user
         conversation = (
-            db.table("conversations")
-            .select("id,user_id")
-            .eq("id", request.conversation_id)
-            .single()
-            .execute()
+            db.table("conversations").select("id,user_id").eq("id", request.conversation_id).single().execute()
         )
         if not conversation.data or conversation.data["user_id"] != user_id:
             raise HTTPException(status_code=403, detail="Conversation not found or access denied")
@@ -265,9 +241,7 @@ async def generate_image_in_conversation(
 
 
 @router.get("/conversations/{conversation_id}")
-async def get_conversation_images(
-    conversation_id: str, current_user: dict = Depends(get_current_user)
-):
+async def get_conversation_images(conversation_id: str, current_user: dict = Depends(get_current_user)):
     """Get all images for a conversation.
 
     Returns list of images with metadata.
@@ -278,13 +252,7 @@ async def get_conversation_images(
         db = DatabaseService.get_client()
 
         # Verify conversation exists and check ownership
-        conversation = (
-            db.table("conversations")
-            .select("id,user_id")
-            .eq("id", conversation_id)
-            .single()
-            .execute()
-        )
+        conversation = db.table("conversations").select("id,user_id").eq("id", conversation_id).single().execute()
         if not conversation.data:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
@@ -329,11 +297,7 @@ async def delete_conversation_image(image_id: str, current_user: dict = Depends(
 
         # Get image and verify ownership through conversation
         image = (
-            db.table("conversation_images")
-            .select("*, conversations(user_id)")
-            .eq("id", image_id)
-            .single()
-            .execute()
+            db.table("conversation_images").select("*, conversations(user_id)").eq("id", image_id).single().execute()
         )
 
         if not image.data:
@@ -379,20 +343,14 @@ class VisualSuggestionRequest(BaseModel):
 class VisualSuggestionResponse(BaseModel):
     """Response model for visual suggestion."""
 
-    suggested_content: str = Field(
-        ..., description="Suggested content for the visual based on conversation context"
-    )
+    suggested_content: str = Field(..., description="Suggested content for the visual based on conversation context")
     full_prompt: str = Field(..., description="Complete prompt ready for image generation")
-    context_summary: str = Field(
-        ..., description="Brief summary of what was found in the conversation"
-    )
+    context_summary: str = Field(..., description="Brief summary of what was found in the conversation")
     has_context: bool = Field(..., description="Whether meaningful context was found")
 
 
 @router.post("/suggest-visual-content", response_model=VisualSuggestionResponse)
-async def suggest_visual_content(
-    request: VisualSuggestionRequest, current_user: dict = Depends(get_current_user)
-):
+async def suggest_visual_content(request: VisualSuggestionRequest, current_user: dict = Depends(get_current_user)):
     """Analyze conversation context and suggest content for a visual.
 
     - Reads recent messages from the conversation
@@ -403,19 +361,13 @@ async def suggest_visual_content(
     """
     try:
         user_id = current_user.get("id")
-        logger.info(
-            f"User {user_id} requesting visual suggestion for conversation {request.conversation_id}"
-        )
+        logger.info(f"User {user_id} requesting visual suggestion for conversation {request.conversation_id}")
 
         db = DatabaseService.get_client()
 
         # Verify conversation belongs to user
         conversation = (
-            db.table("conversations")
-            .select("id,user_id")
-            .eq("id", request.conversation_id)
-            .single()
-            .execute()
+            db.table("conversations").select("id,user_id").eq("id", request.conversation_id).single().execute()
         )
         if not conversation.data or conversation.data["user_id"] != user_id:
             raise HTTPException(status_code=403, detail="Conversation not found or access denied")

@@ -292,14 +292,10 @@ async def execute_research_task(task_id: str, topic: ResearchTopic) -> ResearchR
     except Exception as e:
         logger.error(f"Research task {task_id} failed: {e}")
         update_research_task_status(task_id=task_id, status="failed", error_message=str(e))
-        return ResearchResult(
-            task_id=task_id, content="", summary="", web_sources=[], success=False, error=str(e)
-        )
+        return ResearchResult(task_id=task_id, content="", summary="", web_sources=[], success=False, error=str(e))
 
 
-async def store_research_document(
-    topic: ResearchTopic, content: str, task_id: str
-) -> Optional[str]:
+async def store_research_document(topic: ResearchTopic, content: str, task_id: str) -> Optional[str]:
     """Store research output as a document and link to agent KBs."""
     try:
         # Generate filename
@@ -360,9 +356,7 @@ async def store_research_document(
         return None
 
 
-async def distribute_to_relevant_agents(
-    document_id: str, topic: ResearchTopic, exclude_agent_id: str
-):
+async def distribute_to_relevant_agents(document_id: str, topic: ResearchTopic, exclude_agent_id: str):
     """Link research document to agents relevant to the topic."""
     try:
         # Get topic keywords from focus area
@@ -382,9 +376,7 @@ async def distribute_to_relevant_agents(
                 agent_name = mapping["agent_name"]
 
                 # Get agent ID
-                agent_result = (
-                    supabase.table("agents").select("id").eq("name", agent_name).single().execute()
-                )
+                agent_result = supabase.table("agents").select("id").eq("name", agent_name).single().execute()
 
                 if agent_result.data and agent_result.data["id"] != exclude_agent_id:
                     agent_id = agent_result.data["id"]
@@ -471,9 +463,7 @@ def run_daily_research():
                     loop.close()
 
             except Exception as topic_error:
-                logger.error(
-                    f"   ❌ Error processing topic {schedule.get('focus_area')}: {topic_error}"
-                )
+                logger.error(f"   ❌ Error processing topic {schedule.get('focus_area')}: {topic_error}")
 
         # Get active clients and run client-specific research
         active_clients = get_all_active_clients()
@@ -483,16 +473,12 @@ def run_daily_research():
             for client_id in active_clients:
                 try:
                     client_schedule = get_todays_schedule(client_id)
-                    client_specific = [
-                        s for s in client_schedule if s.get("client_id") == client_id
-                    ]
+                    client_specific = [s for s in client_schedule if s.get("client_id") == client_id]
 
                     for schedule in client_specific:
                         topic = ResearchTopic(
                             topic=schedule.get("description", schedule["focus_area"]),
-                            query=schedule.get(
-                                "query_template", f"Research {schedule['focus_area']}"
-                            ),
+                            query=schedule.get("query_template", f"Research {schedule['focus_area']}"),
                             focus_area=schedule["focus_area"],
                             priority=schedule.get("priority", 5),
                             research_type="scheduled",

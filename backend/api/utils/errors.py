@@ -8,9 +8,7 @@ from typing import Any
 from errors import AuthorizationError, NotFoundError
 
 
-def require_resource_access(
-    resource_type: str, resource: dict, user: dict, client_id_field: str = "client_id"
-):
+def require_resource_access(resource_type: str, resource: dict, user: dict, client_id_field: str = "client_id"):
     """Helper to check if user can access a resource.
 
     Args:

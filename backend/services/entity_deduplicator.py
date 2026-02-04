@@ -184,9 +184,7 @@ class EntityDeduplicator:
             return rejected_match
 
         # 3. Check pending candidates (fuzzy + semantic)
-        pending_match = await self._check_pending_task_candidates(
-            client_id, title, description, embedding
-        )
+        pending_match = await self._check_pending_task_candidates(client_id, title, description, embedding)
         if pending_match:
             return pending_match
 
@@ -401,9 +399,7 @@ class EntityDeduplicator:
 
         return None
 
-    async def _check_rejected_opportunities(
-        self, client_id: str, title: str
-    ) -> Optional[MatchResult]:
+    async def _check_rejected_opportunities(self, client_id: str, title: str) -> Optional[MatchResult]:
         """Check if opportunity matches a rejected candidate."""
         try:
             result = (
@@ -427,9 +423,7 @@ class EntityDeduplicator:
             logger.warning(f"Error checking rejected opportunities: {e}")
         return None
 
-    async def _check_pending_project_candidates(
-        self, client_id: str, title: str
-    ) -> Optional[MatchResult]:
+    async def _check_pending_project_candidates(self, client_id: str, title: str) -> Optional[MatchResult]:
         """Check if opportunity matches a pending candidate."""
         try:
             result = (
@@ -453,9 +447,7 @@ class EntityDeduplicator:
             logger.warning(f"Error checking pending opportunity candidates: {e}")
         return None
 
-    async def _check_existing_opportunities(
-        self, client_id: str, title: str, quote: str
-    ) -> Optional[MatchResult]:
+    async def _check_existing_opportunities(self, client_id: str, title: str, quote: str) -> Optional[MatchResult]:
         """Check if opportunity matches an existing one."""
         try:
             result = (
@@ -563,17 +555,13 @@ class EntityDeduplicator:
             return pending_match
 
         # 4. Check existing stakeholders
-        existing_match = await self._check_existing_stakeholders(
-            client_id, name, role, department, organization, email
-        )
+        existing_match = await self._check_existing_stakeholders(client_id, name, role, department, organization, email)
         if existing_match:
             return existing_match
 
         return None
 
-    async def _check_rejected_stakeholders(
-        self, client_id: str, name: str
-    ) -> Optional[MatchResult]:
+    async def _check_rejected_stakeholders(self, client_id: str, name: str) -> Optional[MatchResult]:
         """Check if stakeholder matches a rejected candidate."""
         try:
             result = (
@@ -658,9 +646,7 @@ class EntityDeduplicator:
                         )
 
                 # Calculate overall match score
-                score, reasons = self._calculate_stakeholder_match(
-                    name, role, department, organization, existing
-                )
+                score, reasons = self._calculate_stakeholder_match(name, role, department, organization, existing)
 
                 if score >= 0.5:
                     return MatchResult(

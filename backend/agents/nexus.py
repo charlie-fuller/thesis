@@ -32,9 +32,7 @@ class NexusAgent(BaseAgent):
     """
 
     def __init__(self, supabase: Client, anthropic_client: anthropic.Anthropic):
-        super().__init__(
-            name="nexus", display_name="Nexus", supabase=supabase, anthropic_client=anthropic_client
-        )
+        super().__init__(name="nexus", display_name="Nexus", supabase=supabase, anthropic_client=anthropic_client)
 
     def _get_default_instruction(self) -> str:
         return """<system>.
@@ -653,9 +651,7 @@ Your role is to help people see the system they're in so they can work with it r
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Systems insight: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Systems insight: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -693,10 +689,7 @@ Your role is to help people see the system they're in so they can work with it r
         message_lower = context.user_message.lower()
 
         # Hand off to Sage for people-focused concerns
-        if any(
-            word in message_lower
-            for word in ["burnout", "fear", "resistance", "change management", "employee"]
-        ):
+        if any(word in message_lower for word in ["burnout", "fear", "resistance", "change management", "employee"]):
             return ("sage", "Query has significant people/change dimensions")
 
         # Hand off to Atlas for research needs
@@ -708,22 +701,15 @@ Your role is to help people see the system they're in so they can work with it r
             return ("capital", "Query requires financial analysis")
 
         # Hand off to Guardian for governance/security
-        if any(
-            word in message_lower for word in ["security", "compliance", "governance", "policy"]
-        ):
+        if any(word in message_lower for word in ["security", "compliance", "governance", "policy"]):
             return ("guardian", "Query requires governance expertise")
 
         # Hand off to Architect for technical architecture
-        if any(
-            word in message_lower for word in ["architecture", "integration", "technical design"]
-        ):
+        if any(word in message_lower for word in ["architecture", "integration", "technical design"]):
             return ("architect", "Query requires technical architecture expertise")
 
         # Hand off to Strategist for executive strategy
-        if any(
-            word in message_lower
-            for word in ["executive", "c-suite", "board", "strategic direction"]
-        ):
+        if any(word in message_lower for word in ["executive", "c-suite", "board", "strategic direction"]):
             return ("strategist", "Query requires executive strategy expertise")
 
         return None

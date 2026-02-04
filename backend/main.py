@@ -140,7 +140,10 @@ async def lifespan(app: FastAPI):
 # Initialize FastAPI app
 app = FastAPI(
     title="Thesis API",
-    description="Multi-agent platform for enterprise GenAI strategy - Research, Finance, IT/Governance, Legal, and Transcript Analysis agents",
+    description=(
+        "Multi-agent platform for enterprise GenAI strategy - "
+        "Research, Finance, IT/Governance, Legal, and Transcript Analysis agents"
+    ),
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -251,15 +254,15 @@ class CustomCORSMiddleware:
                     headers={
                         "Access-Control-Allow-Origin": origin,
                         "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-                        "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, X-Requested-With, X-Request-ID",
+                        "Access-Control-Allow-Headers": (
+                            "Authorization, Content-Type, Accept, X-Requested-With, X-Request-ID"
+                        ),
                         "Access-Control-Allow-Credentials": "true",
                         "Access-Control-Max-Age": "86400",
                     },
                 )
             else:
-                logger.warning(
-                    f"CORS preflight REJECTED for {path} - origin '{origin}' not in allowed list"
-                )
+                logger.warning(f"CORS preflight REJECTED for {path} - origin '{origin}' not in allowed list")
                 response = Response(status_code=403, content="CORS not allowed")
 
             await response(scope, receive, send)
@@ -471,7 +474,9 @@ app.include_router(entity_registry.router)
 app.include_router(entity_corrections.router)
 
 logger.info(
-    "All route modules registered (including Thesis multi-agent, graph, meeting room, research, Glean connector, project-triage, task management, Obsidian sync, Compass, Digest, Pipeline, DISCo, and Entity Validation routes)"
+    "All route modules registered (including Thesis multi-agent, graph, meeting room, "
+    "research, Glean connector, project-triage, task management, Obsidian sync, "
+    "Compass, Digest, Pipeline, DISCo, and Entity Validation routes)"
 )
 
 # ============================================================================
@@ -532,9 +537,7 @@ async def get_user_storage(current_user: dict = Depends(get_current_user)):
             "storage_quota": storage_quota,
             "storage_used": storage_used,
             "storage_available": max(0, storage_quota - storage_used),
-            "usage_percentage": round((storage_used / storage_quota * 100), 2)
-            if storage_quota > 0
-            else 0,
+            "usage_percentage": round((storage_used / storage_quota * 100), 2) if storage_quota > 0 else 0,
         }
 
     except HTTPException:

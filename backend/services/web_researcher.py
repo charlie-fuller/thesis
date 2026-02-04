@@ -275,9 +275,7 @@ Please search thoroughly and return the most credible and relevant sources.""",
         loop = asyncio.get_event_loop()
         logger.info("Starting web search API call with 60s timeout...")
         try:
-            response = await asyncio.wait_for(
-                loop.run_in_executor(None, make_web_search_call), timeout=60.0
-            )
+            response = await asyncio.wait_for(loop.run_in_executor(None, make_web_search_call), timeout=60.0)
         except asyncio.TimeoutError:
             logger.error("Web search timed out after 60 seconds")
             return []
@@ -329,9 +327,7 @@ def _extract_sources_from_response(response) -> list[WebSource]:
                                 WebSource(
                                     url=url,
                                     title=getattr(result, "title", "Unknown"),
-                                    snippet=getattr(
-                                        result, "snippet", getattr(result, "content", "")[:500]
-                                    ),
+                                    snippet=getattr(result, "snippet", getattr(result, "content", "")[:500]),
                                     domain=domain,
                                 )
                             )
@@ -481,9 +477,7 @@ def _add_to_cache(key: str, result: WebSearchResult):
 
     # Cleanup old entries
     now = datetime.now(timezone.utc)
-    expired = [
-        k for k, (_, t) in _search_cache.items() if now - t > timedelta(minutes=CACHE_TTL_MINUTES)
-    ]
+    expired = [k for k, (_, t) in _search_cache.items() if now - t > timedelta(minutes=CACHE_TTL_MINUTES)]
     for k in expired:
         del _search_cache[k]
 

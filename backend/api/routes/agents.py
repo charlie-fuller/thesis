@@ -153,18 +153,12 @@ async def list_agents(
 
             # Get conversation count
             convs_result = (
-                supabase.table("conversations")
-                .select("id", count="exact")
-                .eq("agent_id", agent["id"])
-                .execute()
+                supabase.table("conversations").select("id", count="exact").eq("agent_id", agent["id"]).execute()
             )
 
             # Get KB document count
             kb_result = (
-                supabase.table("agent_knowledge_base")
-                .select("id", count="exact")
-                .eq("agent_id", agent["id"])
-                .execute()
+                supabase.table("agent_knowledge_base").select("id", count="exact").eq("agent_id", agent["id"]).execute()
             )
 
             # Get meeting room participation count (count unique meetings where agent has messages)
@@ -210,9 +204,7 @@ async def get_agent_conversations(
     """Get conversations for a specific agent."""
     try:
         # Verify agent exists
-        agent_result = (
-            supabase.table("agents").select("id, name, display_name").eq("id", agent_id).execute()
-        )
+        agent_result = supabase.table("agents").select("id, name, display_name").eq("id", agent_id).execute()
 
         if not agent_result.data:
             raise HTTPException(status_code=404, detail="Agent not found")
@@ -234,12 +226,7 @@ async def get_agent_conversations(
         # Get message counts for all conversations in a single batch query
         if conversations:
             conv_ids = [c["id"] for c in conversations]
-            msg_result = (
-                supabase.table("messages")
-                .select("conversation_id")
-                .in_("conversation_id", conv_ids)
-                .execute()
-            )
+            msg_result = supabase.table("messages").select("conversation_id").in_("conversation_id", conv_ids).execute()
 
             # Count messages per conversation
             msg_counts = {}
@@ -302,12 +289,7 @@ async def get_agent(
         )
 
         # Get conversation count
-        convs_result = (
-            supabase.table("conversations")
-            .select("id", count="exact")
-            .eq("agent_id", agent_id)
-            .execute()
-        )
+        convs_result = supabase.table("conversations").select("id", count="exact").eq("agent_id", agent_id).execute()
 
         # Get linked KB documents
         kb_result = (
@@ -510,9 +492,7 @@ async def activate_instruction_version(
     """
     try:
         # Deactivate all versions for this agent
-        supabase.table("agent_instruction_versions").update({"is_active": False}).eq(
-            "agent_id", agent_id
-        ).execute()
+        supabase.table("agent_instruction_versions").update({"is_active": False}).eq("agent_id", agent_id).execute()
 
         # Activate the specified version
         result = (
@@ -627,13 +607,9 @@ async def compare_instruction_versions(
 ):
     """Compare two instruction versions (GET for simple comparison)."""
     try:
-        version1 = (
-            supabase.table("agent_instruction_versions").select("*").eq("id", v1).single().execute()
-        )
+        version1 = supabase.table("agent_instruction_versions").select("*").eq("id", v1).single().execute()
 
-        version2 = (
-            supabase.table("agent_instruction_versions").select("*").eq("id", v2).single().execute()
-        )
+        version2 = supabase.table("agent_instruction_versions").select("*").eq("id", v2).single().execute()
 
         if not version1.data or not version2.data:
             raise HTTPException(status_code=404, detail="One or both versions not found")
@@ -763,17 +739,9 @@ async def generate_comparison_summary(
             raise HTTPException(status_code=404, detail="One or both versions not found")
 
         # Get agent info for context
-        agent = (
-            supabase.table("agents")
-            .select("name, display_name")
-            .eq("id", agent_id)
-            .single()
-            .execute()
-        )
+        agent = supabase.table("agents").select("name, display_name").eq("id", agent_id).single().execute()
 
-        agent_name = (
-            agent.data.get("display_name", "Unknown Agent") if agent.data else "Unknown Agent"
-        )
+        agent_name = agent.data.get("display_name", "Unknown Agent") if agent.data else "Unknown Agent"
 
         # Generate diff
         content_a = version_a.data.get("instructions", "").splitlines(keepends=True)
@@ -883,12 +851,7 @@ async def get_available_documents(
 
         # If agent_id provided, filter out already linked documents
         if agent_id:
-            linked = (
-                supabase.table("agent_knowledge_base")
-                .select("document_id")
-                .eq("agent_id", agent_id)
-                .execute()
-            )
+            linked = supabase.table("agent_knowledge_base").select("document_id").eq("agent_id", agent_id).execute()
 
             linked_ids = {link["document_id"] for link in linked.data or []}
             documents = [doc for doc in documents if doc["id"] not in linked_ids]
@@ -958,13 +921,7 @@ async def link_document_to_agent(
             raise HTTPException(status_code=400, detail="Document already linked to this agent")
 
         # Verify document exists
-        doc_check = (
-            supabase.table("documents")
-            .select("id, filename")
-            .eq("id", doc_link.document_id)
-            .single()
-            .execute()
-        )
+        doc_check = supabase.table("documents").select("id, filename").eq("id", doc_link.document_id).single().execute()
 
         if not doc_check.data:
             raise HTTPException(status_code=404, detail="Document not found")
@@ -1039,13 +996,7 @@ async def unlink_document_from_agent(
 ):
     """Remove a document from an agent's knowledge base."""
     try:
-        result = (
-            supabase.table("agent_knowledge_base")
-            .delete()
-            .eq("id", link_id)
-            .eq("agent_id", agent_id)
-            .execute()
-        )
+        result = supabase.table("agent_knowledge_base").delete().eq("id", link_id).eq("agent_id", agent_id).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Link not found")
@@ -1076,9 +1027,7 @@ async def get_xml_instructions(
     """
     try:
         # Get agent name
-        agent_result = (
-            supabase.table("agents").select("name, display_name").eq("id", agent_id).execute()
-        )
+        agent_result = supabase.table("agents").select("name, display_name").eq("id", agent_id).execute()
 
         if not agent_result.data:
             raise HTTPException(status_code=404, detail="Agent not found")
@@ -1132,9 +1081,7 @@ async def sync_instructions_from_xml(
     """
     try:
         # Get agent info
-        agent_result = (
-            supabase.table("agents").select("name, display_name").eq("id", agent_id).execute()
-        )
+        agent_result = supabase.table("agents").select("name, display_name").eq("id", agent_id).execute()
 
         if not agent_result.data:
             raise HTTPException(status_code=404, detail="Agent not found")
@@ -1143,9 +1090,7 @@ async def sync_instructions_from_xml(
 
         # Check if XML file exists
         if not instruction_file_exists(agent_name):
-            raise HTTPException(
-                status_code=404, detail=f"No XML file found for agent '{agent_name}'"
-            )
+            raise HTTPException(status_code=404, detail=f"No XML file found for agent '{agent_name}'")
 
         # Load XML content
         xml_content = load_instruction_from_file(agent_name)
@@ -1173,9 +1118,7 @@ async def sync_instructions_from_xml(
             new_version = "1.0"
 
         # Deactivate all existing versions
-        supabase.table("agent_instruction_versions").update({"is_active": False}).eq(
-            "agent_id", agent_id
-        ).execute()
+        supabase.table("agent_instruction_versions").update({"is_active": False}).eq("agent_id", agent_id).execute()
 
         # Create new version from XML
         version_result = (
@@ -1229,9 +1172,7 @@ async def sync_instructions_to_xml(
     """
     try:
         # Get agent info
-        agent_result = (
-            supabase.table("agents").select("name, display_name").eq("id", agent_id).execute()
-        )
+        agent_result = supabase.table("agents").select("name, display_name").eq("id", agent_id).execute()
 
         if not agent_result.data:
             raise HTTPException(status_code=404, detail="Agent not found")
@@ -1309,9 +1250,7 @@ async def get_agent_default_instructions(
     """
     try:
         # Get the agent name
-        agent_result = (
-            supabase.table("agents").select("name, display_name").eq("id", agent_id).execute()
-        )
+        agent_result = supabase.table("agents").select("name, display_name").eq("id", agent_id).execute()
 
         if not agent_result.data:
             raise HTTPException(status_code=404, detail="Agent not found")
@@ -1400,10 +1339,7 @@ async def get_agent_stats(
     try:
         # Conversation count
         convs = (
-            supabase.table("conversations")
-            .select("id, created_at", count="exact")
-            .eq("agent_id", agent_id)
-            .execute()
+            supabase.table("conversations").select("id, created_at", count="exact").eq("agent_id", agent_id).execute()
         )
 
         # Recent conversations

@@ -467,9 +467,7 @@ async def thesis_error_handler(request: Request, exc: ThesisError) -> JSONRespon
     # Create standardized response
     response_data = create_error_response(exc, status_code)
 
-    return JSONResponse(
-        status_code=status_code, content=response_data, headers=get_cors_headers(request)
-    )
+    return JSONResponse(status_code=status_code, content=response_data, headers=get_cors_headers(request))
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
@@ -584,9 +582,7 @@ class ErrorContext:
 # ============================================================================
 
 
-def wrap_external_service_error(
-    error: Exception, service_name: str, operation: str
-) -> ExternalServiceError:
+def wrap_external_service_error(error: Exception, service_name: str, operation: str) -> ExternalServiceError:
     """Wrap external service errors with context.
 
     Args:

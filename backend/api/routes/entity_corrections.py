@@ -74,9 +74,7 @@ async def record_correction(
         raise HTTPException(status_code=400, detail="Client ID required")
 
     if request.entity_type not in ("person", "organization"):
-        raise HTTPException(
-            status_code=400, detail="entity_type must be 'person' or 'organization'"
-        )
+        raise HTTPException(status_code=400, detail="entity_type must be 'person' or 'organization'")
 
     manager = EntityRegistryManager(supabase)
     success = await manager.learn_from_correction(
@@ -92,9 +90,7 @@ async def record_correction(
 
     return {
         "success": success,
-        "message": (
-            f"Recorded correction: '{request.original_value}' -> '{request.corrected_value}'"
-        ),
+        "message": (f"Recorded correction: '{request.original_value}' -> '{request.corrected_value}'"),
     }
 
 
@@ -111,9 +107,7 @@ async def get_correction_history(
         raise HTTPException(status_code=400, detail="Client ID required")
 
     if entity_type and entity_type not in ("person", "organization"):
-        raise HTTPException(
-            status_code=400, detail="entity_type must be 'person' or 'organization'"
-        )
+        raise HTTPException(status_code=400, detail="entity_type must be 'person' or 'organization'")
 
     manager = EntityRegistryManager(supabase)
     corrections = await manager.get_correction_history(client_id, entity_type, limit)
@@ -155,9 +149,7 @@ async def batch_apply_corrections(
         raise HTTPException(status_code=400, detail="Client ID required")
 
     if entity_type not in ("person", "organization"):
-        raise HTTPException(
-            status_code=400, detail="entity_type must be 'person' or 'organization'"
-        )
+        raise HTTPException(status_code=400, detail="entity_type must be 'person' or 'organization'")
 
     updated_count = 0
 

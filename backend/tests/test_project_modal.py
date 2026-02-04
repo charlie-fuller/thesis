@@ -47,9 +47,7 @@ class TestProjectContext:
                 "roi_indicators": {},
             }
 
-            results = get_scoring_related_documents(
-                project=project, client_id=str(uuid4()), limit=5
-            )
+            results = get_scoring_related_documents(project=project, client_id=str(uuid4()), limit=5)
 
             assert len(results) == 1
             result = results[0]

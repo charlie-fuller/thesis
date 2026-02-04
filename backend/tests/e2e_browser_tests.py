@@ -1359,9 +1359,7 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="File synced, task/project/stakeholder candidates created from meeting content",
         prerequisites=["auth_login_success"],
-        cleanup=[
-            "Delete test file E2E-Test-Meeting-{timestamp}.md from Granola/Transcripts folder"
-        ],
+        cleanup=["Delete test file E2E-Test-Meeting-{timestamp}.md from Granola/Transcripts folder"],
     ),
     "granola_sync_activity_display": E2ETestScenario(
         id="granola_sync_activity_display",

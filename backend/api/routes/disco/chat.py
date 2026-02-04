@@ -151,9 +151,7 @@ async def api_extract_project_from_chat(
     try:
         # Get initiative name for context
         initiative = await get_initiative(initiative_id, current_user["id"])
-        initiative_name = (
-            initiative.get("name", "Unknown Initiative") if initiative else "Unknown Initiative"
-        )
+        initiative_name = initiative.get("name", "Unknown Initiative") if initiative else "Unknown Initiative"
 
         # Check for existing projects linked to this initiative
         existing_projects = []
@@ -256,9 +254,7 @@ Now extract project information from this conversation."""
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse extraction response: {e}")
             logger.error(f"Response was: {response_text[:500]}")
-            raise HTTPException(
-                status_code=500, detail="Failed to parse AI extraction response"
-            ) from e
+            raise HTTPException(status_code=500, detail="Failed to parse AI extraction response") from e
 
         # Check if no additional projects were found (all key fields are null)
         title_value = extracted.get("title", {}).get("value")
@@ -267,9 +263,7 @@ Now extract project information from this conversation."""
             # No additional project ideas found
             existing_count = len(existing_projects)
             if existing_count > 0:
-                project_names = ", ".join(
-                    [p.get("title", p.get("project_code", "Unknown")) for p in existing_projects]
-                )
+                project_names = ", ".join([p.get("title", p.get("project_code", "Unknown")) for p in existing_projects])
                 return {
                     "success": False,
                     "error": f"All project ideas in this conversation have already been created. Existing project(s): {project_names}",
@@ -315,21 +309,15 @@ Now extract project information from this conversation."""
                 },
                 "implementation_effort": {
                     "value": extracted.get("implementation_effort", {}).get("value"),
-                    "confidence": extracted.get("implementation_effort", {}).get(
-                        "confidence", "none"
-                    ),
+                    "confidence": extracted.get("implementation_effort", {}).get("confidence", "none"),
                 },
                 "strategic_alignment": {
                     "value": extracted.get("strategic_alignment", {}).get("value"),
-                    "confidence": extracted.get("strategic_alignment", {}).get(
-                        "confidence", "none"
-                    ),
+                    "confidence": extracted.get("strategic_alignment", {}).get("confidence", "none"),
                 },
                 "stakeholder_readiness": {
                     "value": extracted.get("stakeholder_readiness", {}).get("value"),
-                    "confidence": extracted.get("stakeholder_readiness", {}).get(
-                        "confidence", "none"
-                    ),
+                    "confidence": extracted.get("stakeholder_readiness", {}).get("confidence", "none"),
                 },
             },
             "tasks": extracted.get("tasks", []),

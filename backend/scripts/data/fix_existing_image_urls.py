@@ -49,9 +49,7 @@ def fix_image_urls():
             new_url = f"{supabase_url}/storage/v1/object/public/conversation-images/{storage_path}"
 
             # Update in database
-            db.table("conversation_images").update({"storage_url": new_url}).eq(
-                "id", image["id"]
-            ).execute()
+            db.table("conversation_images").update({"storage_url": new_url}).eq("id", image["id"]).execute()
 
             print(f"✅ Fixed image {image['id'][:8]}: {storage_url[:50]}... -> {new_url[:70]}...")
             fixed_count += 1

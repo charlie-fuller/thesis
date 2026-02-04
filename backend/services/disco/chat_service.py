@@ -94,9 +94,7 @@ async def get_conversation(initiative_id: str, user_id: str) -> Optional[Dict]:
             conversation = result.data[0]
             # Sort messages by created_at
             if conversation.get("disco_messages"):
-                conversation["messages"] = sorted(
-                    conversation["disco_messages"], key=lambda m: m["created_at"]
-                )
+                conversation["messages"] = sorted(conversation["disco_messages"], key=lambda m: m["created_at"])
                 del conversation["disco_messages"]
             else:
                 conversation["messages"] = []
@@ -110,9 +108,7 @@ async def get_conversation(initiative_id: str, user_id: str) -> Optional[Dict]:
         raise
 
 
-async def ask_question(
-    initiative_id: str, question: str, user_id: str, conversation_id: Optional[str] = None
-) -> Dict:
+async def ask_question(initiative_id: str, question: str, user_id: str, conversation_id: Optional[str] = None) -> Dict:
     """Answer a question about an initiative using RAG.
 
     Args:
@@ -346,10 +342,7 @@ async def clear_conversation(conversation_id: str) -> bool:
     """
     try:
         await asyncio.to_thread(
-            lambda: supabase.table("disco_messages")
-            .delete()
-            .eq("conversation_id", conversation_id)
-            .execute()
+            lambda: supabase.table("disco_messages").delete().eq("conversation_id", conversation_id).execute()
         )
 
         logger.info(f"Cleared conversation {conversation_id}")

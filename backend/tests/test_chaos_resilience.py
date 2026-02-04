@@ -37,10 +37,7 @@ class TestServiceFailures:
 
             assert response["status_code"] in [503, 500]
             assert "error" in response
-            assert (
-                "database" in response["error"].lower()
-                or "unavailable" in response["error"].lower()
-            )
+            assert "database" in response["error"].lower() or "unavailable" in response["error"].lower()
 
     @pytest.mark.chaos
     async def test_ai_service_timeout(self):
@@ -48,15 +45,10 @@ class TestServiceFailures:
         with patch("services.ai.anthropic_client.messages.create") as mock_ai:
             mock_ai.side_effect = asyncio.TimeoutError()
 
-            response = await self._make_request(
-                "/api/chat", method="POST", json={"message": "Hello"}
-            )
+            response = await self._make_request("/api/chat", method="POST", json={"message": "Hello"})
 
             assert response["status_code"] in [503, 504, 408]
-            assert (
-                "timeout" in response.get("error", "").lower()
-                or "unavailable" in response.get("error", "").lower()
-            )
+            assert "timeout" in response.get("error", "").lower() or "unavailable" in response.get("error", "").lower()
 
     @pytest.mark.chaos
     async def test_cache_failure_fallback(self):
@@ -89,9 +81,7 @@ class TestServiceFailures:
             mock_embed.side_effect = Exception("Embedding service down")
 
             # Chat should still work, but without RAG
-            response = await self._make_request(
-                "/api/chat", method="POST", json={"message": "Hello"}
-            )
+            response = await self._make_request("/api/chat", method="POST", json={"message": "Hello"})
 
             # Should return response, possibly with degraded indicator
             assert response["status_code"] in [200, 206]  # 206 = Partial Content
@@ -209,9 +199,7 @@ class TestResourceExhaustion:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Some should succeed, failures should be graceful
-        success_count = sum(
-            1 for r in results if isinstance(r, dict) and r.get("status_code") == 200
-        )
+        success_count = sum(1 for r in results if isinstance(r, dict) and r.get("status_code") == 200)
         sum(1 for r in results if isinstance(r, dict) and r.get("status_code") in [429, 503])
 
         assert success_count > 0, "Some requests should succeed"
@@ -226,10 +214,7 @@ class TestResourceExhaustion:
             response = await self._make_request("/api/documents/upload", method="POST")
 
             assert response["status_code"] in [507, 503]  # 507 = Insufficient Storage
-            assert (
-                "storage" in response.get("error", "").lower()
-                or "space" in response.get("error", "").lower()
-            )
+            assert "storage" in response.get("error", "").lower() or "space" in response.get("error", "").lower()
 
     @pytest.mark.chaos
     async def test_file_descriptor_exhaustion(self):
@@ -257,28 +242,19 @@ class TestDependencyOutages:
     async def test_anthropic_outage(self):
         """System handles Anthropic API outage."""
         with patch("anthropic.Anthropic") as mock_anthropic:
-            mock_anthropic.return_value.messages.create.side_effect = Exception(
-                "Anthropic API unavailable"
-            )
+            mock_anthropic.return_value.messages.create.side_effect = Exception("Anthropic API unavailable")
 
-            response = await self._make_request(
-                "/api/chat", method="POST", json={"message": "Hello"}
-            )
+            response = await self._make_request("/api/chat", method="POST", json={"message": "Hello"})
 
             # Should return appropriate error
             assert response["status_code"] in [503, 502]
-            assert (
-                "ai" in response.get("error", "").lower()
-                or "service" in response.get("error", "").lower()
-            )
+            assert "ai" in response.get("error", "").lower() or "service" in response.get("error", "").lower()
 
     @pytest.mark.chaos
     async def test_supabase_outage(self):
         """System handles Supabase outage."""
         with patch("supabase.Client") as mock_supabase:
-            mock_supabase.return_value.table.return_value.select.side_effect = Exception(
-                "Supabase unavailable"
-            )
+            mock_supabase.return_value.table.return_value.select.side_effect = Exception("Supabase unavailable")
 
             response = await self._make_request("/api/conversations")
 
@@ -461,9 +437,7 @@ class TestLoadShedding:
         [self._make_request("/api/batch", headers={"Priority": "low"}) for _ in range(50)]
 
         # High priority request should still be served
-        high_priority_response = await self._make_request(
-            "/api/critical", headers={"Priority": "high"}
-        )
+        high_priority_response = await self._make_request("/api/critical", headers={"Priority": "high"})
 
         assert high_priority_response["status_code"] == 200
 

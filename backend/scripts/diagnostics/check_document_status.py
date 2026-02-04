@@ -34,9 +34,7 @@ stuck = supabase.table("documents").select("*").eq("processed", False).execute()
 if stuck.data:
     print(f"⚠️  Found {len(stuck.data)} unprocessed documents:")
     for doc in stuck.data:
-        print(
-            f"   - {doc['filename']} (ID: {doc['id']}, Status: {doc.get('processing_status', 'unknown')})"
-        )
+        print(f"   - {doc['filename']} (ID: {doc['id']}, Status: {doc.get('processing_status', 'unknown')})")
 else:
     print("✓ No unprocessed documents found")
 

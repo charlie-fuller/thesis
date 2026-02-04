@@ -127,9 +127,7 @@ async def generate_report(
         return report
     except Exception as e:
         logger.error(f"Failed to generate career status report: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to generate report: {str(e)}"
-        ) from None
+        raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}") from None
 
 
 @router.get("/status-report/latest", response_model=Optional[ReportResponse])

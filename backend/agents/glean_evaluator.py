@@ -90,9 +90,7 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Glean assessment: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Glean assessment: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:
@@ -126,24 +124,15 @@ Provide clear GO/NO-GO/MAYBE recommendations with specific reasoning."""
         message_lower = context.user_message.lower()
 
         # Hand off to Architect for deep technical architecture questions
-        if any(
-            word in message_lower
-            for word in ["architecture", "rag", "custom build", "technical design"]
-        ):
+        if any(word in message_lower for word in ["architecture", "rag", "custom build", "technical design"]):
             return ("architect", "Query requires deep technical architecture expertise")
 
         # Hand off to Guardian for security/compliance deep-dives
-        if any(
-            word in message_lower
-            for word in ["soc2", "hipaa", "gdpr", "security audit", "compliance"]
-        ):
+        if any(word in message_lower for word in ["soc2", "hipaa", "gdpr", "security audit", "compliance"]):
             return ("guardian", "Query requires security/compliance expertise")
 
         # Hand off to Capital for detailed cost analysis
-        if any(
-            word in message_lower
-            for word in ["budget", "roi", "cost breakdown", "financial analysis"]
-        ):
+        if any(word in message_lower for word in ["budget", "roi", "cost breakdown", "financial analysis"]):
             return ("capital", "Query requires detailed financial analysis")
 
         return None

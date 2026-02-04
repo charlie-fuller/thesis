@@ -140,9 +140,7 @@ def main():
             parser.print_help()
             logger.info("\nExamples:")
             logger.info("  python upload_system_instructions.py --all")
-            logger.info(
-                "  python upload_system_instructions.py --user-id d3ba5354-873a-435a-a36a-853373c4f6e5"
-            )
+            logger.info("  python upload_system_instructions.py --user-id d3ba5354-873a-435a-a36a-853373c4f6e5")
             sys.exit(0)
 
     except Exception as e:

@@ -33,9 +33,7 @@ def find_obsidian_duplicates(supabase):
     # Query all Obsidian-synced documents
     result = (
         supabase.table("documents")
-        .select(
-            "id, filename, title, storage_path, uploaded_at, source_platform, obsidian_file_path"
-        )
+        .select("id, filename, title, storage_path, uploaded_at, source_platform, obsidian_file_path")
         .eq("source_platform", "obsidian")
         .order("uploaded_at", desc=True)
         .execute()
@@ -75,9 +73,7 @@ def cleanup_document(supabase, doc_id, dry_run=True):
         supabase.table("agent_knowledge_base").delete().eq("document_id", doc_id).execute()
 
         # Delete any sync state references
-        supabase.table("obsidian_sync_state").update({"document_id": None}).eq(
-            "document_id", doc_id
-        ).execute()
+        supabase.table("obsidian_sync_state").update({"document_id": None}).eq("document_id", doc_id).execute()
 
         # Delete the document record
         supabase.table("documents").delete().eq("id", doc_id).execute()
@@ -99,14 +95,12 @@ def update_sync_states(supabase, duplicates, dry_run=True):
         # and update it to point to the kept document
         for delete_doc in info["delete"]:
             if dry_run:
-                logger.info(
-                    f"  [DRY RUN] Would update sync states from {delete_doc['id']} to {keep_doc['id']}"
-                )
+                logger.info(f"  [DRY RUN] Would update sync states from {delete_doc['id']} to {keep_doc['id']}")
             else:
                 try:
-                    supabase.table("obsidian_sync_state").update(
-                        {"document_id": keep_doc["id"]}
-                    ).eq("document_id", delete_doc["id"]).execute()
+                    supabase.table("obsidian_sync_state").update({"document_id": keep_doc["id"]}).eq(
+                        "document_id", delete_doc["id"]
+                    ).execute()
                     logger.info("  Updated sync states to point to kept document")
                 except Exception as e:
                     logger.warning(f"  Could not update sync states: {e}")
@@ -140,9 +134,7 @@ def main():
     total_duplicates = sum(len(info["delete"]) for info in duplicates.values())
     unique_files = len(duplicates)
 
-    logger.info(
-        f"\nFound {total_duplicates} duplicate documents across {unique_files} unique files"
-    )
+    logger.info(f"\nFound {total_duplicates} duplicate documents across {unique_files} unique files")
 
     # Show what will be done
     logger.info("\n" + "=" * 60)

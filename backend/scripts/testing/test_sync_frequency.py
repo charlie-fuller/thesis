@@ -51,9 +51,7 @@ print_info("Test 1: Checking if migration 012 columns exist...")
 try:
     result = (
         supabase.table("google_drive_tokens")
-        .select(
-            "sync_frequency, last_auto_sync, next_sync_scheduled, default_folder_id, default_folder_name"
-        )
+        .select("sync_frequency, last_auto_sync, next_sync_scheduled, default_folder_id, default_folder_name")
         .limit(1)
         .execute()
     )

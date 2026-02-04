@@ -90,9 +90,9 @@ async def embed_meeting_room_message(supabase_client, message_id: UUID, content:
         logger.error(f"Error embedding message {message_id}: {e}")
         # Mark as failed
         try:
-            supabase_client.table("meeting_room_messages").update(
-                {"embedding_status": "failed"}
-            ).eq("id", str(message_id)).execute()
+            supabase_client.table("meeting_room_messages").update({"embedding_status": "failed"}).eq(
+                "id", str(message_id)
+            ).execute()
         except Exception:
             pass
         return False
@@ -139,9 +139,7 @@ async def embed_pending_meeting_messages(
             ids = [m["id"] for m in batch]
 
             try:
-                embeddings = create_embeddings_batch(
-                    texts, input_type=EMBEDDING.INPUT_TYPE_DOCUMENT
-                )
+                embeddings = create_embeddings_batch(texts, input_type=EMBEDDING.INPUT_TYPE_DOCUMENT)
 
                 # Update each message with its embedding
                 for msg_id, embedding in zip(ids, embeddings, strict=False):
@@ -155,9 +153,9 @@ async def embed_pending_meeting_messages(
                 # Mark batch as failed
                 for msg_id in ids:
                     try:
-                        supabase_client.table("meeting_room_messages").update(
-                            {"embedding_status": "failed"}
-                        ).eq("id", msg_id).execute()
+                        supabase_client.table("meeting_room_messages").update({"embedding_status": "failed"}).eq(
+                            "id", msg_id
+                        ).execute()
                     except Exception:
                         pass
 

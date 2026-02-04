@@ -210,9 +210,7 @@ class ImageGenerationService:
             logger.error(f"Error generating image: {str(e)}")
             raise Exception(f"Failed to generate image: {str(e)}") from None
 
-    async def generate_multiple_images(
-        self, prompts: list[str], model: Optional[str] = None
-    ) -> list[Dict[str, Any]]:
+    async def generate_multiple_images(self, prompts: list[str], model: Optional[str] = None) -> list[Dict[str, Any]]:
         """Generate multiple images from a list of prompts.
 
         Args:

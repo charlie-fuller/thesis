@@ -99,9 +99,7 @@ def _message_has_substantial_content(message: str) -> bool:
         return True
 
     # Heuristic 2: Multiple sentences (3+ sentences suggest substantial content)
-    sentences = [
-        s.strip() for s in content.replace("!", ".").replace("?", ".").split(".") if s.strip()
-    ]
+    sentences = [s.strip() for s in content.replace("!", ".").replace("?", ".").split(".") if s.strip()]
     if len(sentences) >= 3:
         logger.debug(f"Content detection: multiple sentences ({len(sentences)} sentences)")
         return True
@@ -137,9 +135,7 @@ def _message_has_substantial_content(message: str) -> bool:
 
 @router.post("")
 @limiter.limit("20/minute")
-async def chat(
-    request: Request, chat_request: ChatRequest, current_user: dict = Depends(get_current_user)
-):
+async def chat(request: Request, chat_request: ChatRequest, current_user: dict = Depends(get_current_user)):
     """Chat endpoint with RAG (Retrieval Augmented Generation).
 
     Processes user messages and generates AI responses using Claude,
@@ -196,9 +192,7 @@ async def chat(
             "okay",
         }
         message_lower = chat_request.message.lower().strip()
-        is_simple_message = (
-            message_lower in simple_messages or len(chat_request.message.split()) <= 2
-        )
+        is_simple_message = message_lower in simple_messages or len(chat_request.message.split()) <= 2
 
         # Build context from documents using RAG (conditionally)
         context_chunks = []
@@ -226,9 +220,7 @@ async def chat(
             context_chunks = search_results
             logger.info(f"Found {len(context_chunks)} relevant chunks")
         else:
-            logger.info(
-                f"Skipping RAG - use_rag={chat_request.use_rag}, is_simple_message={is_simple_message}"
-            )
+            logger.info(f"Skipping RAG - use_rag={chat_request.use_rag}, is_simple_message={is_simple_message}")
 
         # Load system instructions with version binding
         # Priority:
@@ -269,9 +261,7 @@ async def chat(
                                 version_id=active_version["id"], user_data=current_user
                             )
                             version_id_to_bind = active_version["id"]
-                            logger.info(
-                                f"Binding conversation to version {active_version['version_number']}"
-                            )
+                            logger.info(f"Binding conversation to version {active_version['version_number']}")
 
             # If we still don't have a prompt, try active version or legacy fallback
             if not system_prompt:
@@ -284,9 +274,7 @@ async def chat(
                         version_id_to_bind = active_version["id"]
                 else:
                     # Fallback to legacy per-user instructions
-                    system_prompt = get_system_instructions_for_user(
-                        user_id=current_user["id"], user_data=current_user
-                    )
+                    system_prompt = get_system_instructions_for_user(user_id=current_user["id"], user_data=current_user)
 
             # Bind the version to the conversation if needed (async, non-blocking)
             if version_id_to_bind and chat_request.conversation_id:
@@ -297,9 +285,7 @@ async def chat(
                         .eq("id", chat_request.conversation_id)
                         .execute()
                     )
-                    logger.info(
-                        f"Bound conversation {chat_request.conversation_id} to version {version_id_to_bind}"
-                    )
+                    logger.info(f"Bound conversation {chat_request.conversation_id} to version {version_id_to_bind}")
                 except Exception as bind_error:
                     logger.warning(f"Failed to bind version to conversation: {bind_error}")
 
@@ -314,9 +300,7 @@ async def chat(
         user_prompt = chat_request.message
 
         # Track if RAG was attempted but found nothing
-        rag_attempted_no_results = (
-            chat_request.use_rag and not is_simple_message and not context_chunks
-        )
+        rag_attempted_no_results = chat_request.use_rag and not is_simple_message and not context_chunks
 
         # Only add context if we have relevant chunks (above threshold)
         source_documents = []
@@ -350,9 +334,7 @@ async def chat(
                     {
                         "chunk_id": chunk.get("id", f"chunk_{i}"),
                         "document_id": chunk.get("document_id", ""),
-                        "document_name": metadata.get(
-                            "filename", metadata.get("conversation_title", "Unknown")
-                        ),
+                        "document_name": metadata.get("filename", metadata.get("conversation_title", "Unknown")),
                         "relevance_score": chunk["similarity"],
                         "snippet": chunk["content"][:500],  # First 500 chars as snippet
                         "metadata": metadata,
@@ -411,12 +393,8 @@ Instructions:
                 for msg in history_result.data:
                     # Claude expects 'user' or 'assistant' roles
                     if msg["role"] in ["user", "assistant"] and msg["content"]:
-                        conversation_messages.append(
-                            {"role": msg["role"], "content": msg["content"]}
-                        )
-                logger.info(
-                    f"Loaded {len(conversation_messages)} messages from conversation history"
-                )
+                        conversation_messages.append({"role": msg["role"], "content": msg["content"]})
+                logger.info(f"Loaded {len(conversation_messages)} messages from conversation history")
 
         # Add the current user message (with RAG context if available)
         conversation_messages.append({"role": "user", "content": user_prompt})
@@ -517,8 +495,7 @@ Instructions:
 
                 # Create message-document links
                 message_docs_to_insert = [
-                    {"message_id": user_message_id, "document_id": doc_id}
-                    for doc_id in chat_request.document_ids
+                    {"message_id": user_message_id, "document_id": doc_id} for doc_id in chat_request.document_ids
                 ]
 
                 supabase.table("message_documents").insert(message_docs_to_insert).execute()
@@ -547,17 +524,13 @@ Instructions:
         }
 
     except Exception:
-        logger.exception(
-            "Error processing chat request", exc_info=True, extra={"user_id": current_user["id"]}
-        )
+        logger.exception("Error processing chat request", exc_info=True, extra={"user_id": current_user["id"]})
         raise
 
 
 @router.post("/stream")
 @limiter.limit("20/minute")
-async def chat_stream(
-    request: Request, chat_request: ChatRequest, current_user: dict = Depends(get_current_user)
-):
+async def chat_stream(request: Request, chat_request: ChatRequest, current_user: dict = Depends(get_current_user)):
     """Streaming chat endpoint with RAG (Retrieval Augmented Generation).
 
     Streams AI responses in real-time using Server-Sent Events (SSE).
@@ -661,9 +634,7 @@ async def chat_stream(
                         # Check for confirmation - either exact match or phrase contained
                         is_confirmed = (
                             user_msg_lower in confirmation_phrases  # Exact match
-                            or any(
-                                phrase in user_msg_lower for phrase in confirmation_phrases
-                            )  # Contains phrase
+                            or any(phrase in user_msg_lower for phrase in confirmation_phrases)  # Contains phrase
                         )
 
                         # Check for explicit decline/cancel
@@ -715,9 +686,9 @@ async def chat_stream(
                                         "declined": True,
                                     }
                                 }
-                            ).eq("conversation_id", chat_request.conversation_id).eq(
-                                "role", "assistant"
-                            ).order("created_at", desc=True).limit(1).execute()
+                            ).eq("conversation_id", chat_request.conversation_id).eq("role", "assistant").order(
+                                "created_at", desc=True
+                            ).limit(1).execute()
 
                             response = "No problem! Let me know if you'd like to create a visual later, or if there's something else I can help with."
                             for char in response:
@@ -745,9 +716,7 @@ async def chat_stream(
                         if is_greeting:
                             # User sent a greeting while we were waiting for confirmation
                             # Clear the pending state and respond to greeting naturally
-                            logger.info(
-                                "User sent greeting while awaiting image confirmation - clearing state"
-                            )
+                            logger.info("User sent greeting while awaiting image confirmation - clearing state")
 
                             # Clear awaiting_image_confirmation
                             supabase.table("messages").update(
@@ -757,9 +726,9 @@ async def chat_stream(
                                         "interrupted": True,
                                     }
                                 }
-                            ).eq("conversation_id", chat_request.conversation_id).eq(
-                                "role", "assistant"
-                            ).order("created_at", desc=True).limit(1).execute()
+                            ).eq("conversation_id", chat_request.conversation_id).eq("role", "assistant").order(
+                                "created_at", desc=True
+                            ).limit(1).execute()
 
                             response = "Hello! I was waiting for your preference on the image options. Would you still like me to create that visual, or is there something else I can help you with?"
                             for char in response:
@@ -785,9 +754,7 @@ async def chat_stream(
                             return
 
                         if is_confirmed:
-                            logger.info(
-                                "User confirmed image generation - proceeding with image creation"
-                            )
+                            logger.info("User confirmed image generation - proceeding with image creation")
 
                             # Import services
                             from database import DatabaseService
@@ -809,17 +776,10 @@ async def chat_stream(
                                     suggested_content = metadata.get("suggested_content", "")
                                     prompt = f"Create a {visual_type} showing: {suggested_content}"
 
-                                if (
-                                    not prompt
-                                    or prompt.strip() == f"Create a {visual_type} showing: "
-                                ):
-                                    raise Exception(
-                                        "No valid prompt found in pending image suggestion"
-                                    )
+                                if not prompt or prompt.strip() == f"Create a {visual_type} showing: ":
+                                    raise Exception("No valid prompt found in pending image suggestion")
 
-                                logger.info(
-                                    f"Generating image from confirmation with prompt: {prompt[:100]}..."
-                                )
+                                logger.info(f"Generating image from confirmation with prompt: {prompt[:100]}...")
 
                                 # Generate the image
                                 image_service = get_image_generation_service()
@@ -830,9 +790,7 @@ async def chat_stream(
                                 if not result.get("success"):
                                     raise Exception("Image generation failed")
 
-                                logger.info(
-                                    f"Image generated from confirmation: {len(result['image_data'])} bytes"
-                                )
+                                logger.info(f"Image generated from confirmation: {len(result['image_data'])} bytes")
 
                                 # Upload to storage
                                 storage_service = get_storage_service()
@@ -864,9 +822,7 @@ async def chat_stream(
                                     "metadata": {"from_confirmation": True},
                                 }
 
-                                insert_result = (
-                                    db.table("conversation_images").insert(image_record).execute()
-                                )
+                                insert_result = db.table("conversation_images").insert(image_record).execute()
                                 stored_image = insert_result.data[0]
 
                                 # Clear the awaiting_image_confirmation state from the previous message
@@ -877,9 +833,9 @@ async def chat_stream(
                                             "image_generated": True,
                                         }
                                     }
-                                ).eq("conversation_id", chat_request.conversation_id).eq(
-                                    "role", "assistant"
-                                ).order("created_at", desc=True).limit(1).execute()
+                                ).eq("conversation_id", chat_request.conversation_id).eq("role", "assistant").order(
+                                    "created_at", desc=True
+                                ).limit(1).execute()
 
                                 # No text response - just show the image
                                 yield f"data: {json.dumps({'type': 'image_generated', 'image_id': stored_image['id'], 'storage_url': stored_image['storage_url'], 'prompt': prompt[:200] if prompt else '', 'aspect_ratio': '16:9', 'model': result['model'], 'mime_type': upload_result['content_type'], 'file_size': upload_result['file_size']})}\n\n"
@@ -920,9 +876,9 @@ async def chat_stream(
                                             "error": str(confirm_error),
                                         }
                                     }
-                                ).eq("conversation_id", chat_request.conversation_id).eq(
-                                    "role", "assistant"
-                                ).order("created_at", desc=True).limit(1).execute()
+                                ).eq("conversation_id", chat_request.conversation_id).eq("role", "assistant").order(
+                                    "created_at", desc=True
+                                ).limit(1).execute()
 
                                 error_msg = "I'm sorry, I encountered an error generating the image. Please try again."
                                 yield f"data: {json.dumps({'type': 'token', 'content': error_msg})}\n\n"
@@ -936,9 +892,9 @@ async def chat_stream(
                         )
                         supabase.table("messages").update(
                             {"metadata": {"awaiting_image_confirmation": False, "superseded": True}}
-                        ).eq("conversation_id", chat_request.conversation_id).eq(
-                            "role", "assistant"
-                        ).order("created_at", desc=True).limit(1).execute()
+                        ).eq("conversation_id", chat_request.conversation_id).eq("role", "assistant").order(
+                            "created_at", desc=True
+                        ).limit(1).execute()
                         # Fall through to process the new message normally
 
             # Check if this is an explicit image generation request
@@ -993,9 +949,7 @@ async def chat_stream(
 
                     if message_has_content:
                         # User provided the content - extract prompt and ASK for preferences
-                        logger.info(
-                            "Message contains content - extracting prompt and asking for preferences"
-                        )
+                        logger.info("Message contains content - extracting prompt and asking for preferences")
                         # Just use the full message as context for Gemini to create the prompt
                         genai.configure(api_key=os.environ.get("GOOGLE_GENERATIVE_AI_API_KEY"))
                         gemini_model = genai.GenerativeModel("gemini-2.0-flash")
@@ -1051,11 +1005,7 @@ Output ONLY the concise image prompt, nothing else."""
                             .execute()
                         )
 
-                        assistant_msg_id = (
-                            assistant_msg_result.data[0]["id"]
-                            if assistant_msg_result.data
-                            else None
-                        )
+                        assistant_msg_id = assistant_msg_result.data[0]["id"] if assistant_msg_result.data else None
 
                         # Send the image suggestion event so frontend shows the options dialog
                         suggestion_event = {
@@ -1075,9 +1025,7 @@ Output ONLY the concise image prompt, nothing else."""
                     else:
                         # Message is vague - need to look at conversation history
                         # BUT instead of guessing, we should confirm with the user
-                        logger.info(
-                            "Message is vague - checking conversation history and will confirm with user"
-                        )
+                        logger.info("Message is vague - checking conversation history and will confirm with user")
 
                         context_messages_result = (
                             supabase.table("messages")
@@ -1153,11 +1101,7 @@ Your response (be specific about what to visualize):"""
                                 .execute()
                             )
 
-                            assistant_msg_id = (
-                                assistant_msg_result.data[0]["id"]
-                                if assistant_msg_result.data
-                                else None
-                            )
+                            assistant_msg_id = assistant_msg_result.data[0]["id"] if assistant_msg_result.data else None
 
                             # Send image suggestion event for user to choose options
                             suggestion_event = {
@@ -1171,9 +1115,7 @@ Your response (be specific about what to visualize):"""
                             }
                             yield f"data: {json.dumps(suggestion_event)}\n\n"
                             yield f"data: {json.dumps({'type': 'done', 'tokens': {'input': 0, 'output': 0, 'total': 0}})}\n\n"
-                            logger.info(
-                                f"Sent image suggestion from context: {prompt_from_context[:50]}..."
-                            )
+                            logger.info(f"Sent image suggestion from context: {prompt_from_context[:50]}...")
                             return  # Exit - wait for user to select options
 
                         else:
@@ -1206,9 +1148,7 @@ Could you tell me what specific content, items, or concepts you'd like me to vis
                     # If we reach here without a prompt and no confirmation was sent,
                     # something went wrong - DO NOT fall through silently
                     if not prompt:
-                        logger.warning(
-                            "No prompt generated for image request - providing helpful message to user"
-                        )
+                        logger.warning("No prompt generated for image request - providing helpful message to user")
                         # Give the user a helpful message instead of silently falling through
                         helpful_message = f"""I detected you want to create a {visual_type}, but I need a bit more detail to proceed.
 
@@ -1248,7 +1188,9 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                 except Exception as img_error:
                     logger.error(f"Image generation failed: {img_error}", exc_info=True)
                     # Send error message and stop - don't fall through to chat
-                    error_message = "I apologize, but I encountered an error while generating the image. Please try again."
+                    error_message = (
+                        "I apologize, but I encountered an error while generating the image. Please try again."
+                    )
                     yield f"data: {json.dumps({'type': 'token', 'content': error_message})}\n\n"
                     yield f"data: {json.dumps({'type': 'done', 'tokens': {'input': 0, 'output': 0, 'total': 0}})}\n\n"
                     return  # Stop here - don't continue to normal chat
@@ -1276,9 +1218,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                 "okay",
             }
             message_lower = chat_request.message.lower().strip()
-            is_simple_message = (
-                message_lower in simple_messages or len(chat_request.message.split()) <= 2
-            )
+            is_simple_message = message_lower in simple_messages or len(chat_request.message.split()) <= 2
 
             # Build context from documents using RAG (conditionally)
             context_chunks = []
@@ -1306,9 +1246,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                 # Send context info to client
                 yield f"data: {json.dumps({'type': 'context', 'count': len(context_chunks)})}\n\n"
             else:
-                logger.info(
-                    f"Skipping RAG - use_rag={chat_request.use_rag}, is_simple_message={is_simple_message}"
-                )
+                logger.info(f"Skipping RAG - use_rag={chat_request.use_rag}, is_simple_message={is_simple_message}")
 
             # Select agent and load system instructions
             # Priority: 1) Explicit agent_ids from request, 2) @mention in message, 3) Coordinator routing
@@ -1360,9 +1298,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
             user_prompt = chat_request.message
 
             # Track if RAG was attempted but found nothing
-            rag_attempted_no_results = (
-                chat_request.use_rag and not is_simple_message and not context_chunks
-            )
+            rag_attempted_no_results = chat_request.use_rag and not is_simple_message and not context_chunks
 
             # ============================================================================
             # ATLAS WEB RESEARCH - Auto-research when knowledge base has no results
@@ -1419,9 +1355,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                         {
                             "chunk_id": chunk.get("id", f"chunk_{i}"),
                             "document_id": chunk.get("document_id", ""),
-                            "document_name": metadata.get(
-                                "filename", metadata.get("conversation_title", "Unknown")
-                            ),
+                            "document_name": metadata.get("filename", metadata.get("conversation_title", "Unknown")),
                             "relevance_score": chunk["similarity"],
                             "snippet": chunk["content"][:500],  # First 500 chars as snippet
                             "metadata": metadata,
@@ -1503,13 +1437,9 @@ Instructions:
                             metadata = msg.get("metadata") or {}
                             if metadata.get("awaiting_image_confirmation") and not msg["content"]:
                                 continue
-                            conversation_messages.append(
-                                {"role": msg["role"], "content": msg["content"]}
-                            )
+                            conversation_messages.append({"role": msg["role"], "content": msg["content"]})
 
-                    logger.info(
-                        f"Loaded {len(conversation_messages)} messages from conversation history"
-                    )
+                    logger.info(f"Loaded {len(conversation_messages)} messages from conversation history")
 
             # Add the current user message (with RAG context if available)
             conversation_messages.append({"role": "user", "content": user_prompt})
@@ -1545,9 +1475,7 @@ Instructions:
                 input_tokens = final_message.usage.input_tokens
                 output_tokens = final_message.usage.output_tokens
                 cache_read_tokens = getattr(final_message.usage, "cache_read_input_tokens", 0) or 0
-                cache_creation_tokens = (
-                    getattr(final_message.usage, "cache_creation_input_tokens", 0) or 0
-                )
+                cache_creation_tokens = getattr(final_message.usage, "cache_creation_input_tokens", 0) or 0
 
             logger.info(
                 "Streaming response complete",
@@ -1592,9 +1520,7 @@ Instructions:
                         .execute()
                     )
 
-                    recent_messages = (
-                        recent_messages_result.data if recent_messages_result.data else []
-                    )
+                    recent_messages = recent_messages_result.data if recent_messages_result.data else []
 
                     # Check if we should suggest an image
                     suggestion = conversation_service.should_suggest_image(
@@ -1679,9 +1605,7 @@ Instructions:
                 # Process for useable output detection (Bradbury Impact Loop)
                 # Run in thread pool to avoid blocking the stream
                 try:
-                    await asyncio.to_thread(
-                        process_conversation_for_useable_output, chat_request.conversation_id
-                    )
+                    await asyncio.to_thread(process_conversation_for_useable_output, chat_request.conversation_id)
                 except Exception as detection_error:
                     logger.warning(f"Useable output detection failed: {detection_error}")
 
@@ -1761,9 +1685,7 @@ class DigDeeperSectionRequest(BaseModel):
 
 @router.post("/dig-deeper")
 @limiter.limit("15/minute")
-async def dig_deeper(
-    request: Request, dig_request: DigDeeperRequest, current_user: dict = Depends(get_current_user)
-):
+async def dig_deeper(request: Request, dig_request: DigDeeperRequest, current_user: dict = Depends(get_current_user)):
     """Dig deeper into a previous assistant response.
 
     Takes an existing assistant message and asks for more detail, examples,
@@ -1817,9 +1739,7 @@ Maintain the same format and style as your original response, but provide more c
 
             # Load system instructions
             try:
-                system_prompt = get_system_instructions_for_user(
-                    user_id=current_user["id"], user_data=current_user
-                )
+                system_prompt = get_system_instructions_for_user(user_id=current_user["id"], user_data=current_user)
             except FileNotFoundError as e:
                 logger.warning(f"Could not load system instructions: {e}")
                 user_name = current_user.get("name", "User")
@@ -1842,9 +1762,7 @@ Maintain the same format and style as your original response, but provide more c
                 if history_result.data:
                     for msg in history_result.data:
                         if msg["role"] in ["user", "assistant"] and msg.get("content"):
-                            conversation_messages.append(
-                                {"role": msg["role"], "content": msg["content"]}
-                            )
+                            conversation_messages.append({"role": msg["role"], "content": msg["content"]})
 
             # Add the dig deeper request as a user message
             conversation_messages.append({"role": "user", "content": dig_deeper_prompt})
@@ -1900,9 +1818,7 @@ Maintain the same format and style as your original response, but provide more c
                         },
                     },
                 ]
-                await asyncio.to_thread(
-                    lambda: supabase.table("messages").insert(messages_to_insert).execute()
-                )
+                await asyncio.to_thread(lambda: supabase.table("messages").insert(messages_to_insert).execute())
                 logger.info("Dig deeper messages saved to conversation")
 
             # Send completion
@@ -2005,9 +1921,7 @@ async def dig_deeper_section(
 
     try:
         # Get human-readable topic from section ID
-        section_topic = SECTION_TOPIC_MAP.get(
-            section_request.section_id, section_request.section_id.replace("_", " ")
-        )
+        section_topic = SECTION_TOPIC_MAP.get(section_request.section_id, section_request.section_id.replace("_", " "))
 
         # Build the section expansion prompt - CONCISE expansion
         expansion_prompt = f"""The user clicked "dig deeper" on: **{section_topic}**
@@ -2036,9 +1950,7 @@ That's it. Keep it SHORT."""
 
         # Load system instructions
         try:
-            system_prompt = get_system_instructions_for_user(
-                user_id=current_user["id"], user_data=current_user
-            )
+            system_prompt = get_system_instructions_for_user(user_id=current_user["id"], user_data=current_user)
         except FileNotFoundError:
             user_name = current_user.get("name", "User")
             system_prompt = (
@@ -2061,9 +1973,7 @@ That's it. Keep it SHORT."""
             if history_result.data:
                 for msg in history_result.data:
                     if msg["role"] in ["user", "assistant"] and msg.get("content"):
-                        conversation_messages.append(
-                            {"role": msg["role"], "content": msg["content"]}
-                        )
+                        conversation_messages.append({"role": msg["role"], "content": msg["content"]})
 
         # Add the expansion request
         conversation_messages.append({"role": "user", "content": expansion_prompt})
@@ -2075,9 +1985,7 @@ That's it. Keep it SHORT."""
             model="claude-sonnet-4-5-20250929",
             max_tokens=400,  # Short - ~100-150 words max for focused expansion
             temperature=0.3,
-            system=[
-                {"type": "text", "text": full_system_prompt, "cache_control": {"type": "ephemeral"}}
-            ],
+            system=[{"type": "text", "text": full_system_prompt, "cache_control": {"type": "ephemeral"}}],
             messages=conversation_messages,
         )
 
@@ -2113,6 +2021,4 @@ That's it. Keep it SHORT."""
 
     except Exception:
         logger.exception("Error processing dig deeper section request", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail="An error occurred. Please try again."
-        ) from None
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from None

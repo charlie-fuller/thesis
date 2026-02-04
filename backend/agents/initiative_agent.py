@@ -89,9 +89,7 @@ Follow Smart Brevity: 100-150 words max, no emojis, end with dig-deeper links.""
             agent_name=self.name,
             agent_display_name=self.display_name,
             save_to_memory=save_to_memory,
-            memory_content=f"Initiative insight: {context.user_message[:100]}..."
-            if save_to_memory
-            else None,
+            memory_content=f"Initiative insight: {context.user_message[:100]}..." if save_to_memory else None,
         )
 
     def _should_save_to_memory(self, query: str, response: str) -> bool:

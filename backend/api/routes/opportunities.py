@@ -41,9 +41,7 @@ router = APIRouter(prefix="/api/opportunities", tags=["opportunities"])
 class OpportunityCreate(BaseModel):
     """Create a new opportunity."""
 
-    opportunity_code: str = Field(
-        ..., min_length=2, max_length=10, description="Short code like F01, L02"
-    )
+    opportunity_code: str = Field(..., min_length=2, max_length=10, description="Short code like F01, L02")
     title: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     department: Optional[str] = None
@@ -61,12 +59,8 @@ class OpportunityCreate(BaseModel):
     roi_indicators: dict = {}
     source_type: Optional[str] = None
     source_notes: Optional[str] = None
-    scoring_confidence: Optional[int] = Field(
-        None, ge=0, le=100, description="Confidence in scoring (0-100)"
-    )
-    confidence_questions: List[str] = Field(
-        default=[], description="Questions that would raise confidence"
-    )
+    scoring_confidence: Optional[int] = Field(None, ge=0, le=100, description="Confidence in scoring (0-100)")
+    confidence_questions: List[str] = Field(default=[], description="Questions that would raise confidence")
 
 
 class OpportunityUpdate(BaseModel):
@@ -273,12 +267,7 @@ async def _get_owner_names(supabase, opportunity_ids: List[str]) -> dict:
         return {}
 
     # Get opportunities with owner IDs
-    result = (
-        supabase.table("ai_projects")
-        .select("id, owner_stakeholder_id")
-        .in_("id", opportunity_ids)
-        .execute()
-    )
+    result = supabase.table("ai_projects").select("id, owner_stakeholder_id").in_("id", opportunity_ids).execute()
 
     owner_ids = [o["owner_stakeholder_id"] for o in result.data if o.get("owner_stakeholder_id")]
 
@@ -292,9 +281,7 @@ async def _get_owner_names(supabase, opportunity_ids: List[str]) -> dict:
 
     # Map opportunity ID to owner name
     return {
-        o["id"]: stakeholder_map.get(o["owner_stakeholder_id"])
-        for o in result.data
-        if o.get("owner_stakeholder_id")
+        o["id"]: stakeholder_map.get(o["owner_stakeholder_id"]) for o in result.data if o.get("owner_stakeholder_id")
     }
 
 
@@ -441,9 +428,7 @@ async def get_top_opportunities(
 
 
 @router.get("/blocked")
-async def get_blocked_opportunities(
-    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_blocked_opportunities(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get all blocked opportunities."""
     result = (
         supabase.table("ai_projects")
@@ -462,9 +447,7 @@ async def get_blocked_opportunities(
 
 
 @router.get("/summary")
-async def get_opportunities_summary(
-    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_opportunities_summary(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get a summary of all opportunities.
 
     Returns counts by tier, status, and department.
@@ -855,15 +838,7 @@ async def analyze_opportunity_goal_alignment(
             "opportunity_id": opportunity_id,
             "goal_alignment_score": score,
             "goal_alignment_details": details,
-            "level": (
-                "high"
-                if score >= 80
-                else "moderate"
-                if score >= 60
-                else "low"
-                if score >= 40
-                else "minimal"
-            ),
+            "level": ("high" if score >= 80 else "moderate" if score >= 60 else "low" if score >= 40 else "minimal"),
         }
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from None
@@ -964,17 +939,9 @@ async def create_opportunity(
     )
     if has_scores:
         try:
-            await generate_project_justifications(
-                opportunity_id=created_opp["id"], client_id=current_user["client_id"]
-            )
+            await generate_project_justifications(opportunity_id=created_opp["id"], client_id=current_user["client_id"])
             # Refetch to get updated justifications
-            updated = (
-                supabase.table("ai_projects")
-                .select("*")
-                .eq("id", created_opp["id"])
-                .single()
-                .execute()
-            )
+            updated = supabase.table("ai_projects").select("*").eq("id", created_opp["id"]).single().execute()
             created_opp = updated.data
         except Exception as e:
             logger.warning(f"Failed to generate justifications on create: {e}")
@@ -1032,9 +999,7 @@ async def update_opportunity_scores(
     # Get existing opportunity with current scores
     existing = (
         supabase.table("ai_projects")
-        .select(
-            "id, roi_potential, implementation_effort, strategic_alignment, stakeholder_readiness"
-        )
+        .select("id, roi_potential, implementation_effort, strategic_alignment, stakeholder_readiness")
         .eq("id", opportunity_id)
         .eq("client_id", current_user["client_id"])
         .single()
@@ -1064,13 +1029,7 @@ async def update_opportunity_scores(
         )
         if regenerated:
             # Refetch to get updated justifications
-            refreshed = (
-                supabase.table("ai_projects")
-                .select("*")
-                .eq("id", opportunity_id)
-                .single()
-                .execute()
-            )
+            refreshed = supabase.table("ai_projects").select("*").eq("id", opportunity_id).single().execute()
             updated_opp = refreshed.data
     except Exception as e:
         logger.warning(f"Failed to regenerate justifications on score update: {e}")
@@ -1103,9 +1062,7 @@ async def update_opportunity_status(
     """
     valid_statuses = ["identified", "scoping", "pilot", "scaling", "completed", "blocked"]
     if request.status not in valid_statuses:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
 
     # Verify ownership and get current data
     existing = (
@@ -1208,9 +1165,7 @@ async def get_opportunity_stakeholders(
             "stakeholder_id": link["stakeholder_id"],
             "stakeholder_name": link["stakeholders"]["name"] if link.get("stakeholders") else None,
             "stakeholder_role": link["stakeholders"]["role"] if link.get("stakeholders") else None,
-            "stakeholder_department": link["stakeholders"]["department"]
-            if link.get("stakeholders")
-            else None,
+            "stakeholder_department": link["stakeholders"]["department"] if link.get("stakeholders") else None,
             "role": link["role"],
             "notes": link.get("notes"),
             "created_at": link["created_at"],
@@ -1269,9 +1224,7 @@ async def link_stakeholder_to_opportunity(
         )
     except Exception as e:
         if "duplicate" in str(e).lower():
-            raise HTTPException(
-                status_code=409, detail="Stakeholder already linked to this opportunity"
-            ) from None
+            raise HTTPException(status_code=409, detail="Stakeholder already linked to this opportunity") from None
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
     return {
@@ -1354,9 +1307,7 @@ class OpportunityCandidateAccept(BaseModel):
     implementation_effort: Optional[int] = Field(None, ge=1, le=5)
     strategic_alignment: Optional[int] = Field(None, ge=1, le=5)
     stakeholder_readiness: Optional[int] = Field(None, ge=1, le=5)
-    link_to_existing: bool = (
-        False  # If true, link source to existing opportunity instead of creating new
-    )
+    link_to_existing: bool = False  # If true, link source to existing opportunity instead of creating new
 
 
 class OpportunityCandidateReject(BaseModel):
@@ -1416,9 +1367,7 @@ async def list_project_candidates(
 
 
 @router.get("/candidates/count")
-async def get_project_candidates_count(
-    current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
-):
+async def get_project_candidates_count(current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)):
     """Get count of pending opportunity candidates.
 
     Used for dashboard badge display.
@@ -1471,11 +1420,7 @@ async def accept_opportunity_candidate(
     if accept_data.link_to_existing and cand.get("matched_opportunity_id"):
         # Just update the existing opportunity's source_notes with this new info
         existing_opp = (
-            supabase.table("ai_projects")
-            .select("*")
-            .eq("id", cand["matched_opportunity_id"])
-            .single()
-            .execute()
+            supabase.table("ai_projects").select("*").eq("id", cand["matched_opportunity_id"]).single().execute()
         )
 
         if existing_opp.data:
@@ -1524,15 +1469,9 @@ async def accept_opportunity_candidate(
         "description": accept_data.description or cand.get("description"),
         "department": dept,
         "roi_potential": accept_data.roi_potential or cand.get("suggested_roi_potential") or 3,
-        "implementation_effort": accept_data.implementation_effort
-        or cand.get("suggested_effort")
-        or 3,
-        "strategic_alignment": accept_data.strategic_alignment
-        or cand.get("suggested_alignment")
-        or 3,
-        "stakeholder_readiness": accept_data.stakeholder_readiness
-        or cand.get("suggested_readiness")
-        or 3,
+        "implementation_effort": accept_data.implementation_effort or cand.get("suggested_effort") or 3,
+        "strategic_alignment": accept_data.strategic_alignment or cand.get("suggested_alignment") or 3,
+        "stakeholder_readiness": accept_data.stakeholder_readiness or cand.get("suggested_readiness") or 3,
         "status": "identified",
         "source_type": "meeting",
         "source_id": cand.get("source_document_id"),
@@ -1556,13 +1495,9 @@ async def accept_opportunity_candidate(
 
         # Generate justifications for the new opportunity
         try:
-            await generate_project_justifications(
-                opportunity_id=new_opp["id"], client_id=current_user["client_id"]
-            )
+            await generate_project_justifications(opportunity_id=new_opp["id"], client_id=current_user["client_id"])
             # Refetch to get updated justifications
-            updated = (
-                supabase.table("ai_projects").select("*").eq("id", new_opp["id"]).single().execute()
-            )
+            updated = supabase.table("ai_projects").select("*").eq("id", new_opp["id"]).single().execute()
             new_opp = updated.data
         except Exception as e:
             logger.warning(f"Failed to generate justifications for accepted candidate: {e}")
@@ -1680,9 +1615,7 @@ async def link_opportunity_candidate(
             linked_note += f'\nQuote: "{candidate_quote[:200]}..."'
         new_description = existing_desc + linked_note
 
-        supabase.table("ai_projects").update({"description": new_description}).eq(
-            "id", body.opportunity_id
-        ).execute()
+        supabase.table("ai_projects").update({"description": new_description}).eq("id", body.opportunity_id).execute()
 
     # Mark candidate as accepted with reference to the linked opportunity
     now = datetime.now(timezone.utc).isoformat()
@@ -1695,9 +1628,7 @@ async def link_opportunity_candidate(
         }
     ).eq("id", candidate_id).execute()
 
-    logger.info(
-        f"Opportunity candidate {candidate_id} linked to existing opportunity {body.opportunity_id}"
-    )
+    logger.info(f"Opportunity candidate {candidate_id} linked to existing opportunity {body.opportunity_id}")
 
     return {
         "success": True,

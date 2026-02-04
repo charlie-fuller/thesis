@@ -71,9 +71,7 @@ def test_chat_with_rag():
             if result["context_used"] > 0:
                 print("\n📚 Document Context Used:")
                 for j, chunk in enumerate(result["chunks"], 1):
-                    print(
-                        f"\n   Chunk {j} (Similarity: {chunk['similarity']:.4f} / {chunk['similarity'] * 100:.2f}%)"
-                    )
+                    print(f"\n   Chunk {j} (Similarity: {chunk['similarity']:.4f} / {chunk['similarity'] * 100:.2f}%)")
                     print(f"   Content preview: {chunk['content'][:100]}...")
 
             # Show assistant response

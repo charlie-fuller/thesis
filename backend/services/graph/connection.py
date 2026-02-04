@@ -20,14 +20,10 @@ from neo4j.exceptions import AuthError, ServiceUnavailable, SessionExpired
 logger = logging.getLogger(__name__)
 
 # Context-aware connection storage (safe across event loops)
-_neo4j_connection_var: ContextVar[Optional["Neo4jConnection"]] = ContextVar(
-    "_neo4j_connection", default=None
-)
+_neo4j_connection_var: ContextVar[Optional["Neo4jConnection"]] = ContextVar("_neo4j_connection", default=None)
 
 # Track which event loop owns the current connection
-_connection_loop_var: ContextVar[Optional[asyncio.AbstractEventLoop]] = ContextVar(
-    "_connection_loop", default=None
-)
+_connection_loop_var: ContextVar[Optional[asyncio.AbstractEventLoop]] = ContextVar("_connection_loop", default=None)
 
 
 class Neo4jConnection:
@@ -176,9 +172,7 @@ class Neo4jConnection:
                     return records
             except (ServiceUnavailable, SessionExpired) as e:
                 if attempt == 0:
-                    logger.warning(
-                        f"Connection error on write (attempt {attempt + 1}), reconnecting: {e}"
-                    )
+                    logger.warning(f"Connection error on write (attempt {attempt + 1}), reconnecting: {e}")
                     await self.close()
                     await self.connect()
                 else:
@@ -224,9 +218,7 @@ class Neo4jConnection:
                 await self.connect()
 
             # Get server info
-            result = await self.execute_query(
-                "CALL dbms.components() YIELD name, versions RETURN name, versions"
-            )
+            result = await self.execute_query("CALL dbms.components() YIELD name, versions RETURN name, versions")
 
             return {
                 "status": "healthy",
@@ -269,8 +261,7 @@ async def get_neo4j_connection() -> Neo4jConnection:
     # If connection exists but for a different loop, close it first
     if existing_connection is not None and connection_loop is not current_loop:
         logger.warning(
-            "Neo4j connection was created in a different event loop. "
-            "Creating new connection for current loop."
+            "Neo4j connection was created in a different event loop. Creating new connection for current loop."
         )
         try:
             # Can't close from different loop, just abandon it
@@ -288,9 +279,7 @@ async def get_neo4j_connection() -> Neo4jConnection:
     if not uri or not password:
         raise ValueError("NEO4J_URI and NEO4J_PASSWORD environment variables are required")
 
-    new_connection = Neo4jConnection(
-        uri=uri, password=password, username=username, database=database
-    )
+    new_connection = Neo4jConnection(uri=uri, password=password, username=username, database=database)
     await new_connection.connect()
 
     # Store connection and its loop

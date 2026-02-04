@@ -42,9 +42,7 @@ def _build_generation_prompt(project: dict) -> str:
     roi_indicators = project.get("roi_indicators") or {}
     roi_details = ""
     if roi_indicators:
-        roi_details = "\nROI Indicators: " + ", ".join(
-            f"{k}: {v}" for k, v in roi_indicators.items()
-        )
+        roi_details = "\nROI Indicators: " + ", ".join(f"{k}: {v}" for k, v in roi_indicators.items())
 
     return f"""Analyze this AI project and explain the scores.
 
@@ -149,9 +147,7 @@ async def generate_project_justifications(
     client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
     try:
-        response = client.messages.create(
-            model=MODEL, max_tokens=1024, messages=[{"role": "user", "content": prompt}]
-        )
+        response = client.messages.create(model=MODEL, max_tokens=1024, messages=[{"role": "user", "content": prompt}])
 
         response_text = response.content[0].text
         justifications = _parse_generation_response(response_text)
@@ -160,9 +156,7 @@ async def generate_project_justifications(
         supabase.table("ai_projects").update(justifications).eq("id", project_id).execute()
 
         # Re-fetch the project to get updated data for confidence calculation
-        updated_result = (
-            supabase.table("ai_projects").select("*").eq("id", project_id).single().execute()
-        )
+        updated_result = supabase.table("ai_projects").select("*").eq("id", project_id).single().execute()
         updated_project = updated_result.data
 
         # Calculate and save confidence score
@@ -174,9 +168,7 @@ async def generate_project_justifications(
             }
         ).eq("id", project_id).execute()
 
-        logger.info(
-            f"Generated justifications for project {project_id} (confidence: {confidence}%)"
-        )
+        logger.info(f"Generated justifications for project {project_id} (confidence: {confidence}%)")
 
         # Include confidence in return value
         justifications["scoring_confidence"] = confidence

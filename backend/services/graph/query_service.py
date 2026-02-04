@@ -35,9 +35,7 @@ class GraphQueryService:
     # Influence Network Queries
     # =========================================================================
 
-    async def get_influence_path(
-        self, from_id: str, to_id: str, max_depth: int = 5
-    ) -> dict[str, Any]:
+    async def get_influence_path(self, from_id: str, to_id: str, max_depth: int = 5) -> dict[str, Any]:
         """Find the influence path between two stakeholders.
 
         Args:
@@ -316,9 +314,7 @@ class GraphQueryService:
     # Concern Analysis Queries
     # =========================================================================
 
-    async def find_shared_concerns(
-        self, client_id: str, min_stakeholders: int = 2
-    ) -> list[dict[str, Any]]:
+    async def find_shared_concerns(self, client_id: str, min_stakeholders: int = 2) -> list[dict[str, Any]]:
         """Find concerns shared by multiple stakeholders.
 
         Args:
@@ -431,9 +427,7 @@ class GraphQueryService:
             return result[0]["meeting_network"]
         return {"meeting": None, "attendees": [], "attendee_count": 0}
 
-    async def find_concept_advocates(
-        self, concept_name: str, client_id: str
-    ) -> list[dict[str, Any]]:
+    async def find_concept_advocates(self, concept_name: str, client_id: str) -> list[dict[str, Any]]:
         """Find stakeholders who advocate for a concept based on meeting participation.
 
         Args:
@@ -571,9 +565,7 @@ class GraphQueryService:
     # Agent Coordination Queries
     # =========================================================================
 
-    async def get_agent_for_concepts(
-        self, concepts: list[str], limit: int = 1
-    ) -> list[dict[str, Any]]:
+    async def get_agent_for_concepts(self, concepts: list[str], limit: int = 1) -> list[dict[str, Any]]:
         """Find the best agent(s) to handle a question based on concepts.
 
         Uses the EXPERT_IN relationships to match agents to topics.
@@ -670,9 +662,7 @@ class GraphQueryService:
 
         return [r["pattern"] for r in result]
 
-    async def suggest_agent_for_question(
-        self, question: str, current_agent_id: Optional[str] = None
-    ) -> dict[str, Any]:
+    async def suggest_agent_for_question(self, question: str, current_agent_id: Optional[str] = None) -> dict[str, Any]:
         """Suggest the best agent to handle a question.
 
         Extracts keywords and matches against agent expertise.
@@ -846,9 +836,7 @@ class GraphQueryService:
     # Meeting Room Context Queries
     # =========================================================================
 
-    async def get_meeting_context(
-        self, query: str, client_id: str, limit: int = 5
-    ) -> dict[str, Any]:
+    async def get_meeting_context(self, query: str, client_id: str, limit: int = 5) -> dict[str, Any]:
         """Get relevant graph context for a meeting room discussion.
 
         Searches for:
@@ -1104,9 +1092,7 @@ class GraphQueryService:
 
         return [r["result"] for r in result]
 
-    async def get_stakeholder_document_network(
-        self, client_id: str, limit: int = 50
-    ) -> dict[str, Any]:
+    async def get_stakeholder_document_network(self, client_id: str, limit: int = 50) -> dict[str, Any]:
         """Get the full stakeholder-document network for visualization.
 
         Returns all stakeholders and their document relationships.
@@ -1265,12 +1251,8 @@ class GraphQueryService:
             stakeholder_lines = []
             for s in context["stakeholders"]:
                 sentiment = s.get("sentiment_score") or 0.5
-                sentiment_label = (
-                    "positive" if sentiment > 0.6 else "neutral" if sentiment > 0.4 else "cautious"
-                )
-                stakeholder_lines.append(
-                    f"- {s['name']} ({s.get('role', 'Unknown role')}) - {sentiment_label}"
-                )
+                sentiment_label = "positive" if sentiment > 0.6 else "neutral" if sentiment > 0.4 else "cautious"
+                stakeholder_lines.append(f"- {s['name']} ({s.get('role', 'Unknown role')}) - {sentiment_label}")
             sections.append("RELEVANT STAKEHOLDERS:\n" + "\n".join(stakeholder_lines))
 
         if context.get("concerns"):
@@ -1288,9 +1270,7 @@ class GraphQueryService:
                 value = o.get("estimated_value", "TBD")
                 status = o.get("status", "unknown")
                 blockers = ", ".join([b for b in (o.get("blockers") or []) if b][:3]) or "none"
-                roi_lines.append(
-                    f"- {o.get('name', 'Unnamed')}: ${value} ({status}) - blockers: {blockers}"
-                )
+                roi_lines.append(f"- {o.get('name', 'Unnamed')}: ${value} ({status}) - blockers: {blockers}")
             sections.append("ROI OPPORTUNITIES:\n" + "\n".join(roi_lines))
 
         if context.get("relationships"):

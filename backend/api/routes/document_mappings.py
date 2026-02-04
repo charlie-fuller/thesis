@@ -122,10 +122,7 @@ async def update_document_mappings(
 
         # Delete all existing mappings for this client
         await asyncio.to_thread(
-            lambda: supabase.table("system_instruction_document_mappings")
-            .delete()
-            .eq("client_id", client_id)
-            .execute()
+            lambda: supabase.table("system_instruction_document_mappings").delete().eq("client_id", client_id).execute()
         )
 
         # Insert new mappings
@@ -143,14 +140,10 @@ async def update_document_mappings(
 
         if new_mappings:
             await asyncio.to_thread(
-                lambda: supabase.table("system_instruction_document_mappings")
-                .insert(new_mappings)
-                .execute()
+                lambda: supabase.table("system_instruction_document_mappings").insert(new_mappings).execute()
             )
 
-        logger.info(
-            f"✅ Updated document mappings for client {client_id}: {len(new_mappings)} mappings"
-        )
+        logger.info(f"✅ Updated document mappings for client {client_id}: {len(new_mappings)} mappings")
 
         return {"success": True, "message": f"Updated {len(new_mappings)} document mappings"}
 
@@ -176,9 +169,7 @@ async def regenerate_instructions(client_id: str, current_user: dict = Depends(r
             lambda: supabase.table("interview_extractions")
             .select("id")
             .eq("client_id", client_id)
-            .in_(
-                "status", ["extraction_complete", "instructions_generated", "approved", "deployed"]
-            )
+            .in_("status", ["extraction_complete", "instructions_generated", "approved", "deployed"])
             .order("created_at", desc=True)
             .limit(1)
             .execute()
@@ -187,8 +178,7 @@ async def regenerate_instructions(client_id: str, current_user: dict = Depends(r
         if not extraction_result.data:
             raise HTTPException(
                 status_code=404,
-                detail="No completed extraction found for this client. "
-                "Complete an interview and extraction first.",
+                detail="No completed extraction found for this client. Complete an interview and extraction first.",
             )
 
         extraction_id = extraction_result.data[0]["id"]

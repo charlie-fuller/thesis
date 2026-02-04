@@ -102,17 +102,11 @@ If you don't know something, admit it and suggest where to find more information
             return ("scholar", "Query requires L&D expertise for program design")
 
         # Hand off to Facilitator for meeting-related questions
-        if any(
-            word in message_lower
-            for word in ["meeting room", "meeting strategy", "multi-agent discussion"]
-        ):
+        if any(word in message_lower for word in ["meeting room", "meeting strategy", "multi-agent discussion"]):
             return ("facilitator", "Query about meeting orchestration best practices")
 
         # Hand off to Architect for technical integration questions
-        if any(
-            word in message_lower
-            for word in ["api", "integration", "technical architecture", "embed"]
-        ):
+        if any(word in message_lower for word in ["api", "integration", "technical architecture", "embed"]):
             return ("architect", "Query requires technical architecture expertise")
 
         return None

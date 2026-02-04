@@ -90,9 +90,7 @@ async def get_graph_query_service():
         return GraphQueryService(connection)
     except Exception as e:
         logger.error(f"Failed to get graph query service: {e}")
-        raise HTTPException(
-            status_code=503, detail="Graph service unavailable. Check Neo4j connection."
-        ) from None
+        raise HTTPException(status_code=503, detail="Graph service unavailable. Check Neo4j connection.") from None
 
 
 async def get_graph_sync_service(current_user: dict = Depends(get_current_user)):
@@ -366,9 +364,7 @@ async def get_shared_concerns(
 ):
     """Find concerns shared by multiple stakeholders."""
     try:
-        concerns = await query_service.find_shared_concerns(
-            current_user["client_id"], min_stakeholders
-        )
+        concerns = await query_service.find_shared_concerns(current_user["client_id"], min_stakeholders)
         return {"shared_concerns": concerns}
     except Exception as e:
         logger.error(f"Failed to find shared concerns: {e}")
@@ -418,9 +414,7 @@ async def get_concept_advocates(
 ):
     """Find stakeholders who advocate for a concept."""
     try:
-        advocates = await query_service.find_concept_advocates(
-            concept_name, current_user["client_id"]
-        )
+        advocates = await query_service.find_concept_advocates(concept_name, current_user["client_id"])
         return {"concept": concept_name, "advocates": advocates}
     except Exception as e:
         logger.error(f"Failed to find concept advocates: {e}")
@@ -701,11 +695,7 @@ async def get_visualization_data(
                 nodes = nodes[:limit]
                 # Filter links to only include those between limited nodes
                 node_ids = {n["id"] for n in nodes}
-                links = [
-                    link
-                    for link in links
-                    if link["source"] in node_ids and link["target"] in node_ids
-                ]
+                links = [link for link in links if link["source"] in node_ids and link["target"] in node_ids]
 
             return {
                 "nodes": nodes,

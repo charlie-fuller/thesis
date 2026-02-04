@@ -126,9 +126,7 @@ async def generate_executive_summary(output_id: str, user_id: str) -> AsyncGener
         initiative_id = result["initiative_id"]
 
         original_length = len(original_content)
-        logger.info(
-            f"[EXEC-SUMMARY] Original content: {original_length} chars, agent: {original_agent_type}"
-        )
+        logger.info(f"[EXEC-SUMMARY] Original content: {original_length} chars, agent: {original_agent_type}")
 
         yield {"type": "status", "data": "Extracting decision-forcing elements..."}
 
@@ -175,9 +173,7 @@ Extract the 5 decision-forcing elements (Leverage Point, Feedback Loop, Decision
         summary_length = len(summary_response)
         extraction_ratio = round((summary_length / original_length) * 100, 1)
 
-        logger.info(
-            f"[EXEC-SUMMARY] Summary: {summary_length} chars ({extraction_ratio}% of original)"
-        )
+        logger.info(f"[EXEC-SUMMARY] Summary: {summary_length} chars ({extraction_ratio}% of original)")
 
         # Get next version number for executive summary outputs
         version_result = await _get_next_version(initiative_id, f"{original_agent_type}_executive")
@@ -205,9 +201,7 @@ Extract the 5 decision-forcing elements (Leverage Point, Feedback Loop, Decision
                 "extraction_type": "decision_forcing_elements",
             },
             "output_format": "executive",
-            "source_outputs": [
-                {"agent_type": original_agent_type, "version": original_version, "id": output_id}
-            ],
+            "source_outputs": [{"agent_type": original_agent_type, "version": original_version, "id": output_id}],
         }
 
         insert_result = supabase.table("disco_outputs").insert(output_data).execute()

@@ -65,9 +65,7 @@ class HybridSearchResult:
                 source_info += f" - Relevance: {chunk.get('similarity', 0):.2f}]"
                 kb_parts.append(f"{source_info}:\n{chunk['content']}")
 
-            sections.append(
-                "<knowledge_base_context>\n" + "\n\n".join(kb_parts) + "\n</knowledge_base_context>"
-            )
+            sections.append("<knowledge_base_context>\n" + "\n\n".join(kb_parts) + "\n</knowledge_base_context>")
 
         # Graph context
         graph_parts = []
@@ -76,12 +74,8 @@ class HybridSearchResult:
             stakeholder_lines = []
             for s in self.stakeholders[:5]:
                 sentiment = s.get("sentiment_score") or 0.5
-                sentiment_label = (
-                    "positive" if sentiment > 0.6 else "neutral" if sentiment > 0.4 else "cautious"
-                )
-                stakeholder_lines.append(
-                    f"- {s['name']} ({s.get('role', 'Unknown role')}) - {sentiment_label}"
-                )
+                sentiment_label = "positive" if sentiment > 0.6 else "neutral" if sentiment > 0.4 else "cautious"
+                stakeholder_lines.append(f"- {s['name']} ({s.get('role', 'Unknown role')}) - {sentiment_label}")
             graph_parts.append("RELEVANT STAKEHOLDERS:\n" + "\n".join(stakeholder_lines))
 
         if self.concerns:
@@ -99,9 +93,7 @@ class HybridSearchResult:
                 value = o.get("estimated_value", "TBD")
                 status = o.get("status", "unknown")
                 blockers = ", ".join([b for b in (o.get("blockers") or []) if b][:3]) or "none"
-                roi_lines.append(
-                    f"- {o.get('name', 'Unnamed')}: ${value} ({status}) - blockers: {blockers}"
-                )
+                roi_lines.append(f"- {o.get('name', 'Unnamed')}: ${value} ({status}) - blockers: {blockers}")
             graph_parts.append("ROI OPPORTUNITIES:\n" + "\n".join(roi_lines))
 
         if self.relationships:
@@ -251,9 +243,7 @@ async def hybrid_search(
             graph_service = GraphQueryService(neo4j)
 
             # Get graph context using the existing get_meeting_context method
-            graph_context = await graph_service.get_meeting_context(
-                query=query, client_id=client_id, limit=graph_limit
-            )
+            graph_context = await graph_service.get_meeting_context(query=query, client_id=client_id, limit=graph_limit)
 
             result.keywords_detected = graph_context.get("keywords_detected", [])
             result.stakeholders = graph_context.get("stakeholders", [])
@@ -316,9 +306,7 @@ async def get_hybrid_context_for_chat(
             {
                 "chunk_id": chunk.get("id", f"chunk_{i}"),
                 "document_id": chunk.get("document_id", ""),
-                "document_name": metadata.get(
-                    "filename", metadata.get("conversation_title", "Unknown")
-                ),
+                "document_name": metadata.get("filename", metadata.get("conversation_title", "Unknown")),
                 "relevance_score": chunk.get("similarity", 0),
                 "snippet": chunk.get("content", "")[:500],
                 "metadata": metadata,

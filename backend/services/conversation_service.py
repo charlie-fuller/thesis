@@ -147,10 +147,7 @@ class ConversationService:
                         image_type=result["image_type"], subject=result["subject"]
                     )
 
-                    logger.info(
-                        f"L&D image suggestion: {result['image_type']} "
-                        f"for '{result['subject'][:50]}...'"
-                    )
+                    logger.info(f"L&D image suggestion: {result['image_type']} for '{result['subject'][:50]}...'")
 
                     return {
                         "suggest": True,
@@ -163,9 +160,7 @@ class ConversationService:
             # Fallback to original logic if detector not available or didn't trigger
             # Check if we've suggested recently (avoid spam)
             recent_suggestion_count = sum(
-                1
-                for msg in recent_messages
-                if msg.get("metadata", {}).get("image_suggestion") is not None
+                1 for msg in recent_messages if msg.get("metadata", {}).get("image_suggestion") is not None
             )
 
             # Max 1 suggestion per 5 messages
@@ -179,8 +174,7 @@ class ConversationService:
 
             # Check for visual keywords
             has_visual_keyword = any(
-                keyword in user_lower or keyword in response_lower
-                for keyword in self.VISUAL_KEYWORDS
+                keyword in user_lower or keyword in response_lower for keyword in self.VISUAL_KEYWORDS
             )
 
             # Check for educational topics
@@ -377,9 +371,7 @@ class ConversationService:
         aspect_ratio = self._extract_aspect_ratio(user_message)
         model = self._extract_model_preference(user_message)
 
-        logger.info(
-            f"Image request detected (flexible): visual='{found_visual}', prompt='{cleaned_prompt[:50]}...'"
-        )
+        logger.info(f"Image request detected (flexible): visual='{found_visual}', prompt='{cleaned_prompt[:50]}...'")
 
         return {
             "is_request": True,

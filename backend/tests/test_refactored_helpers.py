@@ -7,8 +7,6 @@ they work correctly in isolation. These tests serve as regression tests.
 from datetime import date, timedelta
 from unittest.mock import MagicMock
 
-import pytest
-
 
 class TestTaskmasterHelpers:
     """Tests for taskmaster.py helper methods."""
@@ -314,23 +312,17 @@ class TestStakeholderExtractorHelpers:
 
     def test_normalize_field_valid(self):
         """Test normalizing a field with valid value."""
-        result = self.extractor._normalize_field(
-            "Positive", ("positive", "neutral", "negative"), "neutral"
-        )
+        result = self.extractor._normalize_field("Positive", ("positive", "neutral", "negative"), "neutral")
         assert result == "positive"
 
     def test_normalize_field_invalid(self):
         """Test normalizing a field with invalid value uses default."""
-        result = self.extractor._normalize_field(
-            "Unknown", ("positive", "neutral", "negative"), "neutral"
-        )
+        result = self.extractor._normalize_field("Unknown", ("positive", "neutral", "negative"), "neutral")
         assert result == "neutral"
 
     def test_normalize_field_none(self):
         """Test normalizing None returns None."""
-        result = self.extractor._normalize_field(
-            None, ("positive", "neutral", "negative"), "neutral"
-        )
+        result = self.extractor._normalize_field(None, ("positive", "neutral", "negative"), "neutral")
         assert result is None
 
     def test_ensure_list_with_list(self):

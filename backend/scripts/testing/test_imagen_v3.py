@@ -66,9 +66,7 @@ async def test_with_config():
                 model = genai.GenerativeModel(test["model"])
 
                 if test["config"]:
-                    response = model.generate_content(
-                        test["prompt"], generation_config=test["config"]
-                    )
+                    response = model.generate_content(test["prompt"], generation_config=test["config"])
                 else:
                     response = model.generate_content(test["prompt"])
 

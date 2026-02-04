@@ -69,12 +69,7 @@ for doc in docs_result.data:
     processed = doc.get("processed", False)
 
     # Check if this document has chunks with embeddings
-    chunks_result = (
-        supabase.table("document_chunks")
-        .select("id, embedding")
-        .eq("document_id", doc_id)
-        .execute()
-    )
+    chunks_result = supabase.table("document_chunks").select("id, embedding").eq("document_id", doc_id).execute()
 
     chunk_count = len(chunks_result.data)
     chunks_with_embeddings = sum(1 for c in chunks_result.data if c.get("embedding"))

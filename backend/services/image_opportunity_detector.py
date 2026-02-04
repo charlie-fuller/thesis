@@ -190,9 +190,7 @@ class ImageOpportunityDetector:
         try:
             # Check if we've suggested recently (throttle)
             recent_suggestion_count = sum(
-                1
-                for msg in recent_messages
-                if msg.get("metadata", {}).get("image_suggestion") is not None
+                1 for msg in recent_messages if msg.get("metadata", {}).get("image_suggestion") is not None
             )
 
             # Max 1 suggestion per 5 messages
@@ -235,8 +233,7 @@ class ImageOpportunityDetector:
             # Only suggest if confidence is high enough
             if confidence >= 0.35:
                 logger.info(
-                    f"Image opportunity detected: {image_type} for '{subject[:50]}...' "
-                    f"(confidence: {confidence:.2f})"
+                    f"Image opportunity detected: {image_type} for '{subject[:50]}...' (confidence: {confidence:.2f})"
                 )
 
                 return {

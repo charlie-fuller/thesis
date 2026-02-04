@@ -238,35 +238,50 @@ run_integration_tests() {
 
     cd "$BACKEND_DIR"
 
-    INTEGRATION_TESTS=(
-        "tests/test_obsidian_sync.py"
-        "tests/test_integration.py"
-    )
+    local RESULT=0
 
-    # Check if tests exist before running
-    EXISTING_TESTS=()
-    for test in "${INTEGRATION_TESTS[@]}"; do
-        if [ -f "$test" ]; then
-            EXISTING_TESTS+=("$test")
-        fi
-    done
-
-    if [ ${#EXISTING_TESTS[@]} -eq 0 ]; then
-        echo -e "${YELLOW}  No integration tests found${NC}"
-        return 0
+    # Run obsidian_sync tests (uses mocks)
+    if [ -f "tests/test_obsidian_sync.py" ]; then
+        echo ""
+        echo "Running Obsidian Sync tests..."
+        $PYTHON_CMD -m pytest tests/test_obsidian_sync.py \
+            -v \
+            --tb=short \
+            --timeout=120 \
+            2>&1 | tee /tmp/thesis_obsidian_test_results.txt
+        [ ${PIPESTATUS[0]} -ne 0 ] && RESULT=1
     fi
 
-    # Use --forked to isolate integration tests from mock pollution
-    # This ensures each test runs in a fresh process with clean module state
-    $PYTHON_CMD -m pytest "${EXISTING_TESTS[@]}" \
-        -v \
-        --tb=short \
-        --timeout=120 \
-        --forked \
-        2>&1 | tee /tmp/thesis_integration_test_results.txt
+    # Run real integration tests in SEPARATE pytest session to avoid mock pollution
+    # This is critical - test_integration.py needs fresh module state and env vars
+    if [ -f "tests/test_integration.py" ]; then
+        echo ""
+        echo "Running Real Integration tests (separate session)..."
 
-    INTEGRATION_RESULT=${PIPESTATUS[0]}
+        # Reload real environment variables to override any test mocks
+        # This ensures integration tests use real credentials
+        if [ -n "$DOTENV_KEY" ] && command -v dotenvx &> /dev/null; then
+            DOTENV_PRIVATE_KEY="$DOTENV_KEY" dotenvx run -f .env -- \
+                $PYTHON_CMD -m pytest tests/test_integration.py \
+                -v \
+                --tb=short \
+                --timeout=120 \
+                2>&1 | tee /tmp/thesis_integration_test_results.txt
+        else
+            # Re-source .env to ensure fresh values
+            set -a
+            source .env 2>/dev/null || true
+            set +a
+            $PYTHON_CMD -m pytest tests/test_integration.py \
+                -v \
+                --tb=short \
+                --timeout=120 \
+                2>&1 | tee /tmp/thesis_integration_test_results.txt
+        fi
+        [ ${PIPESTATUS[0]} -ne 0 ] && RESULT=1
+    fi
 
+    INTEGRATION_RESULT=$RESULT
     return $INTEGRATION_RESULT
 }
 
@@ -279,10 +294,12 @@ run_extended_tests() {
 
     cd "$BACKEND_DIR"
 
-    # Run all tests except E2E
+    # Run all tests except E2E and integration (integration runs separately)
     $PYTHON_CMD -m pytest tests/ \
         --ignore=tests/e2e/ \
         --ignore=tests/e2e_browser_tests.py \
+        --ignore=tests/test_integration.py \
+        --ignore=tests/test_obsidian_sync.py \
         -v \
         --tb=short \
         --timeout=120 \

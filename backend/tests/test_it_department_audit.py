@@ -44,9 +44,7 @@ class TestThirdPartyDataExposure:
 
         for flow in data_flows:
             for field in required_documentation:
-                assert (
-                    field in flow
-                ), f"Data flow to {flow.get('service_name', 'unknown')} missing {field}"
+                assert field in flow, f"Data flow to {flow.get('service_name', 'unknown')} missing {field}"
 
     def test_anthropic_data_handling(self):
         """Verify Anthropic data handling meets requirements."""
@@ -79,9 +77,7 @@ class TestThirdPartyDataExposure:
         sensitive_fields = ["ssn", "credit_card", "password", "api_key"]
 
         for field in sensitive_fields:
-            assert (
-                field not in str(sample_request).lower()
-            ), f"Sensitive field {field} should not be sent to AI"
+            assert field not in str(sample_request).lower(), f"Sensitive field {field} should not be sent to AI"
 
     def test_customer_data_anonymization(self):
         """Customer data should be anonymizable for AI processing."""
@@ -159,9 +155,7 @@ class TestAuthenticationSSO:
         sso_options = ["saml", "oidc", "oauth2", "azure_ad", "okta"]
         has_sso = any(opt in auth_config.get("supported_methods", []) for opt in sso_options)
 
-        assert has_sso or auth_config.get(
-            "sso_roadmap"
-        ), "SSO integration should be available or on roadmap"
+        assert has_sso or auth_config.get("sso_roadmap"), "SSO integration should be available or on roadmap"
 
     def test_mfa_supported(self):
         """Multi-factor authentication is supported."""
@@ -365,9 +359,7 @@ class TestVendorLockIn:
         """AI provider can be switched."""
         ai_config = self._get_ai_abstraction_config()
 
-        assert (
-            ai_config.get("abstraction_layer") is True
-        ), "AI provider should be behind abstraction layer"
+        assert ai_config.get("abstraction_layer") is True, "AI provider should be behind abstraction layer"
 
         supported_providers = ai_config.get("supported_providers", [])
         assert len(supported_providers) >= 1, "Should support alternative AI providers"
@@ -376,18 +368,14 @@ class TestVendorLockIn:
         """Database can be migrated to another provider."""
         db_config = self._get_database_config()
 
-        assert (
-            db_config.get("standard_postgres") is True
-        ), "Should use standard PostgreSQL for portability"
+        assert db_config.get("standard_postgres") is True, "Should use standard PostgreSQL for portability"
 
     def test_no_proprietary_formats(self):
         """Data is not stored in proprietary formats."""
         storage_config = self._get_storage_format_config()
 
         for data_type, format_info in storage_config.items():
-            assert (
-                format_info.get("standard_format") is True
-            ), f"{data_type} should use standard format"
+            assert format_info.get("standard_format") is True, f"{data_type} should use standard format"
 
     # Helper methods
     def _get_export_config(self) -> dict:

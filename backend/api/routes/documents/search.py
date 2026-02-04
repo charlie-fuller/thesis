@@ -77,10 +77,7 @@ async def get_all_tags(
         user_id = current_user["id"]
 
         docs_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("tags_cache")
-            .eq("uploaded_by", user_id)
-            .execute()
+            lambda: supabase.table("documents").select("tags_cache").eq("uploaded_by", user_id).execute()
         )
 
         if not docs_result.data:
@@ -96,8 +93,7 @@ async def get_all_tags(
                 tag_counts[tag] += 1
 
         logger.info(
-            f"Found {sum(tag_counts.values())} tag entries for user {user_id} "
-            f"across {len(docs_result.data)} documents"
+            f"Found {sum(tag_counts.values())} tag entries for user {user_id} across {len(docs_result.data)} documents"
         )
 
         sorted_tags = sorted(tag_counts.items(), key=lambda x: x[0].lower())
@@ -324,10 +320,7 @@ async def bulk_tag_operation(
 
         # Batch fetch all documents in one query
         docs_result = await asyncio.to_thread(
-            lambda: supabase.table("documents")
-            .select("id, uploaded_by")
-            .in_("id", valid_doc_ids)
-            .execute()
+            lambda: supabase.table("documents").select("id, uploaded_by").in_("id", valid_doc_ids).execute()
         )
 
         docs_by_id = {d["id"]: d for d in (docs_result.data or [])}
@@ -360,9 +353,7 @@ async def bulk_tag_operation(
                 )
 
                 # Track existing document-tag pairs
-                existing_pairs = {
-                    (r["document_id"], r["tag"]) for r in (existing_result.data or [])
-                }
+                existing_pairs = {(r["document_id"], r["tag"]) for r in (existing_result.data or [])}
 
                 # Build list of new tags to insert
                 new_tags = []
@@ -379,9 +370,7 @@ async def bulk_tag_operation(
 
                 # Batch insert new tags
                 if new_tags:
-                    await asyncio.to_thread(
-                        lambda: supabase.table("document_tags").insert(new_tags).execute()
-                    )
+                    await asyncio.to_thread(lambda: supabase.table("document_tags").insert(new_tags).execute())
 
             else:  # remove operation
                 # Batch delete tags - need to do this per tag since we can't combine
@@ -444,8 +433,7 @@ async def search_documents(
         query = (
             supabase.table("documents")
             .select(
-                "id, filename, title, obsidian_file_path, uploaded_at, "
-                "source_platform, tags_cache",
+                "id, filename, title, obsidian_file_path, uploaded_at, source_platform, tags_cache",
                 count="exact",
             )
             .eq("uploaded_by", user_id)
@@ -514,10 +502,7 @@ async def get_documents_by_folder(
 
         result = await asyncio.to_thread(
             lambda: supabase.table("documents")
-            .select(
-                "id, filename, title, obsidian_file_path, source_platform, "
-                "uploaded_at, storage_url"
-            )
+            .select("id, filename, title, obsidian_file_path, source_platform, uploaded_at, storage_url")
             .eq("source_platform", "obsidian")
             .eq("uploaded_by", current_user["id"])
             .ilike("obsidian_file_path", f"{folder_path}%")

@@ -15,12 +15,7 @@ print("=" * 80)
 
 # Get all document chunks
 print("\n📊 Fetching document chunks...")
-result = (
-    supabase.table("document_chunks")
-    .select("id, document_id, content, source_type")
-    .limit(10)
-    .execute()
-)
+result = supabase.table("document_chunks").select("id, document_id, content, source_type").limit(10).execute()
 
 if not result.data:
     print("❌ No document chunks found in knowledge base")
@@ -40,9 +35,7 @@ for idx, chunk in enumerate(result.data, 1):
     # Check if content is text or binary
     try:
         # Check for printable characters
-        printable_ratio = (
-            sum(c.isprintable() or c.isspace() for c in content) / len(content) if content else 0
-        )
+        printable_ratio = sum(c.isprintable() or c.isspace() for c in content) / len(content) if content else 0
         print(f"Printable ratio: {printable_ratio:.2%}")
 
         # Show first 200 characters
