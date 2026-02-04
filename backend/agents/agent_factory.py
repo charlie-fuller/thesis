@@ -32,6 +32,9 @@ from .echo import EchoAgent
 from .facilitator import FacilitatorAgent
 from .glean_evaluator import GleanEvaluatorAgent
 from .guardian import GuardianAgent
+
+# Context-Specific Agents
+from .initiative_agent import InitiativeAgent
 from .manual import ManualAgent
 
 # Systems Thinking Agent
@@ -39,6 +42,7 @@ from .nexus import NexusAgent
 from .operator import OperatorAgent
 from .oracle import OracleAgent
 from .pioneer import PioneerAgent
+from .project_agent import ProjectAgent
 from .reporter import ReporterAgent
 from .sage import SageAgent
 from .scholar import ScholarAgent
@@ -99,6 +103,9 @@ async def create_coordinator(
             "compass": CompassAgent(supabase, anthropic_client),
             # Personal Productivity Agent
             "taskmaster": TaskmasterAgent(supabase, anthropic_client),
+            # Context-Specific Agents
+            "project_agent": ProjectAgent(supabase, anthropic_client),
+            "initiative_agent": InitiativeAgent(supabase, anthropic_client),
         }
 
         # Initialize all specialists
@@ -155,6 +162,9 @@ async def create_specialist(
         # Meta-Agents
         "facilitator": FacilitatorAgent,
         "reporter": ReporterAgent,
+        # Context-Specific Agents
+        "project_agent": ProjectAgent,
+        "initiative_agent": InitiativeAgent,
     }
 
     agent_class = agent_classes.get(name.lower())

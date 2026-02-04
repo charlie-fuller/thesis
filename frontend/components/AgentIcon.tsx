@@ -21,6 +21,8 @@ import {
   Compass,
   BookOpen,
   ListChecks,
+  PieChart,
+  CircleDot,
 } from 'lucide-react';
 
 const AGENT_ICONS: Record<string, React.ElementType> = {
@@ -53,6 +55,9 @@ const AGENT_ICONS: Record<string, React.ElementType> = {
   taskmaster: ListChecks, // Task Accountability
   // Coordinator
   coordinator: Workflow,  // Central Orchestrator
+  // Context-Specific Agents
+  project_agent: PieChart,    // Part/slice of initiative
+  initiative_agent: CircleDot, // Whole/complete target
 };
 
 interface AgentIconProps {
@@ -101,6 +106,9 @@ export const AGENT_COLORS: Record<string, string> = {
   taskmaster: 'bg-orange-600/20 text-orange-400 border-orange-600/30',
   // Coordinator
   coordinator: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
+  // Context-Specific Agents
+  project_agent: 'bg-blue-600/20 text-blue-400 border-blue-600/30',
+  initiative_agent: 'bg-purple-600/20 text-purple-400 border-purple-600/30',
 };
 
 export function getAgentColor(name: string): string {
@@ -137,6 +145,9 @@ export const AGENT_AVATAR_COLORS: Record<string, { bg: string; text: string }> =
   compass: { bg: 'bg-amber-600', text: 'text-amber-700' },
   // Personal Productivity Agent
   taskmaster: { bg: 'bg-orange-600', text: 'text-orange-700' },
+  // Context-Specific Agents
+  project_agent: { bg: 'bg-blue-600', text: 'text-blue-700' },
+  initiative_agent: { bg: 'bg-purple-600', text: 'text-purple-700' },
 };
 
 export function getAgentAvatarColor(name: string): { bg: string; text: string } {

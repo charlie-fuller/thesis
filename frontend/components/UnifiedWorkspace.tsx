@@ -12,17 +12,31 @@ interface UnifiedWorkspaceProps {
   userId: string
   conversationId?: string
   tabSwitcher?: React.ReactNode  // Optional tab switcher to display in the header area
+  projectId?: string  // Optional project context filter
+  initiativeId?: string  // Optional initiative context filter
 }
 
 export default function UnifiedWorkspace({
   clientId,
   userId,
   conversationId,
-  tabSwitcher
+  tabSwitcher,
+  projectId,
+  initiativeId
 }: UnifiedWorkspaceProps) {
   useAuth()  // Auth context is used for component initialization
 
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0)
+
+  // Track context filter state (can be changed via sidebar dropdowns)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId ?? null)
+  const [selectedInitiativeId, setSelectedInitiativeId] = useState<string | null>(initiativeId ?? null)
+
+  // Sync with URL params when they change
+  useEffect(() => {
+    setSelectedProjectId(projectId ?? null)
+    setSelectedInitiativeId(initiativeId ?? null)
+  }, [projectId, initiativeId])
 
   // Panel visibility state - left panel visible by default, right panel hidden by default
   const [showLeftPanel, setShowLeftPanel] = useState(true)
@@ -81,6 +95,10 @@ export default function UnifiedWorkspace({
               currentConversationId={conversationId}
               refreshTrigger={sidebarRefreshTrigger}
               className="h-full"
+              projectId={selectedProjectId}
+              initiativeId={selectedInitiativeId}
+              onProjectChange={setSelectedProjectId}
+              onInitiativeChange={setSelectedInitiativeId}
             />
           </div>
         )}
@@ -101,6 +119,8 @@ export default function UnifiedWorkspace({
               userId={userId}
               conversationId={conversationId}
               onConversationCreated={handleConversationCreated}
+              projectId={selectedProjectId ?? undefined}
+              initiativeId={selectedInitiativeId ?? undefined}
             />
           </div>
         </div>

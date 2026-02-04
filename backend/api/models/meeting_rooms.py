@@ -18,6 +18,8 @@ class MeetingRoomCreateRequest(BaseModel):
     meeting_type: Literal["collaboration", "meeting_prep"] = "collaboration"
     participant_agent_ids: list[str] = Field(min_length=2)  # At least 2 agents required
     config: Optional[dict] = None
+    project_id: Optional[str] = None  # Link to project context
+    initiative_id: Optional[str] = None  # Link to initiative context
 
     @field_validator("title")
     @classmethod

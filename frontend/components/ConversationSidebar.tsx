@@ -21,6 +21,19 @@ interface Conversation {
   added_to_kb_at?: string | null
   archived?: boolean
   archived_at?: string | null
+  project_id?: string | null
+  initiative_id?: string | null
+}
+
+interface Project {
+  id: string
+  title: string
+  project_code?: string
+}
+
+interface Initiative {
+  id: string
+  name: string
 }
 
 interface ConversationSidebarProps {
@@ -30,6 +43,11 @@ interface ConversationSidebarProps {
   apiBaseUrl?: string
   className?: string
   refreshTrigger?: number
+  // Context filter props
+  projectId?: string | null  // Filter by project (from URL or selection)
+  initiativeId?: string | null  // Filter by initiative (from URL or selection)
+  onProjectChange?: (projectId: string | null) => void
+  onInitiativeChange?: (initiativeId: string | null) => void
 }
 
 export default function ConversationSidebar({
@@ -38,7 +56,11 @@ export default function ConversationSidebar({
   currentConversationId,
   apiBaseUrl: _apiBaseUrl = API_BASE_URL,
   className = '',
-  refreshTrigger
+  refreshTrigger,
+  projectId: externalProjectId,
+  initiativeId: externalInitiativeId,
+  onProjectChange,
+  onInitiativeChange,
 }: ConversationSidebarProps) {
   const router = useRouter()
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -52,6 +74,42 @@ export default function ConversationSidebar({
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearchQuery] = useDebounce(searchQuery, 500) // 500ms delay
   const [isSearching, setIsSearching] = useState(false)
+
+  // Context filter state
+  const [projects, setProjects] = useState<Project[]>([])
+  const [initiatives, setInitiatives] = useState<Initiative[]>([])
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(externalProjectId || null)
+  const [selectedInitiativeId, setSelectedInitiativeId] = useState<string | null>(externalInitiativeId || null)
+  const [loadingFilters, setLoadingFilters] = useState(true)
+
+  // Sync external props with internal state
+  useEffect(() => {
+    setSelectedProjectId(externalProjectId || null)
+  }, [externalProjectId])
+
+  useEffect(() => {
+    setSelectedInitiativeId(externalInitiativeId || null)
+  }, [externalInitiativeId])
+
+  // Load projects and initiatives for dropdowns
+  useEffect(() => {
+    async function loadFilterOptions() {
+      try {
+        setLoadingFilters(true)
+        const [projectsRes, initiativesRes] = await Promise.all([
+          apiGet<{ projects: Project[] }>('/api/projects?limit=100'),
+          apiGet<{ initiatives: Initiative[] }>('/api/disco/initiatives?limit=100'),
+        ])
+        setProjects(projectsRes.projects || [])
+        setInitiatives(initiativesRes.initiatives || [])
+      } catch (err) {
+        logger.error('Error loading filter options:', err)
+      } finally {
+        setLoadingFilters(false)
+      }
+    }
+    loadFilterOptions()
+  }, [])
 
   // Modal state
   const [confirmModal, setConfirmModal] = useState<{
@@ -69,7 +127,7 @@ export default function ConversationSidebar({
   useEffect(() => {
     loadConversations()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadConversations is stable
-  }, [clientId, showArchived, debouncedSearchQuery, refreshTrigger])
+  }, [clientId, showArchived, debouncedSearchQuery, refreshTrigger, selectedProjectId, selectedInitiativeId])
 
   async function loadConversations() {
     // Skip loading if no clientId (shouldn't happen in normal use)
@@ -84,13 +142,21 @@ export default function ConversationSidebar({
 
       let data: { success: boolean; conversations: Conversation[] }
 
+      // Build query params for context filtering
+      const params = new URLSearchParams()
+      if (selectedProjectId) params.append('project_id', selectedProjectId)
+      if (selectedInitiativeId) params.append('initiative_id', selectedInitiativeId)
+      params.append('include_archived', showArchived ? 'true' : 'false')
+
       if (debouncedSearchQuery) {
         // Use search endpoint when there's a query (debounced to avoid excessive API calls)
-        data = await apiGet<{ success: boolean; conversations: Conversation[] }>(`/api/conversations/search?query=${encodeURIComponent(debouncedSearchQuery)}&include_archived=${showArchived}&limit=50`)
+        params.append('query', debouncedSearchQuery)
+        params.append('limit', '50')
+        data = await apiGet<{ success: boolean; conversations: Conversation[] }>(`/api/conversations/search?${params.toString()}`)
       } else {
         // Use regular endpoint for listing conversations
-        const archivedParam = showArchived ? 'archived_only=true' : 'include_archived=false'
-        data = await apiGet<{ success: boolean; conversations: Conversation[] }>(`/api/clients/${clientId}/conversations?${archivedParam}`)
+        params.append('client_id', clientId)
+        data = await apiGet<{ success: boolean; conversations: Conversation[] }>(`/api/conversations?${params.toString()}`)
       }
 
       if (data.success && data.conversations) {
@@ -108,8 +174,12 @@ export default function ConversationSidebar({
   }
 
   function handleNewConversation() {
-    // Use timestamp to force component remount even if already on /chat
-    router.push(`/chat?t=${Date.now()}`)
+    // Build URL with context params if filters are set
+    const params = new URLSearchParams()
+    params.append('t', Date.now().toString())
+    if (selectedProjectId) params.append('project_id', selectedProjectId)
+    if (selectedInitiativeId) params.append('initiative_id', selectedInitiativeId)
+    router.push(`/chat?${params.toString()}`)
   }
 
   function handleSelectConversation(conversationId: string) {
@@ -311,6 +381,53 @@ async function toggleKnowledgeBase(conversationId: string, currentStatus: boolea
           </button>
         </div>
 
+        {/* Context Filters */}
+        <div className="px-4 pb-2 space-y-2">
+          {/* Project Filter */}
+          <div>
+            <label className="text-xs text-muted block mb-1">Project:</label>
+            <select
+              value={selectedProjectId || ''}
+              onChange={(e) => {
+                const value = e.target.value || null
+                setSelectedProjectId(value)
+                onProjectChange?.(value)
+              }}
+              className="input-field w-full text-sm py-1.5"
+              disabled={loadingFilters}
+            >
+              <option value="">None</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.project_code ? `${project.project_code}: ` : ''}{project.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Initiative Filter */}
+          <div>
+            <label className="text-xs text-muted block mb-1">Initiative:</label>
+            <select
+              value={selectedInitiativeId || ''}
+              onChange={(e) => {
+                const value = e.target.value || null
+                setSelectedInitiativeId(value)
+                onInitiativeChange?.(value)
+              }}
+              className="input-field w-full text-sm py-1.5"
+              disabled={loadingFilters}
+            >
+              <option value="">None</option>
+              {initiatives.map((initiative) => (
+                <option key={initiative.id} value={initiative.id}>
+                  {initiative.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {/* Search Input */}
         <div className="px-4 pb-2">
           <div className="relative">
@@ -405,6 +522,23 @@ async function toggleKnowledgeBase(conversationId: string, currentStatus: boolea
                         <div className="font-medium text-sm flex-1 min-w-0">
                           {conv.title}
                         </div>
+                        {/* Context badge - show project or initiative name */}
+                        {conv.project_id && !selectedProjectId && (
+                          <span
+                            className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded flex-shrink-0 truncate max-w-[80px]"
+                            title={`Project: ${projects.find(p => p.id === conv.project_id)?.title || 'Unknown'}`}
+                          >
+                            {projects.find(p => p.id === conv.project_id)?.project_code || 'Proj'}
+                          </span>
+                        )}
+                        {conv.initiative_id && !selectedInitiativeId && (
+                          <span
+                            className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded flex-shrink-0 truncate max-w-[80px]"
+                            title={`Initiative: ${initiatives.find(i => i.id === conv.initiative_id)?.name || 'Unknown'}`}
+                          >
+                            Init
+                          </span>
+                        )}
                         {/* KB status indicator */}
                         {conv.in_knowledge_base && (
                           <span
@@ -420,7 +554,7 @@ async function toggleKnowledgeBase(conversationId: string, currentStatus: boolea
                             className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded flex-shrink-0"
                             title="Archived"
                           >
-                            📦
+                            Archived
                           </span>
                         )}
                       </div>

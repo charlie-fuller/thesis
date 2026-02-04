@@ -36,7 +36,12 @@ type TabType = 'chat' | 'meetings'
 // MEETING ROOMS TAB CONTENT
 // ============================================================================
 
-function MeetingRoomsContent() {
+interface MeetingRoomsContentProps {
+  projectId?: string
+  initiativeId?: string
+}
+
+function MeetingRoomsContent({ projectId, initiativeId }: MeetingRoomsContentProps) {
   const router = useRouter()
   const [meetings, setMeetings] = useState<MeetingRoom[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,12 +49,19 @@ function MeetingRoomsContent() {
 
   useEffect(() => {
     loadMeetings()
-  }, [])
+  }, [projectId, initiativeId])
 
   const loadMeetings = async () => {
     try {
       setLoading(true)
-      const response = await authenticatedFetch('/api/meeting-rooms')
+      // Build query params for context filtering
+      const params = new URLSearchParams()
+      if (projectId) params.set('project_id', projectId)
+      if (initiativeId) params.set('initiative_id', initiativeId)
+      const queryString = params.toString()
+      const url = queryString ? `/api/meeting-rooms?${queryString}` : '/api/meeting-rooms'
+
+      const response = await authenticatedFetch(url)
       const data = await response.json()
 
       if (data.success) {
@@ -70,9 +82,15 @@ function MeetingRoomsContent() {
     participant_agent_ids: string[]
   }) => {
     try {
+      // Include context in meeting creation
+      const createData = {
+        ...meetingData,
+        project_id: projectId,
+        initiative_id: initiativeId
+      }
       const response = await authenticatedFetch('/api/meeting-rooms', {
         method: 'POST',
-        body: JSON.stringify(meetingData)
+        body: JSON.stringify(createData)
       })
 
       const data = await response.json()
@@ -270,6 +288,8 @@ function ChatPageContent() {
   const searchParams = useSearchParams()
   const conversationId = searchParams.get('id') || undefined
   const tabParam = searchParams.get('tab')
+  const projectId = searchParams.get('project_id') || undefined
+  const initiativeId = searchParams.get('initiative_id') || undefined
   const [activeTab, setActiveTab] = useState<TabType>(tabParam === 'meetings' ? 'meetings' : 'chat')
   // Use a separate variable for styling comparisons to avoid TypeScript narrowing issues
   const currentTab: TabType = activeTab
@@ -415,6 +435,8 @@ function ChatPageContent() {
           clientId={profile.client_id}
           userId={user!.id}
           conversationId={conversationId}
+          projectId={projectId}
+          initiativeId={initiativeId}
           tabSwitcher={
             <div className="flex justify-center">
               <div className="flex gap-1 bg-hover rounded-lg p-1 w-full max-w-md border border-border">
@@ -474,7 +496,7 @@ function ChatPageContent() {
             </div>
           </div>
 
-          <MeetingRoomsContent />
+          <MeetingRoomsContent projectId={projectId} initiativeId={initiativeId} />
         </div>
       )}
     </>

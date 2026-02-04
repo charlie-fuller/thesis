@@ -47,6 +47,7 @@ It's like being able to tap someone on the shoulder mid-conversation. The agent 
 - `@catalyst`, `@scholar`, `@echo`, `@compass`
 - `@nexus`, `@facilitator`, `@reporter`
 - `@glean` (for Glean Evaluator)
+- `@project_agent`, `@initiative_agent` (for context-specific discussions)
 
 ---
 
@@ -67,6 +68,36 @@ Your conversations persist. Come back tomorrow and pick up where you left off.
 The sidebar shows your recent conversations. Titles are auto-generated from your first message.
 
 **Pro tip:** Start a new conversation for different topics. It helps both you and the agents maintain context.
+
+---
+
+## Project and Initiative Context
+
+The chat interface supports context-aware conversations tied to specific projects or initiatives.
+
+**Filter by Context:**
+At the top of the left sidebar, you'll see two dropdowns:
+- **Project** - Filter conversations by project
+- **Initiative** - Filter conversations by DISCO initiative
+
+When you select a context:
+- The conversation list filters to show only conversations for that project/initiative
+- New conversations automatically associate with the selected context
+- Conversations show a colored badge indicating their context (blue for projects, purple for initiatives)
+
+**Context-Aware Agents:**
+When you start a conversation with project or initiative context, the system auto-selects specialized agents:
+- **Project Agent** - Understands project structure, scores, linked documents, and lifecycle
+- **Initiative Agent** - Knows DISCO workflow, agent outputs, and discovery methodology
+
+**URL Navigation:**
+You can navigate directly to context-filtered chat:
+- `/chat?project_id=xxx` - Opens chat with project context and Project Agent selected
+- `/chat?initiative_id=xxx` - Opens chat with initiative context and Initiative Agent selected
+
+**From Projects and Initiatives:**
+- In a project modal, click the **Chat** button in the header to start a conversation with that project's context
+- On an initiative page, click the **Chat** button in the header to chat with full initiative context
 
 ---
 

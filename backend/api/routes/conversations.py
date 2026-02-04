@@ -34,6 +34,8 @@ class ConversationCreateRequest(BaseModel):
     title: str = "New Conversation"
     client_id: Optional[str] = None
     agent_id: Optional[str] = None  # Link to specific agent for agent-focused chat
+    project_id: Optional[str] = None  # Link to specific project for context-aware chat
+    initiative_id: Optional[str] = None  # Link to specific initiative for context-aware chat
 
 
 class ConversationUpdateRequest(BaseModel):
@@ -74,6 +76,14 @@ async def create_conversation(
         # Only include agent_id if provided (NULL means auto/coordinator mode)
         if request.agent_id:
             conversation_data["agent_id"] = request.agent_id
+        # Include project_id if provided (for project-scoped conversations)
+        if request.project_id:
+            validate_uuid(request.project_id, "project_id")
+            conversation_data["project_id"] = request.project_id
+        # Include initiative_id if provided (for initiative-scoped conversations)
+        if request.initiative_id:
+            validate_uuid(request.initiative_id, "initiative_id")
+            conversation_data["initiative_id"] = request.initiative_id
 
         # Create conversation in database
         result = await asyncio.to_thread(
@@ -90,6 +100,8 @@ async def create_conversation(
             "user_id": conversation["user_id"],
             "title": conversation["title"],
             "agent_id": conversation.get("agent_id"),
+            "project_id": conversation.get("project_id"),
+            "initiative_id": conversation.get("initiative_id"),
             "created_at": conversation["created_at"],
         }
 
@@ -342,11 +354,17 @@ Message: {request.message[:500]}""",
 async def list_conversations(
     user_id: Optional[str] = None,
     client_id: Optional[str] = None,
+    project_id: Optional[str] = None,
+    initiative_id: Optional[str] = None,
+    include_archived: bool = False,
     limit: int = 100,
     offset: int = 0,
     current_user: dict = Depends(get_current_user),
 ):
-    """List conversations - all for admins, user-specific for regular users."""
+    """List conversations - all for admins, user-specific for regular users.
+
+    Supports filtering by project_id and/or initiative_id for context-scoped views.
+    """
     try:
         # Admins can see all conversations, regular users only see their own
         is_admin = current_user.get("role") == "admin"
@@ -366,6 +384,20 @@ async def list_conversations(
 
         if client_id:
             query = query.eq("client_id", client_id)
+
+        # Filter by project_id if provided
+        if project_id:
+            validate_uuid(project_id, "project_id")
+            query = query.eq("project_id", project_id)
+
+        # Filter by initiative_id if provided
+        if initiative_id:
+            validate_uuid(initiative_id, "initiative_id")
+            query = query.eq("initiative_id", initiative_id)
+
+        # Exclude archived by default
+        if not include_archived:
+            query = query.or_("archived.is.null,archived.eq.false")
 
         # Apply ordering and pagination
         query = query.order("updated_at", desc=True).range(offset, offset + limit - 1)

@@ -44,6 +44,9 @@ interface ChatInterfaceProps {
   lockedAgentId?: string  // Lock to specific agent name (hides selector)
   lockedAgentDisplayName?: string  // Display name for locked agent
   agentIdForConversation?: string  // UUID of agent (for conversation creation)
+  // Context-aware chat props
+  projectId?: string  // Project context for conversation
+  initiativeId?: string  // Initiative context for conversation
 }
 
 export default function ChatInterface({
@@ -58,7 +61,9 @@ export default function ChatInterface({
   onConversationCreated,
   lockedAgentId,
   lockedAgentDisplayName,
-  agentIdForConversation
+  agentIdForConversation,
+  projectId,
+  initiativeId
 }: ChatInterfaceProps) {
   const router = useRouter()
   const [messages, setMessages] = useState<Message[]>([])
@@ -87,8 +92,24 @@ export default function ChatInterface({
   const [totalTokensUsed, setTotalTokensUsed] = useState(0)
   const contextPercentage = Math.min((totalTokensUsed / CLAUDE_CONTEXT_WINDOW) * 100, 100)
 
-  // Agent selection state - initialize with locked agent if provided
-  const [selectedAgents, setSelectedAgents] = useState<string[]>(lockedAgentId ? [lockedAgentId] : [])
+  // Agent selection state - initialize with locked agent if provided, or context-specific agent
+  const getInitialAgents = (): string[] => {
+    if (lockedAgentId) return [lockedAgentId]
+    if (projectId) return ['project_agent']
+    if (initiativeId) return ['initiative_agent']
+    return []
+  }
+  const [selectedAgents, setSelectedAgents] = useState<string[]>(getInitialAgents())
+
+  // Update selected agents when context changes
+  useEffect(() => {
+    if (lockedAgentId) return // Don't change locked agents
+    if (projectId) {
+      setSelectedAgents(['project_agent'])
+    } else if (initiativeId) {
+      setSelectedAgents(['initiative_agent'])
+    }
+  }, [projectId, initiativeId, lockedAgentId])
   const [currentResponseAgent, setCurrentResponseAgent] = useState<{ name: string; displayName: string } | null>(null)
 
   // Save to KB modal state
@@ -294,7 +315,9 @@ export default function ChatInterface({
           client_id: clientId,
           user_id: userId,
           title: 'New Conversation',
-          agent_id: agentIdForConversation  // Link conversation to specific agent (if provided)
+          agent_id: agentIdForConversation,  // Link conversation to specific agent (if provided)
+          project_id: projectId,  // Link to project context (if provided)
+          initiative_id: initiativeId  // Link to initiative context (if provided)
         })
 
         conversationIdToUse = createData.conversation_id

@@ -19,10 +19,10 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   X,
   FileText,
-  MessageSquare,
   ExternalLink,
   ChevronDown,
   ChevronRight,
@@ -320,7 +320,9 @@ export default function ProjectDetailModal({
   const [shouldAutoGenerateTasks, setShouldAutoGenerateTasks] = useState(false)
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'tasks' | 'documents' | 'related' | 'chat'>('scores')
+  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'tasks' | 'documents' | 'related'>('scores')
+
+  const router = useRouter()
 
   // Individual section editing state (replaces global edit mode)
   const [editingSection, setEditingSection] = useState<
@@ -680,8 +682,8 @@ export default function ProjectDetailModal({
       setPendingStatus(null)
       setEditingSection(null)
 
-      // Switch to Chat tab and trigger Taskmaster auto-generation
-      setActiveTab('chat')
+      // Switch to Tasks tab and trigger Taskmaster auto-generation
+      setActiveTab('tasks')
       setShouldAutoGenerateTasks(true)
     } catch (error) {
       console.error('Failed to update status:', error)
@@ -833,6 +835,19 @@ export default function ProjectDetailModal({
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => {
+                onClose()
+                router.push(`/chat?project_id=${project.id}`)
+              }}
+              className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors flex items-center gap-1.5"
+              title="Chat with this Project"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              Chat
+            </button>
+            <button
               onClick={onClose}
               className="p-2 text-muted hover:text-primary hover:bg-hover rounded-lg transition-colors"
             >
@@ -851,7 +866,6 @@ export default function ProjectDetailModal({
             { id: 'tasks' as const, label: 'Tasks', icon: ListTodo },
             { id: 'documents' as const, label: 'Documents', icon: Link },
             { id: 'related' as const, label: 'Related', icon: ExternalLink },
-            { id: 'chat' as const, label: 'Chat', icon: MessageSquare },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -1811,153 +1825,6 @@ export default function ProjectDetailModal({
             </div>
           )}
 
-          {/* CHAT TAB */}
-          {activeTab === 'chat' && (
-            <div className="space-y-8">
-          {/* Q&A Section */}
-          <section>
-            <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4 flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              Ask About This Opportunity
-            </h3>
-
-            {/* Previous Conversations */}
-            {conversations.length > 0 && (
-              <div className="mb-4">
-                <button
-                  onClick={() => setShowConversations(!showConversations)}
-                  className="flex items-center gap-1 text-sm text-muted hover:text-primary mb-2"
-                >
-                  {showConversations ? (
-                    <ChevronDown className="w-4 h-4" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4" />
-                  )}
-                  Previous questions ({conversations.length})
-                </button>
-
-                {showConversations && (
-                  <div className="space-y-3 max-h-60 overflow-y-auto border border-default rounded-lg p-3 bg-hover/50">
-                    {conversationsLoading ? (
-                      <div className="flex items-center gap-2 text-muted">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="text-sm">Loading...</span>
-                      </div>
-                    ) : (
-                      conversations.map((conv) => (
-                        <div key={conv.id} className="text-sm">
-                          <p className="font-medium text-primary mb-1">Q: {conv.question}</p>
-                          <p className="text-secondary line-clamp-3">{conv.response}</p>
-                          <p className="text-xs text-muted mt-1">
-                            {new Date(conv.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Question Input */}
-            <div className="space-y-3">
-              <div className="relative">
-                <textarea
-                  ref={questionInputRef}
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask a question about this project..."
-                  className="w-full px-4 py-3 pr-12 border border-default rounded-lg bg-card text-primary placeholder-muted resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={2}
-                  disabled={asking}
-                />
-                <button
-                  onClick={handleAskQuestion}
-                  disabled={!question.trim() || asking}
-                  className="absolute right-3 bottom-3 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {asking ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-              <p className="text-xs text-muted">
-                Press Enter to send, Shift+Enter for new line
-              </p>
-            </div>
-
-            {/* Latest Response */}
-            {latestResponse && (
-              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg">
-                <h4 className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase mb-2">
-                  Response
-                </h4>
-                <p className="text-sm text-secondary whitespace-pre-wrap">
-                  {latestResponse.response}
-                </p>
-
-                {latestResponse.sources.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800">
-                    <p className="text-xs text-muted mb-2">
-                      Sources ({latestResponse.sources.length}):
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {latestResponse.sources.map((source, i) => (
-                        <button
-                          key={source.chunk_id || i}
-                          onClick={() => openDocumentInNewTab(source)}
-                          className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 flex items-center gap-1"
-                        >
-                          <FileText className="w-3 h-3" />
-                          {source.document_name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
-
-          {/* Taskmaster Section */}
-          {project.project_name ? (
-            <TaskmasterChatSection
-              projectId={project.id}
-              projectName={project.project_name}
-              projectTitle={project.title}
-              autoGenerate={shouldAutoGenerateTasks}
-              onAutoGenerateComplete={() => setShouldAutoGenerateTasks(false)}
-            />
-          ) : (
-            /* Prompt to convert to project first */
-            <section className="border border-dashed border-amber-300 dark:border-amber-700 rounded-lg p-4 bg-amber-50/50 dark:bg-amber-900/10">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <ListTodo className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                      Break Down Tasks with Taskmaster
-                    </h3>
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      Activate this project to unlock Taskmaster and start breaking down tasks.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleConvertToProject}
-                  className="px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex items-center gap-2 text-sm font-medium whitespace-nowrap"
-                >
-                  <Rocket className="w-4 h-4" />
-                  Start as Project
-                </button>
-              </div>
-            </section>
-          )}
-            </div>
-          )}
         </div>
 
         {/* Footer - shows Save/Cancel when editing */}

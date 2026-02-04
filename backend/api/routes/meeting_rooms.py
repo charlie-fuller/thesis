@@ -80,6 +80,12 @@ async def create_meeting_room(
                 status_code=400, detail=f"Invalid or inactive agent IDs: {missing_agents}"
             )
 
+        # Validate project_id and initiative_id if provided
+        if request.project_id:
+            validate_uuid(request.project_id, "project_id")
+        if request.initiative_id:
+            validate_uuid(request.initiative_id, "initiative_id")
+
         # Create the meeting room
         meeting_data = {
             "client_id": client_id,
@@ -90,6 +96,12 @@ async def create_meeting_room(
             "status": "active",
             "config": request.config or {},
         }
+
+        # Add context fields if provided
+        if request.project_id:
+            meeting_data["project_id"] = request.project_id
+        if request.initiative_id:
+            meeting_data["initiative_id"] = request.initiative_id
 
         meeting_result = await asyncio.to_thread(
             lambda: supabase.table("meeting_rooms").insert(meeting_data).execute()
@@ -160,13 +172,24 @@ async def create_meeting_room(
 async def list_meeting_rooms(
     status: Optional[str] = None,
     meeting_type: Optional[str] = None,
+    project_id: Optional[str] = None,
+    initiative_id: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
     current_user: dict = Depends(get_current_user),
 ):
-    """List user's meeting rooms."""
+    """List user's meeting rooms.
+
+    Supports filtering by project_id and/or initiative_id for context-scoped views.
+    """
     try:
         user_id = current_user["id"]
+
+        # Validate context IDs if provided
+        if project_id:
+            validate_uuid(project_id, "project_id")
+        if initiative_id:
+            validate_uuid(initiative_id, "initiative_id")
 
         # Build query
         query = supabase.table("meeting_rooms").select("*", count="exact").eq("user_id", user_id)
@@ -175,6 +198,10 @@ async def list_meeting_rooms(
             query = query.eq("status", status)
         if meeting_type:
             query = query.eq("meeting_type", meeting_type)
+        if project_id:
+            query = query.eq("project_id", project_id)
+        if initiative_id:
+            query = query.eq("initiative_id", initiative_id)
 
         query = query.order("updated_at", desc=True).range(offset, offset + limit - 1)
 

@@ -112,6 +112,17 @@ const AGENT_INFO: Record<string, { displayName: string; description: string; cat
     description: 'Routes to the best agent for your question',
     category: 'System',
   },
+  // Context-Specific Agents
+  project_agent: {
+    displayName: 'Project Agent',
+    description: 'Deep-dive on specific projects with full context',
+    category: 'Context',
+  },
+  initiative_agent: {
+    displayName: 'Initiative Agent',
+    description: 'DISCo initiative discovery and synthesis',
+    category: 'Context',
+  },
 }
 
 const AGENT_ORDER = [
@@ -132,6 +143,8 @@ const AGENT_ORDER = [
   'nexus',
   'compass',
   'taskmaster',
+  'project_agent',
+  'initiative_agent',
 ]
 
 export default function AgentSelector({
@@ -290,7 +303,7 @@ export default function AgentSelector({
             <div className="border-t border-neutral-700 my-1" />
 
             {/* Agent list grouped by category */}
-            {['Stakeholder', 'Consulting', 'Enablement', 'Systems', 'Personal'].map(category => {
+            {['Stakeholder', 'Consulting', 'Enablement', 'Systems', 'Personal', 'Context'].map(category => {
               const categoryAgents = AGENT_ORDER.filter(
                 agent => agent !== 'coordinator' && AGENT_INFO[agent]?.category === category
               )

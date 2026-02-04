@@ -24,7 +24,7 @@ Click **Create Initiative**. You'll land on the initiative detail view.
 
 ## The Initiative Detail View
 
-Every initiative has five tabs:
+Every initiative has four tabs:
 
 | Tab | What It's For |
 |-----|---------------|
@@ -32,7 +32,8 @@ Every initiative has five tabs:
 | **Run Agent** | Execute discovery agents and see streaming output |
 | **Outputs** | View all agent results in one place |
 | **Projects** | See and manage projects linked to this initiative |
-| **Chat** | Ask questions about the initiative - sees all linked documents |
+
+**Chat Button:** In the header area, click the **Chat** button to open the main chat interface with full initiative context. This redirects to `/chat?initiative_id=xxx` with the Initiative Agent auto-selected.
 
 **Documents tab features:**
 - **Link from KB** - Browse and select existing KB documents
@@ -202,14 +203,14 @@ Click **Reset filters** to return to defaults.
 
 ---
 
-## Using the Chat
+## Using Chat with Initiative Context
 
-The **Chat** tab lets you ask questions about your initiative with full context.
+Click the **Chat** button in the initiative header to open a conversation with full initiative context.
 
-**What the chat sees:**
-- All documents linked to the initiative (listed by name)
-- Relevant content chunks via semantic search
-- Previous agent outputs (triage results, PRDs, etc.)
+**What the Initiative Agent sees:**
+- All documents linked to the initiative
+- All DISCO agent outputs (triage results, insights, PRDs, etc.)
+- Initiative metadata (name, description, status)
 - PuRDy methodology reference
 
 **Example questions:**
@@ -218,7 +219,8 @@ The **Chat** tab lets you ask questions about your initiative with full context.
 - "What concerns did Triage raise?"
 - "Compare the two approaches in the tech evaluation"
 
-The chat always knows what documents are linked, so you can ask meta-questions like "can you see the planning document?" and get a direct answer.
+**Conversation History:**
+All conversations with initiative context are saved and can be filtered in the main chat sidebar. Select the initiative from the dropdown to see all related conversations.
 
 ---
 
