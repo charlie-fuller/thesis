@@ -339,12 +339,14 @@ async def _resolve_initiative_id(initiative_id: str, supabase) -> Optional[str]:
     if _is_valid_uuid(initiative_id):
         return initiative_id
 
-    # Look up by name
-    result = await asyncio.to_thread(
-        lambda: supabase.table("disco_initiatives").select("id").eq("name", initiative_id).single().execute()
-    )
-
-    return result.data["id"] if result.data else None
+    # Look up by name (use maybe_single to avoid exception on 0 rows)
+    try:
+        result = await asyncio.to_thread(
+            lambda: supabase.table("disco_initiatives").select("id").eq("name", initiative_id).maybe_single().execute()
+        )
+        return result.data["id"] if result.data else None
+    except Exception:
+        return None
 
 
 @router.get("/", response_model=List[ProjectResponse])
