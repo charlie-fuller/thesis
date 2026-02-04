@@ -7,7 +7,7 @@ type DataNode = {
   id: string
   title: string
   description: string
-  category: 'source' | 'storage' | 'processing' | 'output' | 'entity' | 'graph'
+  category: 'source' | 'storage' | 'processing' | 'output' | 'entity'
   details: string[]
 }
 
@@ -195,18 +195,6 @@ const dataNodes: DataNode[] = [
       'Top-k chunk retrieval',
       'Context passed to agents'
     ]
-  },
-  {
-    id: 'knowledge-graph',
-    title: 'Knowledge Graph',
-    description: 'Neo4j relationship store',
-    category: 'graph',
-    details: [
-      'Syncs from Documents, Tasks, Projects, Stakeholders',
-      'Captures relationships between entities',
-      'Enables cross-domain queries',
-      'Provides contextual understanding for agents'
-    ]
   }
 ]
 
@@ -241,12 +229,6 @@ const categoryColors = {
     stroke: '#14b8a6', // teal
     text: '#14b8a6',
     light: 'rgba(20, 184, 166, 0.15)'
-  },
-  graph: {
-    fill: 'url(#graphGradient)',
-    stroke: '#ec4899', // pink
-    text: '#ec4899',
-    light: 'rgba(236, 72, 153, 0.15)'
   }
 }
 
@@ -272,9 +254,9 @@ export default function KBDataMap() {
       {/* SVG Data Map */}
       <div className="overflow-x-auto text-primary">
         <svg
-          viewBox="0 0 1100 680"
+          viewBox="0 0 1100 540"
           className="w-full min-w-[900px]"
-          style={{ maxHeight: '680px' }}
+          style={{ maxHeight: '540px' }}
         >
           {/* Definitions */}
           <defs>
@@ -306,12 +288,6 @@ export default function KBDataMap() {
             <linearGradient id="outputGradient" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.2" />
               <stop offset="100%" stopColor="#14b8a6" stopOpacity="0.1" />
-            </linearGradient>
-
-            {/* Graph gradient (pink) */}
-            <linearGradient id="graphGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#ec4899" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#ec4899" stopOpacity="0.1" />
             </linearGradient>
 
             {/* Arrow markers */}
@@ -612,42 +588,8 @@ export default function KBDataMap() {
           {/* ===== BIDIRECTIONAL: Chat <-> Agents ===== */}
           <path d="M 200 330 C 250 330 250 140 815 140" fill="none" stroke={colors.arrowLight} strokeWidth="1" strokeDasharray="4 2" />
 
-          {/* ===== KNOWLEDGE GRAPH (bottom right) ===== */}
-          <g
-            className="cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setSelectedNode(dataNodes[15])}
-          >
-            <rect x="820" y="480" width="180" height="90" rx="10"
-              fill={categoryColors.graph.fill} stroke={categoryColors.graph.stroke} strokeWidth="3" />
-            <text x="910" y="515" textAnchor="middle" fill={colors.textPrimary} fontSize="15" fontWeight="700">
-              Knowledge Graph
-            </text>
-            <text x="910" y="535" textAnchor="middle" fill={colors.textSecondary} fontSize="12">
-              Neo4j relationships
-            </text>
-            <text x="910" y="555" textAnchor="middle" fill={colors.textSecondary} fontSize="11">
-              (entities + connections)
-            </text>
-          </g>
-
-          {/* ===== ARROWS: Entities -> Knowledge Graph ===== */}
-          {/* Tasks -> Graph */}
-          <path d="M 910 270 L 910 285 C 910 320 1030 320 1030 460 L 1030 500 L 1000 510" fill="none" stroke={categoryColors.graph.stroke} strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowBlue)" />
-
-          {/* Projects -> Graph */}
-          <path d="M 910 360 L 910 375 C 910 400 960 440 960 470 L 960 500" fill="none" stroke={categoryColors.graph.stroke} strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowBlue)" />
-
-          {/* Stakeholders -> Graph */}
-          <path d="M 910 450 L 910 475" fill="none" stroke={categoryColors.graph.stroke} strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowBlue)" />
-
-          {/* Documents -> Graph (via storage) */}
-          <path d="M 470 225 L 500 250 L 500 540 L 815 540" fill="none" stroke={categoryColors.graph.stroke} strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowBlue)" />
-
-          {/* Graph -> Agents (provides context) */}
-          <path d="M 820 510 L 790 510 L 790 170 L 815 170" fill="none" stroke={categoryColors.graph.stroke} strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowBlue)" />
-
           {/* ===== LEGEND ===== */}
-          <g transform="translate(40, 610)">
+          <g transform="translate(40, 480)">
             <text x="0" y="0" fill={colors.textSecondary} fontSize="12" fontWeight="600">Legend</text>
 
             <rect x="0" y="15" width="16" height="12" rx="2" fill={categoryColors.source.fill} stroke={categoryColors.source.stroke} strokeWidth="1" />
@@ -665,10 +607,7 @@ export default function KBDataMap() {
             <rect x="360" y="15" width="16" height="12" rx="2" fill={categoryColors.output.fill} stroke={categoryColors.output.stroke} strokeWidth="1" />
             <text x="382" y="25" fill={colors.textSecondary} fontSize="10">Search</text>
 
-            <rect x="435" y="15" width="16" height="12" rx="2" fill={categoryColors.graph.fill} stroke={categoryColors.graph.stroke} strokeWidth="1" />
-            <text x="457" y="25" fill={colors.textSecondary} fontSize="10">Knowledge Graph</text>
-
-            <text x="580" y="25" fill={colors.textSecondary} fontSize="10">Click any box for details</text>
+            <text x="435" y="25" fill={colors.textSecondary} fontSize="10">Click any box for details</text>
           </g>
         </svg>
       </div>

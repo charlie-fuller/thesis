@@ -10,7 +10,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import ConfirmModal from '@/components/ConfirmModal'
 import StorageIndicator from '@/components/StorageIndicator'
 import GoogleDrivePicker from '@/components/GoogleDrivePicker'
-import TagManagerTab from '@/components/kb/TagManagerTab'
+import KBDocumentBrowserTab from '@/components/kb/KBDocumentBrowserTab'
 import DeleteDocumentModal from '@/components/kb/DeleteDocumentModal'
 import { logger } from '@/lib/logger'
 import {
@@ -1751,7 +1751,7 @@ export default function KBDocumentsContent() {
 
       {/* Tag Manager Tab Content */}
       {activeTab === 'tags' && (
-        <TagManagerTab onDocumentsChange={handleDocumentsChange} />
+        <KBDocumentBrowserTab onDocumentsChange={handleDocumentsChange} />
       )}
 
       {/* Documents Tab Content */}
@@ -1776,22 +1776,15 @@ export default function KBDocumentsContent() {
               )}
             </button>
             <h3 className="heading-3">Vault</h3>
+            {/* Inline status messages */}
+            {!obsidianStatus && (
+              <span className="text-sm text-muted">Checking vault status...</span>
+            )}
+            {obsidianStatus && !obsidianStatus.connected && (
+              <span className="text-sm text-muted">Vault not configured</span>
+            )}
           </div>
         </div>
-
-        {/* Loading state - centered */}
-        {obsidianExpanded && !obsidianStatus && (
-          <div className="mt-4 flex justify-center">
-            <span className="text-sm text-muted">Checking vault status...</span>
-          </div>
-        )}
-
-        {/* Not configured state - centered */}
-        {obsidianExpanded && obsidianStatus && !obsidianStatus.connected && (
-          <div className="mt-4 flex justify-center">
-            <span className="text-sm text-muted">Vault not configured</span>
-          </div>
-        )}
 
         {obsidianExpanded && obsidianStatus?.connected && (
           <>
