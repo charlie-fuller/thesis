@@ -603,3 +603,41 @@ Simplified the KB data flow visualization by removing the Knowledge Graph sectio
 ### DISCO Terminology
 
 Renamed "DISCo" to "DISCO" (capital O) throughout the application for consistency with the acronym (Discovery, Intelligence, Synthesis, Convergence, Operationalize).
+
+### Conversation Context Linking
+
+Conversations and meeting rooms can now be associated with projects or initiatives for better organization.
+
+**Features**:
+- Context filter dropdowns in conversation sidebar (filter by project or initiative)
+- New **Initiative Agent** and **Project Agent** for context-aware conversations
+- Conversations linked to a project/initiative automatically include relevant context
+- Filter sidebar to show only conversations for a specific project or initiative
+
+**Files**: `backend/agents/initiative_agent.py`, `backend/agents/project_agent.py`, `frontend/components/ConversationSidebar.tsx`
+
+### Dashboard Tab Reorder
+
+Reorganized dashboard tabs for better workflow:
+
+**New Order**: System Health → Analytics → Process Map → Knowledge Graph (last)
+
+Interface Health panel moved from System Health to Analytics tab for consolidated metrics viewing.
+
+### Discovery Inbox Redesign
+
+The Discovery Inbox now displays all three candidate types simultaneously in a vertical panel layout.
+
+**Changes**:
+- Tasks, Projects, and Stakeholders panels displayed vertically (not as tabs)
+- Each panel shows one candidate at a time with navigation arrows
+- Removed expand/collapse - always visible
+- Accept (checkmark) and Skip (X) buttons for each candidate
+
+### KB Data Map Improvements
+
+- Changed subtitle to "Click any box for details"
+- Enlarged column title fonts for better readability
+- Routed Chat→Agents arrow around outside bottom to avoid overlapping other elements
+- Removed "Meeting Transcripts" node (documents now generalized)
+- "Local Vault" subtitle changed to "Filesystem Sync"
