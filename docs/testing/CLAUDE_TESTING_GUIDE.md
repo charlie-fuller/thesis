@@ -42,6 +42,154 @@ cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis/backend
 
 ---
 
+## Run ALL 178 E2E Browser Tests (Comprehensive)
+
+**IMPORTANT**: When asked to "run E2E tests" or "run all tests", Claude MUST execute ALL 178 scenarios systematically without stopping or asking for confirmation. This is the default behavior.
+
+### Comprehensive Test Execution Command
+
+When the user says any of these:
+- "Run E2E tests"
+- "Run all E2E tests"
+- "Run comprehensive E2E tests"
+- "Test the app"
+
+Claude MUST:
+
+1. **Execute ALL 178 scenarios** in category order (see list below)
+2. **Continue on failure** - don't stop, just record and move on
+3. **Report results** at the end with pass/fail counts
+4. **Clean up test data** after completion
+
+### Complete Test Execution Workflow
+
+```
+PHASE 1: SETUP
+- Verify Chrome DevTools MCP connection (list_pages)
+- Navigate to target URL (production or localhost)
+- Take snapshot to verify logged-in state
+- If not logged in, run auth_login_success first
+
+PHASE 2: EXECUTE ALL 178 TESTS (in this order)
+
+Category: AUTH (8 tests)
+- auth_login_success, auth_login_empty_fields, auth_login_invalid_email,
+  auth_login_wrong_password, auth_logout, auth_protected_route,
+  auth_session_persistence, auth_expired_session
+
+Category: DASHBOARD (12 tests)
+- dashboard_tab_order, dashboard_system_health_tab, dashboard_process_map_tab,
+  dashboard_knowledge_graph_subtabs, dashboard_interface_health_in_analytics,
+  dashboard_discovery_scanning_indicator, dashboard_discovery_panel_tasks_carousel,
+  dashboard_discovery_panel_projects_carousel, dashboard_discovery_panel_stakeholders_carousel,
+  dashboard_discovery_accept_task, dashboard_discovery_skip_task, dashboard_discovery_empty_state
+
+Category: CHAT (29 tests)
+- chat_send_message, chat_empty_message_blocked, chat_new_conversation,
+  chat_new_conversation_with_context, chat_conversation_history, chat_empty_state,
+  chat_loading_state, chat_at_mention_routing, chat_long_message, chat_multiline_input,
+  chat_api_error_handling, chat_tab_system, chat_project_filter_dropdown,
+  chat_initiative_filter_dropdown, chat_clear_project_filter, chat_combined_filters,
+  chat_context_badge_project, chat_context_badge_initiative, chat_url_project_context,
+  chat_url_initiative_context, chat_project_agent_auto_select, chat_project_agent_mention,
+  chat_initiative_agent_auto_select, chat_initiative_agent_mention, chat_agent_selector_shows_new_agents,
+  chat_agent_icon_project_agent, chat_agent_icon_initiative_agent,
+  chat_sidebar_meeting_rooms_list, chat_meeting_rooms_create_from_tab
+
+Category: KB (17 tests)
+- kb_list_documents, kb_upload_pdf, kb_upload_multiple_types, kb_upload_invalid_type,
+  kb_upload_large_file, kb_upload_error_recovery, kb_bulk_upload, kb_delete_document,
+  kb_search_documents, kb_filter_by_tag, kb_agent_filter, kb_document_preview,
+  kb_document_classification, kb_edit_document_tags, kb_empty_state,
+  kb_conversations_tab, kb_data_map_tab
+
+Category: TASKS (21 tests)
+- tasks_kanban_load, tasks_create, tasks_create_empty_title, tasks_edit,
+  tasks_edit_inline_assignee, tasks_delete, tasks_drag_drop, tasks_status_update,
+  tasks_filter, tasks_filter_by_assignee, tasks_filter_by_team, tasks_filter_by_project,
+  tasks_filter_by_priority, tasks_filter_by_due_date, tasks_search, tasks_clear_filters,
+  tasks_overdue_indicator, tasks_toggle_completed, tasks_refresh_button,
+  tasks_empty_state, tasks_save_error
+
+Category: PROJECTS (19 tests)
+- opps_pipeline_load, opps_create, opps_create_missing_required, opps_edit, opps_delete,
+  opps_drag_between_stages, opps_filter_by_tier, opps_search, opps_link_stakeholder,
+  opps_score_validation, opps_tier_calculation, opps_empty_state,
+  projects_view_toggle, projects_active_only_toggle, projects_sort_options,
+  projects_reorder_buttons, projects_detail_modal, projects_confidence_indicator,
+  projects_filter_by_initiative
+
+Category: MEETING (18 tests)
+- meeting_list, meeting_create, meeting_create_no_agents, meeting_delete,
+  meeting_send_message, meeting_autonomous_mode, meeting_synthesis, meeting_empty_state,
+  meeting_room_back_button, meeting_room_title_edit, meeting_room_participant_bar,
+  meeting_room_context_sources, meeting_room_token_counter, meeting_room_autonomous_panel,
+  meeting_room_autonomous_start_stop, meeting_room_user_interjection,
+  meeting_room_export_to_kb, meeting_rooms_context_filter
+
+Category: INTELLIGENCE (7 tests)
+- intelligence_strategy_tab, intelligence_page_new_agents, intelligence_stakeholder_view_toggle,
+  intelligence_stakeholder_create_form, intelligence_stakeholder_delete,
+  intelligence_agent_card_navigation, intelligence_engagement_trends_chart
+
+Category: DISCO (19 tests)
+- disco_list_initiatives, disco_create_initiative, disco_create_missing_name,
+  disco_initiative_search, disco_initiative_card_click, disco_initiative_tabs,
+  disco_status_badges, disco_status_summary_cards, disco_workflow_map_tab,
+  disco_detail_documents_tab, disco_detail_outputs_tab, disco_detail_run_agent_tab,
+  disco_detail_chat_tab, disco_run_agent, disco_view_outputs, disco_upload_document,
+  disco_share_initiative, disco_triage_recommendation_badge, disco_empty_state
+
+Category: HELP (12 tests)
+- help_panel_open, help_panel_close, help_contextual, help_navigate_to_doc,
+  help_search_no_results, help_search_agents, help_search_disco,
+  help_search_project_context, help_search_initiative_context, help_search_discovery_inbox,
+  help_project_agent_mention, help_initiative_agent_mention
+
+Category: PIPELINE (7 tests)
+- pipeline_priority_queue, pipeline_stats_row, pipeline_department_filter,
+  pipeline_commitments_panel, pipeline_stakeholder_pulse, pipeline_click_to_navigate,
+  pipeline_granola_scan_button
+
+Category: GRANOLA (3 tests)
+- granola_scan_panel_status, granola_sync_activity_display, granola_sync_new_file
+
+Category: PERFORMANCE (2 tests)
+- perf_home_page, perf_kb_with_many_docs
+
+Category: QUALITY (4 tests)
+- console_no_errors, network_api_calls, responsive_mobile, concurrent_operations
+
+PHASE 3: CLEANUP
+- Delete all E2E-* test data created during tests
+- Verify cleanup completed
+
+PHASE 4: REPORT
+- Total: X passed, Y failed, Z skipped
+- List failures with test ID, step, expected vs actual
+- Note any infrastructure issues
+```
+
+### Test Execution Rules
+
+1. **Never stop early** - Complete all 178 tests even if some fail
+2. **Record everything** - Track pass/fail/skip for every test
+3. **Use E2E- prefix** - All test data must use E2E- naming
+4. **Continue on error** - Log the error and move to next test
+5. **Batch similar tests** - Run all tests on same page before navigating away
+6. **Clean up after** - Remove all E2E- test data when done
+
+### Production vs Local
+
+| Environment | Safe Tests | Unsafe Tests |
+|-------------|------------|--------------|
+| Production | Read, navigation, filters, search (108 tests) | Create, update, delete (70 tests) |
+| Local | ALL 178 tests | None |
+
+If running against production, skip create/update/delete tests and note them as "SKIPPED (production)".
+
+---
+
 ## E2E Browser Test Execution Guide
 
 ### Prerequisites Checklist
