@@ -17,6 +17,10 @@
       "env": {
         "RAILWAY_API_TOKEN": "1a3a59f7-6375-4bd2-bbab-d7725db09117"
       }
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp"]
     }
   }
 }
