@@ -127,6 +127,22 @@ Win capture, performance tracking, check-in preparation, strategic alignment wit
 
 ---
 
+### Context-Aware Agents
+
+These agents are specialized for conversations within a specific project or initiative context. They're auto-selected when you navigate to chat from a project or initiative.
+
+**Project Agent**
+Your project specialist. Understands project structure, scoring rubrics, linked documents, and stakeholder relationships. When you chat with a project's context, this agent sees everything about that project without you having to explain it.
+
+*Best for:* Questions about a specific project's scores, status, linked documents, or implementation approach. Access via the Chat button in any project detail modal.
+
+**Initiative Agent**
+Your DISCO initiative specialist. Knows the discovery workflow, all agent outputs, linked documents, and PuRDy methodology. Can guide you through the discovery process and help extract project ideas from conversations.
+
+*Best for:* Questions about a specific initiative's discovery progress, agent outputs, or methodology. Access via the Chat button on any initiative detail page.
+
+---
+
 ### Systems/Coordination
 
 **Nexus** (Systems Thinking)

@@ -168,6 +168,29 @@ You can:
 
 ---
 
+## Using Chat with Project Context
+
+Click the **Chat** button in the project detail header to open a conversation with full project context.
+
+This redirects to `/chat?project_id=xxx` with the Project Agent auto-selected.
+
+**What the Project Agent sees:**
+- All project details (title, description, states, scores)
+- Linked documents from the Knowledge Base
+- Related stakeholders and their roles
+- Initiative associations
+
+**Example questions:**
+- "What documents support this project's ROI score?"
+- "Summarize the current state and desired state"
+- "What risks should we consider for implementation?"
+- "Who are the key stakeholders involved?"
+
+**Conversation History:**
+All conversations with project context are saved and can be filtered in the main chat sidebar. Select the project from the dropdown to see all related conversations.
+
+---
+
 ## Projects vs Tasks
 
 **Projects** are multi-step initiatives:
