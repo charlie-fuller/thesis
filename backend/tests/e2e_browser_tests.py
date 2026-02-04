@@ -2502,6 +2502,36 @@ E2E_TEST_SCENARIOS = {
         expected_result="Chat button opens chat with initiative context",
         prerequisites=["auth_login_success", "disco_create_initiative"],
     ),
+    "disco_detail_projects_tab": E2ETestScenario(
+        id="disco_detail_projects_tab",
+        category=TestCategory.DISCO,
+        test_type=TestType.READ,
+        description="Projects tab shows linked projects",
+        steps=[
+            "Navigate to initiative detail page (e.g., /disco/legal-kickoff)",
+            "Click 'Projects' tab",
+            "Verify linked projects are listed",
+            "Verify project cards show code, status, and title",
+            "Verify 'Active only' checkbox is present",
+        ],
+        expected_result="Projects tab displays linked projects from Projects page",
+        prerequisites=["auth_login_success"],
+    ),
+    "disco_detail_name_navigation": E2ETestScenario(
+        id="disco_detail_name_navigation",
+        category=TestCategory.DISCO,
+        test_type=TestType.READ,
+        description="Navigate to initiative detail by name (not UUID)",
+        steps=[
+            "Navigate directly to /disco/{initiative-name} (e.g., /disco/legal-kickoff)",
+            "Verify page loads without 500 error",
+            "Verify initiative title matches the name in URL",
+            "Verify all tabs load data correctly (Documents, Outputs, Projects)",
+            "Check console for no errors",
+        ],
+        expected_result="Initiative detail page works with name-based URLs",
+        prerequisites=["auth_login_success"],
+    ),
     # =========================================================================
     # KNOWLEDGE BASE COMPREHENSIVE TESTS (5 tests)
     # =========================================================================
