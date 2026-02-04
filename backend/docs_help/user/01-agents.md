@@ -6,6 +6,8 @@ That's... not how expertise works in the real world.
 
 Thesis has twenty agents. Each one thinks differently. Has different concerns. Notices different things. And that's the point.
 
+**Finding the agent roster:** Go to **Intelligence** in the navigation, then click the **Agents** tab. You'll see all agents with their stats - versions, KB docs, chats, and meetings.
+
 ---
 
 ## The Big Idea

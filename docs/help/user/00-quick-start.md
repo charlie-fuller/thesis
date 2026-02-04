@@ -35,7 +35,7 @@ It's a small thing, but it changes how you think about the question.
 
 ## Uploading Documents (The Good Stuff)
 
-Go to **KB** (Knowledge Base) and upload your documents. PDFs, Word docs, CSV, JSON, whatever you've got.
+Go to **KB** (Knowledge Base) - it's right after Dashboard in the navigation. Upload your documents. PDFs, Word docs, CSV, JSON, whatever you've got.
 
 Here's what's interesting: the system auto-classifies documents by agent relevance. Upload a security policy doc, and Guardian knows to reference it. Upload a financial analysis, and Capital pulls from it.
 
@@ -78,12 +78,14 @@ The system builds a picture of who's supportive, who's skeptical, what concerns 
 
 | Where | What |
 |-------|------|
+| **Dashboard** | System health, discovery inbox, analytics |
+| **KB** | Knowledge Base - your documents |
 | **Chat** | One-on-one with agents |
 | **Meeting Room** | Group discussions with multiple agents |
 | **Tasks** | Kanban board for tracking work |
 | **Projects** | AI project pipeline |
-| **Intelligence** | Stakeholder tracking and analytics |
-| **KB** | Knowledge Base - your documents and conversations |
+| **Intelligence** | Stakeholder tracking, agents roster, analytics |
+| **DISCO** | Product discovery workflow |
 
 **Need help?** Click the help icon in the top right of any page to open the help sidebar. Ask questions about how to use Thesis and get answers from the Manual agent. The sidebar stays open as you navigate between pages.
 

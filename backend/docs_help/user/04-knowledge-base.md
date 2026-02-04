@@ -110,6 +110,9 @@ In the KB, switch to "Vault" view to see your vault's folder structure as a navi
 **Recent files:**
 The Vault section shows recently synced files sorted by sync time. Meeting documents are prioritized by their actual meeting date, not sync date.
 
+**Check for Updates:**
+Click the **Check for Updates** button to scan for files that have been modified since the last sync. This is useful when you've made changes outside the watcher.
+
 **Pending files:**
 Click the pending count to see which files are queued for sync. Files with special characters in names (brackets, parentheses) are handled correctly.
 
@@ -160,6 +163,32 @@ The KB now loads much faster:
 **Multi-select:**
 - Select multiple documents for bulk operations
 - Bulk delete with confirmation
+
+---
+
+## Tag Manager
+
+The **Tag Manager** tab provides a powerful document browser for managing tags across multiple documents at once.
+
+**Layout:**
+- Left panel (40%): Document list with checkboxes and preview buttons
+- Right panel (60%): Toggle between **Manage Tags** and **Preview** views
+
+**Features:**
+- **Search and filter**: Search bar (60%) + tag filter (40%) at the top
+- **Sort options**: Most Recent, Oldest First, Name A-Z, Name Z-A
+- **Source filter**: All Sources, Vault, Google Drive, Notion, Uploaded
+- **Multi-select**: Check multiple documents to apply tags in bulk
+
+**Managing tags:**
+1. Select documents using checkboxes
+2. Switch to the **Manage Tags** panel
+3. Click tags to add (green) or click the minus button to remove (red)
+4. Create new tags using the input field
+5. Click **Apply Tag Changes** to save
+
+**Preview mode:**
+Click the eye icon on any document to preview its content in the right panel.
 
 ---
 

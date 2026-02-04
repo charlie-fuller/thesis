@@ -9,76 +9,58 @@ It scans your synced documents and extracts candidates: potential tasks, project
 ## Where to Find It
 
 1. Click **Dashboard** in the navigation
-2. Click the **System Health** tab
-3. Find the **Discovery Inbox** panel
+2. The **Discovery Inbox** panel is on the **System Health** tab
 
-The panel shows a count: `{N} items to review` when candidates are waiting.
-
----
-
-## The Vault Panel
-
-Above the inbox, you'll see your Vault status:
-
-| State | What It Means |
-|-------|---------------|
-| `Syncing...` | Files are being pulled from your vault |
-| `Analyzing X more...` | Document scanning in progress |
-| `All caught up - no items to review` | Nothing pending |
-
-The scan runs automatically after your vault syncs. You don't need to trigger it manually.
+The panel header shows a count: `{N} items to review` when candidates are waiting.
 
 ---
 
-## Three Candidate Types
+## Three Panels, One View
 
-The inbox has three tabs:
+The inbox displays three vertical panels simultaneously:
 
-### Tasks
+### Tasks Panel
 Extracted action items with:
 - Title and description
-- Suggested assignee (if mentioned)
-- Due date (if mentioned)
-- Confidence badge: `high` (green) or `medium` (yellow)
+- Team assignment (if mentioned)
+- Source document reference
 
-### Projects
+### Projects Panel
 Potential initiatives with:
 - Title and description
-- Suggested department
-- Scoring metrics (when determinable)
+- ROI and Effort scores (when determinable)
+- Source document reference
 
-### Stakeholders
+### Stakeholders Panel
 People mentioned in documents:
-- Name and role
-- Department
-- Sentiment (if discernible from context)
+- Name, role, and department
+- Source document reference
+
+Each panel shows one candidate at a time with navigation arrows to browse through items.
 
 ---
 
 ## Reviewing Candidates
 
-Use the navigation arrows to move through candidates. The counter shows `1 of 5` style progress.
+Each panel has its own navigation. Use the `<` and `>` arrows to move through candidates in that category. The counter shows `1/5` style progress.
 
 For each candidate:
-- **Preview** shows key details inline
-- Click **Expand** to see full extracted information
-- Source document is shown with its confidence badge
+- **Source document** shown at the top
+- **Title and description** displayed inline
+- **Type-specific metadata** (scores, role, team, etc.)
 
 ---
 
 ## Accept or Skip
 
-Two actions for each candidate:
+Two actions for each candidate, shown as icon buttons:
 
-| Button | Color | What Happens |
-|--------|-------|--------------|
-| **Skip** | Red | Dismisses the candidate - won't be shown again |
-| **Accept** | Amber | Opens a modal to create the task/project/stakeholder |
+| Button | Icon | What Happens |
+|--------|------|--------------|
+| **Skip** | X (red) | Dismisses the candidate - won't be shown again |
+| **Accept** | Checkmark (green) | Creates the task/project/stakeholder |
 
-When you click **Accept**:
-1. A creation modal appears with pre-filled data
-2. Edit any fields that need adjustment
-3. Confirm to create the item
+When you click **Accept**, the item is created immediately and removed from the inbox.
 
 ---
 
@@ -127,14 +109,12 @@ This keeps the inbox focused on recent, relevant extractions rather than accumul
 
 ---
 
-## View All
+## Scanning Status
 
-Click **View All** to see candidates in a full-page view with:
-- Filtering by type
-- Bulk actions
-- Source document links
+When documents are being analyzed, you'll see a status indicator:
+`Analyzing X more...`
 
-Useful when you have many candidates to process.
+The scan runs automatically after your vault syncs. You don't need to trigger it manually.
 
 ---
 
