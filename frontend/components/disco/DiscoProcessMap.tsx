@@ -167,11 +167,11 @@ export default function DiscoProcessMap() {
             </marker>
           </defs>
 
-          {/* ===== TITLE ===== */}
-          <text x="225" y="28" textAnchor="middle" fill={colors.textPrimary} fontSize="22" fontWeight="700">
+          {/* ===== TITLE - centered over workflow content ===== */}
+          <text x="200" y="28" textAnchor="middle" fill={colors.textPrimary} fontSize="22" fontWeight="700">
             DISCo Workflow
           </text>
-          <text x="225" y="48" textAnchor="middle" fill={colors.textSecondary} fontSize="14" fontWeight="500">
+          <text x="200" y="48" textAnchor="middle" fill={colors.textSecondary} fontSize="14" fontWeight="500">
             Click agents for details
           </text>
 
