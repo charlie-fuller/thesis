@@ -163,7 +163,7 @@ The following was completed manually via the UI:
 
 1. Created "AI Platform Governance" initiative with comprehensive description including:
    - Strategic framing question
-   - Platform inventory (GLEAN, Rovo, Gemini, Agentspace, Vercel AI, Claude API, Thesis)
+   - Platform inventory (GLEAN, Rovo, Gemini, Agentspace, Vercel AI, Claude API, Thesis, NotebookLM)
    - Expected outputs (Decision Framework, Platform evaluations, Agent Factory)
 
 2. Linked existing "Agent Factory" project to the new initiative:
