@@ -277,14 +277,6 @@ export default function ProjectDetailModal({
   // Justification generation state
   const [generating, setGenerating] = useState(false)
 
-  // Q&A state
-  const [question, setQuestion] = useState('')
-  const [asking, setAsking] = useState(false)
-  const [latestResponse, setLatestResponse] = useState<{
-    response: string
-    sources: RelatedDocument[]
-  } | null>(null)
-
   // Document viewer modal state
   const [viewingDocument, setViewingDocument] = useState<{
     document_id: string
@@ -523,38 +515,6 @@ export default function ProjectDetailModal({
       console.error('Failed to fetch project tasks:', error)
     } finally {
       setTasksLoading(false)
-    }
-  }
-
-  const handleAskQuestion = async () => {
-    if (!question.trim() || asking) return
-
-    setAsking(true)
-    setLatestResponse(null)
-
-    try {
-      const result = await apiPost<{
-        response: string
-        sources: RelatedDocument[]
-      }>(`/api/projects/${project.id}/ask`, { question: question.trim() })
-
-      setLatestResponse(result)
-      setQuestion('')
-
-      // Refresh conversations to show the new one
-      fetchConversations()
-    } catch (error) {
-      console.error('Failed to ask question:', error)
-      alert('Failed to get an answer. Please try again.')
-    } finally {
-      setAsking(false)
-    }
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleAskQuestion()
     }
   }
 

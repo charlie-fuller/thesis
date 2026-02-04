@@ -23,12 +23,19 @@ router = APIRouter()
 # ============================================================================
 
 
-@router.get("/initiatives/{initiative_id}/chat")
+@router.get("/initiatives/{initiative_id}/chat", deprecated=True)
 async def api_get_chat(
     initiative_id: str,
     current_user: dict = Depends(require_disco_access),
 ):
-    """Get or create chat conversation."""
+    """Get or create chat conversation.
+
+    DEPRECATED: Use the unified chat interface at /chat?initiative_id={initiative_id} instead.
+    This endpoint will be removed in a future release.
+    """
+    logger.warning(
+        f"Deprecated endpoint GET /initiatives/{initiative_id}/chat called. Use /chat?initiative_id={initiative_id} instead."
+    )
     await require_initiative_access(initiative_id, current_user, "viewer")
 
     try:
@@ -39,13 +46,20 @@ async def api_get_chat(
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
-@router.post("/initiatives/{initiative_id}/chat")
+@router.post("/initiatives/{initiative_id}/chat", deprecated=True)
 async def api_ask_question(
     initiative_id: str,
     data: ChatQuestion,
     current_user: dict = Depends(require_disco_access),
 ):
-    """Ask a question about the initiative."""
+    """Ask a question about the initiative.
+
+    DEPRECATED: Use the unified chat interface at /chat?initiative_id={initiative_id} instead.
+    This endpoint will be removed in a future release.
+    """
+    logger.warning(
+        f"Deprecated endpoint POST /initiatives/{initiative_id}/chat called. Use /chat?initiative_id={initiative_id} instead."
+    )
     await require_initiative_access(initiative_id, current_user, "viewer")
 
     try:

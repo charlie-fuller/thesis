@@ -583,7 +583,7 @@ async def get_opportunity_conversation_history(
     return conversations
 
 
-@router.post("/{opportunity_id}/ask", response_model=AskQuestionResponse)
+@router.post("/{opportunity_id}/ask", response_model=AskQuestionResponse, deprecated=True)
 async def ask_question_about_opportunity(
     opportunity_id: str,
     request: AskQuestionRequest,
@@ -592,6 +592,9 @@ async def ask_question_about_opportunity(
 ):
     """Ask a question about an opportunity.
 
+    DEPRECATED: Use the unified chat interface at /chat?project_id={opportunity_id} instead.
+    This endpoint will be removed in a future release.
+
     Uses AI to answer based on:
     - The opportunity's details (title, description, scores, status, etc.)
     - Related documents from the knowledge base
@@ -599,6 +602,9 @@ async def ask_question_about_opportunity(
     The conversation is stored and can be retrieved later via
     GET /{opportunity_id}/conversations.
     """
+    logger.warning(
+        f"Deprecated endpoint /opportunities/{opportunity_id}/ask called. Use /chat?project_id={opportunity_id} instead."
+    )
     # Verify opportunity exists and belongs to client
     opp = (
         supabase.table("ai_projects")

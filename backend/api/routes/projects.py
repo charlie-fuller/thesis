@@ -781,7 +781,7 @@ async def get_project_conversation_history(
     return conversations
 
 
-@router.post("/{project_id}/ask", response_model=AskQuestionResponse)
+@router.post("/{project_id}/ask", response_model=AskQuestionResponse, deprecated=True)
 async def ask_question_about_project(
     project_id: str,
     request: AskQuestionRequest,
@@ -790,6 +790,9 @@ async def ask_question_about_project(
 ):
     """Ask a question about a project.
 
+    DEPRECATED: Use the unified chat interface at /chat?project_id={project_id} instead.
+    This endpoint will be removed in a future release.
+
     Uses AI to answer based on:
     - The project's details (title, description, scores, status, etc.)
     - Related documents from the knowledge base
@@ -797,6 +800,9 @@ async def ask_question_about_project(
     The conversation is stored and can be retrieved later via
     GET /{project_id}/conversations.
     """
+    logger.warning(
+        f"Deprecated endpoint /projects/{project_id}/ask called. Use /chat?project_id={project_id} instead."
+    )
     # Verify project exists and belongs to client
     proj = (
         supabase.table("ai_projects")
