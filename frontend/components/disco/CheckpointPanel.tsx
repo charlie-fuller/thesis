@@ -109,7 +109,7 @@ const CHECKPOINT_CONFIG: Record<number, {
     humanAction: 'Final review before engineering',
     humanDetails: 'The Requirements Generator has created a comprehensive PRD with technical evaluation. Review with your engineering team for feasibility. This is the final gate before execution begins.',
     icon: FileText,
-    stageLabel: 'Capabilities',
+    stageLabel: 'Convergence',
     stageColor: 'text-rose-600 bg-rose-100 dark:bg-rose-900/30',
     defaultChecklist: [
       { id: 'prd_complete', label: 'PRD is complete and actionable' },

@@ -52,7 +52,7 @@ See `/docs/ARCHITECTURE.md` for full agent roster, capabilities, and database sc
   /api/routes    - FastAPI endpoints
   /agents        - Agent implementations (21 agents)
   /services      - Business logic
-    /disco       - DISCo services (Discovery-Insights-Synthesis-Capabilities)
+    /disco       - DISCo services (Discovery-Insights-Synthesis-Convergence)
   /system_instructions - Agent prompts (XML)
 
 /database

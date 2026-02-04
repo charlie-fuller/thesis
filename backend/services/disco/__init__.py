@@ -1,6 +1,6 @@
 """DISCo Services Module.
 
-Discovery-Insights-Synthesis-Capabilities (DISCo) services for:
+Discovery-Insights-Synthesis-Convergence (DISCo) services for:
 - Initiative management
 - Document processing and RAG
 - Agent execution

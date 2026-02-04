@@ -152,7 +152,7 @@ A file watcher monitors your vault. Changes (create/modify/delete) sync to the K
 ## DISCo Initiatives
 
 **What is DISCo?**
-Discovery, Intelligence, Synthesis, Capabilities, Operationalize. It's a structured product discovery workflow with 8 specialized agents.
+Discovery, Intelligence, Synthesis, Convergence, Operationalize. It's a structured product discovery workflow with 8 specialized agents.
 
 **What's the difference between DISCo and regular Chat?**
 Chat is for questions and exploration. DISCo is a structured workflow that takes you from idea through to PRD, with specific agents for each stage.

@@ -1095,7 +1095,7 @@ E2E_TEST_SCENARIOS = {
             "Type 'DISCo' in search input",
             "Wait for search results",
             "Verify results include DISCo initiatives help",
-            "Verify results mention workflow stages (Discovery, Intelligence, Synthesis, Capabilities)",
+            "Verify results mention workflow stages (Discovery, Intelligence, Synthesis, Convergence)",
         ],
         expected_result="Search returns DISCo-related help content",
         prerequisites=["auth_login_success"],

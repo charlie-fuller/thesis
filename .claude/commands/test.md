@@ -793,7 +793,7 @@ Execute ALL test phases in order. After each test, record PASS/FAIL.
 
 ### Test 13.2: DISCo Tabs/Sections
 1. Verify main DISCo sections display
-2. Check for Discovery, Insights, Synthesis, Capabilities tabs
+2. Check for Discovery, Insights, Synthesis, Convergence tabs
 
 ### Test 13.3: Initiative List
 1. Verify initiatives list displays

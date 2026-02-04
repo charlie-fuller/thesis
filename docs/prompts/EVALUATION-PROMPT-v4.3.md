@@ -33,7 +33,7 @@ Synthesis Stage [NEW]
   └─ Strategist (cluster → score → bundle)
   └─ [HUMAN CHECKPOINT: Review/edit bundles]
        ↓
-Capabilities Stage [NEW]
+Convergence Stage [NEW]
   └─ PRD Generator (complete PRD per bundle)
   └─ [HUMAN CHECKPOINT: Approve PRDs]
 ```

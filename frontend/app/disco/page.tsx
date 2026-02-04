@@ -61,7 +61,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: str
   in_discovery: { label: 'Discovery', color: 'text-amber-600', bgColor: 'bg-amber-100 dark:bg-amber-900/30', icon: Clock },
   consolidated: { label: 'Intelligence', color: 'text-teal-600', bgColor: 'bg-teal-100 dark:bg-teal-900/30', icon: CheckCircle },
   synthesized: { label: 'Synthesis', color: 'text-green-600', bgColor: 'bg-green-100 dark:bg-green-900/30', icon: CheckCircle },
-  documented: { label: 'Capabilities', color: 'text-indigo-600', bgColor: 'bg-indigo-100 dark:bg-indigo-900/30', icon: CheckCircle },
+  documented: { label: 'Convergence', color: 'text-indigo-600', bgColor: 'bg-indigo-100 dark:bg-indigo-900/30', icon: CheckCircle },
   archived: { label: 'Archived', color: 'text-slate-500', bgColor: 'bg-slate-100 dark:bg-slate-800', icon: AlertCircle },
 }
 
@@ -325,7 +325,7 @@ export default function DiscoInitiativesPage() {
           DISCo
         </h1>
         <p className="text-slate-500 dark:text-slate-400 mt-1">
-          Discovery, Intelligence, Synthesis, Capabilities, Operationalize
+          Discovery, Intelligence, Synthesis, Convergence, Operationalize
         </p>
       </div>
 

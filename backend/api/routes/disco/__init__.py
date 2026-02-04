@@ -1,6 +1,6 @@
 """DISCo API Routes Package.
 
-Discovery-Insights-Synthesis-Capabilities (DISCo) API endpoints.
+Discovery-Insights-Synthesis-Convergence (DISCo) API endpoints.
 Organized into focused modules for better maintainability.
 """
 

@@ -7,7 +7,7 @@ type ProcessStep = {
   id: string
   title: string
   description: string
-  stage: 'discovery' | 'intelligence' | 'synthesis' | 'capabilities'
+  stage: 'discovery' | 'intelligence' | 'synthesis' | 'convergence'
   details: string[]
   checkpoint?: string
 }
@@ -55,12 +55,12 @@ const processSteps: ProcessStep[] = [
     ],
     checkpoint: 'Checkpoint 3: Bundles Approved'
   },
-  // Stage 4: Capabilities
+  // Stage 4: Convergence
   {
     id: 'requirements-generator',
     title: 'Requirements Generator',
     description: 'Produces PRD with tech recommendations',
-    stage: 'capabilities',
+    stage: 'convergence',
     details: [
       'Generates PRD from approved bundles',
       'Includes user stories and acceptance criteria',
@@ -91,8 +91,8 @@ const stageColors = {
     text: '#22c55e',
     light: 'rgba(34, 197, 94, 0.15)'
   },
-  capabilities: {
-    fill: 'url(#capabilitiesGradient)',
+  convergence: {
+    fill: 'url(#convergenceGradient)',
     stroke: '#f43f5e', // rose
     text: '#f43f5e',
     light: 'rgba(244, 63, 94, 0.15)'
@@ -146,8 +146,8 @@ export default function DiscoProcessMap() {
               <stop offset="100%" stopColor="#22c55e" stopOpacity="0.1" />
             </linearGradient>
 
-            {/* Capabilities gradient (rose) */}
-            <linearGradient id="capabilitiesGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            {/* Convergence gradient (rose) */}
+            <linearGradient id="convergenceGradient" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.25" />
               <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.1" />
             </linearGradient>
@@ -334,12 +334,12 @@ export default function DiscoProcessMap() {
             <rect
               x={agentX} y={startY + rowSpacing*3} width={agentWidth} height={agentHeight}
               rx="10"
-              fill={stageColors.capabilities.fill}
-              stroke={stageColors.capabilities.stroke}
+              fill={stageColors.convergence.fill}
+              stroke={stageColors.convergence.stroke}
               strokeWidth="2"
             />
             <text x={agentX + agentWidth/2} y={startY + rowSpacing*3 + 18} textAnchor="middle" fill="#f43f5e" fontSize="10" fontWeight="700">
-              C: CAPABILITIES
+              C: CONVERGENCE
             </text>
             <text x={agentX + agentWidth/2} y={startY + rowSpacing*3 + 36} textAnchor="middle" fill={colors.textPrimary} fontSize="13" fontWeight="600">
               Requirements Generator

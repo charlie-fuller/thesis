@@ -1,6 +1,6 @@
 # DISCo Initiatives
 
-DISCo stands for Discovery, Intelligence, Synthesis, Capabilities, Operationalize. It's your AI-assisted product discovery workflow - 8 specialized agents that help you evaluate whether an idea is worth pursuing, and if so, turn it into something actionable.
+DISCo stands for Discovery, Intelligence, Synthesis, Convergence, Operationalize. It's your AI-assisted product discovery workflow - 8 specialized agents that help you evaluate whether an idea is worth pursuing, and if so, turn it into something actionable.
 
 Think of it as a structured way to go from "we should look into this" to "here's the PRD."
 
@@ -77,7 +77,7 @@ Turn insights into decisions.
 | **Consolidator** | Creates a decision document from all insights |
 | **Strategist** | Proposes feature bundles with business rationale |
 
-### Stage 4: Capabilities
+### Stage 4: Convergence
 Build the thing.
 
 | Agent | What It Does |
@@ -124,7 +124,7 @@ Initiatives move through statuses as you run agents:
 | During Discovery | `Discovery` | `In Discovery` | Running discovery agents |
 | After Consolidator | `Intelligence` | `Consolidated` | Insights consolidated |
 | After Strategist | `Synthesis` | `Synthesized` | Bundles proposed |
-| After PRD | `Capabilities` | `PRD Generated` | PRD created |
+| After PRD | `Convergence` | `PRD Generated` | PRD created |
 | Done | `Archived` | `Archived` | Manually archived |
 
 ---

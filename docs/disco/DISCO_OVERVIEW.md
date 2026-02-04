@@ -2,7 +2,7 @@
 
 ## What Is DISCo?
 
-DISCo (Discovery-Insights-Synthesis-Capabilities) is a product discovery methodology where humans do the discovery and AI does the synthesis. Human facilitators conduct stakeholder interviews, workshops, and observation sessions. AI agents then analyze what was learned, find patterns, identify gaps, and structure findings into engineering-ready Product Requirements Documents. The process moves through four sequential phases, ensuring nothing gets lost between conversation and specification.
+DISCo (Discovery-Insights-Synthesis-Convergence) is a product discovery methodology where humans do the discovery and AI does the synthesis. Human facilitators conduct stakeholder interviews, workshops, and observation sessions. AI agents then analyze what was learned, find patterns, identify gaps, and structure findings into engineering-ready Product Requirements Documents. The process moves through four sequential phases, ensuring nothing gets lost between conversation and specification.
 
 ## Starting Inputs
 
@@ -28,7 +28,7 @@ Extracts meaning from research. The Coverage Tracker identifies gaps in discover
 ### Phase 3: Synthesis (Bundling & Initiative Definition)
 Bundles insights into initiatives. The Strategist clusters related findings and scores them on Impact, Feasibility, and Urgency. Humans review proposed bundles and can approve, reject, merge, or split them.
 
-### Phase 4: Capabilities (PRD Generation)
+### Phase 4: Convergence (PRD Generation)
 Generates actionable outputs. The PRD Generator creates engineering-ready specifications from approved bundles. The Tech Evaluation agent provides build-vs-buy analysis and architecture recommendations.
 
 ## The Eight Agents
@@ -99,7 +99,7 @@ Use this prompt when generating your graphic in NotebookLM:
 Create an infographic explaining DISCo, a product discovery methodology where humans do the discovery and AI does the synthesis.
 
 STRUCTURE:
-- Show the flow: Starting Inputs → Discovery (human) → Insights (AI) → Synthesis → Capabilities
+- Show the flow: Starting Inputs → Discovery (human) → Insights (AI) → Synthesis → Convergence
 - Emphasize that humans conduct interviews and workshops, AI processes and synthesizes
 - Four phases as connected stages: D-I-S-Co
 - Include the starting inputs: problem statement, research, golden examples, stakeholder map

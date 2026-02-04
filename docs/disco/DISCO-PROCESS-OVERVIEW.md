@@ -1,6 +1,6 @@
 # DISCo Process Overview
 
-**Discovery-Insights-Synthesis-Capabilities (DISCo)** (formerly PuRDy - Product Requirements Discovery)
+**Discovery-Insights-Synthesis-Convergence (DISCo)** (formerly PuRDy - Product Requirements Discovery)
 **Version:** 4.2
 **Last Updated:** 2026-01-25
 

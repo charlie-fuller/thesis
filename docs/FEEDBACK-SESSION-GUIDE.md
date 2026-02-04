@@ -164,7 +164,7 @@ Transforms an approved bundle into an engineering-ready PRD.
 
 ## Wrap-Up Questions (5 min)
 
-1. **Overall Flow:** Does Discovery → Insights → Synthesis → Capabilities make sense as a pipeline? Any stages that feel unnecessary or missing?
+1. **Overall Flow:** Does Discovery → Insights → Synthesis → Convergence make sense as a pipeline? Any stages that feel unnecessary or missing?
 
 2. **Human Checkpoints:** Are checkpoints after Consolidator and Strategist the right places to pause for human review?
 

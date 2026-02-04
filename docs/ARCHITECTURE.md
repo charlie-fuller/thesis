@@ -81,7 +81,7 @@ This document contains detailed architecture documentation. For essential Claude
 21. **Project Naming Workflow** - Required names for projects in active phases
 22. **Meeting Scanner** - Heuristic-based document classification extracts projects, tasks, stakeholders from meeting notes (transcripts, summaries, 1:1s)
 
-### DISCo (Discovery → Insights → Synthesis → Capabilities)
+### DISCo (Discovery → Insights → Synthesis → Convergence)
 23. **DISCo KB Integration** - Uses Knowledge Base as single source of truth for documents. Link existing KB documents to initiatives via browser modal with search/tag filtering. Chat includes linked document list for visibility plus vector search for content queries.
 24. **DISCo Pipeline** - AI-assisted product discovery with 4 consolidated stage-aligned agents and human-in-the-loop checkpoints:
     - **Discovery Guide**: Validates problem, plans discovery sessions, tracks coverage (consolidates: Triage, Discovery Planner, Coverage Tracker)

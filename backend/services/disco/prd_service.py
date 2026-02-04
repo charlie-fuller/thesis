@@ -1,11 +1,11 @@
 """DISCo PRD Service.
 
-Handles the Capabilities stage of the DISCo pipeline:
+Handles the Convergence stage of the DISCo pipeline:
 - Generating PRDs from approved bundles
 - Managing PRD lifecycle (draft -> review -> approved -> exported)
 - Generating executive summaries across multiple PRDs
 
-The Capabilities stage transforms approved initiative bundles into
+The Convergence stage transforms approved initiative bundles into
 actionable PRD documents ready for engineering implementation.
 """
 

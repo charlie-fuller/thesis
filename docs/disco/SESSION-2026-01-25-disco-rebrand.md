@@ -2,7 +2,7 @@
 
 ## Summary
 
-Rebranded PuRDy to DISCo (Discovery, Intelligence, Synthesis, Capabilities) and reorganized repository structure.
+Rebranded PuRDy to DISCo (Discovery, Intelligence, Synthesis, Convergence) and reorganized repository structure.
 
 ## Changes Made
 
@@ -13,9 +13,9 @@ Rebranded PuRDy to DISCo (Discovery, Intelligence, Synthesis, Capabilities) and 
 
 ### UI Rebrand (PuRDy to DISCo)
 - Nav link: "PuRDy" -> "DISCo"
-- Page title: "DISCo - Discovery, Intelligence, Synthesis, Capabilities"
+- Page title: "DISCo - Discovery, Intelligence, Synthesis, Convergence"
 - Status cards updated to DISCo workflow stages:
-  - Draft, Triaged, Discovery, Intelligence, Synthesis, Capabilities, Archived
+  - Draft, Triaged, Discovery, Intelligence, Synthesis, Convergence, Archived
 
 ### Route Changes
 - Frontend routes: `/purdy` -> `/disco`

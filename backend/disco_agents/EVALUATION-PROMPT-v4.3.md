@@ -422,7 +422,7 @@ ORDER BY dp.created_at DESC;
 | Discovery | Triage, Planner | /100 | Smooth/Gaps |
 | Insights | Coverage, Extractor, Consolidator | /100 | Smooth/Gaps |
 | Synthesis | Strategist | /100 | Smooth/Gaps |
-| Capabilities | PRD Generator | /100 | N/A |
+| Convergence | PRD Generator | /100 | N/A |
 
 ### The Big Question
 

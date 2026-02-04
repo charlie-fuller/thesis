@@ -276,7 +276,7 @@ AGENT_DESCRIPTIONS = {
         "description": "Produces comprehensive PRD with technical evaluation, architecture diagrams, and implementation path.",
         "estimated_time": "15-25 minutes",
         "output_type": "requirements_generator_output",
-        "stage": "capabilities",
+        "stage": "convergence",
         "stage_number": 4,
         "replaces": ["prd_generator", "tech_evaluation"],
     },
@@ -1447,7 +1447,7 @@ def get_status_for_agent(agent_type: str) -> Optional[str]:
     - D (Discovery): discovery_guide → in_discovery (or triaged if triage mode)
     - I (Insights): insight_analyst → consolidated
     - S (Synthesis): initiative_builder → synthesized
-    - C (Capabilities): requirements_generator → documented
+    - C (Convergence): requirements_generator → documented
 
     Legacy agents maintain backwards compatibility.
     """

@@ -318,7 +318,7 @@ Done When: "Written acknowledgment of phased approach in email"
 | Discovery | Triage, Planner | 18.5/20 | Smooth |
 | Insights | Coverage, Extractor, Consolidator | 17.5/20 | Smooth |
 | Synthesis | Strategist | 92/100 | Smooth |
-| Capabilities | PRD Generator | 91/100 | N/A |
+| Convergence | PRD Generator | 91/100 | N/A |
 
 ### The Big Question
 
@@ -403,4 +403,4 @@ Done When: "Written acknowledgment of phased approach in email"
 
 *Evaluation completed 2026-01-25*
 *Evaluator: Claude Code (Automated)*
-*Framework: DISCo v4.3 - Discovery → Insights → Synthesis → Capabilities*
+*Framework: DISCo v4.3 - Discovery → Insights → Synthesis → Convergence*

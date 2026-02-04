@@ -383,7 +383,7 @@ VISUAL EMPHASIS:
 
 ---
 
-## Stage 4: Capabilities (PRD Generation)
+## Stage 4: Convergence (PRD Generation)
 
 ### Detailed Information
 
@@ -444,7 +444,7 @@ VISUAL EMPHASIS:
 ### Infographic Prompt
 
 ```
-Create an infographic for "DISCo Stage 4: Capabilities"
+Create an infographic for "DISCo Stage 4: Convergence"
 
 CONTENT TO SHOW:
 - Input: Approved bundles from Synthesis phase
@@ -550,9 +550,9 @@ Visual: AI proposes bundles, human decides. Checkpoint should be visually promin
 Style: Navy/coral palette. Human checkpoint in coral. Decision-point emphasis.
 ```
 
-### Stage 4: Capabilities
+### Stage 4: Convergence
 ```
-Infographic: "DISCo Stage 4 - Capabilities"
+Infographic: "DISCo Stage 4 - Convergence"
 
 Three parts:
 1. PRD GENERATOR: Bundle transforming into structured PRD document (show section outline)
@@ -697,6 +697,6 @@ When creating all six infographics, ensure:
 
 Suggested series layout:
 ```
-[Stage 0: Inputs] → [Stage 1: Discovery] → [Stage 2: Insights] → [Stage 3: Synthesis] → [Stage 4: Capabilities] → [Stage 5: Operationalization]
+[Stage 0: Inputs] → [Stage 1: Discovery] → [Stage 2: Insights] → [Stage 3: Synthesis] → [Stage 4: Convergence] → [Stage 5: Operationalization]
      Gather           Human Sessions         AI Analysis          Human Decisions        Engineering PRDs           Deliver & Measure
 ```
