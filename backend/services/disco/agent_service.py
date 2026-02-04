@@ -214,6 +214,10 @@ AGENT_FILES = {
     "insight_analyst": "insight-analyst-v1.0.md",
     "initiative_builder": "initiative-builder-v1.0.md",
     "requirements_generator": "requirements-generator-v1.0.md",
+    # === Output Type Generators (Convergence Stage) ===
+    "prd_generator": "prd-generator-v1.0.md",
+    "evaluation_framework_generator": "evaluation-framework-v1.0.md",
+    "decision_framework_generator": "decision-framework-v1.0.md",
     # === Legacy Agents (backwards compatibility) ===
     "triage": "triage-v4.2.md",
     "discovery_prep": "discovery-prep-v1.0.md",
@@ -223,7 +227,6 @@ AGENT_FILES = {
     "consolidator": "consolidator-v4.2.md",
     "synthesizer": "synthesizer-v4.2.md",
     "strategist": "strategist-v1.0.md",
-    "prd_generator": "prd-generator-v1.0.md",
     "tech_evaluation": "tech-evaluation-v4.1.md",
     "meta_consolidator": "meta-consolidator-v1.0.md",
     "meta_synthesizer": "meta-synthesizer-v1.0.md",

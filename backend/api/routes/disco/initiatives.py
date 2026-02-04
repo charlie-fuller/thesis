@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from logger_config import get_logger
 from services.disco import (
@@ -16,6 +16,7 @@ from services.disco import (
     update_initiative,
     update_member_role,
 )
+from services.disco.project_service import get_initiative_projects
 
 from ._shared import (
     InitiativeCreate,
@@ -166,6 +167,32 @@ async def api_delete_initiative(
         raise HTTPException(status_code=403, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error deleting initiative: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+# ============================================================================
+# PROJECTS (linked to initiative)
+# ============================================================================
+
+
+@router.get("/initiatives/{initiative_id}/projects")
+async def api_get_initiative_projects(
+    initiative_id: str,
+    status: Optional[str] = Query(None, description="Filter by project status"),
+    current_user: dict = Depends(require_disco_access),
+):
+    """Get all projects linked to this initiative."""
+    try:
+        # Verify access to initiative
+        await require_initiative_access(initiative_id, current_user, "viewer")
+
+        # Get projects
+        result = await get_initiative_projects(initiative_id, status=status)
+        return {"success": True, **result}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting initiative projects: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 

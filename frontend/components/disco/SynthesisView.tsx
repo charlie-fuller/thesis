@@ -14,9 +14,34 @@ import {
   AlertCircle,
   Target,
   Clock,
-  Zap
+  Zap,
+  FileText,
+  Scale,
+  Sparkles
 } from 'lucide-react'
 import { apiGet, apiPost, apiPatch } from '@/lib/api'
+
+// Output type options
+const OUTPUT_TYPES = [
+  {
+    value: 'prd',
+    label: 'Product Requirements Document',
+    description: 'For build/development bundles',
+    icon: FileText,
+  },
+  {
+    value: 'evaluation_framework',
+    label: 'Evaluation Framework',
+    description: 'For research/evaluation bundles',
+    icon: Scale,
+  },
+  {
+    value: 'decision_framework',
+    label: 'Decision Framework',
+    description: 'For governance decisions',
+    icon: Target,
+  },
+]
 
 interface Bundle {
   id: string
@@ -238,6 +263,13 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
   const [rejectFeedback, setRejectFeedback] = useState('')
   const [rejectingBundle, setRejectingBundle] = useState<string | null>(null)
 
+  // Approval modal state
+  const [approvingBundle, setApprovingBundle] = useState<string | null>(null)
+  const [selectedOutputType, setSelectedOutputType] = useState('prd')
+  const [suggestedOutputType, setSuggestedOutputType] = useState<string | null>(null)
+  const [suggestionRationale, setSuggestionRationale] = useState<string | null>(null)
+  const [suggestionLoading, setSuggestionLoading] = useState(false)
+
   // Load bundles
   useEffect(() => {
     loadBundles()
@@ -258,10 +290,44 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
     }
   }
 
-  async function handleApprove(bundleId: string) {
+  // Load output type suggestion when approval modal opens
+  async function loadOutputTypeSuggestion(bundleId: string) {
+    setSuggestionLoading(true)
+    try {
+      const result = await apiGet<{
+        success: boolean
+        suggested_type: string
+        confidence: string
+        rationale: string
+      }>(`/api/disco/initiatives/${initiativeId}/bundles/${bundleId}/suggest-output-type`)
+
+      if (result.success) {
+        setSuggestedOutputType(result.suggested_type)
+        setSuggestionRationale(result.rationale)
+        setSelectedOutputType(result.suggested_type)
+      }
+    } catch (err) {
+      console.error('Failed to get output type suggestion:', err)
+    } finally {
+      setSuggestionLoading(false)
+    }
+  }
+
+  function openApprovalModal(bundleId: string) {
+    setApprovingBundle(bundleId)
+    setSelectedOutputType('prd')
+    setSuggestedOutputType(null)
+    setSuggestionRationale(null)
+    loadOutputTypeSuggestion(bundleId)
+  }
+
+  async function handleApprove(bundleId: string, outputType: string) {
     try {
       setActionLoading(bundleId)
-      await apiPost(`/api/disco/initiatives/${initiativeId}/bundles/${bundleId}/approve`, {})
+      await apiPost(`/api/disco/initiatives/${initiativeId}/bundles/${bundleId}/approve`, {
+        output_type: outputType,
+      })
+      setApprovingBundle(null)
       await loadBundles()
       onRefresh()
     } catch (err) {
@@ -360,7 +426,7 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
                 key={bundle.id}
                 bundle={bundle}
                 canEdit={canEdit}
-                onApprove={() => handleApprove(bundle.id)}
+                onApprove={() => openApprovalModal(bundle.id)}
                 onReject={() => setRejectingBundle(bundle.id)}
                 onEdit={() => {/* TODO: Edit modal */}}
               />
@@ -449,6 +515,124 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   'Reject'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approval modal with output type selection */}
+      {approvingBundle && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-lg w-full mx-4">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+              Approve Bundle
+            </h3>
+
+            {/* AI Suggestion */}
+            {suggestionLoading ? (
+              <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg mb-4">
+                <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                <span className="text-sm text-slate-600 dark:text-slate-400">
+                  Analyzing bundle to suggest output type...
+                </span>
+              </div>
+            ) : suggestedOutputType && (
+              <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg mb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span className="text-sm font-medium text-indigo-900 dark:text-indigo-200">
+                    AI suggests: {OUTPUT_TYPES.find(t => t.value === suggestedOutputType)?.label}
+                  </span>
+                </div>
+                {suggestionRationale && (
+                  <p className="text-xs text-indigo-700 dark:text-indigo-300 ml-6">
+                    {suggestionRationale}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+              Select the document type to generate after approval:
+            </p>
+
+            {/* Output type selection */}
+            <div className="space-y-2 mb-6">
+              {OUTPUT_TYPES.map((type) => {
+                const TypeIcon = type.icon
+                const isSelected = selectedOutputType === type.value
+                const isSuggested = suggestedOutputType === type.value
+
+                return (
+                  <button
+                    key={type.value}
+                    onClick={() => setSelectedOutputType(type.value)}
+                    className={`w-full flex items-start gap-3 p-3 rounded-lg border transition-colors text-left ${
+                      isSelected
+                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                        : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
+                    }`}
+                  >
+                    <TypeIcon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
+                      isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-medium text-sm ${
+                          isSelected ? 'text-indigo-900 dark:text-indigo-100' : 'text-slate-900 dark:text-slate-100'
+                        }`}>
+                          {type.label}
+                        </span>
+                        {isSuggested && (
+                          <span className="text-xs px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-800 text-indigo-700 dark:text-indigo-300 rounded">
+                            Suggested
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        {type.description}
+                      </p>
+                    </div>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                      isSelected
+                        ? 'border-indigo-500 bg-indigo-500'
+                        : 'border-slate-300 dark:border-slate-500'
+                    }`}>
+                      {isSelected && (
+                        <CheckCircle className="w-3 h-3 text-white" />
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setApprovingBundle(null)
+                  setSelectedOutputType('prd')
+                  setSuggestedOutputType(null)
+                  setSuggestionRationale(null)
+                }}
+                className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleApprove(approvingBundle, selectedOutputType)}
+                disabled={actionLoading === approvingBundle}
+                className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                {actionLoading === approvingBundle ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Approve & Generate
+                  </>
                 )}
               </button>
             </div>

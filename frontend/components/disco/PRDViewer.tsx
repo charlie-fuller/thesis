@@ -13,11 +13,13 @@ import {
   ChevronDown,
   ChevronRight,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  FolderPlus
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { apiGet, apiPost, authenticatedFetch } from '@/lib/api'
+import CreateProjectFromPRDModal from './CreateProjectFromPRDModal'
 
 interface PRD {
   id: string
@@ -44,6 +46,7 @@ interface PRD {
 
 interface PRDViewerProps {
   initiativeId: string
+  initiativeName?: string
   canEdit: boolean
   onRefresh: () => void
 }
@@ -107,16 +110,21 @@ function PRDCard({
 function PRDDetail({
   prd,
   canEdit,
+  initiativeId,
+  initiativeName,
   onApprove,
   onRefresh
 }: {
   prd: PRD
   canEdit: boolean
+  initiativeId: string
+  initiativeName?: string
   onApprove: () => void
   onRefresh: () => void
 }) {
   const [copied, setCopied] = useState(false)
   const [approving, setApproving] = useState(false)
+  const [showCreateProjectModal, setShowCreateProjectModal] = useState(false)
   const statusConfig = STATUS_CONFIG[prd.status]
 
   const handleCopy = async () => {
@@ -202,6 +210,15 @@ function PRDDetail({
               Approve
             </button>
           )}
+          {prd.status === 'approved' && (
+            <button
+              onClick={() => setShowCreateProjectModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+            >
+              <FolderPlus className="w-4 h-4" />
+              Create Project
+            </button>
+          )}
         </div>
       </div>
 
@@ -225,11 +242,26 @@ function PRDDetail({
           </ReactMarkdown>
         </div>
       </div>
+
+      {/* Create Project Modal */}
+      {showCreateProjectModal && (
+        <CreateProjectFromPRDModal
+          open={showCreateProjectModal}
+          onClose={() => {
+            setShowCreateProjectModal(false)
+            onRefresh()
+          }}
+          prdId={prd.id}
+          prdTitle={prd.title}
+          initiativeId={initiativeId}
+          initiativeName={initiativeName || 'Initiative'}
+        />
+      )}
     </div>
   )
 }
 
-export default function PRDViewer({ initiativeId, canEdit, onRefresh }: PRDViewerProps) {
+export default function PRDViewer({ initiativeId, initiativeName, canEdit, onRefresh }: PRDViewerProps) {
   const [prds, setPrds] = useState<PRD[]>([])
   const [selectedPRD, setSelectedPRD] = useState<PRD | null>(null)
   const [loading, setLoading] = useState(true)
@@ -421,6 +453,8 @@ export default function PRDViewer({ initiativeId, canEdit, onRefresh }: PRDViewe
             <PRDDetail
               prd={selectedPRD}
               canEdit={canEdit}
+              initiativeId={initiativeId}
+              initiativeName={initiativeName}
               onApprove={() => handleApprove(selectedPRD.id)}
               onRefresh={loadPRDs}
             />

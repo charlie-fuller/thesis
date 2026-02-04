@@ -166,6 +166,7 @@ class BundleApproval(BaseModel):
     """Request body for approving/rejecting a bundle."""
 
     feedback: Optional[str] = None
+    output_type: str = Field(default="prd", description="Output type: prd, evaluation_framework, decision_framework")
 
 
 class BundleMerge(BaseModel):

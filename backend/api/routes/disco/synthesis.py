@@ -3,17 +3,20 @@
 import json
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from logger_config import get_logger
 from services.disco import check_permission, get_initiative, run_agent
 from services.disco.prd_service import (
+    OUTPUT_TYPE_CONFIG,
     approve_prd,
+    extract_project_from_prd,
     generate_executive_summary,
     generate_prd_for_bundle,
     get_prd,
     list_prds,
+    suggest_output_type,
     update_prd,
 )
 from services.disco.synthesis_service import (
@@ -476,6 +479,36 @@ async def api_update_prd(
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
+@router.post("/initiatives/{initiative_id}/prds/{prd_id}/extract-project")
+async def api_extract_project_from_prd(
+    initiative_id: str,
+    prd_id: str,
+    current_user: dict = Depends(require_disco_access),
+):
+    """Extract project fields from PRD content using AI."""
+    try:
+        can_view = await check_permission(initiative_id, current_user["id"], "viewer")
+        if not can_view:
+            raise HTTPException(status_code=403, detail="No access to this initiative")
+
+        prd = await get_prd(prd_id)
+        if not prd or prd["initiative_id"] != initiative_id:
+            raise HTTPException(status_code=404, detail="PRD not found")
+
+        # Get initiative name for context
+        initiative = await get_initiative(initiative_id)
+        initiative_name = initiative.get("name", "Unknown") if initiative else "Unknown"
+
+        # Extract project data
+        result = await extract_project_from_prd(prd, initiative_id, initiative_name)
+        return {"success": True, **result}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error extracting project from PRD: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
 @router.post("/initiatives/{initiative_id}/prds/{prd_id}/approve")
 async def api_approve_prd(
     initiative_id: str,
@@ -501,13 +534,129 @@ async def api_approve_prd(
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
+@router.get("/initiatives/{initiative_id}/bundles/{bundle_id}/suggest-output-type")
+async def api_suggest_output_type(
+    initiative_id: str,
+    bundle_id: str,
+    current_user: dict = Depends(require_disco_access),
+):
+    """AI-powered suggestion for the appropriate output type based on bundle content."""
+    try:
+        can_view = await check_permission(initiative_id, current_user["id"], "viewer")
+        if not can_view:
+            raise HTTPException(status_code=403, detail="No access to this initiative")
+
+        bundle = await get_bundle(bundle_id)
+        if not bundle or bundle["initiative_id"] != initiative_id:
+            raise HTTPException(status_code=404, detail="Bundle not found")
+
+        # Get AI suggestion
+        suggestion = await suggest_output_type(bundle)
+        return {"success": True, **suggestion}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error suggesting output type: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+@router.get("/initiatives/{initiative_id}/output-types")
+async def api_get_output_types(
+    initiative_id: str,
+    current_user: dict = Depends(require_disco_access),
+):
+    """Get available output types for document generation."""
+    try:
+        can_view = await check_permission(initiative_id, current_user["id"], "viewer")
+        if not can_view:
+            raise HTTPException(status_code=403, detail="No access to this initiative")
+
+        output_types = [
+            {
+                "value": key,
+                "label": config["label"],
+                "description": config["description"],
+            }
+            for key, config in OUTPUT_TYPE_CONFIG.items()
+        ]
+        return {"success": True, "output_types": output_types}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting output types: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+@router.post("/initiatives/{initiative_id}/bundles/{bundle_id}/generate-document")
+async def api_generate_document(
+    initiative_id: str,
+    bundle_id: str,
+    output_type: str = Query(default="prd", description="Output type: prd, evaluation_framework, decision_framework"),
+    current_user: dict = Depends(require_disco_access),
+):
+    """Generate a document for an approved bundle with specified output type."""
+    try:
+        can_edit = await check_permission(initiative_id, current_user["id"], "editor")
+        if not can_edit:
+            raise HTTPException(status_code=403, detail="No edit access to this initiative")
+
+        bundle = await get_bundle(bundle_id)
+        if not bundle or bundle["initiative_id"] != initiative_id:
+            raise HTTPException(status_code=404, detail="Bundle not found")
+
+        if bundle["status"] != "approved":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Bundle must be approved (current: {bundle['status']})",
+            )
+
+        if output_type not in OUTPUT_TYPE_CONFIG:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid output type: {output_type}. Valid types: {list(OUTPUT_TYPE_CONFIG.keys())}",
+            )
+
+        async def generate():
+            async for event in generate_prd_for_bundle(
+                bundle_id=bundle_id,
+                initiative_id=initiative_id,
+                user_id=current_user["id"],
+                output_type=output_type,
+            ):
+                event_type = event["type"]
+                data = event.get("data", "")
+
+                if isinstance(data, dict):
+                    data = json.dumps(data)
+
+                if event_type in ["status", "complete", "error"]:
+                    yield f"event: {event_type}\ndata: {data}\n\n"
+                else:
+                    yield f"data: {data}\n\n"
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating document: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
 @router.post("/initiatives/{initiative_id}/bundles/{bundle_id}/generate-prd")
 async def api_generate_prd(
     initiative_id: str,
     bundle_id: str,
     current_user: dict = Depends(require_disco_access),
 ):
-    """Generate a PRD for an approved bundle."""
+    """Generate a PRD for an approved bundle (legacy endpoint, use generate-document instead)."""
     try:
         can_edit = await check_permission(initiative_id, current_user["id"], "editor")
         if not can_edit:

@@ -93,6 +93,8 @@ interface LinkedProject {
   description: string | null
   status: string
   tier: number
+  source_type?: string
+  source_id?: string
 }
 
 // ============================================================================
@@ -189,11 +191,13 @@ export default function InitiativeDetailPage() {
   // Load linked projects
   const loadLinkedProjects = useCallback(async () => {
     try {
-      // API returns array directly, not wrapped in { projects: [...] }
-      const result = await apiGet<LinkedProject[]>(
-        `/api/projects?initiative_id=${initiativeId}`
+      // Use the dedicated initiative projects endpoint
+      const result = await apiGet<{ success: boolean; projects: LinkedProject[]; count: number }>(
+        `/api/disco/initiatives/${initiativeId}/projects`
       )
-      setLinkedProjects(result || [])
+      if (result.success) {
+        setLinkedProjects(result.projects || [])
+      }
     } catch (err) {
       console.error('Failed to load linked projects:', err)
     }
@@ -563,6 +567,11 @@ export default function InitiativeDetailPage() {
                         }`}>
                           {project.status}
                         </span>
+                        {project.source_type === 'disco_prd' && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                            From PRD
+                          </span>
+                        )}
                       </div>
                       <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
                     </div>
