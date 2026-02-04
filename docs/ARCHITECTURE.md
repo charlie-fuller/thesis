@@ -81,13 +81,24 @@ This document contains detailed architecture documentation. For essential Claude
 21. **Project Naming Workflow** - Required names for projects in active phases
 22. **Meeting Scanner** - Heuristic-based document classification extracts projects, tasks, stakeholders from meeting notes (transcripts, summaries, 1:1s)
 
-### DISCO (Discovery → Insights → Synthesis → Convergence)
+### DISCO (Discovery → Insights → Synthesis → Convergence → Operationalize)
 23. **DISCO KB Integration** - Uses Knowledge Base as single source of truth for documents. Link existing KB documents to initiatives via browser modal with search/tag filtering. Chat includes linked document list for visibility plus vector search for content queries.
 24. **DISCO Pipeline** - AI-assisted product discovery with 4 consolidated stage-aligned agents and human-in-the-loop checkpoints:
     - **Discovery Guide**: Validates problem, plans discovery sessions, tracks coverage (consolidates: Triage, Discovery Planner, Coverage Tracker)
     - **Insight Analyst**: Extracts patterns and creates decision document (consolidates: Insight Extractor, Consolidator)
     - **Initiative Builder**: Clusters insights into scored initiative bundles (consolidates: Strategist)
     - **Requirements Generator**: Produces PRD with technical recommendations (consolidates: PRD Generator, Tech Evaluation)
+25. **Flexible Output Types** - Bundle approval generates one of three document types based on purpose:
+    - **PRD** (default): Product Requirements Document for build/development bundles
+    - **Evaluation Framework**: Weighted criteria matrix, platform comparison, recommendation for research/evaluation bundles
+    - **Decision Framework**: Decision criteria, stakeholder input, risk/benefit assessment for governance decisions
+    - AI suggests appropriate output type based on bundle content analysis
+26. **Create Project from PRD** - Approved PRDs can spawn projects with AI-extracted fields:
+    - Extracts title, description, department, current/desired state, and scoring dimensions
+    - Confidence indicators highlight low-confidence fields for user review
+    - Optional task extraction from PRD requirements section
+    - Projects linked to parent initiative with `source_type: disco_prd`
+27. **Initiative Projects View** - Dedicated endpoint for querying projects linked to an initiative with "From PRD" source badges
 
 **Consolidated Agent Architecture (v1.0):**
 | # | Agent | Color | Consolidates | Checkpoint After |

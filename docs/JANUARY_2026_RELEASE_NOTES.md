@@ -641,3 +641,63 @@ The Discovery Inbox now displays all three candidate types simultaneously in a v
 - Routed Chat→Agents arrow around outside bottom to avoid overlapping other elements
 - Removed "Meeting Transcripts" node (documents now generalized)
 - "Local Vault" subtitle changed to "Filesystem Sync"
+
+---
+
+## February 2026 Updates (February 4, 2026)
+
+### DISCO Flexible Output Types
+
+Bundle approval now supports three document types based on bundle purpose, with AI-suggested recommendations.
+
+**Output Types**:
+- **PRD** (default): Product Requirements Document for build/development bundles
+- **Evaluation Framework**: Weighted criteria matrix, platform comparison table, and recommendation for research/evaluation bundles (e.g., vendor selection, tool evaluation)
+- **Decision Framework**: Decision criteria, stakeholder analysis, options comparison, and risk/benefit assessment for governance decisions
+
+**Features**:
+- AI analyzes bundle name, description, and included items to suggest appropriate output type
+- Suggestion displayed with rationale before user confirms
+- Output type selector in bundle approval modal with descriptions
+- Section parsers extract structured content for each document type
+
+**Files**: `backend/disco_agents/evaluation-framework-v1.0.md`, `backend/disco_agents/decision-framework-v1.0.md`, `backend/services/disco/prd_service.py`, `frontend/components/disco/SynthesisView.tsx`
+
+### Create Project from PRD
+
+Approved PRDs can now spawn projects directly with AI-extracted fields and confidence indicators.
+
+**Features**:
+- "Create Project" button appears on approved PRDs
+- AI extracts: title, description, department, current state, desired state, and 4-dimension scores
+- Confidence indicators (high/medium/low) highlight fields needing user review
+- Low-confidence fields highlighted in amber for attention
+- Task extraction from PRD requirements section with priority assignment
+- Projects linked to parent initiative with `source_type: disco_prd`
+- Source notes include PRD reference for traceability
+
+**Files**: `frontend/components/disco/CreateProjectFromPRDModal.tsx`, `frontend/components/disco/PRDViewer.tsx`, `backend/api/routes/disco/synthesis.py`
+
+### Initiative Projects Endpoint
+
+New dedicated API endpoint for querying projects linked to DISCO initiatives.
+
+**Features**:
+- `GET /api/disco/initiatives/{id}/projects` returns all linked projects
+- Supports filtering by project status
+- "From PRD" badge displayed on projects created via PRD extraction
+- Cleaner than using general projects API with initiative filter
+
+**Files**: `backend/api/routes/disco/initiatives.py`, `backend/services/disco/project_service.py`, `frontend/app/disco/[id]/page.tsx`
+
+### Direct Project Creation from Projects Page
+
+Added ability to create projects directly from the Projects page without going through discovery flows.
+
+**Features**:
+- "New Project" button on Projects page header
+- Full project form with all scoring dimensions
+- Auto-generates project code based on department
+- Supports initiative linking at creation time
+
+**Files**: `frontend/app/projects/page.tsx`
