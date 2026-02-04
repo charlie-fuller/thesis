@@ -562,8 +562,8 @@ If integration tests fail even with `--forked`:
 | Backend Unit | 370+ | Business logic, validation |
 | Backend Integration | 35+ | Real database operations |
 | Backend Obsidian | 55+ | Vault sync functionality |
-| E2E Browser | 66 | Full user flows |
-| **Total** | **526+** | Full stack |
+| E2E Browser | 178 | Full user flows |
+| **Total** | **638+** | Full stack |
 
 ---
 
