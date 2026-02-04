@@ -13,9 +13,11 @@ import {
   Users,
   ChevronRight,
   Loader2,
-  Map
+  Map,
+  GitBranch
 } from 'lucide-react'
 import DiscoProcessMap from '@/components/disco/DiscoProcessMap'
+import DiscoOperationalizeMap from '@/components/disco/DiscoOperationalizeMap'
 import { apiGet, apiPost } from '@/lib/api'
 
 // ============================================================================
@@ -259,7 +261,7 @@ export default function DiscoInitiativesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [createModalOpen, setCreateModalOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'initiatives' | 'workflow'>('initiatives')
+  const [activeTab, setActiveTab] = useState<'initiatives' | 'workflow' | 'operationalize'>('initiatives')
 
   const loadInitiatives = async () => {
     try {
@@ -352,11 +354,24 @@ export default function DiscoInitiativesPage() {
           <Map className="w-4 h-4" />
           Workflow Map
         </button>
+        <button
+          onClick={() => setActiveTab('operationalize')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+            activeTab === 'operationalize'
+              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          <GitBranch className="w-4 h-4" />
+          Operationalize Map
+        </button>
       </div>
 
       {/* Tab Content */}
       {activeTab === 'workflow' ? (
         <DiscoProcessMap />
+      ) : activeTab === 'operationalize' ? (
+        <DiscoOperationalizeMap />
       ) : (
         <>
 
