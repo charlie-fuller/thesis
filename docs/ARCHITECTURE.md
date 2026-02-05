@@ -49,7 +49,7 @@ This document contains detailed architecture documentation. For essential Claude
 
 ### Core Features
 1. **Agent Selection in Chat** - Select specific agents or use Auto mode with @mention syntax
-2. **Knowledge Base** - Unified document management with auto-classification and agent-filtered RAG
+2. **Knowledge Base** - Finder-style document browser with folder tree sidebar, source/search filtering, and agent-filtered RAG
 3. **Meeting Intelligence** - Transcript analysis with stakeholder insights
 4. **Stakeholder Tracking** - CRM-style tracking with auto-discovery from meetings
 5. **Research Intelligence** - Atlas web research with credibility-tiered sources
@@ -263,6 +263,15 @@ Run migrations in order from `/database/migrations/`:
 - `/frontend/app/projects/` - Project pipeline
 - `/frontend/app/disco/` - DISCO feature (formerly `purdy/`, route `/purdy` still redirects)
 - `/frontend/components/disco/` - DISCO components (7 files) (formerly `purdy/`)
+
+### KB Components (Finder-Style Layout)
+- `/frontend/components/kb/KBDocumentsContent.tsx` - Orchestrator (~300 lines): manages folder/search/filter state, toolbar, sidebar+content flex layout, modals
+- `/frontend/components/kb/KBFinderSidebar.tsx` - Folder tree from `/api/documents/folders`, expand/collapse, "All Documents" root item
+- `/frontend/components/kb/KBFinderContent.tsx` - Document list for selected folder, breadcrumbs, source badges, infinite scroll, bulk actions
+- `/frontend/components/kb/KBSyncSettingsModal.tsx` - Tabbed modal (Vault/Drive/Notion/Uploads) for all sync controls
+- `/frontend/components/kb/KBDocumentInfoModal.tsx` - Document detail modal with tags, agent assignments, sync cadence
+- `/frontend/components/kb/KBDocumentBrowserTab.tsx` - Tag Manager tab with bulk tag operations
+- `/frontend/components/kb/ClassificationReviewBanner.tsx` - Review banner for ambiguous auto-classifications
 
 ### DISCO Agent Prompts
 - `/backend/disco_agents/` - Agent prompt definitions (versioned markdown) (formerly `purdy_agents/`, path alias still supported)

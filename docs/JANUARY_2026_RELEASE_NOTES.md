@@ -701,3 +701,63 @@ Added ability to create projects directly from the Projects page without going t
 - Supports initiative linking at creation time
 
 **Files**: `frontend/app/projects/page.tsx`
+
+---
+
+## February 2026 Updates (February 5, 2026)
+
+### KB Finder-Style Redesign
+
+Replaced the integration-centric KB layout (3,044-line monolith with nested accordions) with a Finder-style filesystem browser where the folder tree is immediately visible.
+
+**New Layout**:
+- Toolbar: search, source filter, sync status badge, gear icon for settings
+- Two-pane flex layout: folder tree sidebar (w-64) + document content pane
+- Folder tree loads from `/api/documents/folders` API (complete folder tree with recursive counts)
+- Documents lazy-loaded per folder via `/api/documents/search?folder=X`
+
+**Architecture Change** (3,044 lines decomposed into 5 focused files):
+- `KBDocumentsContent.tsx` (~300 lines) - Orchestrator: state management, toolbar, layout composition, OAuth handlers
+- `KBFinderSidebar.tsx` (~210 lines) - Recursive folder tree with expand/collapse, document counts, folder selection
+- `KBFinderContent.tsx` (~400 lines) - Document list with breadcrumbs, source badges, processing status, infinite scroll, bulk actions
+- `KBSyncSettingsModal.tsx` (~930 lines) - Tabbed modal (Vault | Drive | Notion | Uploads) containing all sync controls
+- `KBDocumentInfoModal.tsx` (~545 lines) - Document detail modal with tags, agent assignments, sync cadence
+
+**Files**: `frontend/components/kb/KBDocumentsContent.tsx`, `frontend/components/kb/KBFinderSidebar.tsx`, `frontend/components/kb/KBFinderContent.tsx`, `frontend/components/kb/KBSyncSettingsModal.tsx`, `frontend/components/kb/KBDocumentInfoModal.tsx`
+
+### Obsidian Sync: File Move/Rename Detection
+
+The vault sync now detects when files are moved or renamed in Obsidian and preserves their document IDs instead of creating duplicates.
+
+**How It Works**:
+- During sync, compares content hashes of new files against recently deleted files
+- If a hash match is found, updates the existing document's path instead of creating a new one
+- Preserves all document metadata (tags, agent assignments, embeddings) across moves
+- Works for both incremental sync and "Check for Updates"
+
+**Files**: `backend/services/obsidian_sync.py`
+
+### Full Resync Restructured
+
+Full resync is now a 5-phase filesystem mirroring operation for reliability.
+
+**Phases**:
+1. Scan filesystem to discover all matching files
+2. Identify new, changed, and unchanged files
+3. Process new/changed files (create or update documents)
+4. Remove orphaned documents (files deleted from vault)
+5. Report results
+
+**Files**: `backend/services/obsidian_sync.py`
+
+### KB Bulk Delete
+
+Added multi-select and bulk delete capability to the KB document browser.
+
+**Features**:
+- Checkbox selection for individual documents
+- "Select all" toggle in header
+- Bulk delete button with confirmation count
+- Warning when deleting documents linked to DISCO initiatives
+
+**Files**: `frontend/components/kb/KBFinderContent.tsx`

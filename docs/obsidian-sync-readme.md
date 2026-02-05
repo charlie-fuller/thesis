@@ -15,6 +15,8 @@ The Obsidian Vault Sync feature allows users to connect their local Obsidian vau
 - **Pattern Matching**: Configurable include/exclude patterns
 - **Debouncing**: 500ms debounce window for rapid file changes
 - **Background Processing**: Syncs run asynchronously, embeddings processed in background
+- **Move/Rename Detection**: Detects file moves by content hash matching, preserves document IDs
+- **5-Phase Full Resync**: Structured filesystem mirroring (scan, identify, process, cleanup, report)
 
 ## Quick Start
 
@@ -88,6 +90,7 @@ Options:
 | POST | `/api/obsidian/sync/full` | Force full resync (clears state first) |
 | DELETE | `/api/obsidian/disconnect` | Disconnect vault, optionally remove docs |
 | GET | `/api/obsidian/sync-history` | Get recent sync operation logs |
+| GET | `/api/obsidian/sync/recent` | Get recently synced files (sorted by last_synced_at) |
 | GET | `/api/obsidian/files` | List synced files with status |
 | GET | `/api/obsidian/files/pending` | Get pending/failed files |
 | POST | `/api/obsidian/files/{path}/retry` | Retry syncing a failed file |
@@ -143,6 +146,33 @@ date: 2026-01-15
 - **`thesis-agents`**: Array of agent names to auto-tag the document for
 
 When `thesis-agents` is specified, the document is automatically linked to those agents in `agent_knowledge_base` with high confidence (1.0) and marked as user-confirmed.
+
+## File Move/Rename Detection
+
+When files are moved or renamed in the vault, the sync detects this and preserves the existing document ID rather than creating a duplicate.
+
+**How It Works**:
+1. During sync, new files (not yet in sync state) have their content hash computed
+2. The hash is compared against recently deleted or missing files in the sync state
+3. If a match is found, the existing document record is updated with the new path
+4. All metadata (tags, agent assignments, embeddings, initiative links) is preserved
+
+This works for:
+- Simple renames (`notes.md` -> `meeting-notes.md`)
+- Folder moves (`inbox/notes.md` -> `meetings/2026/notes.md`)
+- Both incremental sync and "Check for Updates" operations
+
+## Full Resync (5-Phase)
+
+The full resync operation uses a structured 5-phase approach for reliability:
+
+1. **Scan**: Discover all files in the vault matching include/exclude patterns
+2. **Identify**: Categorize files as new, changed (hash mismatch), or unchanged
+3. **Process**: Create or update documents for new/changed files
+4. **Cleanup**: Remove orphaned documents (files no longer in vault)
+5. **Report**: Return counts of added, updated, deleted, and failed files
+
+This replaces the previous approach where full resync could race between clearing state and processing files.
 
 ## Wikilink Conversion
 
