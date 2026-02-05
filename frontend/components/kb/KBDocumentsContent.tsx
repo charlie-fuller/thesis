@@ -705,20 +705,24 @@ export default function KBDocumentsContent() {
       await apiPost<{ success: boolean; message: string }>('/api/obsidian/sync/full')
 
       // Poll for progress every second for responsive updates
+      // Track whether we've seen the sync actually start to avoid race condition
+      // where the first poll fires before the background task begins
+      let seenSyncing = false
       const pollInterval = setInterval(async () => {
         const status = await checkObsidianStatusFn()
         if (status) {
           const progress = status.sync_progress
 
           if (progress && progress.is_syncing) {
+            seenSyncing = true
             // Update progress from live sync data
             setObsidianSyncProgress({
               synced: progress.files_processed,
               total: progress.total_files,
               current_file: progress.current_file
             })
-          } else if (!progress || !progress.is_syncing) {
-            // Sync completed
+          } else if (seenSyncing && (!progress || !progress.is_syncing)) {
+            // Sync completed (only after we've confirmed it started)
             clearInterval(pollInterval)
             setObsidianSyncing(false)
             setObsidianSyncProgress(null)
