@@ -413,6 +413,7 @@ async def search_documents(
     tags: Optional[str] = None,
     sort: Optional[str] = None,
     source: Optional[str] = None,
+    folder: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,
     current_user: dict = Depends(get_current_user),
@@ -424,6 +425,7 @@ async def search_documents(
         tags: Comma-separated list of tags to filter by
         sort: Sort order - 'recent' (default), 'oldest', 'name_asc', 'name_desc'
         source: Filter by source platform - 'obsidian', 'google_drive', 'notion', 'upload'
+        folder: Filter by Obsidian folder path prefix
         limit: Number of results per page
         offset: Pagination offset
     """
@@ -433,7 +435,9 @@ async def search_documents(
         query = (
             supabase.table("documents")
             .select(
-                "id, filename, title, obsidian_file_path, uploaded_at, source_platform, tags_cache",
+                "id, filename, title, obsidian_file_path, uploaded_at, original_date, source_platform, "
+                "processed, processing_status, processing_error, storage_url, external_url, "
+                "file_size, sync_cadence, google_drive_file_id, notion_page_id, tags_cache",
                 count="exact",
             )
             .eq("uploaded_by", user_id)
@@ -442,6 +446,10 @@ async def search_documents(
         # Apply source platform filter
         if source and source.strip():
             query = query.eq("source_platform", source.strip())
+
+        # Apply folder path filter
+        if folder and folder.strip():
+            query = query.ilike("obsidian_file_path", f"{folder.strip()}/%")
 
         # Apply sort order
         sort_field = sort.strip().lower() if sort else "recent"
@@ -556,7 +564,7 @@ async def get_documents_by_folder(
 
 @router.get("/folders")
 async def get_obsidian_folders(current_user: dict = Depends(get_current_user)):
-    """Get unique Obsidian folder paths for the current user."""
+    """Get unique Obsidian folder paths for the current user with document counts."""
     try:
         result = await asyncio.to_thread(
             lambda: supabase.table("documents")
@@ -568,20 +576,26 @@ async def get_obsidian_folders(current_user: dict = Depends(get_current_user)):
         )
 
         folders = set()
+        folder_counts: Counter = Counter()
         for doc in result.data or []:
             path = doc.get("obsidian_file_path", "")
             if path and "/" in path:
                 if "github" in path.lower():
                     continue
                 parts = path.split("/")
+                # Count this doc for every ancestor folder
                 for i in range(1, len(parts)):
                     folder_path = "/".join(parts[:i])
                     if "github" not in folder_path.lower():
                         folders.add(folder_path)
+                        folder_counts[folder_path] += 1
 
         sorted_folders = sorted(folders)
 
-        return {"success": True, "folders": sorted_folders}
+        return {
+            "success": True,
+            "folders": [{"path": f, "count": folder_counts.get(f, 0)} for f in sorted_folders],
+        }
 
     except Exception as e:
         logger.error(f"Error fetching Obsidian folders: {e}")
