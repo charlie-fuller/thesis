@@ -99,6 +99,7 @@ This document contains detailed architecture documentation. For essential Claude
     - Optional task extraction from PRD requirements section
     - Projects linked to parent initiative with `source_type: disco_prd`
 27. **Initiative Projects View** - Dedicated endpoint for querying projects linked to an initiative with "From PRD" source badges
+28. **Initiative Goal Alignment** - Analyzes initiatives against IS FY27 strategic goals (same 4-pillar framework as projects). Uses rich context from agent outputs for scoring. Project roll-up shows linked projects' alignment scores with distribution.
 
 **Consolidated Agent Architecture (v1.0):**
 | # | Agent | Color | Consolidates | Checkpoint After |
@@ -174,7 +175,7 @@ This document contains detailed architecture documentation. For essential Claude
 - `compass_status_reports` - Career status reports with rubric scores
 
 ### DISCO Tables (formerly PuRDy - `purdy_*` table names still accepted for backwards compatibility)
-- `disco_initiatives` - Initiative container
+- `disco_initiatives` - Initiative container (includes `goal_alignment_score`, `goal_alignment_details` for strategic alignment)
 - `disco_initiative_members` - Multi-user sharing
 - `disco_documents` - Per-initiative documents
 - `disco_document_chunks` - Chunked + embedded for RAG
@@ -221,6 +222,10 @@ Run migrations in order from `/database/migrations/`:
 | 048 | disco_synthesis | DISCO bundles + PRDs tables |
 | 056 | rename_opportunities_to_projects | Rename opportunities → projects throughout |
 | 061 | disco_checkpoints | Human-in-the-loop checkpoints for consolidated agents |
+| 062 | project_initiatives | Initiative linking for projects (`initiative_ids UUID[]`) |
+| 065 | project_documents | Project-document linking |
+| 066 | conversation_context_columns | Context linking for conversations |
+| 067 | initiative_goal_alignment | Goal alignment columns on `disco_initiatives` |
 
 ## Important Files Reference
 
@@ -241,6 +246,8 @@ Run migrations in order from `/database/migrations/`:
 - `/backend/services/stakeholder_*.py` - Stakeholder services (extractor, scanner, deduplicator, linker)
 - `/backend/services/task_*.py` - Task services (auto_extractor, extractor)
 - `/backend/services/disco/` - DISCO services (4 consolidated agents + 8 legacy) (formerly `purdy/`, path alias still supported)
+- `/backend/services/goal_alignment_analyzer.py` - Project goal alignment (IS FY27 pillars)
+- `/backend/services/disco/initiative_alignment_analyzer.py` - Initiative goal alignment with agent output context
 - `/backend/services/graph/` - Neo4j services
 
 ### Backend API Routes

@@ -346,3 +346,18 @@ Added multi-select and bulk delete capability to the KB document browser.
 - Warning when deleting documents linked to DISCO initiatives
 
 **Files**: `frontend/components/kb/KBFinderContent.tsx`
+
+### Initiative Goal Alignment
+
+DISCO initiatives can now be analyzed against the same IS FY27 strategic pillars used for projects, with richer context from agent outputs.
+
+**Features**:
+- New "Alignment" tab on initiative detail page (between Outputs and Projects)
+- Scores 0-100 across 4 IS FY27 pillars (25 points each): Customer Journey, Maximize Value, Digital Workforce, High-Trust Culture
+- Rich analysis context: gathers latest agent outputs (triage, strategist, insight analyst, etc.) and bundle scores for more accurate scoring
+- Stale indicator when new agent outputs exist since last analysis
+- Empty state hint suggesting running agents first for better accuracy
+- Project roll-up section showing linked projects' alignment scores, average, and distribution (high/moderate/low/minimal)
+- Manual trigger only (click Analyze button); editors/owners can analyze, viewers can view results
+
+**Files**: `backend/services/disco/initiative_alignment_analyzer.py`, `backend/api/routes/disco/initiatives.py`, `frontend/components/disco/InitiativeAlignmentTab.tsx`, `frontend/components/projects/GoalAlignmentSection.tsx`, `frontend/app/disco/[id]/page.tsx`, `database/migrations/067_initiative_goal_alignment.sql`
