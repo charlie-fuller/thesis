@@ -786,6 +786,7 @@ def update_sync_progress(
     total_files: int = 0,
     files_processed: int = 0,
     current_file: Optional[str] = None,
+    stage: Optional[str] = None,
 ) -> None:
     """Update the live sync progress for a vault config.
 
@@ -795,6 +796,7 @@ def update_sync_progress(
         total_files: Total number of files to sync
         files_processed: Number of files processed so far
         current_file: Path of the file currently being synced
+        stage: Current sync phase (scanning, syncing_changes, detecting_moves, cleaning_up, verifying)
     """
     try:
         progress_data = {
@@ -802,6 +804,7 @@ def update_sync_progress(
             "total_files": total_files,
             "files_processed": files_processed,
             "current_file": current_file,
+            "stage": stage,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -1091,13 +1094,16 @@ def complete_sync_log(
 # ============================================================================
 
 
-def sync_file(config: Dict, file_path: Path, existing_state: Optional[Dict] = None) -> Dict:
+def sync_file(
+    config: Dict, file_path: Path, existing_state: Optional[Dict] = None, precomputed_hash: Optional[str] = None
+) -> Dict:
     """Sync a single file from the vault.
 
     Args:
         config: Vault config record
         file_path: Absolute path to the file
         existing_state: Existing sync state if available
+        precomputed_hash: Pre-computed file hash to avoid redundant hashing
 
     Returns:
         Sync result dict
@@ -1117,7 +1123,7 @@ def sync_file(config: Dict, file_path: Path, existing_state: Optional[Dict] = No
         stats = file_path.stat()
         file_mtime = datetime.fromtimestamp(stats.st_mtime, tz=timezone.utc)
         file_size = stats.st_size
-        file_hash = compute_file_hash(file_path)
+        file_hash = precomputed_hash or compute_file_hash(file_path)
 
         # Check if file has changed (skip if unchanged AND document exists)
         # If hash matches but document_id is missing, we need to create the document
@@ -1753,14 +1759,21 @@ def _link_document_to_agents(document_id: str, user_id: str, agent_names: List[s
 # ============================================================================
 
 
-def sync_vault(config: Dict, trigger_source: str = "manual", recent_only: bool = False) -> Dict:
-    """Perform a vault sync.
+def sync_vault(
+    config: Dict,
+    trigger_source: str = "manual",
+    recent_only: bool = False,
+    sync_on_delete: bool = False,
+    full_resync: bool = False,
+) -> Dict:
+    """Perform a vault sync in 5 phases for efficient filesystem mirroring.
 
     Args:
         config: Vault config record
         trigger_source: What triggered the sync
         recent_only: If True, only sync files that are new, pending, or failed
-                     (skip files that are already synced and unchanged)
+        sync_on_delete: If True, delete documents for files no longer on disk
+        full_resync: If True, scan and categorize all files by hash diff
 
     Returns:
         Sync results dict
@@ -1808,50 +1821,124 @@ def sync_vault(config: Dict, trigger_source: str = "manual", recent_only: bool =
         existing_states = get_all_sync_states(config["id"])
         synced_paths: Set[str] = set()
 
-        # Initialize progress tracking
-        total_files = len(files)
-        update_sync_progress(config["id"], is_syncing=True, total_files=total_files, files_processed=0)
+        # ================================================================
+        # Phase 1: Scan & Categorize
+        # ================================================================
+        hash_cache: Dict[str, str] = {}  # relative_path -> file_hash
+        changed_files: list = []  # (file_path, relative_path, existing_state)
+        unchanged_files: list = []  # (file_path, relative_path, existing_state)
 
-        # Sync each file
-        for idx, file_path in enumerate(files):
-            relative_path = str(file_path.relative_to(vault_path))
-            synced_paths.add(relative_path)
+        update_sync_progress(config["id"], is_syncing=True, total_files=len(files), files_processed=0, stage="scanning")
 
-            # Update progress every file
+        if recent_only:
+            # In recent_only mode, categorize by sync state (no hashing needed)
+            for idx, file_path in enumerate(files):
+                relative_path = str(file_path.relative_to(vault_path))
+                synced_paths.add(relative_path)
+                existing_state = existing_states.get(relative_path)
+
+                if existing_state:
+                    status = existing_state.get("sync_status")
+                    has_document = existing_state.get("document_id") is not None
+                    if status == "synced" and has_document:
+                        unchanged_files.append((file_path, relative_path, existing_state))
+                        continue
+
+                changed_files.append((file_path, relative_path, existing_state))
+
+                if idx % 50 == 0:
+                    update_sync_progress(
+                        config["id"],
+                        is_syncing=True,
+                        total_files=len(files),
+                        files_processed=idx,
+                        stage="scanning",
+                    )
+        else:
+            # Full sync: compute hashes to identify actual changes
+            for idx, file_path in enumerate(files):
+                relative_path = str(file_path.relative_to(vault_path))
+                synced_paths.add(relative_path)
+                existing_state = existing_states.get(relative_path)
+
+                try:
+                    file_hash = compute_file_hash(file_path)
+                    hash_cache[relative_path] = file_hash
+                except Exception:
+                    # If hashing fails, treat as changed so sync_file handles the error
+                    changed_files.append((file_path, relative_path, existing_state))
+                    if idx % 50 == 0:
+                        update_sync_progress(
+                            config["id"],
+                            is_syncing=True,
+                            total_files=len(files),
+                            files_processed=idx,
+                            stage="scanning",
+                        )
+                    continue
+
+                # Categorize: changed if new, hash differs, or missing document_id
+                if not existing_state:
+                    changed_files.append((file_path, relative_path, existing_state))
+                elif existing_state.get("file_hash") != file_hash:
+                    changed_files.append((file_path, relative_path, existing_state))
+                elif not existing_state.get("document_id"):
+                    # Recovery: hash matches but no document - need to recreate
+                    changed_files.append((file_path, relative_path, existing_state))
+                else:
+                    unchanged_files.append((file_path, relative_path, existing_state))
+
+                if idx % 50 == 0:
+                    update_sync_progress(
+                        config["id"],
+                        is_syncing=True,
+                        total_files=len(files),
+                        files_processed=idx,
+                        stage="scanning",
+                    )
+
+        logger.info(f"   Categorized: {len(changed_files)} changed, {len(unchanged_files)} unchanged")
+
+        # ================================================================
+        # Phase 2: Sync Changes (changed/new files FIRST for fast feedback)
+        # ================================================================
+        if changed_files:
             update_sync_progress(
                 config["id"],
                 is_syncing=True,
-                total_files=total_files,
-                files_processed=idx,
-                current_file=relative_path,
+                total_files=len(changed_files),
+                files_processed=0,
+                stage="syncing_changes",
             )
 
-            existing_state = existing_states.get(relative_path)
+            for idx, (file_path, relative_path, existing_state) in enumerate(changed_files):
+                update_sync_progress(
+                    config["id"],
+                    is_syncing=True,
+                    total_files=len(changed_files),
+                    files_processed=idx,
+                    current_file=relative_path,
+                    stage="syncing_changes",
+                )
 
-            # In recent_only mode, skip files that are already synced with a document_id
-            # Only process: new files (no state), pending, or failed
-            if recent_only and existing_state:
-                status = existing_state.get("sync_status")
-                has_document = existing_state.get("document_id") is not None
-                if status == "synced" and has_document:
+                precomputed = hash_cache.get(relative_path)
+                result = sync_file(config, file_path, existing_state, precomputed_hash=precomputed)
+
+                if result["status"] == "added":
+                    stats["files_added"] += 1
+                elif result["status"] == "updated":
+                    stats["files_updated"] += 1
+                elif result["status"] == "skipped":
                     stats["files_skipped"] += 1
-                    continue
+                elif result["status"] == "failed":
+                    stats["files_failed"] += 1
+                    error_details.append({"file_path": relative_path, "error": result.get("error", "Unknown error")})
 
-            result = sync_file(config, file_path, existing_state)
+        # ================================================================
+        # Phase 3: Detect Moves
+        # ================================================================
+        update_sync_progress(config["id"], is_syncing=True, total_files=0, files_processed=0, stage="detecting_moves")
 
-            if result["status"] == "added":
-                stats["files_added"] += 1
-            elif result["status"] == "updated":
-                stats["files_updated"] += 1
-            elif result["status"] == "skipped":
-                stats["files_skipped"] += 1
-            elif result["status"] == "failed":
-                stats["files_failed"] += 1
-                error_details.append({"file_path": relative_path, "error": result.get("error", "Unknown error")})
-
-        # Detect file moves by matching content hashes before processing deletions.
-        # Missing files = in sync state but not in current scan (candidates for "old" side of a move).
-        # New files = in current scan but not in sync state (candidates for "new" side of a move).
         missing_by_hash: Dict[str, Tuple[str, Dict]] = {}
         for path, state in existing_states.items():
             if path not in synced_paths and state.get("sync_status") != "deleted":
@@ -1867,10 +1954,14 @@ def sync_vault(config: Dict, trigger_source: str = "manual", recent_only: bool =
             new_abs_path = vault_path / new_rel_path
             if not new_abs_path.exists():
                 continue
-            try:
-                new_hash = compute_file_hash(new_abs_path)
-            except Exception:
-                continue
+
+            # Use cached hash if available, otherwise compute
+            new_hash = hash_cache.get(new_rel_path)
+            if not new_hash:
+                try:
+                    new_hash = compute_file_hash(new_abs_path)
+                except Exception:
+                    continue
 
             if new_hash in missing_by_hash:
                 old_path, old_state = missing_by_hash.pop(new_hash)
@@ -1880,41 +1971,94 @@ def sync_vault(config: Dict, trigger_source: str = "manual", recent_only: bool =
                 logger.info(f"   Moved: {old_path} -> {new_rel_path}")
 
                 try:
-                    # Update document path in DB
                     _update_document_path(doc_id, new_rel_path, new_filename)
-
-                    # Delete old sync state so sync_file creates a fresh one at the new path
                     mark_sync_state_deleted(config["id"], old_path)
 
-                    # Re-sync with preserved document_id
                     moved_state = {"document_id": doc_id}
-                    sync_file(config, new_abs_path, moved_state)
+                    precomputed = hash_cache.get(new_rel_path)
+                    sync_file(config, new_abs_path, moved_state, precomputed_hash=precomputed)
 
                     stats["files_moved"] += 1
-                    # Also count as updated for the sync log (which has no moved column)
                     stats["files_updated"] += 1
                     moved_old_paths.add(old_path)
                 except Exception as e:
                     logger.warning(f"   Failed to process move {old_path} -> {new_rel_path}: {e}")
 
-        # Handle deleted files (skip paths already handled as moves)
-        sync_on_delete = sync_options.get("sync_on_delete", False)
-        for existing_path, state in existing_states.items():
-            if existing_path in moved_old_paths:
-                continue
-            if existing_path not in synced_paths and state.get("sync_status") != "deleted":
-                if sync_on_delete and state.get("document_id"):
-                    # Delete the document
-                    try:
-                        doc_id = state["document_id"]
-                        _get_db().table("document_chunks").delete().eq("document_id", doc_id).execute()
-                        _get_db().table("documents").delete().eq("id", doc_id).execute()
-                        logger.info(f"   Deleted: {existing_path}")
-                    except Exception as e:
-                        logger.warning(f"   Failed to delete {existing_path}: {e}")
+        # ================================================================
+        # Phase 4: Clean Up Deletions
+        # ================================================================
+        if sync_on_delete:
+            update_sync_progress(config["id"], is_syncing=True, total_files=0, files_processed=0, stage="cleaning_up")
 
-                mark_sync_state_deleted(config["id"], existing_path)
-                stats["files_deleted"] += 1
+            for existing_path, state in existing_states.items():
+                if existing_path in moved_old_paths:
+                    continue
+                if existing_path not in synced_paths and state.get("sync_status") != "deleted":
+                    if state.get("document_id"):
+                        try:
+                            doc_id = state["document_id"]
+                            _get_db().table("document_chunks").delete().eq("document_id", doc_id).execute()
+                            _get_db().table("documents").delete().eq("id", doc_id).execute()
+                            logger.info(f"   Deleted: {existing_path}")
+                        except Exception as e:
+                            logger.warning(f"   Failed to delete {existing_path}: {e}")
+
+                    mark_sync_state_deleted(config["id"], existing_path)
+                    stats["files_deleted"] += 1
+        else:
+            # Even without deletion, still mark removed files in sync state
+            for existing_path, state in existing_states.items():
+                if existing_path in moved_old_paths:
+                    continue
+                if existing_path not in synced_paths and state.get("sync_status") != "deleted":
+                    mark_sync_state_deleted(config["id"], existing_path)
+                    stats["files_deleted"] += 1
+
+        # ================================================================
+        # Phase 5: Verify Unchanged
+        # ================================================================
+        has_changes = (
+            stats["files_added"] > 0
+            or stats["files_updated"] > 0
+            or stats["files_moved"] > 0
+            or stats["files_deleted"] > 0
+        )
+
+        if unchanged_files and has_changes and not recent_only:
+            update_sync_progress(
+                config["id"],
+                is_syncing=True,
+                total_files=len(unchanged_files),
+                files_processed=0,
+                stage="verifying",
+            )
+
+            for idx, (file_path, relative_path, existing_state) in enumerate(unchanged_files):
+                if idx % 20 == 0:
+                    update_sync_progress(
+                        config["id"],
+                        is_syncing=True,
+                        total_files=len(unchanged_files),
+                        files_processed=idx,
+                        current_file=relative_path,
+                        stage="verifying",
+                    )
+
+                precomputed = hash_cache.get(relative_path)
+                result = sync_file(config, file_path, existing_state, precomputed_hash=precomputed)
+
+                if result["status"] == "added":
+                    stats["files_added"] += 1
+                elif result["status"] == "updated":
+                    stats["files_updated"] += 1
+                elif result["status"] == "skipped":
+                    stats["files_skipped"] += 1
+                elif result["status"] == "failed":
+                    stats["files_failed"] += 1
+                    error_details.append({"file_path": relative_path, "error": result.get("error", "Unknown error")})
+        elif unchanged_files:
+            # No changes found or recent_only - just count as skipped
+            stats["files_skipped"] += len(unchanged_files)
 
         # Clear sync progress
         clear_sync_progress(config["id"])

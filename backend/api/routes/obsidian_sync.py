@@ -259,13 +259,15 @@ async def trigger_full_sync(background_tasks: BackgroundTasks, current_user: dic
         if not config:
             raise HTTPException(status_code=404, detail="No Obsidian vault configured")
 
-        # Clear sync states to force full resync
-        await asyncio.to_thread(
-            lambda: _get_db().table("obsidian_sync_state").delete().eq("config_id", config["id"]).execute()
+        # Run sync in background with deletion cleanup enabled
+        background_tasks.add_task(
+            sync_vault,
+            config,
+            "manual",
+            False,  # recent_only
+            True,  # sync_on_delete
+            True,  # full_resync
         )
-
-        # Run sync in background
-        background_tasks.add_task(sync_vault, config, "manual")
 
         return {
             "success": True,
