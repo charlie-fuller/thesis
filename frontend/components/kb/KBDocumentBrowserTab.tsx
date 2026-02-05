@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Search, FileText, Tag, Plus, Minus, Loader2, Check, X, Eye, ArrowUpDown, Filter } from 'lucide-react'
-import { apiGet, apiPost } from '@/lib/api'
+import { Search, FileText, Tag, Plus, Minus, Loader2, Check, X, Eye, ArrowUpDown, Filter, Trash2 } from 'lucide-react'
+import { apiGet, apiPost, apiDelete } from '@/lib/api'
 import TagSelector from '@/components/TagSelector'
+import ConfirmModal from '@/components/ConfirmModal'
 
 type SortOption = 'recent' | 'oldest' | 'name_asc' | 'name_desc'
 type SourceOption = '' | 'obsidian' | 'google_drive' | 'notion' | 'upload'
@@ -73,6 +74,8 @@ export default function KBDocumentBrowserTab({ onDocumentsChange }: KBDocumentBr
 
   // Operation state
   const [applying, setApplying] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
 
   const LIMIT = 20
@@ -212,6 +215,39 @@ export default function KBDocumentBrowserTab({ onDocumentsChange }: KBDocumentBr
   // Deselect all
   const deselectAll = () => {
     setSelectedDocs(new Set())
+  }
+
+  // Bulk delete selected documents
+  const handleBulkDelete = async () => {
+    if (selectedDocs.size === 0) return
+
+    setDeleting(true)
+    setResult(null)
+
+    let succeeded = 0
+    let failed = 0
+
+    for (const docId of selectedDocs) {
+      try {
+        await apiDelete(`/api/documents/${docId}?force=true`)
+        succeeded++
+      } catch (err) {
+        console.error(`Failed to delete document ${docId}:`, err)
+        failed++
+      }
+    }
+
+    if (failed === 0) {
+      setResult({ success: true, message: `Deleted ${succeeded} document(s)` })
+    } else {
+      setResult({ success: false, message: `Deleted ${succeeded}, failed ${failed}` })
+    }
+
+    setSelectedDocs(new Set())
+    setDeleting(false)
+    fetchDocuments(true, searchQuery, selectedTagsFilter, sortBy, sourceFilter)
+    fetchTags()
+    onDocumentsChange?.()
   }
 
   // Add new tag to list
@@ -714,6 +750,16 @@ export default function KBDocumentBrowserTab({ onDocumentsChange }: KBDocumentBr
           >
             Clear
           </button>
+          {selectedDocs.size > 0 && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={deleting}
+              className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete ({selectedDocs.size})
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -745,6 +791,18 @@ export default function KBDocumentBrowserTab({ onDocumentsChange }: KBDocumentBr
           </button>
         </div>
       </div>
+
+      {/* Bulk Delete Confirmation */}
+      <ConfirmModal
+        open={showDeleteConfirm}
+        title="Delete Documents"
+        message={`Are you sure you want to delete ${selectedDocs.size} document(s)? This action cannot be undone.`}
+        confirmText={deleting ? 'Deleting...' : `Delete ${selectedDocs.size} Document(s)`}
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={handleBulkDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   )
 }
