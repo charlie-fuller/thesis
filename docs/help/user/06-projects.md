@@ -54,7 +54,10 @@ Total score determines the tier. It's a simple framework, but it forces you to t
 
 ## Creating Projects
 
-Click **+ New Project**.
+There are three ways to create projects:
+
+### Direct Creation
+Click **+ New Project** on the Projects page.
 
 **Required:**
 - Name
@@ -65,8 +68,15 @@ Click **+ New Project**.
 - Department
 - Owner (links to a stakeholder)
 - Status
+- Initiative link
 
-**The form walks you through the scoring.** Each dimension has guidelines for what each score means.
+The form walks you through the scoring. Each dimension has guidelines for what each score means. A project code is auto-generated based on department.
+
+### From DISCO PRD
+When a DISCO initiative produces an approved PRD, click **Create Project** on the PRD output. AI pre-fills the project fields with confidence indicators. See the [DISCO help](./09-disco-initiatives.md#creating-projects-from-prds) for details.
+
+### From Chat
+Use the "Create Project from Chat" action to extract project details from a conversation context.
 
 ---
 

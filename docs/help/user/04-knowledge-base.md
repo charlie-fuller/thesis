@@ -30,12 +30,37 @@ Basically: anything that gives the agents context about your world.
 
 ---
 
+## The Finder Layout
+
+The KB uses a Finder-style layout with two panes:
+
+**Left sidebar** - Folder tree showing your vault's folder structure
+- Click a folder to see its documents in the content pane
+- Click "All Documents" at the top to see everything
+- Folders show document counts
+- Expand/collapse folders by clicking the arrow
+
+**Right content pane** - Documents in the selected folder
+- Breadcrumb path at the top
+- Source badges (Vault, Drive, Notion, Upload) on each document
+- Click a document to open its detail modal
+- Infinite scroll loads more documents as you scroll down
+
+**Toolbar** (above the two panes):
+- **Search** - Search across all documents by name
+- **Source filter** - Filter by All Sources, Google Drive, Vault, or Uploads
+- **Sync status** - Shows when last synced and pending count
+- **Gear icon** - Opens sync settings modal (Vault, Drive, Notion, Uploads)
+
+---
+
 ## Uploading Documents
 
 1. Go to **KB** in the navigation
-2. Click **Upload Document** (or drag and drop)
-3. Give it a title (optional - the system can extract one)
-4. Wait for processing
+2. Click the **gear icon** to open Sync Settings
+3. Go to the **Uploads** tab
+4. Click **Upload Document** (or drag and drop)
+5. Wait for processing
 
 **What happens behind the scenes:**
 1. Document gets chunked into pieces
@@ -77,18 +102,21 @@ This isn't just filtering - it's making each agent a specialist in your specific
 
 ## Integrations
 
-**Google Drive:**
+All integrations are configured through the **Sync Settings** modal (click the gear icon in the KB toolbar).
+
+**Google Drive** (Sync Settings > Drive tab):
 Connect your Drive and select folders to sync. Documents stay current as you update them.
 
-**Notion:**
+**Notion** (Sync Settings > Notion tab):
 Link your Notion workspace. Pages sync automatically.
 
-**Local Vault:**
+**Local Vault** (Sync Settings > Vault tab):
 Sync your local markdown vault to the KB:
 - File watcher monitors changes (create/modify/delete)
 - YAML frontmatter gets parsed (including `thesis-agents` for manual tagging)
 - `[[wikilinks]]` convert to standard markdown links
 - Incremental sync via content hash detection
+- **Move/rename detection**: When you move or rename files in your vault, the sync preserves the existing document ID instead of creating duplicates. All tags, agent assignments, and initiative links are preserved.
 
 **Supported file types in vault sync:**
 - Markdown files (.md)
@@ -100,21 +128,22 @@ Sync your local markdown vault to the KB:
 
 **Real-time sync progress:**
 When syncing, you'll see a progress bar showing:
-- Percentage complete
+- Current phase (scanning, syncing changes, detecting moves, cleaning up, verifying)
+- Phase-specific file count (e.g., "3 of 5 changes" not cumulative total)
+- Percentage complete within the current phase
 - Current file being processed
-- Total file count
 
 **Folder view:**
-In the KB, switch to "Vault" view to see your vault's folder structure as a navigable tree. Click folders to expand/collapse.
+The KB's left sidebar always shows your vault's folder structure as a navigable tree. Click folders to browse, use the arrows to expand/collapse.
 
-**Recent files:**
-The Vault section shows recently synced files sorted by sync time. Meeting documents are prioritized by their actual meeting date, not sync date.
-
-**Check for Updates:**
+**Check for Updates** (Sync Settings > Vault tab):
 Click the **Check for Updates** button to scan for files that have been modified since the last sync. This is useful when you've made changes outside the watcher.
 
+**Full Resync** (Sync Settings > Vault tab):
+Mirrors your vault using a 5-phase process. Changes are processed first for fast feedback, then moves are detected, deleted files are cleaned up, and unchanged files are verified. The folder tree stays visible throughout (sync states are never cleared). Progress shows phase-specific labels like "Scanning vault for changes...", "Syncing changes... 3 of 5", "Detecting moved files...", and "Verifying...". If no changes are found, the sync finishes quickly without verification.
+
 **Pending files:**
-Click the pending count to see which files are queued for sync. Files with special characters in names (brackets, parentheses) are handled correctly.
+If pending files are detected, the toolbar shows a pending count badge. Click the pending count in Sync Settings to see which files are queued for sync.
 
 **Auto-classification:**
 Documents are automatically classified by type during sync:
@@ -132,37 +161,28 @@ CLI watcher: `python -m scripts.vault_watcher --user-id <uuid>`
 
 ## Managing Documents
 
-In the KB view, you can:
+In the content pane, you can:
 
 **Search and filter:**
-- Search by document name
-- Filter by source (Direct Upload, Google Drive, Notion)
-- Filter by tags to find related documents
-
-**Performance optimizations:**
-The KB now loads much faster:
-- Documents appear immediately (first 50)
-- Scroll down to automatically load more (infinite scroll)
-- Status indicators load in the background
-- Tags load on-demand when you open document details
+- Search by document name using the toolbar search box
+- Filter by source (All Sources, Google Drive, Vault, Uploads) using the dropdown
+- Select a folder in the sidebar to browse by location
 
 **View document details:**
-- Click a document to see its info
+- Click a document to open the info modal
 - See which agents it's tagged for
 - View processing status
-- Tags load when you open the detail modal
+- Edit tags, agent assignments, and sync cadence
 
 **Edit agent visibility:**
 - Change which agents can see a document
 - Make documents global (all agents) or restricted (specific agents)
 
-**Delete:**
-- Remove documents you no longer need
-- Documents linked to DISCo initiatives show a warning before deletion
-
-**Multi-select:**
-- Select multiple documents for bulk operations
-- Bulk delete with confirmation
+**Bulk delete:**
+- Select multiple documents using checkboxes
+- Use "Select all" in the header to select the entire page
+- Click the bulk delete button (shows count of selected)
+- Documents linked to DISCO initiatives show a warning before deletion
 
 ---
 

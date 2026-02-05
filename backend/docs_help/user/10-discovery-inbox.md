@@ -8,10 +8,8 @@ It scans your synced documents and extracts candidates: potential tasks, project
 
 ## Where to Find It
 
-1. Click **Dashboard** in the navigation (or the Thesis logo)
-2. The **Discovery Inbox** panel is on the **System Health** tab (default tab)
-
-The Dashboard has four tabs: **System Health**, **Analytics**, **Process Map**, and **Knowledge Graph**.
+1. Click **Dashboard** in the navigation
+2. The **Discovery Inbox** panel is on the **System Health** tab
 
 The panel header shows a count: `{N} items to review` when candidates are waiting.
 

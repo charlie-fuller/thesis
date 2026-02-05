@@ -71,18 +71,6 @@ The sidebar shows your recent conversations. Titles are auto-generated from your
 
 ---
 
-## Chat and Meeting Rooms Tabs
-
-The Chat page has two tabs at the top of the sidebar:
-
-**Chat** (default) - Your 1:1 conversations with agents. This is where the conversation list appears with all your context filters.
-
-**Meeting Rooms** - Quick access to your meeting rooms without leaving the chat interface. Click a room to enter it, or create a new meeting room directly from here.
-
-This makes it easy to switch between one-on-one agent conversations and multi-agent meeting rooms without changing pages.
-
----
-
 ## Project and Initiative Context
 
 The chat interface supports context-aware conversations tied to specific projects or initiatives.

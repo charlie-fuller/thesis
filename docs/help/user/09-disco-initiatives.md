@@ -1,6 +1,6 @@
 # DISCO Initiatives
 
-DISCO stands for Discovery, Intelligence, Synthesis, Convergence, Operationalize. It's your AI-assisted product discovery workflow - 8 specialized agents that help you evaluate whether an idea is worth pursuing, and if so, turn it into something actionable.
+DISCO stands for Discovery, Intelligence, Synthesis, Convergence, Operationalize. It's your AI-assisted product discovery workflow - specialized agents that help you evaluate whether an idea is worth pursuing, and if so, turn it into something actionable.
 
 Think of it as a structured way to go from "we should look into this" to "here's the PRD."
 
@@ -24,7 +24,7 @@ Click **Create Initiative**. You'll land on the initiative detail view.
 
 ## The Initiative Detail View
 
-Every initiative has four tabs:
+Every initiative has five tabs:
 
 | Tab | What It's For |
 |-----|---------------|
@@ -32,6 +32,7 @@ Every initiative has four tabs:
 | **Run Agent** | Execute discovery agents and see streaming output |
 | **Outputs** | View all agent results in one place |
 | **Projects** | See and manage projects linked to this initiative |
+| **Alignment** | Analyze how well the initiative aligns with strategic goals |
 
 **Chat Button:** In the header area, click the **Chat** button to open the main chat interface with full initiative context. This redirects to `/chat?initiative_id=xxx` with the Initiative Agent auto-selected.
 
@@ -145,7 +146,68 @@ Each bundle shows:
 3. Review **Pending Review** bundles
 4. Click **Approve** or **Reject** for each
 
-Only approved bundles can be turned into PRDs.
+Only approved bundles can generate output documents.
+
+---
+
+## Flexible Output Types
+
+When you approve a bundle, you choose the output document type. The system uses AI to suggest the most appropriate type based on the bundle's content.
+
+| Output Type | When to Use | What It Produces |
+|-------------|-------------|------------------|
+| **PRD** (default) | Build/development bundles | Product Requirements Document with user stories, acceptance criteria, technical specs |
+| **Evaluation Framework** | Research/evaluation bundles (vendor selection, tool comparison) | Weighted criteria matrix, platform comparison table, recommendation |
+| **Decision Framework** | Governance decisions | Decision criteria, stakeholder analysis, options comparison, risk/benefit assessment |
+
+**How it works:**
+1. Click **Approve** on a bundle
+2. The system analyzes the bundle and suggests an output type with rationale
+3. You can accept the suggestion or choose a different type
+4. Click **Generate** to create the output document
+
+---
+
+## Creating Projects from PRDs
+
+Approved PRDs can spawn projects directly with AI-extracted fields.
+
+**To create a project from a PRD:**
+1. Go to **Outputs** tab and find a generated PRD
+2. Click **Create Project**
+3. Review the pre-filled fields - AI extracts title, description, department, scoring dimensions
+4. Fields show confidence indicators (high/medium/low) - check amber-highlighted fields carefully
+5. Optionally extract tasks from the PRD requirements section
+6. Click **Create** to add the project to your pipeline
+
+The project is automatically linked to the parent initiative with a "From PRD" badge for traceability.
+
+---
+
+## Goal Alignment
+
+The **Alignment** tab lets you analyze how well an initiative (and its linked projects) align with strategic goals.
+
+**Initiative alignment:**
+1. Go to the **Alignment** tab
+2. Click **Analyze** (editors/owners only)
+3. The system scores alignment (0-100) across 4 IS FY27 strategic pillars (25 points each):
+   - **Customer and Prospect Journey** - Decision-ready first touch to churn
+   - **Maximize Value from Core Systems & AI** - Productivity, spend optimization, experience
+   - **Data First Digital Workforce** - Automation, Insight 360, AI-enabled platforms
+   - **High-Trust IS Culture** - Strategic partnership, transparency, career growth
+4. Each pillar shows a score, progress bar, rationale, and relevant KPIs
+5. An analysis summary and impacted KPIs are shown at the top
+
+If agent outputs exist (triage, strategist, insight analyst, etc.), they are included in the analysis for more accurate scoring. Without outputs, analysis uses only the initiative name and description.
+
+**Project roll-up:**
+- Shows the average alignment score across all linked projects
+- Distribution summary (count of High/Moderate/Low/Minimal)
+- Individual project scores in a grid with quick links
+- Projects not yet analyzed are highlighted
+
+**Stale data indicator:** If new agent outputs have been generated since the last analysis, a warning appears prompting you to re-analyze.
 
 ---
 

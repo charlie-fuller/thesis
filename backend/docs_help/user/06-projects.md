@@ -54,27 +54,29 @@ Total score determines the tier. It's a simple framework, but it forces you to t
 
 ## Creating Projects
 
-Click **+ New Project** in the page header.
+There are three ways to create projects:
+
+### Direct Creation
+Click **+ New Project** on the Projects page.
 
 **Required:**
-- Project Code (e.g., PRJ-001, F02, IT-003)
-- Title
+- Name
+- Description
+- All four scores
 
 **Optional:**
-- Description
 - Department
-- Status (Backlog or Active)
-- Scores (ROI, Effort, Strategic Alignment, Readiness) - 1 to 5 each
-- Current State / Desired State
-- Next Step
+- Owner (links to a stakeholder)
+- Status
+- Initiative link
 
-**Scoring Guidelines:**
-- **ROI Potential**: 5 = High value, transformative impact; 1 = Minimal benefit
-- **Implementation Effort**: 5 = Easy, quick win; 1 = Major initiative, complex
-- **Strategic Alignment**: 5 = Directly aligned with strategy; 1 = Nice to have
-- **Stakeholder Readiness**: 5 = Champions exist, low resistance; 1 = Significant resistance
+The form walks you through the scoring. Each dimension has guidelines for what each score means. A project code is auto-generated based on department.
 
-Scores can be added later and updated as you learn more about the project.
+### From DISCO PRD
+When a DISCO initiative produces an approved PRD, click **Create Project** on the PRD output. AI pre-fills the project fields with confidence indicators. See the [DISCO help](./09-disco-initiatives.md#creating-projects-from-prds) for details.
+
+### From Chat
+Use the "Create Project from Chat" action to extract project details from a conversation context.
 
 ---
 
@@ -97,12 +99,6 @@ Toggle between two views at the top of the page:
 
 **List View** - Simple list of all projects, sorted by tier score
 **Tier View** - Projects grouped by tier (1-4) in collapsible sections
-
-**Sort Options** (in List View):
-- Date created
-- Name (A-Z / Z-A)
-- Tier score
-- Custom order (with up/down reorder buttons)
 
 ---
 
