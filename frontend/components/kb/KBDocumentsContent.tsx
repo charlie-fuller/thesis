@@ -1833,9 +1833,7 @@ export default function KBDocumentsContent() {
                   >
                     {checkingStatus ? 'Checking...' : 'Check for Updates'}
                   </button>
-                </div>
               </div>
-
               {/* Sync Options */}
               <div className="mt-3 grid grid-cols-2 gap-3">
                 {/* Sync New & Changed */}
