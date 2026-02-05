@@ -20,7 +20,8 @@ import {
   Eye,
   Edit3,
   Target,
-  ExternalLink
+  ExternalLink,
+  BarChart3
 } from 'lucide-react'
 import { apiGet, apiPost, apiDelete } from '@/lib/api'
 import DocumentUpload from '@/components/disco/DocumentUpload'
@@ -28,6 +29,8 @@ import DocumentList from '@/components/disco/DocumentList'
 import AgentRunner from '@/components/disco/AgentRunner'
 import OutputViewer from '@/components/disco/OutputViewer'
 import ShareModal from '@/components/disco/ShareModal'
+import InitiativeAlignmentTab from '@/components/disco/InitiativeAlignmentTab'
+import { type GoalAlignmentDetails } from '@/components/projects/GoalAlignmentSection'
 
 // ============================================================================
 // TYPES
@@ -47,6 +50,8 @@ interface Initiative {
     name: string
     email: string
   }
+  goal_alignment_score: number | null
+  goal_alignment_details: GoalAlignmentDetails | null
   latest_outputs?: Record<string, {
     agent_type: string
     version: number
@@ -112,7 +117,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: str
   archived: { label: 'Archived', color: 'text-slate-500', bgColor: 'bg-slate-100 dark:bg-slate-800' },
 }
 
-type TabType = 'documents' | 'agents' | 'outputs' | 'projects'
+type TabType = 'documents' | 'agents' | 'outputs' | 'alignment' | 'projects'
 
 // ============================================================================
 // MAIN PAGE
@@ -433,6 +438,7 @@ export default function InitiativeDetailPage() {
           { id: 'documents' as const, label: 'Documents', icon: FileText },
           { id: 'agents' as const, label: 'Run Agents', icon: Play },
           { id: 'outputs' as const, label: 'Outputs', icon: CheckCircle },
+          { id: 'alignment' as const, label: 'Alignment', icon: BarChart3 },
           { id: 'projects' as const, label: 'Projects', icon: Target },
         ].map((tab) => (
           <button
@@ -508,6 +514,34 @@ export default function InitiativeDetailPage() {
             onSelectOutput={setSelectedOutput}
             onRefresh={loadOutputs}
             onDelete={canEdit ? handleDeleteOutput : undefined}
+          />
+        )}
+
+        {/* Alignment Tab */}
+        {activeTab === 'alignment' && (
+          <InitiativeAlignmentTab
+            initiativeId={initiativeId}
+            goalAlignmentScore={initiative.goal_alignment_score}
+            goalAlignmentDetails={initiative.goal_alignment_details}
+            latestOutputCreatedAt={
+              outputs.length > 0
+                ? outputs.reduce((latest, o) =>
+                    new Date(o.created_at) > new Date(latest) ? o.created_at : latest,
+                    outputs[0].created_at
+                  )
+                : null
+            }
+            canEdit={canEdit}
+            onAlignmentUpdated={(score, details) => {
+              if (initiative) {
+                setInitiative({
+                  ...initiative,
+                  goal_alignment_score: score,
+                  goal_alignment_details: details,
+                })
+              }
+            }}
+            hasAgentOutputs={outputs.length > 0}
           />
         )}
 

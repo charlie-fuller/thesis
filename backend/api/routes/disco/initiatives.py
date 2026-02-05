@@ -16,6 +16,10 @@ from services.disco import (
     update_initiative,
     update_member_role,
 )
+from services.disco.initiative_alignment_analyzer import (
+    analyze_initiative_alignment,
+    get_project_alignment_rollup,
+)
 from services.disco.project_service import get_initiative_projects
 
 from ._shared import (
@@ -194,6 +198,67 @@ async def api_get_initiative_projects(
     except Exception as e:
         logger.error(f"Error getting initiative projects: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+# ============================================================================
+# ALIGNMENT
+# ============================================================================
+
+
+@router.post("/initiatives/{initiative_id}/analyze-alignment")
+async def api_analyze_initiative_alignment(
+    initiative_id: str,
+    current_user: dict = Depends(require_disco_access),
+):
+    """Analyze initiative alignment with IS FY27 strategic goals.
+
+    Requires editor or owner role. Uses rich context from agent outputs.
+    """
+    await require_initiative_access(initiative_id, current_user, "editor")
+
+    try:
+        score, details = await analyze_initiative_alignment(
+            initiative_id=initiative_id,
+            user_id=current_user["id"],
+        )
+
+        # Determine alignment level
+        if score >= 80:
+            level = "high"
+        elif score >= 60:
+            level = "moderate"
+        elif score >= 40:
+            level = "low"
+        else:
+            level = "minimal"
+
+        return {
+            "success": True,
+            "goal_alignment_score": score,
+            "goal_alignment_details": details,
+            "alignment_level": level,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from None
+    except Exception as e:
+        logger.error(f"Failed to analyze initiative alignment: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze alignment") from e
+
+
+@router.get("/initiatives/{initiative_id}/alignment-rollup")
+async def api_get_alignment_rollup(
+    initiative_id: str,
+    current_user: dict = Depends(require_disco_access),
+):
+    """Get alignment score rollup for projects linked to this initiative."""
+    await require_initiative_access(initiative_id, current_user, "viewer")
+
+    try:
+        rollup = await get_project_alignment_rollup(initiative_id)
+        return {"success": True, **rollup}
+    except Exception as e:
+        logger.error(f"Failed to get alignment rollup: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get alignment rollup") from e
 
 
 # ============================================================================

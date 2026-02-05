@@ -10,12 +10,12 @@
 import { useState } from 'react'
 import { Target, RefreshCw, TrendingUp, Database, Users, Building2 } from 'lucide-react'
 
-interface PillarScore {
+export interface PillarScore {
   score: number
   rationale: string
 }
 
-interface GoalAlignmentDetails {
+export interface GoalAlignmentDetails {
   pillar_scores: {
     customer_prospect_journey: PillarScore
     maximize_value: PillarScore
@@ -77,7 +77,7 @@ const PILLARS = {
 type PillarKey = keyof typeof PILLARS
 
 // Get alignment level info based on score
-function getAlignmentLevel(score: number | null): {
+export function getAlignmentLevel(score: number | null): {
   label: string
   color: string
   bg: string
