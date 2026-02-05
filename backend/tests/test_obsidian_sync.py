@@ -417,11 +417,13 @@ class TestSyncState:
         from services.obsidian_sync import get_all_sync_states
 
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[
-                {"file_path": "note1.md", "sync_status": "synced"},
-                {"file_path": "note2.md", "sync_status": "pending"},
-            ]
+        mock_supabase.table.return_value.select.return_value.eq.return_value.range.return_value.execute.return_value = (
+            MagicMock(
+                data=[
+                    {"file_path": "note1.md", "sync_status": "synced"},
+                    {"file_path": "note2.md", "sync_status": "pending"},
+                ]
+            )
         )
 
         with patch("services.obsidian_sync._get_db", return_value=mock_supabase):
@@ -988,16 +990,20 @@ class TestSyncStateEdgeCases:
             assert result == {}
 
     def test_get_all_sync_states_maps_by_path(self):
-        """Test get_all_sync_states correctly maps file paths."""
+        """Test get_all_sync_states correctly maps file paths with pagination."""
         from services.obsidian_sync import get_all_sync_states
 
         mock_supabase = MagicMock()
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
+        # The paginated query chains: .table().select().eq().range().execute()
+        mock_result = MagicMock(
             data=[
                 {"file_path": "note1.md", "sync_status": "synced", "file_hash": "abc"},
                 {"file_path": "folder/note2.md", "sync_status": "pending", "file_hash": "def"},
                 {"file_path": "deep/nested/note3.md", "sync_status": "synced", "file_hash": "ghi"},
             ]
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.range.return_value.execute.return_value = (
+            mock_result
         )
 
         with patch("services.obsidian_sync._get_db", return_value=mock_supabase):

@@ -911,6 +911,9 @@ def get_sync_state(config_id: str, file_path: str) -> Optional[Dict]:
 def get_all_sync_states(config_id: str) -> Dict[str, Dict]:
     """Get all sync states for a vault config.
 
+    Paginates through all results to handle vaults with >1000 files
+    (Supabase default row limit is 1000).
+
     Args:
         config_id: UUID of the vault config
 
@@ -918,9 +921,28 @@ def get_all_sync_states(config_id: str) -> Dict[str, Dict]:
         Dict mapping file_path to sync state
     """
     try:
-        result = _get_db().table("obsidian_sync_state").select("*").eq("config_id", config_id).execute()
+        all_states = {}
+        page_size = 1000
+        offset = 0
 
-        return {s["file_path"]: s for s in result.data}
+        while True:
+            result = (
+                _get_db()
+                .table("obsidian_sync_state")
+                .select("*")
+                .eq("config_id", config_id)
+                .range(offset, offset + page_size - 1)
+                .execute()
+            )
+
+            for s in result.data:
+                all_states[s["file_path"]] = s
+
+            if len(result.data) < page_size:
+                break
+            offset += page_size
+
+        return all_states
 
     except Exception as e:
         logger.error(f"Failed to get sync states: {e}")
@@ -1015,6 +1037,62 @@ def mark_sync_state_deleted(config_id: str, file_path: str) -> None:
         file_path: Relative path from vault root
     """
     update_sync_state(config_id, file_path, sync_status="deleted")
+
+
+def _cleanup_orphaned_documents(config: Dict, synced_paths: Set[str]) -> int:
+    """Remove obsidian documents that have no matching file on disk.
+
+    This catches documents that were created by older syncs with incorrect paths
+    (e.g., missing a parent folder prefix) and have no sync state entry, so they
+    survive the normal Phase 4 cleanup.
+
+    Args:
+        config: Vault config record
+        synced_paths: Set of relative paths found on disk during this scan
+
+    Returns:
+        Number of orphaned documents deleted
+    """
+    user_id = config["user_id"]
+    db = _get_db()
+    page_size = 1000
+    offset = 0
+
+    # Collect all orphaned documents first, then delete.
+    # Deleting during pagination would shift offsets and skip rows.
+    orphans: list[tuple[str, str]] = []  # (doc_id, doc_path)
+
+    while True:
+        result = (
+            db.table("documents")
+            .select("id, obsidian_file_path")
+            .eq("source_platform", "obsidian")
+            .eq("uploaded_by", user_id)
+            .not_.is_("obsidian_file_path", "null")
+            .range(offset, offset + page_size - 1)
+            .execute()
+        )
+
+        for doc in result.data:
+            doc_path = doc.get("obsidian_file_path", "")
+            if doc_path and doc_path not in synced_paths:
+                orphans.append((doc["id"], doc_path))
+
+        if len(result.data) < page_size:
+            break
+        offset += page_size
+
+    deleted = 0
+    for doc_id, doc_path in orphans:
+        try:
+            db.table("document_chunks").delete().eq("document_id", doc_id).execute()
+            db.table("documents").delete().eq("id", doc_id).execute()
+            logger.info(f"   Deleted orphan: {doc_path}")
+            deleted += 1
+        except Exception as e:
+            logger.warning(f"   Failed to delete orphan {doc_path}: {e}")
+
+    return deleted
 
 
 # ============================================================================
@@ -2013,6 +2091,18 @@ def sync_vault(
                 if existing_path not in synced_paths and state.get("sync_status") != "deleted":
                     mark_sync_state_deleted(config["id"], existing_path)
                     stats["files_deleted"] += 1
+
+        # Phase 4b: Clean up orphaned documents (no sync state entry)
+        # Documents can become orphaned if sync state was lost or if they were
+        # created by an older sync with different path prefixes.
+        if sync_on_delete:
+            try:
+                orphan_count = _cleanup_orphaned_documents(config, synced_paths)
+                if orphan_count > 0:
+                    stats["files_deleted"] += orphan_count
+                    logger.info(f"   Cleaned up {orphan_count} orphaned document(s)")
+            except Exception as e:
+                logger.warning(f"   Orphan cleanup failed: {e}")
 
         # ================================================================
         # Phase 5: Verify Unchanged
