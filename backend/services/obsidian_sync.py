@@ -1344,6 +1344,29 @@ def _upsert_obsidian_document(
             raise
 
 
+def _update_document_path(document_id: str, new_relative_path: str, new_filename: str) -> None:
+    """Update a document's file path and filename after a move/rename.
+
+    Args:
+        document_id: UUID of the document to update
+        new_relative_path: New relative path from vault root
+        new_filename: New filename
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        _get_db().table("documents").update(
+            {
+                "obsidian_file_path": new_relative_path,
+                "filename": new_filename,
+                "updated_at": now,
+            }
+        ).eq("id", document_id).execute()
+        logger.info(f"      Updated document path to: {new_relative_path}")
+    except Exception as e:
+        logger.error(f"Failed to update document path for {document_id}: {e}")
+        raise
+
+
 def _create_obsidian_document(
     config: Dict,
     file_content: bytes,
@@ -1761,6 +1784,7 @@ def sync_vault(config: Dict, trigger_source: str = "manual", recent_only: bool =
         "files_deleted": 0,
         "files_skipped": 0,
         "files_failed": 0,
+        "files_moved": 0,
     }
     error_details = []
 
@@ -1825,9 +1849,59 @@ def sync_vault(config: Dict, trigger_source: str = "manual", recent_only: bool =
                 stats["files_failed"] += 1
                 error_details.append({"file_path": relative_path, "error": result.get("error", "Unknown error")})
 
-        # Handle deleted files
+        # Detect file moves by matching content hashes before processing deletions.
+        # Missing files = in sync state but not in current scan (candidates for "old" side of a move).
+        # New files = in current scan but not in sync state (candidates for "new" side of a move).
+        missing_by_hash: Dict[str, Tuple[str, Dict]] = {}
+        for path, state in existing_states.items():
+            if path not in synced_paths and state.get("sync_status") != "deleted":
+                fh = state.get("file_hash")
+                doc_id = state.get("document_id")
+                if fh and doc_id:
+                    missing_by_hash[fh] = (path, state)
+
+        new_files = [p for p in synced_paths if p not in existing_states]
+        moved_old_paths: Set[str] = set()
+
+        for new_rel_path in new_files:
+            new_abs_path = vault_path / new_rel_path
+            if not new_abs_path.exists():
+                continue
+            try:
+                new_hash = compute_file_hash(new_abs_path)
+            except Exception:
+                continue
+
+            if new_hash in missing_by_hash:
+                old_path, old_state = missing_by_hash.pop(new_hash)
+                doc_id = old_state["document_id"]
+                new_filename = Path(new_rel_path).name
+
+                logger.info(f"   Moved: {old_path} -> {new_rel_path}")
+
+                try:
+                    # Update document path in DB
+                    _update_document_path(doc_id, new_rel_path, new_filename)
+
+                    # Delete old sync state so sync_file creates a fresh one at the new path
+                    mark_sync_state_deleted(config["id"], old_path)
+
+                    # Re-sync with preserved document_id
+                    moved_state = {"document_id": doc_id}
+                    sync_file(config, new_abs_path, moved_state)
+
+                    stats["files_moved"] += 1
+                    # Also count as updated for the sync log (which has no moved column)
+                    stats["files_updated"] += 1
+                    moved_old_paths.add(old_path)
+                except Exception as e:
+                    logger.warning(f"   Failed to process move {old_path} -> {new_rel_path}: {e}")
+
+        # Handle deleted files (skip paths already handled as moves)
         sync_on_delete = sync_options.get("sync_on_delete", False)
         for existing_path, state in existing_states.items():
+            if existing_path in moved_old_paths:
+                continue
             if existing_path not in synced_paths and state.get("sync_status") != "deleted":
                 if sync_on_delete and state.get("document_id"):
                     # Delete the document
@@ -1857,6 +1931,7 @@ def sync_vault(config: Dict, trigger_source: str = "manual", recent_only: bool =
         logger.info("\n Sync complete!")
         logger.info(f"   Added: {stats['files_added']}")
         logger.info(f"   Updated: {stats['files_updated']}")
+        logger.info(f"   Moved: {stats['files_moved']}")
         logger.info(f"   Skipped: {stats['files_skipped']}")
         logger.info(f"   Deleted: {stats['files_deleted']}")
         logger.info(f"   Failed: {stats['files_failed']}")
@@ -2041,6 +2116,7 @@ class ObsidianVaultWatcher:
         self._observer = None
         self._debounce_timers: Dict[str, float] = {}  # file_path -> scheduled_time
         self._pending_changes: Dict[str, Tuple[str, Path]] = {}  # file_path -> (event_type, file_path)
+        self._pending_moves: Dict[str, str] = {}  # new_relative_path -> old_relative_path
         self._lock = asyncio.Lock()
         self._running = False
         self._event_loop: Optional[asyncio.AbstractEventLoop] = None
@@ -2082,6 +2158,42 @@ class ObsidianVaultWatcher:
         self._pending_changes[relative_path] = (event_type, file_path)
 
         logger.debug(f"[Watcher] Queued {event_type}: {relative_path}")
+
+    def _handle_file_move(self, src_path: str, dest_path: str) -> None:
+        """Handle a file move/rename event, preserving document identity.
+
+        Args:
+            src_path: Original file path
+            dest_path: New file path
+        """
+        src = Path(src_path)
+        dest = Path(dest_path)
+
+        # Only process if at least the destination is a valid sync target
+        if not self._should_process(dest):
+            # Destination not syncable - treat source as deleted if it was syncable
+            if self._should_process(src):
+                self._handle_file_event("deleted", src_path)
+            return
+
+        if not self._should_process(src):
+            # Source wasn't syncable but dest is - treat as new file
+            self._handle_file_event("created", dest_path)
+            return
+
+        # Both paths are valid - this is a move we can track
+        old_relative = str(src.relative_to(self.vault_path))
+        new_relative = str(dest.relative_to(self.vault_path))
+
+        self._pending_moves[new_relative] = old_relative
+
+        debounce_ms = self.sync_options.get("debounce_ms", 500)
+        debounce_secs = debounce_ms / 1000.0
+        process_time = time_module.time() + debounce_secs
+        self._debounce_timers[new_relative] = process_time
+        self._pending_changes[new_relative] = ("moved", dest)
+
+        logger.debug(f"[Watcher] Queued move: {old_relative} -> {new_relative}")
 
     async def _process_pending_changes(self) -> None:
         """Background task that processes pending file changes.
@@ -2156,6 +2268,45 @@ class ObsidianVaultWatcher:
                             _get_db().table("documents").delete().eq("id", doc_id).execute()
                         mark_sync_state_deleted(self.config["id"], relative_path)
                         stats["files_deleted"] = 1
+                elif event_type == "moved":
+                    # Handle move/rename - preserve document_id
+                    old_relative = self._pending_moves.pop(relative_path, None)
+                    if old_relative and file_path.exists():
+                        old_state = get_sync_state(self.config["id"], old_relative)
+                        if old_state and old_state.get("document_id"):
+                            doc_id = old_state["document_id"]
+                            new_filename = file_path.name
+                            logger.info(f"[Watcher] Moved: {old_relative} -> {relative_path} (doc {doc_id})")
+
+                            # Update document path in DB
+                            _update_document_path(doc_id, relative_path, new_filename)
+
+                            # Delete old sync state
+                            mark_sync_state_deleted(self.config["id"], old_relative)
+
+                            # Re-sync file content with preserved document_id
+                            moved_state = {"document_id": doc_id}
+                            result = sync_file(self.config, file_path, moved_state)
+
+                            stats["files_updated"] = 1
+                        else:
+                            # No old state found - treat as new file
+                            logger.warning(f"[Watcher] Move target has no old state, treating as new: {relative_path}")
+                            result = sync_file(self.config, file_path, None)
+                            if result["status"] == "added":
+                                stats["files_added"] = 1
+                            elif result["status"] == "failed":
+                                stats["files_failed"] = 1
+                    elif file_path.exists():
+                        # No move tracking info - fall back to create
+                        existing_state = get_sync_state(self.config["id"], relative_path)
+                        result = sync_file(self.config, file_path, existing_state)
+                        if result["status"] == "added":
+                            stats["files_added"] = 1
+                        elif result["status"] == "updated":
+                            stats["files_updated"] = 1
+                        elif result["status"] == "failed":
+                            stats["files_failed"] = 1
                 else:
                     # Handle create/modify
                     if file_path.exists():
@@ -2215,8 +2366,7 @@ class ObsidianVaultWatcher:
 
             def on_moved(handler_self, event):
                 if not event.is_directory:
-                    handler_self.watcher._handle_file_event("deleted", event.src_path)
-                    handler_self.watcher._handle_file_event("created", event.dest_path)
+                    handler_self.watcher._handle_file_move(event.src_path, event.dest_path)
 
         self._observer = Observer()
         self._observer.schedule(EventHandler(self), str(self.vault_path), recursive=True)
@@ -2248,6 +2398,7 @@ class ObsidianVaultWatcher:
             # Clear pending changes
             self._debounce_timers.clear()
             self._pending_changes.clear()
+            self._pending_moves.clear()
 
             logger.info("[Watcher] Stopped")
 
