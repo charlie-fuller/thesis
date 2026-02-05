@@ -737,18 +737,25 @@ The vault sync now detects when files are moved or renamed in Obsidian and prese
 
 **Files**: `backend/services/obsidian_sync.py`
 
-### Full Resync Restructured
+### Full Resync: 5-Phase Filesystem Mirroring
 
-Full resync is now a 5-phase filesystem mirroring operation for reliability.
+Full resync no longer clears sync states before processing. It efficiently mirrors the vault by computing hashes upfront, processing changes first for fast feedback, and showing phase-aware progress.
 
 **Phases**:
-1. Scan filesystem to discover all matching files
-2. Identify new, changed, and unchanged files
-3. Process new/changed files (create or update documents)
-4. Remove orphaned documents (files deleted from vault)
-5. Report results
+1. **Scan & Categorize**: Compute hashes for all files, categorize into changed vs unchanged
+2. **Sync Changes**: Process new/modified files first for fast feedback
+3. **Detect Moves**: Match content hashes of new files against missing files to preserve document IDs
+4. **Clean Up Deletions**: Remove documents for files no longer on disk (Full Resync only)
+5. **Verify Unchanged**: Walk unchanged files through sync (skipped if no changes found)
 
-**Files**: `backend/services/obsidian_sync.py`
+**Key Improvements**:
+- Vault folder tree stays visible throughout sync (sync states not cleared)
+- Phase-aware progress UI: "Scanning...", "Syncing changes... 3 of 5", "Detecting moved files...", etc.
+- Progress bar resets per phase with phase-specific counts
+- No changes = quick finish (skips verification entirely)
+- Precomputed hashes avoid double-hashing files
+
+**Files**: `backend/services/obsidian_sync.py`, `backend/api/routes/obsidian_sync.py`, `frontend/components/kb/KBSyncSettingsModal.tsx`
 
 ### KB Bulk Delete
 

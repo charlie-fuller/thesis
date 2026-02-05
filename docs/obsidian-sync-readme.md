@@ -87,7 +87,7 @@ Options:
 | GET | `/api/obsidian/status` | Get connection status and sync stats |
 | PATCH | `/api/obsidian/settings` | Update sync options |
 | POST | `/api/obsidian/sync` | Trigger manual sync (runs in background) |
-| POST | `/api/obsidian/sync/full` | Force full resync (clears state first) |
+| POST | `/api/obsidian/sync/full` | Full resync with deletion cleanup (preserves sync states) |
 | DELETE | `/api/obsidian/disconnect` | Disconnect vault, optionally remove docs |
 | GET | `/api/obsidian/sync-history` | Get recent sync operation logs |
 | GET | `/api/obsidian/sync/recent` | Get recently synced files (sorted by last_synced_at) |
@@ -162,17 +162,21 @@ This works for:
 - Folder moves (`inbox/notes.md` -> `meetings/2026/notes.md`)
 - Both incremental sync and "Check for Updates" operations
 
-## Full Resync (5-Phase)
+## Full Resync (5-Phase Filesystem Mirroring)
 
-The full resync operation uses a structured 5-phase approach for reliability:
+Full resync efficiently mirrors the local vault without clearing sync states, so the folder tree stays visible throughout. Hashes are computed upfront and changed files are processed first for fast feedback.
 
-1. **Scan**: Discover all files in the vault matching include/exclude patterns
-2. **Identify**: Categorize files as new, changed (hash mismatch), or unchanged
-3. **Process**: Create or update documents for new/changed files
-4. **Cleanup**: Remove orphaned documents (files no longer in vault)
-5. **Report**: Return counts of added, updated, deleted, and failed files
+1. **Scan & Categorize**: Compute file hashes, categorize into changed (new/modified/recovery) and unchanged lists. Progress: "Scanning vault for changes..."
+2. **Sync Changes**: Process changed files first for fast feedback, using precomputed hashes. Progress: "Syncing changes... X of Y"
+3. **Detect Moves**: Match content hashes of new files against missing sync states to preserve document IDs. Progress: "Detecting moved files..."
+4. **Clean Up Deletions**: Delete documents and chunks for files no longer on disk (only during Full Resync, never during "Sync New & Changed"). Progress: "Removing deleted files..."
+5. **Verify Unchanged**: Walk unchanged files through sync to confirm integrity. Skipped entirely if no changes, moves, or deletions were found. Progress: "Verifying... X of Y"
 
-This replaces the previous approach where full resync could race between clearing state and processing files.
+Key behaviors:
+- Sync states are preserved (not cleared), keeping the vault structure visible in the UI
+- If the scan finds no changes, the sync completes quickly without verification
+- Progress bar resets per phase with phase-specific counts (not one cumulative bar)
+- "Sync New & Changed" never deletes files; only Full Resync enables `sync_on_delete`
 
 ## Wikilink Conversion
 
