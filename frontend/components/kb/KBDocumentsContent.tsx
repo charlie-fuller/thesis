@@ -1825,31 +1825,57 @@ export default function KBDocumentsContent() {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  {/* Check for New Files button */}
-                  <button
+                <button
                     onClick={handleCheckForUpdates}
                     disabled={checkingStatus || obsidianSyncing || syncingRecent}
                     className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Scan vault for new or changed files"
                   >
-                    {checkingStatus ? 'Checking...' : 'Check for New Files'}
+                    {checkingStatus ? 'Checking...' : 'Check for Updates'}
                   </button>
-                  {/* Sync Recent button - only show if there are unsynced files */}
-                  {(obsidianStatus.unsynced_count ?? 0) > 0 && !obsidianSyncing && !syncingRecent && (
-                    <button
-                      onClick={handleSyncRecent}
-                      className="btn-primary"
-                    >
-                      Sync {obsidianStatus.unsynced_count} New
-                    </button>
-                  )}
+                </div>
+              </div>
+
+              {/* Sync Options */}
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                {/* Sync New & Changed */}
+                <div className="p-3 border border-slate-200 dark:border-slate-700 rounded-lg">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm font-medium text-primary">Sync New & Changed</span>
+                    {(obsidianStatus.unsynced_count ?? 0) > 0 && (
+                      <span className="text-xs px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded">
+                        {obsidianStatus.unsynced_count} file{obsidianStatus.unsynced_count !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted mb-2">
+                    Only processes new, modified, or previously failed files. Existing documents and all project/initiative links are unchanged.
+                  </p>
+                  <button
+                    onClick={handleSyncRecent}
+                    disabled={obsidianSyncing || syncingRecent || (obsidianStatus.unsynced_count ?? 0) === 0}
+                    className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {syncingRecent ? 'Syncing...' : (obsidianStatus.unsynced_count ?? 0) > 0
+                      ? `Sync ${obsidianStatus.unsynced_count} File${obsidianStatus.unsynced_count !== 1 ? 's' : ''}`
+                      : 'Everything Up to Date'}
+                  </button>
+                </div>
+
+                {/* Full Resync */}
+                <div className="p-3 border border-slate-200 dark:border-slate-700 rounded-lg">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm font-medium text-primary">Full Resync</span>
+                  </div>
+                  <p className="text-xs text-muted mb-2">
+                    Re-processes every file in the vault. Moved or renamed files are automatically detected, so all project/initiative links are preserved.
+                  </p>
                   <button
                     onClick={handleObsidianFullSync}
                     disabled={obsidianSyncing || syncingRecent}
-                    className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="btn-secondary w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                   >
-                    {obsidianSyncing || syncingRecent ? 'Syncing...' : 'Full Resync'}
+                    {obsidianSyncing ? 'Syncing...' : 'Resync All Files'}
                   </button>
                 </div>
               </div>
