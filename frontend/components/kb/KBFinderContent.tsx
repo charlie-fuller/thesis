@@ -11,6 +11,8 @@ interface KBFinderContentProps {
   selectedFolder: string | null
   searchQuery: string
   sourceFilter: string
+  sortOrder?: string
+  selectedTags?: Set<string>
   onDocumentClick: (doc: Document) => void
   onDocumentsChange: () => void
   refreshTrigger?: number
@@ -24,7 +26,7 @@ function parseLocalDate(dateStr: string): Date {
 
 function formatDate(isoString: string) {
   const date = new Date(isoString)
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function formatLongDate(isoString: string) {
@@ -42,6 +44,8 @@ export default function KBFinderContent({
   selectedFolder,
   searchQuery,
   sourceFilter,
+  sortOrder = 'recent',
+  selectedTags = new Set(),
   onDocumentClick,
   onDocumentsChange,
   refreshTrigger = 0
@@ -81,8 +85,10 @@ export default function KBFinderContent({
       // Use folder-based search when a specific folder is selected (not __all__)
       if (selectedFolder && selectedFolder !== '__all__') {
         params.set('folder', selectedFolder)
-        params.set('sort', 'name_asc')
       }
+
+      // Add sort order
+      params.set('sort', sortOrder)
 
       // Add search query
       if (searchQuery.trim()) {
@@ -92,6 +98,11 @@ export default function KBFinderContent({
       // Add source filter
       if (sourceFilter !== 'all') {
         params.set('source', sourceFilter)
+      }
+
+      // Add tags filter
+      if (selectedTags.size > 0) {
+        params.set('tags', Array.from(selectedTags).join(','))
       }
 
       const result = await apiGet<{
@@ -129,12 +140,12 @@ export default function KBFinderContent({
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [selectedFolder, searchQuery, sourceFilter, offset])
+  }, [selectedFolder, searchQuery, sourceFilter, sortOrder, selectedTags, offset])
 
-  // Reload when folder, search, source, or refresh trigger changes
+  // Reload when folder, search, source, sort, tags, or refresh trigger changes
   useEffect(() => {
     fetchDocuments(true)
-  }, [selectedFolder, searchQuery, sourceFilter, refreshTrigger])
+  }, [selectedFolder, searchQuery, sourceFilter, sortOrder, selectedTags, refreshTrigger])
 
   // Infinite scroll observer
   useEffect(() => {
@@ -332,7 +343,7 @@ export default function KBFinderContent({
                 {getSourceBadge(doc)}
 
                 {/* Date */}
-                <span className="text-xs text-muted flex-shrink-0 w-16 text-right" title={formatLongDate(doc.original_date || doc.uploaded_at)}>
+                <span className="text-xs text-muted flex-shrink-0 w-24 text-right" title={formatLongDate(doc.original_date || doc.uploaded_at)}>
                   {formatDate(doc.original_date || doc.uploaded_at)}
                 </span>
 

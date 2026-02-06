@@ -12,10 +12,8 @@ import {
   Building2,
   Users,
   Zap,
-  TrendingUp,
   AlertTriangle,
   Plus,
-  ArrowUpDown,
   LayoutGrid,
   Layers
 } from 'lucide-react'
@@ -532,7 +530,7 @@ function ProjectsPageContent() {
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="w-auto bg-hover border border-default rounded-md text-sm py-1.5 px-3 text-primary"
+            className="px-3 py-2 border border-default rounded-lg text-sm bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             {DEPARTMENT_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -542,7 +540,7 @@ function ProjectsPageContent() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-auto bg-hover border border-default rounded-md text-sm py-1.5 px-3 text-primary"
+            className="px-3 py-2 border border-default rounded-lg text-sm bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             {STATUS_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -552,7 +550,7 @@ function ProjectsPageContent() {
           <select
             value={tierFilter}
             onChange={(e) => setTierFilter(e.target.value ? parseInt(e.target.value) : '')}
-            className="w-auto bg-hover border border-default rounded-md text-sm py-1.5 px-3 text-primary"
+            className="px-3 py-2 border border-default rounded-lg text-sm bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Tiers</option>
             <option value="1">Tier 1 (Quick Wins)</option>
@@ -561,18 +559,15 @@ function ProjectsPageContent() {
             <option value="4">Tier 4 (Low Priority)</option>
           </select>
 
-          <div className="flex items-center gap-2 ml-4 pl-4 border-l border-default">
-            <ArrowUpDown className="w-4 h-4 text-muted" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="w-auto bg-hover border border-default rounded-md text-sm py-1.5 px-3 text-primary"
-            >
-              {SORT_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-3 py-2 border border-default rounded-lg text-sm bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {SORT_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
 
           {(departmentFilter || statusFilter || tierFilter || activeOnly) && (
             <button

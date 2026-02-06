@@ -8,6 +8,7 @@ import KBFinderSidebar from '@/components/kb/KBFinderSidebar'
 import KBFinderContent from '@/components/kb/KBFinderContent'
 import KBDocumentInfoModal from '@/components/kb/KBDocumentInfoModal'
 import KBSyncSettingsModal from '@/components/kb/KBSyncSettingsModal'
+import TagSelector from '@/components/TagSelector'
 import { apiGet } from '@/lib/api'
 import { logger } from '@/lib/logger'
 import { formatLastSync } from '@/lib/googleDrive'
@@ -30,6 +31,8 @@ export default function KBDocumentsContent() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>('__all__')  // Default to showing all docs
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
+  const [sortOrder, setSortOrder] = useState<string>('recent')
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
 
   // Modal state
   const [showSyncSettings, setShowSyncSettings] = useState(false)
@@ -226,6 +229,17 @@ export default function KBDocumentsContent() {
               )}
             </div>
 
+            {/* Tag Filter */}
+            <div className="w-48">
+              <TagSelector
+                selectedTags={selectedTags}
+                onTagsChange={setSelectedTags}
+                placeholder="Filter by tags..."
+                showInitiatives={false}
+                size="sm"
+              />
+            </div>
+
             {/* Source Filter */}
             <select
               value={sourceFilter}
@@ -233,9 +247,22 @@ export default function KBDocumentsContent() {
               className="px-3 py-2 border border-default rounded-lg text-sm bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Sources</option>
-              <option value="google_drive">Google Drive</option>
               <option value="obsidian">Vault</option>
-              <option value="upload">Uploads</option>
+              <option value="google_drive">Google Drive</option>
+              <option value="notion">Notion</option>
+              <option value="upload">Uploaded</option>
+            </select>
+
+            {/* Sort Order */}
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              className="px-3 py-2 border border-default rounded-lg text-sm bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="recent">Most Recent</option>
+              <option value="oldest">Oldest First</option>
+              <option value="name_asc">Name (A-Z)</option>
+              <option value="name_desc">Name (Z-A)</option>
             </select>
 
             {/* Sync Status Badge */}
@@ -280,6 +307,8 @@ export default function KBDocumentsContent() {
                 selectedFolder={selectedFolder}
                 searchQuery={searchQuery}
                 sourceFilter={sourceFilter}
+                sortOrder={sortOrder}
+                selectedTags={selectedTags}
                 onDocumentClick={handleDocumentClick}
                 onDocumentsChange={handleDocumentsChange}
                 refreshTrigger={refreshTrigger}
