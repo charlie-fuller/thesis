@@ -20,6 +20,10 @@ interface Document {
 interface MessageMetadata {
   agent_name?: string
   agent_display_name?: string
+  task_proposals?: TaskProposal[]
+  task_proposals_project_id?: string | null
+  task_proposals_conversation_id?: string | null
+  tasks_created?: boolean
   [key: string]: unknown
 }
 
@@ -355,11 +359,11 @@ function ChatMessage({ content, role, timestamp, documents, sources, onSourceCli
         )}
 
         {/* Task proposals for assistant messages */}
-        {role === 'assistant' && metadata?.task_proposals && !metadata?.tasks_created && (
+        {role === 'assistant' && !!metadata?.task_proposals && !metadata?.tasks_created && (
           <TaskProposalCard
-            proposals={metadata.task_proposals as TaskProposal[]}
-            projectId={metadata.task_proposals_project_id as string | null}
-            conversationId={metadata.task_proposals_conversation_id as string | null}
+            proposals={metadata.task_proposals}
+            projectId={metadata.task_proposals_project_id ?? null}
+            conversationId={metadata.task_proposals_conversation_id ?? null}
           />
         )}
 
