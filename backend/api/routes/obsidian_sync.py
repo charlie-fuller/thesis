@@ -690,7 +690,7 @@ async def upload_remote_file(
     backend for processing and storage.
     """
     try:
-        from services.document_service import process_document
+        from document_processor import process_document
         from services.obsidian_sync import (
             classify_document_by_filename,
             extract_original_date,
