@@ -304,51 +304,69 @@ export default function KBFinderContent({
             <p className="text-sm">No documents in this folder</p>
           </div>
         ) : (
-          <div className="divide-y divide-default">
-            {documents.map((doc) => (
-              <div
-                key={doc.id}
-                onClick={() => onDocumentClick(doc)}
-                className="flex items-center gap-3 px-4 py-2.5 hover:bg-hover transition-colors cursor-pointer group"
-              >
-                {/* File icon */}
-                <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+          <div>
+            {/* Column Headers */}
+            <div className="flex items-center gap-3 px-4 py-2 border-b border-default bg-subtle text-xs font-medium text-muted uppercase tracking-wide">
+              <span className="w-4 flex-shrink-0" /> {/* Icon spacer */}
+              <span className="flex-1 min-w-0">Name</span>
+              <span className="w-16 flex-shrink-0 text-center">Source</span>
+              <span className="w-24 flex-shrink-0 text-right">Created</span>
+              <span className="w-24 flex-shrink-0 text-right">Added</span>
+              <span className="w-16 flex-shrink-0" /> {/* Actions spacer */}
+            </div>
 
-                {/* Filename */}
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm text-primary truncate block">
-                    {doc.title || doc.filename}
+            <div className="divide-y divide-default">
+              {documents.map((doc) => (
+                <div
+                  key={doc.id}
+                  onClick={() => onDocumentClick(doc)}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-hover transition-colors cursor-pointer group"
+                >
+                  {/* File icon */}
+                  <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+
+                  {/* Filename */}
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm text-primary truncate block">
+                      {doc.title || doc.filename}
+                    </span>
+                  </div>
+
+                  {/* Processing badge */}
+                  {!doc.processed && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 flex-shrink-0">
+                      <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing
+                    </span>
+                  )}
+                  {doc.processed && doc.processing_status === 'failed' && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 flex-shrink-0">
+                      Failed
+                    </span>
+                  )}
+
+                  {/* Source badge */}
+                  <div className="w-16 flex-shrink-0 flex justify-center">
+                    {getSourceBadge(doc)}
+                  </div>
+
+                  {/* Created Date (original_date from document) */}
+                  <span className="text-xs text-muted flex-shrink-0 w-24 text-right" title={doc.original_date ? formatLongDate(doc.original_date) : 'No date'}>
+                    {doc.original_date ? formatDate(doc.original_date) : '-'}
                   </span>
-                </div>
 
-                {/* Processing badge */}
-                {!doc.processed && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 flex-shrink-0">
-                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Processing
+                  {/* Added Date (uploaded_at - when synced to KB) */}
+                  <span className="text-xs text-muted flex-shrink-0 w-24 text-right" title={formatLongDate(doc.uploaded_at)}>
+                    {formatDate(doc.uploaded_at)}
                   </span>
-                )}
-                {doc.processed && doc.processing_status === 'failed' && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 flex-shrink-0">
-                    Failed
-                  </span>
-                )}
-
-                {/* Source badge */}
-                {getSourceBadge(doc)}
-
-                {/* Date */}
-                <span className="text-xs text-muted flex-shrink-0 w-24 text-right" title={formatLongDate(doc.original_date || doc.uploaded_at)}>
-                  {formatDate(doc.original_date || doc.uploaded_at)}
-                </span>
 
                 {/* Action buttons (visible on hover) */}
-                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <div className="w-16 flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                   {/* Sync button for Drive docs */}
                   {doc.source_platform === 'google_drive' && (
                     <button
@@ -406,6 +424,7 @@ export default function KBFinderContent({
               </div>
             )}
           </div>
+        </div>
         )}
       </div>
 
