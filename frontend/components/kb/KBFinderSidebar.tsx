@@ -59,15 +59,13 @@ export default function KBFinderSidebar({
   const fetchFolders = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await apiGet<{
-        success: boolean
-        folders: FolderInfo[]
-      }>('/api/documents/folders')
-      setFolders(result.folders || [])
-
-      // Calculate total from folder counts
-      const total = (result.folders || []).reduce((sum, f) => sum + f.count, 0)
-      setTotalDocCount(total)
+      // Fetch folders and total doc count in parallel
+      const [foldersResult, docsResult] = await Promise.all([
+        apiGet<{ success: boolean; folders: FolderInfo[] }>('/api/documents/folders'),
+        apiGet<{ success: boolean; total_count: number }>('/api/documents/search?limit=1')
+      ])
+      setFolders(foldersResult.folders || [])
+      setTotalDocCount(docsResult.total_count || 0)
     } catch (err) {
       logger.error('Failed to fetch folders:', err)
     } finally {
@@ -173,39 +171,36 @@ export default function KBFinderSidebar({
     )
   }
 
-  if (folders.length === 0) {
-    return (
-      <div className="p-4 text-center text-sm text-muted">
-        <p>No folders found.</p>
-        <p className="text-xs mt-1">Sync your vault to see folders here.</p>
-      </div>
-    )
-  }
-
   return (
     <div className="py-2">
-      {/* "All Documents" root item */}
+      {/* "All Documents" root item - always shown */}
       <div
         className={`flex items-center gap-2 py-1.5 px-3 rounded transition-colors cursor-pointer mb-1 ${
-          selectedFolder === null
+          selectedFolder === '__all__'
             ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
             : 'hover:bg-hover text-secondary hover:text-primary'
         }`}
-        onClick={() => onSelectFolder(null)}
+        onClick={() => onSelectFolder('__all__')}
       >
-        <svg className={`w-4 h-4 flex-shrink-0 ${selectedFolder === null ? 'text-blue-500' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className={`w-4 h-4 flex-shrink-0 ${selectedFolder === '__all__' ? 'text-blue-500' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
         </svg>
         <span className="text-sm font-medium flex-1">All Documents</span>
-        <span className={`text-xs tabular-nums ${selectedFolder === null ? 'text-blue-500 dark:text-blue-400' : 'text-muted'}`}>
+        <span className={`text-xs tabular-nums ${selectedFolder === '__all__' ? 'text-blue-500 dark:text-blue-400' : 'text-muted'}`}>
           {totalDocCount}
         </span>
       </div>
 
-      {/* Folder tree */}
-      {tree.children
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map(child => renderFolderNode(child, 0))}
+      {/* Folder tree or empty state */}
+      {folders.length === 0 ? (
+        <div className="px-3 py-2 text-center text-xs text-muted">
+          <p>No vault folders found.</p>
+        </div>
+      ) : (
+        tree.children
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map(child => renderFolderNode(child, 0))
+      )}
     </div>
   )
 }

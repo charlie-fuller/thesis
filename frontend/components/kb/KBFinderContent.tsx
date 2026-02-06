@@ -78,8 +78,8 @@ export default function KBFinderContent({
       params.set('limit', String(LIMIT))
       params.set('offset', reset ? '0' : String(offset))
 
-      // Use folder-based search when a folder is selected
-      if (selectedFolder) {
+      // Use folder-based search when a specific folder is selected (not __all__)
+      if (selectedFolder && selectedFolder !== '__all__') {
         params.set('folder', selectedFolder)
         params.set('sort', 'name_asc')
       }
@@ -103,8 +103,8 @@ export default function KBFinderContent({
 
       let docs = result.documents || []
 
-      // When browsing a specific folder, filter to direct children only
-      if (selectedFolder && !searchQuery.trim()) {
+      // When browsing a specific folder (not __all__), filter to direct children only
+      if (selectedFolder && selectedFolder !== '__all__' && !searchQuery.trim()) {
         docs = docs.filter(doc => {
           if (!doc.obsidian_file_path) return false
           const relativePath = doc.obsidian_file_path.substring(selectedFolder.length + 1)
@@ -202,11 +202,11 @@ export default function KBFinderContent({
     return <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">Upload</span>
   }
 
-  // Build breadcrumb from folder path
-  const breadcrumbParts = selectedFolder ? selectedFolder.split('/') : []
+  // Build breadcrumb from folder path (skip for __all__)
+  const breadcrumbParts = selectedFolder && selectedFolder !== '__all__' ? selectedFolder.split('/') : []
 
-  // Empty state when no folder selected
-  if (!selectedFolder && !searchQuery.trim() && sourceFilter === 'all') {
+  // Empty state when no folder selected (initial state only, not when __all__ is selected)
+  if (selectedFolder === null && !searchQuery.trim() && sourceFilter === 'all') {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
         <svg className="w-12 h-12 text-muted mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -247,13 +247,23 @@ export default function KBFinderContent({
         </div>
       )}
 
-      {/* Search results header */}
-      {(searchQuery.trim() || sourceFilter !== 'all') && !selectedFolder && (
+      {/* All Documents header */}
+      {selectedFolder === '__all__' && !searchQuery.trim() && sourceFilter === 'all' && (
+        <div className="px-4 py-2 text-sm border-b border-default bg-subtle">
+          <span className="text-muted">
+            All Documents
+            {documents.length > 0 && ` (${documents.length})`}
+          </span>
+        </div>
+      )}
+
+      {/* Search/filter results header */}
+      {(searchQuery.trim() || sourceFilter !== 'all') && (selectedFolder === '__all__' || !selectedFolder) && (
         <div className="px-4 py-2 text-sm border-b border-default bg-subtle">
           <span className="text-muted">
             {searchQuery.trim() && `Search: "${searchQuery.trim()}"`}
             {searchQuery.trim() && sourceFilter !== 'all' && ' - '}
-            {sourceFilter !== 'all' && `Source: ${sourceFilter}`}
+            {sourceFilter !== 'all' && `Source: ${sourceFilter === 'obsidian' ? 'Vault' : sourceFilter}`}
             {documents.length > 0 && ` (${documents.length} result${documents.length !== 1 ? 's' : ''})`}
           </span>
         </div>

@@ -27,7 +27,7 @@ export default function KBDocumentsContent() {
 
   // Core UI state
   const [activeTab, setActiveTab] = useState<'documents' | 'tags'>('documents')
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
+  const [selectedFolder, setSelectedFolder] = useState<string | null>('__all__')  // Default to showing all docs
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
 
