@@ -1040,12 +1040,41 @@ def mark_sync_state_deleted(config_id: str, file_path: str) -> None:
     update_sync_state(config_id, file_path, sync_status="deleted")
 
 
+def _get_linked_document_ids(db, doc_ids: list[str]) -> set[str]:
+    """Get document IDs that are linked to initiatives or projects.
+
+    These should not be deleted during orphan cleanup to preserve user associations.
+    """
+    linked = set()
+
+    # Check disco_initiative_documents
+    if doc_ids:
+        try:
+            result = db.table("disco_initiative_documents").select("document_id").in_("document_id", doc_ids).execute()
+            linked.update(row["document_id"] for row in result.data)
+        except Exception as e:
+            logger.warning(f"Failed to check initiative links: {e}")
+
+    # Check project_documents
+    if doc_ids:
+        try:
+            result = db.table("project_documents").select("document_id").in_("document_id", doc_ids).execute()
+            linked.update(row["document_id"] for row in result.data)
+        except Exception as e:
+            logger.warning(f"Failed to check project links: {e}")
+
+    return linked
+
+
 def _cleanup_orphaned_documents(config: Dict, synced_paths: Set[str]) -> int:
     """Remove obsidian documents that have no matching file on disk.
 
     This catches documents that were created by older syncs with incorrect paths
     (e.g., missing a parent folder prefix) and have no sync state entry, so they
     survive the normal Phase 4 cleanup.
+
+    IMPORTANT: Documents linked to initiatives or projects are NOT deleted to
+    preserve user associations. These are logged as warnings instead.
 
     Args:
         config: Vault config record
@@ -1083,8 +1112,18 @@ def _cleanup_orphaned_documents(config: Dict, synced_paths: Set[str]) -> int:
             break
         offset += page_size
 
+    # Check which orphans are linked to initiatives/projects - don't delete those
+    orphan_ids = [doc_id for doc_id, _ in orphans]
+    linked_ids = _get_linked_document_ids(db, orphan_ids) if orphan_ids else set()
+
     deleted = 0
+    skipped_linked = 0
     for doc_id, doc_path in orphans:
+        if doc_id in linked_ids:
+            logger.warning(f"   SKIPPED orphan (has initiative/project links): {doc_path}")
+            skipped_linked += 1
+            continue
+
         try:
             db.table("document_chunks").delete().eq("document_id", doc_id).execute()
             db.table("documents").delete().eq("id", doc_id).execute()
@@ -1092,6 +1131,9 @@ def _cleanup_orphaned_documents(config: Dict, synced_paths: Set[str]) -> int:
             deleted += 1
         except Exception as e:
             logger.warning(f"   Failed to delete orphan {doc_path}: {e}")
+
+    if skipped_linked > 0:
+        logger.warning(f"   Skipped {skipped_linked} orphaned document(s) with initiative/project links")
 
     return deleted
 
