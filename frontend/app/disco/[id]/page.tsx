@@ -21,9 +21,10 @@ import {
   Edit3,
   Target,
   ExternalLink,
-  BarChart3
+  BarChart3,
+  X
 } from 'lucide-react'
-import { apiGet, apiPost, apiDelete } from '@/lib/api'
+import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api'
 import DocumentUpload from '@/components/disco/DocumentUpload'
 import DocumentList from '@/components/disco/DocumentList'
 import AgentRunner from '@/components/disco/AgentRunner'
@@ -140,10 +141,11 @@ export default function InitiativeDetailPage() {
   const [selectedOutput, setSelectedOutput] = useState<Output | null>(null)
   const [shareModalOpen, setShareModalOpen] = useState(false)
 
-  // Edit mode for initiative details
-  const [editingDescription, setEditingDescription] = useState(false)
+  // Edit modal state
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editedName, setEditedName] = useState('')
   const [editedDescription, setEditedDescription] = useState('')
-  const [savingDescription, setSavingDescription] = useState(false)
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const canEdit = initiative?.user_role === 'owner' || initiative?.user_role === 'editor'
 
@@ -225,33 +227,35 @@ export default function InitiativeDetailPage() {
     }
   }
 
-  const handleEditDescription = () => {
+  const handleOpenEditModal = () => {
+    setEditedName(initiative?.name || '')
     setEditedDescription(initiative?.description || '')
-    setEditingDescription(true)
+    setEditModalOpen(true)
   }
 
-  const handleSaveDescription = async () => {
+  const handleSaveEdit = async () => {
     if (!initiative) return
 
-    setSavingDescription(true)
+    setSavingEdit(true)
     try {
-      const result = await apiPost<{ success: boolean; initiative: Initiative }>(
+      const result = await apiPatch<{ success: boolean; initiative: Initiative }>(
         `/api/disco/initiatives/${initiativeId}`,
-        { description: editedDescription }
+        { name: editedName, description: editedDescription }
       )
       if (result.success && result.initiative) {
         setInitiative(result.initiative)
       }
-      setEditingDescription(false)
+      setEditModalOpen(false)
     } catch (err) {
-      console.error('Failed to save description:', err)
+      console.error('Failed to save initiative:', err)
     } finally {
-      setSavingDescription(false)
+      setSavingEdit(false)
     }
   }
 
-  const handleCancelEdit = () => {
-    setEditingDescription(false)
+  const handleCloseEditModal = () => {
+    setEditModalOpen(false)
+    setEditedName('')
     setEditedDescription('')
   }
 
@@ -340,55 +344,26 @@ export default function InitiativeDetailPage() {
                 {statusConfig.label}
               </span>
             </div>
-            {editingDescription ? (
-              <div className="flex items-start gap-2 max-w-2xl">
-                <textarea
-                  value={editedDescription}
-                  onChange={(e) => setEditedDescription(e.target.value)}
-                  placeholder="Add a description for this initiative..."
-                  rows={3}
-                  className="flex-1 px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  autoFocus
-                />
-                <div className="flex flex-col gap-1">
-                  <button
-                    onClick={handleSaveDescription}
-                    disabled={savingDescription}
-                    className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {savingDescription ? 'Saving...' : 'Save'}
-                  </button>
-                  <button
-                    onClick={handleCancelEdit}
-                    disabled={savingDescription}
-                    className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-start gap-2 group">
-                {initiative.description ? (
-                  <p className="text-slate-500 dark:text-slate-400 max-w-2xl">
-                    {initiative.description}
-                  </p>
-                ) : canEdit ? (
-                  <p className="text-slate-400 dark:text-slate-500 italic">
-                    No description
-                  </p>
-                ) : null}
-                {canEdit && (
-                  <button
-                    onClick={handleEditDescription}
-                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Edit description"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            )}
+            <div className="flex items-start gap-2 group">
+              {initiative.description ? (
+                <p className="text-slate-500 dark:text-slate-400 max-w-2xl">
+                  {initiative.description}
+                </p>
+              ) : canEdit ? (
+                <p className="text-slate-400 dark:text-slate-500 italic">
+                  No description
+                </p>
+              ) : null}
+              {canEdit && (
+                <button
+                  onClick={handleOpenEditModal}
+                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Edit initiative"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
             {/* Show linked projects or user role if applicable */}
             {(linkedProjects.length > 0 || initiative.user_role !== 'owner') && (
               <div className="flex items-center gap-4 mt-2 text-sm text-slate-500 dark:text-slate-400">
@@ -634,6 +609,81 @@ export default function InitiativeDetailPage() {
         initiativeId={initiativeId}
         userRole={initiative.user_role}
       />
+
+      {/* Edit Initiative Modal */}
+      {editModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={handleCloseEditModal}
+          />
+          <div
+            className="relative w-full max-w-lg mx-4 bg-white dark:bg-slate-900 rounded-xl shadow-xl"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') handleCloseEditModal()
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                Edit Initiative
+              </h2>
+              <button
+                onClick={handleCloseEditModal}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={editedDescription}
+                  onChange={(e) => setEditedDescription(e.target.value)}
+                  placeholder="Add a description for this initiative..."
+                  rows={4}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-200 dark:border-slate-700">
+              <button
+                onClick={handleCloseEditModal}
+                disabled={savingEdit}
+                className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={savingEdit || !editedName.trim()}
+                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {savingEdit ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
