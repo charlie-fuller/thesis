@@ -176,9 +176,10 @@ DATE_PATTERNS = [
     # Month.Day only: 1.15, 01.15 (assumes current year - must come AFTER three-part patterns)
     (re.compile(r"\b(\d{1,2})\.(\d{1,2})\b"), "md"),
     # Written: January 15, 2024 or Jan 15, 2024
+    # Note: (?!\d) prevents matching "20" from "February 2026" as a day
     (
         re.compile(
-            r"(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})(?:,?\s+(\d{4}))?",
+            r"(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})(?!\d)(?:,?\s+(\d{4}))?",
             re.IGNORECASE,
         ),
         "written",
