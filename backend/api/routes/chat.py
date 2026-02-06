@@ -21,6 +21,7 @@ from document_processor import search_similar_chunks
 from logger_config import get_logger
 from services.chat_agent_service import get_chat_agent_service
 from services.conversation_service import get_conversation_service
+from services.project_context import build_project_context, get_scoring_related_documents
 from services.useable_output_detector import process_conversation_for_useable_output
 from system_instructions_loader import (
     get_active_system_instruction_version,
@@ -1296,6 +1297,33 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
             yield f"data: {json.dumps({'type': 'agent', 'agent': selected_agent, 'display_name': agent_display_name})}\n\n"
 
             user_prompt = chat_request.message
+
+            # Inject project context for project_agent conversations
+            if selected_agent == "project_agent" and chat_request.conversation_id:
+                try:
+                    conv_result = await asyncio.to_thread(
+                        lambda: supabase.table("conversations")
+                        .select("project_id")
+                        .eq("id", chat_request.conversation_id)
+                        .single()
+                        .execute()
+                    )
+                    project_id = conv_result.data.get("project_id") if conv_result.data else None
+                    if project_id:
+                        proj_result = await asyncio.to_thread(
+                            lambda: supabase.table("ai_projects").select("*").eq("id", project_id).single().execute()
+                        )
+                        if proj_result.data:
+                            related_docs = get_scoring_related_documents(
+                                project=proj_result.data, client_id=client_id, limit=5
+                            )
+                            project_context_text = build_project_context(proj_result.data, related_docs)
+                            user_prompt = f"""{project_context_text}
+
+User's question: {chat_request.message}"""
+                            logger.info(f"Injected project context for project {project_id}")
+                except Exception as proj_err:
+                    logger.warning(f"Failed to load project context: {proj_err}")
 
             # Track if RAG was attempted but found nothing
             rag_attempted_no_results = chat_request.use_rag and not is_simple_message and not context_chunks
