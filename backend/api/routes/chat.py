@@ -1225,6 +1225,163 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                     yield f"data: {json.dumps({'type': 'done', 'tokens': {'input': 0, 'output': 0, 'total': 0}})}\n\n"
                     return  # Stop here - don't continue to normal chat
 
+            # Check if the previous message has pending task proposals awaiting confirmation
+            if chat_request.conversation_id:
+                last_msg_for_tasks = (
+                    supabase.table("messages")
+                    .select("id, metadata")
+                    .eq("conversation_id", chat_request.conversation_id)
+                    .eq("role", "assistant")
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+
+                if last_msg_for_tasks.data and last_msg_for_tasks.data[0].get("metadata"):
+                    task_meta = last_msg_for_tasks.data[0]["metadata"]
+                    pending_proposals = task_meta.get("task_proposals")
+                    if pending_proposals and not task_meta.get("tasks_created"):
+                        user_msg_lower = chat_request.message.lower().strip()
+                        task_confirm_phrases = [
+                            "create",
+                            "add",
+                            "go ahead",
+                            "do it",
+                            "yes",
+                            "yep",
+                            "yeah",
+                            "sure",
+                            "confirmed",
+                            "confirm",
+                            "approve",
+                            "ok",
+                            "okay",
+                            "looks good",
+                            "sounds good",
+                            "perfect",
+                            "great",
+                            "proceed",
+                            "create them",
+                            "add them",
+                            "add those",
+                            "create those",
+                            "make them",
+                            "build them",
+                            "let's go",
+                            "let's do it",
+                        ]
+                        is_task_confirmed = any(phrase in user_msg_lower for phrase in task_confirm_phrases)
+
+                        if is_task_confirmed:
+                            import re as _re
+
+                            logger.info("User confirmed task proposals - creating tasks")
+
+                            # Get project_id from conversation
+                            conv_result_for_tasks = (
+                                supabase.table("conversations")
+                                .select("project_id")
+                                .eq("id", chat_request.conversation_id)
+                                .single()
+                                .execute()
+                            )
+                            project_id_for_tasks = (
+                                conv_result_for_tasks.data.get("project_id") if conv_result_for_tasks.data else None
+                            )
+
+                            user_id = current_user["id"]
+                            task_client_id = current_user.get("client_id")
+
+                            created_task_ids = []
+                            seq_to_uuid = {}  # Map sequence numbers to created UUIDs
+
+                            for proposal in pending_proposals:
+                                seq = proposal.get("sequence", 0)
+
+                                # Resolve depends_on sequence numbers to UUIDs
+                                depends_on_uuids = []
+                                for dep_seq in proposal.get("depends_on") or []:
+                                    if dep_seq in seq_to_uuid:
+                                        depends_on_uuids.append(seq_to_uuid[dep_seq])
+
+                                # Parse due_date
+                                due_date_val = proposal.get("due_date")
+
+                                task_record = {
+                                    "client_id": task_client_id,
+                                    "title": (proposal.get("title") or "Untitled task").strip()[:500],
+                                    "description": proposal.get("description"),
+                                    "status": "pending",
+                                    "priority": min(max(proposal.get("priority", 3), 1), 5),
+                                    "assignee_name": proposal.get("assignee_name"),
+                                    "due_date": due_date_val,
+                                    "category": proposal.get("category"),
+                                    "tags": proposal.get("tags") or [],
+                                    "team": proposal.get("team"),
+                                    "source_type": "conversation",
+                                    "source_conversation_id": chat_request.conversation_id,
+                                    "linked_project_id": project_id_for_tasks,
+                                    "created_by": user_id,
+                                    "updated_by": user_id,
+                                    "position": 0,
+                                    "sequence_number": seq,
+                                    "depends_on": depends_on_uuids,
+                                }
+
+                                try:
+                                    result = supabase.table("project_tasks").insert(task_record).execute()
+                                    if result.data:
+                                        task_id = result.data[0]["id"]
+                                        created_task_ids.append(task_id)
+                                        seq_to_uuid[seq] = task_id
+                                except Exception as task_err:
+                                    logger.warning(f"Failed to create task '{proposal.get('title')}': {task_err}")
+
+                            # Mark proposals as created in the original message metadata
+                            updated_meta = {**task_meta, "tasks_created": True, "created_task_ids": created_task_ids}
+                            supabase.table("messages").update({"metadata": updated_meta}).eq(
+                                "id", last_msg_for_tasks.data[0]["id"]
+                            ).execute()
+
+                            # Stream confirmation message
+                            count = len(created_task_ids)
+                            confirm_response = f"Done! Created {count} task{'s' if count != 1 else ''} on your board."
+                            if project_id_for_tasks:
+                                confirm_response += (
+                                    " They're linked to this project with sequence numbers and dependencies."
+                                )
+
+                            for char in confirm_response:
+                                yield f"data: {json.dumps({'type': 'token', 'content': char})}\n\n"
+                                await asyncio.sleep(0.003)
+
+                            # Send tasks_created SSE event
+                            yield f"data: {json.dumps({'type': 'tasks_created', 'count': count, 'task_ids': created_task_ids})}\n\n"
+
+                            # Save messages
+                            messages_to_insert = [
+                                {
+                                    "conversation_id": chat_request.conversation_id,
+                                    "role": "user",
+                                    "content": chat_request.message,
+                                },
+                                {
+                                    "conversation_id": chat_request.conversation_id,
+                                    "role": "assistant",
+                                    "content": confirm_response,
+                                    "metadata": {
+                                        "agent_name": "taskmaster",
+                                        "agent_display_name": "Taskmaster",
+                                        "tasks_created": True,
+                                        "created_task_count": count,
+                                    },
+                                },
+                            ]
+                            supabase.table("messages").insert(messages_to_insert).execute()
+
+                            yield f"data: {json.dumps({'type': 'done', 'tokens': {'input': 0, 'output': 0, 'total': 0}})}\n\n"
+                            return  # Early return - don't send to Claude
+
             # Detect simple greetings or conversational messages that don't need RAG
             simple_messages = {
                 "hello",
@@ -1597,6 +1754,28 @@ Instructions:
                     full_response += citation_section
                     logger.info(f"Appended {len(web_research_citations)} web citations to response")
 
+            # Extract task proposals from Taskmaster responses
+            import re as _re_extract
+
+            task_proposals_data = None
+            if selected_agent == "taskmaster" and "<task_proposals>" in full_response:
+                tp_match = _re_extract.search(
+                    r"<task_proposals>\s*(\[.*?\])\s*</task_proposals>",
+                    full_response,
+                    _re_extract.DOTALL,
+                )
+                if tp_match:
+                    try:
+                        task_proposals_data = json.loads(tp_match.group(1))
+                        # Strip the <task_proposals> block from the visible response
+                        # (it was already streamed, so we note it for metadata but can't un-stream it)
+                        full_response = full_response[: tp_match.start()] + full_response[tp_match.end() :]
+                        full_response = full_response.rstrip()
+                        logger.info(f"Extracted {len(task_proposals_data)} task proposals from Taskmaster response")
+                    except json.JSONDecodeError as json_err:
+                        logger.warning(f"Failed to parse task_proposals JSON: {json_err}")
+                        task_proposals_data = None
+
             # Save messages to database if conversation_id provided
             image_suggestion_data = None  # Will hold suggestion to send as SSE event
 
@@ -1661,6 +1840,10 @@ Instructions:
                             f"Image suggestion added: {suggestion.get('image_type', 'general')} - {suggestion['suggested_prompt']}"
                         )
 
+                    # Add task proposals to metadata if extracted
+                    if task_proposals_data:
+                        assistant_metadata["task_proposals"] = task_proposals_data
+
                     messages_to_insert = [
                         {
                             "conversation_id": chat_request.conversation_id,
@@ -1717,6 +1900,25 @@ Instructions:
                 logger.info(
                     f"Sent image suggestion SSE event: {image_suggestion_data.get('suggested_prompt', '')[:50]}..."
                 )
+
+            # Send task proposals event if Taskmaster proposed tasks (BEFORE done event)
+            if task_proposals_data:
+                # Get project_id from conversation for the proposal event
+                tp_project_id = None
+                if chat_request.conversation_id:
+                    try:
+                        tp_conv = (
+                            supabase.table("conversations")
+                            .select("project_id")
+                            .eq("id", chat_request.conversation_id)
+                            .single()
+                            .execute()
+                        )
+                        tp_project_id = tp_conv.data.get("project_id") if tp_conv.data else None
+                    except Exception:
+                        pass
+                yield f"data: {json.dumps({'type': 'task_proposals', 'tasks': task_proposals_data, 'project_id': tp_project_id, 'conversation_id': chat_request.conversation_id})}\n\n"
+                logger.info(f"Sent task_proposals SSE event with {len(task_proposals_data)} proposals")
 
             # Send completion message with token stats
             completion_data = {

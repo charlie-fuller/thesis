@@ -501,6 +501,28 @@ export default function ChatInterface({
                   }
                   return updated
                 })
+              } else if (data.type === 'task_proposals') {
+                // Taskmaster proposed tasks - store in message metadata
+                logger.debug(`Received ${data.tasks?.length} task proposals`)
+                setMessages(prev => {
+                  const updated = [...prev]
+                  if (updated[messageIndex]) {
+                    updated[messageIndex] = {
+                      ...updated[messageIndex],
+                      metadata: {
+                        ...updated[messageIndex].metadata,
+                        task_proposals: data.tasks,
+                        task_proposals_project_id: data.project_id,
+                        task_proposals_conversation_id: data.conversation_id,
+                      }
+                    }
+                  }
+                  return updated
+                })
+              } else if (data.type === 'tasks_created') {
+                // Tasks were created from proposals
+                logger.debug(`${data.count} tasks created`)
+                toast.success(`${data.count} task${data.count !== 1 ? 's' : ''} created!`)
               } else if (data.type === 'done') {
                 logger.debug('Stream complete:', data.tokens)
                 // Accumulate tokens for context window tracking

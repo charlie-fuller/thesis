@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect, DragEvent, MouseEvent } from 'react'
-import { Calendar, User, AlertCircle, FileText, MessageSquare, Search, Pencil, ChevronDown } from 'lucide-react'
+import { Calendar, User, AlertCircle, FileText, MessageSquare, Search, Pencil, ChevronDown, GitBranch } from 'lucide-react'
 import { Task } from './TaskKanbanBoard'
 
 interface Stakeholder {
@@ -119,6 +119,11 @@ export default function TaskCard({ task, onClick, stakeholders = [], onAssigneeC
           }`}
           title={`Priority: ${task.priority}`}
         />
+        {task.sequence_number != null && (
+          <span className="text-xs font-mono text-muted bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 flex-shrink-0 mt-0.5" title={`Sequence #${task.sequence_number}`}>
+            #{task.sequence_number}
+          </span>
+        )}
         <h4 className="text-sm font-medium text-primary line-clamp-2 flex-1">
           {task.title}
         </h4>
@@ -191,6 +196,14 @@ export default function TaskCard({ task, onClick, stakeholders = [], onAssigneeC
           >
             <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
             <span>{formatDate(task.due_date)}</span>
+          </div>
+        )}
+
+        {/* Dependency indicator */}
+        {task.depends_on && task.depends_on.length > 0 && (
+          <div className="flex items-center gap-1 text-purple-600 dark:text-purple-400" title={`Depends on ${task.depends_on.length} task${task.depends_on.length !== 1 ? 's' : ''}`}>
+            <GitBranch className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>{task.depends_on.length}</span>
           </div>
         )}
 

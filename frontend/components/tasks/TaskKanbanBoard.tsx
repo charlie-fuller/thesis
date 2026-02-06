@@ -34,6 +34,8 @@ export interface Task {
   blocker_reason: string | null
   blocked_at: string | null
   position: number
+  sequence_number: number | null
+  depends_on: string[]
   created_at: string
   updated_at: string
   stakeholder_name?: string | null

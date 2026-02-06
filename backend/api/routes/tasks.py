@@ -79,6 +79,8 @@ class TaskCreate(BaseModel):
     source_project_id: Optional[str] = None
     source_text: Optional[str] = None
     blocker_reason: Optional[str] = None
+    sequence_number: Optional[int] = None
+    depends_on: Optional[List[str]] = None  # Task IDs this depends on
 
     @field_validator("title")
     @classmethod
@@ -112,6 +114,8 @@ class TaskUpdate(BaseModel):
     blocker_reason: Optional[str] = None
     related_project_id: Optional[str] = None
     linked_project_id: Optional[str] = None  # Parent project
+    sequence_number: Optional[int] = None
+    depends_on: Optional[List[str]] = None  # Task IDs this depends on
 
     @field_validator("title")
     @classmethod
@@ -141,6 +145,29 @@ class TaskBulkReorderRequest(BaseModel):
     """Request body for bulk reordering tasks."""
 
     tasks: List[TaskReorderItem]
+
+
+class BulkTaskItem(BaseModel):
+    """Single task in a bulk creation request."""
+
+    title: str = Field(..., min_length=1, max_length=500)
+    description: Optional[str] = None
+    priority: int = Field(default=3, ge=1, le=5)
+    due_date: Optional[date] = None
+    category: Optional[str] = None
+    tags: Optional[List[str]] = None
+    team: Optional[str] = None
+    assignee_name: Optional[str] = None
+    sequence_number: Optional[int] = None
+    depends_on_indices: Optional[List[int]] = None  # References to other items by index in this batch
+
+
+class BulkTaskRequest(BaseModel):
+    """Request body for bulk task creation."""
+
+    tasks: List[BulkTaskItem]
+    linked_project_id: Optional[str] = None
+    source_conversation_id: Optional[str] = None
 
 
 class TaskCommentCreate(BaseModel):
@@ -193,6 +220,8 @@ def serialize_task(task: dict) -> dict:
         "related_project_id": task.get("related_project_id"),
         "linked_project_id": task.get("linked_project_id"),
         "position": task.get("position", 0),
+        "sequence_number": task.get("sequence_number"),
+        "depends_on": task.get("depends_on") or [],
         "created_at": task["created_at"],
         "updated_at": task["updated_at"],
         # Joined fields (from view or explicit joins)
@@ -341,6 +370,91 @@ async def get_kanban_board(
         raise
     except Exception as e:
         logger.error(f"Error fetching kanban board: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+@router.post("/bulk")
+async def create_tasks_bulk(request: BulkTaskRequest, current_user: dict = Depends(get_current_user)):
+    """Create multiple tasks in a single request with dependency mapping.
+
+    Used by Taskmaster to create sequenced task plans from chat conversations.
+    The depends_on_indices field references other items by their index in the batch,
+    which are resolved to actual task UUIDs after creation.
+    """
+    try:
+        client_id = current_user.get("client_id") or get_default_client_id()
+        user_id = current_user["id"]
+
+        if not request.tasks:
+            raise HTTPException(status_code=400, detail="No tasks provided")
+
+        # Validate linked_project_id if provided
+        if request.linked_project_id:
+            validate_uuid(request.linked_project_id, "linked_project_id")
+        if request.source_conversation_id:
+            validate_uuid(request.source_conversation_id, "source_conversation_id")
+
+        created_tasks = []
+        created_ids = []  # Track IDs by index for dependency resolution
+
+        for idx, item in enumerate(request.tasks):
+            # Get next position
+            position = await get_next_position(client_id, "pending")
+
+            # Resolve depends_on_indices to actual task UUIDs
+            depends_on_uuids = []
+            if item.depends_on_indices:
+                for dep_idx in item.depends_on_indices:
+                    if 0 <= dep_idx < len(created_ids):
+                        depends_on_uuids.append(created_ids[dep_idx])
+                    else:
+                        logger.warning(f"Invalid depends_on_index {dep_idx} for task at index {idx}")
+
+            task_record = {
+                "client_id": client_id,
+                "title": item.title.strip()[:500],
+                "description": item.description,
+                "status": "pending",
+                "priority": item.priority,
+                "assignee_name": item.assignee_name,
+                "due_date": item.due_date.isoformat() if item.due_date else None,
+                "category": item.category,
+                "tags": item.tags or [],
+                "team": item.team,
+                "source_type": "conversation",
+                "source_conversation_id": request.source_conversation_id,
+                "linked_project_id": request.linked_project_id,
+                "created_by": user_id,
+                "updated_by": user_id,
+                "position": position,
+                "sequence_number": item.sequence_number,
+                "depends_on": depends_on_uuids,
+            }
+
+            result = await asyncio.to_thread(
+                lambda rec=task_record: supabase.table("project_tasks").insert(rec).execute()
+            )
+
+            if result.data:
+                task = result.data[0]
+                created_ids.append(task["id"])
+                created_tasks.append(serialize_task(task))
+            else:
+                created_ids.append(None)
+
+        logger.info(f"Bulk created {len(created_tasks)} tasks for project {request.linked_project_id}")
+
+        return {
+            "success": True,
+            "tasks": created_tasks,
+            "count": len(created_tasks),
+            "message": f"Created {len(created_tasks)} tasks",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating tasks in bulk: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
@@ -685,6 +799,8 @@ async def create_task(request: TaskCreate, current_user: dict = Depends(get_curr
             "created_by": user_id,
             "updated_by": user_id,
             "position": position,
+            "sequence_number": request.sequence_number,
+            "depends_on": request.depends_on or [],
         }
 
         result = await asyncio.to_thread(lambda: supabase.table("project_tasks").insert(task_record).execute())
@@ -1413,6 +1529,10 @@ async def update_task(task_id: str, request: TaskUpdate, current_user: dict = De
             if request.linked_project_id:
                 validate_uuid(request.linked_project_id, "linked_project_id")
             update_record["linked_project_id"] = request.linked_project_id or None
+        if request.sequence_number is not None:
+            update_record["sequence_number"] = request.sequence_number
+        if request.depends_on is not None:
+            update_record["depends_on"] = request.depends_on
 
         result = await asyncio.to_thread(
             lambda: supabase.table("project_tasks").update(update_record).eq("id", task_id).execute()

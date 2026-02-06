@@ -9,6 +9,7 @@ import { logger } from '@/lib/logger';
 import { apiPost } from '@/lib/api';
 import SourceCitations, { SourceDocument } from './SourceCitations';
 import { AgentIcon, getAgentColor } from './AgentIcon';
+import TaskProposalCard, { TaskProposal } from './chat/TaskProposalCard';
 
 interface Document {
   id: string
@@ -119,6 +120,9 @@ function CodeBlock({
 }
 
 function ChatMessage({ content, role, timestamp, documents, sources, onSourceClick, conversationId, messageId, onDigDeeper, onDigDeeperSection, isDigDeeperLoading, metadata, onSaveToKB }: ChatMessageProps) {
+  // Strip <task_proposals> block from displayed content (raw JSON shouldn't show)
+  const displayContent = content.replace(/<task_proposals>[\s\S]*?<\/task_proposals>/g, '').trimEnd();
+
   // State for inline dig-deeper expanded sections
   const [expandedSections, setExpandedSections] = useState<Record<string, ExpandedSection>>({});
 
@@ -336,7 +340,7 @@ function ChatMessage({ content, role, timestamp, documents, sources, onSourceCli
                 },
               }}
             >
-              {content}
+              {displayContent}
             </ReactMarkdown>
           </div>
         ) : (
@@ -348,6 +352,25 @@ function ChatMessage({ content, role, timestamp, documents, sources, onSourceCli
         {/* Source citations for assistant messages */}
         {role === 'assistant' && sources && sources.length > 0 && (
           <SourceCitations sources={sources} onSourceClick={onSourceClick} />
+        )}
+
+        {/* Task proposals for assistant messages */}
+        {role === 'assistant' && metadata?.task_proposals && !metadata?.tasks_created && (
+          <TaskProposalCard
+            proposals={metadata.task_proposals as TaskProposal[]}
+            projectId={metadata.task_proposals_project_id as string | null}
+            conversationId={metadata.task_proposals_conversation_id as string | null}
+          />
+        )}
+
+        {/* Tasks created badge */}
+        {role === 'assistant' && metadata?.tasks_created && (
+          <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Tasks created
+          </div>
         )}
 
         {/* Action buttons for assistant messages */}
