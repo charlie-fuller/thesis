@@ -95,7 +95,7 @@ export default function ChatInterface({
   // Agent selection state - initialize with locked agent if provided, or context-specific agent
   const getInitialAgents = (): string[] => {
     if (lockedAgentId) return [lockedAgentId]
-    if (projectId) return ['project_agent']
+    if (projectId) return ['project_agent', 'taskmaster']
     if (initiativeId) return ['initiative_agent']
     return []
   }
@@ -105,7 +105,7 @@ export default function ChatInterface({
   useEffect(() => {
     if (lockedAgentId) return // Don't change locked agents
     if (projectId) {
-      setSelectedAgents(['project_agent'])
+      setSelectedAgents(['project_agent', 'taskmaster'])
     } else if (initiativeId) {
       setSelectedAgents(['initiative_agent'])
     }
