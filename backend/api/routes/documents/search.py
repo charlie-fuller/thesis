@@ -451,17 +451,17 @@ async def search_documents(
         if folder and folder.strip():
             query = query.ilike("obsidian_file_path", f"{folder.strip()}/%")
 
-        # Apply sort order - use original_date for date sorting (the document's actual date)
-        # with uploaded_at as secondary sort for documents with same/null original_date
+        # Apply sort order - use uploaded_at as primary for recency (most recently added),
+        # with original_date as secondary for documents uploaded at the same time
         sort_field = sort.strip().lower() if sort else "recent"
         if sort_field == "oldest":
-            query = query.order("original_date", desc=False, nullsfirst=False).order("uploaded_at", desc=False)
+            query = query.order("uploaded_at", desc=False).order("original_date", desc=False, nullsfirst=False)
         elif sort_field == "name_asc":
             query = query.order("filename", desc=False)
         elif sort_field == "name_desc":
             query = query.order("filename", desc=True)
         else:  # default to 'recent'
-            query = query.order("original_date", desc=True, nullsfirst=False).order("uploaded_at", desc=True)
+            query = query.order("uploaded_at", desc=True).order("original_date", desc=True, nullsfirst=False)
 
         if q and q.strip():
             search_term = q.strip()
