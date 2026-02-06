@@ -200,23 +200,28 @@ class ChatAgentService:
         reason = ""
         supporting_agents = []
 
-        # Priority 1: Explicit agent selection from UI
-        if agent_ids and len(agent_ids) > 0:
+        # Priority 1: @mention in message (user's most explicit intent)
+        mentions = self.parse_mentions(message)
+        if mentions:
+            primary_agent = mentions[0]
+            supporting_agents = [a.lower() for a in agent_ids[1:]] if agent_ids else mentions[1:]
+            # Keep other UI-selected agents as supporting if not already mentioned
+            if agent_ids:
+                for aid in agent_ids:
+                    aid_lower = aid.lower()
+                    if aid_lower != primary_agent and aid_lower not in supporting_agents:
+                        supporting_agents.append(aid_lower)
+            confidence = 1.0
+            reason = f"@mention in message: @{primary_agent}"
+            logger.info(f"Agent mentioned in message: {primary_agent}")
+
+        # Priority 2: Explicit agent selection from UI
+        if not primary_agent and agent_ids and len(agent_ids) > 0:
             primary_agent = agent_ids[0].lower()
             supporting_agents = [a.lower() for a in agent_ids[1:]]
             confidence = 1.0
             reason = "Explicit selection from UI"
             logger.info(f"Agent explicitly selected: {primary_agent}")
-
-        # Priority 2: @mention in message
-        if not primary_agent:
-            mentions = self.parse_mentions(message)
-            if mentions:
-                primary_agent = mentions[0]
-                supporting_agents = mentions[1:]
-                confidence = 1.0
-                reason = f"@mention in message: @{primary_agent}"
-                logger.info(f"Agent mentioned in message: {primary_agent}")
 
         # Priority 3: Use AgentRouter for intelligent routing
         if not primary_agent:
