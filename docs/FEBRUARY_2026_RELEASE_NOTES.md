@@ -361,3 +361,66 @@ DISCO initiatives can now be analyzed against the same IS FY27 strategic pillars
 - Manual trigger only (click Analyze button); editors/owners can analyze, viewers can view results
 
 **Files**: `backend/services/disco/initiative_alignment_analyzer.py`, `backend/api/routes/disco/initiatives.py`, `frontend/components/disco/InitiativeAlignmentTab.tsx`, `frontend/components/projects/GoalAlignmentSection.tsx`, `frontend/app/disco/[id]/page.tsx`, `database/migrations/067_initiative_goal_alignment.sql`
+
+---
+
+## February 6, 2026
+
+### KB Document Sorting & Column Headers
+
+Improved document list display with proper date sorting and dual date columns.
+
+**Changes**:
+- Documents now sort by `original_date` (document creation date) instead of `uploaded_at` (sync timestamp)
+- Column headers added: Name, Source, Created (document date), Added (sync date)
+- "All Documents" item now shows correctly in folder tree with total count
+- Empty folder state handled gracefully
+
+**Files**: `backend/api/routes/documents/search.py`, `frontend/components/kb/KBFinderContent.tsx`, `frontend/components/kb/KBFinderSidebar.tsx`
+
+### Unified Filter/Sort UI
+
+Consistent styling applied across KB, Tasks, and Projects filter controls.
+
+**Changes**:
+- All dropdowns use same styling: `px-3 py-2 border border-default rounded-lg text-sm bg-card`
+- Priority and source filter buttons use `rounded-lg` (previously `rounded-full` on Tasks)
+- Improved visual consistency across the application
+
+**Files**: `frontend/app/projects/page.tsx`, `frontend/components/tasks/TaskFilters.tsx`
+
+### Linked Document Protection
+
+The vault sync orphan cleanup now protects documents that are linked to initiatives or projects.
+
+**Problem Solved**:
+- Previously, orphan cleanup could delete documents whose source files were moved/renamed in Obsidian
+- This triggered `ON DELETE CASCADE` on foreign keys, deleting all initiative and project document links
+- Users lost carefully curated document associations
+
+**Solution**:
+- New `_get_linked_document_ids()` helper checks `disco_initiative_documents` and `project_documents` tables
+- Orphan cleanup skips any document with existing links
+- Skipped documents logged with "SKIPPED orphan (has initiative/project links)" warning
+- Documents can still be manually deleted if needed
+
+**Files**: `backend/services/obsidian_sync.py`
+
+### Sync Date Parsing Fix
+
+Fixed a bug where date patterns could incorrectly match partial years as days.
+
+**Example**: "2026-02-05" was being parsed with "26" as the day in some edge cases.
+
+**Files**: `backend/services/obsidian_sync.py`
+
+### Folder Cleanup with Pagination
+
+Added pagination to orphan document cleanup and improved stale folder handling.
+
+**Changes**:
+- Orphan cleanup now processes documents in batches to avoid memory issues with large vaults
+- Stale KB folders (with 0 documents) properly removed from folder tree
+- Improved sync reliability for vaults with thousands of files
+
+**Files**: `backend/services/obsidian_sync.py`
