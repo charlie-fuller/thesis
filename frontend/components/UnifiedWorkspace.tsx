@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { apiGet } from '@/lib/api'
 import ChatInterface from './ChatInterface'
 import ConversationSidebar from './ConversationSidebar'
 import HelpChat from './HelpChat'
@@ -37,6 +38,22 @@ export default function UnifiedWorkspace({
     setSelectedProjectId(projectId ?? null)
     setSelectedInitiativeId(initiativeId ?? null)
   }, [projectId, initiativeId])
+
+  // When a project is selected but no initiative, resolve the project's linked initiative
+  useEffect(() => {
+    if (!selectedProjectId || selectedInitiativeId) return
+    async function resolveInitiative() {
+      try {
+        const project = await apiGet<{ initiative_ids?: string[] }>(`/api/projects/${selectedProjectId}`)
+        if (project.initiative_ids && project.initiative_ids.length > 0) {
+          setSelectedInitiativeId(project.initiative_ids[0])
+        }
+      } catch {
+        // Project fetch failed, no initiative to resolve
+      }
+    }
+    resolveInitiative()
+  }, [selectedProjectId, selectedInitiativeId])
 
   // Panel visibility state - left panel visible by default, right panel hidden by default
   const [showLeftPanel, setShowLeftPanel] = useState(true)
