@@ -2,6 +2,23 @@
 
 Run the Thesis test suite with options for quick unit tests, full pytest regimen, code quality gates, or comprehensive everything.
 
+## STEP 0: Review Recent Changes and Update Tests
+
+**IMPORTANT:** Before running any tests, check for recent code changes that may need new or updated tests.
+
+1. Run `git log --oneline -10` to see recent commits
+2. For each commit that modified backend source files (not docs/tests), check if corresponding test coverage exists:
+   - Run `git diff HEAD~10..HEAD --name-only -- backend/api/ backend/services/ backend/agents/` to find changed source files
+   - For each changed file, check if its test file covers the changed functions
+   - Look for new functions, changed function signatures, new model fields, or new endpoints
+3. If gaps are found:
+   - Add new test cases to the appropriate test file
+   - Run the new tests to verify they pass
+   - Stage and commit the test updates before proceeding
+4. Report what was found: "X source files changed, Y test gaps found, Z tests added" or "All recent changes have test coverage"
+
+**Skip this step** if the user explicitly says to skip it or if running in quick mode with `--skip-review`.
+
 ## STEP 1: Ask User Which Mode to Run
 
 **IMPORTANT:** Before running any tests, use `AskUserQuestion` to ask the user which test mode they want.
