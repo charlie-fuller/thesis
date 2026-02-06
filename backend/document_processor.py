@@ -1105,7 +1105,10 @@ def search_similar_chunks(
     # Try to get from cache first (1-hour TTL)
     # Cache key includes all parameters to ensure exact match
     agent_ids_key = ":".join(sorted(agent_ids)) if agent_ids else "none"
-    cache_key_suffix = f"{query}:{limit}:{include_conversations}:{min_similarity}:{conversation_id}:{agent_ids_key}"
+    doc_ids_key = ":".join(sorted(document_ids)) if document_ids else "none"
+    cache_key_suffix = (
+        f"{query}:{limit}:{include_conversations}:{min_similarity}:{conversation_id}:{agent_ids_key}:{doc_ids_key}"
+    )
     cached_results = get_cached_search_results(cache_key_suffix, client_id)
     if cached_results is not None:
         logger.info(f"   ✅ Search results loaded from cache ({len(cached_results)} results)")
@@ -1290,7 +1293,34 @@ def search_similar_chunks(
 
     # Only run standard search if we didn't already get results from document_type filter
     if not used_document_type_filter:
-        if agent_ids:
+        if document_ids:
+            # Use document-ID-filtered RPC for database-level filtering (much more accurate
+            # than post-filtering, which can miss results when project docs aren't in top-N)
+            logger.info(
+                f"   Calling match_document_chunks_by_ids with threshold={min_similarity}, "
+                f"{len(document_ids)} document IDs"
+            )
+            logger.info(f"   Query embedding length: {len(query_embedding)}")
+
+            try:
+                result = supabase.rpc(
+                    "match_document_chunks_by_ids",
+                    {
+                        "query_embedding": query_embedding,
+                        "match_count": limit * 3,
+                        "match_threshold": min_similarity,
+                        "p_document_ids": document_ids,
+                    },
+                ).execute()
+
+                chunks = result.data or []
+                logger.info(f"   Found {len(chunks)} results from specified documents")
+                if chunks:
+                    logger.info(f"   Top result similarity: {chunks[0].get('similarity', 'N/A')}")
+            except Exception as rpc_error:
+                logger.error(f"   Document-ID-filtered RPC call failed: {rpc_error}")
+                chunks = []
+        elif agent_ids:
             logger.info(
                 f"   Calling match_document_chunks_with_agent_filter "
                 f"with threshold={min_similarity}, agents={agent_ids}"
