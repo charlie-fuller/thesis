@@ -182,7 +182,7 @@ You can:
 
 Click the **Chat** button in the project detail header to open a conversation with full project context.
 
-This redirects to `/chat?project_id=xxx` with the Project Agent auto-selected.
+This redirects to `/chat?project_id=xxx` with the Project Agent and Taskmaster auto-selected.
 
 **What the Project Agent sees:**
 - All project details (title, description, states, scores)
@@ -190,11 +190,18 @@ This redirects to `/chat?project_id=xxx` with the Project Agent auto-selected.
 - Related stakeholders and their roles
 - Initiative associations
 
+**Project-scoped RAG search:**
+When chatting in a project context, document search is scoped to only documents linked to that project. This means agent responses draw from your project's specific documents rather than the entire Knowledge Base. If no documents are linked, the full KB is used as a fallback.
+
+**Taskmaster auto-selection:**
+The Taskmaster agent is automatically included alongside the Project Agent so you can ask about tasks and action items in the same conversation.
+
 **Example questions:**
 - "What documents support this project's ROI score?"
 - "Summarize the current state and desired state"
 - "What risks should we consider for implementation?"
 - "Who are the key stakeholders involved?"
+- "What tasks are open for this project?"
 
 **Conversation History:**
 All conversations with project context are saved and can be filtered in the main chat sidebar. Select the project from the dropdown to see all related conversations.

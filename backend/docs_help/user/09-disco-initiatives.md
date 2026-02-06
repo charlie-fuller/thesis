@@ -34,6 +34,8 @@ Every initiative has five tabs:
 | **Projects** | See and manage projects linked to this initiative |
 | **Alignment** | Analyze how well the initiative aligns with strategic goals |
 
+**Editing name and description:** Click the initiative name or description in the header to open an edit modal. This provides more space for editing multi-line descriptions than inline editing.
+
 **Chat Button:** In the header area, click the **Chat** button to open the main chat interface with full initiative context. This redirects to `/chat?initiative_id=xxx` with the Initiative Agent auto-selected.
 
 **Documents tab features:**

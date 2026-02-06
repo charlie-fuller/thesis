@@ -42,6 +42,8 @@ The KB uses a Finder-style layout with two panes:
 
 **Right content pane** - Documents in the selected folder
 - Breadcrumb path at the top
+- Column headers: Name, Source, Created (document date), Added (sync date)
+- Documents sorted by Created date (original document date, not upload time)
 - Source badges (Vault, Drive, Notion, Upload) on each document
 - Click a document to open its detail modal
 - Infinite scroll loads more documents as you scroll down
@@ -141,6 +143,9 @@ Click the **Check for Updates** button to scan for files that have been modified
 
 **Full Resync** (Sync Settings > Vault tab):
 Mirrors your vault using a 5-phase process. Changes are processed first for fast feedback, then moves are detected, deleted files are cleaned up, and unchanged files are verified. The folder tree stays visible throughout (sync states are never cleared). Progress shows phase-specific labels like "Scanning vault for changes...", "Syncing changes... 3 of 5", "Detecting moved files...", and "Verifying...". If no changes are found, the sync finishes quickly without verification.
+
+**Linked document protection:**
+During cleanup, documents linked to DISCO initiatives or projects are never deleted, even if their source file is missing from the vault. This prevents accidental loss of curated document associations. Unlinked orphan documents are cleaned up normally.
 
 **Pending files:**
 If pending files are detected, the toolbar shows a pending count badge. Click the pending count in Sync Settings to see which files are queued for sync.
