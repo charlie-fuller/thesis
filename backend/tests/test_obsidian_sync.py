@@ -7,9 +7,13 @@ Tests cover:
 - Pattern matching (include/exclude)
 - Sync state tracking
 - Full vault scanning
+- Date extraction (extract_original_date, _extract_date_from_text)
+- Document classification (classify_document_by_filename)
+- Remote upload request model (RemoteFileUploadRequest)
 """
 
 import tempfile
+from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -1153,3 +1157,435 @@ tags:
 
         assert content is not None
         assert len(content) > 0
+
+
+# ============================================================================
+# Date Extraction Tests
+# ============================================================================
+
+
+class TestExtractDateFromText:
+    """Tests for _extract_date_from_text() pattern matching."""
+
+    def test_iso_format(self):
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("meeting-2026-01-15.md")
+        assert result == date(2026, 1, 15)
+
+    def test_compact_yyyymmdd(self):
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("notes-20260115.md")
+        assert result == date(2026, 1, 15)
+
+    def test_us_format_slashes(self):
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("notes 01/15/2026")
+        assert result == date(2026, 1, 15)
+
+    def test_us_format_dashes(self):
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("notes 01-15-2026")
+        assert result == date(2026, 1, 15)
+
+    def test_us_format_dots(self):
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("notes 01.15.2026")
+        assert result == date(2026, 1, 15)
+
+    def test_compact_mmddyyyy_end(self):
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("interview-01152026")
+        assert result == date(2026, 1, 15)
+
+    def test_written_full_month(self):
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("January 15, 2026")
+        assert result == date(2026, 1, 15)
+
+    def test_written_abbreviated_month(self):
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("Jan 15, 2026")
+        assert result == date(2026, 1, 15)
+
+    def test_two_digit_year(self):
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("notes 01/15/26")
+        assert result == date(2026, 1, 15)
+
+    def test_no_date_found(self):
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("just a regular filename.md")
+        assert result is None
+
+    def test_future_date_rejected(self):
+        """Future dates should be skipped as likely false matches."""
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("Meeting Guide - May 20, 2027")
+        assert result is None
+
+    def test_far_future_date_rejected(self):
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("roadmap-2099-12-31.md")
+        assert result is None
+
+    def test_invalid_month_rejected(self):
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("data-2026-13-01.md")
+        assert result is None
+
+    def test_invalid_day_rejected(self):
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("data-2026-01-32.md")
+        assert result is None
+
+    def test_year_before_2000_rejected(self):
+        from services.obsidian_sync import _extract_date_from_text
+
+        result = _extract_date_from_text("data-1999-01-15.md")
+        assert result is None
+
+
+class TestExtractOriginalDate:
+    """Tests for extract_original_date() priority ordering."""
+
+    def test_frontmatter_date_highest_priority(self):
+        from services.obsidian_sync import extract_original_date
+
+        result = extract_original_date(
+            filename="meeting-2026-01-20.md",
+            frontmatter={"date": "2026-01-10"},
+            content="January 25, 2026 meeting notes",
+            file_mtime=datetime(2026, 1, 30, tzinfo=timezone.utc),
+        )
+        assert result == date(2026, 1, 10)
+
+    def test_frontmatter_original_date_key(self):
+        from services.obsidian_sync import extract_original_date
+
+        result = extract_original_date(
+            filename="notes.md",
+            frontmatter={"original_date": "2026-02-01"},
+        )
+        assert result == date(2026, 2, 1)
+
+    def test_frontmatter_created_key(self):
+        from services.obsidian_sync import extract_original_date
+
+        result = extract_original_date(
+            filename="notes.md",
+            frontmatter={"created": "2026-01-05"},
+        )
+        assert result == date(2026, 1, 5)
+
+    def test_filename_date_second_priority(self):
+        from services.obsidian_sync import extract_original_date
+
+        result = extract_original_date(
+            filename="meeting-2026-01-27.md",
+            frontmatter={},
+            content="Some content without dates",
+        )
+        assert result == date(2026, 1, 27)
+
+    def test_content_date_third_priority(self):
+        from services.obsidian_sync import extract_original_date
+
+        result = extract_original_date(
+            filename="notes.md",
+            frontmatter={},
+            content="Meeting on January 15, 2026\nDiscussed roadmap.",
+        )
+        assert result == date(2026, 1, 15)
+
+    def test_file_mtime_fallback(self):
+        from services.obsidian_sync import extract_original_date
+
+        mtime = datetime(2026, 2, 4, 14, 30, 0, tzinfo=timezone.utc)
+        result = extract_original_date(
+            filename="notes.md",
+            frontmatter={},
+            content="No dates here",
+            file_mtime=mtime,
+        )
+        assert result == date(2026, 2, 4)
+
+    def test_no_date_found_returns_none(self):
+        from services.obsidian_sync import extract_original_date
+
+        result = extract_original_date(
+            filename="notes.md",
+            frontmatter={},
+            content="No dates here either",
+        )
+        assert result is None
+
+    def test_none_frontmatter(self):
+        from services.obsidian_sync import extract_original_date
+
+        result = extract_original_date(
+            filename="meeting-2026-01-15.md",
+            frontmatter=None,
+        )
+        assert result == date(2026, 1, 15)
+
+    def test_frontmatter_date_object(self):
+        """Frontmatter date can be a Python date object from YAML parsing."""
+        from services.obsidian_sync import extract_original_date
+
+        result = extract_original_date(
+            filename="notes.md",
+            frontmatter={"date": date(2026, 1, 20)},
+        )
+        assert result == date(2026, 1, 20)
+
+    def test_frontmatter_datetime_object(self):
+        """Frontmatter datetime returns as-is (datetime is subclass of date)."""
+        from services.obsidian_sync import extract_original_date
+
+        dt = datetime(2026, 1, 20, 14, 30)
+        result = extract_original_date(
+            filename="notes.md",
+            frontmatter={"date": dt},
+        )
+        # datetime is subclass of date, so isinstance(dt, date) is True
+        # _parse_date_value returns it directly
+        assert result == dt
+
+
+# ============================================================================
+# Document Classification Tests
+# ============================================================================
+
+
+class TestClassifyDocumentByFilename:
+    """Tests for classify_document_by_filename()."""
+
+    def test_transcript_keyword(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("meeting-transcript.md")
+        assert result["document_type"] == "transcript"
+        assert result["classification_method"] == "filename"
+
+    def test_transcript_suffix(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("Chris __ Charlie 1_1-transcript.md")
+        assert result["document_type"] == "transcript"
+
+    def test_granola_double_underscore(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("Chris __ Charlie 1_1.md")
+        assert result["document_type"] == "transcript"
+        assert result["classification_confidence"] == 0.85
+
+    def test_meeting_notes(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("Team Meeting Notes.md")
+        assert result["document_type"] == "notes"
+
+    def test_meeting_notes_variant(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("weekly-meeting-notes.md")
+        assert result["document_type"] == "notes"
+
+    def test_guide_keyword(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("Meeting Guide - Steffen and Raza Walkthrough.md")
+        assert result["document_type"] == "instructions"
+
+    def test_playbook_keyword(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("AI-Governance-Playbook.md")
+        assert result["document_type"] == "instructions"
+
+    def test_report_keyword(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("AI Governance Strategy Report.md")
+        assert result["document_type"] == "report"
+
+    def test_analysis_keyword(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("Gap Analysis & Approach Comparison.md")
+        assert result["document_type"] == "report"
+
+    def test_research_keyword(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("Research - Platform Inventory.md")
+        assert result["document_type"] == "report"
+
+    def test_presentation_pptx(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("Q1-review.pptx")
+        assert result["document_type"] == "presentation"
+
+    def test_slides_keyword(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("slides-overview.md")
+        assert result["document_type"] == "presentation"
+
+    def test_spreadsheet_csv(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("Rovo.csv")
+        assert result["document_type"] == "spreadsheet"
+
+    def test_spreadsheet_xlsx(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("budget-2026.xlsx")
+        assert result["document_type"] == "spreadsheet"
+
+    def test_path_based_transcripts_folder(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("some-file.md", "Granola/Transcripts/some-file.md")
+        assert result["document_type"] == "transcript"
+        assert result["classification_method"] == "path"
+
+    def test_path_based_notes_folder(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("daily.md", "notes/daily.md")
+        assert result["document_type"] == "notes"
+        assert result["classification_method"] == "path"
+
+    def test_unclassified_default(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("random-file.md")
+        assert result["document_type"] is None
+        assert result["classification_confidence"] == 0.0
+
+    def test_returns_all_keys(self):
+        from services.obsidian_sync import classify_document_by_filename
+
+        result = classify_document_by_filename("transcript.md")
+        assert "document_type" in result
+        assert "primary_use_case" in result
+        assert "classification_confidence" in result
+        assert "classification_method" in result
+
+
+# ============================================================================
+# Remote Upload Request Model Tests
+# ============================================================================
+
+
+class TestRemoteFileUploadRequest:
+    """Tests for RemoteFileUploadRequest Pydantic model."""
+
+    def test_basic_request(self):
+        from api.routes.obsidian_sync import RemoteFileUploadRequest
+
+        req = RemoteFileUploadRequest(
+            file_path="notes/meeting.md",
+            content="# Meeting Notes",
+        )
+        assert req.file_path == "notes/meeting.md"
+        assert req.content == "# Meeting Notes"
+        assert req.content_type == "text/markdown"
+        assert req.file_mtime is None
+
+    def test_with_file_mtime(self):
+        from api.routes.obsidian_sync import RemoteFileUploadRequest
+
+        req = RemoteFileUploadRequest(
+            file_path="notes/meeting.md",
+            content="# Meeting Notes",
+            file_mtime=1738857600.0,
+        )
+        assert req.file_mtime == 1738857600.0
+
+    def test_custom_content_type(self):
+        from api.routes.obsidian_sync import RemoteFileUploadRequest
+
+        req = RemoteFileUploadRequest(
+            file_path="data.csv",
+            content="a,b,c\n1,2,3",
+            content_type="text/csv",
+        )
+        assert req.content_type == "text/csv"
+
+    def test_file_path_required(self):
+        from api.routes.obsidian_sync import RemoteFileUploadRequest
+
+        with pytest.raises(Exception):
+            RemoteFileUploadRequest(content="# Notes")
+
+    def test_content_required(self):
+        from api.routes.obsidian_sync import RemoteFileUploadRequest
+
+        with pytest.raises(Exception):
+            RemoteFileUploadRequest(file_path="notes.md")
+
+
+# ============================================================================
+# Parse Date Value Tests
+# ============================================================================
+
+
+class TestParseDateValue:
+    """Tests for _parse_date_value() helper."""
+
+    def test_none_returns_none(self):
+        from services.obsidian_sync import _parse_date_value
+
+        assert _parse_date_value(None) is None
+
+    def test_date_object(self):
+        from services.obsidian_sync import _parse_date_value
+
+        result = _parse_date_value(date(2026, 1, 15))
+        assert result == date(2026, 1, 15)
+
+    def test_datetime_object(self):
+        """datetime is subclass of date, so isinstance check returns it as-is."""
+        from services.obsidian_sync import _parse_date_value
+
+        dt = datetime(2026, 1, 15, 10, 30)
+        result = _parse_date_value(dt)
+        # datetime is subclass of date - the isinstance(value, date) check
+        # matches first and returns the datetime object directly
+        assert result == dt
+
+    def test_iso_string(self):
+        from services.obsidian_sync import _parse_date_value
+
+        result = _parse_date_value("2026-01-15")
+        assert result == date(2026, 1, 15)
+
+    def test_iso_string_with_time(self):
+        from services.obsidian_sync import _parse_date_value
+
+        result = _parse_date_value("2026-01-15T10:30:00")
+        assert result == date(2026, 1, 15)
+
+    def test_integer_returns_none(self):
+        from services.obsidian_sync import _parse_date_value
+
+        assert _parse_date_value(12345) is None
