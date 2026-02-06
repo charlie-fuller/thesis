@@ -451,7 +451,11 @@ def _extract_date_from_text(text: str) -> Optional[date]:
 
             # Validate the date
             if 1 <= month <= 12 and 1 <= day <= 31 and 2000 <= year <= 2100:
-                return date(year, month, day)
+                extracted = date(year, month, day)
+                if extracted <= date.today():
+                    return extracted
+                # Skip future dates - likely a false match
+                continue
 
         except (ValueError, TypeError):
             continue

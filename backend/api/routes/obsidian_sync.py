@@ -675,6 +675,7 @@ class RemoteFileUploadRequest(BaseModel):
     file_path: str = Field(..., description="Relative path within vault (e.g., 'Notes/meeting.md')")
     content: str = Field(..., description="File content (text)")
     content_type: str = Field(default="text/markdown", description="MIME type of content")
+    file_mtime: Optional[float] = Field(default=None, description="File modification time as Unix timestamp")
 
 
 @router.post("/upload")
@@ -691,9 +692,9 @@ async def upload_remote_file(
     try:
         from services.document_service import process_document
         from services.obsidian_sync import (
-            auto_classify_document,
-            extract_date_from_content,
-            parse_obsidian_frontmatter,
+            classify_document_by_filename,
+            extract_original_date,
+            parse_frontmatter,
         )
 
         config = await asyncio.to_thread(get_vault_config, current_user["id"])
@@ -717,7 +718,7 @@ async def upload_remote_file(
             raise HTTPException(status_code=400, detail="User has no client association")
 
         # Parse frontmatter
-        frontmatter, clean_content = parse_obsidian_frontmatter(content)
+        frontmatter, clean_content = parse_frontmatter(content)
 
         # Extract title from frontmatter or filename
         title = frontmatter.get("title") if frontmatter else None
@@ -725,13 +726,23 @@ async def upload_remote_file(
             title = file_path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
 
         # Extract date
-        original_date = extract_date_from_content(file_path, frontmatter, clean_content)
+        from datetime import datetime, timezone
+
+        filename = file_path.rsplit("/", 1)[-1]
+        mtime_dt = datetime.fromtimestamp(request.file_mtime, tz=timezone.utc) if request.file_mtime else None
+        original_date = extract_original_date(
+            filename=filename,
+            frontmatter=frontmatter,
+            content=clean_content,
+            file_mtime=mtime_dt,
+        )
 
         # Auto-classify
         sync_options = config.get("sync_options", {})
         doc_type = None
         if sync_options.get("auto_classify", True):
-            doc_type = auto_classify_document(file_path, frontmatter)
+            classification = classify_document_by_filename(filename, file_path)
+            doc_type = classification.get("document_type")
 
         # Compute hash
         import hashlib
@@ -758,7 +769,6 @@ async def upload_remote_file(
 
         # Create or update document
         import uuid
-        from datetime import datetime
 
         doc_id = existing.data[0].get("document_id") if existing.data else str(uuid.uuid4())
 

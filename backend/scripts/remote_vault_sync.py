@@ -177,10 +177,16 @@ class RemoteVaultSyncer:
         content_type = "text/markdown" if ext == ".md" else "text/plain"
 
         try:
+            stat = file_path.stat()
             response = self.client.post(
                 f"{self.api_url}/api/obsidian/upload",
                 headers=self._get_headers(),
-                json={"file_path": relative_path, "content": content, "content_type": content_type},
+                json={
+                    "file_path": relative_path,
+                    "content": content,
+                    "content_type": content_type,
+                    "file_mtime": stat.st_mtime,
+                },
             )
             response.raise_for_status()
             result = response.json()
