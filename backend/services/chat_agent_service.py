@@ -54,14 +54,19 @@ AGENT_DISPLAY_NAMES = {
     "echo": "Echo (Brand Voice)",
     "nexus": "Nexus (Systems Thinking)",
     "coordinator": "Coordinator",
+    "project_agent": "Project Agent",
+    "taskmaster": "Taskmaster",
+    "initiative_agent": "Initiative Agent",
 }
 
 # @mention patterns - matches @agentname at word boundaries
 MENTION_PATTERN = re.compile(
     r"@(atlas|capital|guardian|counselor|oracle|sage|strategist|architect|"
     r"operator|pioneer|catalyst|scholar|echo|nexus|coordinator|"
+    r"taskmaster|project_agent|initiative_agent|"
     r"research|finance|it|governance|legal|transcript|people|change|"
-    r"executive|technical|operations|innovation|comms|training|voice|systems)",
+    r"executive|technical|operations|innovation|comms|training|voice|systems|"
+    r"task|project|initiative)",
     re.IGNORECASE,
 )
 
@@ -83,6 +88,9 @@ MENTION_ALIASES = {
     "training": "scholar",
     "voice": "echo",
     "systems": "nexus",
+    "task": "taskmaster",
+    "project": "project_agent",
+    "initiative": "initiative_agent",
 }
 
 
@@ -217,10 +225,19 @@ class ChatAgentService:
 
         # Priority 2: Explicit agent selection from UI
         if not primary_agent and agent_ids and len(agent_ids) > 0:
-            primary_agent = agent_ids[0].lower()
-            supporting_agents = [a.lower() for a in agent_ids[1:]]
+            agent_ids_lower = [a.lower() for a in agent_ids]
+
+            # If multiple agents selected, use message content to pick the best one
+            if len(agent_ids_lower) > 1:
+                primary_agent = self._pick_best_agent_for_message(message, agent_ids_lower)
+                supporting_agents = [a for a in agent_ids_lower if a != primary_agent]
+                reason = f"Best match from UI selection for message content: {primary_agent}"
+            else:
+                primary_agent = agent_ids_lower[0]
+                supporting_agents = []
+                reason = "Explicit selection from UI"
+
             confidence = 1.0
-            reason = "Explicit selection from UI"
             logger.info(f"Agent explicitly selected: {primary_agent}")
 
         # Priority 3: Use AgentRouter for intelligent routing
@@ -258,6 +275,58 @@ class ChatAgentService:
             reason=reason,
             supporting_agents=supporting_agents,
         )
+
+    @staticmethod
+    def _pick_best_agent_for_message(message: str, agent_ids: list[str]) -> str:
+        """When multiple agents are selected, pick the best one based on message content."""
+        msg_lower = message.lower()
+
+        # Keywords that strongly suggest a specific agent
+        agent_keywords: dict[str, list[str]] = {
+            "taskmaster": [
+                "task",
+                "tasks",
+                "create task",
+                "add task",
+                "to-do",
+                "todo",
+                "action item",
+                "action items",
+                "work breakdown",
+                "sequenc",
+                "depend",
+                "assign",
+                "deadline",
+                "milestone",
+                "deliverable",
+                "execute",
+                "execution plan",
+                "kanban",
+                "board",
+            ],
+            "initiative_agent": [
+                "initiative",
+                "strategy",
+                "strategic",
+                "objective",
+                "okr",
+                "goal",
+                "vision",
+                "roadmap",
+            ],
+        }
+
+        # Score each candidate agent
+        best_agent = agent_ids[0]
+        best_score = 0
+        for agent in agent_ids:
+            keywords = agent_keywords.get(agent, [])
+            score = sum(1 for kw in keywords if kw in msg_lower)
+            if score > best_score:
+                best_score = score
+                best_agent = agent
+
+        return best_agent
 
     def _get_generic_instruction(self) -> str:
         """Get a generic fallback instruction."""
