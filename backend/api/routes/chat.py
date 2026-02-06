@@ -197,25 +197,54 @@ async def chat(request: Request, chat_request: ChatRequest, current_user: dict =
 
         # Build context from documents using RAG (conditionally)
         context_chunks = []
+        client_id = current_user.get("client_id")
+
+        # Pre-fetch project-linked document IDs for project_agent RAG scoping
+        project_document_ids = None
+        if chat_request.agent_ids and "project_agent" in chat_request.agent_ids and chat_request.conversation_id:
+            try:
+                conv_result = await asyncio.to_thread(
+                    lambda: supabase.table("conversations")
+                    .select("project_id")
+                    .eq("id", chat_request.conversation_id)
+                    .single()
+                    .execute()
+                )
+                pid = conv_result.data.get("project_id") if conv_result.data else None
+                if pid:
+                    pd_result = await asyncio.to_thread(
+                        lambda: supabase.table("project_documents")
+                        .select("document_id")
+                        .eq("project_id", pid)
+                        .execute()
+                    )
+                    if pd_result.data:
+                        project_document_ids = [row["document_id"] for row in pd_result.data]
+                        logger.info(
+                            f"Scoping RAG to {len(project_document_ids)} project-linked documents for project {pid}"
+                        )
+            except Exception as e:
+                logger.warning(f"Failed to load project documents for RAG scoping: {e}")
 
         # Only search if use_rag is enabled and message isn't a simple greeting
         if chat_request.use_rag and not is_simple_message:
             logger.info("Searching knowledge base for context")
 
-            # Get user's client_id for document filtering
-            client_id = current_user.get("client_id")
+            # Determine document_ids for RAG search:
+            # project-linked docs take priority, then request-specified docs
+            rag_document_ids = chat_request.document_ids
+            if project_document_ids:
+                if rag_document_ids:
+                    rag_document_ids = list(set(rag_document_ids) & set(project_document_ids))
+                else:
+                    rag_document_ids = project_document_ids
 
-            # Search documents in the user's knowledge base
-            # If document_ids are provided, only search within those documents
-            # min_similarity=0.0 allows search_similar_chunks to use adaptive thresholds
-            # based on query type (factual vs exploratory)
-            # conversation_id is passed to prioritize files referenced in the conversation
             search_results = search_similar_chunks(
                 chat_request.message,
                 client_id,
                 limit=5,
                 min_similarity=0.0,  # Use adaptive threshold based on query type
-                document_ids=chat_request.document_ids,  # Filter by uploaded documents if provided
+                document_ids=rag_document_ids,
                 conversation_id=chat_request.conversation_id,
             )
             context_chunks = search_results
@@ -1224,21 +1253,59 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
             # Build context from documents using RAG (conditionally)
             context_chunks = []
 
+            # Pre-fetch project-linked document IDs for project_agent RAG scoping
+            project_document_ids = None
+            project_id_for_context = None
+            client_id = current_user.get("client_id")
+
+            if chat_request.agent_ids and "project_agent" in chat_request.agent_ids and chat_request.conversation_id:
+                try:
+                    conv_result = await asyncio.to_thread(
+                        lambda: supabase.table("conversations")
+                        .select("project_id")
+                        .eq("id", chat_request.conversation_id)
+                        .single()
+                        .execute()
+                    )
+                    project_id_for_context = conv_result.data.get("project_id") if conv_result.data else None
+                    if project_id_for_context:
+                        pd_result = await asyncio.to_thread(
+                            lambda: supabase.table("project_documents")
+                            .select("document_id")
+                            .eq("project_id", project_id_for_context)
+                            .execute()
+                        )
+                        if pd_result.data:
+                            project_document_ids = [row["document_id"] for row in pd_result.data]
+                            logger.info(
+                                f"Scoping RAG to {len(project_document_ids)} project-linked documents"
+                                f" for project {project_id_for_context}"
+                            )
+                except Exception as e:
+                    logger.warning(f"Failed to load project documents for RAG scoping: {e}")
+
             # Only search if use_rag is enabled and message isn't a simple greeting
             if chat_request.use_rag and not is_simple_message:
                 logger.info("Searching knowledge base for context")
 
-                # Get user's client_id for document filtering
-                client_id = current_user.get("client_id")
+                # Determine document_ids for RAG search:
+                # project-linked docs take priority, then request-specified docs
+                rag_document_ids = chat_request.document_ids
+                if project_document_ids:
+                    if rag_document_ids:
+                        # Intersect: only docs that are both requested and linked to the project
+                        rag_document_ids = list(set(rag_document_ids) & set(project_document_ids))
+                    else:
+                        rag_document_ids = project_document_ids
 
-                # Search all documents in the user's knowledge base
+                # Search documents scoped to project-linked docs when applicable
                 # conversation_id is passed to prioritize files referenced in the conversation
                 search_results = search_similar_chunks(
                     chat_request.message,
                     client_id,
                     limit=5,
                     min_similarity=0.0,  # Use adaptive threshold based on query type
-                    document_ids=chat_request.document_ids,
+                    document_ids=rag_document_ids,
                     conversation_id=chat_request.conversation_id,
                 )
                 context_chunks = search_results
@@ -1299,19 +1366,22 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
             user_prompt = chat_request.message
 
             # Inject project context for project_agent conversations
-            if selected_agent == "project_agent" and chat_request.conversation_id:
+            # Reuse project_id_for_context from the earlier RAG scoping lookup when available
+            if selected_agent == "project_agent" and (project_id_for_context or chat_request.conversation_id):
                 try:
-                    conv_result = await asyncio.to_thread(
-                        lambda: supabase.table("conversations")
-                        .select("project_id")
-                        .eq("id", chat_request.conversation_id)
-                        .single()
-                        .execute()
-                    )
-                    project_id = conv_result.data.get("project_id") if conv_result.data else None
-                    if project_id:
+                    pid = project_id_for_context
+                    if not pid and chat_request.conversation_id:
+                        conv_result = await asyncio.to_thread(
+                            lambda: supabase.table("conversations")
+                            .select("project_id")
+                            .eq("id", chat_request.conversation_id)
+                            .single()
+                            .execute()
+                        )
+                        pid = conv_result.data.get("project_id") if conv_result.data else None
+                    if pid:
                         proj_result = await asyncio.to_thread(
-                            lambda: supabase.table("ai_projects").select("*").eq("id", project_id).single().execute()
+                            lambda: supabase.table("ai_projects").select("*").eq("id", pid).single().execute()
                         )
                         if proj_result.data:
                             related_docs = get_scoring_related_documents(
@@ -1321,7 +1391,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                             user_prompt = f"""{project_context_text}
 
 User's question: {chat_request.message}"""
-                            logger.info(f"Injected project context for project {project_id}")
+                            logger.info(f"Injected project context for project {pid}")
                 except Exception as proj_err:
                     logger.warning(f"Failed to load project context: {proj_err}")
 
