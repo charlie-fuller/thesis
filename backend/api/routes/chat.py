@@ -1880,8 +1880,17 @@ Instructions:
                     return result
 
                 # Run DB insert in thread pool to avoid blocking
-                await asyncio.to_thread(save_messages)
+                save_result = await asyncio.to_thread(save_messages)
                 logger.info("Messages saved to conversation")
+
+                # Extract message IDs for the frontend
+                assistant_message_id = None
+                user_message_id_saved = None
+                if save_result and save_result.data:
+                    if len(save_result.data) > 0:
+                        user_message_id_saved = save_result.data[0]["id"]
+                    if len(save_result.data) > 1:
+                        assistant_message_id = save_result.data[1]["id"]
 
                 # Process for useable output detection (Bradbury Impact Loop)
                 # Run in thread pool to avoid blocking the stream
@@ -1920,7 +1929,7 @@ Instructions:
                 yield f"data: {json.dumps({'type': 'task_proposals', 'tasks': task_proposals_data, 'project_id': tp_project_id, 'conversation_id': chat_request.conversation_id})}\n\n"
                 logger.info(f"Sent task_proposals SSE event with {len(task_proposals_data)} proposals")
 
-            # Send completion message with token stats
+            # Send completion message with token stats and message IDs
             completion_data = {
                 "type": "done",
                 "tokens": {
@@ -1931,6 +1940,8 @@ Instructions:
                     "cache_creation": cache_creation_tokens,
                 },
                 "context_used": len(context_chunks),
+                "message_id": assistant_message_id,
+                "user_message_id": user_message_id_saved,
             }
             yield f"data: {json.dumps(completion_data)}\n\n"
 

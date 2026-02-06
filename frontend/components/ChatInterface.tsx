@@ -574,6 +574,16 @@ export default function ChatInterface({
                 if (data.tokens?.total) {
                   setTotalTokensUsed(prev => prev + data.tokens.total)
                 }
+                // Set the message ID from backend so dig-deeper and other features work
+                if (data.message_id) {
+                  setMessages(prev => {
+                    const updated = [...prev]
+                    if (messageIndex >= 0 && messageIndex < updated.length) {
+                      updated[messageIndex] = { ...updated[messageIndex], id: data.message_id }
+                    }
+                    return updated
+                  })
+                }
               } else if (data.type === 'error') {
                 throw new Error(data.error)
               } else if (data.type === 'context') {
