@@ -47,6 +47,8 @@ interface ChatInterfaceProps {
   // Context-aware chat props
   projectId?: string  // Project context for conversation
   initiativeId?: string  // Initiative context for conversation
+  // Callback when conversation metadata is loaded (restores project/initiative context)
+  onContextRestored?: (context: { projectId?: string | null; initiativeId?: string | null }) => void
 }
 
 export default function ChatInterface({
@@ -63,7 +65,8 @@ export default function ChatInterface({
   lockedAgentDisplayName,
   agentIdForConversation,
   projectId,
-  initiativeId
+  initiativeId,
+  onContextRestored
 }: ChatInterfaceProps) {
   const router = useRouter()
   const [messages, setMessages] = useState<Message[]>([])
@@ -184,8 +187,11 @@ export default function ChatInterface({
     if (!idToLoad) return
 
     try {
-
-      const data = await apiGet<{ messages: Array<{ id: string; content: string; role: string; timestamp?: string; created_at?: string; documents?: Document[]; metadata?: Record<string, unknown> }> }>(`/api/conversations/${idToLoad}/messages`)
+      // Fetch messages and conversation metadata in parallel
+      const [data, convData] = await Promise.all([
+        apiGet<{ messages: Array<{ id: string; content: string; role: string; timestamp?: string; created_at?: string; documents?: Document[]; metadata?: Record<string, unknown> }> }>(`/api/conversations/${idToLoad}/messages`),
+        apiGet<{ success: boolean; conversation: { project_id?: string | null; initiative_id?: string | null; agent_id?: string | null } }>(`/api/conversations/${idToLoad}`)
+      ])
 
       // Convert database messages to our Message format
       const loadedMessages: Message[] = data.messages.map((msg) => ({
@@ -198,6 +204,45 @@ export default function ChatInterface({
       }))
 
       setMessages(loadedMessages)
+
+      // Restore context from conversation metadata
+      if (convData.success && convData.conversation) {
+        const conv = convData.conversation
+
+        // Restore project/initiative context to parent
+        if (onContextRestored && (conv.project_id || conv.initiative_id)) {
+          onContextRestored({
+            projectId: conv.project_id,
+            initiativeId: conv.initiative_id
+          })
+        }
+
+        // Restore agent selection from conversation history
+        // Look at the last assistant message's agent_name, or infer from context
+        if (!lockedAgentId) {
+          const lastAssistantMsg = [...loadedMessages].reverse().find(m => m.role === 'assistant' && m.metadata?.agent_name)
+          if (lastAssistantMsg?.metadata?.agent_name) {
+            // Restore the agents that were active in this conversation
+            const agentName = lastAssistantMsg.metadata.agent_name as string
+            // Include taskmaster if it was a project conversation
+            if (conv.project_id) {
+              const agents = new Set(['project_agent', 'taskmaster'])
+              agents.add(agentName)
+              setSelectedAgents(Array.from(agents))
+            } else if (conv.initiative_id) {
+              const agents = new Set(['initiative_agent'])
+              agents.add(agentName)
+              setSelectedAgents(Array.from(agents))
+            } else {
+              setSelectedAgents([agentName])
+            }
+          } else if (conv.project_id) {
+            setSelectedAgents(['project_agent', 'taskmaster'])
+          } else if (conv.initiative_id) {
+            setSelectedAgents(['initiative_agent'])
+          }
+        }
+      }
 
       // Estimate token count for loaded conversation (rough estimate: 1 token ≈ 4 chars)
       const estimatedTokens = loadedMessages.reduce((total, msg) => {

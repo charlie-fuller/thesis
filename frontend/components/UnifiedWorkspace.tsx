@@ -138,6 +138,10 @@ export default function UnifiedWorkspace({
               onConversationCreated={handleConversationCreated}
               projectId={selectedProjectId ?? undefined}
               initiativeId={selectedInitiativeId ?? undefined}
+              onContextRestored={(ctx) => {
+                if (ctx.projectId) setSelectedProjectId(ctx.projectId)
+                if (ctx.initiativeId) setSelectedInitiativeId(ctx.initiativeId)
+              }}
             />
           </div>
         </div>
