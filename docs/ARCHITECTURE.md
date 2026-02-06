@@ -65,7 +65,7 @@ This document contains detailed architecture documentation. For essential Claude
 11. **Auto-Generated Titles** - Conversation titles from initial message
 12. **Task Management** - Kanban board with auto-extraction from documents
 13. **Project Triage (Operator)** - AI project pipeline with tier-based scoring
-14. **Projects Pipeline** - Pipeline and Analysis tabs with scatter plot visualization
+14. **Projects Pipeline** - Pipeline and Analysis tabs with scatter plot visualization, project-scoped chat with RAG search limited to linked documents
 
 ### Intelligence & Analytics
 15. **Meeting Prep** - Stakeholder briefing pages
@@ -73,7 +73,7 @@ This document contains detailed architecture documentation. For essential Claude
 17. **Career Status Reports (Compass)** - 5-dimension rubric assessment
 
 ### Integrations
-18. **Obsidian Vault Sync** - File watching, frontmatter parsing, wikilink conversion, binary doc support (PDF/DOCX/XLSX/PPTX with OCR fallback), move/rename detection preserves document IDs, linked documents protected from orphan cleanup
+18. **Obsidian Vault Sync** - File watching, frontmatter parsing, wikilink conversion, binary doc support (PDF/DOCX/XLSX/PPTX with OCR fallback), move/rename detection preserves document IDs, linked documents protected from orphan cleanup, remote upload endpoint with file_mtime for accurate date extraction, future-date guard prevents false date matches
 19. **Enhanced RAG Search** - Document type auto-classification (transcript, notes, report, etc.), date filtering for recency queries, 20% recency boost for recent docs
 
 ### Discovery & Pipeline
@@ -243,6 +243,7 @@ Run migrations in order from `/database/migrations/`:
 - `/backend/services/obsidian_sync.py` - Vault sync
 - `/backend/services/engagement_calculator.py` - Engagement levels
 - `/backend/services/project_*.py` - Project services (context, chat, justification, confidence, taskmaster, kb_sync)
+- `/backend/scripts/remote_vault_sync.py` - Local-to-Railway vault sync agent (runs locally, uploads via HTTP)
 - `/backend/services/stakeholder_*.py` - Stakeholder services (extractor, scanner, deduplicator, linker)
 - `/backend/services/task_*.py` - Task services (auto_extractor, extractor)
 - `/backend/services/disco/` - DISCO services (4 consolidated agents + 8 legacy) (formerly `purdy/`, path alias still supported)

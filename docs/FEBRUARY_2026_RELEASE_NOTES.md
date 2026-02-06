@@ -424,3 +424,68 @@ Added pagination to orphan document cleanup and improved stale folder handling.
 - Improved sync reliability for vaults with thousands of files
 
 **Files**: `backend/services/obsidian_sync.py`
+
+### Remote Upload Endpoint Fix
+
+Fixed three broken imports in the remote vault sync upload endpoint (`POST /api/obsidian/upload`) that caused every upload to fail with HTTP 500.
+
+**Problem Solved**:
+- The endpoint referenced renamed functions (`auto_classify_document`, `extract_date_from_content`, `parse_obsidian_frontmatter`) that no longer existed
+- This silently broke the entire local-to-Railway sync pipeline, preventing any new or modified files from syncing
+
+**Fix**:
+- Updated imports to use correct function names: `classify_document_by_filename`, `extract_original_date`, `parse_frontmatter`
+- Updated all call sites with correct argument signatures
+
+**Files**: `backend/api/routes/obsidian_sync.py`
+
+### File Modification Time in Remote Sync
+
+The remote vault sync agent now sends file modification timestamps to the backend for more accurate date extraction.
+
+**Changes**:
+- Added `file_mtime` field to `RemoteFileUploadRequest` model
+- `remote_vault_sync.py` now sends `stat.st_mtime` with each upload
+- Backend converts to datetime and passes to `extract_original_date()` as fallback
+- Prevents documents from getting incorrect dates when content-based extraction fails
+
+**Files**: `backend/api/routes/obsidian_sync.py`, `backend/scripts/remote_vault_sync.py`
+
+### Future Date Guard
+
+Added validation to prevent date extraction from matching dates in the future.
+
+**Problem Solved**:
+- Document content containing future dates (e.g., "May 20, 2026" in a planning document) could be incorrectly extracted as the document's original date
+- This caused documents to appear with wrong dates in the KB
+
+**Fix**:
+- `_extract_date_from_text()` now skips any extracted date that is after today
+- Falls back to the next matching pattern or returns None
+
+**Files**: `backend/services/obsidian_sync.py`
+
+### DISCO Initiative Description Modal
+
+Replaced inline description editing with a modal dialog for editing initiative name and description.
+
+**Changes**:
+- Click initiative name or description to open edit modal
+- Modal provides more space for multi-line description editing
+- Cleaner UX than inline text editing with save/cancel buttons
+
+**Files**: `frontend/app/disco/[id]/page.tsx`
+
+### Project-Scoped Chat
+
+Chat conversations started from a project context now have RAG search scoped to that project's linked documents.
+
+**Features**:
+- Project agent automatically selected when chatting from a project
+- Taskmaster agent auto-selected alongside project agent for task-related queries
+- Project context (name, description, status, scores) injected into chat system prompt
+- RAG document search filtered to only documents linked to the project via `project_documents`
+- Database-level document ID filtering for efficient scoped search
+- Project dropdown in chat sidebar now loads correctly
+
+**Files**: `backend/api/routes/chat.py`, `backend/services/project_chat.py`, `frontend/components/ConversationSidebar.tsx`

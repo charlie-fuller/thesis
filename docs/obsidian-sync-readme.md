@@ -221,6 +221,33 @@ History of sync operations:
 - `files_added/updated/deleted/failed` - Operation counts
 - `error_details` - Array of per-file errors
 
+## Remote Vault Sync (Local-to-Railway)
+
+Since the Railway backend cannot access the local filesystem, a local sync agent pushes files to the backend via HTTP.
+
+**Script**: `backend/scripts/remote_vault_sync.py`
+
+**How it works**:
+1. Runs locally via launchd agent (`~/Library/LaunchAgents/com.thesis.vault-sync.plist`)
+2. Scans the vault for new/modified files (MD5 hash comparison)
+3. Uploads each file to `POST /api/obsidian/upload` with content and `file_mtime`
+4. Backend processes the file through the standard sync pipeline (frontmatter parsing, date extraction, classification, embeddings)
+
+**Upload payload**:
+- `file_path` - Relative path within vault
+- `content` - File content (text)
+- `content_type` - MIME type (default: `text/markdown`)
+- `file_mtime` - File modification time as Unix timestamp (used for date extraction fallback)
+
+**Running manually**:
+```bash
+cd backend && .venv/bin/python -m scripts.remote_vault_sync --initial-sync 100
+```
+
+**Auth tokens**: Saved to `~/.thesis/vault_sync_token.json`. If sync fails with "No valid saved token", re-run interactively to authenticate.
+
+**Logs**: `~/.thesis/vault-sync.log`
+
 ## File Structure
 
 ```
@@ -229,9 +256,10 @@ History of sync operations:
     obsidian_sync.py           # Core sync service and file watcher
     vault_watcher_scheduler.py # Auto-start watcher with backend
   /api/routes
-    obsidian_sync.py           # API endpoints
+    obsidian_sync.py           # API endpoints (including POST /upload for remote sync)
   /scripts
     vault_watcher.py           # CLI watcher script (standalone)
+    remote_vault_sync.py       # Local-to-Railway sync agent
 
 /database/migrations
   021_obsidian_sync.sql        # Database schema
