@@ -94,7 +94,7 @@ export default function TaskProposalCard({
           .filter(i => i >= 0),
       }))
 
-      const response = await apiPost('/api/tasks/bulk', {
+      const response = await apiPost<{ success: boolean; count: number; tasks: { id: string }[] }>('/api/tasks/bulk', {
         tasks,
         linked_project_id: projectId || null,
         source_conversation_id: conversationId || null,
@@ -104,7 +104,7 @@ export default function TaskProposalCard({
         setIsCreated(true)
         toast.success(`Created ${response.count} task${response.count !== 1 ? 's' : ''}!`)
         if (onTasksCreated) {
-          onTasksCreated(response.count, response.tasks.map((t: { id: string }) => t.id))
+          onTasksCreated(response.count, response.tasks.map(t => t.id))
         }
       } else {
         toast.error('Failed to create tasks')
