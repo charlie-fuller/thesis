@@ -786,16 +786,20 @@ async def upload_remote_file(
         )
 
         # Upsert document record
+        now = datetime.now(timezone.utc).isoformat()
         doc_data = {
             "id": doc_id,
+            "filename": filename,
             "title": title,
             "file_type": file_path.rsplit(".", 1)[-1] if "." in file_path else "md",
             "storage_path": storage_path,
             "uploaded_by": current_user["id"],
+            "user_id": current_user["id"],
             "client_id": client_id,
-            "source": "obsidian_vault",
+            "source_platform": "obsidian",
             "obsidian_file_path": file_path,
-            "updated_at": datetime.utcnow().isoformat(),
+            "last_synced_at": now,
+            "updated_at": now,
         }
 
         if original_date:
@@ -812,7 +816,7 @@ async def upload_remote_file(
             "document_id": doc_id,
             "file_hash": content_hash,
             "sync_status": "synced",
-            "last_synced_at": datetime.utcnow().isoformat(),
+            "last_synced_at": now,
             "frontmatter": frontmatter,
         }
 
