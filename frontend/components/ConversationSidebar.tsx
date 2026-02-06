@@ -97,10 +97,10 @@ export default function ConversationSidebar({
       try {
         setLoadingFilters(true)
         const [projectsRes, initiativesRes] = await Promise.all([
-          apiGet<{ projects: Project[] }>('/api/projects?limit=100'),
+          apiGet<Project[]>('/api/projects?limit=100'),
           apiGet<{ initiatives: Initiative[] }>('/api/disco/initiatives?limit=100'),
         ])
-        setProjects(projectsRes.projects || [])
+        setProjects(Array.isArray(projectsRes) ? projectsRes : [])
         setInitiatives(initiativesRes.initiatives || [])
       } catch (err) {
         logger.error('Error loading filter options:', err)
