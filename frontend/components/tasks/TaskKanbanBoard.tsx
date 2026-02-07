@@ -432,6 +432,7 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
           filters={filters}
           onChange={setFilters}
           onClose={() => setShowFilters(false)}
+          tasks={[...columns.pending, ...columns.in_progress, ...columns.blocked, ...columns.completed]}
         />
       )}
 

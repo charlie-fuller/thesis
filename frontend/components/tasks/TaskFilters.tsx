@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { X, Search } from 'lucide-react'
 import { apiGet } from '@/lib/api'
-import { TaskFiltersState } from './TaskKanbanBoard'
+import { Task, TaskFiltersState } from './TaskKanbanBoard'
 
 interface TaskFiltersProps {
   filters: TaskFiltersState
   onChange: (filters: TaskFiltersState) => void
   onClose: () => void
+  tasks?: Task[]  // Current tasks for cascading filter context
 }
 
 interface Stakeholder {
@@ -56,7 +57,7 @@ const SOURCE_TYPE_OPTIONS = [
   { value: 'project', label: 'Project' },
 ]
 
-export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersProps) {
+export default function TaskFilters({ filters, onChange, onClose, tasks = [] }: TaskFiltersProps) {
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([])
   const [projectsList, setProjectsList] = useState<Project[]>([])
   const [searchValue, setSearchValue] = useState(filters.search || '')
@@ -141,6 +142,29 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
     'Other': [],
   }
 
+  // Filter assignees: when team or project is selected, only show assignees from matching tasks
+  const filteredStakeholders = useMemo(() => {
+    if (!filters.team && !filters.linked_project_id) return stakeholders
+
+    // Get assignee IDs from tasks that match the current team/project filters
+    const matchingTasks = tasks.filter(t => {
+      if (filters.team && t.team !== filters.team) return false
+      if (filters.linked_project_id && t.linked_project_id !== filters.linked_project_id) return false
+      return true
+    })
+
+    const assigneeIds = new Set(
+      matchingTasks
+        .map(t => t.assignee_stakeholder_id)
+        .filter((id): id is string => id != null)
+    )
+
+    // If no tasks match yet (empty set), show all stakeholders so user can still pick
+    if (assigneeIds.size === 0) return stakeholders
+
+    return stakeholders.filter(s => assigneeIds.has(s.id))
+  }, [stakeholders, tasks, filters.team, filters.linked_project_id])
+
   // Filter projects by selected team
   const filteredProjects = filters.team
     ? projectsList.filter(proj => {
@@ -172,8 +196,8 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
           onChange={(e) => onChange({ ...filters, assignee_stakeholder_id: e.target.value || null })}
           className="px-3 py-2 text-sm border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="">Assignee</option>
-          {stakeholders.map(s => (
+          <option value="">Assignee{filters.team || filters.linked_project_id ? ` (${filteredStakeholders.length})` : ''}</option>
+          {filteredStakeholders.map(s => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
@@ -183,7 +207,7 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
           value={filters.team || ''}
           onChange={(e) => {
             const newTeam = e.target.value || null
-            // Clear project selection if it won't match the new team filter
+            // Clear project and assignee selections if they won't match the new team filter
             const updates: Partial<TaskFiltersState> = { team: newTeam }
             if (newTeam && filters.linked_project_id) {
               const proj = projectsList.find(p => p.id === filters.linked_project_id)
@@ -192,6 +216,10 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
               if (!projectMatchesTeam) {
                 updates.linked_project_id = null
               }
+            }
+            // Clear assignee if it won't be in the new filtered set
+            if (filters.assignee_stakeholder_id) {
+              updates.assignee_stakeholder_id = null
             }
             onChange({ ...filters, ...updates })
           }}
