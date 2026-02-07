@@ -19,7 +19,7 @@ from auth import get_current_user
 from database import get_supabase
 from document_processor import search_similar_chunks
 from logger_config import get_logger
-from services.chat_agent_service import get_chat_agent_service
+from services.chat_agent_service import AGENT_DISPLAY_NAMES, get_chat_agent_service
 from services.conversation_service import get_conversation_service
 from services.project_context import build_project_context, get_scoring_related_documents
 from services.useable_output_detector import process_conversation_for_useable_output
@@ -1522,9 +1522,10 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
 
             user_prompt = chat_request.message
 
-            # Inject project context for project_agent conversations
+            # Inject project context for agents that need project awareness
             # Reuse project_id_for_context from the earlier RAG scoping lookup when available
-            if selected_agent == "project_agent" and (project_id_for_context or chat_request.conversation_id):
+            project_aware_agents = {"project_agent", "taskmaster"}
+            if selected_agent in project_aware_agents and (project_id_for_context or chat_request.conversation_id):
                 try:
                     pid = project_id_for_context
                     if not pid and chat_request.conversation_id:
@@ -1686,15 +1687,37 @@ Instructions:
                 )
 
                 if history_result.data:
+                    # Track if a different agent was previously responding
+                    previous_agent = None
                     for msg in history_result.data:
                         if msg["role"] in ["user", "assistant"] and msg.get("content"):
                             # Skip empty placeholder messages from image flows
                             metadata = msg.get("metadata") or {}
                             if metadata.get("awaiting_image_confirmation") and not msg["content"]:
                                 continue
+                            # Track previous agent from assistant messages
+                            if msg["role"] == "assistant" and metadata.get("agent_name"):
+                                previous_agent = metadata["agent_name"]
                             conversation_messages.append({"role": msg["role"], "content": msg["content"]})
 
                     logger.info(f"Loaded {len(conversation_messages)} messages from conversation history")
+
+                    # If agent changed mid-conversation, inject a handoff note so the
+                    # new agent doesn't adopt the previous agent's identity
+                    if previous_agent and previous_agent != selected_agent:
+                        handoff_note = (
+                            f"[System note: The previous responses in this conversation were from "
+                            f"{AGENT_DISPLAY_NAMES.get(previous_agent, previous_agent)}. "
+                            f"You are now responding as {agent_display_name}. "
+                            f"Do NOT identify as {AGENT_DISPLAY_NAMES.get(previous_agent, previous_agent)} — "
+                            f"you are {agent_display_name}. Use your own expertise and capabilities.]"
+                        )
+                        conversation_messages.append({"role": "user", "content": handoff_note})
+                        # Need a brief assistant acknowledgement to maintain alternating roles
+                        conversation_messages.append(
+                            {"role": "assistant", "content": f"Understood. I'm {agent_display_name}, ready to help."}
+                        )
+                        logger.info(f"Injected agent handoff note: {previous_agent} -> {selected_agent}")
 
             # Add the current user message (with RAG context if available)
             conversation_messages.append({"role": "user", "content": user_prompt})
