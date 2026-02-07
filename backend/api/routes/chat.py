@@ -1292,6 +1292,22 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                             user_id = current_user["id"]
                             task_client_id = current_user.get("client_id")
 
+                            # Look up project department for auto-filling team
+                            project_department_for_tasks = None
+                            if project_id_for_tasks:
+                                try:
+                                    proj_dept_result = (
+                                        supabase.table("ai_projects")
+                                        .select("department")
+                                        .eq("id", project_id_for_tasks)
+                                        .single()
+                                        .execute()
+                                    )
+                                    if proj_dept_result.data:
+                                        project_department_for_tasks = proj_dept_result.data.get("department")
+                                except Exception:
+                                    pass
+
                             created_task_ids = []
                             seq_to_uuid = {}  # Map sequence numbers to created UUIDs
 
@@ -1317,7 +1333,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                                     "due_date": due_date_val,
                                     "category": proposal.get("category"),
                                     "tags": proposal.get("tags") or [],
-                                    "team": proposal.get("team"),
+                                    "team": proposal.get("team") or project_department_for_tasks,
                                     "source_type": "conversation",
                                     "source_conversation_id": chat_request.conversation_id,
                                     "linked_project_id": project_id_for_tasks,
@@ -1415,7 +1431,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
             project_id_for_context = None
             client_id = current_user.get("client_id")
 
-            if chat_request.agent_ids and "project_agent" in chat_request.agent_ids and chat_request.conversation_id:
+            if chat_request.conversation_id:
                 try:
                     conv_result = await asyncio.to_thread(
                         lambda: supabase.table("conversations")
@@ -1425,6 +1441,19 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                         .execute()
                     )
                     project_id_for_context = conv_result.data.get("project_id") if conv_result.data else None
+
+                    # Backfill: if frontend knows the project but conversation doesn't, update it
+                    if not project_id_for_context and chat_request.project_id:
+                        project_id_for_context = chat_request.project_id
+                        await asyncio.to_thread(
+                            lambda: supabase.table("conversations")
+                            .update({"project_id": chat_request.project_id})
+                            .eq("id", chat_request.conversation_id)
+                            .execute()
+                        )
+                        logger.info(
+                            f"Backfilled project_id {chat_request.project_id} on conversation {chat_request.conversation_id}"
+                        )
                     if project_id_for_context:
                         pd_result = await asyncio.to_thread(
                             lambda: supabase.table("project_documents")

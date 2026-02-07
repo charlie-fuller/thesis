@@ -63,3 +63,4 @@ class ChatRequest(BaseModel):
     document_ids: Optional[list[str]] = None
     use_rag: Optional[bool] = True
     agent_ids: Optional[list[str]] = None  # Explicit agent selection (e.g., ["atlas", "capital"])
+    project_id: Optional[str] = None  # Project context (backfills conversation if missing)

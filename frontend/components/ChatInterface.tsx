@@ -416,7 +416,8 @@ export default function ChatInterface({
           client_id: clientId,
           conversation_id: conversationIdToUse,
           use_rag: true,
-          document_ids: allDocumentIds.length > 0 ? allDocumentIds : undefined
+          document_ids: allDocumentIds.length > 0 ? allDocumentIds : undefined,
+          project_id: projectId || undefined
         })
 
         const assistantMessage: Message = {
@@ -477,7 +478,8 @@ export default function ChatInterface({
           conversation_id: conversationIdToUse,
           use_rag: true,
           document_ids: documentIds.length > 0 ? documentIds : undefined,
-          agent_ids: selectedAgents.length > 0 ? selectedAgents : undefined
+          agent_ids: selectedAgents.length > 0 ? selectedAgents : undefined,
+          project_id: projectId || undefined
         })
       })
 

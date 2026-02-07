@@ -229,6 +229,10 @@ def serialize_task(task: dict) -> dict:
         "stakeholder_email": task.get("stakeholder_email"),
         "user_email": task.get("user_email"),
         "display_assignee": task.get("display_assignee") or task.get("assignee_name"),
+        # Project fields (from v_tasks_with_assignee view)
+        "project_code": task.get("project_code"),
+        "project_title": task.get("project_title"),
+        "project_department": task.get("project_department"),
     }
 
 
@@ -397,6 +401,22 @@ async def create_tasks_bulk(request: BulkTaskRequest, current_user: dict = Depen
         created_tasks = []
         created_ids = []  # Track IDs by index for dependency resolution
 
+        # Look up project department for auto-filling team
+        project_department = None
+        if request.linked_project_id:
+            try:
+                proj_result = await asyncio.to_thread(
+                    lambda: supabase.table("ai_projects")
+                    .select("department")
+                    .eq("id", request.linked_project_id)
+                    .single()
+                    .execute()
+                )
+                if proj_result.data:
+                    project_department = proj_result.data.get("department")
+            except Exception:
+                pass
+
         for idx, item in enumerate(request.tasks):
             # Get next position
             position = await get_next_position(client_id, "pending")
@@ -410,6 +430,9 @@ async def create_tasks_bulk(request: BulkTaskRequest, current_user: dict = Depen
                     else:
                         logger.warning(f"Invalid depends_on_index {dep_idx} for task at index {idx}")
 
+            # Auto-fill team from project department if not specified
+            task_team = item.team or project_department
+
             task_record = {
                 "client_id": client_id,
                 "title": item.title.strip()[:500],
@@ -420,7 +443,7 @@ async def create_tasks_bulk(request: BulkTaskRequest, current_user: dict = Depen
                 "due_date": item.due_date.isoformat() if item.due_date else None,
                 "category": item.category,
                 "tags": item.tags or [],
-                "team": item.team,
+                "team": task_team,
                 "source_type": "conversation",
                 "source_conversation_id": request.source_conversation_id,
                 "linked_project_id": request.linked_project_id,

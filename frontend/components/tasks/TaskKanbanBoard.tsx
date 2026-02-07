@@ -40,6 +40,9 @@ export interface Task {
   updated_at: string
   stakeholder_name?: string | null
   stakeholder_email?: string | null
+  project_code?: string | null
+  project_title?: string | null
+  project_department?: string | null
 }
 
 interface KanbanResponse {
@@ -466,6 +469,7 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
           onSaved={handleTaskSaved}
           editTask={editTask}
           defaultStatus={defaultStatus}
+          allTasks={[...columns.pending, ...columns.in_progress, ...columns.blocked, ...columns.completed]}
         />
       )}
 

@@ -13,6 +13,7 @@ interface TaskCreateModalProps {
   onSaved: () => void
   editTask: Task | null
   defaultStatus?: Task['status']
+  allTasks?: Task[]  // All tasks for dependency resolution
 }
 
 interface Stakeholder {
@@ -57,6 +58,7 @@ export default function TaskCreateModal({
   onSaved,
   editTask,
   defaultStatus = 'pending',
+  allTasks = [],
 }: TaskCreateModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -79,9 +81,9 @@ export default function TaskCreateModal({
   useEffect(() => {
     const loadStakeholders = async () => {
       try {
-        const response = await apiGet<{ success: boolean; stakeholders: Stakeholder[] }>('/api/stakeholders')
-        if (response.success) {
-          setStakeholders(response.stakeholders)
+        const response = await apiGet<Stakeholder[]>('/api/stakeholders')
+        if (Array.isArray(response)) {
+          setStakeholders(response)
         }
       } catch (error) {
         console.error('Failed to load stakeholders:', error)
@@ -346,6 +348,60 @@ export default function TaskCreateModal({
                 ))}
               </select>
             </div>
+
+            {/* Linked Project (read-only when editing, shows project info) */}
+            {editTask && editTask.project_code && (
+              <div>
+                <label className="block text-sm font-medium text-secondary mb-1">
+                  Linked Project
+                </label>
+                <div className="px-3 py-2 border border-default rounded-lg bg-gray-50 dark:bg-gray-800 text-primary text-sm">
+                  <span className="font-medium">{editTask.project_code}</span>
+                  {editTask.project_title && (
+                    <span className="text-secondary"> — {editTask.project_title}</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Sequence & Dependencies (read-only when editing) */}
+            {editTask && (editTask.sequence_number != null || (editTask.depends_on && editTask.depends_on.length > 0)) && (
+              <div className="grid grid-cols-2 gap-4">
+                {editTask.sequence_number != null && (
+                  <div>
+                    <label className="block text-sm font-medium text-secondary mb-1">
+                      Sequence #
+                    </label>
+                    <div className="px-3 py-2 border border-default rounded-lg bg-gray-50 dark:bg-gray-800 text-primary text-sm font-mono">
+                      #{editTask.sequence_number}
+                    </div>
+                  </div>
+                )}
+                {editTask.depends_on && editTask.depends_on.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-secondary mb-1">
+                      Depends On
+                    </label>
+                    <div className="px-3 py-2 border border-default rounded-lg bg-gray-50 dark:bg-gray-800 text-primary text-sm space-y-1">
+                      {editTask.depends_on.map(depId => {
+                        const depTask = allTasks.find(t => t.id === depId)
+                        if (depTask && depTask.sequence_number != null) {
+                          return (
+                            <div key={depId} className="flex items-center gap-1.5">
+                              <span className="font-mono text-muted">#{String(depTask.sequence_number).padStart(2, '0')}</span>
+                              <span className="truncate">{depTask.title}</span>
+                            </div>
+                          )
+                        }
+                        return (
+                          <div key={depId} className="text-muted text-xs truncate">{depId}</div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Category & Tags Row */}
             <div className="grid grid-cols-2 gap-4">

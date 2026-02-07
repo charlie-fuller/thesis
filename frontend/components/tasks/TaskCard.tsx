@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect, DragEvent, MouseEvent } from 'react'
-import { Calendar, User, AlertCircle, FileText, MessageSquare, Search, Pencil, ChevronDown, GitBranch } from 'lucide-react'
+import { Calendar, User, AlertCircle, FileText, MessageSquare, Search, Pencil, ChevronDown, GitBranch, FolderOpen } from 'lucide-react'
 import { Task } from './TaskKanbanBoard'
 
 interface Stakeholder {
@@ -111,7 +111,7 @@ export default function TaskCard({ task, onClick, stakeholders = [], onAssigneeC
         ${task.status === 'blocked' ? 'border-l-4 border-l-orange-500' : ''}
       `}
     >
-      {/* Priority indicator */}
+      {/* Priority indicator + Title */}
       <div className="flex items-start gap-2 mb-2">
         <div
           className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
@@ -119,15 +119,23 @@ export default function TaskCard({ task, onClick, stakeholders = [], onAssigneeC
           }`}
           title={`Priority: ${task.priority}`}
         />
-        {task.sequence_number != null && (
-          <span className="text-xs font-mono text-muted bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 flex-shrink-0 mt-0.5" title={`Sequence #${task.sequence_number}`}>
-            #{task.sequence_number}
-          </span>
-        )}
         <h4 className="text-sm font-medium text-primary line-clamp-2 flex-1">
+          {task.sequence_number != null && (
+            <span className="font-mono text-muted">{String(task.sequence_number).padStart(2, '0')} — </span>
+          )}
           {task.title}
         </h4>
       </div>
+
+      {/* Linked project */}
+      {task.project_code && (
+        <div className="flex items-center gap-1.5 mb-2 text-xs text-blue-600 dark:text-blue-400">
+          <FolderOpen className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="truncate" title={task.project_title || task.project_code}>
+            {task.project_code}{task.project_title ? ` — ${task.project_title}` : ''}
+          </span>
+        </div>
+      )}
 
       {/* Blocker reason */}
       {task.status === 'blocked' && task.blocker_reason && (

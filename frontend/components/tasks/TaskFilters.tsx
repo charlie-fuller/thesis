@@ -23,6 +23,8 @@ interface Project {
   title: string
   project_name: string | null
   project_code: string
+  department: string | null
+  owner_name?: string | null
 }
 
 const TEAM_OPTIONS = [
@@ -64,9 +66,9 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
     const loadData = async () => {
       try {
         // Load stakeholders
-        const stakeholderResponse = await apiGet<{ success: boolean; stakeholders: Stakeholder[] }>('/api/stakeholders')
-        if (stakeholderResponse.success) {
-          setStakeholders(stakeholderResponse.stakeholders)
+        const stakeholderResponse = await apiGet<Stakeholder[]>('/api/stakeholders')
+        if (Array.isArray(stakeholderResponse)) {
+          setStakeholders(stakeholderResponse)
         }
 
         // Load projects for project filter
@@ -125,6 +127,29 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
     onChange({ ...filters, source_type: newSource.length > 0 ? newSource : null })
   }
 
+  // Map team filter values to project department values (case-insensitive match)
+  const TEAM_TO_DEPARTMENT: Record<string, string[]> = {
+    'Finance': ['finance', 'Finance'],
+    'Legal': ['legal', 'Legal'],
+    'IT': ['it', 'IT', 'technology', 'Technology'],
+    'HR': ['hr', 'HR', 'human resources', 'Human Resources', 'people', 'People'],
+    'Operations': ['operations', 'Operations'],
+    'Marketing': ['marketing', 'Marketing'],
+    'Sales': ['sales', 'Sales'],
+    'Engineering': ['engineering', 'Engineering'],
+    'Executive': ['executive', 'Executive', 'leadership', 'Leadership'],
+    'Other': [],
+  }
+
+  // Filter projects by selected team
+  const filteredProjects = filters.team
+    ? projectsList.filter(proj => {
+        if (!proj.department) return false
+        const deptVariants = TEAM_TO_DEPARTMENT[filters.team!] || []
+        return deptVariants.some(d => proj.department?.toLowerCase() === d.toLowerCase())
+      })
+    : projectsList
+
   return (
     <div className="bg-card border border-default rounded-lg px-3 py-2">
       {/* Row 1: Search + Dropdowns */}
@@ -156,7 +181,20 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
         {/* Team */}
         <select
           value={filters.team || ''}
-          onChange={(e) => onChange({ ...filters, team: e.target.value || null })}
+          onChange={(e) => {
+            const newTeam = e.target.value || null
+            // Clear project selection if it won't match the new team filter
+            const updates: Partial<TaskFiltersState> = { team: newTeam }
+            if (newTeam && filters.linked_project_id) {
+              const proj = projectsList.find(p => p.id === filters.linked_project_id)
+              const deptVariants = TEAM_TO_DEPARTMENT[newTeam] || []
+              const projectMatchesTeam = proj?.department && deptVariants.some(d => proj.department?.toLowerCase() === d.toLowerCase())
+              if (!projectMatchesTeam) {
+                updates.linked_project_id = null
+              }
+            }
+            onChange({ ...filters, ...updates })
+          }}
           className="px-3 py-2 text-sm border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">Team</option>
@@ -169,12 +207,12 @@ export default function TaskFilters({ filters, onChange, onClose }: TaskFiltersP
         <select
           value={filters.linked_project_id || ''}
           onChange={(e) => onChange({ ...filters, linked_project_id: e.target.value || null })}
-          className="px-3 py-2 text-sm border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[160px]"
+          className="px-3 py-2 text-sm border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px] max-w-[320px]"
         >
-          <option value="">Project</option>
-          {projectsList.map(proj => (
+          <option value="">Project{filters.team ? ` (${filters.team})` : ''}</option>
+          {filteredProjects.map(proj => (
             <option key={proj.id} value={proj.id}>
-              {proj.project_code}
+              {proj.project_code} — {proj.title}
             </option>
           ))}
         </select>
