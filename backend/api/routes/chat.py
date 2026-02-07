@@ -1311,6 +1311,18 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                             created_task_ids = []
                             seq_to_uuid = {}  # Map sequence numbers to created UUIDs
 
+                            # Get starting position so tasks appear in sequence order on the board
+                            pos_result = (
+                                supabase.table("project_tasks")
+                                .select("position")
+                                .eq("client_id", task_client_id)
+                                .eq("status", "pending")
+                                .order("position", desc=True)
+                                .limit(1)
+                                .execute()
+                            )
+                            next_position = (pos_result.data[0]["position"] + 1) if pos_result.data else 0
+
                             for proposal in pending_proposals:
                                 seq = proposal.get("sequence", 0)
 
@@ -1339,7 +1351,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                                     "linked_project_id": project_id_for_tasks,
                                     "created_by": user_id,
                                     "updated_by": user_id,
-                                    "position": 0,
+                                    "position": next_position,
                                     "sequence_number": seq,
                                     "depends_on": depends_on_uuids,
                                 }
@@ -1350,6 +1362,7 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                                         task_id = result.data[0]["id"]
                                         created_task_ids.append(task_id)
                                         seq_to_uuid[seq] = task_id
+                                        next_position += 1
                                 except Exception as task_err:
                                     logger.warning(f"Failed to create task '{proposal.get('title')}': {task_err}")
 
