@@ -227,11 +227,19 @@ class ChatAgentService:
         if not primary_agent and agent_ids and len(agent_ids) > 0:
             agent_ids_lower = [a.lower() for a in agent_ids]
 
-            # If multiple agents selected, use message content to pick the best one
             if len(agent_ids_lower) > 1:
-                primary_agent = self._pick_best_agent_for_message(message, agent_ids_lower)
-                supporting_agents = [a for a in agent_ids_lower if a != primary_agent]
-                reason = f"Best match from UI selection for message content: {primary_agent}"
+                # Multiple agents selected — stick with the current conversation agent
+                # if one is established, rather than re-routing every message
+                current_agent = conversation_context.get("current_agent", "").lower() if conversation_context else ""
+                if current_agent and current_agent in agent_ids_lower:
+                    primary_agent = current_agent
+                    supporting_agents = [a for a in agent_ids_lower if a != primary_agent]
+                    reason = f"Continuing with conversation agent: {primary_agent}"
+                else:
+                    # No established agent yet — use keyword routing for first message
+                    primary_agent = self._pick_best_agent_for_message(message, agent_ids_lower)
+                    supporting_agents = [a for a in agent_ids_lower if a != primary_agent]
+                    reason = f"Initial routing by message content: {primary_agent}"
             else:
                 primary_agent = agent_ids_lower[0]
                 supporting_agents = []
