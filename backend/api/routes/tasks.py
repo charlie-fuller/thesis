@@ -81,6 +81,7 @@ class TaskCreate(BaseModel):
     blocker_reason: Optional[str] = None
     sequence_number: Optional[int] = None
     depends_on: Optional[List[str]] = None  # Task IDs this depends on
+    notes: Optional[str] = None
 
     @field_validator("title")
     @classmethod
@@ -89,7 +90,7 @@ class TaskCreate(BaseModel):
             raise ValueError("Title cannot be empty")
         return v.strip()
 
-    @field_validator("description", "blocker_reason", "category", "assignee_name")
+    @field_validator("description", "blocker_reason", "category", "assignee_name", "notes")
     @classmethod
     def strip_strings(cls, v):
         if v:
@@ -116,6 +117,7 @@ class TaskUpdate(BaseModel):
     linked_project_id: Optional[str] = None  # Parent project
     sequence_number: Optional[int] = None
     depends_on: Optional[List[str]] = None  # Task IDs this depends on
+    notes: Optional[str] = None
 
     @field_validator("title")
     @classmethod
@@ -222,6 +224,7 @@ def serialize_task(task: dict) -> dict:
         "position": task.get("position", 0),
         "sequence_number": task.get("sequence_number"),
         "depends_on": task.get("depends_on") or [],
+        "notes": task.get("notes"),
         "created_at": task["created_at"],
         "updated_at": task["updated_at"],
         # Joined fields (from view or explicit joins)
@@ -824,6 +827,7 @@ async def create_task(request: TaskCreate, current_user: dict = Depends(get_curr
             "position": position,
             "sequence_number": request.sequence_number,
             "depends_on": request.depends_on or [],
+            "notes": request.notes,
         }
 
         result = await asyncio.to_thread(lambda: supabase.table("project_tasks").insert(task_record).execute())
@@ -1556,6 +1560,8 @@ async def update_task(task_id: str, request: TaskUpdate, current_user: dict = De
             update_record["sequence_number"] = request.sequence_number
         if request.depends_on is not None:
             update_record["depends_on"] = request.depends_on
+        if request.notes is not None:
+            update_record["notes"] = request.notes or None
 
         result = await asyncio.to_thread(
             lambda: supabase.table("project_tasks").update(update_record).eq("id", task_id).execute()

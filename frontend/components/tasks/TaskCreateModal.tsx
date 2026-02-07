@@ -71,6 +71,7 @@ export default function TaskCreateModal({
   const [tags, setTags] = useState('')
   const [team, setTeam] = useState('')
   const [blockerReason, setBlockerReason] = useState('')
+  const [notes, setNotes] = useState('')
 
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([])
   const [saving, setSaving] = useState(false)
@@ -106,6 +107,7 @@ export default function TaskCreateModal({
       setTags(editTask.tags?.join(', ') || '')
       setTeam(editTask.team || '')
       setBlockerReason(editTask.blocker_reason || '')
+      setNotes(editTask.notes || '')
     } else {
       // Reset form for new task
       setTitle('')
@@ -119,6 +121,7 @@ export default function TaskCreateModal({
       setTags('')
       setTeam('')
       setBlockerReason('')
+      setNotes('')
     }
   }, [editTask, defaultStatus])
 
@@ -145,6 +148,7 @@ export default function TaskCreateModal({
         tags: tags.split(',').map(t => t.trim()).filter(Boolean),
         team: team || null,
         blocker_reason: status === 'blocked' ? blockerReason.trim() || null : null,
+        notes: notes.trim() || null,
       }
 
       if (editTask) {
@@ -162,7 +166,7 @@ export default function TaskCreateModal({
     } finally {
       setSaving(false)
     }
-  }, [title, description, status, priority, assigneeStakeholderId, assigneeName, dueDate, category, tags, team, blockerReason, editTask, onSaved])
+  }, [title, description, status, priority, assigneeStakeholderId, assigneeName, dueDate, category, tags, team, blockerReason, notes, editTask, onSaved])
 
   const handleDelete = useCallback(async () => {
     if (!editTask) return
@@ -207,7 +211,7 @@ export default function TaskCreateModal({
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          <form onSubmit={handleSubmit} className="p-4 space-y-3">
             {/* Title */}
             <div>
               <label className="block text-sm font-medium text-secondary mb-1">
@@ -232,13 +236,13 @@ export default function TaskCreateModal({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Add more details..."
-                rows={15}
+                rows={6}
                 className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand resize-none"
               />
             </div>
 
-            {/* Status & Priority Row */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Row 1: Status, Priority, Due Date */}
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm font-medium text-secondary mb-1">
                   Status
@@ -267,6 +271,17 @@ export default function TaskCreateModal({
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary mb-1">
+                  Due Date
+                </label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+                />
+              </div>
             </div>
 
             {/* Blocker Reason (conditional) */}
@@ -285,126 +300,58 @@ export default function TaskCreateModal({
               </div>
             )}
 
-            {/* Assignee */}
-            <div>
-              <label className="block text-sm font-medium text-secondary mb-1">
-                Assignee
-              </label>
-              <select
-                value={assigneeStakeholderId}
-                onChange={(e) => {
-                  setAssigneeStakeholderId(e.target.value)
-                  // Clear manual name when selecting from dropdown
-                  if (e.target.value) {
-                    const stakeholder = stakeholders.find(s => s.id === e.target.value)
-                    setAssigneeName(stakeholder?.name || '')
-                  }
-                }}
-                className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
-              >
-                <option value="">Select a stakeholder...</option>
-                {stakeholders.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} {s.department ? `(${s.department})` : ''}
-                  </option>
-                ))}
-              </select>
-              {!assigneeStakeholderId && (
-                <input
-                  type="text"
-                  value={assigneeName}
-                  onChange={(e) => setAssigneeName(e.target.value)}
-                  placeholder="Or enter a name manually"
-                  className="w-full mt-2 px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
-                />
-              )}
-            </div>
-
-            {/* Due Date */}
-            <div>
-              <label className="block text-sm font-medium text-secondary mb-1">
-                Due Date
-              </label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
-              />
-            </div>
-
-            {/* Team */}
-            <div>
-              <label className="block text-sm font-medium text-secondary mb-1">
-                Team
-              </label>
-              <select
-                value={team}
-                onChange={(e) => setTeam(e.target.value)}
-                className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
-              >
-                {TEAM_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Linked Project (read-only when editing, shows project info) */}
-            {editTask && editTask.project_code && (
+            {/* Row 2: Assignee + Team */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-secondary mb-1">
-                  Linked Project
+                  Assignee
                 </label>
-                <div className="px-3 py-2 border border-default rounded-lg bg-gray-50 dark:bg-gray-800 text-primary text-sm">
-                  <span className="font-medium">{editTask.project_code}</span>
-                  {editTask.project_title && (
-                    <span className="text-secondary"> — {editTask.project_title}</span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Sequence & Dependencies (read-only when editing) */}
-            {editTask && (editTask.sequence_number != null || (editTask.depends_on && editTask.depends_on.length > 0)) && (
-              <div className="grid grid-cols-2 gap-4">
-                {editTask.sequence_number != null && (
-                  <div>
-                    <label className="block text-sm font-medium text-secondary mb-1">
-                      Sequence #
-                    </label>
-                    <div className="px-3 py-2 border border-default rounded-lg bg-gray-50 dark:bg-gray-800 text-primary text-sm font-mono">
-                      #{editTask.sequence_number}
-                    </div>
-                  </div>
-                )}
-                {editTask.depends_on && editTask.depends_on.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-medium text-secondary mb-1">
-                      Depends On
-                    </label>
-                    <div className="px-3 py-2 border border-default rounded-lg bg-gray-50 dark:bg-gray-800 text-primary text-sm space-y-1">
-                      {editTask.depends_on.map(depId => {
-                        const depTask = allTasks.find(t => t.id === depId)
-                        if (depTask && depTask.sequence_number != null) {
-                          return (
-                            <div key={depId} className="flex items-center gap-1.5">
-                              <span className="font-mono text-muted">#{String(depTask.sequence_number).padStart(2, '0')}</span>
-                              <span className="truncate">{depTask.title}</span>
-                            </div>
-                          )
-                        }
-                        return (
-                          <div key={depId} className="text-muted text-xs truncate">{depId}</div>
-                        )
-                      })}
-                    </div>
-                  </div>
+                <select
+                  value={assigneeStakeholderId}
+                  onChange={(e) => {
+                    setAssigneeStakeholderId(e.target.value)
+                    if (e.target.value) {
+                      const stakeholder = stakeholders.find(s => s.id === e.target.value)
+                      setAssigneeName(stakeholder?.name || '')
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+                >
+                  <option value="">Select stakeholder...</option>
+                  {stakeholders.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} {s.department ? `(${s.department})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {!assigneeStakeholderId && (
+                  <input
+                    type="text"
+                    value={assigneeName}
+                    onChange={(e) => setAssigneeName(e.target.value)}
+                    placeholder="Or enter name manually"
+                    className="w-full mt-1 px-3 py-1.5 text-sm border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+                  />
                 )}
               </div>
-            )}
+              <div>
+                <label className="block text-sm font-medium text-secondary mb-1">
+                  Team
+                </label>
+                <select
+                  value={team}
+                  onChange={(e) => setTeam(e.target.value)}
+                  className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+                >
+                  {TEAM_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-            {/* Category & Tags Row */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Row 3: Category + Tags */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-secondary mb-1">
                   Category
@@ -431,8 +378,68 @@ export default function TaskCreateModal({
               </div>
             </div>
 
+            {/* Linked Project + Sequence (read-only, condensed) */}
+            {editTask && (editTask.project_code || editTask.sequence_number != null || (editTask.depends_on && editTask.depends_on.length > 0)) && (
+              <div className="rounded-lg border border-default bg-gray-50 dark:bg-gray-800 p-3 space-y-2">
+                {editTask.project_code && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-secondary font-medium shrink-0">Project:</span>
+                    <span className="text-primary font-medium">{editTask.project_code}</span>
+                    {editTask.project_title && (
+                      <span className="text-secondary truncate">— {editTask.project_title}</span>
+                    )}
+                  </div>
+                )}
+                {(editTask.sequence_number != null || (editTask.depends_on && editTask.depends_on.length > 0)) && (
+                  <div className="flex items-start gap-4 text-sm">
+                    {editTask.sequence_number != null && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-secondary font-medium">Seq:</span>
+                        <span className="font-mono text-primary">#{String(editTask.sequence_number).padStart(2, '0')}</span>
+                      </div>
+                    )}
+                    {editTask.depends_on && editTask.depends_on.length > 0 && (
+                      <div className="flex items-start gap-1.5 min-w-0">
+                        <span className="text-secondary font-medium shrink-0">Depends on:</span>
+                        <div className="space-y-0.5">
+                          {editTask.depends_on.map(depId => {
+                            const depTask = allTasks.find(t => t.id === depId)
+                            if (depTask && depTask.sequence_number != null) {
+                              return (
+                                <div key={depId} className="flex items-center gap-1">
+                                  <span className="font-mono text-muted">#{String(depTask.sequence_number).padStart(2, '0')}</span>
+                                  <span className="truncate text-primary">{depTask.title}</span>
+                                </div>
+                              )
+                            }
+                            return (
+                              <div key={depId} className="text-muted text-xs truncate">{depId}</div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Notes */}
+            <div>
+              <label className="block text-sm font-medium text-secondary mb-1">
+                Notes
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Additional notes, context, or links..."
+                rows={3}
+                className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand resize-none"
+              />
+            </div>
+
             {/* Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-default">
+            <div className="flex items-center justify-between pt-3 border-t border-default">
               {editTask ? (
                 <button
                   type="button"

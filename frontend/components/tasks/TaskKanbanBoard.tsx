@@ -36,6 +36,7 @@ export interface Task {
   position: number
   sequence_number: number | null
   depends_on: string[]
+  notes: string | null
   created_at: string
   updated_at: string
   stakeholder_name?: string | null
