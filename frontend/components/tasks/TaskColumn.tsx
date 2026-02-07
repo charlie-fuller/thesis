@@ -5,11 +5,12 @@ import { Plus, ArrowUpDown } from 'lucide-react'
 import { Task } from './TaskKanbanBoard'
 import TaskCard from './TaskCard'
 
-type SortOption = 'priority-desc' | 'priority-asc' | 'due-asc' | 'due-desc' | 'created-desc' | 'created-asc' | 'alpha'
+type SortOption = 'priority-desc' | 'priority-asc' | 'due-asc' | 'due-desc' | 'created-desc' | 'created-asc' | 'alpha' | 'sequence'
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: 'priority-desc', label: 'Priority (High → Low)' },
-  { value: 'priority-asc', label: 'Priority (Low → High)' },
+  { value: 'sequence', label: 'Sequence (#01, #02...)' },
+  { value: 'priority-desc', label: 'Priority (High \u2192 Low)' },
+  { value: 'priority-asc', label: 'Priority (Low \u2192 High)' },
   { value: 'due-asc', label: 'Due Date (Soonest)' },
   { value: 'due-desc', label: 'Due Date (Latest)' },
   { value: 'created-desc', label: 'Created (Newest)' },
@@ -72,6 +73,13 @@ export default function TaskColumn({
   const sortedTasks = useMemo(() => {
     const sorted = [...tasks]
     switch (sortBy) {
+      case 'sequence':
+        return sorted.sort((a, b) => {
+          if (a.sequence_number == null && b.sequence_number == null) return 0
+          if (a.sequence_number == null) return 1
+          if (b.sequence_number == null) return -1
+          return a.sequence_number - b.sequence_number
+        })
       case 'priority-desc':
         return sorted.sort((a, b) => (b.priority || 0) - (a.priority || 0))
       case 'priority-asc':
