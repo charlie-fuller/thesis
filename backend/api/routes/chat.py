@@ -1730,9 +1730,12 @@ Instructions:
             input_tokens = 0
             output_tokens = 0
 
+            # Taskmaster needs more tokens for detailed task plans with JSON proposals
+            stream_max_tokens = 4096 if selected_agent == "taskmaster" else 2048
+
             with anthropic_client.messages.stream(
                 model="claude-sonnet-4-5-20250929",
-                max_tokens=2048,  # Reduced from 4096 to encourage more concise responses
+                max_tokens=stream_max_tokens,
                 temperature=0.3,  # Lower temperature for more focused, concise responses
                 system=[
                     {
