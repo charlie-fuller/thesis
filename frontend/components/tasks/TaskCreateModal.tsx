@@ -44,7 +44,7 @@ const TEAM_OPTIONS = [
   { value: 'Legal', label: 'Legal' },
   { value: 'IT', label: 'IT' },
   { value: 'Operations', label: 'Operations' },
-  { value: 'HR', label: 'HR' },
+  { value: 'People', label: 'People' },
   { value: 'Marketing', label: 'Marketing' },
   { value: 'Sales', label: 'Sales' },
   { value: 'Engineering', label: 'Engineering' },

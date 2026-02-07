@@ -216,7 +216,7 @@ const DEPARTMENT_OPTIONS = [
   'Legal',
   'IT',
   'Operations',
-  'HR',
+  'People',
   'Marketing',
   'Sales',
   'Engineering',

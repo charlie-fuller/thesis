@@ -198,7 +198,7 @@ Document Content:
 Return JSON with fields and confidence levels (high/medium/low/none):
 - title: Project title (from document title or executive summary)
 - description: 2-3 sentence summary from executive summary
-- department: Infer from content (Engineering, Product, Marketing, Finance, Legal, HR, IT, RevOps, Operations, Sales)
+- department: Infer from content (Engineering, Product, Marketing, Finance, Legal, People, IT, RevOps, Operations, Sales)
 - current_state: From problem statement or current situation section
 - desired_state: From goals/success metrics or desired outcome section
 - roi_potential: 1-5 score based on impact described (5 = very high ROI)

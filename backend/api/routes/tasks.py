@@ -47,7 +47,7 @@ class TaskTeam(str, Enum):
     LEGAL = "Legal"
     IT = "IT"
     OPERATIONS = "Operations"
-    HR = "HR"
+    PEOPLE = "People"
     MARKETING = "Marketing"
     SALES = "Sales"
     ENGINEERING = "Engineering"

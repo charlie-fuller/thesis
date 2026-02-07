@@ -76,7 +76,7 @@ interface CreateProjectFromPRDModalProps {
 const DEPARTMENTS = [
   { value: 'finance', label: 'Finance' },
   { value: 'legal', label: 'Legal' },
-  { value: 'hr', label: 'HR' },
+  { value: 'people', label: 'People' },
   { value: 'it', label: 'IT' },
   { value: 'revops', label: 'RevOps' },
   { value: 'marketing', label: 'Marketing' },
@@ -94,7 +94,7 @@ function generateProjectCode(department: string): string {
   const prefixMap: Record<string, string> = {
     finance: 'F',
     legal: 'L',
-    hr: 'HR',
+    people: 'P',
     it: 'IT',
     revops: 'RO',
     marketing: 'M',

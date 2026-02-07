@@ -49,7 +49,7 @@ interface OpportunityCreate {
 const DEPARTMENTS = [
   { value: 'finance', label: 'Finance' },
   { value: 'legal', label: 'Legal' },
-  { value: 'hr', label: 'HR' },
+  { value: 'people', label: 'People' },
   { value: 'it', label: 'IT' },
   { value: 'revops', label: 'RevOps' },
   { value: 'marketing', label: 'Marketing' },

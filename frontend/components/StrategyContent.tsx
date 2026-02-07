@@ -240,10 +240,10 @@ const MOCK_KPIS: DepartmentKPI[] = [
     linked_objective_id: '3',
     updated_at: '2026-01-22T10:00:00Z',
   },
-  // HR/People
+  // People
   {
     id: 'hr-1',
-    department: 'HR/People',
+    department: 'People',
     kpi_name: 'Employee Retention Rate',
     description: 'Annual employee retention (target: 98%).',
     current_value: 92,
@@ -257,8 +257,8 @@ const MOCK_KPIS: DepartmentKPI[] = [
   },
   {
     id: 'hr-2',
-    department: 'HR/People',
-    kpi_name: 'HR Ticket Deflection',
+    department: 'People',
+    kpi_name: 'People Ticket Deflection',
     description: 'Questions resolved via AI chatbot.',
     current_value: 10,
     target_value: 40,

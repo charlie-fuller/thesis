@@ -507,7 +507,7 @@ export default function PipelineDashboardPanel() {
         >
           <option value="">All Departments</option>
           <option value="Legal">Legal</option>
-          <option value="HR">HR</option>
+          <option value="People">People</option>
           <option value="Finance">Finance</option>
           <option value="IT">IT</option>
           <option value="Engineering">Engineering</option>

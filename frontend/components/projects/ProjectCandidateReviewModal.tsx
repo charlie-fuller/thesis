@@ -39,7 +39,7 @@ const DEPARTMENT_OPTIONS = [
   'Finance',
   'Legal',
   'IT',
-  'HR',
+  'People',
   'Operations',
   'Marketing',
   'Sales',

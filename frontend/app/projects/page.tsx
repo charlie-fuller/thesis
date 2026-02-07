@@ -108,7 +108,7 @@ const STATUS_OPTIONS = [
 const DEPARTMENT_OPTIONS = [
   { value: '', label: 'All Departments' },
   { value: 'Legal', label: 'Legal' },
-  { value: 'HR', label: 'HR' },
+  { value: 'People', label: 'People' },
   { value: 'Finance', label: 'Finance' },
   { value: 'IT', label: 'IT' },
   { value: 'Engineering', label: 'Engineering' },

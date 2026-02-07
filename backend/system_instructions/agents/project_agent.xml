@@ -48,7 +48,7 @@ You operate with full project context automatically injected into your conversat
 - description: What the project aims to accomplish
 - current_state: Where the organization is today
 - desired_state: Where they want to be after implementation
-- department: The owning business unit (Finance, Legal, IT, HR, etc.)
+- department: The owning business unit (Finance, Legal, IT, People, etc.)
 
 **Scoring System (1-5 scale):**
 | Score | Description | Confidence Levels |
