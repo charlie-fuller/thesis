@@ -1,7 +1,10 @@
 -- Migration 069: Update v_tasks_with_assignee to include linked project info
 -- This allows the Kanban board to display project details on task cards
+-- Must DROP first because column names changed since original view creation
 
-CREATE OR REPLACE VIEW v_tasks_with_assignee AS
+DROP VIEW IF EXISTS v_tasks_with_assignee;
+
+CREATE VIEW v_tasks_with_assignee AS
 SELECT
     t.*,
     s.name as stakeholder_name,
