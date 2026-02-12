@@ -76,8 +76,8 @@ Responses will cite sources: "According to your Security Policy document..."
 
 ## Tasks
 
-**What's the difference between Tasks and Opportunities?**
-Tasks are specific actions that need to happen. Opportunities are potential AI initiatives you're evaluating.
+**What's the difference between Tasks and Projects?**
+Tasks are specific actions that need to happen. Projects are multi-step AI initiatives you're evaluating and tracking through a pipeline.
 
 **Can I extract tasks from meetings?**
 Yes. Upload a transcript or ask the agents to identify action items from a discussion.
@@ -149,13 +149,13 @@ A file watcher monitors your vault. Changes (create/modify/delete) sync to the K
 
 ---
 
-## DISCO Initiatives
+## DISCO Discoveries
 
 **What is DISCO?**
-Discovery, Intelligence, Synthesis, Convergence, Operationalize. It's a structured product discovery workflow with 8 specialized agents.
+Discovery, Intelligence, Synthesis, Convergence, Operationalize. It's a structured product discovery workflow with 4 consolidated agents that take you from "we should look into this" to actionable output documents and projects.
 
 **What's the difference between DISCO and regular Chat?**
-Chat is for questions and exploration. DISCO is a structured workflow that takes you from idea through to PRD, with specific agents for each stage.
+Chat is for questions and exploration. DISCO is a structured workflow that takes you from idea through to PRD (or evaluation/decision framework), with specific agents for each stage and human checkpoints between them.
 
 **What do GO/NO-GO/INVESTIGATE mean?**
 These are Triage decisions. **GO** (green) means proceed with discovery. **NO-GO** (red) means stop - not worth pursuing. **INVESTIGATE** (amber) means gather more info before deciding.
@@ -163,8 +163,11 @@ These are Triage decisions. **GO** (green) means proceed with discovery. **NO-GO
 **Do I have to run agents in order?**
 Generally yes. The workflow is designed to build on itself - later agents need outputs from earlier ones. The system will tell you if you're trying to skip ahead.
 
-**What are bundles?**
-After Strategist runs, it proposes feature bundles - groupings of capabilities that make sense together. You approve or reject bundles, and approved ones become PRDs.
+**What are proposed initiatives?**
+After the Strategist runs, it proposes initiatives - groupings of capabilities that make sense together. You approve or reject them. Approved proposed initiatives can create projects directly or generate output documents (PRDs, evaluation frameworks, decision frameworks).
+
+**What's a throughline?**
+Structured input framing for a discovery: problem statements, hypotheses, gaps, and desired outcome state. The triage agent can suggest these from your documents, or you can define them manually. All agents reference the throughline, and the Requirements Generator resolves it at convergence.
 
 ---
 
@@ -214,5 +217,5 @@ Note what happened, what you expected, and any error messages. Report to your ad
 - [Quick Start](./00-quick-start.md) - The 5-minute intro
 - [Agent Guide](./01-agents.md) - Deep dive on each agent
 - [Meeting Rooms](./03-meeting-rooms.md) - Where the magic happens
-- [DISCO Initiatives](./09-disco-initiatives.md) - Product discovery workflow
+- [DISCO Discoveries](./09-disco-initiatives.md) - Product discovery workflow
 - [Discovery Inbox](./10-discovery-inbox.md) - Auto-extracted candidates

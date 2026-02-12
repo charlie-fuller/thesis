@@ -212,7 +212,7 @@ E2E tests for the help system are defined in `backend/tests/e2e_browser_tests.py
 | `help_panel_open` | Open help panel from navigation |
 | `help_panel_close` | Close help panel cleanly |
 | `help_search_agents` | Search for agent-related help |
-| `help_search_disco` | Search for DISCo workflow help |
+| `help_search_disco` | Search for DISCO workflow help |
 | `help_search_discovery_inbox` | Search for Discovery Inbox help |
 | `help_search_no_results` | Handle empty search results |
 | `help_navigate_to_doc` | Navigate to full documentation |
@@ -274,16 +274,16 @@ These queries should return relevant, accurate help:
 29. "Can I filter by tier?"
 30. "How do I track project progress?"
 
-**DISCo Questions:**
-31. "What is DISCo?"
-32. "How do I create an initiative?"
+**DISCO Questions:**
+31. "What is DISCO?"
+32. "How do I create a discovery?"
 33. "What are the workflow stages?"
 34. "What does GO/NO-GO mean?"
-35. "How do I run a DISCo agent?"
+35. "How do I run a DISCO agent?"
 36. "What is Triage?"
-37. "How do I approve bundles?"
+37. "How do I approve proposed initiatives?"
 38. "What's the difference between Discovery and Intelligence?"
-39. "How do I share an initiative?"
+39. "How do I share a discovery?"
 40. "What is the PRD Generator?"
 
 **Discovery Inbox Questions:**

@@ -146,9 +146,9 @@ Your project specialist. Understands project structure, scoring rubrics, linked 
 *Best for:* Questions about a specific project's scores, status, linked documents, or implementation approach. Access via the Chat button in any project detail modal.
 
 **Initiative Agent**
-Your DISCO initiative specialist. Knows the discovery workflow, all agent outputs, linked documents, and PuRDy methodology. Can guide you through the discovery process and help extract project ideas from conversations.
+Your DISCO discovery specialist. Knows the discovery workflow, all agent outputs, linked documents, and PuRDy methodology. Can guide you through the discovery process and help extract project ideas from conversations.
 
-*Best for:* Questions about a specific initiative's discovery progress, agent outputs, or methodology. Access via the Chat button on any initiative detail page.
+*Best for:* Questions about a specific discovery's progress, agent outputs, or methodology. Access via the Chat button on any discovery detail page.
 
 ---
 

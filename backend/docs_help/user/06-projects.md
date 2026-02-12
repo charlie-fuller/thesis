@@ -72,8 +72,12 @@ Click **+ New Project** on the Projects page.
 
 The form walks you through the scoring. Each dimension has guidelines for what each score means. A project code is auto-generated based on department.
 
-### From DISCO PRD
-When a DISCO initiative produces an approved PRD, click **Create Project** on the PRD output. AI pre-fills the project fields with confidence indicators. See the [DISCO help](./09-disco-initiatives.md#creating-projects-from-prds) for details.
+### From DISCO (Two Paths)
+**Direct creation:** Approve a proposed initiative in Synthesis view and click **Create Project**. Scores map automatically (impact → roi_potential, feasibility → effort, urgency → alignment).
+
+**Via output document:** Generate an output document (PRD, Evaluation, or Decision Framework) and click **Create Project** on the output. AI pre-fills the project fields with confidence indicators.
+
+See the [DISCO help](./09-disco-initiatives.md#creating-projects) for details.
 
 ### From Chat
 Use the "Create Project from Chat" action to extract project details from a conversation context.
@@ -108,7 +112,7 @@ At the top of the page:
 - **Active Only** - Toggle to show only active projects (on by default)
 - **By Department** - Focus on a specific area
 - **By Status** - See what's in progress vs. completed
-- **By Initiative** - Filter to projects linked to a specific DISCo initiative
+- **By Initiative** - Filter to projects linked to a specific DISCO discovery
 
 ---
 
@@ -123,20 +127,20 @@ This lets you:
 
 ---
 
-## Linking to Initiatives
+## Linking to Discoveries
 
-Projects can be linked to DISCo initiatives for traceability.
+Projects can be linked to DISCO discoveries for traceability.
 
 **From the Projects page:**
-- Use the Initiative filter to see projects for a specific initiative
-- Click a project to open its modal and see/change the linked initiative
+- Use the Initiative filter to see projects for a specific discovery
+- Click a project to open its modal and see/change the linked discovery
 
-**From a DISCo Initiative:**
-- Go to the **Projects** tab on the initiative detail page
-- See all projects linked to that initiative
+**From a DISCO Discovery:**
+- Go to the **Projects** tab on the discovery detail page
+- See all projects linked to that discovery
 - Click a project to navigate to it
 
-This connects your discovery work (DISCo) to your execution tracking (Projects).
+This connects your discovery work (DISCO) to your execution tracking (Projects).
 
 ---
 

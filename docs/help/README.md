@@ -15,7 +15,7 @@ User and administrator help content for the Thesis multi-agent GenAI strategy pl
 | [Projects](./user/06-projects.md) | AI project pipeline and scoring |
 | [Stakeholder Intelligence](./user/07-stakeholders.md) | Tracking relationships and meeting prep |
 | [FAQ](./user/08-faq.md) | Quick answers to common questions |
-| [DISCo Initiatives](./user/09-disco-initiatives.md) | AI-assisted product discovery workflow |
+| [DISCO Discoveries](./user/09-disco-initiatives.md) | AI-assisted product discovery workflow |
 | [Discovery Inbox](./user/10-discovery-inbox.md) | Auto-extracted tasks, projects, and stakeholders |
 
 ## Admin Documentation
@@ -33,4 +33,4 @@ User and administrator help content for the Thesis multi-agent GenAI strategy pl
 
 - **Primary Reference**: [CLAUDE.md](/CLAUDE.md)
 - **Agent Behavior Rules**: [AGENT_GUARDRAILS.md](../AGENT_GUARDRAILS.md)
-- **Release Notes**: [JANUARY_2026_RELEASE_NOTES.md](../JANUARY_2026_RELEASE_NOTES.md)
+- **Release Notes**: [FEBRUARY_2026_RELEASE_NOTES.md](../FEBRUARY_2026_RELEASE_NOTES.md)

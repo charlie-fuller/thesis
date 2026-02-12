@@ -252,12 +252,12 @@ The agents cite sources. They reference your specific documents. They speak your
 
 ---
 
-## KB and DISCo Integration
+## KB and DISCO Integration
 
-The Knowledge Base is the single source of truth for documents used in DISCo initiatives.
+The Knowledge Base is the single source of truth for documents used in DISCO discoveries.
 
 **Linking documents to initiatives:**
-1. In a DISCo initiative, go to the **Documents** tab
+1. In a DISCO discovery, go to the **Documents** tab
 2. Click **Link from KB**
 3. Use the document browser to search or filter by tags
 4. Select documents and click **Link Selected**
@@ -269,7 +269,7 @@ The Knowledge Base is the single source of truth for documents used in DISCo ini
 - Multi-select for linking multiple documents at once
 
 **Why this matters:**
-- No document duplication between KB and DISCo
+- No document duplication between KB and DISCO
 - Documents stay in sync automatically
 - Delete from KB and it's removed from linked initiatives (with warning)
 
