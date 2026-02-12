@@ -22,7 +22,7 @@ const outputSteps: OutputStep[] = [
     color: '#8b5cf6', // violet
     details: [
       'Generated in Convergence stage',
-      'Best for: Build/development initiatives',
+      'Best for: Build/development proposed initiatives',
       'Executive Summary & Problem Statement',
       'Goals, Requirements, User Stories',
       'Technical Considerations & Risks'
@@ -67,14 +67,14 @@ const outputSteps: OutputStep[] = [
       'Auto-extracts: Title, Description, Department',
       'Scores: ROI, Effort, Strategic Alignment',
       'Generates initial task list',
-      'Links back to source initiative',
+      'Links back to source discovery',
       'Sets project status to "identified"'
     ]
   },
   {
     id: 'exec-summary',
     title: 'Executive Summary',
-    description: 'Multi-bundle leadership overview',
+    description: 'Cross-initiative leadership overview',
     category: 'post-process',
     color: '#ec4899', // pink
     details: [
@@ -93,10 +93,10 @@ const outputSteps: OutputStep[] = [
     color: '#3b82f6', // blue
     details: [
       'Document becomes searchable',
-      'Available via initiative chat Q&A',
+      'Available via discovery chat Q&A',
       'RAG-enabled for future queries',
       'Full traceability maintained',
-      'Cross-initiative discovery'
+      'Cross-discovery knowledge reuse'
     ]
   },
   // Destinations
@@ -108,7 +108,7 @@ const outputSteps: OutputStep[] = [
     color: '#22c55e', // green
     details: [
       'Status: Identified → Scoping → Active → Complete',
-      'Linked to source DISCO initiative',
+      'Linked to source DISCO discovery',
       'Task management & assignment',
       'Progress tracking & reporting',
       'Stakeholder visibility'
@@ -420,7 +420,7 @@ export default function DiscoOperationalizeMap() {
 
             {/* Traceability note */}
             <text x={210} y={startY + 315} textAnchor="middle" fill={colors.textSecondary} fontSize="8" fontStyle="italic">
-              Full traceability: Project → Document → Bundle → Insights → Discovery
+              Full traceability: Project → Document → Proposed Initiative → Insights → Discovery
             </text>
 
           </svg>

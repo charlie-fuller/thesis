@@ -209,11 +209,11 @@ def get_model_for_agent(agent_type: str) -> str:
 # - insight_extractor, consolidator, synthesizer, strategist
 # - prd_generator, tech_evaluation, meta_consolidator, meta_synthesizer
 AGENT_FILES = {
-    # === Consolidated Agents (v2.0, throughline-aware v1.1) ===
-    "discovery_guide": "discovery-guide-v1.1.md",
+    # === Consolidated Agents (v2.0, throughline-aware v1.2) ===
+    "discovery_guide": "discovery-guide-v1.2.md",
     "insight_analyst": "insight-analyst-v1.1.md",
     "initiative_builder": "initiative-builder-v1.1.md",
-    "requirements_generator": "requirements-generator-v1.1.md",
+    "requirements_generator": "requirements-generator-v1.2.md",
     # === Output Type Generators (Convergence Stage) ===
     "prd_generator": "prd-generator-v1.0.md",
     "evaluation_framework_generator": "evaluation-framework-v1.0.md",
@@ -1080,6 +1080,13 @@ async def run_agent(
         if agent_type == "requirements_generator":
             throughline_resolution = parse_throughline_resolution(full_response)
 
+        # Parse triage suggestions for discovery_guide (when framing extraction occurs)
+        triage_suggestions = None
+        if agent_type == "discovery_guide":
+            triage_suggestions = parse_triage_suggestions(full_response)
+            if triage_suggestions:
+                logger.info(f"[PURDY] Parsed triage suggestions with keys: {list(triage_suggestions.keys())}")
+
         # Store output
         output_id = str(uuid4())
         output_data = {
@@ -1098,6 +1105,7 @@ async def run_agent(
             "output_format": output_format,
             "source_outputs": context.get("source_outputs", []),
             "throughline_resolution": throughline_resolution,
+            "triage_suggestions": triage_suggestions,
         }
 
         # Log the data being stored
@@ -1606,6 +1614,113 @@ def parse_throughline_resolution(raw_output: str) -> Optional[Dict]:
             resolution["so_what"] = so_what
 
     return resolution if resolution else None
+
+
+def parse_triage_suggestions(raw_output: str) -> Optional[Dict]:
+    """Parse suggested framing from triage output.
+
+    Extracts structured data from the ## Suggested Framing section
+    that the triage agent produces when a discovery has sparse/empty throughline.
+    Returns None if no suggestions section found.
+    """
+    # Find the Suggested Framing section
+    suggestions_match = re.search(
+        r"##\s*Suggested\s+Framing\s*\n(.+?)(?=\n##(?!#)|\Z)",
+        raw_output,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if not suggestions_match:
+        return None
+
+    section = suggestions_match.group(1)
+    suggestions = {}
+
+    # Parse suggested problem statements
+    ps_section = re.search(
+        r"###?\s*Suggested\s+Problem\s+Statements?\s*\n(.+?)(?=\n###|\Z)",
+        section,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if ps_section:
+        problem_statements = []
+        for match in re.finditer(r"[-*]\s+(?:\[?(ps-\d+)\]?)?\s*(.+)", ps_section.group(1)):
+            ps_id = match.group(1) or f"ps-{len(problem_statements) + 1}"
+            problem_statements.append({"id": ps_id, "text": match.group(2).strip()})
+        if problem_statements:
+            suggestions["problem_statements"] = problem_statements
+
+    # Parse suggested hypotheses
+    h_section = re.search(
+        r"###?\s*Suggested\s+Hypothes[ei]s\s*\n(.+?)(?=\n###|\Z)",
+        section,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if h_section:
+        hypotheses = []
+        for match in re.finditer(r"[-*]\s+(?:\[?(h-\d+)\]?)?\s*(.+)", h_section.group(1)):
+            h_id = match.group(1) or f"h-{len(hypotheses) + 1}"
+            text = match.group(2).strip()
+            # Extract rationale if present
+            rationale_match = re.search(r"\(Rationale:\s*(.+?)\)\s*$", text, re.IGNORECASE)
+            rationale = rationale_match.group(1).strip() if rationale_match else None
+            statement = re.sub(r"\s*\(Rationale:.*\)\s*$", "", text, flags=re.IGNORECASE).strip()
+            hypotheses.append({"id": h_id, "statement": statement, "rationale": rationale, "type": "assumption"})
+        if hypotheses:
+            suggestions["hypotheses"] = hypotheses
+
+    # Parse suggested gaps
+    g_section = re.search(
+        r"###?\s*Suggested\s+Gaps?\s*\n(.+?)(?=\n###|\Z)",
+        section,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if g_section:
+        gaps = []
+        for match in re.finditer(
+            r"[-*]\s+(?:\[?(g-\d+)\]?)?\s*(?:\[?(data|people|process|capability)\]?:?\s*)?(.+)",
+            g_section.group(1),
+            re.IGNORECASE,
+        ):
+            g_id = match.group(1) or f"g-{len(gaps) + 1}"
+            g_type = (match.group(2) or "data").lower()
+            gaps.append({"id": g_id, "description": match.group(3).strip(), "type": g_type})
+        if gaps:
+            suggestions["gaps"] = gaps
+
+    # Parse suggested KPIs
+    kpi_section = re.search(
+        r"###?\s*Suggested\s+KPIs?\s*\n(.+?)(?=\n###|\Z)",
+        section,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if kpi_section:
+        kpis = [m.group(1).strip() for m in re.finditer(r"[-*]\s+(.+)", kpi_section.group(1))]
+        if kpis:
+            suggestions["kpis"] = kpis
+
+    # Parse suggested stakeholders
+    sh_section = re.search(
+        r"###?\s*Suggested\s+Stakeholders?\s*\n(.+?)(?=\n###|\Z)",
+        section,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if sh_section:
+        stakeholders = [m.group(1).strip() for m in re.finditer(r"[-*]\s+(.+)", sh_section.group(1))]
+        if stakeholders:
+            suggestions["stakeholders"] = stakeholders
+
+    # Parse value alignment notes
+    va_section = re.search(
+        r"###?\s*Value\s+Alignment\s+Notes?\s*\n(.+?)(?=\n###|\n##|\Z)",
+        section,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if va_section:
+        notes = va_section.group(1).strip()
+        if notes:
+            suggestions["value_alignment_notes"] = notes
+
+    return suggestions if suggestions else None
 
 
 def get_status_for_agent(agent_type: str) -> Optional[str]:

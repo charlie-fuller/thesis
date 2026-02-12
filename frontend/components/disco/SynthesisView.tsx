@@ -17,7 +17,9 @@ import {
   Zap,
   FileText,
   Scale,
-  Sparkles
+  Sparkles,
+  FolderPlus,
+  ExternalLink
 } from 'lucide-react'
 import { apiGet, apiPost, apiPatch } from '@/lib/api'
 
@@ -26,13 +28,13 @@ const OUTPUT_TYPES = [
   {
     value: 'prd',
     label: 'Product Requirements Document',
-    description: 'For build/development bundles',
+    description: 'For build/development proposed initiatives',
     icon: FileText,
   },
   {
     value: 'evaluation_framework',
     label: 'Evaluation Framework',
-    description: 'For research/evaluation bundles',
+    description: 'For research/evaluation proposed initiatives',
     icon: Scale,
   },
   {
@@ -101,13 +103,19 @@ function BundleCard({
   canEdit,
   onApprove,
   onReject,
-  onEdit
+  onEdit,
+  onCreateProject,
+  creatingProject,
+  createdProjectId
 }: {
   bundle: Bundle
   canEdit: boolean
   onApprove: () => void
   onReject: () => void
   onEdit: () => void
+  onCreateProject?: () => void
+  creatingProject?: boolean
+  createdProjectId?: string | null
 }) {
   const [expanded, setExpanded] = useState(false)
   const statusConfig = STATUS_CONFIG[bundle.status]
@@ -215,7 +223,7 @@ function BundleCard({
           {bundle.bundling_rationale && (
             <div className="p-4 border-b border-slate-200 dark:border-slate-700">
               <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Bundling Rationale
+                Grouping Rationale
               </h4>
               <p className="text-sm text-slate-600 dark:text-slate-400">
                 {bundle.bundling_rationale}
@@ -249,6 +257,34 @@ function BundleCard({
               </button>
             </div>
           )}
+
+          {/* Create Project action for approved bundles */}
+          {bundle.status === 'approved' && onCreateProject && (
+            <div className="p-4 flex items-center gap-2 bg-slate-50 dark:bg-slate-900/50">
+              {createdProjectId ? (
+                <a
+                  href={`/projects/${createdProjectId}`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  View Project
+                </a>
+              ) : (
+                <button
+                  onClick={onCreateProject}
+                  disabled={creatingProject}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                >
+                  {creatingProject ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FolderPlus className="w-4 h-4" />
+                  )}
+                  {creatingProject ? 'Creating...' : 'Create Project'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -269,6 +305,11 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
   const [suggestedOutputType, setSuggestedOutputType] = useState<string | null>(null)
   const [suggestionRationale, setSuggestionRationale] = useState<string | null>(null)
   const [suggestionLoading, setSuggestionLoading] = useState(false)
+
+  // Create project state
+  const [creatingProjectBundle, setCreatingProjectBundle] = useState<string | null>(null)
+  const [createdProjects, setCreatedProjects] = useState<Record<string, string>>({})
+  const [projectSuccessMessage, setProjectSuccessMessage] = useState<string | null>(null)
 
   // Load bundles
   useEffect(() => {
@@ -352,6 +393,26 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
     }
   }
 
+  async function handleCreateProject(bundleId: string) {
+    try {
+      setCreatingProjectBundle(bundleId)
+      setError(null)
+      const result = await apiPost<{ success: boolean; project: { id: string; title: string; project_code: string } }>(
+        `/api/disco/initiatives/${initiativeId}/bundles/${bundleId}/create-project`
+      )
+      if (result.success && result.project) {
+        setCreatedProjects(prev => ({ ...prev, [bundleId]: result.project.id }))
+        setProjectSuccessMessage(`Project "${result.project.title}" (${result.project.project_code}) created successfully.`)
+        // Auto-dismiss success message after 5 seconds
+        setTimeout(() => setProjectSuccessMessage(null), 5000)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create project')
+    } finally {
+      setCreatingProjectBundle(null)
+    }
+  }
+
   // Group bundles by status
   const proposedBundles = bundles.filter(b => b.status === 'proposed')
   const approvedBundles = bundles.filter(b => b.status === 'approved')
@@ -361,7 +422,7 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-        <span className="ml-2 text-slate-500">Loading bundles...</span>
+        <span className="ml-2 text-slate-500">Loading proposed initiatives...</span>
       </div>
     )
   }
@@ -381,9 +442,9 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
     return (
       <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg">
         <Boxes className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-        <p className="text-slate-500 dark:text-slate-400">No initiative bundles yet</p>
+        <p className="text-slate-500 dark:text-slate-400">No proposed initiatives yet</p>
         <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
-          Run the Synthesis agent to generate initiative bundles
+          Run the Synthesis agent to generate proposed initiatives
         </p>
       </div>
     )
@@ -435,6 +496,20 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
         </div>
       )}
 
+      {/* Project creation success message */}
+      {projectSuccessMessage && (
+        <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-2">
+          <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+          <span className="text-sm text-green-700 dark:text-green-300">{projectSuccessMessage}</span>
+          <button
+            onClick={() => setProjectSuccessMessage(null)}
+            className="ml-auto text-green-500 hover:text-green-700 dark:hover:text-green-300"
+          >
+            <XCircle className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Approved bundles */}
       {approvedBundles.length > 0 && (
         <div>
@@ -451,6 +526,9 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
                 onApprove={() => {}}
                 onReject={() => {}}
                 onEdit={() => {}}
+                onCreateProject={() => handleCreateProject(bundle.id)}
+                creatingProject={creatingProjectBundle === bundle.id}
+                createdProjectId={createdProjects[bundle.id] || null}
               />
             ))}
           </div>
@@ -484,10 +562,10 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-              Reject Bundle
+              Reject Proposed Initiative
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-              Please provide feedback explaining why this bundle is being rejected.
+              Please provide feedback explaining why this proposed initiative is being rejected.
             </p>
             <textarea
               value={rejectFeedback}
@@ -527,7 +605,7 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-lg w-full mx-4">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-              Approve Bundle
+              Approve Proposed Initiative
             </h3>
 
             {/* AI Suggestion */}
@@ -535,7 +613,7 @@ export default function SynthesisView({ initiativeId, canEdit, onRefresh }: Synt
               <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg mb-4">
                 <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
                 <span className="text-sm text-slate-600 dark:text-slate-400">
-                  Analyzing bundle to suggest output type...
+                  Analyzing proposed initiative to suggest output type...
                 </span>
               </div>
             ) : suggestedOutputType && (

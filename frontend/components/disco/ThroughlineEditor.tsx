@@ -303,7 +303,7 @@ export default function ThroughlineEditor({ throughline, onChange, compact }: Th
         <textarea
           value={throughline.desired_outcome_state || ''}
           onChange={(e) => onChange({ ...throughline, desired_outcome_state: e.target.value })}
-          placeholder="What does the world look like when this initiative succeeds?"
+          placeholder="What does the world look like when this discovery succeeds?"
           rows={compact ? 2 : 3}
           className="textarea-field text-sm"
         />

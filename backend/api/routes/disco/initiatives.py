@@ -1,9 +1,13 @@
 """DISCo Initiatives routes."""
 
+import asyncio
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from config import get_default_client_id
+from database import get_supabase
 from logger_config import get_logger
 from services.disco import (
     add_member,
@@ -23,10 +27,12 @@ from services.disco.initiative_alignment_analyzer import (
 from services.disco.project_service import get_initiative_projects
 
 from ._shared import (
+    CreateTasksFromResolution,
     InitiativeCreate,
     InitiativeUpdate,
     MemberInvite,
     MemberRoleUpdate,
+    ResolutionAnnotations,
     require_disco_access,
     require_initiative_access,
 )
@@ -73,6 +79,10 @@ async def api_create_initiative(
             description=data.description,
             user_id=current_user["id"],
             throughline=data.throughline.model_dump() if data.throughline else None,
+            target_department=data.target_department,
+            value_alignment=data.value_alignment.model_dump(exclude_none=True) if data.value_alignment else None,
+            sponsor_stakeholder_id=data.sponsor_stakeholder_id,
+            stakeholder_ids=data.stakeholder_ids,
         )
         return {"success": True, "initiative": initiative}
     except Exception as e:
@@ -144,12 +154,13 @@ async def api_update_initiative(
 
     try:
         updates = data.model_dump(exclude_unset=True)
-        # Convert throughline Pydantic model to dict if present
-        if "throughline" in updates and updates["throughline"] is not None:
-            from pydantic import BaseModel
+        # Convert Pydantic model fields to dicts if present
+        from pydantic import BaseModel
 
-            if isinstance(updates["throughline"], BaseModel):
-                updates["throughline"] = updates["throughline"].model_dump()
+        for field in ("throughline", "value_alignment", "resolution_annotations"):
+            if field in updates and updates[field] is not None:
+                if isinstance(updates[field], BaseModel):
+                    updates[field] = updates[field].model_dump()
         initiative = await update_initiative(
             initiative_id=initiative_id,
             user_id=current_user["id"],
@@ -162,6 +173,49 @@ async def api_update_initiative(
         raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error updating initiative: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+@router.patch("/initiatives/{initiative_id}/resolution-annotations")
+async def api_update_resolution_annotations(
+    initiative_id: str,
+    data: ResolutionAnnotations,
+    current_user: dict = Depends(require_disco_access),
+):
+    """Update resolution annotations (user overrides for hypothesis/gap resolutions).
+
+    Performs a merge-patch: incoming overrides are merged with existing annotations,
+    so you only need to send the keys you want to add or change.
+    """
+    await require_initiative_access(initiative_id, current_user, "editor")
+
+    try:
+        # Get current initiative to read existing annotations
+        initiative = await get_initiative(initiative_id, current_user["id"])
+        if not initiative:
+            raise HTTPException(status_code=404, detail="Initiative not found")
+
+        existing = initiative.get("resolution_annotations") or {}
+        incoming = data.model_dump(exclude_none=True)
+
+        # Merge: deep-merge each override dict
+        merged = {**existing}
+        for key in ("hypothesis_overrides", "gap_overrides"):
+            if key in incoming:
+                merged[key] = {**(existing.get(key) or {}), **incoming[key]}
+
+        updated = await update_initiative(
+            initiative_id=initiative_id,
+            user_id=current_user["id"],
+            updates={"resolution_annotations": merged},
+        )
+        return {"success": True, "initiative": updated}
+    except HTTPException:
+        raise
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from None
+    except Exception as e:
+        logger.error(f"Error updating resolution annotations: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 
@@ -204,6 +258,176 @@ async def api_get_initiative_projects(
         raise
     except Exception as e:
         logger.error(f"Error getting initiative projects: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+# ============================================================================
+# TASK CREATION FROM RESOLUTION
+# ============================================================================
+
+
+PRIORITY_MAP = {
+    "critical": 5,
+    "high": 4,
+    "medium": 3,
+    "low": 2,
+    "none": 1,
+}
+
+
+def _parse_due_date(deadline: str | None) -> str | None:
+    """Try to parse a deadline string into an ISO date string."""
+    if not deadline:
+        return None
+    # Try common date formats
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%B %d, %Y", "%b %d, %Y", "%d %B %Y", "%d %b %Y"):
+        try:
+            return datetime.strptime(deadline.strip(), fmt).date().isoformat()
+        except ValueError:
+            continue
+    return None
+
+
+def _priority_to_int(priority: str | None) -> int:
+    """Convert a priority string to an integer (1-5 scale)."""
+    if not priority:
+        return 3  # default medium
+    return PRIORITY_MAP.get(priority.lower().strip(), 3)
+
+
+@router.post("/initiatives/{initiative_id}/create-tasks-from-resolution")
+async def api_create_tasks_from_resolution(
+    initiative_id: str,
+    data: CreateTasksFromResolution,
+    current_user: dict = Depends(require_disco_access),
+):
+    """Create tasks from throughline resolution state changes.
+
+    Extracts state_changes and so_what.next_human_action from a convergence
+    output's throughline_resolution and creates project_tasks for each.
+    """
+    resolved_id = await require_initiative_access(initiative_id, current_user, "editor")
+
+    try:
+        supabase = get_supabase()
+        client_id = current_user.get("client_id") or get_default_client_id()
+        user_id = current_user["id"]
+
+        # 1. Get the output by ID
+        output_result = await asyncio.to_thread(
+            lambda: supabase.table("disco_outputs")
+            .select("id, initiative_id, throughline_resolution")
+            .eq("id", data.output_id)
+            .eq("initiative_id", resolved_id)
+            .single()
+            .execute()
+        )
+
+        if not output_result.data:
+            raise HTTPException(status_code=404, detail="Output not found")
+
+        output = output_result.data
+        resolution = output.get("throughline_resolution")
+
+        if not resolution:
+            raise HTTPException(status_code=400, detail="Output has no throughline resolution")
+
+        # 2. Extract state_changes
+        state_changes = resolution.get("state_changes") or []
+        so_what = resolution.get("so_what") or {}
+
+        if not state_changes and not so_what.get("next_human_action"):
+            raise HTTPException(status_code=400, detail="No state changes or next actions found in resolution")
+
+        # 3. Build task list - state changes + next_human_action
+        tasks_to_create = []
+
+        for idx, sc in enumerate(state_changes):
+            # If selected_indices is provided, only create tasks for those indices
+            if data.selected_indices is not None and idx not in data.selected_indices:
+                continue
+            tasks_to_create.append(
+                {
+                    "title": sc.get("description", "Untitled task")[:500],
+                    "assignee_name": sc.get("owner"),
+                    "due_date": _parse_due_date(sc.get("deadline")),
+                    "priority": _priority_to_int(sc.get("priority")),
+                }
+            )
+
+        # Add next_human_action as a high-priority task if present
+        next_action = so_what.get("next_human_action")
+        if next_action:
+            # Only add if not filtering by indices, or if we have no state changes
+            # (always include next_action when there are no state_changes selected)
+            next_action_idx = len(state_changes)
+            if data.selected_indices is None or next_action_idx in data.selected_indices:
+                tasks_to_create.append(
+                    {
+                        "title": next_action[:500],
+                        "assignee_name": None,
+                        "due_date": None,
+                        "priority": 4,  # high priority for next human action
+                    }
+                )
+
+        if not tasks_to_create:
+            raise HTTPException(status_code=400, detail="No tasks selected for creation")
+
+        # 4. Get next position in pending column
+        pos_result = await asyncio.to_thread(
+            lambda: supabase.table("project_tasks")
+            .select("position")
+            .eq("client_id", client_id)
+            .eq("status", "pending")
+            .order("position", desc=True)
+            .limit(1)
+            .execute()
+        )
+        next_position = (pos_result.data[0]["position"] + 1) if pos_result.data else 0
+
+        # 5. Create tasks
+        created_tasks = []
+        for task_data in tasks_to_create:
+            task_record = {
+                "client_id": client_id,
+                "title": task_data["title"],
+                "status": "pending",
+                "priority": task_data["priority"],
+                "assignee_name": task_data["assignee_name"],
+                "due_date": task_data["due_date"],
+                "source_type": "disco",
+                "source_initiative_id": resolved_id,
+                "source_disco_output_id": data.output_id,
+                "linked_project_id": data.project_id,
+                "created_by": user_id,
+                "updated_by": user_id,
+                "position": next_position,
+                "category": "disco_resolution",
+                "tags": ["disco"],
+            }
+
+            result = await asyncio.to_thread(
+                lambda rec=task_record: supabase.table("project_tasks").insert(rec).execute()
+            )
+
+            if result.data:
+                created_tasks.append(result.data[0])
+                next_position += 1
+
+        logger.info(f"Created {len(created_tasks)} tasks from resolution for initiative {resolved_id}")
+
+        return {
+            "success": True,
+            "tasks": created_tasks,
+            "count": len(created_tasks),
+            "message": f"Created {len(created_tasks)} tasks from resolution",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating tasks from resolution: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 

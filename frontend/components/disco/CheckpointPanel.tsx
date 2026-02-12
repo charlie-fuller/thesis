@@ -74,8 +74,8 @@ const CHECKPOINT_CONFIG: Record<number, {
     ]
   },
   2: {
-    title: 'Ready for Initiative Building?',
-    description: 'Review insights and decision document before creating initiative bundles',
+    title: 'Ready for Proposed Initiatives?',
+    description: 'Review insights and decision document before creating proposed initiatives',
     humanAction: 'Validate insights match your understanding',
     humanDetails: 'The Insight Analyst has extracted patterns and created a decision document. Review the leverage point, key insights, and evidence. Verify these match what you heard in discovery sessions. Add any missing documents before proceeding.',
     icon: ClipboardCheck,
@@ -90,17 +90,17 @@ const CHECKPOINT_CONFIG: Record<number, {
   },
   3: {
     title: 'Ready for Requirements?',
-    description: 'Review and approve initiative bundles before generating PRDs',
-    humanAction: 'Approve or reject initiative bundles',
-    humanDetails: 'The Initiative Builder has clustered insights into scored bundles. Review each bundle\'s scope, scoring (impact/feasibility/urgency), and dependencies. You can merge or split bundles. Select which bundles should proceed to PRD generation.',
+    description: 'Review and approve proposed initiatives before generating documents',
+    humanAction: 'Approve or reject proposed initiatives',
+    humanDetails: 'The Initiative Builder has clustered insights into scored proposed initiatives. Review each one\'s scope, scoring (impact/feasibility/urgency), and dependencies. You can merge or split them. Select which proposed initiatives should proceed to document generation.',
     icon: ThumbsUp,
     stageLabel: 'Synthesis',
     stageColor: 'text-green-600 bg-green-100 dark:bg-green-900/30',
     defaultChecklist: [
-      { id: 'bundles_reviewed', label: 'All initiative bundles reviewed' },
+      { id: 'bundles_reviewed', label: 'All proposed initiatives reviewed' },
       { id: 'scoring_valid', label: 'Scoring (impact/feasibility/urgency) is accurate' },
       { id: 'priority_agreed', label: 'Priority order agreed upon' },
-      { id: 'bundles_selected', label: 'Bundles for PRD generation selected' }
+      { id: 'bundles_selected', label: 'Proposed initiatives for document generation selected' }
     ]
   },
   4: {

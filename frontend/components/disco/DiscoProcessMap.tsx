@@ -45,25 +45,25 @@ const processSteps: ProcessStep[] = [
   {
     id: 'initiative-builder',
     title: 'Initiative Builder',
-    description: 'Clusters insights into scored bundles',
+    description: 'Clusters insights into scored proposed initiatives',
     stage: 'synthesis',
     details: [
-      'Groups features into coherent initiative bundles',
-      'Scores bundles by value and complexity',
+      'Groups features into coherent proposed initiatives',
+      'Scores proposed initiatives by value and complexity',
       'Provides business rationale for each',
-      'Creates bundles for approval workflow'
+      'Creates proposed initiatives for approval workflow'
     ],
-    checkpoint: 'Checkpoint 3: Bundles Approved'
+    checkpoint: 'Checkpoint 3: Proposed Initiatives Approved'
   },
   // Stage 4: Convergence
   {
     id: 'requirements-generator',
     title: 'Requirements Generator',
-    description: 'Generates output document from bundle',
+    description: 'Generates output document from proposed initiative',
     stage: 'convergence',
     details: [
       'User selects output type: PRD, Evaluation, or Decision Framework',
-      'PRD: For build/development initiatives',
+      'PRD: For build/development proposed initiatives',
       'Evaluation: For vendor/tool comparisons',
       'Decision: For governance/policy decisions'
     ],
@@ -296,7 +296,7 @@ export default function DiscoProcessMap() {
               Initiative Builder
             </text>
             <text x={agentX + agentWidth/2} y={startY + rowSpacing*2 + 52} textAnchor="middle" fill={colors.textSecondary} fontSize="9">
-              Clusters insights into scored bundles
+              Clusters insights into proposed initiatives
             </text>
           </g>
 

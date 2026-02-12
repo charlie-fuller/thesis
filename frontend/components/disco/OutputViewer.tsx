@@ -18,11 +18,15 @@ import {
   Cpu,
   Trash2,
   Minimize2,
-  Loader2
+  Loader2,
+  ListChecks,
+  ExternalLink,
+  Square,
+  CheckSquare
 } from 'lucide-react'
 import ReactMarkdown, { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { apiDelete } from '@/lib/api'
+import { apiDelete, apiPost } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 
 // Mermaid diagram component for rendering diagrams
@@ -80,7 +84,7 @@ function MermaidDiagram({ chart }: { chart: string }) {
 interface ThroughlineResolution {
   hypothesis_resolutions?: Array<{ hypothesis_id: string; status: string; evidence_summary?: string }>
   gap_statuses?: Array<{ gap_id: string; status: string; findings?: string }>
-  state_changes?: Array<{ description: string; owner?: string; deadline?: string }>
+  state_changes?: Array<{ description: string; owner?: string; deadline?: string; priority?: string }>
   so_what?: { state_change_proposed?: string; next_human_action?: string; kill_test?: string }
 }
 
@@ -280,6 +284,13 @@ function OutputDetail({
   const [generatingSummary, setGeneratingSummary] = useState(false)
   const [summaryStatus, setSummaryStatus] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'output' | 'notes'>('output')
+  // Create Tasks state
+  const [showCreateTasks, setShowCreateTasks] = useState(false)
+  const [selectedTaskIndices, setSelectedTaskIndices] = useState<Set<number>>(new Set())
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
+  const [linkedProjects, setLinkedProjects] = useState<Array<{ id: string; title: string }>>([])
+  const [creatingTasks, setCreatingTasks] = useState(false)
+  const [createTasksResult, setCreateTasksResult] = useState<{ count: number } | null>(null)
   const displayType = getDisplayAgentType(output.agent_type)
   const config = AGENT_CONFIG[displayType] || { name: displayType, icon: FileText, color: 'text-slate-600 bg-slate-100' }
   const Icon = config.icon
@@ -380,6 +391,71 @@ function OutputDetail({
         setGeneratingSummary(false)
         setSummaryStatus(null)
       }, 3000)
+    }
+  }
+
+  // Determine if this output has taskable items
+  const stateChanges = output.throughline_resolution?.state_changes || []
+  const nextAction = output.throughline_resolution?.so_what?.next_human_action
+  const hasTaskableItems = stateChanges.length > 0 || !!nextAction
+
+  const handleOpenCreateTasks = async () => {
+    // Initialize all indices as selected
+    const allIndices = new Set<number>()
+    stateChanges.forEach((_, i) => allIndices.add(i))
+    if (nextAction) allIndices.add(stateChanges.length) // next_human_action gets index after state_changes
+    setSelectedTaskIndices(allIndices)
+    setCreateTasksResult(null)
+    setShowCreateTasks(true)
+
+    // Fetch initiative projects
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/disco/initiatives/${initiativeId}/projects`,
+        {
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+        }
+      )
+      if (response.ok) {
+        const data = await response.json()
+        setLinkedProjects(data.projects || [])
+      }
+    } catch {
+      // Projects are optional - continue without them
+    }
+  }
+
+  const toggleTaskIndex = (index: number) => {
+    setSelectedTaskIndices(prev => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }
+
+  const handleCreateTasks = async () => {
+    setCreatingTasks(true)
+    try {
+      const result = await apiPost<{ success: boolean; count: number; tasks: unknown[] }>(
+        `/api/disco/initiatives/${initiativeId}/create-tasks-from-resolution`,
+        {
+          output_id: output.id,
+          project_id: selectedProjectId || undefined,
+          selected_indices: Array.from(selectedTaskIndices).sort(),
+        }
+      )
+      setCreateTasksResult({ count: result.count })
+    } catch (err) {
+      console.error('Failed to create tasks:', err)
+      alert('Failed to create tasks. Please try again.')
+    } finally {
+      setCreatingTasks(false)
     }
   }
 
@@ -581,6 +657,141 @@ function OutputDetail({
                 <p className="text-xs text-red-600 dark:text-red-400">
                   <span className="font-medium">Kill Test:</span> {output.throughline_resolution.so_what.kill_test}
                 </p>
+              )}
+            </div>
+          )}
+
+          {/* Create Tasks from State Changes */}
+          {hasTaskableItems && (
+            <div className="mt-3">
+              {!showCreateTasks && !createTasksResult && (
+                <button
+                  onClick={handleOpenCreateTasks}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-md transition-colors"
+                >
+                  <ListChecks className="w-3.5 h-3.5" />
+                  Create Tasks from State Changes
+                </button>
+              )}
+
+              {showCreateTasks && !createTasksResult && (
+                <div className="p-3 bg-white/70 dark:bg-slate-800/70 rounded-lg border border-indigo-200 dark:border-indigo-800/50">
+                  <h5 className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Select items to create as tasks:
+                  </h5>
+                  <div className="space-y-1.5 mb-3">
+                    {stateChanges.map((sc, i) => (
+                      <label key={i} className="flex items-start gap-2 cursor-pointer group">
+                        <button
+                          onClick={() => toggleTaskIndex(i)}
+                          className="mt-0.5 flex-shrink-0 text-indigo-500 dark:text-indigo-400"
+                        >
+                          {selectedTaskIndices.has(i) ? (
+                            <CheckSquare className="w-4 h-4" />
+                          ) : (
+                            <Square className="w-4 h-4 text-slate-400" />
+                          )}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                            {sc.description}
+                          </span>
+                          {(sc.owner || sc.deadline) && (
+                            <span className="text-xs text-slate-400 ml-1">
+                              {sc.owner && `(${sc.owner})`}
+                              {sc.deadline && ` due ${sc.deadline}`}
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                    {nextAction && (
+                      <label className="flex items-start gap-2 cursor-pointer group">
+                        <button
+                          onClick={() => toggleTaskIndex(stateChanges.length)}
+                          className="mt-0.5 flex-shrink-0 text-indigo-500 dark:text-indigo-400"
+                        >
+                          {selectedTaskIndices.has(stateChanges.length) ? (
+                            <CheckSquare className="w-4 h-4" />
+                          ) : (
+                            <Square className="w-4 h-4 text-slate-400" />
+                          )}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                            {nextAction}
+                          </span>
+                          <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                            Next Action
+                          </span>
+                        </div>
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Optional project selector */}
+                  {linkedProjects.length > 0 && (
+                    <div className="mb-3">
+                      <label className="text-xs text-slate-500 dark:text-slate-400 block mb-1">
+                        Link to project (optional):
+                      </label>
+                      <select
+                        value={selectedProjectId}
+                        onChange={(e) => setSelectedProjectId(e.target.value)}
+                        className="w-full text-xs px-2 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                      >
+                        <option value="">No project</option>
+                        {linkedProjects.map((p) => (
+                          <option key={p.id} value={p.id}>{p.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleCreateTasks}
+                      disabled={creatingTasks || selectedTaskIndices.size === 0}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {creatingTasks ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <ListChecks className="w-3.5 h-3.5" />
+                          Create {selectedTaskIndices.size} Task{selectedTaskIndices.size !== 1 ? 's' : ''}
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setShowCreateTasks(false)}
+                      className="px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {createTasksResult && (
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800/50">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                      Created {createTasksResult.count} task{createTasksResult.count !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <a
+                    href="/tasks"
+                    className="inline-flex items-center gap-1 mt-1.5 text-xs text-green-600 dark:text-green-400 hover:underline"
+                  >
+                    View in Tasks
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
               )}
             </div>
           )}

@@ -157,3 +157,79 @@ async def create_project_from_prd(
     except Exception as e:
         logger.error(f"Error creating project from PRD: {e}")
         raise
+
+
+# Score mapping: HIGH/MEDIUM/LOW -> numeric 1-5
+_SCORE_MAP = {"HIGH": 5, "MEDIUM": 3, "LOW": 1}
+_INVERSE_SCORE_MAP = {"HIGH": 1, "MEDIUM": 3, "LOW": 5}
+
+
+@with_db_retry(max_retries=2)
+async def create_project_from_bundle(
+    bundle: Dict,
+    initiative_id: str,
+    user_id: str,
+    client_id: str,
+) -> Dict:
+    """Create a project directly from an approved bundle.
+
+    Maps bundle scores to project scoring dimensions:
+    - impact_score -> roi_potential (HIGH=5, MEDIUM=3, LOW=1)
+    - feasibility_score -> implementation_effort (inverse: HIGH=1, MEDIUM=3, LOW=5)
+    - urgency_score -> strategic_alignment (HIGH=5, MEDIUM=3, LOW=1)
+
+    Args:
+        bundle: The approved bundle record
+        initiative_id: Parent initiative ID
+        user_id: Creating user's ID
+        client_id: User's client ID
+
+    Returns:
+        Created project record
+    """
+    from uuid import uuid4
+
+    bundle_id = bundle["id"]
+    logger.info(f"Creating project from bundle {bundle_id}")
+
+    try:
+        db = get_supabase()
+
+        project_id = str(uuid4())
+        project_code = project_id[:4].upper()
+
+        # Map scores
+        roi_potential = _SCORE_MAP.get(bundle.get("impact_score"), 3)
+        implementation_effort = _INVERSE_SCORE_MAP.get(bundle.get("feasibility_score"), 3)
+        strategic_alignment = _SCORE_MAP.get(bundle.get("urgency_score"), 3)
+
+        bundle_name = bundle.get("name", "Untitled Bundle")
+        project_record = {
+            "id": project_id,
+            "client_id": client_id,
+            "project_code": project_code,
+            "title": bundle_name,
+            "description": bundle.get("description"),
+            "roi_potential": roi_potential,
+            "implementation_effort": implementation_effort,
+            "strategic_alignment": strategic_alignment,
+            "stakeholder_readiness": 3,
+            "status": "identified",
+            "source_type": "disco_proposed",
+            "source_id": bundle_id,
+            "source_notes": f"Created from proposed initiative: {bundle_name}",
+            "initiative_ids": [initiative_id],
+            "created_by": user_id,
+        }
+
+        result = await asyncio.to_thread(lambda: db.table("ai_projects").insert(project_record).execute())
+
+        if not result.data:
+            raise Exception("Failed to create project")
+
+        logger.info(f"Created project {project_id} from bundle {bundle_id}")
+        return result.data[0]
+
+    except Exception as e:
+        logger.error(f"Error creating project from bundle: {e}")
+        raise

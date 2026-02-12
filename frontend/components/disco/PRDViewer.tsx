@@ -91,7 +91,7 @@ function PRDCard({
           </h3>
           {prd.disco_bundles && (
             <p className="text-xs text-slate-500 mt-0.5">
-              Bundle: {prd.disco_bundles.name}
+              Proposed Initiative: {prd.disco_bundles.name}
             </p>
           )}
           <div className="flex items-center gap-2 mt-2">
@@ -388,7 +388,7 @@ export default function PRDViewer({ initiativeId, initiativeName, canEdit, onRef
         <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
         <p className="text-slate-500 dark:text-slate-400">No PRDs generated yet</p>
         <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
-          Approve bundles in the Synthesis tab, then generate PRDs
+          Approve proposed initiatives in the Synthesis tab, then generate documents
         </p>
       </div>
     )

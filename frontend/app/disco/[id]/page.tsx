@@ -39,6 +39,14 @@ import { type GoalAlignmentDetails } from '@/components/projects/GoalAlignmentSe
 // TYPES
 // ============================================================================
 
+interface ValueAlignment {
+  kpis?: string[]
+  department_goals?: string[]
+  company_priority?: string
+  strategic_pillar?: 'enable' | 'operationalize' | 'govern'
+  notes?: string
+}
+
 interface Initiative {
   id: string
   name: string
@@ -48,6 +56,11 @@ interface Initiative {
   updated_at: string
   user_role: string
   document_count: number
+  target_department?: string | null
+  value_alignment?: ValueAlignment | null
+  sponsor_stakeholder_id?: string | null
+  stakeholder_ids?: string[]
+  resolution_annotations?: Record<string, unknown> | null
   users?: {
     id: string
     name: string
@@ -80,6 +93,15 @@ interface Document {
   metadata?: Record<string, unknown>
 }
 
+interface TriageSuggestions {
+  problem_statements?: string[]
+  hypotheses?: string[]
+  gaps?: string[]
+  kpis?: string[]
+  stakeholders?: string[]
+  value_alignment_notes?: string
+}
+
 interface Output {
   id: string
   run_id: string
@@ -92,6 +114,7 @@ interface Output {
   executive_summary: string | null
   content_markdown: string
   content_structured: Record<string, unknown>
+  triage_suggestions?: TriageSuggestions | null
   created_at: string
 }
 
@@ -149,7 +172,15 @@ export default function InitiativeDetailPage() {
   const [editedName, setEditedName] = useState('')
   const [editedDescription, setEditedDescription] = useState('')
   const [editedThroughline, setEditedThroughline] = useState<Throughline>({})
+  const [editedDepartment, setEditedDepartment] = useState('')
+  const [editedKpis, setEditedKpis] = useState<string[]>([])
+  const [editedKpiInput, setEditedKpiInput] = useState('')
+  const [editedStrategicPillar, setEditedStrategicPillar] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+
+  // Triage suggestions review panel
+  const [triageReviewDismissed, setTriageReviewDismissed] = useState(false)
+  const [acceptingSuggestions, setAcceptingSuggestions] = useState(false)
 
   const canEdit = initiative?.user_role === 'owner' || initiative?.user_role === 'editor'
 
@@ -166,7 +197,7 @@ export default function InitiativeDetailPage() {
       if (result.success && result.initiative) {
         setInitiative(result.initiative)
       } else {
-        setError('Initiative not found')
+        setError('Discovery not found')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load initiative')
@@ -235,6 +266,10 @@ export default function InitiativeDetailPage() {
     setEditedName(initiative?.name || '')
     setEditedDescription(initiative?.description || '')
     setEditedThroughline(initiative?.throughline || {})
+    setEditedDepartment(initiative?.target_department || '')
+    setEditedKpis(initiative?.value_alignment?.kpis || [])
+    setEditedKpiInput('')
+    setEditedStrategicPillar(initiative?.value_alignment?.strategic_pillar || '')
     setEditModalOpen(true)
   }
 
@@ -245,7 +280,15 @@ export default function InitiativeDetailPage() {
     try {
       const result = await apiPatch<{ success: boolean; initiative: Initiative }>(
         `/api/disco/initiatives/${initiativeId}`,
-        { name: editedName, description: editedDescription, throughline: editedThroughline }
+        {
+          name: editedName,
+          description: editedDescription,
+          throughline: editedThroughline,
+          target_department: editedDepartment || null,
+          value_alignment: editedKpis.length > 0 || editedStrategicPillar
+            ? { kpis: editedKpis.length > 0 ? editedKpis : undefined, strategic_pillar: editedStrategicPillar || undefined }
+            : null,
+        }
       )
       if (result.success && result.initiative) {
         setInitiative(result.initiative)
@@ -264,6 +307,52 @@ export default function InitiativeDetailPage() {
     setEditedDescription('')
   }
 
+  const handleAcceptSuggestions = async (suggestions: TriageSuggestions) => {
+    if (!initiative) return
+    setAcceptingSuggestions(true)
+    try {
+      // Build throughline from suggestions
+      const throughline: Throughline = {
+        ...(initiative.throughline || {}),
+        problem_statements: [
+          ...(initiative.throughline?.problem_statements || []),
+          ...(suggestions.problem_statements || []).map(ps => ({ id: `ps-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text: ps })),
+        ],
+        hypotheses: [
+          ...(initiative.throughline?.hypotheses || []),
+          ...(suggestions.hypotheses || []).map(h => ({ id: `h-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, statement: h })),
+        ],
+        gaps: [
+          ...(initiative.throughline?.gaps || []),
+          ...(suggestions.gaps || []).map(g => ({ id: `g-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, description: g, type: 'data' as const })),
+        ],
+      }
+
+      // Build value alignment from suggestions
+      const valueAlignment: ValueAlignment = {
+        ...(initiative.value_alignment || {}),
+        kpis: [...new Set([...(initiative.value_alignment?.kpis || []), ...(suggestions.kpis || [])])],
+        notes: suggestions.value_alignment_notes || initiative.value_alignment?.notes || undefined,
+      }
+
+      const result = await apiPatch<{ success: boolean; initiative: Initiative }>(
+        `/api/disco/initiatives/${initiativeId}`,
+        {
+          throughline,
+          value_alignment: valueAlignment.kpis?.length || valueAlignment.notes ? valueAlignment : null,
+        }
+      )
+      if (result.success && result.initiative) {
+        setInitiative(result.initiative)
+      }
+      setTriageReviewDismissed(true)
+    } catch (err) {
+      console.error('Failed to accept suggestions:', err)
+    } finally {
+      setAcceptingSuggestions(false)
+    }
+  }
+
   const handleAgentComplete = async () => {
     // Reload full outputs list to get complete data
     try {
@@ -275,6 +364,10 @@ export default function InitiativeDetailPage() {
       // Select the newest output (first in list since sorted by created_at desc)
       if (newOutputs.length > 0) {
         setSelectedOutput(newOutputs[0])
+      }
+      // Show triage review panel if suggestions are available and throughline is sparse
+      if (newOutputs.length > 0 && newOutputs[0].triage_suggestions) {
+        setTriageReviewDismissed(false)
       }
     } catch (err) {
       console.error('Failed to reload outputs:', err)
@@ -299,7 +392,7 @@ export default function InitiativeDetailPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex items-center gap-2 text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
-          Loading initiative...
+          Loading discovery...
         </div>
       </div>
     )
@@ -311,14 +404,14 @@ export default function InitiativeDetailPage() {
         <div className="text-center py-12">
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
           <h2 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
-            {error || 'Initiative not found'}
+            {error || 'Discovery not found'}
           </h2>
           <button
             onClick={() => router.push('/disco')}
             className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm text-indigo-600 hover:underline"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to initiatives
+            Back to discoveries
           </button>
         </div>
       </div>
@@ -336,7 +429,7 @@ export default function InitiativeDetailPage() {
           className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to initiatives
+          Back to discoveries
         </button>
 
         <div className="flex items-start justify-between gap-4">
@@ -363,15 +456,53 @@ export default function InitiativeDetailPage() {
                 <button
                   onClick={handleOpenEditModal}
                   className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Edit initiative"
+                  title="Edit discovery"
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
               )}
             </div>
-            {/* Throughline Summary */}
-            {initiative.throughline && (
-              <ThroughlineSummary throughline={initiative.throughline} />
+            {/* Value Alignment Tags */}
+            {(initiative.target_department || initiative.value_alignment?.kpis?.length) && (
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {initiative.target_department && (
+                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                    {initiative.target_department}
+                  </span>
+                )}
+                {initiative.value_alignment?.kpis?.map((kpi, i) => (
+                  <span key={i} className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                    {kpi}
+                  </span>
+                ))}
+                {initiative.value_alignment?.strategic_pillar && (
+                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 capitalize">
+                    {initiative.value_alignment.strategic_pillar}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Throughline Summary + Framing Completeness */}
+            {initiative.throughline ? (
+              <ThroughlineSummary
+                throughline={initiative.throughline}
+                initiativeId={initiativeId}
+                resolutionAnnotations={initiative.resolution_annotations as { hypothesis_overrides?: Record<string, { status: string; note?: string }>; gap_overrides?: Record<string, { status: string; note?: string }> } | null}
+                onAnnotationsUpdated={(annotations) => {
+                  setInitiative({
+                    ...initiative,
+                    resolution_annotations: annotations as Record<string, unknown>,
+                  })
+                }}
+              />
+            ) : (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600" />
+                <span className="text-xs text-slate-400 dark:text-slate-500">
+                  No framing yet. Run triage to auto-populate.
+                </span>
+              </div>
             )}
 
             {/* Show linked projects or user role if applicable */}
@@ -401,7 +532,7 @@ export default function InitiativeDetailPage() {
             <button
               onClick={() => router.push(`/chat?initiative_id=${initiativeId}`)}
               className="flex items-center gap-2 px-3 py-2 text-sm text-indigo-600 dark:text-indigo-400 border border-indigo-300 dark:border-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
-              title="Chat with this Initiative"
+              title="Chat with this Discovery"
             >
               <MessageSquare className="w-4 h-4" />
               Chat
@@ -416,6 +547,100 @@ export default function InitiativeDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Post-Triage Framing Review Panel */}
+      {(() => {
+        // Find the latest discovery_guide output with triage suggestions
+        const triageOutput = outputs.find(o => o.agent_type === 'discovery_guide' && o.triage_suggestions)
+        const hasSparseFraming = !initiative.throughline ||
+          (!initiative.throughline.problem_statements?.length &&
+           !initiative.throughline.hypotheses?.length &&
+           !initiative.throughline.gaps?.length)
+        const suggestions = triageOutput?.triage_suggestions
+
+        if (suggestions && hasSparseFraming && !triageReviewDismissed) {
+          return (
+            <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4 mb-6">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Target className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  <h3 className="font-medium text-indigo-900 dark:text-indigo-200">
+                    Review Suggested Framing
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setTriageReviewDismissed(true)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-sm text-indigo-700 dark:text-indigo-300 mb-3">
+                Triage identified framing from your documents. Accept to enable hypothesis resolution and state change tracking.
+              </p>
+              <div className="space-y-2 text-sm">
+                {suggestions.problem_statements && suggestions.problem_statements.length > 0 && (
+                  <div>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">Problem Statements:</span>
+                    <ul className="ml-4 mt-1 space-y-0.5">
+                      {suggestions.problem_statements.map((ps, i) => (
+                        <li key={i} className="text-slate-600 dark:text-slate-400">- {ps}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {suggestions.hypotheses && suggestions.hypotheses.length > 0 && (
+                  <div>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">Hypotheses:</span>
+                    <ul className="ml-4 mt-1 space-y-0.5">
+                      {suggestions.hypotheses.map((h, i) => (
+                        <li key={i} className="text-slate-600 dark:text-slate-400">- {h}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {suggestions.gaps && suggestions.gaps.length > 0 && (
+                  <div>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">Gaps:</span>
+                    <ul className="ml-4 mt-1 space-y-0.5">
+                      {suggestions.gaps.map((g, i) => (
+                        <li key={i} className="text-slate-600 dark:text-slate-400">- {g}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {suggestions.kpis && suggestions.kpis.length > 0 && (
+                  <div>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">KPIs:</span>
+                    <span className="ml-2 text-slate-600 dark:text-slate-400">{suggestions.kpis.join(', ')}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-4">
+                <button
+                  onClick={() => handleAcceptSuggestions(suggestions)}
+                  disabled={acceptingSuggestions}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                >
+                  {acceptingSuggestions ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <CheckCircle className="w-3.5 h-3.5" />
+                  )}
+                  Accept All
+                </button>
+                <button
+                  onClick={() => setTriageReviewDismissed(true)}
+                  className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )
+        }
+        return null
+      })()}
 
       {/* Tabs */}
       <div className="flex border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
@@ -561,7 +786,7 @@ export default function InitiativeDetailPage() {
                   <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
                     {showActiveProjectsOnly && linkedProjects.length > 0
                       ? 'All linked projects are archived. Uncheck "Active only" to see them.'
-                      : 'Projects can be linked to this initiative from the Projects page.'}
+                      : 'Projects can be linked to this discovery from the Projects page.'}
                   </p>
                 </div>
               ) : (
@@ -620,7 +845,7 @@ export default function InitiativeDetailPage() {
         userRole={initiative.user_role}
       />
 
-      {/* Edit Initiative Modal */}
+      {/* Edit Discovery Modal */}
       {editModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
@@ -636,7 +861,7 @@ export default function InitiativeDetailPage() {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                Edit Initiative
+                Edit Discovery
               </h2>
               <button
                 onClick={handleCloseEditModal}
@@ -667,14 +892,91 @@ export default function InitiativeDetailPage() {
                 <textarea
                   value={editedDescription}
                   onChange={(e) => setEditedDescription(e.target.value)}
-                  placeholder="Add a description for this initiative..."
+                  placeholder="Add a description for this discovery..."
                   rows={3}
                   className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
+              {/* Value Alignment */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Target Department
+                  </label>
+                  <select
+                    value={editedDepartment}
+                    onChange={(e) => setEditedDepartment(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  >
+                    <option value="">Select department...</option>
+                    {['Engineering', 'Product', 'Sales', 'Marketing', 'Customer Success', 'People', 'Finance', 'Legal', 'IT', 'Operations', 'Leadership', 'Cross-functional'].map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Strategic Pillar
+                  </label>
+                  <select
+                    value={editedStrategicPillar}
+                    onChange={(e) => setEditedStrategicPillar(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  >
+                    <option value="">None</option>
+                    <option value="enable">Enable</option>
+                    <option value="operationalize">Operationalize</option>
+                    <option value="govern">Govern</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  KPIs
+                </label>
+                <div className="flex gap-1">
+                  <input
+                    type="text"
+                    value={editedKpiInput}
+                    onChange={(e) => setEditedKpiInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && editedKpiInput.trim()) {
+                        e.preventDefault()
+                        setEditedKpis([...editedKpis, editedKpiInput.trim()])
+                        setEditedKpiInput('')
+                      }
+                    }}
+                    placeholder="Add a KPI and press Enter..."
+                    className="flex-1 px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editedKpiInput.trim()) {
+                        setEditedKpis([...editedKpis, editedKpiInput.trim()])
+                        setEditedKpiInput('')
+                      }
+                    }}
+                    className="px-3 py-2 text-xs bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600"
+                  >
+                    Add
+                  </button>
+                </div>
+                {editedKpis.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {editedKpis.map((kpi, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded text-xs">
+                        {kpi}
+                        <button onClick={() => setEditedKpis(editedKpis.filter((_, j) => j !== i))} className="hover:text-red-500">&times;</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Structured Framing
+                  Investigation Framing
                 </label>
                 <ThroughlineEditor throughline={editedThroughline} onChange={setEditedThroughline} compact />
               </div>

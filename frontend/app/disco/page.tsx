@@ -26,6 +26,14 @@ import { apiGet, apiPost } from '@/lib/api'
 // TYPES
 // ============================================================================
 
+interface ValueAlignment {
+  kpis?: string[]
+  department_goals?: string[]
+  company_priority?: string
+  strategic_pillar?: 'enable' | 'operationalize' | 'govern'
+  notes?: string
+}
+
 interface Initiative {
   id: string
   name: string
@@ -35,6 +43,10 @@ interface Initiative {
   updated_at: string
   user_role: string
   document_count: number
+  target_department?: string | null
+  value_alignment?: ValueAlignment | null
+  sponsor_stakeholder_id?: string | null
+  stakeholder_ids?: string[]
   users?: {
     id: string
     name: string
@@ -161,6 +173,9 @@ function CreateInitiativeModal({
   const [error, setError] = useState<string | null>(null)
   const [showFraming, setShowFraming] = useState(false)
   const [throughline, setThroughline] = useState<Throughline>({})
+  const [targetDepartment, setTargetDepartment] = useState('')
+  const [kpis, setKpis] = useState<string[]>([])
+  const [kpiInput, setKpiInput] = useState('')
 
   const hasThroughlineData = (t: Throughline) => {
     return (t.problem_statements && t.problem_statements.length > 0 && t.problem_statements.some(ps => ps.text.trim())) ||
@@ -186,6 +201,12 @@ function CreateInitiativeModal({
       if (hasThroughlineData(throughline)) {
         body.throughline = throughline
       }
+      if (targetDepartment.trim()) {
+        body.target_department = targetDepartment.trim()
+      }
+      if (kpis.length > 0) {
+        body.value_alignment = { kpis }
+      }
 
       const result = await apiPost<{ success: boolean; initiative: Initiative }>(
         '/api/disco/initiatives',
@@ -198,6 +219,9 @@ function CreateInitiativeModal({
         setDescription('')
         setThroughline({})
         setShowFraming(false)
+        setTargetDepartment('')
+        setKpis([])
+        setKpiInput('')
         onClose()
       }
     } catch (err) {
@@ -214,7 +238,7 @@ function CreateInitiativeModal({
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative card rounded-lg shadow-xl w-full max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-semibold text-primary mb-4">
-          Create New Initiative
+          Create New Discovery
         </h2>
 
         <div className="space-y-4">
@@ -239,13 +263,75 @@ function CreateInitiativeModal({
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of the initiative..."
+              placeholder="Brief description of the discovery..."
               rows={3}
               className="textarea-field"
             />
           </div>
 
-          {/* Structured Framing (Optional) */}
+          {/* Target Department & KPIs */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-secondary mb-1">
+                Target Department
+              </label>
+              <select
+                value={targetDepartment}
+                onChange={(e) => setTargetDepartment(e.target.value)}
+                className="input-field"
+              >
+                <option value="">Select department...</option>
+                {['Engineering', 'Product', 'Sales', 'Marketing', 'Customer Success', 'People', 'Finance', 'Legal', 'IT', 'Operations', 'Leadership', 'Cross-functional'].map(dept => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-secondary mb-1">
+                KPIs <span className="text-xs font-normal text-slate-400">(optional)</span>
+              </label>
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  value={kpiInput}
+                  onChange={(e) => setKpiInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && kpiInput.trim()) {
+                      e.preventDefault()
+                      setKpis([...kpis, kpiInput.trim()])
+                      setKpiInput('')
+                    }
+                  }}
+                  placeholder="e.g., Time to fill"
+                  className="input-field flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (kpiInput.trim()) {
+                      setKpis([...kpis, kpiInput.trim()])
+                      setKpiInput('')
+                    }
+                  }}
+                  className="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
+                >
+                  Add
+                </button>
+              </div>
+              {kpis.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {kpis.map((kpi, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded text-xs">
+                      {kpi}
+                      <button onClick={() => setKpis(kpis.filter((_, j) => j !== i))} className="hover:text-red-500">&times;</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Investigation Framing (Optional) */}
           <div className="border border-slate-200 dark:border-slate-700 rounded-lg">
             <button
               type="button"
@@ -254,14 +340,14 @@ function CreateInitiativeModal({
             >
               <span className="flex items-center gap-2">
                 {showFraming ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                Structured Framing
-                <span className="text-xs font-normal text-slate-400">(Optional)</span>
+                Investigation Framing
+                <span className="text-xs font-normal text-slate-400">(Optional - triage agent will suggest framing from your documents)</span>
               </span>
             </button>
             {showFraming && (
               <div className="px-4 pb-4">
                 <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                  Define problem statements, hypotheses, and gaps to track through the DISCO pipeline.
+                  Define problem statements, hypotheses, and gaps to track through the DISCO pipeline. Why is this investigation worth pursuing?
                 </p>
                 <ThroughlineEditor throughline={throughline} onChange={setThroughline} />
               </div>
@@ -286,7 +372,7 @@ function CreateInitiativeModal({
             className="btn-primary flex items-center gap-2"
           >
             {creating && <Loader2 className="w-4 h-4 animate-spin" />}
-            Create Initiative
+            Create Discovery
           </button>
         </div>
       </div>
@@ -306,7 +392,7 @@ export default function DiscoInitiativesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [createModalOpen, setCreateModalOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'initiatives' | 'workflow' | 'operationalize'>('initiatives')
+  const [activeTab, setActiveTab] = useState<'discoveries' | 'workflow' | 'operationalize'>('discoveries')
 
   const loadInitiatives = async () => {
     try {
@@ -358,7 +444,7 @@ export default function DiscoInitiativesPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex items-center gap-2 text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
-          Loading initiatives...
+          Loading discoveries...
         </div>
       </div>
     )
@@ -379,14 +465,14 @@ export default function DiscoInitiativesPage() {
       {/* Tabs */}
       <div className="flex gap-1 mb-6 border-b border-slate-200 dark:border-slate-700">
         <button
-          onClick={() => setActiveTab('initiatives')}
+          onClick={() => setActiveTab('discoveries')}
           className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-            activeTab === 'initiatives'
+            activeTab === 'discoveries'
               ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
               : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >
-          Initiatives
+          Discoveries
         </button>
         <button
           onClick={() => setActiveTab('workflow')}
@@ -420,14 +506,14 @@ export default function DiscoInitiativesPage() {
       ) : (
         <>
 
-      {/* Header - only show New Initiative button when there are initiatives */}
+      {/* Header - only show New Discovery button when there are initiatives */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-            Initiatives
+            Discoveries
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            {initiatives.length} initiative{initiatives.length !== 1 ? 's' : ''} total
+            {initiatives.length} discover{initiatives.length !== 1 ? 'ies' : 'y'} total
           </p>
         </div>
         {initiatives.length > 0 && (
@@ -436,7 +522,7 @@ export default function DiscoInitiativesPage() {
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            New Initiative
+            New Discovery
           </button>
         )}
       </div>
@@ -473,7 +559,7 @@ export default function DiscoInitiativesPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search initiatives..."
+            placeholder="Search discoveries..."
             className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
         </div>
@@ -509,12 +595,12 @@ export default function DiscoInitiativesPage() {
         <div className="text-center py-12">
           <Folder className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
-            {searchQuery || statusFilter ? 'No matching initiatives' : 'No initiatives yet'}
+            {searchQuery || statusFilter ? 'No matching discoveries' : 'No discoveries yet'}
           </h3>
           <p className="text-slate-500 dark:text-slate-400 mb-4">
             {searchQuery || statusFilter
               ? 'Try adjusting your search or filter'
-              : 'Create your first initiative to get started with DISCO'}
+              : 'Create your first discovery to get started with DISCO'}
           </p>
           {!searchQuery && !statusFilter && (
             <button
@@ -522,7 +608,7 @@ export default function DiscoInitiativesPage() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
             >
               <Plus className="w-4 h-4" />
-              Create Initiative
+              Create Discovery
             </button>
           )}
         </div>

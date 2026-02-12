@@ -138,7 +138,7 @@ const CONSOLIDATED_AGENTS: Record<string, {
     icon: Boxes,
     color: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400',
     name: 'Initiative Builder',
-    description: 'Clusters insights into scored initiative bundles',
+    description: 'Clusters insights into scored proposed initiatives',
     checkpointBefore: 2,
     checkpointAfter: 3
   },

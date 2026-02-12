@@ -31,15 +31,26 @@ def _auto_id_throughline(throughline: Optional[Dict]) -> Optional[Dict]:
 
 @with_db_retry(max_retries=2)
 async def create_initiative(
-    name: str, user_id: str, description: Optional[str] = None, throughline: Optional[Dict] = None
+    name: str,
+    user_id: str,
+    description: Optional[str] = None,
+    throughline: Optional[Dict] = None,
+    target_department: Optional[str] = None,
+    value_alignment: Optional[Dict] = None,
+    sponsor_stakeholder_id: Optional[str] = None,
+    stakeholder_ids: Optional[list] = None,
 ) -> Dict:
-    """Create a new PuRDy initiative.
+    """Create a new discovery (initiative).
 
     Args:
-        name: Initiative name
+        name: Discovery name
         user_id: Creating user's ID
         description: Optional description
         throughline: Optional structured input framing (problem statements, hypotheses, gaps)
+        target_department: Optional target department
+        value_alignment: Optional value alignment (kpis, department_goals, etc.)
+        sponsor_stakeholder_id: Optional executive sponsor UUID
+        stakeholder_ids: Optional list of stakeholder UUIDs
 
     Returns:
         Created initiative record
@@ -71,6 +82,14 @@ async def create_initiative(
         }
         if throughline:
             insert_data["throughline"] = throughline
+        if target_department:
+            insert_data["target_department"] = target_department
+        if value_alignment:
+            insert_data["value_alignment"] = value_alignment
+        if sponsor_stakeholder_id:
+            insert_data["sponsor_stakeholder_id"] = sponsor_stakeholder_id
+        if stakeholder_ids:
+            insert_data["stakeholder_ids"] = stakeholder_ids
 
         # Create the initiative
         result = await asyncio.to_thread(lambda: db.table("disco_initiatives").insert(insert_data).execute())
@@ -297,7 +316,17 @@ async def update_initiative(initiative_id: str, user_id: str, updates: Dict) -> 
         updates["throughline"] = _auto_id_throughline(updates["throughline"])
 
     # Filter allowed fields
-    allowed_fields = {"name", "description", "status", "throughline"}
+    allowed_fields = {
+        "name",
+        "description",
+        "status",
+        "throughline",
+        "target_department",
+        "value_alignment",
+        "sponsor_stakeholder_id",
+        "stakeholder_ids",
+        "resolution_annotations",
+    }
     filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
 
     if not filtered_updates:

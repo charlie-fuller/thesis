@@ -19,6 +19,7 @@ from services.disco.prd_service import (
     suggest_output_type,
     update_prd,
 )
+from services.disco.project_service import create_project_from_bundle
 from services.disco.synthesis_service import (
     approve_bundle,
     create_bundle,
@@ -311,6 +312,42 @@ async def api_split_bundle(
         raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.error(f"Error splitting bundle: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+@router.post("/initiatives/{initiative_id}/bundles/{bundle_id}/create-project")
+async def api_create_project_from_bundle(
+    initiative_id: str,
+    bundle_id: str,
+    current_user: dict = Depends(require_disco_access),
+):
+    """Create a project from an approved bundle."""
+    try:
+        can_edit = await check_permission(initiative_id, current_user["id"], "editor")
+        if not can_edit:
+            raise HTTPException(status_code=403, detail="No edit access to this initiative")
+
+        bundle = await get_bundle(bundle_id)
+        if not bundle or bundle["initiative_id"] != initiative_id:
+            raise HTTPException(status_code=404, detail="Bundle not found")
+
+        if bundle["status"] != "approved":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Bundle must be approved to create a project (current: {bundle['status']})",
+            )
+
+        project = await create_project_from_bundle(
+            bundle=bundle,
+            initiative_id=initiative_id,
+            user_id=current_user["id"],
+            client_id=current_user["client_id"],
+        )
+        return {"success": True, "project": project}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating project from bundle: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
 
 

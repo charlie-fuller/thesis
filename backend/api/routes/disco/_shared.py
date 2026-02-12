@@ -1,7 +1,7 @@
 """Shared models and utilities for DISCo routes."""
 
 import asyncio
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -113,21 +113,55 @@ class ThroughlineResolution(BaseModel):
     so_what: Optional[SoWhat] = None
 
 
+class CreateTasksFromResolution(BaseModel):
+    """Request to create tasks from throughline resolution state changes."""
+
+    output_id: str
+    project_id: Optional[str] = None
+    selected_indices: Optional[List[int]] = None
+
+
+class ValueAlignment(BaseModel):
+    """Flexible value alignment for a discovery."""
+
+    kpis: Optional[List[str]] = None
+    department_goals: Optional[List[str]] = None
+    company_priority: Optional[str] = None
+    strategic_pillar: Optional[Literal["enable", "operationalize", "govern"]] = None
+    notes: Optional[str] = None
+
+
+class ResolutionAnnotations(BaseModel):
+    """User annotations on hypothesis/gap resolutions."""
+
+    hypothesis_overrides: Optional[dict] = None  # { "h-1": { status, note } }
+    gap_overrides: Optional[dict] = None  # { "g-2": { status, note } }
+
+
 class InitiativeCreate(BaseModel):
-    """Create a new initiative."""
+    """Create a new discovery (initiative)."""
 
     name: str
     description: Optional[str] = None
     throughline: Optional[Throughline] = None
+    target_department: Optional[str] = None
+    value_alignment: Optional[ValueAlignment] = None
+    sponsor_stakeholder_id: Optional[str] = None
+    stakeholder_ids: Optional[List[str]] = None
 
 
 class InitiativeUpdate(BaseModel):
-    """Update an existing initiative."""
+    """Update an existing discovery (initiative)."""
 
     name: Optional[str] = None
     description: Optional[str] = None
     status: Optional[str] = None
     throughline: Optional[Throughline] = None
+    target_department: Optional[str] = None
+    value_alignment: Optional[ValueAlignment] = None
+    sponsor_stakeholder_id: Optional[str] = None
+    stakeholder_ids: Optional[List[str]] = None
+    resolution_annotations: Optional[ResolutionAnnotations] = None
 
 
 # ============================================================================
