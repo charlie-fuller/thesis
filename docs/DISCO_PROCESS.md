@@ -20,20 +20,47 @@ Discovery → Intelligence → Synthesis → Convergence → Operationalize
 
 ## Structured Framing (Optional)
 
-Before running the DISCO pipeline, users can add structured input framing to an initiative via the "Structured Framing" section in the create or edit modal:
+Before running the DISCO pipeline, users can add structured input framing to a discovery. There are two approaches:
+
+### Agent-Extracted Framing (Recommended)
+1. Create a discovery with just a name, description, and linked documents
+2. Run the **Triage** agent
+3. The agent analyzes documents using Five Whys and root cause analysis, then suggests problem statements, hypotheses, gaps, KPIs, and stakeholders
+4. A "Review Suggested Framing" panel appears after triage
+5. Accept all, accept selectively, or dismiss
+
+### Manual Framing
+In the create or edit modal, expand "Investigation Framing":
 
 - **Problem Statements**: What problems are we trying to solve? (auto-ID: ps-1, ps-2, ...)
 - **Hypotheses**: What do we believe to be true? Types: assumption, belief, prediction (auto-ID: h-1, h-2, ...)
 - **Known Gaps**: What information are we missing? Categories: data, people, process, capability (auto-ID: g-1, g-2, ...)
-- **Desired Outcome State**: What does the world look like when this initiative succeeds?
+- **Desired Outcome State**: What does the world look like when this discovery succeeds?
 
 When present, the throughline is injected into all 4 agent stages. Each agent references problem statements, evaluates hypotheses against evidence, and tracks gap coverage. At convergence, the Requirements Generator produces a structured **Throughline Resolution** with hypothesis status (confirmed/refuted/inconclusive), gap status (addressed/unaddressed), recommended state changes, and a "So What?" analysis.
 
 ---
 
+## Value Alignment (Optional)
+
+Each discovery can track alignment with organizational value streams. All fields are optional and can be populated progressively:
+
+| Field | Purpose |
+|-------|---------|
+| **Target Department** | Which department this discovery serves |
+| **KPIs** | Measurable outcomes this discovery supports |
+| **Department Goals** | Goals this supports (free text) |
+| **Company Priority** | Which company priority it aligns with |
+| **Strategic Pillar** | Enable, Operationalize, or Govern |
+| **Notes** | Context on how alignment was discovered |
+
+The triage agent can suggest KPIs and department context from documents. Value alignment is validated at the Convergence stage.
+
+---
+
 ## Stage 1: Discovery (D)
 
-**Agent:** Discovery Guide
+**Agent:** Discovery Guide (v1.2)
 
 **Purpose:** Validate whether the problem is worth solving and plan how to gather the necessary information.
 
@@ -41,19 +68,20 @@ When present, the throughline is injected into all 4 agent stages. Each agent re
 1. User uploads relevant documents (meeting notes, research, prior work)
 2. User links existing Knowledge Base documents
 3. Discovery Guide analyzes the materials and runs in one of three modes:
-   - **Triage Mode:** GO/NO-GO gate - determines if the opportunity warrants further investigation
-   - **Planning Mode:** Designs discovery sessions for humans to execute (stakeholder interviews, research tasks)
-   - **Coverage Mode:** Tracks discovery completeness and identifies gaps
+   - **Triage Mode:** GO/NO-GO gate - determines if the opportunity warrants further investigation. Uses Five Whys and root cause analysis. Extracts suggested framing (problem statements, hypotheses, gaps, KPIs, stakeholders) from documents.
+   - **Planning Mode:** Designs discovery sessions for humans to execute (stakeholder interviews, research tasks) with gap-targeted questions
+   - **Coverage Mode:** Tracks discovery completeness, identifies gaps (READY/GAPS), includes "Why This Matters" and absence reports
 
 **Outputs:**
 - Discovery plan with recommended sessions
 - Stakeholder candidates identified from documents
 - Project candidates surfaced from analysis
 - Task candidates for follow-up work
+- Framing suggestions (problem statements, hypotheses, gaps, KPIs) when throughline is sparse
 
-**Human Checkpoint:** Review discovery findings and confirm readiness to proceed to Intelligence stage.
+**Human Checkpoint:** Review discovery findings and suggested framing. Confirm readiness to proceed to Intelligence stage.
 
-**Status:** Initiative moves from `draft` → `triaged` → `in_discovery`
+**Status:** Discovery moves from `draft` → `triaged` → `in_discovery`
 
 ---
 
@@ -79,7 +107,7 @@ When present, the throughline is injected into all 4 agent stages. Each agent re
 
 **Human Checkpoint:** Validate insights, resolve contradictions, confirm recommendation.
 
-**Status:** Initiative moves to `consolidated`
+**Status:** Discovery moves to `consolidated`
 
 ---
 
@@ -87,20 +115,21 @@ When present, the throughline is injected into all 4 agent stages. Each agent re
 
 **Agent:** Initiative Builder
 
-**Purpose:** Cluster validated insights into themed initiative bundles and score them for prioritization.
+**Purpose:** Cluster validated insights into themed proposed initiatives and score them for prioritization.
 
 **What Happens:**
-1. Initiative Builder groups related insights into coherent bundles
-2. Each bundle receives scores:
+1. Initiative Builder groups related insights into coherent proposed initiatives
+2. Each proposed initiative receives scores:
    - **Impact:** HIGH / MEDIUM / LOW
    - **Feasibility:** HIGH / MEDIUM / LOW
    - **Urgency:** HIGH / MEDIUM / LOW
 3. Assigns complexity tier: Light / Medium / Heavy
 4. Identifies dependencies and affected stakeholders
 5. Documents bundling rationale
+6. Notes which throughline items (problem statements, hypotheses) each proposed initiative addresses
 
 **Outputs:**
-- One or more initiative bundles, each containing:
+- One or more proposed initiatives, each containing:
   - Name and description
   - Included insights with mapping
   - Impact, feasibility, urgency scores
@@ -109,41 +138,48 @@ When present, the throughline is injected into all 4 agent stages. Each agent re
   - Dependencies (blockers, parallel work)
   - Bundling rationale
 
-**Human Checkpoint - Bundle Review:**
-Bundles are created with status `proposed`. Users can:
-- **Approve** → Bundle proceeds to Convergence (status: `approved`)
-- **Reject** → Bundle stops here (status: `rejected`)
-- **Merge** → Combine multiple bundles into one
-- **Split** → Divide one bundle into multiple bundles
+**Human Checkpoint - Proposed Initiative Review:**
+Proposed initiatives are created with status `proposed`. Users can:
+- **Approve** → Proposed initiative proceeds to Convergence or direct project creation (status: `approved`)
+- **Reject** → Proposed initiative stops here (status: `rejected`)
+- **Merge** → Combine multiple proposed initiatives into one
+- **Split** → Divide one proposed initiative into multiple
 
-All actions are tracked in bundle feedback for audit purposes.
+All actions are tracked in feedback for audit purposes.
 
-**Status:** Initiative moves to `synthesized`
+**Status:** Discovery moves to `synthesized`
 
 ---
 
 ## Stage 4: Convergence (C)
 
-**Agent:** Requirements Generator
+**Agent:** Requirements Generator (v1.2)
 
-**Purpose:** Transform an approved bundle into a formal output document.
+**Purpose:** Transform an approved proposed initiative into a formal output document.
 
 **What Happens:**
-1. User selects an approved bundle
+1. User selects an approved proposed initiative
 2. User chooses the output document type:
    - **PRD (Product Requirements Document):** For build/development initiatives
    - **Evaluation Framework:** For vendor/tool comparisons and platform selection
    - **Decision Framework:** For governance, policy, and strategic decisions
 3. Requirements Generator produces the document with streaming output
 4. Document is parsed into structured sections automatically
+5. When throughline is present, produces a structured **Throughline Resolution**
 
 **Output Document Types:**
 
 | Type | Best For | Key Sections |
 |------|----------|--------------|
-| **PRD** | Features, systems, development work | Executive Summary, Problem Statement, Goals, Requirements, User Stories, Technical Considerations, Risks |
+| **PRD** | Features, systems, development work | Executive Summary, Problem Statement, Goals, Requirements, User Stories, Technical Considerations, Risks, Tool/Platform Recommendations |
 | **Evaluation Framework** | Tool selection, vendor comparison | Evaluation Scope, Weighted Criteria Matrix, Platform Comparison, Recommendation, Next Steps |
 | **Decision Framework** | Policy, strategy, governance | Decision Context, Stakeholder Analysis, Decision Criteria, Options Analysis, Risk/Benefit Assessment, Implementation |
+
+**All output types include:**
+- Value alignment confirmation (verifies recommendation ties to KPIs)
+- Tool and platform recommendations (simplest effective tool principle)
+- AI risk and compliance review (data classification, EU AI Act, platform governance)
+- Evaluation/QA plan
 
 **Human Checkpoint - Document Review:**
 Documents are created with status `draft`. Users can:
@@ -151,7 +187,7 @@ Documents are created with status `draft`. Users can:
 - **Approve** → Document is locked (status: `approved`), approver recorded
 - **Export** → Send to external system (status: `exported`)
 
-**Status:** Initiative moves to `documented`
+**Status:** Discovery moves to `documented`
 
 ---
 
@@ -163,15 +199,29 @@ Once a document is approved in Convergence, it enters the Operationalize phase. 
 
 ### Post-Processing Options
 
-**1. Project Extraction (AI-Powered)**
+**1a. Direct Project Creation (from Proposed Initiative)**
+- Click "Create Project" on an approved proposed initiative (no PRD required)
+- Score mapping: impact → roi_potential, feasibility → effort, urgency → alignment
+- Name and description pre-filled from proposed initiative
+- Quick path for simpler cases that don't need a full PRD
+
+**1b. Project Extraction from Document (AI-Powered)**
 - AI analyzes the approved document and extracts project fields:
   - Title, description, department
   - Current state and desired state
   - Scores: ROI potential, implementation effort, strategic alignment, stakeholder readiness
   - Initial task list
+- Confidence indicators highlight low-confidence fields for user review
 - Creates a new project in the Projects Pipeline
-- Links back to source DISCO initiative for traceability
+- Links back to source DISCO discovery for traceability
 - Project status set to `identified`
+
+**1c. Task Creation from State Changes**
+- When convergence output includes throughline resolution with state changes, click "Create Tasks from State Changes"
+- Select which state changes to create as tasks
+- Optionally link tasks to a project
+- "Next Human Action" from "So What?" section included as high-priority task option
+- Tasks include `source_initiative_id` and `source_disco_output_id` for traceability
 
 **2. Executive Summary Generation**
 - Summarizes all approved bundles/documents from the initiative
@@ -208,14 +258,17 @@ Once a document is approved in Convergence, it enters the Operationalize phase. 
 DISCO maintains full traceability throughout the process. Every output can be traced back through the chain:
 
 ```
-Project → Document → Bundle → Insights → Discovery Materials → Source Documents
+Task → Project → Document → Proposed Initiative → Insights → Discovery Materials → Source Documents
 ```
+
+Tasks created from state changes include `source_initiative_id` and `source_disco_output_id` for direct traceability. Projects include `source_type: disco_prd` and link to parent discovery via `initiative_ids`.
 
 This audit trail enables:
 - Understanding why decisions were made
 - Revisiting assumptions when circumstances change
 - Demonstrating due diligence in the discovery process
-- Learning from past initiatives
+- Learning from past discoveries
+- Resolution annotations for correcting agent assessments as new information emerges
 
 ---
 
@@ -223,11 +276,11 @@ This audit trail enables:
 
 | Stage | Agent | Key Action | Human Checkpoint | Output |
 |-------|-------|------------|------------------|--------|
-| **D - Discovery** | Discovery Guide | Validate problem, plan discovery | Review findings | Discovery plan, candidates |
+| **D - Discovery** | Discovery Guide (v1.2) | Validate problem, extract framing, plan discovery | Review findings + suggested framing | Discovery plan, candidates, framing suggestions |
 | **I - Intelligence** | Insight Analyst | Extract patterns, consolidate | Validate insights | Decision document |
-| **S - Synthesis** | Initiative Builder | Cluster into bundles, score | Approve/reject bundles | Scored bundles |
-| **C - Convergence** | Requirements Generator | Generate output document | Approve document | PRD / Evaluation / Decision |
-| **O - Operationalize** | (Post-processing) | Extract project, integrate KB | N/A | Projects, KB docs, exports |
+| **S - Synthesis** | Initiative Builder | Cluster into proposed initiatives, score | Approve/reject proposed initiatives | Scored proposed initiatives |
+| **C - Convergence** | Requirements Generator (v1.2) | Generate output document + throughline resolution | Approve document | PRD / Evaluation / Decision + resolution |
+| **O - Operationalize** | (Post-processing) | Create project, create tasks, integrate KB | N/A | Projects, tasks, KB docs, exports |
 
 ---
 

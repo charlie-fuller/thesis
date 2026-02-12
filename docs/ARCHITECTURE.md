@@ -82,27 +82,34 @@ This document contains detailed architecture documentation. For essential Claude
 22. **Meeting Scanner** - Heuristic-based document classification extracts projects, tasks, stakeholders from meeting notes (transcripts, summaries, 1:1s)
 
 ### DISCO (Discovery → Insights → Synthesis → Convergence → Operationalize)
-23. **DISCO KB Integration** - Uses Knowledge Base as single source of truth for documents. Link existing KB documents to initiatives via browser modal with search/tag filtering. Chat includes linked document list for visibility plus vector search for content queries.
+23. **DISCO KB Integration** - Uses Knowledge Base as single source of truth for documents. Link existing KB documents to discoveries via browser modal with search/tag filtering. Chat includes linked document list for visibility plus vector search for content queries.
 24. **DISCO Pipeline** - AI-assisted product discovery with 4 consolidated stage-aligned agents and human-in-the-loop checkpoints:
-    - **Discovery Guide**: Validates problem, plans discovery sessions, tracks coverage (consolidates: Triage, Discovery Planner, Coverage Tracker)
+    - **Discovery Guide**: Validates problem, plans discovery sessions, tracks coverage (consolidates: Triage, Discovery Planner, Coverage Tracker). v1.2 adds Five Whys, root cause analysis, and framing extraction from documents.
     - **Insight Analyst**: Extracts patterns and creates decision document (consolidates: Insight Extractor, Consolidator)
-    - **Initiative Builder**: Clusters insights into scored initiative bundles (consolidates: Strategist)
-    - **Requirements Generator**: Produces PRD with technical recommendations (consolidates: PRD Generator, Tech Evaluation)
-25. **Flexible Output Types** - Bundle approval generates one of three document types based on purpose:
-    - **PRD** (default): Product Requirements Document for build/development bundles
-    - **Evaluation Framework**: Weighted criteria matrix, platform comparison, recommendation for research/evaluation bundles
+    - **Initiative Builder**: Clusters insights into scored proposed initiatives (consolidates: Strategist)
+    - **Requirements Generator**: Produces PRD with technical recommendations, tool/platform guidance, value alignment confirmation, and AI risk/compliance review (consolidates: PRD Generator, Tech Evaluation). v1.2 adds platform recommendations and eval/QA plans.
+25. **Flexible Output Types** - Proposed initiative approval generates one of three document types based on purpose:
+    - **PRD** (default): Product Requirements Document for build/development proposed initiatives
+    - **Evaluation Framework**: Weighted criteria matrix, platform comparison, recommendation for research/evaluation proposed initiatives
     - **Decision Framework**: Decision criteria, stakeholder input, risk/benefit assessment for governance decisions
-    - AI suggests appropriate output type based on bundle content analysis
-26. **Create Project from PRD** - Approved PRDs can spawn projects with AI-extracted fields:
-    - Extracts title, description, department, current/desired state, and scoring dimensions
-    - Confidence indicators highlight low-confidence fields for user review
+    - AI suggests appropriate output type based on proposed initiative content analysis
+    - All output types include value alignment confirmation, tool/platform recommendations, and AI risk/compliance review
+26. **Create Project from Proposed Initiative** - Two paths to project creation:
+    - **Direct**: Approved proposed initiatives can spawn projects directly with score mapping (impact→roi_potential, feasibility→effort, urgency→alignment)
+    - **Via PRD**: Approved PRDs can spawn projects with AI-extracted fields (title, description, department, scoring dimensions, confidence indicators)
     - Optional task extraction from PRD requirements section
-    - Projects linked to parent initiative with `source_type: disco_prd`
-27. **Initiative Projects View** - Dedicated endpoint for querying projects linked to an initiative with "From PRD" source badges
-28. **Initiative Goal Alignment** - Analyzes initiatives against IS FY27 strategic goals (same 4-pillar framework as projects). Uses rich context from agent outputs for scoring. Project roll-up shows linked projects' alignment scores with distribution.
-29. **Initiative Throughline** - Structured input framing for initiatives: problem statements, hypotheses (assumption/belief/prediction), known gaps (data/people/process/capability), and desired outcome state. Throughline is threaded through all 4 DISCO agent stages and resolved at convergence with hypothesis resolutions, gap statuses, state changes, and "So What?" analysis.
+    - Projects linked to parent discovery with `source_type: disco_prd`
+27. **Discovery Projects View** - Dedicated endpoint for querying projects linked to a discovery with source badges
+28. **Discovery Goal Alignment** - Analyzes discoveries against IS FY27 strategic goals (same 4-pillar framework as projects). Uses rich context from agent outputs for scoring. Project roll-up shows linked projects' alignment scores with distribution.
+29. **Discovery Throughline** - Structured input framing for discoveries: problem statements, hypotheses (assumption/belief/prediction), known gaps (data/people/process/capability), and desired outcome state. Throughline is threaded through all 4 DISCO agent stages and resolved at convergence with hypothesis resolutions, gap statuses, state changes, and "So What?" analysis.
+30. **Framing Extraction** - Triage agent automatically suggests throughline elements (problem statements, hypotheses, gaps, KPIs, stakeholders) from linked documents. Post-triage review panel lets users accept or dismiss suggestions. Preferred over manual throughline entry.
+31. **Value Alignment** - Flexible alignment tracking per discovery: target department, KPIs, department goals, company priority, strategic pillar, notes. Populated progressively as information emerges during discovery.
+32. **Sponsor/Stakeholder Linking** - Discoveries can be linked to an executive sponsor and multiple stakeholders from the stakeholder database.
+33. **Resolution Annotations** - Users can override agent-assigned hypothesis/gap resolution statuses with their own assessment and notes. Annotations persist alongside agent output.
+34. **Task Source Tracking** - Tasks created from DISCO convergence state changes include `source_initiative_id` and `source_disco_output_id` for full traceability back to the discovery process.
+35. **Gap Taxonomy** - Reference taxonomy for gap categorization (data/people/process/capability) with investigation focus guidance. Available as KB reference for Discovery Guide agent.
 
-**Consolidated Agent Architecture (v1.1):**
+**Consolidated Agent Architecture (v1.2):**
 | # | Agent | Color | Consolidates | Checkpoint After |
 |---|-------|-------|--------------|------------------|
 | 1 | Discovery Guide | Blue | Triage + Discovery Planner + Coverage Tracker | Ready to Execute Discovery? |
@@ -119,8 +126,8 @@ This document contains detailed architecture documentation. For essential Claude
 
 **Legacy Agent Support:** Original 8 agents available via `include_legacy=true` query param on `/api/disco/agents`. Legacy outputs display correctly in UI.
 
-**Prompt Version:** v1.1 Consolidated (2026-02-12) - Adds throughline awareness to all 4 agents. See `/backend/disco_agents/`
-**Previous Version:** v1.0 (2026-02-02), v4.2 (2026-01-25) - Legacy agents still available for backwards compatibility
+**Prompt Version:** v1.2 Consolidated (2026-02-12) - Discovery Guide adds Five Whys/root cause analysis and framing extraction. Requirements Generator adds tool/platform recommendations, eval/QA plans, value alignment confirmation, AI risk/compliance review. See `/backend/disco_agents/`
+**Previous Version:** v1.1 (2026-02-12) - Throughline awareness, v1.0 (2026-02-02), v4.2 (2026-01-25) - Legacy agents still available for backwards compatibility
 
 ## Database Schema
 
@@ -143,7 +150,7 @@ This document contains detailed architecture documentation. For essential Claude
 - `meeting_room_messages` - Messages with agent attribution
 
 ### Task Management
-- `project_tasks` - Kanban tasks with status, priority, team, embeddings
+- `project_tasks` - Kanban tasks with status, priority, team, embeddings, notes, `source_initiative_id` and `source_disco_output_id` for DISCO traceability
 - `task_candidates` - Auto-extracted pending review with dedup tracking
 - `task_comments` - Comments on tasks
 - `task_history` - Status/priority change history
@@ -176,19 +183,19 @@ This document contains detailed architecture documentation. For essential Claude
 - `compass_status_reports` - Career status reports with rubric scores
 
 ### DISCO Tables (formerly PuRDy - `purdy_*` table names still accepted for backwards compatibility)
-- `disco_initiatives` - Initiative container (includes `goal_alignment_score`, `goal_alignment_details` for strategic alignment, `throughline` JSONB for structured input framing)
+- `disco_initiatives` - Discovery container (includes `goal_alignment_score`, `goal_alignment_details` for strategic alignment, `throughline` JSONB for structured input framing, `value_alignment` JSONB for KPIs/goals/pillar, `target_department`, `sponsor_stakeholder_id`, `stakeholder_ids UUID[]`, `resolution_annotations` JSONB for user overrides)
 - `disco_initiative_members` - Multi-user sharing
-- `disco_documents` - Per-initiative documents
+- `disco_documents` - Per-discovery documents
 - `disco_document_chunks` - Chunked + embedded for RAG
 - `disco_runs` - Agent run metadata
 - `disco_run_documents` - Documents used per run
-- `disco_outputs` - Versioned agent outputs (all agents), `last_run_at` for staleness tracking, `throughline_resolution` JSONB for convergence resolution
+- `disco_outputs` - Versioned agent outputs (all agents), `last_run_at` for staleness tracking, `throughline_resolution` JSONB for convergence resolution, `triage_suggestions` JSONB for framing extraction
 - `disco_conversations` - Chat sessions
 - `disco_messages` - Chat messages
 - `disco_system_kb` - Global methodology KB
 - `disco_system_kb_chunks` - KB chunks for RAG
-- `disco_bundles` - Initiative bundles from Strategist (scores, rationale, dependencies)
-- `disco_prds` - PRD documents from PRD Generator (structured + markdown)
+- `disco_bundles` - Proposed initiatives from Strategist (scores, rationale, dependencies)
+- `disco_prds` - PRD documents from Requirements Generator (structured + markdown)
 - `disco_checkpoints` - Human-in-the-loop approval gates between consolidated agents (status, checklist_items, approved_at/by)
 
 ## Database Migrations
@@ -230,6 +237,7 @@ Run migrations in order from `/database/migrations/`:
 | 069 | task_view_with_project | Task view with project info join |
 | 070 | task_notes | Notes field on tasks |
 | 071 | initiative_throughline | Throughline + throughline_resolution JSONB columns |
+| 072 | disco_restructure | Value alignment, sponsor/stakeholder, resolution annotations on `disco_initiatives`; triage_suggestions on `disco_outputs`; source tracking on `project_tasks` |
 
 ## Important Files Reference
 
@@ -287,8 +295,10 @@ Run migrations in order from `/database/migrations/`:
 
 ### DISCO Agent Prompts
 - `/backend/disco_agents/` - Agent prompt definitions (versioned markdown) (formerly `purdy_agents/`, path alias still supported)
-  - **Consolidated (v1.1):** `discovery-guide-v1.1.md`, `insight-analyst-v1.1.md`, `initiative-builder-v1.1.md`, `requirements-generator-v1.1.md`
-  - **Legacy:** `triage-v4.2.md`, `discovery-planner-v4.1.md`, `coverage-tracker-v4.1.md`, `insight-extractor-v4.2.md`, `consolidator-v4.2.md`, `tech-evaluation-v4.0.md`, `strategist-v1.0.md`, `prd-generator-v1.0.md`
+  - **Consolidated (v1.2):** `discovery-guide-v1.2.md`, `insight-analyst-v1.1.md`, `initiative-builder-v1.1.md`, `requirements-generator-v1.2.md`
+  - **KB References:** `KB/gap-taxonomy-reference.md` - Gap categorization taxonomy for Discovery Guide
+  - **Output Templates:** `evaluation-framework-v1.0.md`, `decision-framework-v1.0.md`, `prd-generator-v1.0.md`, `strategist-v1.0.md`
+  - **Legacy:** `triage-v4.2.md`, `discovery-planner-v4.1.md`, `coverage-tracker-v4.1.md`, `insight-extractor-v4.2.md`, `consolidator-v4.2.md`, `tech-evaluation-v4.0.md`
   - `RUBRIC-v3.0.md` - Scoring rubric for evaluation
   - `EVALUATION-v4.2-RESULTS.md` - Latest evaluation results
 - `/frontend/components/projects/` - Project components
@@ -337,6 +347,9 @@ See `/docs/AGENT_GUARDRAILS.md` for complete rules.
 | test_obsidian_sync.py | 45+ | PASS |
 | test_vibe_coding_bugs.py | 34 | PASS |
 | test_rigorous.py | 65 | PASS |
+| test_disco_initiative_service.py | 20+ | PASS |
+| test_disco_throughline.py | 20+ | PASS |
+| test_disco_restructure.py | 46 | PASS |
 
 ### Running Tests
 ```bash

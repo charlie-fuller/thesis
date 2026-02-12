@@ -570,3 +570,60 @@ Initiatives can now include structured input framing that threads through all 4 
 - Color-coded resolution display in OutputViewer (green/red/amber status badges)
 
 **Files**: `database/migrations/071_initiative_throughline.sql`, `backend/api/routes/disco/_shared.py`, `backend/services/disco/initiative_service.py`, `backend/services/disco/agent_service.py`, `backend/disco_agents/*-v1.1.md` (4 files), `frontend/components/disco/ThroughlineEditor.tsx`, `frontend/components/disco/ThroughlineSummary.tsx`, `frontend/app/disco/page.tsx`, `frontend/app/disco/[id]/page.tsx`, `frontend/components/disco/OutputViewer.tsx`
+
+### DISCO Pipeline Restructuring
+
+Comprehensive restructuring of the DISCO process based on UNHYPED methodology alignment. Renames user-facing terminology, deepens discovery analysis, strengthens convergence output, and completes the initiative-to-task spine.
+
+**Terminology Changes** (UI text only, no database renames):
+- "Initiative" renamed to "Discovery" in all user-facing text
+- "Bundle" renamed to "Proposed Initiative" throughout UI
+- Help documentation updated to match new terminology
+
+**Value Alignment**:
+- New flexible alignment model per discovery: target department, KPIs, department goals, company priority, strategic pillar, notes
+- All fields optional - populated progressively as information emerges during discovery
+- KPI tags and department goal badges displayed in discovery header
+- Triage agent suggests KPIs and department context from linked documents
+
+**Sponsor and Stakeholder Linking**:
+- Executive sponsor field linked to stakeholders database
+- Multiple stakeholder selection for involved parties
+- Displayed in discovery header and create/edit modal
+
+**Framing Extraction (Agent-Suggested Throughline)**:
+- Triage agent analyzes linked documents and suggests problem statements, hypotheses, gaps, KPIs, and stakeholders
+- Post-triage "Review Suggested Framing" panel for accepting or dismissing suggestions
+- Framing hints in UI guide users to run triage before manually defining throughline
+- Preferred workflow: link documents, run triage, review extracted framing
+
+**Discovery Depth (Discovery Guide v1.2)**:
+- Five Whys root cause analysis added to triage mode
+- Framing extraction from documents during triage
+- Gap taxonomy KB reference (data/people/process/capability) with investigation focus guidance
+- Coverage tracker includes "Why This Matters" and absence reports
+
+**Convergence Output (Requirements Generator v1.2)**:
+- Tool and platform recommendations (simplest effective tool principle)
+- Evaluation and QA plans
+- Value alignment confirmation (verifies recommendation ties to KPIs)
+- AI risk and compliance review (data classification, EU AI Act, platform governance)
+
+**Direct Project Creation from Proposed Initiatives**:
+- "Create Project" button on approved proposed initiatives (bypasses PRD generation)
+- Score mapping: impact → roi_potential, feasibility → effort, urgency → alignment
+- Projects linked to parent discovery for traceability
+
+**Task Creation from State Changes**:
+- "Create Tasks from State Changes" button on convergence output
+- Select which state changes to create as tasks
+- Tasks include `source_initiative_id` and `source_disco_output_id` for traceability
+- "Next Human Action" from "So What?" section included as high-priority task option
+- Tasks tagged with "disco" for filtering
+
+**Resolution Annotations**:
+- Users can override agent-assigned hypothesis/gap resolution statuses
+- Status overrides with optional notes (e.g., "You: refuted" with explanation)
+- Annotations persist alongside agent output for correction tracking
+
+**Files**: `database/migrations/072_disco_restructure.sql`, `backend/api/routes/disco/_shared.py`, `backend/api/routes/disco/initiatives.py`, `backend/api/routes/disco/synthesis.py`, `backend/disco_agents/discovery-guide-v1.2.md`, `backend/disco_agents/requirements-generator-v1.2.md`, `backend/disco_agents/KB/gap-taxonomy-reference.md`, `backend/services/disco/agent_service.py`, `backend/services/disco/initiative_service.py`, `backend/services/disco/project_service.py`, `frontend/app/disco/page.tsx`, `frontend/app/disco/[id]/page.tsx`, `frontend/components/disco/OutputViewer.tsx`, `frontend/components/disco/SynthesisView.tsx`, `frontend/components/disco/ThroughlineSummary.tsx`, `frontend/components/disco/CheckpointPanel.tsx`, `frontend/components/disco/DiscoProcessMap.tsx`, `frontend/components/disco/DiscoOperationalizeMap.tsx` (28 files total)

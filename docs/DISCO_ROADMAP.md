@@ -157,6 +157,42 @@ Add embedded projects list in initiative detail view (optional):
 
 ---
 
+## Part 4: Pipeline Restructuring (Completed Feb 12, 2026)
+
+Based on UNHYPED methodology alignment analysis.
+
+### 4.1 Terminology Rename
+**Completed.** "Initiative" renamed to "Discovery" and "Bundle" renamed to "Proposed Initiative" in all user-facing UI text. Database table names unchanged.
+
+### 4.2 Value Alignment Model
+**Completed.** Flexible value alignment fields on discoveries: target_department, KPIs, department_goals, company_priority, strategic_pillar, notes. All optional, populated progressively.
+
+### 4.3 Sponsor/Stakeholder Linking
+**Completed.** Executive sponsor and multiple stakeholders linkable from stakeholder database.
+
+### 4.4 Framing Extraction (Agent-Suggested Throughline)
+**Completed.** Triage agent extracts suggested framing from documents using Five Whys and root cause analysis. Post-triage review panel for accepting suggestions. Preferred over manual throughline entry.
+
+### 4.5 Discovery Depth (Discovery Guide v1.2)
+**Completed.** Five Whys, root cause analysis, gap taxonomy KB reference, enhanced coverage tracking with "Why This Matters" and absence reports.
+
+### 4.6 Convergence Output (Requirements Generator v1.2)
+**Completed.** Tool/platform recommendations, eval/QA plans, value alignment confirmation, AI risk/compliance review.
+
+### 4.7 Direct Project Creation
+**Completed.** Approved proposed initiatives can create projects directly (bypassing PRD) with score mapping.
+
+### 4.8 Task Creation from State Changes
+**Completed.** Create tasks from convergence state changes with DISCO source tracking.
+
+### 4.9 Resolution Annotations
+**Completed.** User overrides for hypothesis/gap resolution statuses with notes.
+
+**Migration:** `072_disco_restructure.sql`
+**Files:** 28 files across backend and frontend
+
+---
+
 ## Related Files Reference
 
 **Backend:**
