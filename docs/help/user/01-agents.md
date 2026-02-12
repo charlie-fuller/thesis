@@ -127,6 +127,15 @@ Win capture, performance tracking, check-in preparation, strategic alignment wit
 
 ---
 
+### Task Management
+
+**Taskmaster** (Task Planning)
+Creates sequenced task plans from chat conversations. Analyzes project context to propose ordered tasks with priorities, descriptions, and dependencies. Tasks appear as proposal cards you can accept or reject.
+
+*Best for:* "Create a task plan for this project" or "Break this initiative into action items"
+
+---
+
 ### Context-Aware Agents
 
 These agents are specialized for conversations within a specific project or initiative context. They're auto-selected when you navigate to chat from a project or initiative.

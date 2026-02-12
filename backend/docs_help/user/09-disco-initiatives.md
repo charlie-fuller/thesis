@@ -17,6 +17,7 @@ If this is your first initiative, click **Create Initiative** in the empty state
 Fill in the **Create New Initiative** modal:
 - **Name** (required) - What you're exploring
 - **Description** - Context for the agents
+- **Structured Framing** (optional) - Click the chevron to expand and define your throughline upfront
 
 Click **Create Initiative**. You'll land on the initiative detail view.
 
@@ -34,7 +35,9 @@ Every initiative has five tabs:
 | **Projects** | See and manage projects linked to this initiative |
 | **Alignment** | Analyze how well the initiative aligns with strategic goals |
 
-**Editing name and description:** Click the initiative name or description in the header to open an edit modal. This provides more space for editing multi-line descriptions than inline editing.
+**Editing name and description:** Click the initiative name or description in the header to open an edit modal. This provides more space for editing multi-line descriptions than inline editing. You can also edit the throughline from here.
+
+**Throughline summary:** If you defined a throughline, a compact summary appears below the description showing counts of problem statements, hypotheses, and gaps. Click to expand the full detail.
 
 **Chat Button:** In the header area, click the **Chat** button to open the main chat interface with full initiative context. This redirects to `/chat?initiative_id=xxx` with the Initiative Agent auto-selected.
 
@@ -48,6 +51,51 @@ Every initiative has five tabs:
 - Click a project to navigate to its detail view
 - See project status and tier at a glance
 - **Active only** toggle (on by default) - hides archived projects
+
+---
+
+## Throughline: Structured Input Framing
+
+The Throughline is an optional but powerful way to give your initiative structured direction from the start. It defines what you're trying to solve, what you believe, and what you don't know.
+
+### What Goes in a Throughline
+
+| Section | Purpose | Example |
+|---------|---------|---------|
+| **Problem Statements** | What you're trying to solve | "Our enterprise customers churn at 2x the rate after year one" |
+| **Hypotheses** | What you believe to be true (to validate or refute) | "AI-assisted onboarding will reduce time-to-value by 40%" |
+| **Gaps** | What you don't know yet | "No data on competitor retention strategies" |
+| **Desired Outcome State** | What success looks like | "Clear retention playbook with executive buy-in" |
+
+### Setting Up a Throughline
+
+1. When creating or editing an initiative, expand **Structured Framing**
+2. Add items to each section using the **+ Add** buttons
+3. Each hypothesis has a type: `assumption`, `belief`, or `prediction`
+4. Each gap has a type: `data`, `people`, `process`, or `capability`
+5. Items get auto-assigned IDs (ps-1, h-1, g-1) for tracking
+
+### How Agents Use the Throughline
+
+When a throughline is defined, all four DISCO stages reference it:
+
+- **Discovery Guide**: Evaluates problem statements against the triage gate, designs sessions targeting specific gaps
+- **Insight Analyst**: Maps findings to hypothesis IDs, tracks which gaps are addressed
+- **Initiative Builder**: Notes which problem statements and hypotheses each bundle addresses
+- **Requirements Generator**: Produces a structured **Throughline Resolution** with hypothesis verdicts, gap statuses, recommended state changes, and a "So What?" synthesis
+
+### Throughline Resolution
+
+After running the Requirements Generator (Convergence stage), the output includes a resolution section showing:
+
+- **Hypothesis verdicts**: confirmed, refuted, or inconclusive (with evidence)
+- **Gap statuses**: addressed, partially addressed, or unaddressed (with findings)
+- **Recommended state changes**: specific actions to take
+- **So What?**: The bottom line - what should change, what's the next human action, and what's the kill test
+
+Resolution results appear color-coded in the output viewer (green = confirmed/addressed, red = refuted/unaddressed, yellow = inconclusive/partial).
+
+The throughline is entirely optional. Initiatives without one work exactly the same as before.
 
 ---
 

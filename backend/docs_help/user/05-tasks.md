@@ -11,12 +11,14 @@ Because what's the point of great AI insights if you don't actually do anything 
 Go to **Tasks** in the navigation.
 
 You'll see four columns:
-- **Backlog** - Ideas, someday items
-- **Todo** - Ready to work on
+- **To Do** - Ready to work on
 - **In Progress** - Currently happening
+- **Blocked** - Waiting on something
 - **Done** - Completed
 
 Drag cards between columns to update status.
+
+**Column sorting:** Click the sort icon in any column header to change the order. Options include position (default), priority, due date, newest first, oldest first, and sequence number (for Taskmaster-created plans).
 
 ---
 
@@ -28,8 +30,11 @@ Click **+ Add Task** at the top of any column.
 - **Title** - What needs to be done
 - **Description** - Details and context
 - **Priority** - P1 (urgent) through P4 (low)
-- **Assignee** - Link to a stakeholder
+- **Assignee** - Link to a stakeholder or team member
 - **Due Date** - When it needs to happen
+- **Team** - Department assignment (Engineering, Product, People, etc.)
+- **Notes** - Free-text field for additional context, updates, or reminders
+- **Project** - Link to an existing project for traceability
 
 **Priority colors:**
 - P1: Red (do this now)
@@ -64,9 +69,22 @@ In the detail view, you can:
 
 ---
 
-## Extracting Tasks from Meetings
+## Creating Task Plans with Taskmaster
 
-Here's where it gets interesting.
+Ask Taskmaster to create a sequenced plan and it will generate an ordered set of tasks linked to a project.
+
+**How to use it:**
+1. In Chat, mention `@taskmaster` or let Auto mode route to it
+2. Ask something like: "Create a task plan for the platform migration project"
+3. Taskmaster proposes a numbered sequence of tasks with descriptions, priorities, and dependencies
+4. Review the proposal cards that appear in chat
+5. Click **Accept All** to create them, or review individually
+
+Tasks created by Taskmaster include sequence numbers (01, 02, 03...) so they display in order on the Kanban board. Use the **Sequence** sort option in column headers to see them in plan order.
+
+---
+
+## Extracting Tasks from Meetings
 
 After a meeting room discussion, you can extract action items:
 1. Upload a meeting transcript
@@ -84,9 +102,14 @@ The agents surface what needs to happen next.
 
 Above the board:
 - **Search** by task title
-- **Filter** by priority
-- **Filter** by assignee
+- **Filter** by assignee - Cascades by team and project selection
+- **Filter** by team - Department filter (Engineering, Product, People, etc.)
 - **Filter** by project - See only tasks linked to a specific project
+- **Filter** by priority
+- **Filter** by date range
+- **Filter** by source - Manual, conversation, or agent-created
+
+Filters cascade: selecting a team narrows the assignee dropdown to people in that team. Selecting a project narrows to assignees on that project.
 
 Useful when the board gets full.
 

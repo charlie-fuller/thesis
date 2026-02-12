@@ -20,6 +20,8 @@ Above the message input, you'll see the **Agent Selector**.
 
 **Manual Selection**: Click the dropdown and pick specific agents. You can select up to three. Each will respond to your query from their perspective.
 
+**Agent stickiness**: Once an agent is selected (manually or via routing), subsequent messages in the same conversation stay with that agent rather than re-routing every time. This gives you a more natural back-and-forth. Start a new conversation or manually switch agents to change.
+
 **When to use Auto vs. Manual:**
 - Auto when you're not sure who should answer
 - Manual when you have a specific question for a specific domain
@@ -47,6 +49,7 @@ It's like being able to tap someone on the shoulder mid-conversation. The agent 
 - `@catalyst`, `@scholar`, `@echo`, `@compass`
 - `@nexus`, `@facilitator`, `@reporter`
 - `@glean` (for Glean Evaluator)
+- `@taskmaster` (for task plan creation)
 - `@project_agent`, `@initiative_agent` (for context-specific discussions)
 
 ---
