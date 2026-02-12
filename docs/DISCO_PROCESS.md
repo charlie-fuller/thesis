@@ -18,6 +18,19 @@ Discovery → Intelligence → Synthesis → Convergence → Operationalize
 
 ---
 
+## Structured Framing (Optional)
+
+Before running the DISCO pipeline, users can add structured input framing to an initiative via the "Structured Framing" section in the create or edit modal:
+
+- **Problem Statements**: What problems are we trying to solve? (auto-ID: ps-1, ps-2, ...)
+- **Hypotheses**: What do we believe to be true? Types: assumption, belief, prediction (auto-ID: h-1, h-2, ...)
+- **Known Gaps**: What information are we missing? Categories: data, people, process, capability (auto-ID: g-1, g-2, ...)
+- **Desired Outcome State**: What does the world look like when this initiative succeeds?
+
+When present, the throughline is injected into all 4 agent stages. Each agent references problem statements, evaluates hypotheses against evidence, and tracks gap coverage. At convergence, the Requirements Generator produces a structured **Throughline Resolution** with hypothesis status (confirmed/refuted/inconclusive), gap status (addressed/unaddressed), recommended state changes, and a "So What?" analysis.
+
+---
+
 ## Stage 1: Discovery (D)
 
 **Agent:** Discovery Guide

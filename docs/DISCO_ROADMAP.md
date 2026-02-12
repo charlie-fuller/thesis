@@ -132,9 +132,28 @@ Add embedded projects list in initiative detail view (optional):
 
 ## Implementation Priority
 
-1. **High Priority:** Create Project from PRD (closes the workflow loop)
-2. **Medium Priority:** Flexible output types (enables research initiatives)
-3. **Low Priority:** Embedded projects view (nice-to-have, current linking works)
+1. ~~**High Priority:** Create Project from PRD (closes the workflow loop)~~ **COMPLETED** (Feb 4, 2026)
+2. ~~**Medium Priority:** Flexible output types (enables research initiatives)~~ **COMPLETED** (Feb 4, 2026)
+3. ~~**Low Priority:** Embedded projects view (nice-to-have, current linking works)~~ **COMPLETED** (Feb 4, 2026)
+
+---
+
+## Part 3: Throughline Enhancement (Completed Feb 12, 2026)
+
+### 3.1 Structured Input Framing
+
+**Completed.** Initiatives now support structured throughline data: problem statements, hypotheses (with type: assumption/belief/prediction), known gaps (with type: data/people/process/capability), and desired outcome state.
+
+### 3.2 Agent Throughline Threading
+
+**Completed.** All 4 consolidated agents updated to v1.1 prompts with throughline awareness. Throughline context injected into agent prompts when present.
+
+### 3.3 Convergence Resolution
+
+**Completed.** Requirements Generator produces structured throughline resolution: hypothesis resolutions, gap statuses, state changes, and "So What?" analysis. Parsed and stored in `disco_outputs.throughline_resolution`.
+
+**Migration:** `071_initiative_throughline.sql`
+**Files:** `backend/disco_agents/*-v1.1.md`, `backend/services/disco/agent_service.py`, `frontend/components/disco/ThroughlineEditor.tsx`, `frontend/components/disco/ThroughlineSummary.tsx`
 
 ---
 

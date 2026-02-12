@@ -489,3 +489,84 @@ Chat conversations started from a project context now have RAG search scoped to 
 - Project dropdown in chat sidebar now loads correctly
 
 **Files**: `backend/api/routes/chat.py`, `backend/services/project_chat.py`, `frontend/components/ConversationSidebar.tsx`
+
+---
+
+## February 7-12, 2026
+
+### Taskmaster Sequenced Task Plans
+
+Taskmaster can now create multi-step task plans directly from chat with sequenced execution order.
+
+**Features**:
+- Users describe a goal in chat; Taskmaster generates a sequenced plan of tasks
+- Task proposals displayed as interactive cards in the chat stream
+- Each task has a sequence number for execution order
+- Accept/reject individual tasks or approve entire plan
+- Accepted tasks created on the Kanban board ordered by sequence number
+
+**Files**: `backend/api/routes/chat.py`, `backend/api/routes/tasks.py`, `backend/system_instructions/agents/taskmaster.xml`, `frontend/components/chat/TaskProposalCard.tsx`
+
+### Task Board Improvements
+
+Multiple enhancements to the task Kanban board for better usability.
+
+**Changes**:
+- **Notes field**: Tasks now have a free-text notes field for additional context
+- **Condensed ticket layout**: Tighter card design with more visible information density
+- **Sequence sort**: Column headers include option to sort by sequence number (for Taskmaster plans)
+- **Cascade filtering**: Selecting a team or project cascades to filter the assignee dropdown accordingly
+- **Project info on cards**: Task cards display associated project name
+- **Stakeholder dropdown fix**: Properly loads stakeholder list in task create modal
+
+**Files**: `frontend/components/tasks/TaskCreateModal.tsx`, `frontend/components/tasks/TaskKanbanBoard.tsx`, `frontend/components/tasks/TaskColumn.tsx`, `frontend/components/tasks/TaskFilters.tsx`, `database/migrations/070_task_notes.sql`
+
+### HR to People Rename
+
+Renamed "HR" to "People" across all team/department dropdowns and labels for consistency with modern organizational terminology.
+
+**Files**: 16 files across backend and frontend
+
+### Chat Agent Routing Improvements
+
+Multiple fixes to ensure agents maintain identity and routing works correctly.
+
+**Fixes**:
+- Agent sticks with current selection instead of re-routing every message
+- Agent identity no longer confused when switching agents mid-conversation
+- @mention routing now supports taskmaster, project_agent, and initiative_agent
+- @mentions take priority over default UI agent selection
+- Project, initiative, and agent selections restored when returning to a conversation
+- Dig-deeper links now work correctly on streamed messages
+
+**Files**: `backend/services/chat_agent_service.py`, `backend/api/routes/chat.py`, `frontend/components/ChatInterface.tsx`
+
+### DISCO Throughline Enhancement
+
+Initiatives can now include structured input framing that threads through all 4 DISCO pipeline stages.
+
+**Structured Inputs** (at initiative creation/edit):
+- Problem statements with auto-generated IDs (ps-1, ps-2, ...)
+- Hypotheses with type classification (assumption, belief, prediction)
+- Known gaps with category (data, people, process, capability)
+- Desired outcome state
+
+**Agent Threading**:
+- All 4 agents receive throughline context in their prompts (v1.1 prompts)
+- Discovery Guide evaluates problem statements, targets gaps, reports per-hypothesis evidence
+- Insight Analyst maps findings to hypothesis IDs, tracks gap coverage
+- Initiative Builder traces bundles to throughline items
+- Requirements Generator produces structured resolution
+
+**Convergence Resolution** (structured output from requirements_generator):
+- Hypothesis resolution table (confirmed/refuted/inconclusive with evidence)
+- Gap status table (addressed/unaddressed/partially_addressed with findings)
+- Recommended state changes with owners and deadlines
+- "So What?" section: proposed state change, next human action, kill test
+
+**Frontend**:
+- Collapsible "Structured Framing" section in create/edit modals
+- ThroughlineSummary component in initiative header with compact pills and expandable detail
+- Color-coded resolution display in OutputViewer (green/red/amber status badges)
+
+**Files**: `database/migrations/071_initiative_throughline.sql`, `backend/api/routes/disco/_shared.py`, `backend/services/disco/initiative_service.py`, `backend/services/disco/agent_service.py`, `backend/disco_agents/*-v1.1.md` (4 files), `frontend/components/disco/ThroughlineEditor.tsx`, `frontend/components/disco/ThroughlineSummary.tsx`, `frontend/app/disco/page.tsx`, `frontend/app/disco/[id]/page.tsx`, `frontend/components/disco/OutputViewer.tsx`

@@ -63,7 +63,7 @@ This document contains detailed architecture documentation. For essential Claude
 
 ### Task & Project Management
 11. **Auto-Generated Titles** - Conversation titles from initial message
-12. **Task Management** - Kanban board with auto-extraction from documents
+12. **Task Management** - Kanban board with auto-extraction from documents, Taskmaster sequenced task plans from chat, notes field, cascade filtering by team/project/assignee
 13. **Project Triage (Operator)** - AI project pipeline with tier-based scoring
 14. **Projects Pipeline** - Pipeline and Analysis tabs with scatter plot visualization, project-scoped chat with RAG search limited to linked documents
 
@@ -100,8 +100,9 @@ This document contains detailed architecture documentation. For essential Claude
     - Projects linked to parent initiative with `source_type: disco_prd`
 27. **Initiative Projects View** - Dedicated endpoint for querying projects linked to an initiative with "From PRD" source badges
 28. **Initiative Goal Alignment** - Analyzes initiatives against IS FY27 strategic goals (same 4-pillar framework as projects). Uses rich context from agent outputs for scoring. Project roll-up shows linked projects' alignment scores with distribution.
+29. **Initiative Throughline** - Structured input framing for initiatives: problem statements, hypotheses (assumption/belief/prediction), known gaps (data/people/process/capability), and desired outcome state. Throughline is threaded through all 4 DISCO agent stages and resolved at convergence with hypothesis resolutions, gap statuses, state changes, and "So What?" analysis.
 
-**Consolidated Agent Architecture (v1.0):**
+**Consolidated Agent Architecture (v1.1):**
 | # | Agent | Color | Consolidates | Checkpoint After |
 |---|-------|-------|--------------|------------------|
 | 1 | Discovery Guide | Blue | Triage + Discovery Planner + Coverage Tracker | Ready to Execute Discovery? |
@@ -118,8 +119,8 @@ This document contains detailed architecture documentation. For essential Claude
 
 **Legacy Agent Support:** Original 8 agents available via `include_legacy=true` query param on `/api/disco/agents`. Legacy outputs display correctly in UI.
 
-**Prompt Version:** v1.0 Consolidated (2026-02-02) - See `/backend/disco_agents/`
-**Previous Version:** v4.2 (2026-01-25) - Legacy agents still available for backwards compatibility
+**Prompt Version:** v1.1 Consolidated (2026-02-12) - Adds throughline awareness to all 4 agents. See `/backend/disco_agents/`
+**Previous Version:** v1.0 (2026-02-02), v4.2 (2026-01-25) - Legacy agents still available for backwards compatibility
 
 ## Database Schema
 
@@ -175,13 +176,13 @@ This document contains detailed architecture documentation. For essential Claude
 - `compass_status_reports` - Career status reports with rubric scores
 
 ### DISCO Tables (formerly PuRDy - `purdy_*` table names still accepted for backwards compatibility)
-- `disco_initiatives` - Initiative container (includes `goal_alignment_score`, `goal_alignment_details` for strategic alignment)
+- `disco_initiatives` - Initiative container (includes `goal_alignment_score`, `goal_alignment_details` for strategic alignment, `throughline` JSONB for structured input framing)
 - `disco_initiative_members` - Multi-user sharing
 - `disco_documents` - Per-initiative documents
 - `disco_document_chunks` - Chunked + embedded for RAG
 - `disco_runs` - Agent run metadata
 - `disco_run_documents` - Documents used per run
-- `disco_outputs` - Versioned agent outputs (all agents), `last_run_at` for staleness tracking
+- `disco_outputs` - Versioned agent outputs (all agents), `last_run_at` for staleness tracking, `throughline_resolution` JSONB for convergence resolution
 - `disco_conversations` - Chat sessions
 - `disco_messages` - Chat messages
 - `disco_system_kb` - Global methodology KB
@@ -226,6 +227,9 @@ Run migrations in order from `/database/migrations/`:
 | 065 | project_documents | Project-document linking |
 | 066 | conversation_context_columns | Context linking for conversations |
 | 067 | initiative_goal_alignment | Goal alignment columns on `disco_initiatives` |
+| 069 | task_view_with_project | Task view with project info join |
+| 070 | task_notes | Notes field on tasks |
+| 071 | initiative_throughline | Throughline + throughline_resolution JSONB columns |
 
 ## Important Files Reference
 
@@ -270,7 +274,7 @@ Run migrations in order from `/database/migrations/`:
 - `/frontend/app/tasks/` - Kanban board
 - `/frontend/app/projects/` - Project pipeline
 - `/frontend/app/disco/` - DISCO feature (formerly `purdy/`, route `/purdy` still redirects)
-- `/frontend/components/disco/` - DISCO components (7 files) (formerly `purdy/`)
+- `/frontend/components/disco/` - DISCO components (9 files, including ThroughlineEditor, ThroughlineSummary) (formerly `purdy/`)
 
 ### KB Components (Finder-Style Layout)
 - `/frontend/components/kb/KBDocumentsContent.tsx` - Orchestrator (~300 lines): manages folder/search/filter state, toolbar, sidebar+content flex layout, modals
@@ -283,9 +287,8 @@ Run migrations in order from `/database/migrations/`:
 
 ### DISCO Agent Prompts
 - `/backend/disco_agents/` - Agent prompt definitions (versioned markdown) (formerly `purdy_agents/`, path alias still supported)
-  - `triage-v4.2.md`, `discovery-planner-v4.1.md`, `coverage-tracker-v4.1.md`
-  - `insight-extractor-v4.2.md`, `consolidator-v4.2.md`, `tech-evaluation-v4.0.md`
-  - `strategist-v1.0.md`, `prd-generator-v1.0.md`
+  - **Consolidated (v1.1):** `discovery-guide-v1.1.md`, `insight-analyst-v1.1.md`, `initiative-builder-v1.1.md`, `requirements-generator-v1.1.md`
+  - **Legacy:** `triage-v4.2.md`, `discovery-planner-v4.1.md`, `coverage-tracker-v4.1.md`, `insight-extractor-v4.2.md`, `consolidator-v4.2.md`, `tech-evaluation-v4.0.md`, `strategist-v1.0.md`, `prd-generator-v1.0.md`
   - `RUBRIC-v3.0.md` - Scoring rubric for evaluation
   - `EVALUATION-v4.2-RESULTS.md` - Latest evaluation results
 - `/frontend/components/projects/` - Project components
