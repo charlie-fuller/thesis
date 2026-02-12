@@ -12,12 +12,14 @@ import {
   Search,
   Users,
   ChevronRight,
+  ChevronDown,
   Loader2,
   Map,
   GitBranch
 } from 'lucide-react'
 import DiscoProcessMap from '@/components/disco/DiscoProcessMap'
 import DiscoOperationalizeMap from '@/components/disco/DiscoOperationalizeMap'
+import ThroughlineEditor, { type Throughline } from '@/components/disco/ThroughlineEditor'
 import { apiGet, apiPost } from '@/lib/api'
 
 // ============================================================================
@@ -38,6 +40,7 @@ interface Initiative {
     name: string
     email: string
   }
+  throughline?: Throughline | null
   latest_outputs?: Record<string, {
     agent_type: string
     version: number
@@ -156,6 +159,15 @@ function CreateInitiativeModal({
   const [description, setDescription] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showFraming, setShowFraming] = useState(false)
+  const [throughline, setThroughline] = useState<Throughline>({})
+
+  const hasThroughlineData = (t: Throughline) => {
+    return (t.problem_statements && t.problem_statements.length > 0 && t.problem_statements.some(ps => ps.text.trim())) ||
+           (t.hypotheses && t.hypotheses.length > 0 && t.hypotheses.some(h => h.statement.trim())) ||
+           (t.gaps && t.gaps.length > 0 && t.gaps.some(g => g.description.trim())) ||
+           (t.desired_outcome_state && t.desired_outcome_state.trim())
+  }
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -167,15 +179,25 @@ function CreateInitiativeModal({
     setError(null)
 
     try {
+      const body: Record<string, unknown> = {
+        name: name.trim(),
+        description: description.trim() || undefined,
+      }
+      if (hasThroughlineData(throughline)) {
+        body.throughline = throughline
+      }
+
       const result = await apiPost<{ success: boolean; initiative: Initiative }>(
         '/api/disco/initiatives',
-        { name: name.trim(), description: description.trim() || undefined }
+        body
       )
 
       if (result.success && result.initiative) {
         onCreated(result.initiative)
         setName('')
         setDescription('')
+        setThroughline({})
+        setShowFraming(false)
         onClose()
       }
     } catch (err) {
@@ -190,7 +212,7 @@ function CreateInitiativeModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative card rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+      <div className="relative card rounded-lg shadow-xl w-full max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-semibold text-primary mb-4">
           Create New Initiative
         </h2>
@@ -221,6 +243,29 @@ function CreateInitiativeModal({
               rows={3}
               className="textarea-field"
             />
+          </div>
+
+          {/* Structured Framing (Optional) */}
+          <div className="border border-slate-200 dark:border-slate-700 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setShowFraming(!showFraming)}
+              className="flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg"
+            >
+              <span className="flex items-center gap-2">
+                {showFraming ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                Structured Framing
+                <span className="text-xs font-normal text-slate-400">(Optional)</span>
+              </span>
+            </button>
+            {showFraming && (
+              <div className="px-4 pb-4">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                  Define problem statements, hypotheses, and gaps to track through the DISCO pipeline.
+                </p>
+                <ThroughlineEditor throughline={throughline} onChange={setThroughline} />
+              </div>
+            )}
           </div>
 
           {error && (

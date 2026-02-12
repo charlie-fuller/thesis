@@ -209,11 +209,11 @@ def get_model_for_agent(agent_type: str) -> str:
 # - insight_extractor, consolidator, synthesizer, strategist
 # - prd_generator, tech_evaluation, meta_consolidator, meta_synthesizer
 AGENT_FILES = {
-    # === Consolidated Agents (v2.0) ===
-    "discovery_guide": "discovery-guide-v1.0.md",
-    "insight_analyst": "insight-analyst-v1.0.md",
-    "initiative_builder": "initiative-builder-v1.0.md",
-    "requirements_generator": "requirements-generator-v1.0.md",
+    # === Consolidated Agents (v2.0, throughline-aware v1.1) ===
+    "discovery_guide": "discovery-guide-v1.1.md",
+    "insight_analyst": "insight-analyst-v1.1.md",
+    "initiative_builder": "initiative-builder-v1.1.md",
+    "requirements_generator": "requirements-generator-v1.1.md",
     # === Output Type Generators (Convergence Stage) ===
     "prd_generator": "prd-generator-v1.0.md",
     "evaluation_framework_generator": "evaluation-framework-v1.0.md",
@@ -743,6 +743,16 @@ async def build_agent_context(initiative_id: str, agent_type: str, include_syste
 
     context["source_outputs"] = source_outputs
 
+    # Fetch initiative throughline
+    try:
+        initiative_result = await asyncio.to_thread(
+            lambda: supabase.table("disco_initiatives").select("throughline").eq("id", initiative_id).single().execute()
+        )
+        if initiative_result.data and initiative_result.data.get("throughline"):
+            context["throughline"] = initiative_result.data["throughline"]
+    except Exception as e:
+        logger.warning(f"Failed to fetch throughline for initiative {initiative_id}: {e}")
+
     # Include system KB context
     if include_system_kb:
         from .system_kb_service import search_system_kb
@@ -1065,6 +1075,11 @@ async def run_agent(
         if version_result.data:
             next_version = version_result.data[0]["version"] + 1
 
+        # Parse throughline resolution for requirements_generator
+        throughline_resolution = None
+        if agent_type == "requirements_generator":
+            throughline_resolution = parse_throughline_resolution(full_response)
+
         # Store output
         output_id = str(uuid4())
         output_data = {
@@ -1082,6 +1097,7 @@ async def run_agent(
             "content_structured": parsed_output,
             "output_format": output_format,
             "source_outputs": context.get("source_outputs", []),
+            "throughline_resolution": throughline_resolution,
         }
 
         # Log the data being stored
@@ -1201,6 +1217,43 @@ No tables, no analysis, no background. Just the decision.
     return ""
 
 
+def _format_throughline_for_prompt(throughline: Dict) -> str:
+    """Format throughline data as markdown for injection into agent prompts."""
+    sections = []
+
+    problem_statements = throughline.get("problem_statements") or []
+    if problem_statements:
+        sections.append("### Problem Statements")
+        for ps in problem_statements:
+            ps_id = ps.get("id", "?")
+            sections.append(f"- **{ps_id}**: {ps.get('text', '')}")
+
+    hypotheses = throughline.get("hypotheses") or []
+    if hypotheses:
+        sections.append("\n### Hypotheses")
+        for h in hypotheses:
+            h_id = h.get("id", "?")
+            h_type = h.get("type", "assumption")
+            line = f"- **{h_id}** ({h_type}): {h.get('statement', '')}"
+            if h.get("rationale"):
+                line += f" -- Rationale: {h['rationale']}"
+            sections.append(line)
+
+    gaps = throughline.get("gaps") or []
+    if gaps:
+        sections.append("\n### Known Gaps")
+        for g in gaps:
+            g_id = g.get("id", "?")
+            g_type = g.get("type", "data")
+            sections.append(f"- **{g_id}** [{g_type}]: {g.get('description', '')}")
+
+    desired = throughline.get("desired_outcome_state")
+    if desired:
+        sections.append(f"\n### Desired Outcome State\n{desired}")
+
+    return "\n".join(sections)
+
+
 def build_full_prompt(agent_type: str, context: Dict, output_format: str = "comprehensive") -> str:
     """Build the full user prompt for the agent."""
     parts = []
@@ -1212,6 +1265,12 @@ def build_full_prompt(agent_type: str, context: Dict, output_format: str = "comp
         parts.append("\n")
 
     parts.append("# Initiative Context\n")
+
+    # Throughline (structured input framing)
+    if context.get("throughline"):
+        parts.append("## Initiative Throughline\n")
+        parts.append(_format_throughline_for_prompt(context["throughline"]))
+        parts.append("\n")
 
     # KB folder documents (for discovery_prep - these are the PRIMARY input)
     if context.get("kb_folder_documents"):
@@ -1322,6 +1381,17 @@ FINALLY, create the discovery plan with:
     parts.append("## Your Task\n")
     parts.append(agent_instructions.get(agent_type, "Please analyze this initiative and provide your assessment."))
 
+    # Add throughline-awareness instructions when throughline is present
+    if context.get("throughline"):
+        throughline_instructions = {
+            "discovery_guide": "\n\nTHROUGHLINE: Reference throughline items in your analysis. For TRIAGE: evaluate problem statements against the 4-criteria gate. For PLANNING: design sessions targeting specific gaps. For COVERAGE: report per-hypothesis evidence status.",
+            "insight_analyst": "\n\nTHROUGHLINE: After key insights, include a Hypothesis Evidence section mapping findings to throughline hypothesis IDs. Note which gaps remain unaddressed.",
+            "initiative_builder": "\n\nTHROUGHLINE: For each bundle, note which throughline problem statements and hypotheses it addresses. Flag any unaddressed items.",
+            "requirements_generator": "\n\nTHROUGHLINE: Include a ## Throughline Resolution section with: Hypothesis Resolution Table (ID | Status | Evidence), Gap Status Table (ID | Status | Findings), Recommended State Changes, and So What? section.",
+        }
+        if agent_type in throughline_instructions:
+            parts.append(throughline_instructions[agent_type])
+
     return "\n".join(parts)
 
 
@@ -1416,6 +1486,126 @@ def parse_agent_output(agent_type: str, raw_output: str) -> Dict:
     parsed["sections"] = sections
 
     return parsed
+
+
+def parse_throughline_resolution(raw_output: str) -> Optional[Dict]:
+    """Parse throughline resolution from requirements_generator output.
+
+    Extracts structured data from the ## Throughline Resolution section.
+    Returns None if no resolution section found.
+    """
+    # Find the Throughline Resolution section
+    # Use ##(?!#) to stop at ## headings but NOT ### subsections within this section
+    resolution_match = re.search(
+        r"##\s*Throughline\s+Resolution\s*\n(.+?)(?=\n##(?!#)|\Z)",
+        raw_output,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if not resolution_match:
+        return None
+
+    section = resolution_match.group(1)
+    resolution = {}
+
+    # Parse hypothesis resolution table rows
+    # Expected format: | h-1 | confirmed | Evidence text |
+    hypothesis_resolutions = []
+    hyp_rows = re.findall(
+        r"\|\s*(h-\d+)\s*\|\s*(confirmed|refuted|inconclusive)\s*\|\s*(.+?)\s*\|",
+        section,
+        re.IGNORECASE,
+    )
+    for h_id, status, evidence in hyp_rows:
+        hypothesis_resolutions.append(
+            {
+                "hypothesis_id": h_id.strip(),
+                "status": status.strip().lower(),
+                "evidence_summary": evidence.strip(),
+            }
+        )
+    if hypothesis_resolutions:
+        resolution["hypothesis_resolutions"] = hypothesis_resolutions
+
+    # Parse gap status table rows
+    # Expected format: | g-1 | addressed | Findings text |
+    gap_statuses = []
+    gap_rows = re.findall(
+        r"\|\s*(g-\d+)\s*\|\s*(addressed|unaddressed|partially_addressed|partially addressed)\s*\|\s*(.+?)\s*\|",
+        section,
+        re.IGNORECASE,
+    )
+    for g_id, status, findings in gap_rows:
+        gap_statuses.append(
+            {
+                "gap_id": g_id.strip(),
+                "status": status.strip().lower().replace(" ", "_"),
+                "findings": findings.strip(),
+            }
+        )
+    if gap_statuses:
+        resolution["gap_statuses"] = gap_statuses
+
+    # Parse state changes
+    state_changes = []
+    # Look for state changes section
+    sc_match = re.search(
+        r"(?:###?\s*(?:Recommended\s+)?State\s+Changes|State\s+Changes)\s*\n(.+?)(?=\n###|\n##|\Z)",
+        section,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if sc_match:
+        sc_text = sc_match.group(1)
+        # Parse bullet points or table rows
+        sc_bullets = re.findall(r"[-*]\s+(.+)", sc_text)
+        for bullet in sc_bullets:
+            parts = bullet.split("|")
+            sc = {"description": parts[0].strip()}
+            if len(parts) > 1:
+                sc["owner"] = parts[1].strip()
+            if len(parts) > 2:
+                sc["deadline"] = parts[2].strip()
+            state_changes.append(sc)
+        # Also try table format
+        sc_rows = re.findall(r"\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|", sc_text)
+        for desc, owner, deadline in sc_rows:
+            if desc.strip().startswith("---") or desc.strip().lower() == "description":
+                continue
+            state_changes.append(
+                {
+                    "description": desc.strip(),
+                    "owner": owner.strip() if owner.strip() != "-" else None,
+                    "deadline": deadline.strip() if deadline.strip() != "-" else None,
+                }
+            )
+    if state_changes:
+        resolution["state_changes"] = state_changes
+
+    # Parse So What? section
+    so_what_match = re.search(
+        r"(?:###?\s*)?So\s+What\??\s*\n(.+?)(?=\n###|\n##|\Z)",
+        section,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if so_what_match:
+        so_what_text = so_what_match.group(1)
+        so_what = {}
+
+        for field, pattern in [
+            (
+                "state_change_proposed",
+                r"\*{0,2}(?:State\s+Change\s+Proposed|Proposed\s+Change)\*{0,2}[:\s]+(.+?)(?:\n|$)",
+            ),
+            ("next_human_action", r"\*{0,2}(?:Next\s+Human\s+Action|Next\s+Action)\*{0,2}[:\s]+(.+?)(?:\n|$)"),
+            ("kill_test", r"\*{0,2}(?:Kill\s+Test)\*{0,2}[:\s]+(.+?)(?:\n|$)"),
+        ]:
+            field_match = re.search(pattern, so_what_text, re.IGNORECASE)
+            if field_match:
+                so_what[field] = field_match.group(1).strip().strip("*").strip()
+
+        if so_what:
+            resolution["so_what"] = so_what
+
+    return resolution if resolution else None
 
 
 def get_status_for_agent(agent_type: str) -> Optional[str]:
@@ -1655,6 +1845,11 @@ Create a unified synthesis that combines the best of all three passes. Follow th
         # Parse output (use main content only for structured parsing)
         parsed_output = parse_agent_output(agent_type, main_content)
 
+        # Parse throughline resolution for requirements_generator
+        mp_throughline_resolution = None
+        if agent_type == "requirements_generator":
+            mp_throughline_resolution = parse_throughline_resolution(main_content)
+
         # Get next version number
         version_result = await asyncio.to_thread(
             lambda: supabase.table("disco_outputs")
@@ -1704,6 +1899,7 @@ Create a unified synthesis that combines the best of all three passes. Follow th
             "synthesis_mode": "multi_pass",
             "synthesis_notes": synthesis_notes,  # Separate explainability report
             "intermediate_outputs": intermediate_for_storage,
+            "throughline_resolution": mp_throughline_resolution,
         }
 
         logger.info(f"[PURDY-MP] Storing output - id: {output_id}, version: {next_version}")

@@ -72,6 +72,7 @@ async def api_create_initiative(
             name=data.name,
             description=data.description,
             user_id=current_user["id"],
+            throughline=data.throughline.model_dump() if data.throughline else None,
         )
         return {"success": True, "initiative": initiative}
     except Exception as e:
@@ -143,6 +144,12 @@ async def api_update_initiative(
 
     try:
         updates = data.model_dump(exclude_unset=True)
+        # Convert throughline Pydantic model to dict if present
+        if "throughline" in updates and updates["throughline"] is not None:
+            from pydantic import BaseModel
+
+            if isinstance(updates["throughline"], BaseModel):
+                updates["throughline"] = updates["throughline"].model_dump()
         initiative = await update_initiative(
             initiative_id=initiative_id,
             user_id=current_user["id"],

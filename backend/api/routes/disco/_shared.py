@@ -4,7 +4,7 @@ import asyncio
 from typing import List, Optional
 
 from fastapi import Depends, HTTPException
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from auth import get_current_user
 from database import get_supabase
@@ -20,11 +20,105 @@ supabase = get_supabase()
 # ============================================================================
 
 
+# ============================================================================
+# THROUGHLINE MODELS
+# ============================================================================
+
+
+class ProblemStatement(BaseModel):
+    """A problem statement in the throughline."""
+
+    id: Optional[str] = None
+    text: str
+
+
+class Hypothesis(BaseModel):
+    """A hypothesis to validate through discovery."""
+
+    id: Optional[str] = None
+    statement: str
+    rationale: Optional[str] = None
+    type: Optional[str] = "assumption"
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: Optional[str]) -> Optional[str]:
+        if v and v not in ("assumption", "belief", "prediction"):
+            return "assumption"
+        return v
+
+
+class Gap(BaseModel):
+    """A known gap to investigate."""
+
+    id: Optional[str] = None
+    description: str
+    type: Optional[str] = "data"
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: Optional[str]) -> Optional[str]:
+        if v and v not in ("data", "people", "process", "capability"):
+            return "data"
+        return v
+
+
+class Throughline(BaseModel):
+    """Structured input framing for an initiative."""
+
+    problem_statements: Optional[List[ProblemStatement]] = None
+    hypotheses: Optional[List[Hypothesis]] = None
+    gaps: Optional[List[Gap]] = None
+    desired_outcome_state: Optional[str] = None
+
+
+class HypothesisResolution(BaseModel):
+    """Resolution of a hypothesis after convergence."""
+
+    hypothesis_id: str
+    status: str  # confirmed, refuted, inconclusive
+    evidence_summary: Optional[str] = None
+
+
+class GapStatus(BaseModel):
+    """Status of a gap after convergence."""
+
+    gap_id: str
+    status: str  # addressed, unaddressed, partially_addressed
+    findings: Optional[str] = None
+
+
+class StateChange(BaseModel):
+    """A recommended state change from convergence."""
+
+    description: str
+    owner: Optional[str] = None
+    deadline: Optional[str] = None
+
+
+class SoWhat(BaseModel):
+    """The 'So What?' synthesis from convergence."""
+
+    state_change_proposed: Optional[str] = None
+    next_human_action: Optional[str] = None
+    kill_test: Optional[str] = None
+
+
+class ThroughlineResolution(BaseModel):
+    """Structured resolution from the convergence stage."""
+
+    hypothesis_resolutions: Optional[List[HypothesisResolution]] = None
+    gap_statuses: Optional[List[GapStatus]] = None
+    state_changes: Optional[List[StateChange]] = None
+    so_what: Optional[SoWhat] = None
+
+
 class InitiativeCreate(BaseModel):
     """Create a new initiative."""
 
     name: str
     description: Optional[str] = None
+    throughline: Optional[Throughline] = None
 
 
 class InitiativeUpdate(BaseModel):
@@ -33,6 +127,7 @@ class InitiativeUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     status: Optional[str] = None
+    throughline: Optional[Throughline] = None
 
 
 # ============================================================================

@@ -77,6 +77,13 @@ function MermaidDiagram({ chart }: { chart: string }) {
   )
 }
 
+interface ThroughlineResolution {
+  hypothesis_resolutions?: Array<{ hypothesis_id: string; status: string; evidence_summary?: string }>
+  gap_statuses?: Array<{ gap_id: string; status: string; findings?: string }>
+  state_changes?: Array<{ description: string; owner?: string; deadline?: string }>
+  so_what?: { state_change_proposed?: string; next_human_action?: string; kill_test?: string }
+}
+
 interface Output {
   id: string
   run_id: string
@@ -94,6 +101,7 @@ interface Output {
   synthesis_mode?: string
   synthesis_notes?: string | null
   source_outputs?: Array<{ agent_type: string; version: number; id: string }>
+  throughline_resolution?: ThroughlineResolution | null
 }
 
 interface OutputViewerProps {
@@ -497,6 +505,85 @@ function OutputDetail({
           <p className="text-sm text-slate-600 dark:text-slate-400">
             {output.executive_summary}
           </p>
+        </div>
+      )}
+
+      {/* Throughline Resolution Panel */}
+      {output.throughline_resolution && activeTab === 'output' && (
+        <div className="px-4 py-3 bg-indigo-50/50 dark:bg-indigo-900/10 border-b border-indigo-200 dark:border-indigo-800/50">
+          <h4 className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 mb-3">
+            Throughline Resolution
+          </h4>
+
+          {/* Hypothesis Resolutions */}
+          {output.throughline_resolution.hypothesis_resolutions && output.throughline_resolution.hypothesis_resolutions.length > 0 && (
+            <div className="mb-3">
+              <h5 className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">Hypotheses</h5>
+              <div className="space-y-1">
+                {output.throughline_resolution.hypothesis_resolutions.map((hr, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <span className="font-mono text-xs text-slate-400 w-8">{hr.hypothesis_id}</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      hr.status === 'confirmed' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                      hr.status === 'refuted' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
+                      'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                    }`}>
+                      {hr.status}
+                    </span>
+                    {hr.evidence_summary && (
+                      <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{hr.evidence_summary}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Gap Statuses */}
+          {output.throughline_resolution.gap_statuses && output.throughline_resolution.gap_statuses.length > 0 && (
+            <div className="mb-3">
+              <h5 className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">Gaps</h5>
+              <div className="space-y-1">
+                {output.throughline_resolution.gap_statuses.map((gs, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <span className="font-mono text-xs text-slate-400 w-8">{gs.gap_id}</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      gs.status === 'addressed' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                      gs.status === 'unaddressed' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
+                      'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                    }`}>
+                      {gs.status.replace('_', ' ')}
+                    </span>
+                    {gs.findings && (
+                      <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{gs.findings}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* So What? */}
+          {output.throughline_resolution.so_what && (
+            <div className="p-2.5 bg-white/50 dark:bg-slate-800/50 rounded-lg border border-indigo-200 dark:border-indigo-800/50">
+              <h5 className="text-xs font-medium text-indigo-600 dark:text-indigo-400 mb-1.5">So What?</h5>
+              {output.throughline_resolution.so_what.state_change_proposed && (
+                <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">
+                  <span className="font-medium">State Change:</span> {output.throughline_resolution.so_what.state_change_proposed}
+                </p>
+              )}
+              {output.throughline_resolution.so_what.next_human_action && (
+                <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">
+                  <span className="font-medium">Next Action:</span> {output.throughline_resolution.so_what.next_human_action}
+                </p>
+              )}
+              {output.throughline_resolution.so_what.kill_test && (
+                <p className="text-xs text-red-600 dark:text-red-400">
+                  <span className="font-medium">Kill Test:</span> {output.throughline_resolution.so_what.kill_test}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 

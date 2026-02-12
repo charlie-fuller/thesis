@@ -31,6 +31,8 @@ import AgentRunner from '@/components/disco/AgentRunner'
 import OutputViewer from '@/components/disco/OutputViewer'
 import ShareModal from '@/components/disco/ShareModal'
 import InitiativeAlignmentTab from '@/components/disco/InitiativeAlignmentTab'
+import ThroughlineEditor, { type Throughline } from '@/components/disco/ThroughlineEditor'
+import ThroughlineSummary, { type ThroughlineResolution } from '@/components/disco/ThroughlineSummary'
 import { type GoalAlignmentDetails } from '@/components/projects/GoalAlignmentSection'
 
 // ============================================================================
@@ -51,6 +53,7 @@ interface Initiative {
     name: string
     email: string
   }
+  throughline?: Throughline | null
   goal_alignment_score: number | null
   goal_alignment_details: GoalAlignmentDetails | null
   latest_outputs?: Record<string, {
@@ -145,6 +148,7 @@ export default function InitiativeDetailPage() {
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editedName, setEditedName] = useState('')
   const [editedDescription, setEditedDescription] = useState('')
+  const [editedThroughline, setEditedThroughline] = useState<Throughline>({})
   const [savingEdit, setSavingEdit] = useState(false)
 
   const canEdit = initiative?.user_role === 'owner' || initiative?.user_role === 'editor'
@@ -230,6 +234,7 @@ export default function InitiativeDetailPage() {
   const handleOpenEditModal = () => {
     setEditedName(initiative?.name || '')
     setEditedDescription(initiative?.description || '')
+    setEditedThroughline(initiative?.throughline || {})
     setEditModalOpen(true)
   }
 
@@ -240,7 +245,7 @@ export default function InitiativeDetailPage() {
     try {
       const result = await apiPatch<{ success: boolean; initiative: Initiative }>(
         `/api/disco/initiatives/${initiativeId}`,
-        { name: editedName, description: editedDescription }
+        { name: editedName, description: editedDescription, throughline: editedThroughline }
       )
       if (result.success && result.initiative) {
         setInitiative(result.initiative)
@@ -364,6 +369,11 @@ export default function InitiativeDetailPage() {
                 </button>
               )}
             </div>
+            {/* Throughline Summary */}
+            {initiative.throughline && (
+              <ThroughlineSummary throughline={initiative.throughline} />
+            )}
+
             {/* Show linked projects or user role if applicable */}
             {(linkedProjects.length > 0 || initiative.user_role !== 'owner') && (
               <div className="flex items-center gap-4 mt-2 text-sm text-slate-500 dark:text-slate-400">
@@ -618,13 +628,13 @@ export default function InitiativeDetailPage() {
             onClick={handleCloseEditModal}
           />
           <div
-            className="relative w-full max-w-lg mx-4 bg-white dark:bg-slate-900 rounded-xl shadow-xl"
+            className="relative w-full max-w-2xl mx-4 bg-white dark:bg-slate-900 rounded-xl shadow-xl max-h-[90vh] flex flex-col"
             onKeyDown={(e) => {
               if (e.key === 'Escape') handleCloseEditModal()
             }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
                 Edit Initiative
               </h2>
@@ -637,7 +647,7 @@ export default function InitiativeDetailPage() {
             </div>
 
             {/* Body */}
-            <div className="px-6 py-4 space-y-4">
+            <div className="px-6 py-4 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Name
@@ -658,9 +668,15 @@ export default function InitiativeDetailPage() {
                   value={editedDescription}
                   onChange={(e) => setEditedDescription(e.target.value)}
                   placeholder="Add a description for this initiative..."
-                  rows={4}
+                  rows={3}
                   className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Structured Framing
+                </label>
+                <ThroughlineEditor throughline={editedThroughline} onChange={setEditedThroughline} compact />
               </div>
             </div>
 

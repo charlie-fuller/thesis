@@ -14,14 +14,32 @@ logger = get_logger(__name__)
 supabase = get_supabase()
 
 
+def _auto_id_throughline(throughline: Optional[Dict]) -> Optional[Dict]:
+    """Auto-generate sequential IDs for throughline items missing them."""
+    if not throughline:
+        return throughline
+
+    for prefix, key in [("ps", "problem_statements"), ("h", "hypotheses"), ("g", "gaps")]:
+        items = throughline.get(key)
+        if items:
+            for i, item in enumerate(items, 1):
+                if not item.get("id"):
+                    item["id"] = f"{prefix}-{i}"
+
+    return throughline
+
+
 @with_db_retry(max_retries=2)
-async def create_initiative(name: str, user_id: str, description: Optional[str] = None) -> Dict:
+async def create_initiative(
+    name: str, user_id: str, description: Optional[str] = None, throughline: Optional[Dict] = None
+) -> Dict:
     """Create a new PuRDy initiative.
 
     Args:
         name: Initiative name
         user_id: Creating user's ID
         description: Optional description
+        throughline: Optional structured input framing (problem statements, hypotheses, gaps)
 
     Returns:
         Created initiative record
@@ -37,24 +55,25 @@ async def create_initiative(name: str, user_id: str, description: Optional[str] 
 
     initiative_id = str(uuid4())
 
+    # Auto-generate IDs for throughline items
+    throughline = _auto_id_throughline(throughline)
+
     try:
         # Use get_supabase() dynamically to support connection retry
         db = get_supabase()
 
+        insert_data = {
+            "id": initiative_id,
+            "name": name,
+            "description": description,
+            "status": "draft",
+            "created_by": user_id,
+        }
+        if throughline:
+            insert_data["throughline"] = throughline
+
         # Create the initiative
-        result = await asyncio.to_thread(
-            lambda: db.table("disco_initiatives")
-            .insert(
-                {
-                    "id": initiative_id,
-                    "name": name,
-                    "description": description,
-                    "status": "draft",
-                    "created_by": user_id,
-                }
-            )
-            .execute()
-        )
+        result = await asyncio.to_thread(lambda: db.table("disco_initiatives").insert(insert_data).execute())
 
         if not result.data:
             raise ValueError("Failed to create initiative")
@@ -273,8 +292,12 @@ async def update_initiative(initiative_id: str, user_id: str, updates: Dict) -> 
     if not has_permission:
         raise PermissionError(f"User {user_id} cannot edit initiative {initiative_id}")
 
+    # Auto-generate IDs for throughline items if present
+    if "throughline" in updates and updates["throughline"]:
+        updates["throughline"] = _auto_id_throughline(updates["throughline"])
+
     # Filter allowed fields
-    allowed_fields = {"name", "description", "status"}
+    allowed_fields = {"name", "description", "status", "throughline"}
     filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
 
     if not filtered_updates:
