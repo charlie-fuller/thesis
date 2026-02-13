@@ -566,6 +566,23 @@ export default function ChatInterface({
                   }
                   return updated
                 })
+              } else if (data.type === 'framing_proposal') {
+                // Discovery Agent proposed framing - store in message metadata
+                logger.debug('Received framing proposal')
+                setMessages(prev => {
+                  const updated = [...prev]
+                  if (updated[messageIndex]) {
+                    updated[messageIndex] = {
+                      ...updated[messageIndex],
+                      metadata: {
+                        ...updated[messageIndex].metadata,
+                        framing_proposal: data.proposal,
+                        framing_proposal_initiative_id: data.initiative_id,
+                      }
+                    }
+                  }
+                  return updated
+                })
               } else if (data.type === 'tasks_created') {
                 // Tasks were created from proposals
                 logger.debug(`${data.count} tasks created`)

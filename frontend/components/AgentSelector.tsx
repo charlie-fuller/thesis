@@ -119,8 +119,8 @@ const AGENT_INFO: Record<string, { displayName: string; description: string; cat
     category: 'Context',
   },
   initiative_agent: {
-    displayName: 'Initiative Agent',
-    description: 'DISCo initiative discovery and synthesis',
+    displayName: 'Discovery Agent',
+    description: 'Initiative framing, context, and discovery synthesis',
     category: 'Context',
   },
 }

@@ -91,12 +91,12 @@ When you select a context:
 **Context-Aware Agents:**
 When you start a conversation with project or initiative context, the system auto-selects specialized agents:
 - **Project Agent** - Understands project structure, scores, linked documents, and lifecycle
-- **Initiative Agent** - Knows DISCO workflow, agent outputs, and discovery methodology
+- **Discovery Agent** - Knows DISCO workflow, agent outputs, framing, and discovery methodology
 
 **URL Navigation:**
 You can navigate directly to context-filtered chat:
 - `/chat?project_id=xxx` - Opens chat with project context and Project Agent selected
-- `/chat?initiative_id=xxx` - Opens chat with initiative context and Initiative Agent selected
+- `/chat?initiative_id=xxx` - Opens chat with initiative context and Discovery Agent selected
 
 **From Projects and Initiatives:**
 - In a project modal, click the **Chat** button in the header to start a conversation with that project's context

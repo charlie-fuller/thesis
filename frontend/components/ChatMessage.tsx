@@ -9,6 +9,7 @@ import { logger } from '@/lib/logger';
 import { apiPost } from '@/lib/api';
 import SourceCitations, { SourceDocument } from './SourceCitations';
 import { AgentIcon, getAgentColor } from './AgentIcon';
+import FramingProposalCard, { FramingProposal } from './chat/FramingProposalCard';
 import TaskProposalCard, { TaskProposal } from './chat/TaskProposalCard';
 
 interface Document {
@@ -24,6 +25,9 @@ interface MessageMetadata {
   task_proposals_project_id?: string | null
   task_proposals_conversation_id?: string | null
   tasks_created?: boolean
+  framing_proposal?: FramingProposal
+  framing_proposal_initiative_id?: string | null
+  framing_applied?: boolean
   [key: string]: unknown
 }
 
@@ -124,8 +128,11 @@ function CodeBlock({
 }
 
 function ChatMessage({ content, role, timestamp, documents, sources, onSourceClick, conversationId, messageId, onDigDeeper, onDigDeeperSection, isDigDeeperLoading, metadata, onSaveToKB }: ChatMessageProps) {
-  // Strip <task_proposals> block from displayed content (raw JSON shouldn't show)
-  const displayContent = content.replace(/<task_proposals>[\s\S]*?<\/task_proposals>/g, '').trimEnd();
+  // Strip <task_proposals> and <framing_proposal> blocks from displayed content (raw JSON shouldn't show)
+  const displayContent = content
+    .replace(/<task_proposals>[\s\S]*?<\/task_proposals>/g, '')
+    .replace(/<framing_proposal>[\s\S]*?<\/framing_proposal>/g, '')
+    .trimEnd();
 
   // State for inline dig-deeper expanded sections
   const [expandedSections, setExpandedSections] = useState<Record<string, ExpandedSection>>({});
@@ -365,6 +372,24 @@ function ChatMessage({ content, role, timestamp, documents, sources, onSourceCli
             projectId={metadata.task_proposals_project_id ?? null}
             conversationId={metadata.task_proposals_conversation_id ?? null}
           />
+        )}
+
+        {/* Framing proposals for assistant messages */}
+        {role === 'assistant' && !!metadata?.framing_proposal && !metadata?.framing_applied && metadata?.framing_proposal_initiative_id && (
+          <FramingProposalCard
+            proposal={metadata.framing_proposal}
+            initiativeId={metadata.framing_proposal_initiative_id}
+          />
+        )}
+
+        {/* Framing applied badge */}
+        {role === 'assistant' && metadata?.framing_applied && (
+          <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Framing applied to discovery
+          </div>
         )}
 
         {/* Tasks created badge */}

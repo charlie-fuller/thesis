@@ -31,7 +31,7 @@ class InitiativeAgent(BaseAgent):
     def __init__(self, supabase: Client, anthropic_client: anthropic.Anthropic):
         super().__init__(
             name="initiative_agent",
-            display_name="Initiative Agent",
+            display_name="Discovery Agent",
             supabase=supabase,
             anthropic_client=anthropic_client,
         )
@@ -45,7 +45,7 @@ class InitiativeAgent(BaseAgent):
 
     def _fallback_instruction(self) -> str:
         """Minimal fallback if XML file is not available."""
-        return """You are Initiative Agent, the DISCo Initiative Discovery Specialist for Thesis.
+        return """You are Discovery Agent, the DISCo Initiative Discovery Specialist for Thesis.
 
 You specialize in:
 - DISCo workflow guidance (Discovery, Insights, Synthesis, Capabilities)

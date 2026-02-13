@@ -21,6 +21,7 @@ from document_processor import search_similar_chunks
 from logger_config import get_logger
 from services.chat_agent_service import AGENT_DISPLAY_NAMES, get_chat_agent_service
 from services.conversation_service import get_conversation_service
+from services.disco.initiative_context import build_initiative_context
 from services.project_context import build_project_context, get_scoring_related_documents
 from services.useable_output_detector import process_conversation_for_useable_output
 from system_instructions_loader import (
@@ -1595,6 +1596,31 @@ User's question: {chat_request.message}"""
                 except Exception as proj_err:
                     logger.warning(f"Failed to load project context: {proj_err}")
 
+            # Inject initiative context for Discovery Agent
+            initiative_aware_agents = {"initiative_agent"}
+            initiative_id_for_context = None
+            if selected_agent in initiative_aware_agents:
+                try:
+                    iid = None
+                    if chat_request.conversation_id:
+                        conv_result = await asyncio.to_thread(
+                            lambda: supabase.table("conversations")
+                            .select("initiative_id")
+                            .eq("id", chat_request.conversation_id)
+                            .single()
+                            .execute()
+                        )
+                        iid = conv_result.data.get("initiative_id") if conv_result.data else None
+                    if iid:
+                        initiative_context_text = await build_initiative_context(iid, current_user["id"])
+                        user_prompt = f"""{initiative_context_text}
+
+User's question: {chat_request.message}"""
+                        initiative_id_for_context = iid
+                        logger.info(f"Injected initiative context for initiative {iid}")
+                except Exception as init_err:
+                    logger.warning(f"Failed to load initiative context: {init_err}")
+
             # Track if RAG was attempted but found nothing
             rag_attempted_no_results = chat_request.use_rag and not is_simple_message and not context_chunks
 
@@ -1773,7 +1799,7 @@ Instructions:
             output_tokens = 0
 
             # Taskmaster needs more tokens for detailed task plans with JSON proposals
-            stream_max_tokens = 4096 if selected_agent == "taskmaster" else 2048
+            stream_max_tokens = 4096 if selected_agent in ("taskmaster", "initiative_agent") else 2048
 
             with anthropic_client.messages.stream(
                 model="claude-sonnet-4-5-20250929",
@@ -1844,6 +1870,24 @@ Instructions:
                         logger.warning(f"Failed to parse task_proposals JSON: {json_err}")
                         task_proposals_data = None
 
+            # Extract framing proposals from Discovery Agent responses
+            framing_proposal_data = None
+            if selected_agent == "initiative_agent" and "<framing_proposal>" in full_response:
+                fp_match = _re_extract.search(
+                    r"<framing_proposal>\s*(\{.*?\})\s*</framing_proposal>",
+                    full_response,
+                    _re_extract.DOTALL,
+                )
+                if fp_match:
+                    try:
+                        framing_proposal_data = json.loads(fp_match.group(1))
+                        full_response = full_response[: fp_match.start()] + full_response[fp_match.end() :]
+                        full_response = full_response.rstrip()
+                        logger.info(f"Extracted framing proposal from Discovery Agent response")
+                    except json.JSONDecodeError as json_err:
+                        logger.warning(f"Failed to parse framing_proposal JSON: {json_err}")
+                        framing_proposal_data = None
+
             # Save messages to database if conversation_id provided
             image_suggestion_data = None  # Will hold suggestion to send as SSE event
 
@@ -1911,6 +1955,11 @@ Instructions:
                     # Add task proposals to metadata if extracted
                     if task_proposals_data:
                         assistant_metadata["task_proposals"] = task_proposals_data
+
+                    # Add framing proposal to metadata if extracted
+                    if framing_proposal_data:
+                        assistant_metadata["framing_proposal"] = framing_proposal_data
+                        assistant_metadata["framing_proposal_initiative_id"] = initiative_id_for_context
 
                     messages_to_insert = [
                         {
@@ -1996,6 +2045,11 @@ Instructions:
                         pass
                 yield f"data: {json.dumps({'type': 'task_proposals', 'tasks': task_proposals_data, 'project_id': tp_project_id, 'conversation_id': chat_request.conversation_id})}\n\n"
                 logger.info(f"Sent task_proposals SSE event with {len(task_proposals_data)} proposals")
+
+            # Send framing proposal event if Discovery Agent proposed framing (BEFORE done event)
+            if framing_proposal_data:
+                yield f"data: {json.dumps({'type': 'framing_proposal', 'proposal': framing_proposal_data, 'initiative_id': initiative_id_for_context})}\n\n"
+                logger.info("Sent framing_proposal SSE event")
 
             # Send completion message with token stats and message IDs
             completion_data = {

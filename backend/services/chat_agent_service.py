@@ -56,7 +56,7 @@ AGENT_DISPLAY_NAMES = {
     "coordinator": "Coordinator",
     "project_agent": "Project Agent",
     "taskmaster": "Taskmaster",
-    "initiative_agent": "Initiative Agent",
+    "initiative_agent": "Discovery Agent",
 }
 
 # @mention patterns - matches @agentname at word boundaries
