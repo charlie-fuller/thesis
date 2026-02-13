@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Platform Selection Process Map v2.0</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-light: #a5b4fc;
+      --primary-bg: #eef2ff;
+      --success: #22c55e;
+      --success-light: #bbf7d0;
+      --warning: #f59e0b;
+      --warning-light: #fde68a;
+      --danger: #ef4444;
+      --danger-light: #fecaca;
+      --info: #3b82f6;
+      --info-light: #dbeafe;
+      --teal: #14b8a6;
+      --teal-light: #ccfbf1;
+      --orange: #f97316;
+      --orange-light: #fed7aa;
+      --pink: #ec4899;
+      --pink-light: #fce7f3;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8fafc;
+      color: var(--gray-900);
+      line-height: 1.5;
+    }
+
+    .container { padding: 2rem; max-width: 1600px; margin: 0 auto; }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--gray-500); font-size: 0.875rem; }
+    .version-info {
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--gray-400);
+    }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--gray-700);
+    }
+
+    .legend-box {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      border: 2px solid;
+    }
+
+    .legend-box.decision { background: white; border-color: var(--primary); }
+    .legend-box.platform { background: var(--success-light); border-color: var(--success); }
+    .legend-box.stop { background: var(--danger-light); border-color: var(--danger); }
+    .legend-box.review { background: var(--warning-light); border-color: var(--warning); }
+    .legend-box.governance { background: var(--teal-light); border-color: var(--teal); }
+
+    /* Sections */
+    .section {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-bottom: 0.25rem;
+    }
+
+    .section-subtitle {
+      font-size: 0.8rem;
+      color: var(--gray-500);
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    /* Flow Nodes */
+    .node {
+      background: white;
+      border: 2px solid var(--primary);
+      border-radius: 0.75rem;
+      padding: 0.875rem;
+      min-width: 160px;
+      max-width: 220px;
+      text-align: center;
+      position: relative;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .node::before {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      font-size: 0.7rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .node.decision::before { content: '?'; background: var(--primary); }
+    .node.platform { border-color: var(--success); background: var(--success-light); }
+    .node.platform::before { content: 'P'; background: var(--success); }
+    .node.stop { border-color: var(--danger); background: var(--danger-light); }
+    .node.stop::before { content: 'X'; background: var(--danger); }
+    .node.review { border-color: var(--warning); background: var(--warning-light); }
+    .node.review::before { content: '!'; background: var(--warning); }
+    .node.governance { border-color: var(--teal); background: var(--teal-light); }
+    .node.governance::before { content: 'G'; background: var(--teal); }
+
+    .node-title { font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; color: var(--gray-900); }
+    .node-desc { font-size: 0.7rem; color: var(--gray-500); }
+
+    .branch { display: flex; gap: 0.35rem; margin-top: 0.5rem; flex-wrap: wrap; justify-content: center; }
+    .branch-label {
+      font-size: 0.6rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 9999px;
+      font-weight: 500;
+    }
+    .branch-label.yes { background: var(--success-light); color: #166534; }
+    .branch-label.no { background: var(--danger-light); color: #991b1b; }
+    .branch-label.maybe { background: var(--warning-light); color: #92400e; }
+    .branch-label.path { background: var(--gray-200); color: var(--gray-700); }
+    .branch-label.info { background: var(--info-light); color: #1e40af; }
+
+    /* Flow Layout */
+    .flow-container { overflow-x: auto; padding: 1rem 0; }
+    .main-flow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 1100px;
+    }
+
+    .flow-level {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      width: 100%;
+    }
+
+    .vertical-connector {
+      width: 2px;
+      height: 28px;
+      background: var(--gray-300);
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .vertical-connector::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid var(--gray-300);
+    }
+
+    .branch-connector {
+      display: flex;
+      justify-content: center;
+      gap: 3rem;
+      margin: 0.5rem 0;
+    }
+
+    .branch-line {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .branch-line .line {
+      width: 2px;
+      height: 16px;
+      background: var(--gray-300);
+    }
+
+    .stage-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.75rem;
+      background: var(--primary);
+      color: white;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .stage-badge .num {
+      background: rgba(255,255,255,0.3);
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+    }
+
+    /* Platform Matrix */
+    .platform-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-top: 0.75rem;
+    }
+
+    .platform-card {
+      border: 2px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      position: relative;
+    }
+
+    .platform-card h4 {
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .platform-card .tag {
+      font-size: 0.6rem;
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .tag.approved { background: var(--success-light); color: #166534; }
+    .tag.limited { background: var(--warning-light); color: #92400e; }
+    .tag.enterprise { background: var(--info-light); color: #1e40af; }
+    .tag.poc { background: var(--orange-light); color: #9a3412; }
+    .tag.available { background: var(--teal-light); color: #115e59; }
+
+    .platform-card ul {
+      font-size: 0.75rem;
+      color: var(--gray-600);
+      margin-left: 1rem;
+      list-style-type: none;
+    }
+
+    .platform-card ul li { margin-bottom: 0.25rem; position: relative; }
+    .platform-card ul li::before { content: ''; position: absolute; left: -1rem; top: 0.55em; width: 5px; height: 5px; border-radius: 50%; background: var(--gray-400); }
+
+    .platform-card .specs {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--gray-200);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.25rem;
+      font-size: 0.65rem;
+    }
+
+    .platform-card .specs .spec-label { color: var(--gray-500); }
+    .platform-card .specs .spec-value { color: var(--gray-800); font-weight: 500; text-align: right; }
+
+    .platform-card.glean { border-color: var(--primary); }
+    .platform-card.gemini { border-color: var(--warning); }
+    .platform-card.notebooklm { border-color: var(--orange); }
+    .platform-card.claude { border-color: var(--pink); }
+    .platform-card.mulesoft { border-color: var(--teal); }
+    .platform-card.n8n { border-color: var(--info); }
+    .platform-card.custom { border-color: #8b5cf6; }
+
+    /* Governance Grid */
+    .gov-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .gov-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+    }
+
+    .gov-card h5 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      color: var(--gray-800);
+    }
+
+    .gov-card p {
+      font-size: 0.7rem;
+      color: var(--gray-500);
+    }
+
+    .gov-card .question {
+      font-size: 0.65rem;
+      color: var(--primary);
+      font-style: italic;
+      margin-top: 0.35rem;
+    }
+
+    /* Quick Paths */
+    .path-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 0.75rem;
+    }
+
+    .path-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1rem;
+    }
+
+    .path-card .path-title {
+      font-weight: 600;
+      font-size: 0.8rem;
+      margin-bottom: 0.5rem;
+      color: var(--gray-800);
+    }
+
+    .path-card .path-example {
+      font-size: 0.7rem;
+      color: var(--gray-500);
+      font-style: italic;
+      margin-bottom: 0.5rem;
+    }
+
+    .mini-flow {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+
+    .mini-node {
+      background: white;
+      border: 1.5px solid var(--gray-300);
+      border-radius: 0.35rem;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.65rem;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .mini-node.highlight {
+      border-color: var(--primary);
+      background: var(--primary-bg);
+      font-weight: 600;
+    }
+
+    .mini-node.result-glean { border-color: var(--primary); background: var(--primary-bg); font-weight: 600; }
+    .mini-node.result-gemini { border-color: var(--warning); background: var(--warning-light); font-weight: 600; }
+    .mini-node.result-claude { border-color: var(--pink); background: var(--pink-light); font-weight: 600; }
+    .mini-node.result-mulesoft { border-color: var(--teal); background: var(--teal-light); font-weight: 600; }
+    .mini-node.result-custom { border-color: #8b5cf6; background: #f5f3ff; font-weight: 600; }
+    .mini-node.result-notebooklm { border-color: var(--orange); background: var(--orange-light); font-weight: 600; }
+    .mini-node.result-stop { border-color: var(--danger); background: var(--danger-light); font-weight: 600; }
+
+    .mini-arrow { color: var(--gray-400); font-size: 0.8rem; }
+
+    /* Key Questions */
+    .questions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+      margin-top: 0.75rem;
+    }
+
+    .question-group {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1rem;
+    }
+
+    .question-group h5 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--gray-800);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .question-group h5 .badge {
+      font-size: 0.6rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      background: var(--primary);
+      color: white;
+    }
+
+    .question-group ol {
+      margin-left: 1.25rem;
+      font-size: 0.75rem;
+      color: var(--gray-600);
+    }
+
+    .question-group ol li { margin-bottom: 0.35rem; }
+
+    .question-group .source {
+      font-size: 0.6rem;
+      color: var(--gray-400);
+      margin-top: 0.5rem;
+      padding-top: 0.35rem;
+      border-top: 1px dashed var(--gray-200);
+    }
+
+    /* Comparison Table */
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.7rem;
+      margin-top: 0.75rem;
+    }
+
+    .comparison-table th {
+      background: var(--gray-100);
+      padding: 0.5rem;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid var(--gray-200);
+      position: sticky;
+      top: 0;
+    }
+
+    .comparison-table td {
+      padding: 0.4rem 0.5rem;
+      border-bottom: 1px solid var(--gray-100);
+      vertical-align: top;
+    }
+
+    .comparison-table tr:hover td { background: var(--gray-50); }
+
+    .check { color: var(--success); font-weight: bold; }
+    .cross { color: var(--danger); font-weight: bold; }
+    .partial { color: var(--warning); font-weight: bold; }
+
+    /* Grids */
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+
+    @media (max-width: 900px) {
+      .grid-2, .grid-3, .questions-grid, .path-grid { grid-template-columns: 1fr; }
+      .platform-grid { grid-template-columns: 1fr; }
+    }
+
+    .callout {
+      background: var(--info-light);
+      border: 1px solid #93c5fd;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      font-size: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .callout.warn {
+      background: var(--warning-light);
+      border-color: #fcd34d;
+    }
+
+    .callout strong { color: var(--gray-800); }
+
+    .watermark {
+      text-align: center;
+      padding: 2rem;
+      color: var(--gray-400);
+      font-size: 0.7rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>AI Platform Selection Process Map</h1>
+      <p class="subtitle">Contentful AI Governance Decision Framework</p>
+      <p class="version-info">v2.0 | Updated Feb 13, 2026 | Incorporates input from Raza (Business Platforms) and Steffen (IT Engineering)</p>
+    </header>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-box decision"></div><span>Decision Point</span></div>
+      <div class="legend-item"><div class="legend-box platform"></div><span>Platform Recommendation</span></div>
+      <div class="legend-item"><div class="legend-box governance"></div><span>Governance Check</span></div>
+      <div class="legend-item"><div class="legend-box review"></div><span>Needs Review</span></div>
+      <div class="legend-item"><div class="legend-box stop"></div><span>Stop / Blocked</span></div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 1: MAIN DECISION FLOW -->
+    <!-- ============================================================ -->
+    <div class="section">
+      <div class="section-title">Decision Flow Overview</div>
+      <div class="section-subtitle">Seven-stage framework for selecting the right platform when a project involves building something</div>
+
+      <div class="flow-container">
+        <div class="main-flow">
+
+          <!-- STAGE 1: Solution Type -->
+          <div class="stage-badge"><span class="num">1</span> Solution Classification</div>
+          <div class="node decision" style="min-width: 320px;">
+            <div class="node-title">What type of solution is needed?</div>
+            <div class="node-desc">Classify the core capability the build must deliver</div>
+          </div>
+
+          <div class="branch-connector">
+            <div class="branch-line"><span class="label branch-label path">Information Retrieval</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label path">Guided Workflow</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label path">Process Automation</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label path">System Integration</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label path">Custom Application</span><div class="line"></div></div>
+          </div>
+
+          <div class="flow-level" style="gap: 1rem;">
+            <div class="node decision" style="min-width: 140px;">
+              <div class="node-title">Search & Report</div>
+              <div class="node-desc">Q&A, research, summaries, reports</div>
+            </div>
+            <div class="node decision" style="min-width: 140px;">
+              <div class="node-title">Agent Workflow</div>
+              <div class="node-desc">Multi-step prompts, structured output</div>
+            </div>
+            <div class="node decision" style="min-width: 140px;">
+              <div class="node-title">Automation</div>
+              <div class="node-desc">Data pipelines, scheduled tasks, triggers</div>
+            </div>
+            <div class="node decision" style="min-width: 140px;">
+              <div class="node-title">Integration</div>
+              <div class="node-desc">Connect systems, write data, take actions</div>
+            </div>
+            <div class="node decision" style="min-width: 140px;">
+              <div class="node-title">Custom App</div>
+              <div class="node-desc">Unique UX, external users, novel needs</div>
+            </div>
+          </div>
+
+          <div class="vertical-connector"></div>
+
+          <!-- STAGE 2: Data Assessment -->
+          <div class="stage-badge"><span class="num">2</span> Data Assessment</div>
+          <div class="node decision" style="min-width: 320px;">
+            <div class="node-title">What data does this solution need?</div>
+            <div class="node-desc">Source, volume, sensitivity, and connectivity</div>
+          </div>
+
+          <div class="branch-connector">
+            <div class="branch-line"><span class="label branch-label path">Company Docs</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label path">Google Workspace</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label path">Business Systems</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label path">Multiple Sources</span><div class="line"></div></div>
+          </div>
+
+          <div class="flow-level">
+            <div class="node decision">
+              <div class="node-title">Glean Connected?</div>
+              <div class="node-desc">Check: Confluence, Drive, Slack, Notion, GitHub, Chorus</div>
+              <div class="branch">
+                <span class="branch-label yes">Yes</span>
+                <span class="branch-label no">No - connector?</span>
+              </div>
+            </div>
+            <div class="node decision">
+              <div class="node-title">Google Native</div>
+              <div class="node-desc">Drive, Sheets, Slides, Gmail, Calendar</div>
+              <div class="branch">
+                <span class="branch-label info">Gemini / NotebookLM</span>
+              </div>
+            </div>
+            <div class="node decision">
+              <div class="node-title">External API?</div>
+              <div class="node-desc">Salesforce, NetSuite, Jira, etc.</div>
+              <div class="branch">
+                <span class="branch-label yes">API exists</span>
+                <span class="branch-label no">No API</span>
+              </div>
+            </div>
+            <div class="node decision">
+              <div class="node-title">Orchestration</div>
+              <div class="node-desc">MCP-based or custom integration needed</div>
+              <div class="branch">
+                <span class="branch-label info">MuleSoft / Custom</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="vertical-connector"></div>
+
+          <!-- STAGE 3: Context & Complexity -->
+          <div class="stage-badge"><span class="num">3</span> Context & Complexity</div>
+          <div class="node decision" style="min-width: 320px;">
+            <div class="node-title">What scale and complexity is required?</div>
+            <div class="node-desc">Context window, file sizes, reasoning depth</div>
+          </div>
+
+          <div class="branch-connector">
+            <div class="branch-line"><span class="label branch-label path">Small context</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label path">Medium context</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label path">Large context / files</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label path">Actions required</span><div class="line"></div></div>
+          </div>
+
+          <div class="flow-level">
+            <div class="node platform">
+              <div class="node-title">Glean</div>
+              <div class="node-desc">Context &lt; 128K tokens, curated docs</div>
+            </div>
+            <div class="node platform">
+              <div class="node-title">Claude</div>
+              <div class="node-desc">Up to 200K tokens, complex reasoning</div>
+            </div>
+            <div class="node platform">
+              <div class="node-title">Gemini</div>
+              <div class="node-desc">Up to 2M tokens, files up to 2GB, video</div>
+            </div>
+            <div class="node decision">
+              <div class="node-title">Actions Layer</div>
+              <div class="node-desc">Glean Actions, MuleSoft, N8N, or Custom</div>
+            </div>
+          </div>
+
+          <div class="vertical-connector"></div>
+
+          <!-- STAGE 4: Audience & Deployment -->
+          <div class="stage-badge"><span class="num">4</span> Audience & Deployment</div>
+          <div class="node decision" style="min-width: 320px;">
+            <div class="node-title">Who needs access to this solution?</div>
+            <div class="node-desc">Scope, licensing, regional considerations</div>
+          </div>
+
+          <div class="branch-connector">
+            <div class="branch-line"><span class="label branch-label path">Company-wide</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label path">Department / Team</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label path">Individual</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label path">External</span><div class="line"></div></div>
+          </div>
+
+          <div class="flow-level">
+            <div class="node platform">
+              <div class="node-title">Glean (default)</div>
+              <div class="node-desc">91% adoption, everyone has a license</div>
+            </div>
+            <div class="node decision">
+              <div class="node-title">Team Options</div>
+              <div class="node-desc">Glean, Gems, Claude Projects, Custom</div>
+            </div>
+            <div class="node decision">
+              <div class="node-title">Individual</div>
+              <div class="node-desc">Gemini, Claude, NotebookLM, Glean</div>
+            </div>
+            <div class="node review">
+              <div class="node-title">Security Review</div>
+              <div class="node-desc">External access requires auth + legal</div>
+            </div>
+          </div>
+
+          <div class="vertical-connector"></div>
+
+          <!-- STAGE 5: Determinism & Governance -->
+          <div class="stage-badge"><span class="num">5</span> Governance Requirements</div>
+          <div class="node governance" style="min-width: 320px;">
+            <div class="node-title">What governance level is needed?</div>
+            <div class="node-desc">Reliability, Traceability, Auditability, Fault Tolerance</div>
+          </div>
+
+          <div class="branch-connector">
+            <div class="branch-line"><span class="label branch-label yes">Standard</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label maybe">Elevated</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label no">Enterprise</span><div class="line"></div></div>
+          </div>
+
+          <div class="flow-level">
+            <div class="node platform">
+              <div class="node-title">SaaS Platforms</div>
+              <div class="node-desc">Glean, Gemini, Claude - vendor-managed</div>
+            </div>
+            <div class="node decision">
+              <div class="node-title">Audit-Ready</div>
+              <div class="node-desc">Logging, change tracking, backup owner</div>
+            </div>
+            <div class="node governance">
+              <div class="node-title">MuleSoft / Enterprise</div>
+              <div class="node-desc">Full SOC compliance, trace IDs, policies</div>
+            </div>
+          </div>
+
+          <div class="vertical-connector"></div>
+
+          <!-- STAGE 6: Operations & Maintenance -->
+          <div class="stage-badge"><span class="num">6</span> Operations & Maintenance</div>
+          <div class="node decision" style="min-width: 320px;">
+            <div class="node-title">Who maintains this and what happens when it breaks?</div>
+            <div class="node-desc">Ownership, SLA, handoff plan, evaluation cadence</div>
+          </div>
+
+          <div class="branch-connector">
+            <div class="branch-line"><span class="label branch-label yes">Builder Maintains</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label maybe">IT Supports</span><div class="line"></div></div>
+            <div class="branch-line"><span class="label branch-label no">Mission Critical</span><div class="line"></div></div>
+          </div>
+
+          <div class="flow-level">
+            <div class="node decision">
+              <div class="node-title">Builder Check</div>
+              <div class="node-desc">Tenure? Backup owner? Eval cadence?</div>
+              <div class="branch">
+                <span class="branch-label yes">Confirmed</span>
+                <span class="branch-label no">Find owner</span>
+              </div>
+            </div>
+            <div class="node review">
+              <div class="node-title">IT-Supportable?</div>
+              <div class="node-desc">Platform must be in IT's supported set</div>
+            </div>
+            <div class="node stop">
+              <div class="node-title">Full Governance</div>
+              <div class="node-desc">SLA, DR plan, escalation path required</div>
+            </div>
+          </div>
+
+          <div class="vertical-connector"></div>
+
+          <!-- STAGE 7: Compliance & Result -->
+          <div class="stage-badge"><span class="num">7</span> Compliance & Recommendation</div>
+          <div class="flow-level" style="gap: 2rem;">
+            <div class="node decision">
+              <div class="node-title">Data Sensitivity</div>
+              <div class="node-desc">Low / Medium / High (PII)</div>
+              <div class="branch">
+                <span class="branch-label yes">Low/Med OK</span>
+                <span class="branch-label no">High = Legal</span>
+              </div>
+            </div>
+            <div class="node decision">
+              <div class="node-title">German Users?</div>
+              <div class="node-desc">Works Council requirement</div>
+              <div class="branch">
+                <span class="branch-label yes">Glean/Gemini OK</span>
+                <span class="branch-label maybe">New tool = WC</span>
+              </div>
+            </div>
+            <div class="node platform" style="min-width: 240px; border-width: 3px;">
+              <div class="node-title">Platform Recommendation</div>
+              <div class="node-desc">Based on path through all seven stages</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 2: PLATFORM CAPABILITIES MATRIX -->
+    <!-- ============================================================ -->
+    <div class="section">
+      <div class="section-title">Platform Capabilities Matrix</div>
+      <div class="section-subtitle">All available platforms with capabilities, limitations, and governance levels (updated with Raza and Steffen input, Feb 13)</div>
+
+      <div class="platform-grid">
+
+        <!-- Glean -->
+        <div class="platform-card glean">
+          <h4>Glean <span class="tag approved">German Approved</span></h4>
+          <ul>
+            <li>Company-wide access (91% monthly adoption)</li>
+            <li>Q&A, research, reporting agents</li>
+            <li>Custom actions via API calls (e.g., create Confluence page)</li>
+            <li>Custom connectors buildable (template exists)</li>
+            <li>MCP server in private beta</li>
+          </ul>
+          <div class="specs">
+            <span class="spec-label">Context:</span><span class="spec-value">128K tokens</span>
+            <span class="spec-label">Output:</span><span class="spec-value">4K tokens</span>
+            <span class="spec-label">Files:</span><span class="spec-value">~10 max, no .md, no .zip</span>
+            <span class="spec-label">Actions:</span><span class="spec-value">Read + limited write</span>
+            <span class="spec-label">License:</span><span class="spec-value">Enterprise (all users)</span>
+            <span class="spec-label">Governance:</span><span class="spec-value">Standard (SaaS)</span>
+          </div>
+        </div>
+
+        <!-- Gemini -->
+        <div class="platform-card gemini">
+          <h4>Gemini / Gems <span class="tag available">Available</span></h4>
+          <ul>
+            <li>Included in Google Workspace Enterprise license</li>
+            <li>2M token context window (vs Glean's 128K)</li>
+            <li>Video analysis up to 2GB files</li>
+            <li>Google Drive file integration (no upload needed)</li>
+            <li>Gems: shareable team agents (like custom GPTs)</li>
+            <li>Not yet widely announced to employees</li>
+          </ul>
+          <div class="specs">
+            <span class="spec-label">Context:</span><span class="spec-value">~2M tokens</span>
+            <span class="spec-label">Files:</span><span class="spec-value">Up to 2GB</span>
+            <span class="spec-label">Sharing:</span><span class="spec-value">Gems (team agents)</span>
+            <span class="spec-label">Actions:</span><span class="spec-value">Edit Docs, Sheets, etc.</span>
+            <span class="spec-label">License:</span><span class="spec-value">Workspace Enterprise</span>
+            <span class="spec-label">German:</span><span class="spec-value">Enterprise agreement</span>
+          </div>
+        </div>
+
+        <!-- NotebookLM -->
+        <div class="platform-card notebooklm">
+          <h4>NotebookLM <span class="tag available">Available</span></h4>
+          <ul>
+            <li>Part of Google Workspace</li>
+            <li>Document analysis and visual creation</li>
+            <li>SOP generation from video (unique capability)</li>
+            <li>Slides and infographic generation from source docs</li>
+            <li>Good for multimedia source analysis</li>
+          </ul>
+          <div class="specs">
+            <span class="spec-label">Best for:</span><span class="spec-value">Multimedia analysis</span>
+            <span class="spec-label">Input:</span><span class="spec-value">Docs, video, audio</span>
+            <span class="spec-label">Output:</span><span class="spec-value">Summaries, SOPs, slides</span>
+            <span class="spec-label">License:</span><span class="spec-value">Workspace Enterprise</span>
+          </div>
+        </div>
+
+        <!-- Claude -->
+        <div class="platform-card claude">
+          <h4>Claude <span class="tag limited">Limited Approval</span></h4>
+          <ul>
+            <li>200K token context, strong reasoning</li>
+            <li>Claude Projects for shared team methodology</li>
+            <li>Claude Code for developers (token cost concern)</li>
+            <li>Claude Max ~$200/mo (under consideration)</li>
+            <li>Enterprise licensing evaluated, deemed too expensive</li>
+          </ul>
+          <div class="specs">
+            <span class="spec-label">Context:</span><span class="spec-value">200K tokens</span>
+            <span class="spec-label">Strength:</span><span class="spec-value">Complex reasoning</span>
+            <span class="spec-label">Code:</span><span class="spec-value">No token cap (cost risk)</span>
+            <span class="spec-label">German:</span><span class="spec-value">Not approved</span>
+            <span class="spec-label">Cost:</span><span class="spec-value">$200/mo (Max)</span>
+            <span class="spec-label">Status:</span><span class="spec-value">VOC with CTO pending</span>
+          </div>
+        </div>
+
+        <!-- MuleSoft -->
+        <div class="platform-card mulesoft">
+          <h4>MuleSoft Agent Fabric <span class="tag poc">POC In Progress</span></h4>
+          <ul>
+            <li>Enterprise-grade governance built in</li>
+            <li>Full traceability: trace IDs, request logs</li>
+            <li>MCP hosting with policy enforcement</li>
+            <li>SOC compliance ready (audit reports, change management)</li>
+            <li>PII data filtering within API flows</li>
+            <li>Blocked: requires Cloud 2.0 (2-month trial pending)</li>
+          </ul>
+          <div class="specs">
+            <span class="spec-label">Governance:</span><span class="spec-value">Enterprise (built-in)</span>
+            <span class="spec-label">Traceability:</span><span class="spec-value">Full (trace IDs)</span>
+            <span class="spec-label">MCP:</span><span class="spec-value">Native hosting</span>
+            <span class="spec-label">Blocker:</span><span class="spec-value">Cloud 2.0 contract</span>
+            <span class="spec-label">POC ETA:</span><span class="spec-value">~Feb 20-28, 2026</span>
+            <span class="spec-label">Owner:</span><span class="spec-value">Raza (Bus. Platform)</span>
+          </div>
+        </div>
+
+        <!-- N8N -->
+        <div class="platform-card n8n" style="border-color: var(--info);">
+          <h4>N8N <span class="tag available">Active</span></h4>
+          <ul>
+            <li>Workflow automation platform</li>
+            <li>Finance team success: 10hrs/week saved</li>
+            <li>Good for data pipelines and scheduled tasks</li>
+            <li>AI agent capabilities improving</li>
+            <li>Less enterprise governance vs MuleSoft</li>
+          </ul>
+          <div class="specs">
+            <span class="spec-label">Best for:</span><span class="spec-value">Process automation</span>
+            <span class="spec-label">Governance:</span><span class="spec-value">Standard (self-managed)</span>
+            <span class="spec-label">Success:</span><span class="spec-value">Cash app automation</span>
+            <span class="spec-label">Team:</span><span class="spec-value">Finance (Raza's team)</span>
+          </div>
+        </div>
+
+        <!-- Custom Build -->
+        <div class="platform-card custom">
+          <h4>Custom Build <span class="tag enterprise">Case-by-Case</span></h4>
+          <ul>
+            <li>Full flexibility for novel requirements</li>
+            <li>Vercel, AWS, Railway, Supabase options</li>
+            <li>Requires committed owner for maintenance</li>
+            <li>Must follow standard configuration (MD, JSON files)</li>
+            <li>Highest governance burden (self-managed)</li>
+            <li>Risk: shadow IT if uncoordinated</li>
+          </ul>
+          <div class="specs">
+            <span class="spec-label">Governance:</span><span class="spec-value">Self-managed (highest burden)</span>
+            <span class="spec-label">Flexibility:</span><span class="spec-value">Maximum</span>
+            <span class="spec-label">Maintenance:</span><span class="spec-value">Owner responsibility</span>
+            <span class="spec-label">Standards:</span><span class="spec-value">Required (KB, config, eval)</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="callout">
+        <strong>ChatGPT (Back Burner):</strong> ~600 existing licenses, consumer/individual use. "Company Knowledge" feature announced but not ready. Investment in Glean not yet exhausted. Would require permissions testing. -- AI Implementation Team, Jan 28
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 3: GOVERNANCE CRITERIA -->
+    <!-- ============================================================ -->
+    <div class="section">
+      <div class="section-title">Governance Evaluation Criteria</div>
+      <div class="section-subtitle">Five criteria for evaluating platform suitability -- from Raza (Business Platforms), validated with enterprise IS/Finance requirements</div>
+
+      <div class="gov-grid">
+        <div class="gov-card">
+          <h5>1. Reliability</h5>
+          <p>Does the platform consistently deliver correct, predictable results? Can we trust the output for business decisions?</p>
+          <p class="question">Ask: "Can we rely on this for financial reporting? For customer-facing output?"</p>
+        </div>
+        <div class="gov-card">
+          <h5>2. Governance</h5>
+          <p>Does the platform enforce policies, permissions, and access controls? Can we restrict what data flows where?</p>
+          <p class="question">Ask: "Can PII be filtered? Can we enforce data boundaries between departments?"</p>
+        </div>
+        <div class="gov-card">
+          <h5>3. Traceability</h5>
+          <p>Can every request and response be tracked with correlation/trace IDs? Can we reconstruct what happened?</p>
+          <p class="question">Ask: "If something goes wrong, can we trace the exact path and inputs?"</p>
+        </div>
+        <div class="gov-card">
+          <h5>4. Auditability</h5>
+          <p>Does the platform produce audit-ready logs? Can we satisfy SOC 2 Type 2, user access reviews, and release change management?</p>
+          <p class="question">Ask: "Can we generate audit reports showing who changed what, when, and why?"</p>
+        </div>
+        <div class="gov-card">
+          <h5>5. Fault Tolerance</h5>
+          <p>What happens when the platform fails? Is there graceful degradation, retry logic, and clear error handling?</p>
+          <p class="question">Ask: "If the AI service is down, does the workflow fail safely or corrupt data?"</p>
+        </div>
+      </div>
+
+      <!-- Governance comparison table -->
+      <div style="overflow-x: auto; margin-top: 1rem;">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Criteria</th>
+              <th>Glean</th>
+              <th>Gemini/Gems</th>
+              <th>Claude</th>
+              <th>MuleSoft</th>
+              <th>N8N</th>
+              <th>Custom Build</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Reliability</strong></td>
+              <td><span class="partial">~</span> Non-deterministic</td>
+              <td><span class="partial">~</span> Non-deterministic</td>
+              <td><span class="partial">~</span> Better reasoning</td>
+              <td><span class="check">Y</span> Deterministic APIs + AI</td>
+              <td><span class="check">Y</span> Scripted workflows</td>
+              <td><span class="check">Y</span> Full control</td>
+            </tr>
+            <tr>
+              <td><strong>Governance</strong></td>
+              <td><span class="check">Y</span> Built-in permissions</td>
+              <td><span class="check">Y</span> Workspace IAM</td>
+              <td><span class="partial">~</span> Projects only</td>
+              <td><span class="check">Y</span> Full policy engine</td>
+              <td><span class="partial">~</span> Basic</td>
+              <td><span class="cross">N</span> Must build</td>
+            </tr>
+            <tr>
+              <td><strong>Traceability</strong></td>
+              <td><span class="partial">~</span> Limited logs</td>
+              <td><span class="partial">~</span> GCP logging</td>
+              <td><span class="partial">~</span> Conversation logs</td>
+              <td><span class="check">Y</span> Full trace IDs</td>
+              <td><span class="check">Y</span> Execution logs</td>
+              <td><span class="cross">N</span> Must build (Splunk/CW)</td>
+            </tr>
+            <tr>
+              <td><strong>Auditability</strong></td>
+              <td><span class="partial">~</span> Usage reports</td>
+              <td><span class="partial">~</span> Admin reports</td>
+              <td><span class="cross">N</span> Limited</td>
+              <td><span class="check">Y</span> SOC-ready</td>
+              <td><span class="partial">~</span> Basic logs</td>
+              <td><span class="cross">N</span> Must build</td>
+            </tr>
+            <tr>
+              <td><strong>Fault Tolerance</strong></td>
+              <td><span class="check">Y</span> SaaS managed</td>
+              <td><span class="check">Y</span> Google managed</td>
+              <td><span class="check">Y</span> SaaS managed</td>
+              <td><span class="check">Y</span> Enterprise SLA</td>
+              <td><span class="partial">~</span> Self-managed</td>
+              <td><span class="cross">N</span> Must build</td>
+            </tr>
+            <tr>
+              <td><strong>German Approved</strong></td>
+              <td><span class="check">Y</span> May 2025</td>
+              <td><span class="check">Y</span> Enterprise agreement</td>
+              <td><span class="cross">N</span> Not yet</td>
+              <td><span class="check">Y</span> Existing contract</td>
+              <td><span class="partial">~</span> Internal tool</td>
+              <td><span class="partial">~</span> Depends on platform</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 4: QUICK DECISION PATHS -->
+    <!-- ============================================================ -->
+    <div class="section">
+      <div class="section-title">Quick Decision Paths</div>
+      <div class="section-subtitle">Common scenarios with recommended platforms -- use these as starting points, then validate through the full decision flow</div>
+
+      <div class="path-grid">
+
+        <div class="path-card">
+          <div class="path-title">Job Description Generator</div>
+          <div class="path-example">Example: Bella wants automated JD generation from templates</div>
+          <div class="mini-flow">
+            <div class="mini-node">Company docs</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">In Glean</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">Company-wide</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">Guided workflow</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node result-glean">Glean Agent</div>
+          </div>
+        </div>
+
+        <div class="path-card">
+          <div class="path-title">Contract Review for Legal</div>
+          <div class="path-example">Example: Sam needs contract analysis against playbook</div>
+          <div class="mini-flow">
+            <div class="mini-node">Large docs</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">Complex reasoning</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">High sensitivity</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">Team use</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node result-claude">Claude + Legal Review</div>
+          </div>
+        </div>
+
+        <div class="path-card">
+          <div class="path-title">SOP from Training Video</div>
+          <div class="path-example">Example: People Tech needs SOPs from recorded training sessions</div>
+          <div class="mini-flow">
+            <div class="mini-node">Large video</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">2GB+ file</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">Visual output</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node result-notebooklm">NotebookLM</div>
+          </div>
+        </div>
+
+        <div class="path-card">
+          <div class="path-title">Revenue Recognition Validation</div>
+          <div class="path-example">Example: Finance needs automated NetSuite validation</div>
+          <div class="mini-flow">
+            <div class="mini-node">NetSuite data</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">System integration</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">SOC compliance</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node result-mulesoft">MuleSoft MCP</div>
+          </div>
+        </div>
+
+        <div class="path-card">
+          <div class="path-title">Team Knowledge Agent (Shared)</div>
+          <div class="path-example">Example: Marketing team wants shared AI with team-specific knowledge</div>
+          <div class="mini-flow">
+            <div class="mini-node">Google Drive data</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">Team sharing</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">Actions (Docs/Sheets)</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node result-gemini">Gemini Gem</div>
+          </div>
+        </div>
+
+        <div class="path-card">
+          <div class="path-title">Expense Automation</div>
+          <div class="path-example">Example: Finance needs Coupa field sync automation</div>
+          <div class="mini-flow">
+            <div class="mini-node">Coupa API</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">Process automation</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">IT-maintained</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node result-custom">N8N / Script</div>
+          </div>
+        </div>
+
+        <div class="path-card">
+          <div class="path-title">Large Codebase Analysis</div>
+          <div class="path-example">Example: Analyze full repo for optimization or migration</div>
+          <div class="mini-flow">
+            <div class="mini-node">Code + docs</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">Large context (2M)</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">Individual dev</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node result-gemini">Gemini</div>
+          </div>
+        </div>
+
+        <div class="path-card">
+          <div class="path-title">Strategic Account Workspace</div>
+          <div class="path-example">Example: AEs need shared, up-to-date top-100 customer intelligence</div>
+          <div class="mini-flow">
+            <div class="mini-node">Multi-source</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">Shared team</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">MCP orchestration</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node result-custom">Custom + Glean API</div>
+          </div>
+        </div>
+
+        <div class="path-card">
+          <div class="path-title">Missing Data Source in Glean</div>
+          <div class="path-example">Example: Need HubSpot or Gainsight data accessible for AI queries</div>
+          <div class="mini-flow">
+            <div class="mini-node">Not in Glean</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">API available?</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">Custom connector</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node result-glean">Glean + Connector</div>
+          </div>
+        </div>
+
+        <div class="path-card">
+          <div class="path-title">Shadow IT Prevention</div>
+          <div class="path-example">Example: Someone built a password-protected app on Vercel with external access</div>
+          <div class="mini-flow">
+            <div class="mini-node">External access</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">No auth</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node">Data leak risk</div>
+            <span class="mini-arrow">→</span>
+            <div class="mini-node result-stop">STOP: Security Review</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 5: KEY QUESTIONS BY STAGE -->
+    <!-- ============================================================ -->
+    <div class="section">
+      <div class="section-title">Key Questions at Each Decision Stage</div>
+      <div class="section-subtitle">Ask these questions during discovery to narrow platform selection -- sourced from Feb 13 discussions with Raza and Steffen</div>
+
+      <div class="questions-grid">
+
+        <div class="question-group">
+          <h5><span class="badge">Stage 1</span> Solution Classification</h5>
+          <ol>
+            <li>Is this searching existing information or creating new outputs?</li>
+            <li>Does it need to take actions (write data, trigger processes)?</li>
+            <li>Is "close enough" acceptable, or must results be deterministic?</li>
+            <li>Could this be solved with a process change instead of a build?</li>
+            <li>What does the current process look like? (Map it before building.)</li>
+          </ol>
+          <div class="source">Source: Steffen -- "Sometimes the process is just bad. You can avoid a lot of work by just refining the process."</div>
+        </div>
+
+        <div class="question-group">
+          <h5><span class="badge">Stage 2</span> Data Assessment</h5>
+          <ol>
+            <li>What data sources are needed? Are they already in Glean?</li>
+            <li>If not in Glean, is there an API we can build a connector for?</li>
+            <li>How large is the context? (128K = Glean, 200K = Claude, 2M = Gemini)</li>
+            <li>Are there large files (video, PDFs, codebases)?</li>
+            <li>Could we build a Glean connector to an MCP server for this data?</li>
+          </ol>
+          <div class="source">Source: Steffen -- "We can build custom connectors. We've done it before with Chorus in a pretty short amount of time."</div>
+        </div>
+
+        <div class="question-group">
+          <h5><span class="badge">Stage 3</span> Context & Complexity</h5>
+          <ol>
+            <li>Will this require multi-step reasoning or just retrieval?</li>
+            <li>How curated/narrow is the document set? (Glean works best with narrow scope.)</li>
+            <li>Do we need to analyze video or multimedia? (Gemini/NotebookLM only.)</li>
+            <li>Does the output need to be formatted specifically (slides, SOPs, structured data)?</li>
+            <li>Is this something that needs to happen automatically on a schedule?</li>
+          </ol>
+          <div class="source">Source: Platform inventory -- "Glean broad queries fail. Only works for narrow, curated domains."</div>
+        </div>
+
+        <div class="question-group">
+          <h5><span class="badge">Stage 4</span> Audience & Deployment</h5>
+          <ol>
+            <li>How many people need access? (Company-wide = Glean/Gemini default.)</li>
+            <li>Are German employees included? (Limits tool options.)</li>
+            <li>Is this shared within a team or individual productivity?</li>
+            <li>Do external partners or customers need access?</li>
+            <li>Does the team already use Google-native workflows?</li>
+          </ol>
+          <div class="source">Source: Steffen -- "Gems can be shared within the whole company. People are not aware this is a possibility."</div>
+        </div>
+
+        <div class="question-group">
+          <h5><span class="badge">Stage 5</span> Governance Requirements</h5>
+          <ol>
+            <li>Does this touch SOC 2 audit scope? (User access reviews, change management?)</li>
+            <li>Do we need full request/response logging with trace IDs?</li>
+            <li>Must we demonstrate who changed what, when, and why?</li>
+            <li>Does this involve PII that needs to be filtered in transit?</li>
+            <li>Is there a regulatory requirement (GDPR, financial compliance)?</li>
+          </ol>
+          <div class="source">Source: Raza -- "Governance, traceability, auditability, fault tolerance -- these are key evaluation criteria."</div>
+        </div>
+
+        <div class="question-group">
+          <h5><span class="badge">Stage 6</span> Operations & Maintenance</h5>
+          <ol>
+            <li>Who will maintain this if the builder leaves the company?</li>
+            <li>Is there a backup owner identified and committed?</li>
+            <li>What evaluation/testing cadence will be established?</li>
+            <li>What's the response time expectation if it breaks?</li>
+            <li>Are standard configuration files (MD, JSON, KB docs) provided?</li>
+          </ol>
+          <div class="source">Source: Steffen -- "Somebody was on PTO, the script was needed, nobody had access. It happened recently."</div>
+        </div>
+
+        <div class="question-group">
+          <h5><span class="badge">Stage 7</span> Compliance & Approval</h5>
+          <ol>
+            <li>What is the data classification level? (Internal, customer, PII?)</li>
+            <li>Will German employees use this? (Works Council approval needed for new tools.)</li>
+            <li>Is there an enterprise agreement with the vendor?</li>
+            <li>Does data leave our controlled environment?</li>
+            <li>Has the experimentation request process been followed?</li>
+          </ol>
+          <div class="source">Source: Steffen -- "The biggest risk is our data. If they use new tools without enterprise agreements, data could train models."</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 6: HUB AND SPOKE MODEL -->
+    <!-- ============================================================ -->
+    <div class="section">
+      <div class="section-title">Hub-and-Spoke Governance Model</div>
+      <div class="section-subtitle">Teams can use preferred tools within standards -- the hub provides governance, the spokes provide flexibility</div>
+
+      <div class="grid-2">
+        <div>
+          <h5 style="font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--gray-800);">Hub: Central Standards</h5>
+          <div class="gov-grid" style="grid-template-columns: 1fr;">
+            <div class="gov-card">
+              <h5>Standard Configuration Files</h5>
+              <p>Every tool/agent must have: standard MD documentation, JSON config where applicable, KB entry in Thesis platform, evaluation criteria defined</p>
+            </div>
+            <div class="gov-card">
+              <h5>Accountability Requirements</h5>
+              <p>Process lead identified, backup owner named, evaluation cadence set, handoff documentation maintained</p>
+            </div>
+            <div class="gov-card">
+              <h5>Security Baseline</h5>
+              <p>Enterprise agreement with vendor, proper authentication (not just password), no uncontrolled external sharing, data classification applied</p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h5 style="font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--gray-800);">Spokes: Team Flexibility</h5>
+          <div class="gov-grid" style="grid-template-columns: 1fr;">
+            <div class="gov-card">
+              <h5>Approved Platform Set</h5>
+              <p>Glean, Gemini/Gems, NotebookLM, Claude (with approval), MuleSoft (enterprise), N8N (automation), Custom (with justification)</p>
+            </div>
+            <div class="gov-card">
+              <h5>Experimentation Path</h5>
+              <p>No-cost + less than 1 month: experimentation ticket. Requires budget: procurement process. New vendor: security + legal review.</p>
+            </div>
+            <div class="gov-card">
+              <h5>Evaluation Before Deployment</h5>
+              <p>Test against defined criteria before release. Ongoing evaluation cadence after deployment. Standard QA process for agents and workflows.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <strong>MCP Architecture Note (from Raza):</strong> MCPs should be designed per use case, not as 1:1 API replacements. "If I say 'give me all pull requests during November 2025,' the MCP should know exactly which tool to use. Don't expose raw API endpoints as MCP tools -- that makes things less deterministic, not more."
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 7: OPEN ITEMS -->
+    <!-- ============================================================ -->
+    <div class="section">
+      <div class="section-title">Open Items & Pending Decisions</div>
+      <div class="section-subtitle">Items requiring resolution before this framework is finalized</div>
+
+      <div class="grid-3">
+        <div class="gov-card" style="border-left: 3px solid var(--danger);">
+          <h5>MuleSoft POC Completion</h5>
+          <p>Cloud 2.0 contract pending procurement. 2-month trial. Raza targeting demo by Feb 20-28. Result determines enterprise integration path.</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--warning);">
+          <h5>Claude Desktop Licenses</h5>
+          <p>Raza proposes 5-10 Claude Desktop licenses for stakeholders (Mickey, Carly, Caitlin). Needs security and legal review. Chris exploring Bedrock alternative.</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--warning);">
+          <h5>API Key Governance</h5>
+          <p>No clear framework for API key billing. GCP billing accounts as temporary solution. Needs scalable approach (Danny + Steffen task).</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--info);">
+          <h5>Gemini Internal Announcement</h5>
+          <p>Gemini and Gems available but not widely communicated to employees. Could address many use cases currently falling to custom builds.</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--info);">
+          <h5>Google Agentspace</h5>
+          <p>VS Code clone with Google AI. Currently disabled (preview features off). Legal terms don't comply yet. Weekly rate limits could be useful for experimentation.</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--info);">
+          <h5>Glean MCP Connector Template</h5>
+          <p>Steffen's idea: build Glean connector template that connects to external MCP servers to index data. Would expand Glean's reach without custom builds.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="watermark">
+      AI Platform Selection Process Map v2.0 | Contentful AI Governance | February 13, 2026<br>
+      Sources: Raza (Business Platforms, Feb 13), Steffen (IT Engineering, Feb 13), Platform Inventory Research, Slack Analysis, CKO Workshop Notes
+    </div>
+  </div>
+</body>
+</html>

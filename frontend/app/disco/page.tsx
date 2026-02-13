@@ -15,7 +15,9 @@ import {
   ChevronDown,
   Loader2,
   Map,
-  GitBranch
+  GitBranch,
+  LayoutGrid,
+  TreeDeciduous
 } from 'lucide-react'
 import DiscoProcessMap from '@/components/disco/DiscoProcessMap'
 import DiscoOperationalizeMap from '@/components/disco/DiscoOperationalizeMap'
@@ -392,7 +394,7 @@ export default function DiscoInitiativesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [createModalOpen, setCreateModalOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'discoveries' | 'workflow' | 'operationalize'>('discoveries')
+  const [activeTab, setActiveTab] = useState<'discoveries' | 'workflow' | 'operationalize' | 'platform-map' | 'platform-tree'>('discoveries')
 
   const loadInitiatives = async () => {
     try {
@@ -496,6 +498,29 @@ export default function DiscoInitiativesPage() {
           <GitBranch className="w-4 h-4" />
           Operationalize Map
         </button>
+        <div className="mx-2 border-l border-slate-200 dark:border-slate-700 h-6 self-center" />
+        <button
+          onClick={() => setActiveTab('platform-map')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+            activeTab === 'platform-map'
+              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          <LayoutGrid className="w-4 h-4" />
+          Platform Map
+        </button>
+        <button
+          onClick={() => setActiveTab('platform-tree')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+            activeTab === 'platform-tree'
+              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          <TreeDeciduous className="w-4 h-4" />
+          Platform Decision Tree
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -503,6 +528,22 @@ export default function DiscoInitiativesPage() {
         <DiscoProcessMap />
       ) : activeTab === 'operationalize' ? (
         <DiscoOperationalizeMap />
+      ) : activeTab === 'platform-map' ? (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+          <iframe
+            src="/platform-process-map.html"
+            className="w-full h-full border-0"
+            title="AI Platform Selection Process Map"
+          />
+        </div>
+      ) : activeTab === 'platform-tree' ? (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+          <iframe
+            src="/platform-decision-tree.html"
+            className="w-full h-full border-0"
+            title="AI Platform Selection Decision Tree"
+          />
+        </div>
       ) : (
         <>
 
