@@ -627,3 +627,63 @@ Comprehensive restructuring of the DISCO process based on UNHYPED methodology al
 - Annotations persist alongside agent output for correction tracking
 
 **Files**: `database/migrations/072_disco_restructure.sql`, `backend/api/routes/disco/_shared.py`, `backend/api/routes/disco/initiatives.py`, `backend/api/routes/disco/synthesis.py`, `backend/disco_agents/discovery-guide-v1.2.md`, `backend/disco_agents/requirements-generator-v1.2.md`, `backend/disco_agents/KB/gap-taxonomy-reference.md`, `backend/services/disco/agent_service.py`, `backend/services/disco/initiative_service.py`, `backend/services/disco/project_service.py`, `frontend/app/disco/page.tsx`, `frontend/app/disco/[id]/page.tsx`, `frontend/components/disco/OutputViewer.tsx`, `frontend/components/disco/SynthesisView.tsx`, `frontend/components/disco/ThroughlineSummary.tsx`, `frontend/components/disco/CheckpointPanel.tsx`, `frontend/components/disco/DiscoProcessMap.tsx`, `frontend/components/disco/DiscoOperationalizeMap.tsx` (28 files total)
+
+---
+
+## February 12-13, 2026
+
+### Initiative Folder Links
+
+Vault folders can now be linked to DISCO discoveries for automatic document association.
+
+**Features**:
+- Link vault folders directly to discoveries from the discovery detail page
+- All documents in a linked folder are automatically associated with the initiative
+- LinkedFoldersSection component shows linked folders with document counts
+- Folder removal unlinks documents when a folder is disconnected
+- Migration creates `disco_initiative_folder_links` table
+
+**Files**: `database/migrations/074_initiative_folder_links.sql`, `backend/api/routes/disco/documents.py`, `backend/services/obsidian_sync.py`, `frontend/components/disco/LinkedFoldersSection.tsx`, `frontend/components/disco/KBDocumentBrowser.tsx`, `frontend/app/disco/[id]/page.tsx`
+
+### Discovery Agent (Renamed from Initiative Agent)
+
+The Initiative Agent has been renamed to "Discovery Agent" and now receives real initiative context and can propose structured framing.
+
+**Rename**:
+- User-facing name changed from "Initiative Agent" to "Discovery Agent" across all UI and help docs
+- Internal key remains `initiative_agent` to avoid database migration
+- Updated in: agent selector, chat agent service, system instruction XML, help documentation
+
+**Context Injection** (fixes critical gap):
+- Previously the agent claimed "full initiative context automatically injected" but received nothing
+- New `build_initiative_context()` function fetches and formats as XML: initiative metadata, throughline (problem statements, hypotheses, gaps, desired outcome), agent output summaries, linked document names, and value alignment
+- Context injected when `initiative_agent` selected and conversation has `initiative_id`
+- Max tokens increased to 4096 for richer responses
+
+**Framing Capability**:
+- Discovery Agent can discuss initiative framing conversationally
+- When ready, outputs structured `<framing_proposal>` JSON block with problem statements, hypotheses, gaps, and desired outcome state
+- Backend extracts proposal from response (same pattern as Taskmaster's `<task_proposals>`)
+- Frontend renders FramingProposalCard with checkboxes for selective application
+- "Apply to Discovery" merges selected items into existing throughline via PATCH endpoint
+- Applied badge shown after successful application
+
+**Files**: `backend/agents/initiative_agent.py`, `backend/services/chat_agent_service.py`, `backend/services/disco/initiative_context.py` (new), `backend/api/routes/chat.py`, `backend/system_instructions/agents/initiative_agent.xml`, `backend/docs_help/user/02-chat.md`, `frontend/components/AgentSelector.tsx`, `frontend/components/ChatInterface.tsx`, `frontend/components/ChatMessage.tsx`, `frontend/components/chat/FramingProposalCard.tsx` (new)
+
+### Project Creation from Discovery View
+
+Added the ability to create projects directly from the discovery detail page.
+
+**Features**:
+- "Create Project" button in discovery header
+- Uses existing ProjectCreateModal with auto-linking to the current initiative
+- Projects created this way appear in the discovery's Projects tab
+
+**Files**: `frontend/app/disco/[id]/page.tsx`, `frontend/components/projects/ProjectCreateModal.tsx`
+
+### UI Polish
+
+- Added text labels to folder select-all buttons in KB document browsers for improved intuitiveness
+- Updated DISCO UI references from "triage agent" to "Discovery Guide"
+
+**Files**: `frontend/components/disco/KBDocumentBrowser.tsx`, `frontend/components/projects/ProjectDocumentBrowser.tsx`

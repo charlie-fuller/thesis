@@ -37,6 +37,7 @@ This document contains detailed architecture documentation. For essential Claude
 | Glean Evaluator | Can We Glean This? | Glean platform fit assessment, connector analysis |
 | Compass | Career Coach | Win capture, performance tracking, check-in prep |
 | Taskmaster | Personal Accountability | Task discovery, progress tracking, slippage alerts |
+| Discovery Agent | Initiative Discovery | Initiative framing, context synthesis, discovery methodology (internal key: initiative_agent) |
 | Manual | Documentation Assistant | In-app help, feature explanation, troubleshooting |
 
 ### Systems/Coordination Agents
@@ -102,12 +103,15 @@ This document contains detailed architecture documentation. For essential Claude
 27. **Discovery Projects View** - Dedicated endpoint for querying projects linked to a discovery with source badges
 28. **Discovery Goal Alignment** - Analyzes discoveries against IS FY27 strategic goals (same 4-pillar framework as projects). Uses rich context from agent outputs for scoring. Project roll-up shows linked projects' alignment scores with distribution.
 29. **Discovery Throughline** - Structured input framing for discoveries: problem statements, hypotheses (assumption/belief/prediction), known gaps (data/people/process/capability), and desired outcome state. Throughline is threaded through all 4 DISCO agent stages and resolved at convergence with hypothesis resolutions, gap statuses, state changes, and "So What?" analysis.
-30. **Framing Extraction** - Triage agent automatically suggests throughline elements (problem statements, hypotheses, gaps, KPIs, stakeholders) from linked documents. Post-triage review panel lets users accept or dismiss suggestions. Preferred over manual throughline entry.
+30. **Framing Extraction** - Two paths: (1) Triage agent automatically suggests throughline elements from linked documents with post-triage review panel, (2) Discovery Agent in chat can discuss framing conversationally and propose structured `<framing_proposal>` blocks that users selectively apply via FramingProposalCard.
 31. **Value Alignment** - Flexible alignment tracking per discovery: target department, KPIs, department goals, company priority, strategic pillar, notes. Populated progressively as information emerges during discovery.
 32. **Sponsor/Stakeholder Linking** - Discoveries can be linked to an executive sponsor and multiple stakeholders from the stakeholder database.
 33. **Resolution Annotations** - Users can override agent-assigned hypothesis/gap resolution statuses with their own assessment and notes. Annotations persist alongside agent output.
 34. **Task Source Tracking** - Tasks created from DISCO convergence state changes include `source_initiative_id` and `source_disco_output_id` for full traceability back to the discovery process.
 35. **Gap Taxonomy** - Reference taxonomy for gap categorization (data/people/process/capability) with investigation focus guidance. Available as KB reference for Discovery Guide agent.
+36. **Initiative Folder Links** - Link vault folders to discoveries. When a folder is linked, all documents in that folder are automatically linked to the initiative. Folder link state tracked in `disco_initiative_folder_links`. Removal sync unlinks documents when folders are removed.
+37. **Discovery Agent Context Injection** - The Discovery Agent (chat) receives full initiative context via `build_initiative_context()`: initiative metadata, throughline, agent output summaries, linked document names, and value alignment. Previously the agent claimed context but received none.
+38. **Project Creation from Discovery** - Create projects directly from the discovery detail page via ProjectCreateModal, with automatic initiative linking.
 
 **Consolidated Agent Architecture (v1.2):**
 | # | Agent | Color | Consolidates | Checkpoint After |
@@ -197,6 +201,7 @@ This document contains detailed architecture documentation. For essential Claude
 - `disco_bundles` - Proposed initiatives from Strategist (scores, rationale, dependencies)
 - `disco_prds` - PRD documents from Requirements Generator (structured + markdown)
 - `disco_checkpoints` - Human-in-the-loop approval gates between consolidated agents (status, checklist_items, approved_at/by)
+- `disco_initiative_folder_links` - Vault folder-to-initiative links for auto-document association (initiative_id, folder_path, linked_by)
 
 ## Database Migrations
 
@@ -238,6 +243,7 @@ Run migrations in order from `/database/migrations/`:
 | 070 | task_notes | Notes field on tasks |
 | 071 | initiative_throughline | Throughline + throughline_resolution JSONB columns |
 | 072 | disco_restructure | Value alignment, sponsor/stakeholder, resolution annotations on `disco_initiatives`; triage_suggestions on `disco_outputs`; source tracking on `project_tasks` |
+| 074 | initiative_folder_links | `disco_initiative_folder_links` table for vault folder-to-initiative associations |
 
 ## Important Files Reference
 
@@ -259,6 +265,7 @@ Run migrations in order from `/database/migrations/`:
 - `/backend/services/stakeholder_*.py` - Stakeholder services (extractor, scanner, deduplicator, linker)
 - `/backend/services/task_*.py` - Task services (auto_extractor, extractor)
 - `/backend/services/disco/` - DISCO services (4 consolidated agents + 8 legacy) (formerly `purdy/`, path alias still supported)
+- `/backend/services/disco/initiative_context.py` - Builds XML context for Discovery Agent (throughline, agent outputs, linked docs)
 - `/backend/services/goal_alignment_analyzer.py` - Project goal alignment (IS FY27 pillars)
 - `/backend/services/disco/initiative_alignment_analyzer.py` - Initiative goal alignment with agent output context
 - `/backend/services/graph/` - Neo4j services
@@ -282,7 +289,9 @@ Run migrations in order from `/database/migrations/`:
 - `/frontend/app/tasks/` - Kanban board
 - `/frontend/app/projects/` - Project pipeline
 - `/frontend/app/disco/` - DISCO feature (formerly `purdy/`, route `/purdy` still redirects)
-- `/frontend/components/disco/` - DISCO components (9 files, including ThroughlineEditor, ThroughlineSummary) (formerly `purdy/`)
+- `/frontend/components/disco/` - DISCO components (10 files, including ThroughlineEditor, ThroughlineSummary, LinkedFoldersSection) (formerly `purdy/`)
+- `/frontend/components/chat/FramingProposalCard.tsx` - Selective framing proposal card for Discovery Agent chat responses
+- `/frontend/components/chat/TaskProposalCard.tsx` - Selective task proposal card for Taskmaster chat responses
 
 ### KB Components (Finder-Style Layout)
 - `/frontend/components/kb/KBDocumentsContent.tsx` - Orchestrator (~300 lines): manages folder/search/filter state, toolbar, sidebar+content flex layout, modals
