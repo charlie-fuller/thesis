@@ -134,6 +134,11 @@ Creates sequenced task plans from chat conversations. Analyzes project context t
 
 *Best for:* "Create a task plan for this project" or "Break this initiative into action items"
 
+**Kraken** (Task Evaluation & Execution)
+Evaluates project tasks for "agentic workability" - which tasks AI can complete autonomously, which need human collaboration, and which require full human judgment. Then executes approved tasks non-destructively (output as comments and KB documents). Computes an agenticity score for each project.
+
+*Best for:* Accessed via the Kraken panel in any project detail modal. Click "Release the Kraken" to evaluate tasks, then select and execute automatable ones.
+
 ---
 
 ### Context-Aware Agents
@@ -180,6 +185,7 @@ Here's my mental model:
 **Training/enablement?** → Scholar
 **Internal comms?** → Catalyst
 
+**Task evaluation?** → Kraken
 **Not sure?** Use Auto mode. Or put a few of them in a meeting room and see what emerges.
 
 ---

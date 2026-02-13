@@ -471,6 +471,30 @@ All conversations with discovery context are saved and can be filtered in the ma
 
 ---
 
+## Platform Governance Maps
+
+The DISCO page includes two platform governance reference tabs, separated by a visual divider from the workflow tabs:
+
+### Platform Map
+
+An interactive 7-stage process map for AI platform selection at Contentful. Shows the full journey from idea to operationalized solution, including:
+- Idea submission and initial screening
+- Capability mapping against existing platforms
+- Governance review with German Works Council considerations
+- Implementation and operationalization paths
+
+### Platform Decision Tree
+
+An interactive decision tree that guides platform selection decisions step by step. Covers:
+- **Use case classification** - What type of problem are you solving?
+- **Platform matching** - Which existing platform fits? (Glean, Google Workspace AI, MuleSoft, custom build)
+- **Governance evaluation** - Reliability, governance, traceability, auditability, fault tolerance
+- **Compliance check** - Works Council approval status for each platform
+
+Both maps are standalone interactive HTML pages. Navigate through nodes by clicking options to explore different decision paths.
+
+---
+
 ## Tips for Better Results
 
 1. **Link context first.** The more documents you provide, the better Discovery Prep and Triage can assess the opportunity.
