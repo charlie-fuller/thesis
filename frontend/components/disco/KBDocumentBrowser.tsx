@@ -496,14 +496,15 @@ export default function KBDocumentBrowser({
               }
             }}
             disabled={isSelecting}
-            className="p-1 text-slate-300 hover:text-indigo-600 dark:text-slate-600 dark:hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs text-slate-400 hover:text-indigo-600 dark:text-slate-500 dark:hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
             title={`Select all ${node.count} documents in ${node.name}`}
           >
             {isSelecting ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <Loader2 className="w-3 h-3 animate-spin" />
             ) : (
-              <CheckSquare className="w-3.5 h-3.5" />
+              <CheckSquare className="w-3 h-3" />
             )}
+            {allDirectSelected && isExpanded ? 'Deselect' : 'Select all'}
           </button>
         </div>
 
