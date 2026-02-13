@@ -2,7 +2,7 @@
 
 This document contains detailed architecture documentation. For essential Claude Code instructions, see `/CLAUDE.md`.
 
-## Agent Roster (21 Agents)
+## Agent Roster (22 Agents)
 
 ### Meta-Agents (Always Present in Meetings)
 | Agent | Name | Purpose |
@@ -37,6 +37,7 @@ This document contains detailed architecture documentation. For essential Claude
 | Glean Evaluator | Can We Glean This? | Glean platform fit assessment, connector analysis |
 | Compass | Career Coach | Win capture, performance tracking, check-in prep |
 | Taskmaster | Personal Accountability | Task discovery, progress tracking, slippage alerts |
+| Kraken | Task Automation | Evaluates tasks for AI workability, executes approved tasks, computes agenticity scores |
 | Discovery Agent | Initiative Discovery | Initiative framing, context synthesis, discovery methodology (internal key: initiative_agent) |
 | Manual | Documentation Assistant | In-app help, feature explanation, troubleshooting |
 
@@ -85,7 +86,7 @@ This document contains detailed architecture documentation. For essential Claude
 ### DISCO (Discovery → Insights → Synthesis → Convergence → Operationalize)
 23. **DISCO KB Integration** - Uses Knowledge Base as single source of truth for documents. Link existing KB documents to discoveries via browser modal with search/tag filtering. Chat includes linked document list for visibility plus vector search for content queries.
 24. **DISCO Pipeline** - AI-assisted product discovery with 4 consolidated stage-aligned agents and human-in-the-loop checkpoints:
-    - **Discovery Guide**: Validates problem, plans discovery sessions, tracks coverage (consolidates: Triage, Discovery Planner, Coverage Tracker). v1.2 adds Five Whys, root cause analysis, and framing extraction from documents.
+    - **Discovery Guide**: Validates problem, plans discovery sessions, tracks coverage (consolidates: Triage, Discovery Planner, Coverage Tracker). v1.4 adds Five Whys, root cause analysis, and framing extraction from documents.
     - **Insight Analyst**: Extracts patterns and creates decision document (consolidates: Insight Extractor, Consolidator)
     - **Initiative Builder**: Clusters insights into scored proposed initiatives (consolidates: Strategist)
     - **Requirements Generator**: Produces PRD with technical recommendations, tool/platform guidance, value alignment confirmation, and AI risk/compliance review (consolidates: PRD Generator, Tech Evaluation). v1.2 adds platform recommendations and eval/QA plans.
@@ -112,6 +113,8 @@ This document contains detailed architecture documentation. For essential Claude
 36. **Initiative Folder Links** - Link vault folders to discoveries. When a folder is linked, all documents in that folder are automatically linked to the initiative. Folder link state tracked in `disco_initiative_folder_links`. Removal sync unlinks documents when folders are removed.
 37. **Discovery Agent Context Injection** - The Discovery Agent (chat) receives full initiative context via `build_initiative_context()`: initiative metadata, throughline, agent output summaries, linked document names, and value alignment. Previously the agent claimed context but received none.
 38. **Project Creation from Discovery** - Create projects directly from the discovery detail page via ProjectCreateModal, with automatic initiative linking.
+39. **Kraken Agent (Task Automation)** - Evaluates project tasks for autonomous AI execution using a 5-dimension confidence framework (information sufficiency, output clarity, execution feasibility, completeness achievable, domain fit). Categorizes tasks as automatable (70-100%), assistable (40-69%), or manual (<40%). Computes agenticity score per project. Executes approved tasks non-destructively: output saved as task comments and KB documents. Uses web search for real-time research. Never modifies task status.
+40. **DISCO Process Map** - Standalone HTML visualization of the complete DISCO pipeline at `/disco-process-map.html`. Shows all 5 stages, 4 checkpoint gates, agent details, throughline system, output document types, multi-pass synthesis, and operationalization paths.
 
 **Consolidated Agent Architecture (v1.2):**
 | # | Agent | Color | Consolidates | Checkpoint After |
@@ -130,13 +133,13 @@ This document contains detailed architecture documentation. For essential Claude
 
 **Legacy Agent Support:** Original 8 agents available via `include_legacy=true` query param on `/api/disco/agents`. Legacy outputs display correctly in UI.
 
-**Prompt Version:** v1.2 Consolidated (2026-02-12) - Discovery Guide adds Five Whys/root cause analysis and framing extraction. Requirements Generator adds tool/platform recommendations, eval/QA plans, value alignment confirmation, AI risk/compliance review. See `/backend/disco_agents/`
+**Prompt Version:** v1.4 Consolidated (2026-02-13) - Discovery Guide v1.4 adds Five Whys/root cause analysis and framing extraction. Requirements Generator v1.4 adds tool/platform recommendations, eval/QA plans, value alignment confirmation, AI risk/compliance review. See `/backend/disco_agents/`
 **Previous Version:** v1.1 (2026-02-12) - Throughline awareness, v1.0 (2026-02-02), v4.2 (2026-01-25) - Legacy agents still available for backwards compatibility
 
 ## Database Schema
 
 ### Agent System
-- `agents` - Agent registry (21 agents) with capabilities
+- `agents` - Agent registry (22 agents) with capabilities
 - `agent_instruction_versions` - Per-agent versioned instructions
 - `agent_handoffs` - Agent-to-agent handoff tracking
 - `agent_knowledge_base` - Document-to-agent links for RAG
@@ -160,7 +163,7 @@ This document contains detailed architecture documentation. For essential Claude
 - `task_history` - Status/priority change history
 
 ### Project Management
-- `ai_projects` - Tier-scored AI projects with justifications
+- `ai_projects` - Tier-scored AI projects with justifications, `agenticity_score`/`agenticity_evaluation` JSONB for Kraken results
 - `project_candidates` - Auto-extracted pending review with dedup tracking
 - `project_conversations` - Q&A history
 - `project_stakeholder_link` - Links stakeholders to projects with roles
@@ -244,6 +247,7 @@ Run migrations in order from `/database/migrations/`:
 | 071 | initiative_throughline | Throughline + throughline_resolution JSONB columns |
 | 072 | disco_restructure | Value alignment, sponsor/stakeholder, resolution annotations on `disco_initiatives`; triage_suggestions on `disco_outputs`; source tracking on `project_tasks` |
 | 074 | initiative_folder_links | `disco_initiative_folder_links` table for vault folder-to-initiative associations |
+| 075 | task_kraken | Agenticity columns on `ai_projects` (score, evaluation JSONB, task hash) |
 
 ## Important Files Reference
 
@@ -263,7 +267,7 @@ Run migrations in order from `/database/migrations/`:
 - `/backend/services/project_*.py` - Project services (context, chat, justification, confidence, taskmaster, kb_sync)
 - `/backend/scripts/remote_vault_sync.py` - Local-to-Railway vault sync agent (runs locally, uploads via HTTP)
 - `/backend/services/stakeholder_*.py` - Stakeholder services (extractor, scanner, deduplicator, linker)
-- `/backend/services/task_*.py` - Task services (auto_extractor, extractor)
+- `/backend/services/task_*.py` - Task services (auto_extractor, extractor, kraken)
 - `/backend/services/disco/` - DISCO services (4 consolidated agents + 8 legacy) (formerly `purdy/`, path alias still supported)
 - `/backend/services/disco/initiative_context.py` - Builds XML context for Discovery Agent (throughline, agent outputs, linked docs)
 - `/backend/services/goal_alignment_analyzer.py` - Project goal alignment (IS FY27 pillars)

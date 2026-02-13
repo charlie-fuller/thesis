@@ -687,3 +687,45 @@ Added the ability to create projects directly from the discovery detail page.
 - Updated DISCO UI references from "triage agent" to "Discovery Guide"
 
 **Files**: `frontend/components/disco/KBDocumentBrowser.tsx`, `frontend/components/projects/ProjectDocumentBrowser.tsx`
+
+### Kraken Agent (Task Automation)
+
+New agent that evaluates project tasks for autonomous AI execution and runs approved tasks non-destructively.
+
+**Phase 1: Task Evaluation**
+- "Release the Kraken" button in project Tasks tab
+- 5-dimension confidence framework: information sufficiency, output clarity, execution feasibility, completeness achievable, domain fit (0-20 each)
+- Tasks categorized as: Automatable (70-100%), Assistable (40-69%), Manual (<40%)
+- Computes agenticity score per project (displayed in Scores tab)
+
+**Phase 2: Task Execution**
+- User selects which tasks to execute (automatable pre-selected)
+- Uses project context, KB documents, initiative documents, and web search
+- Output saved as task comments (non-destructive, never modifies task status)
+- Substantial outputs (>200 words) also saved as KB documents tagged `["kraken", "auto-generated"]`
+- KB documents auto-linked to the project
+
+**Design Decisions**:
+- Intentionally separate from Taskmaster (creation/tracking vs evaluation/execution)
+- Staleness detection via MD5 hash of task states
+- Web search enabled (up to 5 searches per task) for real-time research
+
+**Files**: `backend/agents/kraken.py`, `backend/services/task_kraken.py`, `backend/system_instructions/agents/kraken.xml`, `backend/api/routes/projects.py`, `frontend/components/projects/KrakenPanel.tsx`, `frontend/components/projects/ProjectDetailModal.tsx`, `frontend/components/AgentIcon.tsx`, `database/migrations/075_task_kraken.sql`
+
+### DISCO Process Map
+
+Added a standalone HTML process map visualizing the complete DISCO pipeline.
+
+**Coverage**:
+- 5-stage pipeline overview (D-I-S-C-O) with 4 checkpoint gates
+- Stage details with agent names, versions, inputs, and outputs
+- Discovery Agent three operating modes (Triage, Planning, Coverage)
+- Investigation framing (throughline) system with three definition methods
+- Checkpoint gate checklists
+- Convergence output document types (PRD, Evaluation, Decision Framework)
+- Multi-pass synthesis architecture
+- Operationalization paths (direct project, AI-extracted project, tasks from state changes)
+- Initiative lifecycle and full traceability spine
+- Key principles
+
+**Files**: `frontend/public/disco-process-map.html`
