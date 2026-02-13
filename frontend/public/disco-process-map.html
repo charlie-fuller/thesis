@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DISCO Process Map</title>
+  <style>
+    :root {
+      --discovery: #3b82f6;
+      --discovery-light: #dbeafe;
+      --intelligence: #06b6d4;
+      --intelligence-light: #cffafe;
+      --synthesis: #22c55e;
+      --synthesis-light: #dcfce7;
+      --convergence: #f43f5e;
+      --convergence-light: #ffe4e6;
+      --operationalize: #8b5cf6;
+      --operationalize-light: #ede9fe;
+      --checkpoint: #f59e0b;
+      --checkpoint-light: #fef3c7;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    .subtitle {
+      color: var(--gray-500);
+      font-size: 0.95rem;
+      margin-top: 0.25rem;
+    }
+
+    .acronym {
+      display: flex;
+      justify-content: center;
+      gap: 0.25rem;
+      margin-top: 1rem;
+    }
+
+    .acronym-letter {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: white;
+    }
+
+    .acronym-letter.d { background: var(--discovery); }
+    .acronym-letter.i { background: var(--intelligence); }
+    .acronym-letter.s { background: var(--synthesis); }
+    .acronym-letter.c { background: var(--convergence); }
+    .acronym-letter.o { background: var(--operationalize); }
+
+    .acronym-sep {
+      color: var(--gray-300);
+      font-size: 1.25rem;
+      align-self: center;
+    }
+
+    /* Section */
+    .section {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    /* Pipeline */
+    .pipeline {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      overflow-x: auto;
+      padding: 1rem 0;
+    }
+
+    .stage-col {
+      flex: 1;
+      min-width: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .stage-badge-lg {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: white;
+      position: relative;
+      z-index: 2;
+    }
+
+    .stage-badge-lg.d { background: var(--discovery); }
+    .stage-badge-lg.i { background: var(--intelligence); }
+    .stage-badge-lg.s { background: var(--synthesis); }
+    .stage-badge-lg.c { background: var(--convergence); }
+    .stage-badge-lg.o { background: var(--operationalize); }
+
+    .stage-label {
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+      text-align: center;
+    }
+
+    .stage-agent {
+      font-size: 0.7rem;
+      color: var(--gray-500);
+      text-align: center;
+      margin-top: 0.15rem;
+    }
+
+    .stage-time {
+      font-size: 0.65rem;
+      color: var(--gray-400);
+      margin-top: 0.15rem;
+    }
+
+    .stage-card {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 0.75rem;
+      border: 2px solid;
+      width: 100%;
+      max-width: 210px;
+      font-size: 0.7rem;
+    }
+
+    .stage-card.d { border-color: var(--discovery); background: var(--discovery-light); }
+    .stage-card.i { border-color: var(--intelligence); background: var(--intelligence-light); }
+    .stage-card.s { border-color: var(--synthesis); background: var(--synthesis-light); }
+    .stage-card.c { border-color: var(--convergence); background: var(--convergence-light); }
+    .stage-card.o { border-color: var(--operationalize); background: var(--operationalize-light); }
+
+    .stage-card h4 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+
+    .stage-card ul {
+      margin-left: 1rem;
+      color: var(--gray-700);
+    }
+
+    .stage-card li {
+      margin-bottom: 0.1rem;
+    }
+
+    /* Connector arrow between stages */
+    .connector-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding-top: 18px;
+      min-width: 60px;
+    }
+
+    .checkpoint-diamond {
+      width: 32px;
+      height: 32px;
+      background: var(--checkpoint);
+      transform: rotate(45deg);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .checkpoint-diamond span {
+      transform: rotate(-45deg);
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    .checkpoint-label {
+      font-size: 0.6rem;
+      color: var(--checkpoint);
+      font-weight: 600;
+      margin-top: 0.4rem;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .h-arrow {
+      width: 100%;
+      height: 3px;
+      background: var(--gray-300);
+      position: relative;
+      margin-top: 27px;
+    }
+
+    .h-arrow::after {
+      content: '';
+      position: absolute;
+      right: -1px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+      border-left: 8px solid var(--gray-300);
+    }
+
+    /* Detail Grid */
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1rem;
+    }
+
+    @media (max-width: 1100px) {
+      .detail-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .detail-card {
+      border: 2px solid;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      position: relative;
+    }
+
+    .detail-card.d { border-color: var(--discovery); }
+    .detail-card.i { border-color: var(--intelligence); }
+    .detail-card.s { border-color: var(--synthesis); }
+    .detail-card.c { border-color: var(--convergence); }
+    .detail-card.o { border-color: var(--operationalize); }
+
+    .detail-card .tag {
+      position: absolute;
+      top: -10px;
+      left: 12px;
+      padding: 0.1rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: white;
+    }
+
+    .detail-card .tag.d { background: var(--discovery); }
+    .detail-card .tag.i { background: var(--intelligence); }
+    .detail-card .tag.s { background: var(--synthesis); }
+    .detail-card .tag.c { background: var(--convergence); }
+    .detail-card .tag.o { background: var(--operationalize); }
+
+    .detail-card h4 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      margin-top: 0.25rem;
+    }
+
+    .detail-card p,
+    .detail-card li {
+      font-size: 0.7rem;
+      color: var(--gray-600);
+      line-height: 1.4;
+    }
+
+    .detail-card ul {
+      margin-left: 1rem;
+    }
+
+    .detail-card li {
+      margin-bottom: 0.2rem;
+    }
+
+    .detail-card .output-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--gray-700);
+      margin-top: 0.5rem;
+      margin-bottom: 0.15rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* Checkpoint detail row */
+    .checkpoint-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .checkpoint-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .cp-card {
+      border: 2px solid var(--checkpoint);
+      background: var(--checkpoint-light);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+    }
+
+    .cp-card h5 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .cp-card .cp-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: var(--checkpoint);
+      color: white;
+      border-radius: 50%;
+      font-size: 0.65rem;
+      font-weight: 700;
+    }
+
+    .cp-card p {
+      font-size: 0.7rem;
+      color: var(--gray-600);
+    }
+
+    .cp-card ul {
+      font-size: 0.65rem;
+      color: var(--gray-600);
+      margin-left: 1rem;
+      margin-top: 0.25rem;
+    }
+
+    /* Discovery modes */
+    .modes-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 700px) {
+      .modes-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .mode-card {
+      border: 2px solid var(--discovery);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      background: white;
+    }
+
+    .mode-card h5 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--discovery);
+      margin-bottom: 0.25rem;
+    }
+
+    .mode-card .when {
+      font-size: 0.65rem;
+      color: var(--gray-400);
+      font-style: italic;
+      margin-bottom: 0.35rem;
+    }
+
+    .mode-card p, .mode-card li {
+      font-size: 0.7rem;
+      color: var(--gray-600);
+    }
+
+    .mode-card ul {
+      margin-left: 1rem;
+    }
+
+    /* Throughline */
+    .throughline-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 700px) {
+      .throughline-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .tl-card {
+      border: 2px solid var(--gray-300);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      background: white;
+    }
+
+    .tl-card h5 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .tl-card .id-example {
+      font-family: monospace;
+      font-size: 0.7rem;
+      color: var(--gray-500);
+      margin-bottom: 0.25rem;
+    }
+
+    .tl-card p {
+      font-size: 0.7rem;
+      color: var(--gray-600);
+    }
+
+    /* Operationalize paths */
+    .op-paths {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 700px) {
+      .op-paths {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .op-card {
+      border: 2px solid var(--operationalize);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      background: white;
+    }
+
+    .op-card h5 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--operationalize);
+      margin-bottom: 0.25rem;
+    }
+
+    .op-card p, .op-card li {
+      font-size: 0.7rem;
+      color: var(--gray-600);
+    }
+
+    .op-card ul { margin-left: 1rem; }
+
+    /* Mini flow */
+    .mini-flow {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+
+    .mini-node {
+      background: white;
+      border: 2px solid var(--gray-300);
+      border-radius: 0.5rem;
+      padding: 0.3rem 0.6rem;
+      font-size: 0.65rem;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .mini-node.d { border-color: var(--discovery); background: var(--discovery-light); }
+    .mini-node.i { border-color: var(--intelligence); background: var(--intelligence-light); }
+    .mini-node.s { border-color: var(--synthesis); background: var(--synthesis-light); }
+    .mini-node.c { border-color: var(--convergence); background: var(--convergence-light); }
+    .mini-node.o { border-color: var(--operationalize); background: var(--operationalize-light); }
+    .mini-node.cp { border-color: var(--checkpoint); background: var(--checkpoint-light); }
+
+    .mini-arrow {
+      color: var(--gray-400);
+      font-size: 0.9rem;
+    }
+
+    /* Output types */
+    .output-types {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 700px) {
+      .output-types {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .ot-card {
+      border: 2px solid var(--convergence);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      background: white;
+    }
+
+    .ot-card h5 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--convergence);
+      margin-bottom: 0.25rem;
+    }
+
+    .ot-card .use-for {
+      font-size: 0.65rem;
+      font-style: italic;
+      color: var(--gray-400);
+      margin-bottom: 0.35rem;
+    }
+
+    .ot-card li {
+      font-size: 0.7rem;
+      color: var(--gray-600);
+    }
+
+    .ot-card ul { margin-left: 1rem; }
+
+    /* Traceability */
+    .trace-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      flex-wrap: wrap;
+      padding: 1rem 0;
+    }
+
+    .trace-node {
+      padding: 0.35rem 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: white;
+    }
+
+    .trace-arrow {
+      color: var(--gray-400);
+      font-size: 1rem;
+    }
+
+    /* Initiative lifecycle */
+    .lifecycle-flow {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 0.5rem 0;
+    }
+
+    .lc-node {
+      padding: 0.3rem 0.6rem;
+      border: 2px solid var(--gray-300);
+      border-radius: 0.5rem;
+      font-size: 0.65rem;
+      font-weight: 600;
+      background: white;
+      white-space: nowrap;
+    }
+
+    .lc-node.active {
+      border-color: var(--discovery);
+      background: var(--discovery-light);
+    }
+
+    .lc-arrow {
+      color: var(--gray-400);
+      font-size: 0.85rem;
+    }
+
+    /* Framing section */
+    .framing-methods {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 700px) {
+      .framing-methods {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .fm-card {
+      border: 2px solid var(--discovery);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      background: white;
+    }
+
+    .fm-card h5 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--discovery);
+      margin-bottom: 0.15rem;
+    }
+
+    .fm-card .rec {
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: var(--synthesis);
+      margin-bottom: 0.25rem;
+    }
+
+    .fm-card p, .fm-card li {
+      font-size: 0.7rem;
+      color: var(--gray-600);
+    }
+
+    .fm-card ul { margin-left: 1rem; }
+
+    /* Key principle badges */
+    .principles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .principle {
+      text-align: center;
+      padding: 0.75rem;
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      background: white;
+    }
+
+    .principle .icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .principle h5 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 0.15rem;
+    }
+
+    .principle p {
+      font-size: 0.65rem;
+      color: var(--gray-500);
+    }
+
+    /* Watermark */
+    .watermark {
+      text-align: center;
+      padding: 2rem;
+      color: var(--gray-400);
+      font-size: 0.75rem;
+    }
+
+    /* Callout */
+    .callout {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      font-size: 0.7rem;
+      color: var(--gray-700);
+      margin-top: 0.75rem;
+    }
+
+    .callout strong {
+      color: var(--gray-900);
+    }
+
+    /* Two-column layout */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 700px) {
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>DISCO Process Map</h1>
+      <p class="subtitle">Discovery-Intelligence-Synthesis-Convergence-Operationalize</p>
+      <div class="acronym">
+        <span class="acronym-letter d">D Discovery</span>
+        <span class="acronym-sep">&#8250;</span>
+        <span class="acronym-letter i">I Intelligence</span>
+        <span class="acronym-sep">&#8250;</span>
+        <span class="acronym-letter s">S Synthesis</span>
+        <span class="acronym-sep">&#8250;</span>
+        <span class="acronym-letter c">C Convergence</span>
+        <span class="acronym-sep">&#8250;</span>
+        <span class="acronym-letter o">O Operationalize</span>
+      </div>
+    </header>
+
+    <!-- Pipeline Overview -->
+    <div class="section">
+      <div class="section-title">Pipeline Overview (4 Agents, 4 Checkpoints)</div>
+      <div style="overflow-x: auto;">
+        <div class="pipeline" style="min-width: 1000px;">
+          <!-- Discovery -->
+          <div class="stage-col">
+            <div class="stage-badge-lg d">D</div>
+            <div class="stage-label">Discovery</div>
+            <div class="stage-agent">Discovery Guide v1.4</div>
+            <div class="stage-time">5-15 min</div>
+            <div class="stage-card d">
+              <h4>Validates the Problem</h4>
+              <ul>
+                <li>Triage: GO / NO-GO / INVESTIGATE</li>
+                <li>Plans discovery sessions</li>
+                <li>Extracts throughline framing</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- CP 1 -->
+          <div class="connector-col">
+            <div class="checkpoint-diamond"><span>1</span></div>
+            <div class="checkpoint-label">Review<br>Findings</div>
+          </div>
+
+          <!-- Intelligence -->
+          <div class="stage-col">
+            <div class="stage-badge-lg i">I</div>
+            <div class="stage-label">Intelligence</div>
+            <div class="stage-agent">Insight Analyst v1.2</div>
+            <div class="stage-time">10-20 min</div>
+            <div class="stage-card i">
+              <h4>Extracts Patterns</h4>
+              <ul>
+                <li>Evidence-backed insights</li>
+                <li>Decision document (GO/NO-GO)</li>
+                <li>Multi-pass synthesis (3 temps)</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- CP 2 -->
+          <div class="connector-col">
+            <div class="checkpoint-diamond"><span>2</span></div>
+            <div class="checkpoint-label">Validate<br>Insights</div>
+          </div>
+
+          <!-- Synthesis -->
+          <div class="stage-col">
+            <div class="stage-badge-lg s">S</div>
+            <div class="stage-label">Synthesis</div>
+            <div class="stage-agent">Initiative Builder v1.2</div>
+            <div class="stage-time">10-15 min</div>
+            <div class="stage-card s">
+              <h4>Clusters Initiatives</h4>
+              <ul>
+                <li>Groups insights into bundles</li>
+                <li>IFU scores (Impact/Feasibility/Urgency)</li>
+                <li>Dependencies &amp; stakeholders</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- CP 3 -->
+          <div class="connector-col">
+            <div class="checkpoint-diamond"><span>3</span></div>
+            <div class="checkpoint-label">Approve<br>Initiatives</div>
+          </div>
+
+          <!-- Convergence -->
+          <div class="stage-col">
+            <div class="stage-badge-lg c">C</div>
+            <div class="stage-label">Convergence</div>
+            <div class="stage-agent">Requirements Generator v1.4</div>
+            <div class="stage-time">15-25 min</div>
+            <div class="stage-card c">
+              <h4>Produces Documents</h4>
+              <ul>
+                <li>PRD, Evaluation, or Decision Framework</li>
+                <li>Throughline resolution</li>
+                <li>AI risk &amp; compliance review</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- CP 4 -->
+          <div class="connector-col">
+            <div class="checkpoint-diamond"><span>4</span></div>
+            <div class="checkpoint-label">Document<br>Review</div>
+          </div>
+
+          <!-- Operationalize -->
+          <div class="stage-col">
+            <div class="stage-badge-lg o">O</div>
+            <div class="stage-label">Operationalize</div>
+            <div class="stage-agent">Post-Processing</div>
+            <div class="stage-time">User-driven</div>
+            <div class="stage-card o">
+              <h4>Delivers Outcomes</h4>
+              <ul>
+                <li>Create projects &amp; tasks</li>
+                <li>Export to Jira, Confluence</li>
+                <li>Promote to Knowledge Base</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>Human-in-the-loop:</strong> Each checkpoint is a mandatory gate. The user must review and approve outputs before the next agent can run. Agents prepare and process; humans conduct the actual discovery work and make decisions.
+      </div>
+    </div>
+
+    <!-- Stage Details -->
+    <div class="section">
+      <div class="section-title">Stage Details</div>
+      <div class="detail-grid">
+        <!-- Discovery Detail -->
+        <div class="detail-card d">
+          <span class="tag d">Discovery</span>
+          <h4>Discovery Guide v1.4</h4>
+          <p>Validates whether the problem is worth solving using a 4-criteria framework.</p>
+          <div class="output-label">Inputs</div>
+          <ul>
+            <li>Linked documents &amp; folders</li>
+            <li>Investigation framing (optional)</li>
+          </ul>
+          <div class="output-label">Outputs</div>
+          <ul>
+            <li>GO / NO-GO / INVESTIGATE decision</li>
+            <li>Discovery session plan</li>
+            <li>Suggested throughline framing</li>
+            <li>Stakeholder candidates</li>
+          </ul>
+        </div>
+
+        <!-- Intelligence Detail -->
+        <div class="detail-card i">
+          <span class="tag i">Intelligence</span>
+          <h4>Insight Analyst v1.2</h4>
+          <p>Deep analysis of all documents to extract evidence-backed insights and system patterns.</p>
+          <div class="output-label">Inputs</div>
+          <ul>
+            <li>All initiative documents</li>
+            <li>Discovery outputs</li>
+            <li>Throughline context</li>
+          </ul>
+          <div class="output-label">Outputs</div>
+          <ul>
+            <li>Decision document with recommendation</li>
+            <li>Leverage point &amp; system dynamics</li>
+            <li>Evidence table with quotes</li>
+            <li>Hypothesis evidence mapping</li>
+          </ul>
+        </div>
+
+        <!-- Synthesis Detail -->
+        <div class="detail-card s">
+          <span class="tag s">Synthesis</span>
+          <h4>Initiative Builder v1.2</h4>
+          <p>Clusters insights into actionable initiative bundles with scoring.</p>
+          <div class="output-label">Inputs</div>
+          <ul>
+            <li>Insight Analyst outputs</li>
+            <li>Evidence &amp; patterns</li>
+          </ul>
+          <div class="output-label">Outputs</div>
+          <ul>
+            <li>Proposed initiative bundles</li>
+            <li>IFU scores per bundle</li>
+            <li>Complexity tier (Light/Med/Heavy)</li>
+            <li>Dependencies &amp; stakeholder map</li>
+          </ul>
+        </div>
+
+        <!-- Convergence Detail -->
+        <div class="detail-card c">
+          <span class="tag c">Convergence</span>
+          <h4>Requirements Generator v1.4</h4>
+          <p>Produces comprehensive output documents from approved initiatives.</p>
+          <div class="output-label">Inputs</div>
+          <ul>
+            <li>Approved initiative bundles</li>
+            <li>All prior stage outputs</li>
+          </ul>
+          <div class="output-label">Outputs</div>
+          <ul>
+            <li>PRD, Evaluation, or Decision doc</li>
+            <li>Throughline resolution table</li>
+            <li>State changes &amp; next actions</li>
+            <li>Tool &amp; platform recommendations</li>
+          </ul>
+        </div>
+
+        <!-- Operationalize Detail -->
+        <div class="detail-card o">
+          <span class="tag o">Operationalize</span>
+          <h4>Post-Processing</h4>
+          <p>Routes approved documents to their destinations for execution.</p>
+          <div class="output-label">Actions</div>
+          <ul>
+            <li>Create project (direct or AI-extracted)</li>
+            <li>Create tasks from state changes</li>
+            <li>Export to external tools</li>
+            <li>Promote to Knowledge Base</li>
+            <li>Generate executive summary</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Discovery Agent Modes -->
+    <div class="section">
+      <div class="section-title">Discovery Agent: Three Operating Modes (Auto-Detected)</div>
+      <div class="modes-grid">
+        <div class="mode-card">
+          <h5>Triage Mode</h5>
+          <div class="when">When: No prior Discovery outputs exist</div>
+          <p>Validates whether the problem is worth solving.</p>
+          <ul>
+            <li><strong>4-Criteria Gate:</strong> Is it real? Costly? Solvable? Ours?</li>
+            <li>Five Whys root cause analysis</li>
+            <li>GO / NO-GO / INVESTIGATE decision</li>
+            <li>Extracts suggested framing (problem statements, hypotheses, gaps, KPIs)</li>
+          </ul>
+        </div>
+        <div class="mode-card">
+          <h5>Planning Mode</h5>
+          <div class="when">When: Triage was GO, but no session transcripts</div>
+          <p>Designs human-led discovery sessions.</p>
+          <ul>
+            <li>Max 5 sessions with agendas</li>
+            <li>Quantification questions</li>
+            <li>Gap-targeted interview questions</li>
+            <li>Participant and sponsor identification</li>
+          </ul>
+        </div>
+        <div class="mode-card">
+          <h5>Coverage Mode</h5>
+          <div class="when">When: Session transcripts exist</div>
+          <p>Assesses discovery completeness after each session.</p>
+          <ul>
+            <li>Status: READY / GAPS / BLOCKED</li>
+            <li>Absence reports (what's missing)</li>
+            <li>"Why This Matters" context</li>
+            <li>Run after EVERY discovery session</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Investigation Framing (Throughline) -->
+    <div class="section">
+      <div class="section-title">Investigation Framing (Throughline)</div>
+      <p style="font-size: 0.8rem; color: var(--gray-600); margin-bottom: 1rem;">
+        The throughline threads through every DISCO stage, giving agents structured context. Each stage maps its outputs back to these items, and Convergence resolves them.
+      </p>
+
+      <div class="throughline-grid">
+        <div class="tl-card">
+          <h5>Problem Statements</h5>
+          <div class="id-example">ps-1, ps-2, ps-3 ...</div>
+          <p>Defines what problem the initiative is investigating. Agents reference these in their analysis.</p>
+        </div>
+        <div class="tl-card">
+          <h5>Hypotheses</h5>
+          <div class="id-example">h-1, h-2, h-3 ...</div>
+          <p>Testable assumptions, beliefs, or predictions. Typed as: assumption, belief, or prediction.</p>
+        </div>
+        <div class="tl-card">
+          <h5>Gaps</h5>
+          <div class="id-example">g-1, g-2, g-3 ...</div>
+          <p>Known unknowns to investigate. Categorized as: data, people, process, or capability.</p>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top: 1rem;">
+        <strong>Throughline Resolution (Convergence):</strong> The final stage produces a resolution table showing each hypothesis as confirmed / refuted / inconclusive and each gap as addressed / unaddressed / partially addressed, with evidence citations. Users can override agent-assigned statuses with annotations.
+      </div>
+
+      <div style="margin-top: 1rem;">
+        <div class="section-title" style="border: none; padding: 0; margin-bottom: 0.75rem;">Three Ways to Define a Throughline</div>
+        <div class="framing-methods">
+          <div class="fm-card">
+            <h5>Agent-Extracted</h5>
+            <div class="rec">Recommended</div>
+            <p>Run Discovery Guide on linked documents. Agent analyzes content and suggests framing items in a review panel.</p>
+            <ul>
+              <li>Accept all, selectively, or dismiss</li>
+              <li>Automatic during Triage mode</li>
+            </ul>
+          </div>
+          <div class="fm-card">
+            <h5>Chat-Based</h5>
+            <div class="rec">&nbsp;</div>
+            <p>Chat with the Discovery Agent. Ask "Help me frame this discovery." Agent proposes items as interactive cards.</p>
+            <ul>
+              <li>Select items to keep</li>
+              <li>"Apply to Discovery" button</li>
+            </ul>
+          </div>
+          <div class="fm-card">
+            <h5>Manual</h5>
+            <div class="rec">&nbsp;</div>
+            <p>Expand "Investigation Framing" in the create/edit modal. Add items directly using + Add buttons.</p>
+            <ul>
+              <li>Auto-assigned IDs (ps-1, h-1, g-1)</li>
+              <li>Full control over framing</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Checkpoint Details -->
+    <div class="section">
+      <div class="section-title">Checkpoint Gates (Human Review Required)</div>
+      <div class="checkpoint-row">
+        <div class="cp-card">
+          <h5><span class="cp-num">1</span> Ready to Execute Discovery?</h5>
+          <p>After Discovery Guide, before Insight Analyst</p>
+          <ul>
+            <li>Triage decision is GO</li>
+            <li>Sessions planned with agendas</li>
+            <li>Participants identified</li>
+            <li>Review suggested framing</li>
+          </ul>
+        </div>
+        <div class="cp-card">
+          <h5><span class="cp-num">2</span> Ready for Initiative Bundles?</h5>
+          <p>After Insight Analyst, before Initiative Builder</p>
+          <ul>
+            <li>Decision document quality OK</li>
+            <li>Leverage point makes sense</li>
+            <li>Evidence supports conclusions</li>
+            <li>No critical gaps</li>
+          </ul>
+        </div>
+        <div class="cp-card">
+          <h5><span class="cp-num">3</span> Ready for Document Generation?</h5>
+          <p>After Initiative Builder, before Requirements Generator</p>
+          <ul>
+            <li>Bundle definitions clear</li>
+            <li>IFU scoring accurate</li>
+            <li>Dependencies mapped</li>
+            <li>Bundles approved/rejected/merged</li>
+          </ul>
+        </div>
+        <div class="cp-card">
+          <h5><span class="cp-num">4</span> Ready for Operationalization?</h5>
+          <p>After Requirements Generator, before export/creation</p>
+          <ul>
+            <li>Document complete and accurate</li>
+            <li>Technical approach validated</li>
+            <li>Requirements testable</li>
+            <li>Throughline resolved</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>Checkpoint features:</strong> Configurable checklists, notes field, approval tracking (who + when), staleness detection (flags if new documents added since approval), and reset capability.
+      </div>
+    </div>
+
+    <!-- Convergence Output Types -->
+    <div class="section">
+      <div class="section-title">Convergence: Three Output Document Types</div>
+      <div class="output-types">
+        <div class="ot-card">
+          <h5>PRD</h5>
+          <div class="use-for">For: Build / development initiatives</div>
+          <ul>
+            <li>Executive Summary</li>
+            <li>Problem Statement &amp; Goals</li>
+            <li>Requirements (functional + non-functional)</li>
+            <li>User Stories</li>
+            <li>Technical Considerations</li>
+            <li>Risks &amp; Mitigations</li>
+          </ul>
+        </div>
+        <div class="ot-card">
+          <h5>Evaluation Framework</h5>
+          <div class="use-for">For: Vendor / tool / platform selection</div>
+          <ul>
+            <li>Weighted criteria matrix</li>
+            <li>Platform comparison table</li>
+            <li>Scoring methodology</li>
+            <li>Recommendation with rationale</li>
+            <li>Risk/benefit assessment</li>
+          </ul>
+        </div>
+        <div class="ot-card">
+          <h5>Decision Framework</h5>
+          <div class="use-for">For: Governance / policy / strategic decisions</div>
+          <ul>
+            <li>Decision context</li>
+            <li>Stakeholder analysis</li>
+            <li>Options analysis with trade-offs</li>
+            <li>Risk/benefit assessment</li>
+            <li>Recommended path forward</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>All output types include:</strong> Value alignment confirmation (ties to KPIs), tool/platform recommendations (simplest effective tool), AI risk &amp; compliance review (EU AI Act, data classification), and an evaluation/QA plan.
+      </div>
+    </div>
+
+    <!-- Multi-Pass Synthesis -->
+    <div class="section">
+      <div class="section-title">Multi-Pass Synthesis (Optional, Higher Quality)</div>
+      <div class="two-col">
+        <div>
+          <p style="font-size: 0.8rem; color: var(--gray-600); margin-bottom: 0.75rem;">Available for Intelligence and Synthesis stages. Runs 3 parallel analyses at different temperatures, then combines the best insights with a meta-synthesis pass.</p>
+          <div class="mini-flow">
+            <div class="mini-node">Pass 1: Conservative<br><span style="font-size:0.6rem; color:var(--gray-400);">temp=0.5</span></div>
+            <div class="mini-node">Pass 2: Balanced<br><span style="font-size:0.6rem; color:var(--gray-400);">temp=0.7</span></div>
+            <div class="mini-node">Pass 3: Exploratory<br><span style="font-size:0.6rem; color:var(--gray-400);">temp=0.85</span></div>
+          </div>
+          <div style="text-align: center; padding: 0.5rem 0;">
+            <span class="mini-arrow" style="font-size: 1.5rem;">&#8595;</span>
+          </div>
+          <div class="mini-flow" style="justify-content: center;">
+            <div class="mini-node" style="border-color: var(--intelligence); background: var(--intelligence-light); font-weight: 600;">Meta-Synthesis (Opus)</div>
+          </div>
+        </div>
+        <div>
+          <p style="font-size: 0.8rem; color: var(--gray-600); margin-bottom: 0.75rem;"><strong>Trust hierarchy for meta-synthesis:</strong></p>
+          <ul style="font-size: 0.75rem; color: var(--gray-600); margin-left: 1.25rem;">
+            <li><strong>Conservative (A):</strong> Most trusted for facts, data points, direct evidence</li>
+            <li><strong>Balanced (B):</strong> Trusted for patterns and connections</li>
+            <li><strong>Exploratory (C):</strong> Most trusted for novel insights and creative connections</li>
+          </ul>
+          <div class="callout">
+            <strong>Trade-off:</strong> ~4x runtime for meaningfully higher quality. Recommended for important initiatives where insight depth matters.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Operationalize Paths -->
+    <div class="section">
+      <div class="section-title">Operationalize: Three Paths to Action</div>
+      <div class="op-paths">
+        <div class="op-card">
+          <h5>1. Direct Project Creation</h5>
+          <p>Create a project directly from any approved proposed initiative. No PRD required.</p>
+          <ul>
+            <li>Quick path for clear initiatives</li>
+            <li>IFU scores map to project scores</li>
+            <li>Status: identified</li>
+            <li>Available from Proposed Initiatives tab</li>
+          </ul>
+        </div>
+        <div class="op-card">
+          <h5>2. AI-Extracted Project</h5>
+          <p>AI analyzes approved document and extracts project details automatically.</p>
+          <ul>
+            <li>Title, description, department</li>
+            <li>ROI, effort, alignment scores</li>
+            <li>Initial task list</li>
+            <li>Confidence indicators</li>
+          </ul>
+        </div>
+        <div class="op-card">
+          <h5>3. Tasks from State Changes</h5>
+          <p>Create tasks directly from the "So What?" section of the convergence output.</p>
+          <ul>
+            <li>Select which state changes become tasks</li>
+            <li>Optionally link to a project</li>
+            <li>"Next Human Action" as high-priority task</li>
+            <li>Full traceability to source</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Initiative Lifecycle -->
+    <div class="section">
+      <div class="section-title">Initiative Status Lifecycle</div>
+      <div class="lifecycle-flow">
+        <div class="lc-node active">draft</div>
+        <span class="lc-arrow">&#8250;</span>
+        <div class="lc-node">triaged</div>
+        <span class="lc-arrow">&#8250;</span>
+        <div class="lc-node">in_discovery</div>
+        <span class="lc-arrow">&#8250;</span>
+        <div class="lc-node">consolidated</div>
+        <span class="lc-arrow">&#8250;</span>
+        <div class="lc-node">synthesized</div>
+        <span class="lc-arrow">&#8250;</span>
+        <div class="lc-node">documented</div>
+        <span class="lc-arrow">&#8250;</span>
+        <div class="lc-node">archived</div>
+      </div>
+
+      <div style="margin-top: 1.25rem;">
+        <div class="section-title" style="border:none; padding:0; margin-bottom:0.75rem;">Full Traceability Spine</div>
+        <div class="trace-flow">
+          <span class="trace-node" style="background: var(--gray-600);">Source Documents</span>
+          <span class="trace-arrow">&#8250;</span>
+          <span class="trace-node" style="background: var(--discovery);">Discovery Materials</span>
+          <span class="trace-arrow">&#8250;</span>
+          <span class="trace-node" style="background: var(--intelligence);">Insights</span>
+          <span class="trace-arrow">&#8250;</span>
+          <span class="trace-node" style="background: var(--synthesis);">Proposed Initiatives</span>
+          <span class="trace-arrow">&#8250;</span>
+          <span class="trace-node" style="background: var(--convergence);">Output Documents</span>
+          <span class="trace-arrow">&#8250;</span>
+          <span class="trace-node" style="background: var(--operationalize);">Projects &amp; Tasks</span>
+        </div>
+        <p style="text-align: center; font-size: 0.7rem; color: var(--gray-500);">
+          Every task traces back through the full chain: source_disco_output_id &rarr; initiative &rarr; insights &rarr; source documents
+        </p>
+      </div>
+    </div>
+
+    <!-- Key Principles -->
+    <div class="section">
+      <div class="section-title">Key Principles</div>
+      <div class="principles">
+        <div class="principle">
+          <div class="icon">&#9878;</div>
+          <h5>Human-Led Discovery</h5>
+          <p>AI prepares and processes. Humans conduct discovery and make decisions.</p>
+        </div>
+        <div class="principle">
+          <div class="icon">&#9881;</div>
+          <h5>Checkpoint Gates</h5>
+          <p>Mandatory human review between every stage. Nothing proceeds without approval.</p>
+        </div>
+        <div class="principle">
+          <div class="icon">&#10003;</div>
+          <h5>Problem Worth Solving</h5>
+          <p>4-criteria gate: Is it real? Costly? Solvable? Ours?</p>
+        </div>
+        <div class="principle">
+          <div class="icon">&#8634;</div>
+          <h5>Iterative Coverage</h5>
+          <p>Run Coverage mode after every discovery session until READY.</p>
+        </div>
+        <div class="principle">
+          <div class="icon">&#9782;</div>
+          <h5>Decision-First</h5>
+          <p>Intelligence output must lead with GO, NO-GO, or CONDITIONAL.</p>
+        </div>
+        <div class="principle">
+          <div class="icon">&#128279;</div>
+          <h5>Full Traceability</h5>
+          <p>Every task traces back to its source documents through the complete spine.</p>
+        </div>
+        <div class="principle">
+          <div class="icon">&#9733;</div>
+          <h5>Simplest Tool</h5>
+          <p>Platform recommendations always favor the simplest effective solution.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="watermark">
+      DISCO Process Map v2.0 | Thesis Multi-Agent Platform | February 2026
+    </div>
+  </div>
+</body>
+</html>
