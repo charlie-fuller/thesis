@@ -41,7 +41,9 @@ Every discovery has five tabs:
 
 **Value alignment tags:** When populated, KPI tags and department goal badges appear in the header area.
 
-**Chat Button:** In the header area, click the **Chat** button to open the main chat interface with full discovery context. This redirects to `/chat?initiative_id=xxx` with the Initiative Agent auto-selected.
+**Chat Button:** In the header area, click the **Chat** button to open the main chat interface with full discovery context. This redirects to `/chat?initiative_id=xxx` with the Discovery Agent auto-selected.
+
+**Create Project:** Click the **Create Project** button in the header to create a project directly linked to this discovery.
 
 **Documents tab features:**
 - **Link from KB** - Browse and select existing KB documents
@@ -69,16 +71,24 @@ The Investigation Framing is an optional but powerful way to give your discovery
 | **Gaps** | What you don't know yet | "No data on competitor retention strategies" |
 | **Desired Outcome State** | What success looks like | "Clear retention playbook with executive buy-in" |
 
-### Two Ways to Get a Throughline
+### Three Ways to Get a Throughline
 
-**Option 1: Let the Agent Extract It (Recommended)**
+**Option 1: Let Triage Extract It (Recommended for new discoveries)**
 1. Create a discovery with just a name, description, and linked documents
 2. Run the **Triage** agent
 3. If your throughline is sparse, the agent analyzes your documents and suggests problem statements, hypotheses, gaps, KPIs, and stakeholders
 4. A **Review Suggested Framing** panel appears after triage completes
 5. Click **Accept All** to populate your throughline, or **Dismiss** if the suggestions aren't useful
 
-**Option 2: Define It Manually**
+**Option 2: Chat with the Discovery Agent (Recommended for iterating)**
+1. Click the **Chat** button in the discovery header
+2. Discuss the problem space conversationally: "Help me frame this discovery" or "What problem statements should we be working with?"
+3. The Discovery Agent reviews your linked documents, agent outputs, and existing throughline
+4. When ready, it proposes structured framing as a card with checkboxes
+5. Select which items to keep, then click **Apply to Discovery** to merge them into your throughline
+6. You can iterate - chat more and get additional proposals
+
+**Option 3: Define It Manually**
 1. When creating or editing a discovery, expand **Investigation Framing**
 2. Add items to each section using the **+ Add** buttons
 3. Each hypothesis has a type: `assumption`, `belief`, or `prediction`
@@ -265,9 +275,15 @@ Only approved proposed initiatives can generate output documents or create proje
 
 ## Creating Projects
 
-There are two paths from proposed initiative to project:
+There are three paths to create projects from a discovery:
 
-### Direct Project Creation (Simple Cases)
+### From the Discovery Header (Quick Start)
+1. Click **Create Project** in the discovery header
+2. Fill in the project details in the modal
+3. The project is automatically linked to this discovery
+4. This is useful when you want to create a project before running all DISCO stages
+
+### Direct Project Creation from Proposed Initiatives (Simple Cases)
 1. Approve a proposed initiative in the Synthesis view
 2. Click **Create Project** on the approved proposed initiative
 3. Review the pre-filled fields (name, description, scores mapped from impact/feasibility/urgency)
@@ -404,21 +420,51 @@ Click **Reset filters** to return to defaults.
 
 ---
 
+## Linking Folders
+
+Instead of linking individual documents, you can link entire vault folders. All documents in the folder are automatically associated with the discovery.
+
+**To link a folder:**
+1. Go to the **Documents** tab
+2. In the **Linked Folders** section, click **Link Folder**
+3. Browse the folder tree and select a folder
+4. All documents in that folder are automatically linked
+
+**How it works:**
+- Documents are linked at the time of folder linking
+- If you remove a folder link, the associated documents are unlinked
+- Individual document links made separately are not affected by folder operations
+- Linked folders and their document counts are shown in the Linked Folders section
+
+This is useful when your Obsidian vault is organized by topic or initiative - link the whole folder instead of picking individual files.
+
+---
+
 ## Using Chat with Discovery Context
 
 Click the **Chat** button in the discovery header to open a conversation with full discovery context.
 
-**What the Initiative Agent sees:**
-- All documents linked to the discovery
-- All DISCO agent outputs (triage results, insights, PRDs, etc.)
-- Discovery metadata (name, description, status)
-- PuRDy methodology reference
+**What the Discovery Agent sees:**
+- Discovery metadata (name, description, status, department)
+- Current throughline (problem statements, hypotheses, gaps, desired outcome state)
+- Latest agent output summaries (recommendation and confidence from each agent that has run)
+- Names of all linked documents
+- Value alignment data (KPIs, department goals, strategic pillar)
 
 **Example questions:**
-- "What documents do you have access to?"
+- "What do you know about this initiative?"
 - "Summarize the key findings from the planning doc"
 - "What concerns did Triage raise?"
-- "Compare the two approaches in the tech evaluation"
+- "Help me frame this discovery"
+- "What gaps should we address next?"
+
+**Framing proposals:**
+When you ask the Discovery Agent to help with framing, it can propose structured items (problem statements, hypotheses, gaps, desired outcome). These appear as an interactive card where you can:
+1. Review each proposed item
+2. Deselect any items you don't want
+3. Click **Apply to Discovery** to merge selected items into your throughline
+
+The agent references existing throughline items and avoids duplicating them. You can iterate multiple times to build up your framing progressively.
 
 **Conversation History:**
 All conversations with discovery context are saved and can be filtered in the main chat sidebar. Select the discovery from the dropdown to see all related conversations.
@@ -429,7 +475,7 @@ All conversations with discovery context are saved and can be filtered in the ma
 
 1. **Link context first.** The more documents you provide, the better Discovery Prep and Triage can assess the opportunity.
 
-2. **Let triage suggest framing.** Instead of manually defining problem statements and hypotheses, link your documents and run triage first. The agent will extract suggested framing for you to review.
+2. **Let agents suggest framing.** Instead of manually defining problem statements and hypotheses, either run triage for auto-extraction, or chat with the Discovery Agent to iteratively build your framing through conversation.
 
 3. **Run agents in order.** The workflow is designed to build on itself. Skipping steps weakens later outputs.
 

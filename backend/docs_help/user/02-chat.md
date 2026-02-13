@@ -50,7 +50,7 @@ It's like being able to tap someone on the shoulder mid-conversation. The agent 
 - `@nexus`, `@facilitator`, `@reporter`
 - `@glean` (for Glean Evaluator)
 - `@taskmaster` (for task plan creation)
-- `@project_agent`, `@initiative_agent` (for context-specific discussions)
+- `@project_agent`, `@initiative_agent` (for context-specific discussions - initiative_agent is the Discovery Agent)
 
 ---
 
@@ -91,7 +91,7 @@ When you select a context:
 **Context-Aware Agents:**
 When you start a conversation with project or initiative context, the system auto-selects specialized agents:
 - **Project Agent** - Understands project structure, scores, linked documents, and lifecycle
-- **Discovery Agent** - Knows DISCO workflow, agent outputs, framing, and discovery methodology
+- **Discovery Agent** - Receives full initiative context (throughline, agent outputs, linked documents, value alignment) and can propose structured framing
 
 **URL Navigation:**
 You can navigate directly to context-filtered chat:
