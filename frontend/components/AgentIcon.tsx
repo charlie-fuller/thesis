@@ -21,6 +21,7 @@ import {
   Compass,
   BookOpen,
   ListChecks,
+  Zap,
   PieChart,
   CircleDot,
 } from 'lucide-react';
@@ -53,6 +54,8 @@ const AGENT_ICONS: Record<string, React.ElementType> = {
   compass: Compass,       // Career Coach
   // Personal Productivity Agent
   taskmaster: ListChecks, // Task Accountability
+  // Task Automation Agent
+  kraken: Zap,            // Task Evaluation & Execution
   // Coordinator
   coordinator: Workflow,  // Central Orchestrator
   // Context-Specific Agents
@@ -104,6 +107,8 @@ export const AGENT_COLORS: Record<string, string> = {
   compass: 'bg-amber-600/20 text-amber-400 border-amber-600/30',
   // Personal Productivity Agent
   taskmaster: 'bg-orange-600/20 text-orange-400 border-orange-600/30',
+  // Task Automation Agent
+  kraken: 'bg-violet-600/20 text-violet-400 border-violet-600/30',
   // Coordinator
   coordinator: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
   // Context-Specific Agents
@@ -145,6 +150,8 @@ export const AGENT_AVATAR_COLORS: Record<string, { bg: string; text: string }> =
   compass: { bg: 'bg-amber-600', text: 'text-amber-700' },
   // Personal Productivity Agent
   taskmaster: { bg: 'bg-orange-600', text: 'text-orange-700' },
+  // Task Automation Agent
+  kraken: { bg: 'bg-violet-600', text: 'text-violet-700' },
   // Context-Specific Agents
   project_agent: { bg: 'bg-blue-600', text: 'text-blue-700' },
   initiative_agent: { bg: 'bg-purple-600', text: 'text-purple-700' },

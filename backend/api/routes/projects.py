@@ -10,11 +10,13 @@ updated to use /api/projects instead.
 """
 
 import asyncio
+import json
 import logging
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from auth import get_current_user
@@ -31,6 +33,13 @@ from services.project_justification import (
     regenerate_if_scores_changed,
 )
 from services.project_taskmaster import chat_with_taskmaster
+from services.task_kraken import (
+    evaluate_project_tasks,
+    execute_approved_tasks,
+)
+from services.task_kraken import (
+    get_evaluation as get_kraken_evaluation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +183,17 @@ class StakeholderLinkResponse(BaseModel):
     role: str
     notes: Optional[str]
     created_at: str
+
+
+# ============================================================================
+# KRAKEN MODELS
+# ============================================================================
+
+
+class KrakenExecuteRequest(BaseModel):
+    """Request to execute approved tasks via Kraken."""
+
+    task_ids: List[str] = Field(..., min_length=1, description="Task IDs approved for execution")
 
 
 # ============================================================================
@@ -1910,3 +1930,122 @@ async def evaluate_single_confidence(
             else "very_low"
         ),
     }
+
+
+# ============================================================================
+# KRAKEN ENDPOINTS - Task Evaluation & Autonomous Execution
+# ============================================================================
+
+
+@router.post("/{project_id}/kraken/evaluate")
+async def kraken_evaluate_tasks(
+    project_id: str,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Phase 1: Evaluate project tasks for agentic workability. Returns SSE stream."""
+    client_id = current_user.get("client_id")
+    if not client_id:
+        # Fall back to default client
+        from database import get_default_client_id
+
+        client_id = get_default_client_id()
+
+    async def event_stream():
+        try:
+            async for event in evaluate_project_tasks(
+                project_id=project_id,
+                client_id=client_id,
+                user_id=current_user["id"],
+                supabase=supabase,
+            ):
+                event_type = event.get("type", "unknown")
+                event_data = event.get("data", "")
+
+                if isinstance(event_data, dict):
+                    yield f"event: {event_type}\ndata: {json.dumps(event_data)}\n\n"
+                else:
+                    yield f"event: {event_type}\ndata: {event_data}\n\n"
+
+        except Exception as e:
+            logger.error(f"Kraken evaluation stream error: {e}")
+            yield f"event: error\ndata: {str(e)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Content-Type": "text/event-stream; charset=utf-8",
+        },
+    )
+
+
+@router.post("/{project_id}/kraken/execute")
+async def kraken_execute_tasks(
+    project_id: str,
+    body: KrakenExecuteRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Phase 2: Execute approved tasks. Returns SSE stream."""
+    client_id = current_user.get("client_id")
+    if not client_id:
+        from database import get_default_client_id
+
+        client_id = get_default_client_id()
+
+    async def event_stream():
+        try:
+            async for event in execute_approved_tasks(
+                project_id=project_id,
+                task_ids=body.task_ids,
+                client_id=client_id,
+                user_id=current_user["id"],
+                supabase=supabase,
+            ):
+                event_type = event.get("type", "unknown")
+                event_data = event.get("data", "")
+
+                if isinstance(event_data, dict):
+                    yield f"event: {event_type}\ndata: {json.dumps(event_data)}\n\n"
+                else:
+                    yield f"event: {event_type}\ndata: {event_data}\n\n"
+
+        except Exception as e:
+            logger.error(f"Kraken execution stream error: {e}")
+            yield f"event: error\ndata: {str(e)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Content-Type": "text/event-stream; charset=utf-8",
+        },
+    )
+
+
+@router.get("/{project_id}/kraken/evaluation")
+async def kraken_get_evaluation(
+    project_id: str,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Get stored evaluation results for a project."""
+    client_id = current_user.get("client_id")
+    if not client_id:
+        from database import get_default_client_id
+
+        client_id = get_default_client_id()
+
+    result = await asyncio.to_thread(lambda: get_kraken_evaluation(project_id, client_id, supabase))
+
+    if not result:
+        return {"evaluation": None, "agenticity_score": None, "is_stale": False}
+
+    return result

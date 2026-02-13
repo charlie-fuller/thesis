@@ -45,6 +45,9 @@ import {
   Trash2,
   Link,
   Unlink,
+  Zap,
+  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react'
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api'
 import ScoreJustification from './ScoreJustification'
@@ -53,6 +56,7 @@ import ProjectNameModal from './ProjectNameModal'
 import TaskmasterChatSection from './TaskmasterChatSection'
 import GoalAlignmentSection from './GoalAlignmentSection'
 import ProjectDocumentBrowser from './ProjectDocumentBrowser'
+import KrakenPanel from './KrakenPanel'
 
 // ============================================================================
 // TYPES
@@ -109,6 +113,9 @@ interface Project {
   } | null
   // Linked initiatives
   initiative_ids?: string[]
+  // Agenticity fields (Kraken)
+  agenticity_score?: number | null
+  agenticity_evaluated_at?: string | null
 }
 
 interface Initiative {
@@ -936,6 +943,50 @@ export default function ProjectDetailModal({
                 )}
               </section>
 
+              {/* AI Readiness Section (Kraken Agenticity) */}
+              <section>
+                <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2 mb-3">
+                  <Zap className="w-4 h-4" />
+                  AI Readiness
+                </h3>
+                {project.agenticity_score != null ? (
+                  <div className="p-4 bg-violet-50 dark:bg-violet-900/10 border border-violet-200 dark:border-violet-800 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-bold text-violet-700 dark:text-violet-400">
+                            {project.agenticity_score.toFixed(0)}%
+                          </span>
+                          <span className="text-sm text-violet-600 dark:text-violet-400">Agenticity Score</span>
+                        </div>
+                        <p className="text-xs text-muted mt-1">
+                          Percentage of project tasks that can be automated by AI
+                        </p>
+                      </div>
+                      {project.agenticity_evaluated_at && (
+                        <span className="text-xs text-muted">
+                          Evaluated {new Date(project.agenticity_evaluated_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    {/* Progress bar */}
+                    <div className="mt-3 w-full bg-violet-200 dark:bg-violet-800 rounded-full h-2">
+                      <div
+                        className="bg-violet-600 dark:bg-violet-400 h-2 rounded-full transition-all"
+                        style={{ width: `${Math.min(100, project.agenticity_score)}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 border border-dashed border-default rounded-lg">
+                    <Zap className="w-5 h-5 mx-auto text-muted mb-1" />
+                    <p className="text-xs text-muted">
+                      No agenticity score yet. Evaluate tasks from the Tasks tab.
+                    </p>
+                  </div>
+                )}
+              </section>
+
               {/* Justifications Section */}
               <section className="group">
                 <div className="flex items-center justify-between mb-4">
@@ -1464,6 +1515,15 @@ export default function ProjectDetailModal({
                     </div>
                   ))}
                 </div>
+              )}
+
+              {/* Kraken Task Evaluator */}
+              {projectTasks.length > 0 && (
+                <KrakenPanel
+                  projectId={project.id}
+                  taskCount={projectTasks.length}
+                  onTasksUpdated={fetchProjectTasks}
+                />
               )}
             </div>
           )}

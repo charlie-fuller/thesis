@@ -35,6 +35,7 @@ from .guardian import GuardianAgent
 
 # Context-Specific Agents
 from .initiative_agent import InitiativeAgent
+from .kraken import KrakenAgent
 from .manual import ManualAgent
 
 # Systems Thinking Agent
@@ -103,6 +104,8 @@ async def create_coordinator(
             "compass": CompassAgent(supabase, anthropic_client),
             # Personal Productivity Agent
             "taskmaster": TaskmasterAgent(supabase, anthropic_client),
+            # Task Automation Agent
+            "kraken": KrakenAgent(supabase, anthropic_client),
             # Context-Specific Agents
             "project_agent": ProjectAgent(supabase, anthropic_client),
             "initiative_agent": InitiativeAgent(supabase, anthropic_client),
@@ -157,6 +160,8 @@ async def create_specialist(name: str, supabase: Client, anthropic_client: anthr
         "compass": CompassAgent,
         # Personal Productivity Agent
         "taskmaster": TaskmasterAgent,
+        # Task Automation Agent
+        "kraken": KrakenAgent,
         # Meta-Agents
         "facilitator": FacilitatorAgent,
         "reporter": ReporterAgent,
