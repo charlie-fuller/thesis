@@ -196,6 +196,14 @@ class LinkDocumentsRequest(BaseModel):
     document_ids: List[str]
 
 
+class LinkFolderRequest(BaseModel):
+    """Request body for linking a vault folder to an initiative."""
+
+    folder_path: str
+    recursive: bool = True
+    backfill: bool = True
+
+
 # ============================================================================
 # REQUEST/RESPONSE MODELS - MEMBERS
 # ============================================================================

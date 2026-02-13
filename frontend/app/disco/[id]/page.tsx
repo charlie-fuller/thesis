@@ -35,6 +35,7 @@ import InitiativeAlignmentTab from '@/components/disco/InitiativeAlignmentTab'
 import ThroughlineEditor, { type Throughline } from '@/components/disco/ThroughlineEditor'
 import ThroughlineSummary, { type ThroughlineResolution } from '@/components/disco/ThroughlineSummary'
 import { type GoalAlignmentDetails } from '@/components/projects/GoalAlignmentSection'
+import LinkedFoldersSection from '@/components/disco/LinkedFoldersSection'
 import ProjectCreateModal from '@/components/projects/ProjectCreateModal'
 
 // ============================================================================
@@ -169,6 +170,9 @@ export default function InitiativeDetailPage() {
   const [selectedOutput, setSelectedOutput] = useState<Output | null>(null)
   const [shareModalOpen, setShareModalOpen] = useState(false)
 
+  // Linked folders state
+  const [linkedFolders, setLinkedFolders] = useState<{ id: string; folder_path: string; recursive: boolean; linked_at: string }[]>([])
+
   // Project create modal state
   const [projectCreateOpen, setProjectCreateOpen] = useState(false)
 
@@ -235,6 +239,18 @@ export default function InitiativeDetailPage() {
     }
   }, [initiativeId])
 
+  // Load linked folders
+  const loadLinkedFolders = useCallback(async () => {
+    try {
+      const result = await apiGet<{ success: boolean; folders: typeof linkedFolders }>(
+        `/api/disco/initiatives/${initiativeId}/linked-folders`
+      )
+      setLinkedFolders(result.folders || [])
+    } catch (err) {
+      console.error('Failed to load linked folders:', err)
+    }
+  }, [initiativeId])
+
   // Load linked projects
   const loadLinkedProjects = useCallback(async () => {
     try {
@@ -254,8 +270,9 @@ export default function InitiativeDetailPage() {
     loadInitiative()
     loadDocuments()
     loadOutputs()
+    loadLinkedFolders()
     loadLinkedProjects()
-  }, [loadInitiative, loadDocuments, loadOutputs, loadLinkedProjects])
+  }, [loadInitiative, loadDocuments, loadOutputs, loadLinkedFolders, loadLinkedProjects])
 
   const handleDocumentDeleted = (docId: string) => {
     setDocuments(documents.filter(d => d.id !== docId))
@@ -722,11 +739,19 @@ export default function InitiativeDetailPage() {
         {/* Documents Tab */}
         {activeTab === 'documents' && (
           <div className="space-y-6">
+            {linkedFolders.length > 0 && (
+              <LinkedFoldersSection
+                initiativeId={initiativeId}
+                folders={linkedFolders}
+                canEdit={canEdit}
+                onUnlinked={loadLinkedFolders}
+              />
+            )}
             {canEdit && (
               <DocumentUpload
                 initiativeId={initiativeId}
                 initiativeName={initiative?.name}
-                onDocumentsLinked={loadDocuments}
+                onDocumentsLinked={() => { loadDocuments(); loadLinkedFolders() }}
               />
             )}
             <DocumentList

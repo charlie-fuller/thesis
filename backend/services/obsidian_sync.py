@@ -1356,6 +1356,12 @@ def sync_file(
             sync_status="synced",
         )
 
+        # Auto-link to DISCO initiatives if this is a new document
+        if action == "added":
+            linked = auto_link_document_to_initiatives(document_id, relative_path, config["user_id"])
+            if linked:
+                logger.info(f"      Auto-linked to {linked} initiative(s)")
+
         # Process document for embeddings
         logger.debug("      Processing for embeddings...")
         process_document(document_id)
@@ -1877,6 +1883,103 @@ def _link_document_to_agents(document_id: str, user_id: str, agent_names: List[s
                 logger.warning(f"      Failed to link to agent {agent_name}: {e}")
         else:
             logger.warning(f"      Unknown agent in frontmatter: {agent_name}")
+
+
+# ============================================================================
+# Auto-Link to DISCO Initiatives
+# ============================================================================
+
+
+def auto_link_document_to_initiatives(document_id: str, relative_path: str, user_id: str) -> int:
+    """Check if a newly synced document's folder matches any initiative folder subscriptions.
+
+    When a folder is linked to a DISCO initiative, new documents synced into that folder
+    (or subfolders, if recursive) are automatically linked to the initiative.
+
+    Args:
+        document_id: The ID of the newly created document
+        relative_path: The document's relative path in the vault (e.g., "Projects/AI Strategy/doc.md")
+        user_id: The user ID who triggered the sync
+
+    Returns:
+        Number of initiatives the document was linked to
+    """
+    db = _get_db()
+
+    # Extract folder from path (everything before last '/')
+    if "/" not in relative_path:
+        return 0  # Root-level file, no folder to match
+
+    folder = relative_path.rsplit("/", 1)[0]
+
+    # Build ancestor folder list for recursive matching
+    # e.g., "Projects/AI Strategy/Docs" -> ["Projects", "Projects/AI Strategy", "Projects/AI Strategy/Docs"]
+    parts = folder.split("/")
+    ancestors = []
+    for i in range(len(parts)):
+        ancestors.append("/".join(parts[: i + 1]))
+
+    try:
+        # Query all folder subscriptions that could match this document's folder
+        result = db.table("disco_initiative_folders").select("initiative_id, folder_path, recursive").execute()
+
+        if not result.data:
+            return 0
+
+        matched_initiatives = set()
+        for row in result.data:
+            folder_path = row["folder_path"]
+            recursive = row["recursive"]
+            initiative_id = row["initiative_id"]
+
+            if recursive:
+                # Match if the subscription folder is an ancestor of (or equal to) the document's folder
+                if folder_path in ancestors or folder == folder_path:
+                    matched_initiatives.add(initiative_id)
+            else:
+                # Exact match only - document must be directly in this folder
+                if folder == folder_path:
+                    matched_initiatives.add(initiative_id)
+
+        if not matched_initiatives:
+            return 0
+
+        linked_count = 0
+        for initiative_id in matched_initiatives:
+            try:
+                # Upsert into disco_initiative_documents
+                db.table("disco_initiative_documents").upsert(
+                    {
+                        "initiative_id": initiative_id,
+                        "document_id": document_id,
+                        "linked_by": user_id,
+                    },
+                    on_conflict="initiative_id,document_id",
+                ).execute()
+
+                # Get initiative name for auto-tagging
+                init_result = db.table("disco_initiatives").select("name").eq("id", initiative_id).single().execute()
+                if init_result.data:
+                    initiative_name = init_result.data["name"]
+                    db.table("document_tags").upsert(
+                        {
+                            "document_id": document_id,
+                            "tag": initiative_name,
+                            "source": "initiative",
+                        },
+                        on_conflict="document_id,tag",
+                    ).execute()
+
+                linked_count += 1
+                logger.info(f"[Auto-Link] Document {document_id} auto-linked to initiative {initiative_id}")
+            except Exception as e:
+                logger.warning(f"[Auto-Link] Failed to link document {document_id} to initiative {initiative_id}: {e}")
+
+        return linked_count
+
+    except Exception as e:
+        logger.warning(f"[Auto-Link] Error checking folder subscriptions for {relative_path}: {e}")
+        return 0
 
 
 # ============================================================================

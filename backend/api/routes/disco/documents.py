@@ -18,6 +18,7 @@ from services.disco import (
 from ._shared import (
     DocumentUploadText,
     LinkDocumentsRequest,
+    LinkFolderRequest,
     require_disco_access,
     require_initiative_access,
 )
@@ -386,4 +387,195 @@ async def api_unlink_kb_document(
 
     except Exception as e:
         logger.error(f"Error unlinking document: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+# ============================================================================
+# FOLDER LINKING (Auto-link subscriptions)
+# ============================================================================
+
+
+@router.post("/initiatives/{initiative_id}/folders/link")
+async def api_link_folder(
+    initiative_id: str,
+    data: LinkFolderRequest,
+    current_user: dict = Depends(require_disco_access),
+):
+    """Link a vault folder to an initiative.
+
+    New documents synced into this folder will be automatically linked.
+    Optionally backfills existing documents in the folder.
+    """
+    resolved_id = await require_initiative_access(initiative_id, current_user, "editor")
+
+    try:
+        user_id = current_user["id"]
+        folder_path = data.folder_path.strip().strip("/")
+
+        if not folder_path:
+            raise HTTPException(status_code=400, detail="folder_path is required")
+
+        # Upsert folder link
+        await asyncio.to_thread(
+            lambda: supabase.table("disco_initiative_folders")
+            .upsert(
+                {
+                    "initiative_id": resolved_id,
+                    "folder_path": folder_path,
+                    "recursive": data.recursive,
+                    "linked_by": user_id,
+                },
+                on_conflict="initiative_id,folder_path",
+            )
+            .execute()
+        )
+
+        logger.info(f"[DISCO] Linked folder '{folder_path}' to initiative {resolved_id} (recursive={data.recursive})")
+
+        backfilled = 0
+
+        # Backfill: link existing documents in this folder
+        if data.backfill:
+            # Get initiative name for auto-tagging
+            init_result = await asyncio.to_thread(
+                lambda: supabase.table("disco_initiatives").select("name").eq("id", resolved_id).single().execute()
+            )
+            initiative_name = init_result.data["name"] if init_result.data else None
+
+            # Find documents in this folder
+            query = supabase.table("documents").select("id")
+            if data.recursive:
+                query = query.ilike("obsidian_file_path", f"{folder_path}/%")
+            else:
+                # Non-recursive: match files directly in this folder (not subfolders)
+                # We get all files in the folder prefix, then filter client-side
+                query = query.ilike("obsidian_file_path", f"{folder_path}/%")
+
+            docs_result = await asyncio.to_thread(lambda: query.execute())
+
+            if docs_result.data:
+                for doc in docs_result.data:
+                    doc_id = doc["id"]
+
+                    # For non-recursive, verify the doc is directly in the folder
+                    if not data.recursive:
+                        # We need the full path to check
+                        doc_detail = await asyncio.to_thread(
+                            lambda d=doc_id: supabase.table("documents")
+                            .select("obsidian_file_path")
+                            .eq("id", d)
+                            .single()
+                            .execute()
+                        )
+                        if doc_detail.data:
+                            path = doc_detail.data["obsidian_file_path"]
+                            # Check if there's a subfolder between folder_path and the filename
+                            remainder = path[len(folder_path) + 1 :]
+                            if "/" in remainder:
+                                continue  # Skip - this is in a subfolder
+
+                    try:
+                        await asyncio.to_thread(
+                            lambda d=doc_id: supabase.table("disco_initiative_documents")
+                            .upsert(
+                                {
+                                    "initiative_id": resolved_id,
+                                    "document_id": d,
+                                    "linked_by": user_id,
+                                },
+                                on_conflict="initiative_id,document_id",
+                            )
+                            .execute()
+                        )
+
+                        # Auto-tag
+                        if initiative_name:
+                            await asyncio.to_thread(
+                                lambda d=doc_id: supabase.table("document_tags")
+                                .upsert(
+                                    {
+                                        "document_id": d,
+                                        "tag": initiative_name,
+                                        "source": "initiative",
+                                    },
+                                    on_conflict="document_id,tag",
+                                )
+                                .execute()
+                            )
+
+                        backfilled += 1
+                    except Exception as e:
+                        logger.warning(f"[DISCO] Failed to backfill document {doc_id}: {e}")
+
+            logger.info(f"[DISCO] Backfilled {backfilled} documents from folder '{folder_path}'")
+
+        return {
+            "success": True,
+            "folder_path": folder_path,
+            "recursive": data.recursive,
+            "backfilled_count": backfilled,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error linking folder: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+@router.get("/initiatives/{initiative_id}/linked-folders")
+async def api_get_linked_folders(
+    initiative_id: str,
+    current_user: dict = Depends(require_disco_access),
+):
+    """Get folders linked to this initiative."""
+    resolved_id = await require_initiative_access(initiative_id, current_user, "viewer")
+
+    try:
+        result = await asyncio.to_thread(
+            lambda: supabase.table("disco_initiative_folders")
+            .select("id, folder_path, recursive, linked_at, linked_by")
+            .eq("initiative_id", resolved_id)
+            .order("folder_path")
+            .execute()
+        )
+
+        return {
+            "success": True,
+            "folders": result.data or [],
+            "count": len(result.data or []),
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting linked folders: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+@router.delete("/initiatives/{initiative_id}/linked-folders/{folder_path:path}")
+async def api_unlink_folder(
+    initiative_id: str,
+    folder_path: str,
+    current_user: dict = Depends(require_disco_access),
+):
+    """Unlink a folder from this initiative.
+
+    Removes the folder subscription but keeps existing document links intact.
+    """
+    resolved_id = await require_initiative_access(initiative_id, current_user, "editor")
+
+    try:
+        await asyncio.to_thread(
+            lambda: supabase.table("disco_initiative_folders")
+            .delete()
+            .eq("initiative_id", resolved_id)
+            .eq("folder_path", folder_path)
+            .execute()
+        )
+
+        logger.info(f"[DISCO] Unlinked folder '{folder_path}' from initiative {resolved_id}")
+
+        return {"success": True, "message": f"Folder '{folder_path}' unlinked from initiative"}
+
+    except Exception as e:
+        logger.error(f"Error unlinking folder: {e}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e

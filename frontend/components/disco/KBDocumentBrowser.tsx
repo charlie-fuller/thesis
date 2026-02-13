@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { X, Search, FileText, Check, Loader2, Eye, Tag, Link, ArrowUpDown, Filter, Folder, FolderOpen, ChevronRight, CheckSquare } from 'lucide-react'
+import { X, Search, FileText, Check, Loader2, Eye, Tag, Link, Link2, ArrowUpDown, Filter, Folder, FolderOpen, ChevronRight, CheckSquare } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 import TagSelector from '@/components/TagSelector'
 
@@ -111,6 +111,10 @@ export default function KBDocumentBrowser({
   const [loadingFolder, setLoadingFolder] = useState<string | null>(null)
   const [selectingFolder, setSelectingFolder] = useState<string | null>(null)
 
+  // Linked folders state (auto-link subscriptions)
+  const [linkedFolderPaths, setLinkedFolderPaths] = useState<Set<string>>(new Set())
+  const [linkingFolder, setLinkingFolder] = useState<string | null>(null)
+
   const LIMIT = 20
 
   const folderTree = useMemo(() => buildFolderTree(folders), [folders])
@@ -187,12 +191,39 @@ export default function KBDocumentBrowser({
     }
   }, [isOpen, viewMode])
 
+  // Fetch linked folders on open
+  useEffect(() => {
+    if (isOpen) {
+      apiGet<{ success: boolean; folders: { folder_path: string }[] }>(
+        `/api/disco/initiatives/${initiativeId}/linked-folders`
+      ).then(result => {
+        setLinkedFolderPaths(new Set((result.folders || []).map(f => f.folder_path)))
+      }).catch(() => {})
+    }
+  }, [isOpen, initiativeId])
+
   // Re-fetch search results when filters change
   useEffect(() => {
     if (isOpen && viewMode === 'search') {
       fetchDocuments(true, searchQuery, selectedTagsFilter, sortBy, sourceFilter)
     }
   }, [searchQuery, selectedTagsFilter, sortBy, sourceFilter])
+
+  const handleLinkFolder = async (folderPath: string) => {
+    setLinkingFolder(folderPath)
+    try {
+      await apiPost(`/api/disco/initiatives/${initiativeId}/folders/link`, {
+        folder_path: folderPath,
+        recursive: true,
+        backfill: true,
+      })
+      setLinkedFolderPaths(prev => new Set([...prev, folderPath]))
+    } catch (err) {
+      console.error('Failed to link folder:', err)
+    } finally {
+      setLinkingFolder(null)
+    }
+  }
 
   // Load documents for a specific folder
   const loadFolderDocuments = async (folderPath: string) => {
@@ -506,6 +537,34 @@ export default function KBDocumentBrowser({
             )}
             {allDirectSelected && isExpanded ? 'Deselect' : 'Select all'}
           </button>
+
+          {/* Link folder button */}
+          {linkedFolderPaths.has(node.path) ? (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs text-emerald-600 dark:text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="This folder is auto-linked"
+            >
+              <Link2 className="w-3 h-3" />
+              Auto-linked
+            </span>
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleLinkFolder(node.path)
+              }}
+              disabled={linkingFolder === node.path}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs text-slate-400 hover:text-emerald-600 dark:text-slate-500 dark:hover:text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+              title={`Auto-link folder "${node.name}" — new docs will be linked automatically`}
+            >
+              {linkingFolder === node.path ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Link2 className="w-3 h-3" />
+              )}
+              Link folder
+            </button>
+          )}
         </div>
 
         {/* Expanded content */}

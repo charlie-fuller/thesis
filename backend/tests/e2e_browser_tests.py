@@ -22,9 +22,9 @@ Prerequisites:
     4. Test user credentials available
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 
 class TestCategory(Enum):
@@ -76,6 +76,11 @@ class E2ETestScenario:
     expected_result: str
     prerequisites: Optional[List[str]] = None
     cleanup: Optional[List[str]] = None
+    phase: int = 0
+    run_order: int = 0
+    tier: str = "core"
+    skip_reason: Optional[str] = None
+    fixture_files: Optional[List[str]] = field(default=None)
 
 
 # =============================================================================
@@ -101,6 +106,9 @@ E2E_TEST_SCENARIOS = {
             "Verify user menu shows logged in state",
         ],
         expected_result="User is logged in and redirected to /chat",
+        phase=1,
+        run_order=1,
+        tier="core",
     ),
     "auth_login_invalid_email": E2ETestScenario(
         id="auth_login_invalid_email",
@@ -115,6 +123,9 @@ E2E_TEST_SCENARIOS = {
             "Take snapshot to check for error",
         ],
         expected_result="Error message 'Invalid email' displayed",
+        phase=1,
+        run_order=2,
+        tier="core",
     ),
     "auth_login_wrong_password": E2ETestScenario(
         id="auth_login_wrong_password",
@@ -130,6 +141,9 @@ E2E_TEST_SCENARIOS = {
             "Check network for 401 response",
         ],
         expected_result="Error message about invalid credentials shown",
+        phase=1,
+        run_order=3,
+        tier="core",
     ),
     "auth_login_empty_fields": E2ETestScenario(
         id="auth_login_empty_fields",
@@ -142,6 +156,9 @@ E2E_TEST_SCENARIOS = {
             "Take snapshot to check for validation errors",
         ],
         expected_result="Required field errors shown for email and password",
+        phase=1,
+        run_order=4,
+        tier="core",
     ),
     "auth_logout": E2ETestScenario(
         id="auth_logout",
@@ -157,6 +174,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="User is logged out and redirected to login page",
         prerequisites=["auth_login_success"],
+        phase=1,
+        run_order=5,
+        tier="core",
     ),
     "auth_session_persistence": E2ETestScenario(
         id="auth_session_persistence",
@@ -172,6 +192,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Session maintained after refresh",
         prerequisites=["auth_login_success"],
+        phase=1,
+        run_order=6,
+        tier="core",
     ),
     "auth_protected_route": E2ETestScenario(
         id="auth_protected_route",
@@ -184,6 +207,9 @@ E2E_TEST_SCENARIOS = {
             "Verify redirect to /auth/login",
         ],
         expected_result="Redirected to login page",
+        phase=1,
+        run_order=7,
+        tier="core",
     ),
     "auth_expired_session": E2ETestScenario(
         id="auth_expired_session",
@@ -198,6 +224,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="User prompted to re-authenticate",
         prerequisites=["auth_login_success"],
+        phase=1,
+        run_order=8,
+        tier="skip",
+        skip_reason="Requires session manipulation",
     ),
     # =========================================================================
     # CHAT (10 tests)
@@ -218,6 +248,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Message sent and AI response received",
         prerequisites=["auth_login_success"],
+        phase=2,
+        run_order=1,
+        tier="core",
     ),
     "chat_empty_message_blocked": E2ETestScenario(
         id="chat_empty_message_blocked",
@@ -232,6 +265,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Send blocked, no API call made",
         prerequisites=["auth_login_success"],
+        phase=2,
+        run_order=2,
+        tier="core",
     ),
     "chat_multiline_input": E2ETestScenario(
         id="chat_multiline_input",
@@ -246,6 +282,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Multiline message displayed correctly",
         prerequisites=["auth_login_success"],
+        phase=2,
+        run_order=3,
+        tier="extended",
     ),
     "chat_at_mention_routing": E2ETestScenario(
         id="chat_at_mention_routing",
@@ -260,6 +299,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Atlas agent specifically responds to query",
         prerequisites=["auth_login_success"],
+        phase=2,
+        run_order=4,
+        tier="extended",
     ),
     "chat_conversation_history": E2ETestScenario(
         id="chat_conversation_history",
@@ -275,6 +317,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Conversation history preserved",
         prerequisites=["auth_login_success"],
+        phase=2,
+        run_order=5,
+        tier="core",
     ),
     "chat_new_conversation": E2ETestScenario(
         id="chat_new_conversation",
@@ -289,6 +334,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="New empty conversation started",
         prerequisites=["auth_login_success"],
+        phase=2,
+        run_order=6,
+        tier="core",
     ),
     "chat_empty_state": E2ETestScenario(
         id="chat_empty_state",
@@ -303,6 +351,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Appropriate empty state shown",
         prerequisites=["auth_login_success"],
+        phase=2,
+        run_order=7,
+        tier="skip",
+        skip_reason="Requires fresh user with no data",
     ),
     "chat_loading_state": E2ETestScenario(
         id="chat_loading_state",
@@ -318,6 +370,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Loading state shown during API call",
         prerequisites=["auth_login_success"],
+        phase=2,
+        run_order=8,
+        tier="extended",
     ),
     "chat_api_error_handling": E2ETestScenario(
         id="chat_api_error_handling",
@@ -332,6 +387,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Error displayed with recovery option",
         prerequisites=["auth_login_success"],
+        phase=2,
+        run_order=9,
+        tier="skip",
+        skip_reason="Requires API error simulation",
     ),
     "chat_long_message": E2ETestScenario(
         id="chat_long_message",
@@ -346,6 +405,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Long message handled appropriately",
         prerequisites=["auth_login_success"],
+        phase=2,
+        run_order=10,
+        tier="extended",
     ),
     # =========================================================================
     # KNOWLEDGE BASE (12 tests)
@@ -363,6 +425,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Document list displayed with metadata",
         prerequisites=["auth_login_success"],
+        phase=3,
+        run_order=1,
+        tier="core",
     ),
     "kb_upload_pdf": E2ETestScenario(
         id="kb_upload_pdf",
@@ -379,6 +444,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="PDF uploaded and appears in document list",
         prerequisites=["auth_login_success"],
+        phase=3,
+        run_order=2,
+        tier="core",
+        fixture_files=["test-upload.pdf"],
     ),
     "kb_upload_invalid_type": E2ETestScenario(
         id="kb_upload_invalid_type",
@@ -393,6 +462,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Error: Unsupported file type",
         prerequisites=["auth_login_success"],
+        phase=3,
+        run_order=3,
+        tier="core",
+        fixture_files=["test-invalid.exe"],
     ),
     "kb_upload_large_file": E2ETestScenario(
         id="kb_upload_large_file",
@@ -406,6 +479,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Large file handled appropriately",
         prerequisites=["auth_login_success"],
+        phase=3,
+        run_order=4,
+        tier="skip",
+        skip_reason="Requires 50MB test file",
     ),
     "kb_search_documents": E2ETestScenario(
         id="kb_search_documents",
@@ -420,6 +497,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Search filters documents correctly",
         prerequisites=["auth_login_success"],
+        phase=3,
+        run_order=5,
+        tier="core",
     ),
     "kb_filter_by_tag": E2ETestScenario(
         id="kb_filter_by_tag",
@@ -434,6 +514,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Documents filtered by selected tag",
         prerequisites=["auth_login_success"],
+        phase=3,
+        run_order=6,
+        tier="core",
     ),
     "kb_document_preview": E2ETestScenario(
         id="kb_document_preview",
@@ -448,6 +531,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Document preview shows content",
         prerequisites=["auth_login_success"],
+        phase=3,
+        run_order=7,
+        tier="core",
     ),
     "kb_edit_document_tags": E2ETestScenario(
         id="kb_edit_document_tags",
@@ -463,6 +549,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Tags updated and persisted",
         prerequisites=["auth_login_success"],
+        phase=3,
+        run_order=8,
+        tier="extended",
     ),
     "kb_delete_document": E2ETestScenario(
         id="kb_delete_document",
@@ -479,6 +568,9 @@ E2E_TEST_SCENARIOS = {
         expected_result="Document deleted and removed from UI",
         prerequisites=["auth_login_success"],
         cleanup=["Re-upload test document if needed"],
+        phase=3,
+        run_order=9,
+        tier="core",
     ),
     "kb_empty_state": E2ETestScenario(
         id="kb_empty_state",
@@ -493,6 +585,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Empty state with upload prompt",
         prerequisites=["auth_login_success"],
+        phase=3,
+        run_order=10,
+        tier="skip",
+        skip_reason="Requires fresh user with no data",
     ),
     "kb_upload_error_recovery": E2ETestScenario(
         id="kb_upload_error_recovery",
@@ -507,6 +603,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Error shown with retry option",
         prerequisites=["auth_login_success"],
+        phase=3,
+        run_order=11,
+        tier="skip",
+        skip_reason="Requires network failure simulation",
     ),
     "kb_bulk_upload": E2ETestScenario(
         id="kb_bulk_upload",
@@ -520,6 +620,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="All files uploaded successfully",
         prerequisites=["auth_login_success"],
+        phase=3,
+        run_order=12,
+        tier="extended",
+        fixture_files=["test-upload.pdf", "test-upload.md", "test-upload.txt"],
     ),
     # =========================================================================
     # TASKS (10 tests)
@@ -537,6 +641,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Kanban board displays with tasks",
         prerequisites=["auth_login_success"],
+        phase=4,
+        run_order=1,
+        tier="core",
     ),
     "tasks_create": E2ETestScenario(
         id="tasks_create",
@@ -555,6 +662,9 @@ E2E_TEST_SCENARIOS = {
         expected_result="Task created and appears in Backlog",
         prerequisites=["auth_login_success"],
         cleanup=["Delete test task"],
+        phase=4,
+        run_order=2,
+        tier="core",
     ),
     "tasks_create_empty_title": E2ETestScenario(
         id="tasks_create_empty_title",
@@ -570,6 +680,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Validation error prevents save",
         prerequisites=["auth_login_success"],
+        phase=4,
+        run_order=3,
+        tier="core",
     ),
     "tasks_edit": E2ETestScenario(
         id="tasks_edit",
@@ -585,6 +698,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Task updated successfully",
         prerequisites=["auth_login_success"],
+        phase=4,
+        run_order=4,
+        tier="core",
     ),
     "tasks_drag_drop": E2ETestScenario(
         id="tasks_drag_drop",
@@ -600,6 +716,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Task moved and status updated",
         prerequisites=["auth_login_success"],
+        phase=4,
+        run_order=5,
+        tier="core",
     ),
     "tasks_delete": E2ETestScenario(
         id="tasks_delete",
@@ -615,6 +734,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Task deleted and removed from UI",
         prerequisites=["auth_login_success", "tasks_create"],
+        phase=4,
+        run_order=6,
+        tier="core",
     ),
     "tasks_empty_state": E2ETestScenario(
         id="tasks_empty_state",
@@ -629,6 +751,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Empty state with create prompt",
         prerequisites=["auth_login_success"],
+        phase=4,
+        run_order=7,
+        tier="skip",
+        skip_reason="Requires fresh user with no data",
     ),
     "tasks_status_update": E2ETestScenario(
         id="tasks_status_update",
@@ -643,6 +769,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Task status updated via dropdown",
         prerequisites=["auth_login_success"],
+        phase=4,
+        run_order=8,
+        tier="core",
     ),
     "tasks_save_error": E2ETestScenario(
         id="tasks_save_error",
@@ -657,6 +786,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Error shown, data preserved",
         prerequisites=["auth_login_success"],
+        phase=4,
+        run_order=9,
+        tier="skip",
+        skip_reason="Requires API error simulation",
     ),
     "tasks_filter": E2ETestScenario(
         id="tasks_filter",
@@ -670,6 +803,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Tasks filtered correctly",
         prerequisites=["auth_login_success"],
+        phase=4,
+        run_order=10,
+        tier="core",
     ),
     # =========================================================================
     # OPPORTUNITIES (12 tests)
@@ -686,6 +822,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Pipeline displays with projects",
         prerequisites=["auth_login_success"],
+        phase=5,
+        run_order=1,
+        tier="core",
     ),
     "opps_create": E2ETestScenario(
         id="opps_create",
@@ -703,6 +842,9 @@ E2E_TEST_SCENARIOS = {
         expected_result="Project created in Identified stage",
         prerequisites=["auth_login_success"],
         cleanup=["Delete test project"],
+        phase=5,
+        run_order=2,
+        tier="core",
     ),
     "opps_create_missing_required": E2ETestScenario(
         id="opps_create_missing_required",
@@ -717,6 +859,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Validation error prevents save",
         prerequisites=["auth_login_success"],
+        phase=5,
+        run_order=3,
+        tier="core",
     ),
     "opps_score_validation": E2ETestScenario(
         id="opps_score_validation",
@@ -730,6 +875,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Invalid score rejected",
         prerequisites=["auth_login_success"],
+        phase=5,
+        run_order=4,
+        tier="extended",
     ),
     "opps_tier_calculation": E2ETestScenario(
         id="opps_tier_calculation",
@@ -744,6 +892,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Tier calculated correctly from scores",
         prerequisites=["auth_login_success"],
+        phase=5,
+        run_order=5,
+        tier="extended",
     ),
     "opps_edit": E2ETestScenario(
         id="opps_edit",
@@ -758,6 +909,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Project updated successfully",
         prerequisites=["auth_login_success"],
+        phase=5,
+        run_order=6,
+        tier="core",
     ),
     "opps_drag_between_stages": E2ETestScenario(
         id="opps_drag_between_stages",
@@ -772,6 +926,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Project stage updated",
         prerequisites=["auth_login_success"],
+        phase=5,
+        run_order=7,
+        tier="extended",
     ),
     "opps_delete": E2ETestScenario(
         id="opps_delete",
@@ -786,6 +943,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Project deleted",
         prerequisites=["auth_login_success", "opps_create"],
+        phase=5,
+        run_order=8,
+        tier="core",
     ),
     "opps_empty_state": E2ETestScenario(
         id="opps_empty_state",
@@ -799,6 +959,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Empty state displayed",
         prerequisites=["auth_login_success"],
+        phase=5,
+        run_order=9,
+        tier="skip",
+        skip_reason="Requires fresh user with no data",
     ),
     "opps_filter_by_tier": E2ETestScenario(
         id="opps_filter_by_tier",
@@ -812,6 +976,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Filtered by tier correctly",
         prerequisites=["auth_login_success"],
+        phase=5,
+        run_order=10,
+        tier="core",
     ),
     "opps_search": E2ETestScenario(
         id="opps_search",
@@ -825,6 +992,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Search returns correct results",
         prerequisites=["auth_login_success"],
+        phase=5,
+        run_order=11,
+        tier="core",
     ),
     "opps_link_stakeholder": E2ETestScenario(
         id="opps_link_stakeholder",
@@ -840,6 +1010,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Stakeholder linked to project",
         prerequisites=["auth_login_success"],
+        phase=5,
+        run_order=12,
+        tier="extended",
     ),
     # =========================================================================
     # MEETING ROOMS (8 tests)
@@ -855,6 +1028,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Meeting rooms displayed",
         prerequisites=["auth_login_success"],
+        phase=6,
+        run_order=1,
+        tier="core",
     ),
     "meeting_create": E2ETestScenario(
         id="meeting_create",
@@ -871,6 +1047,9 @@ E2E_TEST_SCENARIOS = {
         expected_result="Meeting room created",
         prerequisites=["auth_login_success"],
         cleanup=["Delete test room"],
+        phase=6,
+        run_order=2,
+        tier="core",
     ),
     "meeting_create_no_agents": E2ETestScenario(
         id="meeting_create_no_agents",
@@ -885,6 +1064,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Validation error shown",
         prerequisites=["auth_login_success"],
+        phase=6,
+        run_order=3,
+        tier="core",
     ),
     "meeting_send_message": E2ETestScenario(
         id="meeting_send_message",
@@ -899,6 +1081,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Agents respond to user message",
         prerequisites=["auth_login_success", "meeting_create"],
+        phase=6,
+        run_order=4,
+        tier="extended",
     ),
     "meeting_autonomous_mode": E2ETestScenario(
         id="meeting_autonomous_mode",
@@ -913,6 +1098,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Agents discuss autonomously",
         prerequisites=["auth_login_success", "meeting_create"],
+        phase=6,
+        run_order=5,
+        tier="extended",
     ),
     "meeting_delete": E2ETestScenario(
         id="meeting_delete",
@@ -927,6 +1115,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Meeting room deleted",
         prerequisites=["auth_login_success", "meeting_create"],
+        phase=6,
+        run_order=6,
+        tier="core",
     ),
     "meeting_empty_state": E2ETestScenario(
         id="meeting_empty_state",
@@ -940,6 +1131,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Empty state displayed",
         prerequisites=["auth_login_success"],
+        phase=6,
+        run_order=7,
+        tier="skip",
+        skip_reason="Requires fresh user with no data",
     ),
     "meeting_synthesis": E2ETestScenario(
         id="meeting_synthesis",
@@ -954,6 +1149,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Synthesis report generated",
         prerequisites=["auth_login_success", "meeting_send_message"],
+        phase=6,
+        run_order=8,
+        tier="extended",
     ),
     # =========================================================================
     # PERFORMANCE & QUALITY (6 tests)
@@ -971,6 +1169,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Core Web Vitals within targets",
         prerequisites=["auth_login_success"],
+        phase=7,
+        run_order=1,
+        tier="extended",
     ),
     "perf_kb_with_many_docs": E2ETestScenario(
         id="perf_kb_with_many_docs",
@@ -985,6 +1186,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="KB performs well with many docs",
         prerequisites=["auth_login_success"],
+        phase=7,
+        run_order=2,
+        tier="extended",
     ),
     "console_no_errors": E2ETestScenario(
         id="console_no_errors",
@@ -998,6 +1202,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="No JS errors in console",
         prerequisites=["auth_login_success"],
+        phase=7,
+        run_order=3,
+        tier="core",
     ),
     "network_api_calls": E2ETestScenario(
         id="network_api_calls",
@@ -1012,6 +1219,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="All API calls successful",
         prerequisites=["auth_login_success"],
+        phase=7,
+        run_order=4,
+        tier="core",
     ),
     "responsive_mobile": E2ETestScenario(
         id="responsive_mobile",
@@ -1026,6 +1236,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="UI responsive on mobile",
         prerequisites=["auth_login_success"],
+        phase=7,
+        run_order=5,
+        tier="extended",
     ),
     "concurrent_operations": E2ETestScenario(
         id="concurrent_operations",
@@ -1039,6 +1252,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Concurrent edits handled safely",
         prerequisites=["auth_login_success"],
+        phase=7,
+        run_order=6,
+        tier="skip",
+        skip_reason="Requires multiple browser tabs",
     ),
     # =========================================================================
     # HELP SYSTEM (8 tests)
@@ -1058,6 +1275,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Help panel opens with search and categories",
         prerequisites=["auth_login_success"],
+        phase=8,
+        run_order=1,
+        tier="core",
     ),
     "help_panel_close": E2ETestScenario(
         id="help_panel_close",
@@ -1072,6 +1292,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Help panel closes cleanly",
         prerequisites=["auth_login_success", "help_panel_open"],
+        phase=8,
+        run_order=2,
+        tier="core",
     ),
     "help_search_agents": E2ETestScenario(
         id="help_search_agents",
@@ -1087,6 +1310,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Search returns relevant agent help topics",
         prerequisites=["auth_login_success"],
+        phase=8,
+        run_order=3,
+        tier="core",
     ),
     "help_search_disco": E2ETestScenario(
         id="help_search_disco",
@@ -1102,6 +1328,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Search returns DISCo-related help content",
         prerequisites=["auth_login_success"],
+        phase=8,
+        run_order=4,
+        tier="core",
     ),
     "help_search_discovery_inbox": E2ETestScenario(
         id="help_search_discovery_inbox",
@@ -1117,6 +1346,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Search returns Discovery Inbox help content",
         prerequisites=["auth_login_success"],
+        phase=8,
+        run_order=5,
+        tier="extended",
     ),
     "help_search_no_results": E2ETestScenario(
         id="help_search_no_results",
@@ -1132,6 +1364,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="No results message displayed gracefully",
         prerequisites=["auth_login_success"],
+        phase=8,
+        run_order=6,
+        tier="core",
     ),
     "help_navigate_to_doc": E2ETestScenario(
         id="help_navigate_to_doc",
@@ -1147,6 +1382,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Full help content displayed for selected topic",
         prerequisites=["auth_login_success"],
+        phase=8,
+        run_order=7,
+        tier="extended",
     ),
     "help_contextual": E2ETestScenario(
         id="help_contextual",
@@ -1163,6 +1401,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Help suggestions relevant to current page context",
         prerequisites=["auth_login_success"],
+        phase=8,
+        run_order=8,
+        tier="extended",
     ),
     # =========================================================================
     # DISCO INITIATIVES (10 tests)
@@ -1181,6 +1422,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="DISCo page loads with initiatives list",
         prerequisites=["auth_login_success"],
+        phase=9,
+        run_order=1,
+        tier="core",
     ),
     "disco_create_initiative": E2ETestScenario(
         id="disco_create_initiative",
@@ -1201,6 +1445,9 @@ E2E_TEST_SCENARIOS = {
         expected_result="Initiative created and detail view shown",
         prerequisites=["auth_login_success"],
         cleanup=["Delete test initiative"],
+        phase=9,
+        run_order=2,
+        tier="core",
     ),
     "disco_create_missing_name": E2ETestScenario(
         id="disco_create_missing_name",
@@ -1217,6 +1464,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Validation prevents creation without name",
         prerequisites=["auth_login_success"],
+        phase=9,
+        run_order=3,
+        tier="core",
     ),
     "disco_initiative_tabs": E2ETestScenario(
         id="disco_initiative_tabs",
@@ -1234,6 +1484,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="All four tabs present and functional",
         prerequisites=["auth_login_success", "disco_create_initiative"],
+        phase=9,
+        run_order=4,
+        tier="core",
     ),
     "disco_upload_document": E2ETestScenario(
         id="disco_upload_document",
@@ -1250,6 +1503,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Document uploaded to initiative",
         prerequisites=["auth_login_success", "disco_create_initiative"],
+        phase=9,
+        run_order=5,
+        tier="core",
+        fixture_files=["test-upload.pdf"],
     ),
     "disco_run_agent": E2ETestScenario(
         id="disco_run_agent",
@@ -1267,6 +1524,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Agent runs and output displayed",
         prerequisites=["auth_login_success", "disco_create_initiative", "disco_upload_document"],
+        phase=9,
+        run_order=6,
+        tier="extended",
     ),
     "disco_view_outputs": E2ETestScenario(
         id="disco_view_outputs",
@@ -1282,6 +1542,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Agent outputs viewable in Outputs tab",
         prerequisites=["auth_login_success", "disco_run_agent"],
+        phase=9,
+        run_order=7,
+        tier="extended",
     ),
     "disco_status_badges": E2ETestScenario(
         id="disco_status_badges",
@@ -1298,6 +1561,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Status badge reflects workflow progress",
         prerequisites=["auth_login_success", "disco_create_initiative"],
+        phase=9,
+        run_order=8,
+        tier="extended",
     ),
     "disco_share_initiative": E2ETestScenario(
         id="disco_share_initiative",
@@ -1315,6 +1581,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Initiative shared with specified user",
         prerequisites=["auth_login_success", "disco_create_initiative"],
+        phase=9,
+        run_order=9,
+        tier="skip",
+        skip_reason="Requires second user account",
     ),
     "disco_empty_state": E2ETestScenario(
         id="disco_empty_state",
@@ -1329,6 +1599,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Empty state with create prompt",
         prerequisites=["auth_login_success"],
+        phase=9,
+        run_order=10,
+        tier="skip",
+        skip_reason="Requires fresh user with no data",
     ),
     # =========================================================================
     # GRANOLA SYNC (3 tests)
@@ -1360,6 +1634,10 @@ E2E_TEST_SCENARIOS = {
         expected_result="File synced, task/project/stakeholder candidates created from meeting content",
         prerequisites=["auth_login_success"],
         cleanup=["Delete test file E2E-Test-Meeting-{timestamp}.md from Granola/Transcripts folder"],
+        phase=10,
+        run_order=1,
+        tier="skip",
+        skip_reason="Requires Obsidian watcher running",
     ),
     "granola_sync_activity_display": E2ETestScenario(
         id="granola_sync_activity_display",
@@ -1377,6 +1655,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Sync activity indicator shows during sync and completion message appears",
         prerequisites=["auth_login_success"],
+        phase=10,
+        run_order=2,
+        tier="skip",
+        skip_reason="Requires Obsidian watcher running",
     ),
     "granola_scan_panel_status": E2ETestScenario(
         id="granola_scan_panel_status",
@@ -1396,6 +1678,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="GranolaScanPanel displays accurate status and responds to scan action",
         prerequisites=["auth_login_success"],
+        phase=10,
+        run_order=3,
+        tier="extended",
     ),
     # =========================================================================
     # CHAT CONTEXT FILTERING (9 tests) - February 3, 2026 changes
@@ -1416,6 +1701,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Conversation list filters to show only conversations for selected project",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=1,
+        tier="core",
     ),
     "chat_initiative_filter_dropdown": E2ETestScenario(
         id="chat_initiative_filter_dropdown",
@@ -1433,6 +1721,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Conversation list filters to show only conversations for selected initiative",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=2,
+        tier="core",
     ),
     "chat_context_badge_project": E2ETestScenario(
         id="chat_context_badge_project",
@@ -1448,6 +1739,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Blue project badge displays on conversations with project context",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=3,
+        tier="core",
     ),
     "chat_context_badge_initiative": E2ETestScenario(
         id="chat_context_badge_initiative",
@@ -1463,6 +1757,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Purple initiative badge displays on conversations with initiative context",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=4,
+        tier="core",
     ),
     "chat_url_project_context": E2ETestScenario(
         id="chat_url_project_context",
@@ -1479,6 +1776,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="URL parameter sets project context and auto-selects Project Agent",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=5,
+        tier="extended",
     ),
     "chat_url_initiative_context": E2ETestScenario(
         id="chat_url_initiative_context",
@@ -1495,6 +1795,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="URL parameter sets initiative context and auto-selects Initiative Agent",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=6,
+        tier="extended",
     ),
     "chat_new_conversation_with_context": E2ETestScenario(
         id="chat_new_conversation_with_context",
@@ -1511,6 +1814,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="New conversations inherit the currently selected filter context",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=7,
+        tier="extended",
     ),
     "chat_clear_project_filter": E2ETestScenario(
         id="chat_clear_project_filter",
@@ -1526,6 +1832,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Setting dropdown to None clears the filter and shows all conversations",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=8,
+        tier="core",
     ),
     "chat_combined_filters": E2ETestScenario(
         id="chat_combined_filters",
@@ -1542,6 +1851,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Combined filters work correctly with AND logic",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=9,
+        tier="extended",
     ),
     # =========================================================================
     # NEW AGENTS (8 tests) - February 3, 2026 changes
@@ -1560,6 +1872,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="@project_agent mention routes to Project Agent",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=10,
+        tier="extended",
     ),
     "chat_initiative_agent_mention": E2ETestScenario(
         id="chat_initiative_agent_mention",
@@ -1575,6 +1890,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="@initiative_agent mention routes to Initiative Agent",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=11,
+        tier="extended",
     ),
     "chat_project_agent_auto_select": E2ETestScenario(
         id="chat_project_agent_auto_select",
@@ -1590,6 +1908,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Project Agent is automatically selected with project context",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=12,
+        tier="extended",
     ),
     "chat_initiative_agent_auto_select": E2ETestScenario(
         id="chat_initiative_agent_auto_select",
@@ -1605,6 +1926,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Initiative Agent is automatically selected with initiative context",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=13,
+        tier="extended",
     ),
     "agent_selector_shows_new_agents": E2ETestScenario(
         id="agent_selector_shows_new_agents",
@@ -1620,6 +1944,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Agent selector includes Project Agent and Initiative Agent",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=14,
+        tier="core",
     ),
     "agent_icon_project_agent": E2ETestScenario(
         id="agent_icon_project_agent",
@@ -1634,6 +1961,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Project Agent displays with blue PieChart icon",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=15,
+        tier="extended",
     ),
     "agent_icon_initiative_agent": E2ETestScenario(
         id="agent_icon_initiative_agent",
@@ -1648,6 +1978,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Initiative Agent displays with purple CircleDot icon",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=16,
+        tier="extended",
     ),
     "intelligence_page_new_agents": E2ETestScenario(
         id="intelligence_page_new_agents",
@@ -1664,6 +1997,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Intelligence Agents tab displays Project Agent and Initiative Agent",
         prerequisites=["auth_login_success"],
+        phase=11,
+        run_order=17,
+        tier="extended",
     ),
     # =========================================================================
     # DASHBOARD (12 tests) - February 3, 2026 changes
@@ -1681,6 +2017,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Dashboard tabs display in correct order",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=1,
+        tier="core",
     ),
     "dashboard_interface_health_in_analytics": E2ETestScenario(
         id="dashboard_interface_health_in_analytics",
@@ -1696,6 +2035,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Analytics tab contains InterfaceHealthPanel",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=2,
+        tier="core",
     ),
     "dashboard_discovery_panel_tasks_carousel": E2ETestScenario(
         id="dashboard_discovery_panel_tasks_carousel",
@@ -1715,6 +2057,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Task carousel navigation works with counter display",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=3,
+        tier="core",
     ),
     "dashboard_discovery_panel_projects_carousel": E2ETestScenario(
         id="dashboard_discovery_panel_projects_carousel",
@@ -1730,6 +2075,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Project carousel navigation works correctly",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=4,
+        tier="core",
     ),
     "dashboard_discovery_panel_stakeholders_carousel": E2ETestScenario(
         id="dashboard_discovery_panel_stakeholders_carousel",
@@ -1745,6 +2093,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Stakeholder carousel navigation works correctly",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=5,
+        tier="core",
     ),
     "dashboard_discovery_accept_task": E2ETestScenario(
         id="dashboard_discovery_accept_task",
@@ -1764,6 +2115,9 @@ E2E_TEST_SCENARIOS = {
         expected_result="Accepted task candidate creates actual task",
         prerequisites=["auth_login_success"],
         cleanup=["Delete created test task"],
+        phase=12,
+        run_order=6,
+        tier="extended",
     ),
     "dashboard_discovery_skip_task": E2ETestScenario(
         id="dashboard_discovery_skip_task",
@@ -1781,6 +2135,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Skipped candidate is removed from inbox",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=7,
+        tier="extended",
     ),
     "dashboard_discovery_scanning_indicator": E2ETestScenario(
         id="dashboard_discovery_scanning_indicator",
@@ -1795,6 +2152,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Scanning indicator shows amber spinner with count",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=8,
+        tier="extended",
     ),
     "dashboard_discovery_empty_state": E2ETestScenario(
         id="dashboard_discovery_empty_state",
@@ -1809,6 +2169,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Empty state shows 'All caught up' message",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=9,
+        tier="extended",
     ),
     "dashboard_system_health_tab": E2ETestScenario(
         id="dashboard_system_health_tab",
@@ -1822,6 +2185,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="System Health is default tab showing Discovery Inbox",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=10,
+        tier="core",
     ),
     "dashboard_knowledge_graph_subtabs": E2ETestScenario(
         id="dashboard_knowledge_graph_subtabs",
@@ -1840,6 +2206,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Knowledge Graph tab has three functional subtabs",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=11,
+        tier="core",
     ),
     "dashboard_process_map_tab": E2ETestScenario(
         id="dashboard_process_map_tab",
@@ -1854,6 +2223,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Process Map tab shows ProcessMapPanel",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=12,
+        tier="core",
     ),
     # =========================================================================
     # HELP DOCUMENTATION (4 tests) - February 3, 2026 changes
@@ -1872,6 +2244,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Help search returns documentation about project context filtering",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=13,
+        tier="extended",
     ),
     "help_search_initiative_context": E2ETestScenario(
         id="help_search_initiative_context",
@@ -1887,6 +2262,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Help search returns documentation about initiative context filtering",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=14,
+        tier="extended",
     ),
     "help_project_agent_mention": E2ETestScenario(
         id="help_project_agent_mention",
@@ -1902,6 +2280,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Help search returns documentation about Project Agent",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=15,
+        tier="extended",
     ),
     "help_initiative_agent_mention": E2ETestScenario(
         id="help_initiative_agent_mention",
@@ -1917,6 +2298,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Help search returns documentation about Initiative Agent",
         prerequisites=["auth_login_success"],
+        phase=12,
+        run_order=16,
+        tier="extended",
     ),
     # =========================================================================
     # TASKS PAGE COMPREHENSIVE TESTS (11 tests)
@@ -1935,6 +2319,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Tasks filtered by assignee",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=1,
+        tier="core",
     ),
     "tasks_filter_by_due_date": E2ETestScenario(
         id="tasks_filter_by_due_date",
@@ -1949,6 +2336,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Tasks filtered by due date range",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=2,
+        tier="core",
     ),
     "tasks_filter_by_priority": E2ETestScenario(
         id="tasks_filter_by_priority",
@@ -1965,6 +2355,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Tasks filtered by priority level",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=3,
+        tier="core",
     ),
     "tasks_filter_by_team": E2ETestScenario(
         id="tasks_filter_by_team",
@@ -1979,6 +2372,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Tasks filtered by team",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=4,
+        tier="core",
     ),
     "tasks_filter_by_project": E2ETestScenario(
         id="tasks_filter_by_project",
@@ -1992,6 +2388,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Tasks filtered by project URL parameter",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=5,
+        tier="extended",
     ),
     "tasks_search": E2ETestScenario(
         id="tasks_search",
@@ -2006,6 +2405,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Tasks filtered by search query",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=6,
+        tier="core",
     ),
     "tasks_toggle_completed": E2ETestScenario(
         id="tasks_toggle_completed",
@@ -2021,6 +2423,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Completed tasks visibility toggled",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=7,
+        tier="core",
     ),
     "tasks_clear_filters": E2ETestScenario(
         id="tasks_clear_filters",
@@ -2036,6 +2441,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="All filters cleared to default state",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=8,
+        tier="core",
     ),
     "tasks_edit_inline_assignee": E2ETestScenario(
         id="tasks_edit_inline_assignee",
@@ -2052,6 +2460,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Task assignee changed inline",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=9,
+        tier="extended",
     ),
     "tasks_overdue_indicator": E2ETestScenario(
         id="tasks_overdue_indicator",
@@ -2066,6 +2477,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Overdue tasks show red warning styling",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=10,
+        tier="core",
     ),
     "tasks_refresh_button": E2ETestScenario(
         id="tasks_refresh_button",
@@ -2081,6 +2495,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Refresh button reloads task data",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=11,
+        tier="core",
     ),
     # =========================================================================
     # PROJECTS PAGE COMPREHENSIVE TESTS (7 tests)
@@ -2099,6 +2516,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="View toggles between List and Tier layouts",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=12,
+        tier="core",
     ),
     "projects_active_only_toggle": E2ETestScenario(
         id="projects_active_only_toggle",
@@ -2114,6 +2534,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Active Only toggle controls archived project visibility",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=13,
+        tier="core",
     ),
     "projects_filter_by_initiative": E2ETestScenario(
         id="projects_filter_by_initiative",
@@ -2128,6 +2551,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Projects filtered by initiative",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=14,
+        tier="core",
     ),
     "projects_sort_options": E2ETestScenario(
         id="projects_sort_options",
@@ -2143,6 +2569,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Sort options work correctly",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=15,
+        tier="core",
     ),
     "projects_reorder_buttons": E2ETestScenario(
         id="projects_reorder_buttons",
@@ -2159,6 +2588,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Reorder buttons change project position",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=16,
+        tier="extended",
     ),
     "projects_detail_modal": E2ETestScenario(
         id="projects_detail_modal",
@@ -2175,6 +2607,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Project detail modal opens and closes correctly",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=17,
+        tier="core",
     ),
     "projects_confidence_indicator": E2ETestScenario(
         id="projects_confidence_indicator",
@@ -2190,6 +2625,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Confidence indicator displays on project cards",
         prerequisites=["auth_login_success"],
+        phase=13,
+        run_order=18,
+        tier="core",
     ),
     # =========================================================================
     # MEETING ROOMS COMPREHENSIVE TESTS (11 tests)
@@ -2210,6 +2648,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Meeting room title can be edited inline",
         prerequisites=["auth_login_success", "meeting_create"],
+        phase=14,
+        run_order=1,
+        tier="extended",
     ),
     "meeting_room_export_to_kb": E2ETestScenario(
         id="meeting_room_export_to_kb",
@@ -2227,6 +2668,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Meeting conversation exported to Knowledge Base",
         prerequisites=["auth_login_success", "meeting_send_message"],
+        phase=14,
+        run_order=2,
+        tier="extended",
     ),
     "meeting_room_participant_bar": E2ETestScenario(
         id="meeting_room_participant_bar",
@@ -2242,6 +2686,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Participant bar shows all room agents",
         prerequisites=["auth_login_success", "meeting_create"],
+        phase=14,
+        run_order=3,
+        tier="core",
     ),
     "meeting_room_autonomous_panel": E2ETestScenario(
         id="meeting_room_autonomous_panel",
@@ -2258,6 +2705,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Autonomous panel displays all control elements",
         prerequisites=["auth_login_success", "meeting_create"],
+        phase=14,
+        run_order=4,
+        tier="core",
     ),
     "meeting_room_autonomous_start_stop": E2ETestScenario(
         id="meeting_room_autonomous_start_stop",
@@ -2275,6 +2725,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Autonomous discussion starts and stops on command",
         prerequisites=["auth_login_success", "meeting_create"],
+        phase=14,
+        run_order=5,
+        tier="extended",
     ),
     "meeting_room_user_interjection": E2ETestScenario(
         id="meeting_room_user_interjection",
@@ -2290,6 +2743,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="User can interject during autonomous discussion",
         prerequisites=["auth_login_success", "meeting_room_autonomous_start_stop"],
+        phase=14,
+        run_order=6,
+        tier="skip",
+        skip_reason="Requires autonomous mode timing",
     ),
     "meeting_room_context_sources": E2ETestScenario(
         id="meeting_room_context_sources",
@@ -2305,6 +2762,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Agent responses show context sources",
         prerequisites=["auth_login_success", "meeting_create"],
+        phase=14,
+        run_order=7,
+        tier="extended",
     ),
     "meeting_room_token_counter": E2ETestScenario(
         id="meeting_room_token_counter",
@@ -2319,6 +2779,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Token counter tracks usage",
         prerequisites=["auth_login_success", "meeting_create"],
+        phase=14,
+        run_order=8,
+        tier="extended",
     ),
     "meeting_room_back_button": E2ETestScenario(
         id="meeting_room_back_button",
@@ -2334,6 +2797,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Back button returns to meeting room list",
         prerequisites=["auth_login_success", "meeting_create"],
+        phase=14,
+        run_order=9,
+        tier="core",
     ),
     "meeting_rooms_context_filter": E2ETestScenario(
         id="meeting_rooms_context_filter",
@@ -2348,6 +2814,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Meeting rooms can be filtered by project/initiative",
         prerequisites=["auth_login_success"],
+        phase=14,
+        run_order=10,
+        tier="extended",
     ),
     "chat_meeting_rooms_create_from_tab": E2ETestScenario(
         id="chat_meeting_rooms_create_from_tab",
@@ -2365,6 +2834,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Meeting room created from chat interface",
         prerequisites=["auth_login_success"],
+        phase=14,
+        run_order=11,
+        tier="core",
     ),
     # =========================================================================
     # DISCO PAGE COMPREHENSIVE TESTS (9 tests)
@@ -2383,6 +2855,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Workflow map shows initiatives in workflow stages",
         prerequisites=["auth_login_success"],
+        phase=14,
+        run_order=12,
+        tier="core",
     ),
     "disco_status_summary_cards": E2ETestScenario(
         id="disco_status_summary_cards",
@@ -2398,6 +2873,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Status cards filter initiatives when clicked",
         prerequisites=["auth_login_success"],
+        phase=14,
+        run_order=13,
+        tier="core",
     ),
     "disco_initiative_search": E2ETestScenario(
         id="disco_initiative_search",
@@ -2412,6 +2890,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Search filters initiatives by name/description",
         prerequisites=["auth_login_success"],
+        phase=14,
+        run_order=14,
+        tier="core",
     ),
     "disco_initiative_card_click": E2ETestScenario(
         id="disco_initiative_card_click",
@@ -2426,6 +2907,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Clicking card navigates to initiative detail",
         prerequisites=["auth_login_success", "disco_create_initiative"],
+        phase=14,
+        run_order=15,
+        tier="core",
     ),
     "disco_triage_recommendation_badge": E2ETestScenario(
         id="disco_triage_recommendation_badge",
@@ -2440,6 +2924,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Triage recommendation badge displays correctly",
         prerequisites=["auth_login_success", "disco_run_agent"],
+        phase=14,
+        run_order=16,
+        tier="extended",
     ),
     "disco_detail_documents_tab": E2ETestScenario(
         id="disco_detail_documents_tab",
@@ -2455,6 +2942,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Documents tab shows linked documents with actions",
         prerequisites=["auth_login_success", "disco_create_initiative"],
+        phase=14,
+        run_order=17,
+        tier="core",
     ),
     "disco_detail_run_agent_tab": E2ETestScenario(
         id="disco_detail_run_agent_tab",
@@ -2470,6 +2960,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Run Agent tab has dropdown, run button, and guidance",
         prerequisites=["auth_login_success", "disco_create_initiative"],
+        phase=14,
+        run_order=18,
+        tier="core",
     ),
     "disco_detail_outputs_tab": E2ETestScenario(
         id="disco_detail_outputs_tab",
@@ -2485,6 +2978,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Outputs tab displays expandable agent results",
         prerequisites=["auth_login_success", "disco_run_agent"],
+        phase=14,
+        run_order=19,
+        tier="extended",
     ),
     "disco_detail_chat_tab": E2ETestScenario(
         id="disco_detail_chat_tab",
@@ -2501,6 +2997,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Chat button opens chat with initiative context",
         prerequisites=["auth_login_success", "disco_create_initiative"],
+        phase=14,
+        run_order=20,
+        tier="extended",
     ),
     "disco_detail_projects_tab": E2ETestScenario(
         id="disco_detail_projects_tab",
@@ -2516,6 +3015,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Projects tab displays linked projects from Projects page",
         prerequisites=["auth_login_success"],
+        phase=14,
+        run_order=21,
+        tier="core",
     ),
     "disco_detail_name_navigation": E2ETestScenario(
         id="disco_detail_name_navigation",
@@ -2531,6 +3033,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Initiative detail page works with name-based URLs",
         prerequisites=["auth_login_success"],
+        phase=14,
+        run_order=22,
+        tier="core",
     ),
     # =========================================================================
     # KNOWLEDGE BASE COMPREHENSIVE TESTS (5 tests)
@@ -2549,6 +3054,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="KB Conversations tab shows indexed conversations",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=1,
+        tier="core",
     ),
     "kb_data_map_tab": E2ETestScenario(
         id="kb_data_map_tab",
@@ -2563,6 +3071,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Data Map tab shows document visualization",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=2,
+        tier="core",
     ),
     "kb_upload_multiple_types": E2ETestScenario(
         id="kb_upload_multiple_types",
@@ -2579,6 +3090,10 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Multiple document types upload successfully",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=3,
+        tier="extended",
+        fixture_files=["test-upload.pdf", "test-upload.md", "test-upload.txt"],
     ),
     "kb_document_classification": E2ETestScenario(
         id="kb_document_classification",
@@ -2593,6 +3108,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Documents show auto-classification metadata",
         prerequisites=["auth_login_success", "kb_upload_pdf"],
+        phase=15,
+        run_order=4,
+        tier="extended",
     ),
     "kb_agent_filter": E2ETestScenario(
         id="kb_agent_filter",
@@ -2607,6 +3125,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Documents filter by associated agent domain",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=5,
+        tier="extended",
     ),
     # =========================================================================
     # PIPELINE PAGE TESTS (7 tests)
@@ -2624,6 +3145,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Priority Queue panel shows ordered items",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=6,
+        tier="core",
     ),
     "pipeline_commitments_panel": E2ETestScenario(
         id="pipeline_commitments_panel",
@@ -2638,6 +3162,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Commitments panel shows items with due dates",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=7,
+        tier="core",
     ),
     "pipeline_stakeholder_pulse": E2ETestScenario(
         id="pipeline_stakeholder_pulse",
@@ -2652,6 +3179,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Stakeholder pulse shows engagement data",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=8,
+        tier="extended",
     ),
     "pipeline_department_filter": E2ETestScenario(
         id="pipeline_department_filter",
@@ -2666,6 +3196,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Pipeline filters by department",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=9,
+        tier="core",
     ),
     "pipeline_granola_scan_button": E2ETestScenario(
         id="pipeline_granola_scan_button",
@@ -2682,6 +3215,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Granola scan button triggers document scan",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=10,
+        tier="extended",
     ),
     "pipeline_stats_row": E2ETestScenario(
         id="pipeline_stats_row",
@@ -2696,6 +3232,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Stats cards show current counts",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=11,
+        tier="core",
     ),
     "pipeline_click_to_navigate": E2ETestScenario(
         id="pipeline_click_to_navigate",
@@ -2710,6 +3249,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Clicking items navigates to their detail pages",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=12,
+        tier="core",
     ),
     # =========================================================================
     # INTELLIGENCE PAGE TESTS (6 tests)
@@ -2726,6 +3268,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Strategy tab is default view",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=13,
+        tier="core",
     ),
     "intelligence_stakeholder_view_toggle": E2ETestScenario(
         id="intelligence_stakeholder_view_toggle",
@@ -2741,6 +3286,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Stakeholder view toggles between grid and team layouts",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=14,
+        tier="core",
     ),
     "intelligence_stakeholder_create_form": E2ETestScenario(
         id="intelligence_stakeholder_create_form",
@@ -2758,6 +3306,9 @@ E2E_TEST_SCENARIOS = {
         expected_result="New stakeholder created via form",
         prerequisites=["auth_login_success"],
         cleanup=["Delete test stakeholder"],
+        phase=15,
+        run_order=15,
+        tier="extended",
     ),
     "intelligence_stakeholder_delete": E2ETestScenario(
         id="intelligence_stakeholder_delete",
@@ -2774,6 +3325,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Stakeholder deleted successfully",
         prerequisites=["auth_login_success", "intelligence_stakeholder_create_form"],
+        phase=15,
+        run_order=16,
+        tier="extended",
     ),
     "intelligence_engagement_trends_chart": E2ETestScenario(
         id="intelligence_engagement_trends_chart",
@@ -2788,6 +3342,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Engagement trends chart displays data",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=17,
+        tier="extended",
     ),
     "intelligence_agent_card_navigation": E2ETestScenario(
         id="intelligence_agent_card_navigation",
@@ -2802,6 +3359,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Clicking agent card opens chat with agent",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=18,
+        tier="extended",
     ),
     # =========================================================================
     # CHAT TAB SYSTEM TESTS (2 tests)
@@ -2822,6 +3382,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Chat interface has working Chat and Meeting Rooms tabs",
         prerequisites=["auth_login_success"],
+        phase=15,
+        run_order=19,
+        tier="core",
     ),
     "chat_sidebar_meeting_rooms_list": E2ETestScenario(
         id="chat_sidebar_meeting_rooms_list",
@@ -2837,6 +3400,9 @@ E2E_TEST_SCENARIOS = {
         ],
         expected_result="Meeting Rooms tab lists and links to rooms",
         prerequisites=["auth_login_success", "meeting_create"],
+        phase=15,
+        run_order=20,
+        tier="core",
     ),
 }
 
@@ -2987,18 +3553,70 @@ def get_test_count_summary() -> dict:
     return summary
 
 
+def get_runnable_scenarios(tier: str = "core") -> Dict[str, E2ETestScenario]:
+    """Get scenarios that can be executed, filtered by tier.
+
+    Args:
+        tier: "core" for core-tier only, "extended" for core + extended,
+              "all" for everything including skip-tier.
+
+    Returns:
+        Dict of scenario_id -> E2ETestScenario, sorted by phase then run_order.
+    """
+    if tier == "core":
+        scenarios = {k: v for k, v in E2E_TEST_SCENARIOS.items() if v.tier == "core"}
+    elif tier == "extended":
+        scenarios = {k: v for k, v in E2E_TEST_SCENARIOS.items() if v.tier in ("core", "extended")}
+    elif tier == "all":
+        scenarios = dict(E2E_TEST_SCENARIOS)
+    else:
+        scenarios = {k: v for k, v in E2E_TEST_SCENARIOS.items() if v.tier == tier}
+
+    # Sort by phase, then run_order
+    sorted_items = sorted(scenarios.items(), key=lambda x: (x[1].phase, x[1].run_order))
+    return dict(sorted_items)
+
+
+def get_scenario_manifest() -> str:
+    """Generate a human-readable manifest of all scenarios with tiers.
+
+    Returns:
+        Multi-line string showing all scenarios grouped by phase with tier info.
+    """
+    lines = []
+    lines.append("E2E SCENARIO MANIFEST")
+    lines.append("=" * 70)
+
+    # Count by tier
+    core = sum(1 for s in E2E_TEST_SCENARIOS.values() if s.tier == "core")
+    extended = sum(1 for s in E2E_TEST_SCENARIOS.values() if s.tier == "extended")
+    skip = sum(1 for s in E2E_TEST_SCENARIOS.values() if s.tier == "skip")
+    total = len(E2E_TEST_SCENARIOS)
+
+    lines.append(f"Total: {total} | Core: {core} | Extended: {extended} | Skip: {skip}")
+    lines.append(f"Runnable (core): {core} | Runnable (core+extended): {core + extended}")
+    lines.append("=" * 70)
+
+    # Group by phase
+    phases: Dict[int, list] = {}
+    for sid, scenario in E2E_TEST_SCENARIOS.items():
+        phases.setdefault(scenario.phase, []).append((sid, scenario))
+
+    for phase_num in sorted(phases.keys()):
+        scenarios = sorted(phases[phase_num], key=lambda x: x[1].run_order)
+        lines.append(f"\nPHASE {phase_num} ({len(scenarios)} scenarios)")
+        lines.append("-" * 50)
+        for sid, s in scenarios:
+            tier_marker = {"core": "[C]", "extended": "[E]", "skip": "[S]"}.get(s.tier, "[?]")
+            skip_note = f" -- {s.skip_reason}" if s.skip_reason else ""
+            fixture_note = f" [fixtures: {', '.join(s.fixture_files)}]" if s.fixture_files else ""
+            lines.append(f"  {tier_marker} {s.run_order:2d}. {sid}: " f"{s.description}{skip_note}{fixture_note}")
+
+    lines.append("\n" + "=" * 70)
+    lines.append("Legend: [C]=Core [E]=Extended [S]=Skip")
+    return "\n".join(lines)
+
+
 # Print summary when run directly
 if __name__ == "__main__":
-    print("E2E Browser Test Scenarios")
-    print("=" * 50)
-
-    summary = get_test_count_summary()
-    for category, count in summary.items():
-        if category != "total":
-            print(f"  {category}: {count} tests")
-
-    print("-" * 50)
-    print(f"  TOTAL: {summary['total']} tests")
-    print()
-    print("Run with Claude Code using Chrome DevTools MCP tools.")
-    print("See docs/testing/CLAUDE_TESTING_GUIDE.md for instructions.")
+    print(get_scenario_manifest())
