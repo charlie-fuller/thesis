@@ -43,6 +43,7 @@ async def create_bundle(
     dependencies: Optional[Dict] = None,
     bundling_rationale: Optional[str] = None,
     source_output_id: Optional[str] = None,
+    solution_type: Optional[str] = None,
 ) -> Dict:
     """Create a new initiative bundle."""
     bundle_id = str(uuid4())
@@ -66,6 +67,7 @@ async def create_bundle(
         "dependencies": dependencies or {},
         "bundling_rationale": bundling_rationale,
         "source_output_id": source_output_id,
+        "solution_type": solution_type,
     }
 
     result = await asyncio.to_thread(lambda: supabase.table("disco_bundles").insert(bundle_data).execute())

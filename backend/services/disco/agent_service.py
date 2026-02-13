@@ -210,14 +210,15 @@ def get_model_for_agent(agent_type: str) -> str:
 # - prd_generator, tech_evaluation, meta_consolidator, meta_synthesizer
 AGENT_FILES = {
     # === Consolidated Agents (v2.0, throughline-aware v1.2) ===
-    "discovery_guide": "discovery-guide-v1.2.md",
-    "insight_analyst": "insight-analyst-v1.1.md",
-    "initiative_builder": "initiative-builder-v1.1.md",
-    "requirements_generator": "requirements-generator-v1.2.md",
+    "discovery_guide": "discovery-guide-v1.4.md",
+    "insight_analyst": "insight-analyst-v1.2.md",
+    "initiative_builder": "initiative-builder-v1.2.md",
+    "requirements_generator": "requirements-generator-v1.4.md",
     # === Output Type Generators (Convergence Stage) ===
     "prd_generator": "prd-generator-v1.0.md",
     "evaluation_framework_generator": "evaluation-framework-v1.0.md",
     "decision_framework_generator": "decision-framework-v1.0.md",
+    "assessment_generator": "assessment-generator-v1.1.md",
     # === Legacy Agents (backwards compatibility) ===
     "triage": "triage-v4.2.md",
     "discovery_prep": "discovery-prep-v1.0.md",

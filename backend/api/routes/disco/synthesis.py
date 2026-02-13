@@ -105,6 +105,7 @@ async def api_create_bundle(
             stakeholders=body.stakeholders,
             dependencies=body.dependencies,
             bundling_rationale=body.bundling_rationale,
+            solution_type=body.solution_type,
         )
         return {"success": True, "bundle": bundle}
     except HTTPException:

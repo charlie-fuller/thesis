@@ -48,6 +48,22 @@ KB_CATEGORIES = {
     "triage-questions.md": "methodology",
     "genai-considerations.md": "decision",
     "internal-systems.md": "internal",
+    # Problem Space Discipline (v1.3 additions)
+    "five-whys-deep-methodology.md": "methodology",
+    "jobs-to-be-done-framework.md": "methodology",
+    "problem-space-discipline.md": "methodology",
+    # Evidence & Analysis (v1.3 additions)
+    "evidence-evaluation-framework.md": "analysis",
+    "pattern-library-reference.md": "analysis",
+    "decision-science-frameworks.md": "decision",
+    # Clustering & Requirements (v1.3 additions)
+    "clustering-methodology.md": "methodology",
+    "requirements-prioritization-heuristics.md": "methodology",
+    # Solution Taxonomy (v1.3 additions)
+    "solution-type-taxonomy.md": "decision",
+    "non-build-solution-patterns.md": "decision",
+    # Decision-Forcing Canvas (v1.4 additions)
+    "decision-forcing-canvas.md": "decision",
 }
 
 

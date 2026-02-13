@@ -47,6 +47,12 @@ OUTPUT_TYPE_CONFIG = {
         "label": "Decision Framework",
         "description": "For governance decisions",
     },
+    "assessment": {
+        "agent_prompt": "assessment_generator",
+        "parser": "parse_assessment_sections",
+        "label": "Assessment",
+        "description": "For non-build solutions (coordinate, train, govern, etc.)",
+    },
 }
 
 
@@ -367,26 +373,35 @@ Included Items:
     if bundle.get("bundling_rationale"):
         bundle_context += f"\nBundling Rationale: {bundle['bundling_rationale']}\n"
 
+    # Check if bundle has a solution_type that suggests assessment
+    solution_type = bundle.get("solution_type")
+    if solution_type:
+        bundle_context += f"\nSolution Type: {solution_type}\n"
+
     prompt = f"""Analyze this initiative bundle and suggest the most appropriate output document type.
 
 {bundle_context}
 
 Available output types:
-1. **prd** (Product Requirements Document): Best for build/development initiatives, feature implementations, system changes
-2. **evaluation_framework**: Best for research/evaluation bundles, vendor/platform comparisons, tool selections
-3. **decision_framework**: Best for governance decisions, policy changes, organizational strategy, stakeholder alignment
+1. **prd** (Product Requirements Document): Best for BUILD initiatives, feature implementations, system changes
+2. **evaluation_framework**: Best for research/evaluation bundles, vendor/platform comparisons, tool selections (BUILD or BUY)
+3. **decision_framework**: Best for governance decisions, policy changes, organizational strategy, stakeholder alignment (GOVERN, RESTRUCTURE)
+4. **assessment**: Best for non-build solutions where the recommendation is to COORDINATE, TRAIN, DOCUMENT, DEFER, or ACCEPT rather than build/buy technology
 
 Respond in JSON format:
 {{
-    "suggested_type": "prd" | "evaluation_framework" | "decision_framework",
+    "suggested_type": "prd" | "evaluation_framework" | "decision_framework" | "assessment",
     "confidence": "high" | "medium" | "low",
     "rationale": "Brief explanation of why this output type is most appropriate"
 }}
 
 Consider:
-- Does the bundle involve comparing options/vendors? -> evaluation_framework
-- Does the bundle require stakeholder buy-in for a decision? -> decision_framework
 - Does the bundle involve building/implementing something specific? -> prd
+- Does the bundle involve comparing options/vendors? -> evaluation_framework
+- Does the bundle require stakeholder buy-in for a governance/restructuring decision? -> decision_framework
+- Does the bundle suggest process changes, training, coordination, documentation, or conscious deferral/acceptance rather than technology? -> assessment
+- Is the solution_type one of: coordinate, train, document, defer, accept? -> assessment
+- Is the root cause about people/process/communication rather than missing technology? -> assessment
 """
 
     try:
@@ -738,12 +753,69 @@ def parse_decision_sections(content: str) -> Dict:
     return sections
 
 
+def parse_assessment_sections(content: str) -> Dict:
+    """Parse Assessment content into structured sections."""
+    sections = {"output_type": "assessment"}
+
+    # Extract executive summary
+    exec_match = re.search(r"## Executive Summary\s*\n(.+?)(?=\n## |$)", content, re.DOTALL)
+    if exec_match:
+        sections["executive_summary"] = exec_match.group(1).strip()
+
+    # Extract recommendation type from executive summary
+    rec_match = re.search(
+        r"\*\*Recommendation\*\*:\s*(COORDINATE|TRAIN|RESTRUCTURE|GOVERN|DOCUMENT|DEFER|ACCEPT)",
+        content,
+        re.IGNORECASE,
+    )
+    if rec_match:
+        sections["recommendation_type"] = rec_match.group(1).strip().lower()
+
+    # Extract problem assessment
+    problem_match = re.search(r"## Problem Assessment\s*\n(.+?)(?=\n## |$)", content, re.DOTALL)
+    if problem_match:
+        sections["problem_assessment"] = problem_match.group(1).strip()
+
+    # Extract solution type recommendation
+    solution_match = re.search(r"## Solution Type[:\s].*?\n(.+?)(?=\n## |$)", content, re.DOTALL)
+    if solution_match:
+        sections["solution_type_recommendation"] = solution_match.group(1).strip()
+
+    # Extract action plan
+    action_match = re.search(r"## Action Plan\s*\n(.+?)(?=\n## |$)", content, re.DOTALL)
+    if action_match:
+        sections["action_plan"] = action_match.group(1).strip()
+
+    # Extract cost comparison
+    cost_match = re.search(r"## Cost Comparison.*?\n(.+?)(?=\n## |$)", content, re.DOTALL)
+    if cost_match:
+        sections["cost_comparison"] = cost_match.group(1).strip()
+
+    # Extract success criteria
+    success_match = re.search(r"## Success Criteria\s*\n(.+?)(?=\n## |$)", content, re.DOTALL)
+    if success_match:
+        sections["success_criteria"] = success_match.group(1).strip()
+
+    # Extract review triggers
+    review_match = re.search(r"## Review Triggers\s*\n(.+?)(?=\n## |$)", content, re.DOTALL)
+    if review_match:
+        sections["review_triggers"] = review_match.group(1).strip()
+
+    # Extract stakeholder communication
+    stakeholder_match = re.search(r"## Stakeholder Communication.*?\n(.+?)(?=\n## |$)", content, re.DOTALL)
+    if stakeholder_match:
+        sections["stakeholder_communication"] = stakeholder_match.group(1).strip()
+
+    return sections
+
+
 def get_section_parser(output_type: str):
     """Get the appropriate section parser for an output type."""
     parsers = {
         "prd": parse_prd_sections,
         "evaluation_framework": parse_evaluation_sections,
         "decision_framework": parse_decision_sections,
+        "assessment": parse_assessment_sections,
     }
     return parsers.get(output_type, parse_prd_sections)
 

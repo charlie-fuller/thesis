@@ -131,11 +131,24 @@ class ValueAlignment(BaseModel):
     notes: Optional[str] = None
 
 
+VALID_INITIATIVE_VERDICTS = {"proceed", "defer", "accept", "no_action"}
+
+
 class ResolutionAnnotations(BaseModel):
-    """User annotations on hypothesis/gap resolutions."""
+    """User annotations on hypothesis/gap resolutions and initiative verdict."""
 
     hypothesis_overrides: Optional[dict] = None  # { "h-1": { status, note } }
     gap_overrides: Optional[dict] = None  # { "g-2": { status, note } }
+    initiative_verdict: Optional[str] = None  # proceed, defer, accept, no_action
+    defer_until: Optional[str] = None  # date or quarter (e.g., "2026-Q3")
+    accept_rationale: Optional[str] = None  # why accepting is the right choice
+
+    @field_validator("initiative_verdict")
+    @classmethod
+    def validate_verdict(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_INITIATIVE_VERDICTS:
+            raise ValueError(f"initiative_verdict must be one of: {', '.join(sorted(VALID_INITIATIVE_VERDICTS))}")
+        return v
 
 
 class InitiativeCreate(BaseModel):
@@ -252,6 +265,9 @@ class CheckpointReset(BaseModel):
 # ============================================================================
 
 
+VALID_SOLUTION_TYPES = {"build", "buy", "govern", "coordinate", "train", "restructure", "document", "defer", "accept"}
+
+
 class BundleCreate(BaseModel):
     """Request body for creating a bundle."""
 
@@ -269,6 +285,14 @@ class BundleCreate(BaseModel):
     stakeholders: Optional[List[dict]] = None
     dependencies: Optional[dict] = None
     bundling_rationale: Optional[str] = None
+    solution_type: Optional[str] = None
+
+    @field_validator("solution_type")
+    @classmethod
+    def validate_solution_type(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_SOLUTION_TYPES:
+            raise ValueError(f"solution_type must be one of: {', '.join(sorted(VALID_SOLUTION_TYPES))}")
+        return v
 
 
 class BundleUpdate(BaseModel):
@@ -289,13 +313,23 @@ class BundleUpdate(BaseModel):
     dependencies: Optional[dict] = None
     bundling_rationale: Optional[str] = None
     feedback: Optional[str] = None
+    solution_type: Optional[str] = None
+
+    @field_validator("solution_type")
+    @classmethod
+    def validate_solution_type(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_SOLUTION_TYPES:
+            raise ValueError(f"solution_type must be one of: {', '.join(sorted(VALID_SOLUTION_TYPES))}")
+        return v
 
 
 class BundleApproval(BaseModel):
     """Request body for approving/rejecting a bundle."""
 
     feedback: Optional[str] = None
-    output_type: str = Field(default="prd", description="Output type: prd, evaluation_framework, decision_framework")
+    output_type: str = Field(
+        default="prd", description="Output type: prd, evaluation_framework, decision_framework, assessment"
+    )
 
 
 class BundleMerge(BaseModel):
