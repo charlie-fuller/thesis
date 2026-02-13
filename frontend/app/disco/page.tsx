@@ -341,7 +341,7 @@ function CreateInitiativeModal({
               <span className="flex items-center gap-2">
                 {showFraming ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 Investigation Framing
-                <span className="text-xs font-normal text-slate-400">(Optional - triage agent will suggest framing from your documents)</span>
+                <span className="text-xs font-normal text-slate-400">(Optional - Discovery Guide will extract framing from your documents)</span>
               </span>
             </button>
             {showFraming && (

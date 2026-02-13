@@ -485,23 +485,52 @@ export default function InitiativeDetailPage() {
 
             {/* Throughline Summary + Framing Completeness */}
             {initiative.throughline ? (
-              <ThroughlineSummary
-                throughline={initiative.throughline}
-                initiativeId={initiativeId}
-                resolutionAnnotations={initiative.resolution_annotations as { hypothesis_overrides?: Record<string, { status: string; note?: string }>; gap_overrides?: Record<string, { status: string; note?: string }> } | null}
-                onAnnotationsUpdated={(annotations) => {
-                  setInitiative({
-                    ...initiative,
-                    resolution_annotations: annotations as Record<string, unknown>,
-                  })
-                }}
-              />
+              <div className="flex items-center gap-1 group/framing">
+                <div className="flex-1">
+                  <ThroughlineSummary
+                    throughline={initiative.throughline}
+                    initiativeId={initiativeId}
+                    resolutionAnnotations={initiative.resolution_annotations as { hypothesis_overrides?: Record<string, { status: string; note?: string }>; gap_overrides?: Record<string, { status: string; note?: string }> } | null}
+                    onAnnotationsUpdated={(annotations) => {
+                      setInitiative({
+                        ...initiative,
+                        resolution_annotations: annotations as Record<string, unknown>,
+                      })
+                    }}
+                  />
+                </div>
+                {canEdit && (
+                  <button
+                    onClick={handleOpenEditModal}
+                    className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 opacity-0 group-hover/framing:opacity-100 transition-opacity shrink-0"
+                    title="Edit framing"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             ) : (
-              <div className="flex items-center gap-2 mt-2">
-                <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600" />
-                <span className="text-xs text-slate-400 dark:text-slate-500">
-                  No framing yet. Run triage to auto-populate.
-                </span>
+              <div className="mt-2 p-3 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      No investigation framing yet.
+                    </p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                      Define your perspective (problem statements, hypotheses, gaps) to give the Discovery Guide a lens for analyzing documents. Or link documents and run the Discovery Guide to extract framing automatically.
+                    </p>
+                    {canEdit && (
+                      <button
+                        onClick={handleOpenEditModal}
+                        className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-300 dark:border-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        Add Framing
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -548,7 +577,7 @@ export default function InitiativeDetailPage() {
         </div>
       </div>
 
-      {/* Post-Triage Framing Review Panel */}
+      {/* Post-Discovery Guide Framing Review Panel */}
       {(() => {
         // Find the latest discovery_guide output with triage suggestions
         const triageOutput = outputs.find(o => o.agent_type === 'discovery_guide' && o.triage_suggestions)
@@ -576,7 +605,7 @@ export default function InitiativeDetailPage() {
                 </button>
               </div>
               <p className="text-sm text-indigo-700 dark:text-indigo-300 mb-3">
-                Triage identified framing from your documents. Accept to enable hypothesis resolution and state change tracking.
+                The Discovery Guide extracted framing from your documents. Accept to enable hypothesis resolution and state change tracking.
               </p>
               <div className="space-y-2 text-sm">
                 {suggestions.problem_statements && suggestions.problem_statements.length > 0 && (
