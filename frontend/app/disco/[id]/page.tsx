@@ -22,7 +22,8 @@ import {
   Target,
   ExternalLink,
   BarChart3,
-  X
+  X,
+  Plus
 } from 'lucide-react'
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api'
 import DocumentUpload from '@/components/disco/DocumentUpload'
@@ -34,6 +35,7 @@ import InitiativeAlignmentTab from '@/components/disco/InitiativeAlignmentTab'
 import ThroughlineEditor, { type Throughline } from '@/components/disco/ThroughlineEditor'
 import ThroughlineSummary, { type ThroughlineResolution } from '@/components/disco/ThroughlineSummary'
 import { type GoalAlignmentDetails } from '@/components/projects/GoalAlignmentSection'
+import ProjectCreateModal from '@/components/projects/ProjectCreateModal'
 
 // ============================================================================
 // TYPES
@@ -166,6 +168,9 @@ export default function InitiativeDetailPage() {
   const [activeTab, setActiveTab] = useState<TabType>('documents')
   const [selectedOutput, setSelectedOutput] = useState<Output | null>(null)
   const [shareModalOpen, setShareModalOpen] = useState(false)
+
+  // Project create modal state
+  const [projectCreateOpen, setProjectCreateOpen] = useState(false)
 
   // Edit modal state
   const [editModalOpen, setEditModalOpen] = useState(false)
@@ -787,9 +792,18 @@ export default function InitiativeDetailPage() {
         {/* Projects Tab */}
         {activeTab === 'projects' && (
           <div className="space-y-4">
-            {/* Active Only Toggle */}
-            <div className="flex items-center justify-end">
-              <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+            {/* Header: Create + Active Only Toggle */}
+            <div className="flex items-center justify-between">
+              {canEdit && (
+                <button
+                  onClick={() => setProjectCreateOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-300 dark:border-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Project
+                </button>
+              )}
+              <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 ml-auto">
                 <input
                   type="checkbox"
                   checked={showActiveProjectsOnly}
@@ -812,11 +826,20 @@ export default function InitiativeDetailPage() {
                       ? 'No Active Projects'
                       : 'No Linked Projects'}
                   </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-3">
                     {showActiveProjectsOnly && linkedProjects.length > 0
                       ? 'All linked projects are archived. Uncheck "Active only" to see them.'
-                      : 'Projects can be linked to this discovery from the Projects page.'}
+                      : 'Create a project from this discovery, or link existing projects from the Projects page.'}
                   </p>
+                  {canEdit && !(showActiveProjectsOnly && linkedProjects.length > 0) && (
+                    <button
+                      onClick={() => setProjectCreateOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Create Project
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -872,6 +895,23 @@ export default function InitiativeDetailPage() {
         onClose={() => setShareModalOpen(false)}
         initiativeId={initiativeId}
         userRole={initiative.user_role}
+      />
+
+      {/* Project Create Modal */}
+      <ProjectCreateModal
+        open={projectCreateOpen}
+        onClose={() => setProjectCreateOpen(false)}
+        onCreated={() => {
+          setProjectCreateOpen(false)
+          loadLinkedProjects()
+        }}
+        initiativeId={initiativeId}
+        initialData={{
+          title: initiative.name,
+          description: initiative.description || undefined,
+          department: initiative.target_department || undefined,
+          desired_state: initiative.throughline?.desired_outcome_state || undefined,
+        }}
       />
 
       {/* Edit Discovery Modal */}

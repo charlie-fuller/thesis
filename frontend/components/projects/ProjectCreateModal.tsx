@@ -14,7 +14,7 @@
  * - Status
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   X,
   Loader2,
@@ -30,10 +30,20 @@ import toast from 'react-hot-toast'
 // TYPES
 // ============================================================================
 
+interface ProjectCreateInitialData {
+  title?: string
+  description?: string
+  department?: string
+  current_state?: string
+  desired_state?: string
+}
+
 interface ProjectCreateModalProps {
   open: boolean
   onClose: () => void
   onCreated: () => void
+  initiativeId?: string
+  initialData?: ProjectCreateInitialData
 }
 
 interface CreateFormState {
@@ -97,8 +107,24 @@ export default function ProjectCreateModal({
   open,
   onClose,
   onCreated,
+  initiativeId,
+  initialData,
 }: ProjectCreateModalProps) {
   const [form, setForm] = useState<CreateFormState>(INITIAL_FORM_STATE)
+
+  // Re-populate form when modal opens with initialData
+  useEffect(() => {
+    if (open) {
+      setForm({
+        ...INITIAL_FORM_STATE,
+        ...(initialData?.title ? { title: initialData.title } : {}),
+        ...(initialData?.description ? { description: initialData.description } : {}),
+        ...(initialData?.department ? { department: initialData.department } : {}),
+        ...(initialData?.current_state ? { current_state: initialData.current_state } : {}),
+        ...(initialData?.desired_state ? { desired_state: initialData.desired_state } : {}),
+      })
+    }
+  }, [open, initialData])
   const [isSaving, setIsSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -150,7 +176,7 @@ export default function ProjectCreateModal({
 
     setIsSaving(true)
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         project_code: form.project_code.toUpperCase().trim(),
         title: form.title.trim(),
         description: form.description.trim() || null,
@@ -163,6 +189,7 @@ export default function ProjectCreateModal({
         stakeholder_readiness: form.stakeholder_readiness,
         status: form.status,
         next_step: form.next_step.trim() || null,
+        ...(initiativeId ? { initiative_ids: [initiativeId], source_type: 'disco_manual', source_id: initiativeId } : {}),
       }
 
       await apiPost('/api/projects/', payload)
