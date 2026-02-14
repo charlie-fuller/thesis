@@ -824,39 +824,82 @@
 </head>
 <body>
   <script>
-    // Sync theme from parent frame (same-origin iframe)
-    // Copies parent's actual CSS custom properties so the iframe follows the user's chosen theme.
+    // Sync full theme from parent frame by reading its CSS custom properties
+    // and computing the complete gray ramp via color interpolation.
     (function() {
       var root = document.documentElement;
+
+      function parseHex(h) {
+        if (!h || h.charAt(0) !== '#') return null;
+        h = h.replace('#','');
+        if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+        return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+      }
+      function toHex(r,g,b) {
+        return '#' + [r,g,b].map(function(c) {
+          var x = Math.round(Math.max(0,Math.min(255,c))).toString(16);
+          return x.length < 2 ? '0'+x : x;
+        }).join('');
+      }
+      function mix(a,b,t) {
+        if (!a||!b) return null;
+        return toHex(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);
+      }
 
       function syncFromParent() {
         try {
           if (!window.parent || window.parent === window) return false;
-          var ps = getComputedStyle(window.parent.document.documentElement);
+          var parentRoot = window.parent.document.documentElement;
 
-          // Detect dark/light from body background brightness
-          var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
-          if (!bodyBg) return false;
-          var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-          if (!m) return false;
-          var brightness = (parseInt(m[1]) * 299 + parseInt(m[2]) * 587 + parseInt(m[3]) * 114) / 1000;
+          // Only sync after ThemeContext has applied inline styles
+          if (!parentRoot.style.getPropertyValue('--color-bg-page')) return false;
 
-          if (brightness < 128) {
-            root.classList.add('dark');
-          } else {
-            root.classList.remove('dark');
-          }
-
-          // Copy parent theme properties to override iframe defaults
+          var ps = getComputedStyle(parentRoot);
           var bgPage = ps.getPropertyValue('--color-bg-page').trim();
           var bgCard = ps.getPropertyValue('--color-bg-card').trim();
           var bgHover = ps.getPropertyValue('--color-bg-hover').trim();
+          var textPrimary = ps.getPropertyValue('--color-text-primary').trim();
+          var textSecondary = ps.getPropertyValue('--color-text-secondary').trim();
+          var textMuted = ps.getPropertyValue('--color-text-muted').trim();
+          var borderDefault = ps.getPropertyValue('--color-border-default').trim();
           var primary = ps.getPropertyValue('--color-primary').trim();
           var primaryHover = ps.getPropertyValue('--color-primary-hover').trim();
 
-          if (bgPage) { root.style.setProperty('--bg-page', bgPage); root.style.setProperty('--bg-page-end', bgPage); }
-          if (bgCard) root.style.setProperty('--bg-card', bgCard);
-          if (bgHover) root.style.setProperty('--gray-50', bgHover);
+          if (!bgPage || !textPrimary) return false;
+
+          // Detect dark/light
+          var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+          if (bodyBg) {
+            var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+            if (m) {
+              var br = (parseInt(m[1])*299+parseInt(m[2])*587+parseInt(m[3])*114)/1000;
+              if (br < 128) root.classList.add('dark'); else root.classList.remove('dark');
+            }
+          }
+
+          // Parse anchor colors for interpolation
+          var cCard = parseHex(bgCard), cBorder = parseHex(borderDefault);
+          var cMuted = parseHex(textMuted), cSecondary = parseHex(textSecondary);
+          var cPrimary = parseHex(textPrimary);
+
+          // Structural backgrounds
+          root.style.setProperty('--bg-page', bgPage);
+          root.style.setProperty('--bg-page-end', bgPage);
+          root.style.setProperty('--bg-card', bgCard);
+
+          // Full gray ramp from parent theme anchors
+          root.style.setProperty('--gray-50', bgHover);
+          root.style.setProperty('--gray-100', mix(cCard, cBorder, 0.3) || bgHover);
+          root.style.setProperty('--gray-200', borderDefault);
+          root.style.setProperty('--gray-300', mix(cBorder, cMuted, 0.25) || borderDefault);
+          root.style.setProperty('--gray-400', mix(cBorder, cMuted, 0.5) || textMuted);
+          root.style.setProperty('--gray-500', textMuted);
+          root.style.setProperty('--gray-600', textSecondary);
+          root.style.setProperty('--gray-700', mix(cSecondary, cPrimary, 0.4) || textSecondary);
+          root.style.setProperty('--gray-800', mix(cSecondary, cPrimary, 0.75) || textPrimary);
+          root.style.setProperty('--gray-900', textPrimary);
+
+          // Accent colors
           if (primary) root.style.setProperty('--primary', primary);
           if (primaryHover) root.style.setProperty('--primary-light', primaryHover);
 
@@ -872,9 +915,7 @@
         if (syncFromParent() || attempts >= 50) {
           clearInterval(poller);
           if (attempts >= 50 && !root.classList.contains('dark')) {
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-              root.classList.add('dark');
-            }
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) root.classList.add('dark');
           }
         }
       }, 200);
