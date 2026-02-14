@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>End-to-End Data Flow</title>
+  <style>
+    :root {
+      --ingest: #3b82f6;
+      --ingest-light: #dbeafe;
+      --process: #06b6d4;
+      --process-light: #cffafe;
+      --store: #8b5cf6;
+      --store-light: #ede9fe;
+      --feature: #22c55e;
+      --feature-light: #dcfce7;
+      --output: #f43f5e;
+      --output-light: #ffe4e6;
+      --ai: #f59e0b;
+      --ai-light: #fef3c7;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    .subtitle {
+      color: var(--gray-500);
+      font-size: 0.95rem;
+      margin-top: 0.25rem;
+    }
+
+    .layer-legend {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .layer-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .layer-badge.ingest { background: var(--ingest-light); color: var(--ingest); }
+    .layer-badge.process { background: var(--process-light); color: var(--process); }
+    .layer-badge.store { background: var(--store-light); color: var(--store); }
+    .layer-badge.feature { background: var(--feature-light); color: var(--feature); }
+    .layer-badge.output { background: var(--output-light); color: var(--output); }
+    .layer-badge.ai { background: var(--ai-light); color: var(--ai); }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .dot.ingest { background: var(--ingest); }
+    .dot.process { background: var(--process); }
+    .dot.store { background: var(--store); }
+    .dot.feature { background: var(--feature); }
+    .dot.output { background: var(--output); }
+    .dot.ai { background: var(--ai); }
+
+    .section {
+      background: white;
+      border-radius: 1rem;
+      padding: 1.75rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      border: 1px solid var(--gray-200);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .section-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .section-icon.ingest { background: var(--ingest-light); }
+    .section-icon.process { background: var(--process-light); }
+    .section-icon.store { background: var(--store-light); }
+    .section-icon.feature { background: var(--feature-light); }
+    .section-icon.output { background: var(--output-light); }
+    .section-icon.ai { background: var(--ai-light); }
+
+    .section h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .section h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin: 1rem 0 0.5rem;
+      color: var(--gray-700);
+    }
+
+    .section p {
+      color: var(--gray-600);
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+
+    /* Main flow diagram */
+    .mega-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+      margin: 1.5rem 0;
+      padding: 1.25rem;
+      background: var(--gray-50);
+      border-radius: 0.75rem;
+    }
+
+    .mega-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-align: center;
+      min-width: 100px;
+      border: 2px solid transparent;
+    }
+
+    .mega-step.ingest { background: var(--ingest-light); color: var(--ingest); border-color: var(--ingest); }
+    .mega-step.process { background: var(--process-light); color: var(--process); border-color: var(--process); }
+    .mega-step.store { background: var(--store-light); color: var(--store); border-color: var(--store); }
+    .mega-step.feature { background: var(--feature-light); color: var(--feature); border-color: var(--feature); }
+    .mega-step.output { background: var(--output-light); color: var(--output); border-color: var(--output); }
+    .mega-step.ai { background: var(--ai-light); color: var(--ai); border-color: var(--ai); }
+
+    .mega-step .step-icon {
+      font-size: 1.25rem;
+    }
+
+    .mega-step .step-sub {
+      font-size: 0.65rem;
+      font-weight: 400;
+      opacity: 0.8;
+    }
+
+    .flow-arrow {
+      color: var(--gray-400);
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+
+    /* Source cards grid */
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .source-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1rem;
+    }
+
+    .source-card h4 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .source-card p {
+      font-size: 0.78rem;
+      color: var(--gray-500);
+      margin: 0;
+    }
+
+    .source-card .detail {
+      font-size: 0.72rem;
+      color: var(--gray-400);
+      margin-top: 0.25rem;
+    }
+
+    /* Processing pipeline */
+    .mini-flow {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin: 0.75rem 0;
+    }
+
+    .mini-step {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.78rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .mini-step.ingest { background: var(--ingest-light); color: var(--ingest); }
+    .mini-step.process { background: var(--process-light); color: var(--process); }
+    .mini-step.store { background: var(--store-light); color: var(--store); }
+    .mini-step.feature { background: var(--feature-light); color: var(--feature); }
+    .mini-step.output { background: var(--output-light); color: var(--output); }
+    .mini-step.ai { background: var(--ai-light); color: var(--ai); }
+
+    .mini-arrow {
+      color: var(--gray-400);
+      font-size: 0.75rem;
+    }
+
+    /* Detail cards */
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .detail-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1rem;
+    }
+
+    .detail-card h4 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .detail-card ul {
+      list-style: none;
+      font-size: 0.78rem;
+      color: var(--gray-600);
+    }
+
+    .detail-card ul li {
+      padding: 0.2rem 0;
+      padding-left: 1rem;
+      position: relative;
+    }
+
+    .detail-card ul li::before {
+      content: '\2192';
+      position: absolute;
+      left: 0;
+      color: var(--gray-400);
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.65rem;
+      font-weight: 600;
+    }
+
+    .tag.ingest { background: var(--ingest-light); color: var(--ingest); }
+    .tag.process { background: var(--process-light); color: var(--process); }
+    .tag.store { background: var(--store-light); color: var(--store); }
+    .tag.feature { background: var(--feature-light); color: var(--feature); }
+    .tag.output { background: var(--output-light); color: var(--output); }
+    .tag.ai { background: var(--ai-light); color: var(--ai); }
+
+    /* Callout */
+    .callout {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 0.75rem;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+      font-size: 0.85rem;
+      color: var(--gray-700);
+    }
+
+    .callout strong {
+      color: var(--gray-900);
+    }
+
+    .callout.tip {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+    }
+
+    /* Feature lanes */
+    .lane-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .lane {
+      border-radius: 0.75rem;
+      padding: 1rem;
+      border: 2px solid;
+    }
+
+    .lane.disco { border-color: var(--ingest); background: var(--ingest-light); }
+    .lane.projects { border-color: var(--store); background: var(--store-light); }
+    .lane.tasks { border-color: var(--feature); background: var(--feature-light); }
+    .lane.pipeline { border-color: var(--output); background: var(--output-light); }
+    .lane.intel { border-color: var(--ai); background: var(--ai-light); }
+    .lane.chat { border-color: var(--process); background: var(--process-light); }
+
+    .lane h4 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .lane ul {
+      list-style: none;
+      font-size: 0.75rem;
+    }
+
+    .lane ul li {
+      padding: 0.15rem 0;
+      padding-left: 0.75rem;
+      position: relative;
+    }
+
+    .lane ul li::before {
+      content: '\2022';
+      position: absolute;
+      left: 0;
+    }
+
+    /* Principles */
+    .principles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    .principle {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1rem;
+    }
+
+    .principle h4 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+
+    .principle p {
+      font-size: 0.78rem;
+      color: var(--gray-600);
+      margin: 0;
+    }
+
+    /* Connection diagram */
+    .connections {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 0.5rem;
+      align-items: center;
+      margin: 1rem 0;
+      font-size: 0.78rem;
+    }
+
+    .conn-from, .conn-to {
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    .conn-arrow {
+      color: var(--gray-400);
+      font-size: 1rem;
+      text-align: center;
+    }
+
+    @media (max-width: 700px) {
+      .container { padding: 1rem; }
+      .mega-flow { flex-direction: column; }
+      .flow-arrow { transform: rotate(90deg); }
+      .source-grid { grid-template-columns: 1fr; }
+      .lane-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Dark mode overrides */
+    html.dark {
+      --gray-50: #0a0a0a;
+      --gray-100: #111111;
+      --gray-200: #27272a;
+      --gray-300: #3f3f46;
+      --gray-400: #71717a;
+      --gray-500: #a1a1aa;
+      --gray-600: #d4d4d8;
+      --gray-700: #e4e4e7;
+      --gray-800: #f4f4f5;
+      --gray-900: #ffffff;
+      --ingest-light: #1e2a4a;
+      --process-light: #0e2a33;
+      --store-light: #1e1633;
+      --feature-light: #0e261a;
+      --output-light: #2d1219;
+      --ai-light: #2d2009;
+    }
+
+    html.dark body {
+      background: #0a0a0a;
+      color: #ffffff;
+    }
+
+    html.dark .section {
+      background: #111111;
+      border-color: #27272a;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    html.dark .source-card,
+    html.dark .detail-card,
+    html.dark .principle {
+      background: #1a1a1a;
+      border-color: #27272a;
+    }
+
+    html.dark .mega-flow {
+      background: #1a1a1a;
+    }
+
+    html.dark .callout {
+      background: #111827;
+      border-color: #1e3a5f;
+      color: #d4d4d8;
+    }
+
+    html.dark .callout strong {
+      color: #ffffff;
+    }
+
+    html.dark .callout.tip {
+      background: #0f1f14;
+      border-color: #1a3a24;
+    }
+
+    html.dark header {
+      border-bottom-color: #27272a;
+    }
+
+    html.dark .lane {
+      background: rgba(0,0,0,0.2);
+    }
+
+    html.dark .lane.disco { background: #1e2a4a; }
+    html.dark .lane.projects { background: #1e1633; }
+    html.dark .lane.tasks { background: #0e261a; }
+    html.dark .lane.pipeline { background: #2d1219; }
+    html.dark .lane.intel { background: #2d2009; }
+    html.dark .lane.chat { background: #0e2a33; }
+  </style>
+</head>
+<body>
+<script>
+(function() {
+  function applyDark() {
+    if (!document.documentElement.classList.contains('dark')) {
+      document.documentElement.classList.add('dark');
+    }
+  }
+  function getParentBrightness() {
+    try {
+      if (window.parent && window.parent !== window) {
+        var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+        if (bodyBg) {
+          var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          if (m) {
+            return (parseInt(m[1]) * 299 + parseInt(m[2]) * 587 + parseInt(m[3]) * 114) / 1000;
+          }
+        }
+      }
+    } catch (e) {}
+    return -1;
+  }
+  function checkAndApply() {
+    var brightness = getParentBrightness();
+    if (brightness >= 0 && brightness < 128) { applyDark(); return true; }
+    return false;
+  }
+  checkAndApply();
+  var attempts = 0;
+  var poller = setInterval(function() {
+    attempts++;
+    if (checkAndApply() || attempts >= 50) {
+      clearInterval(poller);
+      if (attempts >= 50 && !document.documentElement.classList.contains('dark')) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) applyDark();
+      }
+    }
+  }, 200);
+  try {
+    if (window.parent && window.parent !== window) {
+      new MutationObserver(function() { checkAndApply(); })
+        .observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+  } catch (e) {}
+})();
+</script>
+  <div class="container">
+    <header>
+      <h1>End-to-End Data Flow</h1>
+      <p class="subtitle">How information moves through the Thesis platform from ingestion to action</p>
+      <div class="layer-legend">
+        <span class="layer-badge ingest"><span class="dot ingest"></span> Ingestion</span>
+        <span class="layer-badge process"><span class="dot process"></span> Processing</span>
+        <span class="layer-badge store"><span class="dot store"></span> Storage</span>
+        <span class="layer-badge feature"><span class="dot feature"></span> Features</span>
+        <span class="layer-badge output"><span class="dot output"></span> Output</span>
+        <span class="layer-badge ai"><span class="dot ai"></span> AI / Agents</span>
+      </div>
+    </header>
+
+    <!-- Big Picture Flow -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon ingest">1</div>
+        <h2>The Big Picture</h2>
+      </div>
+      <p>Data flows through five layers: ingestion from external sources, processing into searchable chunks, storage in Supabase + Neo4j, feature consumption by app modules, and AI-powered analysis by 22 specialized agents.</p>
+
+      <div class="mega-flow">
+        <div class="mega-step ingest">
+          <span class="step-icon">&#128229;</span>
+          <span>Ingestion</span>
+          <span class="step-sub">5 sources</span>
+        </div>
+        <span class="flow-arrow">&#8594;</span>
+        <div class="mega-step process">
+          <span class="step-icon">&#9881;</span>
+          <span>Processing</span>
+          <span class="step-sub">classify + embed</span>
+        </div>
+        <span class="flow-arrow">&#8594;</span>
+        <div class="mega-step store">
+          <span class="step-icon">&#128451;</span>
+          <span>Storage</span>
+          <span class="step-sub">Supabase + Neo4j</span>
+        </div>
+        <span class="flow-arrow">&#8594;</span>
+        <div class="mega-step feature">
+          <span class="step-icon">&#128736;</span>
+          <span>Features</span>
+          <span class="step-sub">6 modules</span>
+        </div>
+        <span class="flow-arrow">&#8594;</span>
+        <div class="mega-step ai">
+          <span class="step-icon">&#129302;</span>
+          <span>AI Agents</span>
+          <span class="step-sub">22 specialists</span>
+        </div>
+        <span class="flow-arrow">&#8594;</span>
+        <div class="mega-step output">
+          <span class="step-icon">&#127919;</span>
+          <span>Actions</span>
+          <span class="step-sub">tasks, projects, insights</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 1: Ingestion Sources -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon ingest">&#128229;</div>
+        <h2>Layer 1: Ingestion Sources</h2>
+      </div>
+      <p>Five entry points bring data into the platform. The Obsidian vault is the primary source, with meeting notes, manual uploads, and agent-generated content as secondary inputs.</p>
+
+      <div class="source-grid">
+        <div class="source-card">
+          <h4>&#128214; Obsidian Vault Sync</h4>
+          <p>Primary document source. Markdown files organized by topic folders.</p>
+          <div class="detail">Launchd agent runs locally, uploads via HTTP to Railway backend. Processes .md, .pdf, .txt files.</div>
+        </div>
+        <div class="source-card">
+          <h4>&#127908; Granola Meeting Notes</h4>
+          <p>Auto-detected from Obsidian vault via pipeline scanner.</p>
+          <div class="detail">Scans for Granola-formatted markdown, extracts attendees, action items, decisions.</div>
+        </div>
+        <div class="source-card">
+          <h4>&#128228; Manual File Upload</h4>
+          <p>Direct upload via Knowledge Base UI.</p>
+          <div class="detail">Supports PDF, MD, TXT. Drag-and-drop or file picker. Auto-classified on upload.</div>
+        </div>
+        <div class="source-card">
+          <h4>&#129302; Agent-Generated Content</h4>
+          <p>Documents created by AI agents during analysis.</p>
+          <div class="detail">DISCO stage outputs, Oracle analyses, Kraken evaluations saved as KB docs.</div>
+        </div>
+        <div class="source-card">
+          <h4>&#128221; Manual Entry</h4>
+          <p>Tasks, projects, stakeholders created directly in the UI.</p>
+          <div class="detail">Structured data entered via forms. Projects from DISCO convergence or manual creation.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 2: Document Processing -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon process">&#9881;</div>
+        <h2>Layer 2: Document Processing Pipeline</h2>
+      </div>
+      <p>Every document goes through a multi-step processing pipeline before becoming searchable and usable by agents.</p>
+
+      <h3>Processing Steps</h3>
+      <div class="mini-flow">
+        <span class="mini-step ingest">&#128196; Raw document</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step process">&#128300; Text extraction</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step process">&#128278; Chunking (1000 chars)</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step ai">&#129504; Auto-classification</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step ai">&#128200; Voyage AI embeddings</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step store">&#128451; Store vectors</span>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-card">
+          <h4>&#128300; Text Extraction</h4>
+          <ul>
+            <li>PDF: PyPDF2 page-by-page extraction</li>
+            <li>Markdown: Frontmatter parsed, body cleaned</li>
+            <li>TXT: Raw text with encoding detection</li>
+            <li>Metadata preserved (title, author, dates)</li>
+          </ul>
+        </div>
+        <div class="detail-card">
+          <h4>&#129504; Auto-Classification</h4>
+          <ul>
+            <li>Claude classifies document type automatically</li>
+            <li>Types: transcript, notes, report, analysis, planning, reference</li>
+            <li>Tags extracted from content and frontmatter</li>
+            <li>Folder path preserved for organization</li>
+          </ul>
+        </div>
+        <div class="detail-card">
+          <h4>&#128200; Embedding Generation</h4>
+          <ul>
+            <li>Voyage AI voyage-3 model (1024 dimensions)</li>
+            <li>Chunks: 1000 chars with 200 char overlap</li>
+            <li>Title + heading prepended for context</li>
+            <li>Stored as pgvector in Supabase</li>
+          </ul>
+        </div>
+        <div class="detail-card">
+          <h4>&#128279; Knowledge Graph</h4>
+          <ul>
+            <li>Neo4j Aura for entity relationships</li>
+            <li>People, organizations, topics as nodes</li>
+            <li>Documents linked to entities they mention</li>
+            <li>Used by agents for relationship queries</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 3: Storage -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon store">&#128451;</div>
+        <h2>Layer 3: Storage Layer</h2>
+      </div>
+      <p>Two complementary databases serve different query patterns: Supabase for structured data and vector search, Neo4j for relationship traversal.</p>
+
+      <div class="detail-grid">
+        <div class="detail-card">
+          <h4>&#127969; Supabase (PostgreSQL)</h4>
+          <ul>
+            <li><strong>kb_documents</strong>: Full documents with metadata</li>
+            <li><strong>kb_document_chunks</strong>: Embedded chunks for vector search</li>
+            <li><strong>project_tasks</strong>: Tasks with status, assignee, priority</li>
+            <li><strong>projects</strong>: Scored opportunities with tiers</li>
+            <li><strong>stakeholders</strong>: People with engagement tracking</li>
+            <li><strong>disco_initiatives</strong>: DISCO investigations</li>
+            <li><strong>conversations / messages</strong>: Chat history</li>
+            <li><strong>help_documents / help_chunks</strong>: RAG help system</li>
+          </ul>
+        </div>
+        <div class="detail-card">
+          <h4>&#128752; Neo4j Aura (Graph DB)</h4>
+          <ul>
+            <li><strong>Person</strong> nodes: stakeholders, attendees</li>
+            <li><strong>Organization</strong> nodes: companies, teams</li>
+            <li><strong>Topic</strong> nodes: themes, technologies</li>
+            <li><strong>Document</strong> nodes: linked to KB docs</li>
+            <li><strong>MENTIONS</strong>: document mentions entity</li>
+            <li><strong>WORKS_WITH</strong>: person-organization links</li>
+            <li>Used for: "Who knows about X?", "What's related to Y?"</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>Vector Search Pattern:</strong> When an agent needs context, it performs a cosine similarity search over kb_document_chunks using Voyage AI embeddings. The top-k chunks (usually 5-10) are injected into the agent's prompt as grounding context. This is why embedding quality matters.
+      </div>
+    </div>
+
+    <!-- Layer 4: Feature Consumption -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon feature">&#128736;</div>
+        <h2>Layer 4: Feature Modules</h2>
+      </div>
+      <p>Six major features consume the stored data in different ways. Each module reads from specific tables and writes back structured results.</p>
+
+      <div class="lane-grid">
+        <div class="lane disco">
+          <h4>&#128270; DISCO Initiatives</h4>
+          <ul>
+            <li>Links KB docs to initiatives</li>
+            <li>4-stage pipeline (D-I-S-C)</li>
+            <li>Throughline framing guides analysis</li>
+            <li>Outputs: insights, requirements, projects</li>
+          </ul>
+        </div>
+        <div class="lane chat">
+          <h4>&#128172; Chat + Meeting Rooms</h4>
+          <ul>
+            <li>22 agents with KB vector context</li>
+            <li>@mention routing to specialists</li>
+            <li>Meeting rooms: multi-agent discussion</li>
+            <li>Conversation history persisted</li>
+          </ul>
+        </div>
+        <div class="lane projects">
+          <h4>&#128188; Projects Pipeline</h4>
+          <ul>
+            <li>4-dimension scoring (ROI, Effort, etc.)</li>
+            <li>Tier auto-calculation (T1-T4)</li>
+            <li>Status lifecycle tracking</li>
+            <li>Links to tasks and documents</li>
+          </ul>
+        </div>
+        <div class="lane tasks">
+          <h4>&#9989; Task Management</h4>
+          <ul>
+            <li>Kanban board (To Do thru Done)</li>
+            <li>Created from DISCO, Taskmaster, manual</li>
+            <li>Linked to projects and stakeholders</li>
+            <li>Priority, assignee, due date tracking</li>
+          </ul>
+        </div>
+        <div class="lane pipeline">
+          <h4>&#128202; Pipeline Aggregation</h4>
+          <ul>
+            <li>Aggregates projects by status/tier</li>
+            <li>Team workload visualization</li>
+            <li>Status distribution analytics</li>
+            <li>Filtering by team, tier, status</li>
+          </ul>
+        </div>
+        <div class="lane intel">
+          <h4>&#127891; Intelligence Module</h4>
+          <ul>
+            <li>Stakeholder engagement scoring</li>
+            <li>Relationship mapping via Neo4j</li>
+            <li>Engagement history tracking</li>
+            <li>Champion / blocker identification</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 5: AI Agent Layer -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon ai">&#129302;</div>
+        <h2>Layer 5: AI Agent Layer</h2>
+      </div>
+      <p>22 specialized agents process requests using KB context, conversation history, and structured data. Each agent has a specific domain and XML-defined behavior.</p>
+
+      <h3>How Agents Access Data</h3>
+      <div class="mini-flow">
+        <span class="mini-step feature">&#128172; User message</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step ai">&#128268; Agent router</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step store">&#128270; Vector search KB</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step store">&#128752; Graph query</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step ai">&#129504; Claude + context</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step output">&#128172; Response</span>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-card">
+          <h4>&#128268; Agent Categories</h4>
+          <ul>
+            <li><strong>Stakeholder:</strong> CTO, CFO, CISO, CDO perspectives</li>
+            <li><strong>Consulting:</strong> Oracle, Strategist, Architect</li>
+            <li><strong>Enablement:</strong> Adoption, Change, Training</li>
+            <li><strong>Task Mgmt:</strong> Taskmaster, Kraken</li>
+            <li><strong>Systems:</strong> Facilitator, Reporter, Librarian</li>
+            <li><strong>Personal:</strong> Career, Manual, Throughline</li>
+          </ul>
+        </div>
+        <div class="detail-card">
+          <h4>&#128218; Context Injection</h4>
+          <ul>
+            <li>Vector search: top-k chunks by cosine similarity</li>
+            <li>Graph context: related entities from Neo4j</li>
+            <li>Conversation history: last N messages</li>
+            <li>Structured data: relevant tasks, projects, stakeholders</li>
+            <li>System instructions: XML prompt with RCCI framework</li>
+            <li>Smart brevity: 100-150 word response target</li>
+          </ul>
+        </div>
+        <div class="detail-card">
+          <h4>&#128295; Agent Actions</h4>
+          <ul>
+            <li>Respond to chat messages with analysis</li>
+            <li>Create tasks from conversation context</li>
+            <li>Generate DISCO stage outputs</li>
+            <li>Score projects and evaluate with Kraken</li>
+            <li>Extract stakeholders from documents</li>
+            <li>Synthesize meeting room discussions</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cross-cutting: Data Connections -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon output">&#128279;</div>
+        <h2>Cross-Cutting Data Connections</h2>
+      </div>
+      <p>Features don't operate in isolation. Here's how data flows between modules, creating a connected intelligence network.</p>
+
+      <h3>DISCO to Projects</h3>
+      <div class="mini-flow">
+        <span class="mini-step ingest">&#128270; DISCO Discovery</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step process">&#128161; Insights generated</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step ai">&#128736; Requirements clustered</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step feature">&#128188; Projects proposed</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step output">&#128202; Pipeline tracked</span>
+      </div>
+
+      <h3>Meeting Notes to Tasks</h3>
+      <div class="mini-flow">
+        <span class="mini-step ingest">&#127908; Granola note synced</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step process">&#128300; Action items extracted</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step feature">&#9989; Tasks created</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step store">&#128101; Stakeholders linked</span>
+      </div>
+
+      <h3>KB to Intelligence</h3>
+      <div class="mini-flow">
+        <span class="mini-step store">&#128218; KB documents</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step ai">&#128300; Entity extraction</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step store">&#128752; Neo4j graph</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step feature">&#127891; Relationship map</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step output">&#128200; Engagement scores</span>
+      </div>
+
+      <div class="callout tip">
+        <strong>Feedback Loop:</strong> Agent outputs (analyses, recommendations, summaries) can be saved back to the KB as documents, creating a growing institutional knowledge base that improves future agent responses.
+      </div>
+    </div>
+
+    <!-- Key Principles -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon store">&#128161;</div>
+        <h2>Key Principles</h2>
+      </div>
+
+      <div class="principles">
+        <div class="principle">
+          <h4>&#128218; KB is the Foundation</h4>
+          <p>Everything starts with documents. The richer the KB, the better agents perform. Obsidian vault sync keeps it current.</p>
+        </div>
+        <div class="principle">
+          <h4>&#128279; Everything Links</h4>
+          <p>Documents link to initiatives, initiatives produce projects, projects contain tasks, tasks reference stakeholders. The graph grows naturally.</p>
+        </div>
+        <div class="principle">
+          <h4>&#129302; Agents Use Context</h4>
+          <p>Every agent response is grounded in your KB documents via vector search. They cite sources and prioritize your data over general knowledge.</p>
+        </div>
+        <div class="principle">
+          <h4>&#128260; Data Flows Down</h4>
+          <p>Strategic analysis (DISCO) produces tactical output (projects, tasks). Top-down: initiative framing guides discovery, which guides project creation.</p>
+        </div>
+        <div class="principle">
+          <h4>&#128752; Two Storage Models</h4>
+          <p>Supabase for structured records and vector search. Neo4j for relationship traversal. Both queried by agents as needed.</p>
+        </div>
+        <div class="principle">
+          <h4>&#128257; Continuous Enrichment</h4>
+          <p>Every sync, upload, meeting, and agent interaction adds to the knowledge base. The platform gets smarter as you use it.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

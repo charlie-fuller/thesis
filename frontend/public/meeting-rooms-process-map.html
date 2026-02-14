@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meeting Rooms Process Map</title>
+  <style>
+    :root {
+      --user: #6366f1;
+      --user-light: #e0e7ff;
+      --facilitator: #3b82f6;
+      --facilitator-light: #dbeafe;
+      --agents: #14b8a6;
+      --agents-light: #ccfbf1;
+      --context: #06b6d4;
+      --context-light: #cffafe;
+      --reporter: #22c55e;
+      --reporter-light: #dcfce7;
+      --autonomous: #8b5cf6;
+      --autonomous-light: #ede9fe;
+      --checkpoint: #f59e0b;
+      --checkpoint-light: #fef3c7;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    .subtitle {
+      color: var(--gray-500);
+      font-size: 0.95rem;
+      margin-top: 0.25rem;
+    }
+
+    .role-badges {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .role-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: white;
+    }
+
+    .role-badge.user { background: var(--user); }
+    .role-badge.facilitator { background: var(--facilitator); }
+    .role-badge.agents { background: var(--agents); }
+    .role-badge.context { background: var(--context); }
+    .role-badge.reporter { background: var(--reporter); }
+    .role-badge.autonomous { background: var(--autonomous); }
+
+    /* Section */
+    .section {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    /* Two-column layout */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 700px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    /* Mode cards */
+    .mode-card {
+      border: 2px solid;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      background: white;
+    }
+
+    .mode-card.guided { border-color: var(--facilitator); }
+    .mode-card.auto { border-color: var(--autonomous); }
+
+    .mode-card h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .mode-card h4 .badge {
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.6rem;
+      color: white;
+    }
+
+    .mode-card .description {
+      font-size: 0.75rem;
+      color: var(--gray-600);
+      margin-bottom: 0.5rem;
+    }
+
+    .mode-card ul {
+      margin-left: 1rem;
+      font-size: 0.7rem;
+      color: var(--gray-600);
+    }
+
+    .mode-card li { margin-bottom: 0.15rem; }
+
+    /* Flow diagram */
+    .flow {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      overflow-x: auto;
+      padding: 1rem 0;
+    }
+
+    .flow-step {
+      flex: 1;
+      min-width: 160px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .step-badge {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: white;
+      position: relative;
+      z-index: 2;
+    }
+
+    .step-badge.user { background: var(--user); }
+    .step-badge.facilitator { background: var(--facilitator); }
+    .step-badge.agents { background: var(--agents); }
+    .step-badge.context { background: var(--context); }
+    .step-badge.reporter { background: var(--reporter); }
+    .step-badge.autonomous { background: var(--autonomous); }
+    .step-badge.checkpoint { background: var(--checkpoint); }
+
+    .step-label {
+      font-weight: 700;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      text-align: center;
+    }
+
+    .step-sub {
+      font-size: 0.65rem;
+      color: var(--gray-500);
+      text-align: center;
+      margin-top: 0.1rem;
+    }
+
+    .step-card {
+      margin-top: 0.75rem;
+      padding: 0.65rem;
+      border-radius: 0.75rem;
+      border: 2px solid;
+      width: 100%;
+      max-width: 185px;
+      font-size: 0.65rem;
+    }
+
+    .step-card.user { border-color: var(--user); background: var(--user-light); }
+    .step-card.facilitator { border-color: var(--facilitator); background: var(--facilitator-light); }
+    .step-card.agents { border-color: var(--agents); background: var(--agents-light); }
+    .step-card.context { border-color: var(--context); background: var(--context-light); }
+    .step-card.reporter { border-color: var(--reporter); background: var(--reporter-light); }
+    .step-card.autonomous { border-color: var(--autonomous); background: var(--autonomous-light); }
+
+    .step-card h5 {
+      font-size: 0.7rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .step-card ul {
+      margin-left: 0.8rem;
+      color: var(--gray-700);
+    }
+
+    .step-card li { margin-bottom: 0.1rem; }
+
+    /* Connector arrows */
+    .connector-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding-top: 14px;
+      min-width: 50px;
+    }
+
+    .h-arrow {
+      width: 100%;
+      height: 3px;
+      background: var(--gray-300);
+      position: relative;
+      margin-top: 22px;
+    }
+
+    .h-arrow::after {
+      content: '';
+      position: absolute;
+      right: -1px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+      border-left: 8px solid var(--gray-300);
+    }
+
+    /* Detail Grid */
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    @media (max-width: 900px) {
+      .detail-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .detail-grid { grid-template-columns: 1fr; }
+    }
+
+    .detail-card {
+      border: 2px solid;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      position: relative;
+    }
+
+    .detail-card.facilitator { border-color: var(--facilitator); }
+    .detail-card.agents { border-color: var(--agents); }
+    .detail-card.context { border-color: var(--context); }
+    .detail-card.reporter { border-color: var(--reporter); }
+    .detail-card.user { border-color: var(--user); }
+    .detail-card.autonomous { border-color: var(--autonomous); }
+
+    .detail-card .tag {
+      position: absolute;
+      top: -10px;
+      left: 12px;
+      padding: 0.1rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: white;
+    }
+
+    .detail-card .tag.facilitator { background: var(--facilitator); }
+    .detail-card .tag.agents { background: var(--agents); }
+    .detail-card .tag.context { background: var(--context); }
+    .detail-card .tag.reporter { background: var(--reporter); }
+    .detail-card .tag.user { background: var(--user); }
+    .detail-card .tag.autonomous { background: var(--autonomous); }
+
+    .detail-card h4 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      margin-top: 0.25rem;
+    }
+
+    .detail-card p,
+    .detail-card li {
+      font-size: 0.7rem;
+      color: var(--gray-600);
+      line-height: 1.4;
+    }
+
+    .detail-card ul { margin-left: 1rem; }
+    .detail-card li { margin-bottom: 0.2rem; }
+
+    .detail-card .output-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--gray-700);
+      margin-top: 0.5rem;
+      margin-bottom: 0.15rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* Callout */
+    .callout {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      font-size: 0.7rem;
+      color: var(--gray-700);
+      margin-top: 0.75rem;
+    }
+
+    .callout strong { color: var(--gray-900); }
+
+    .callout.warn {
+      background: #fef3c7;
+      border-color: #fde68a;
+    }
+
+    .callout.success {
+      background: #dcfce7;
+      border-color: #bbf7d0;
+    }
+
+    /* Mini flow */
+    .mini-flow {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+
+    .mini-node {
+      background: white;
+      border: 2px solid var(--gray-300);
+      border-radius: 0.5rem;
+      padding: 0.3rem 0.6rem;
+      font-size: 0.65rem;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .mini-node.user { border-color: var(--user); background: var(--user-light); }
+    .mini-node.facilitator { border-color: var(--facilitator); background: var(--facilitator-light); }
+    .mini-node.agents { border-color: var(--agents); background: var(--agents-light); }
+    .mini-node.context { border-color: var(--context); background: var(--context-light); }
+    .mini-node.reporter { border-color: var(--reporter); background: var(--reporter-light); }
+    .mini-node.autonomous { border-color: var(--autonomous); background: var(--autonomous-light); }
+    .mini-node.checkpoint { border-color: var(--checkpoint); background: var(--checkpoint-light); }
+
+    .mini-arrow {
+      color: var(--gray-400);
+      font-size: 0.9rem;
+    }
+
+    /* Round flow */
+    .round-flow {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 700px) {
+      .round-flow { grid-template-columns: 1fr; }
+    }
+
+    .round-card {
+      border: 2px solid var(--autonomous);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      background: white;
+    }
+
+    .round-card h5 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--autonomous);
+      margin-bottom: 0.25rem;
+    }
+
+    .round-card .guidance {
+      font-size: 0.65rem;
+      font-style: italic;
+      color: var(--gray-400);
+      margin-bottom: 0.35rem;
+    }
+
+    .round-card p, .round-card li {
+      font-size: 0.7rem;
+      color: var(--gray-600);
+    }
+
+    .round-card ul { margin-left: 1rem; }
+
+    /* Agent roster grid */
+    .agent-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .agent-card {
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 0.65rem;
+      background: white;
+    }
+
+    .agent-card h5 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 0.15rem;
+    }
+
+    .agent-card p {
+      font-size: 0.65rem;
+      color: var(--gray-500);
+    }
+
+    .agent-card .keywords {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.2rem;
+      margin-top: 0.35rem;
+    }
+
+    .agent-card .kw {
+      padding: 0.1rem 0.35rem;
+      border-radius: 0.25rem;
+      font-size: 0.55rem;
+      background: var(--gray-100);
+      color: var(--gray-600);
+    }
+
+    /* Comparison table */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.7rem;
+    }
+
+    .compare-table th {
+      background: var(--gray-100);
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    .compare-table td {
+      padding: 0.4rem 0.75rem;
+      border-bottom: 1px solid var(--gray-100);
+      color: var(--gray-600);
+    }
+
+    .compare-table tr:hover {
+      background: var(--gray-50);
+    }
+
+    .compare-table .col-guided {
+      color: var(--facilitator);
+      font-weight: 600;
+    }
+
+    .compare-table .col-auto {
+      color: var(--autonomous);
+      font-weight: 600;
+    }
+
+    /* Key principles */
+    .principles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .principle {
+      text-align: center;
+      padding: 0.75rem;
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      background: white;
+    }
+
+    .principle .icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .principle h5 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 0.15rem;
+    }
+
+    .principle p {
+      font-size: 0.65rem;
+      color: var(--gray-500);
+    }
+
+    /* Watermark */
+    .watermark {
+      text-align: center;
+      padding: 2rem;
+      color: var(--gray-400);
+      font-size: 0.75rem;
+    }
+
+    /* Lifecycle flow */
+    .lifecycle-flow {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 0.5rem 0;
+    }
+
+    .lc-node {
+      padding: 0.3rem 0.6rem;
+      border: 2px solid var(--gray-300);
+      border-radius: 0.5rem;
+      font-size: 0.65rem;
+      font-weight: 600;
+      background: white;
+      white-space: nowrap;
+    }
+
+    .lc-arrow {
+      color: var(--gray-400);
+      font-size: 0.85rem;
+    }
+
+    /* Four-col grid */
+    .four-col {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 900px) {
+      .four-col { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .four-col { grid-template-columns: 1fr; }
+    }
+
+    /* Dark mode overrides */
+    html.dark {
+      --gray-50: #0a0a0a;
+      --gray-100: #111111;
+      --gray-200: #27272a;
+      --gray-300: #3f3f46;
+      --gray-400: #71717a;
+      --gray-500: #a1a1aa;
+      --gray-600: #d4d4d8;
+      --gray-700: #e4e4e7;
+      --gray-800: #f4f4f5;
+      --gray-900: #ffffff;
+      --user-light: #1e1b4b;
+      --facilitator-light: #1e2a4a;
+      --agents-light: #0e2a2a;
+      --context-light: #0e2a33;
+      --reporter-light: #0e261a;
+      --autonomous-light: #1e1633;
+      --checkpoint-light: #2d2009;
+    }
+
+    html.dark body {
+      background: #0a0a0a;
+      color: #ffffff;
+    }
+
+    html.dark .section {
+      background: #111111;
+      border-color: #27272a;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    html.dark .mode-card {
+      background: #111111;
+    }
+
+    html.dark .round-card {
+      background: #111111;
+    }
+
+    html.dark .agent-card {
+      background: #111111;
+      border-color: #27272a;
+    }
+
+    html.dark .agent-card .kw {
+      background: #1a1a1a;
+      color: #a1a1aa;
+    }
+
+    html.dark .principle {
+      background: #111111;
+      border-color: #27272a;
+    }
+
+    html.dark .mini-node {
+      background: #111111;
+      border-color: #3f3f46;
+    }
+
+    html.dark .lc-node {
+      background: #111111;
+      border-color: #3f3f46;
+    }
+
+    html.dark .callout {
+      background: #111827;
+      border-color: #1e3a5f;
+      color: #d4d4d8;
+    }
+
+    html.dark .callout strong {
+      color: #ffffff;
+    }
+
+    html.dark .callout.warn {
+      background: #1a1400;
+      border-color: #3d3200;
+    }
+
+    html.dark .callout.success {
+      background: #0f1f14;
+      border-color: #1a3a24;
+    }
+
+    html.dark header {
+      border-bottom-color: #27272a;
+    }
+
+    html.dark .section-title {
+      border-bottom-color: #27272a;
+    }
+
+    html.dark .compare-table th {
+      background: #1a1a1a;
+      border-bottom-color: #27272a;
+    }
+
+    html.dark .compare-table td {
+      border-bottom-color: #1a1a1a;
+    }
+
+    html.dark .compare-table tr:hover {
+      background: #1a1a1a;
+    }
+
+    html.dark .h-arrow {
+      background: #3f3f46;
+    }
+
+    html.dark .h-arrow::after {
+      border-left-color: #3f3f46;
+    }
+
+    html.dark .detail-card {
+      background: #111111;
+    }
+  </style>
+</head>
+<body>
+<script>
+(function() {
+  function applyDark() {
+    if (!document.documentElement.classList.contains('dark')) {
+      document.documentElement.classList.add('dark');
+    }
+  }
+  function getParentBrightness() {
+    try {
+      if (window.parent && window.parent !== window) {
+        var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+        if (bodyBg) {
+          var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          if (m) {
+            return (parseInt(m[1]) * 299 + parseInt(m[2]) * 587 + parseInt(m[3]) * 114) / 1000;
+          }
+        }
+      }
+    } catch (e) {}
+    return -1;
+  }
+  function checkAndApply() {
+    var brightness = getParentBrightness();
+    if (brightness >= 0 && brightness < 128) { applyDark(); return true; }
+    return false;
+  }
+  checkAndApply();
+  var attempts = 0;
+  var poller = setInterval(function() {
+    attempts++;
+    if (checkAndApply() || attempts >= 50) {
+      clearInterval(poller);
+      if (attempts >= 50 && !document.documentElement.classList.contains('dark')) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) applyDark();
+      }
+    }
+  }, 200);
+  try {
+    if (window.parent && window.parent !== window) {
+      new MutationObserver(function() { checkAndApply(); })
+        .observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+  } catch (e) {}
+})();
+</script>
+  <div class="container">
+    <header>
+      <h1>Meeting Rooms Process Map</h1>
+      <p class="subtitle">Multi-Agent Collaborative Discussion Spaces</p>
+      <div class="role-badges">
+        <span class="role-badge user">You</span>
+        <span class="role-badge facilitator">Facilitator</span>
+        <span class="role-badge agents">Specialist Agents</span>
+        <span class="role-badge context">KB + Graph Context</span>
+        <span class="role-badge reporter">Reporter</span>
+        <span class="role-badge autonomous">Autonomous Mode</span>
+      </div>
+    </header>
+
+    <!-- Two Modes Overview -->
+    <div class="section">
+      <div class="section-title">Two Discussion Modes</div>
+      <div class="two-col">
+        <div class="mode-card guided">
+          <h4>Guided Discussion <span class="badge" style="background:var(--facilitator);">Default</span></h4>
+          <div class="description">You ask questions, the Facilitator routes them to the right agents. Interactive, back-and-forth conversation.</div>
+          <ul>
+            <li>You drive the conversation with questions</li>
+            <li>Facilitator selects 1-3 relevant agents per turn</li>
+            <li>Agents respond sequentially (50-100 words each)</li>
+            <li>Each agent sees what previous agents said</li>
+            <li>Use <code>@agent</code> to speak directly to a specific agent</li>
+            <li>Ask for a summary anytime</li>
+          </ul>
+        </div>
+        <div class="mode-card auto">
+          <h4>Autonomous Discussion <span class="badge" style="background:var(--autonomous);">On Demand</span></h4>
+          <div class="description">You provide a topic and agents discuss it among themselves across multiple rounds. You observe and can interject.</div>
+          <ul>
+            <li>You set the topic and number of rounds (1-5)</li>
+            <li>All agents speak once per round (~75 words)</li>
+            <li>Agents build on each other's points</li>
+            <li>Speaking order: priority-based or round-robin</li>
+            <li>You can interject anytime to pause and redirect</li>
+            <li>Final round focuses on synthesis and takeaways</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Meeting Creation Flow -->
+    <div class="section">
+      <div class="section-title">Step 1: Create a Meeting Room</div>
+      <div style="overflow-x: auto;">
+        <div class="flow" style="min-width: 900px;">
+          <!-- Step 1: Name -->
+          <div class="flow-step">
+            <div class="step-badge user">1</div>
+            <div class="step-label">Name Your Meeting</div>
+            <div class="step-sub">Title + Description</div>
+            <div class="step-card user">
+              <h5>Set the Stage</h5>
+              <ul>
+                <li>Give the meeting a clear title</li>
+                <li>Optional description for context</li>
+                <li>Example: "Q1 Security Investment Discussion"</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="connector-col"><div class="h-arrow"></div></div>
+
+          <!-- Step 2: Type -->
+          <div class="flow-step">
+            <div class="step-badge user">2</div>
+            <div class="step-label">Choose Type</div>
+            <div class="step-sub">Meeting purpose</div>
+            <div class="step-card user">
+              <h5>Two Meeting Types</h5>
+              <ul>
+                <li><strong>Collaboration:</strong> Cross-functional discussion on a topic</li>
+                <li><strong>Meeting Prep:</strong> Prepare talking points before a real meeting</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="connector-col"><div class="h-arrow"></div></div>
+
+          <!-- Step 3: Select Agents -->
+          <div class="flow-step">
+            <div class="step-badge agents">3</div>
+            <div class="step-label">Select Agents</div>
+            <div class="step-sub">Pick 1+ specialists</div>
+            <div class="step-card agents">
+              <h5>Build Your Panel</h5>
+              <ul>
+                <li>Facilitator + Reporter always included</li>
+                <li>Choose 1+ specialist agents</li>
+                <li>Mix perspectives (finance, legal, tech, etc.)</li>
+                <li>Sage + Nexus auto-included when relevant</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="connector-col"><div class="h-arrow"></div></div>
+
+          <!-- Step 4: Start -->
+          <div class="flow-step">
+            <div class="step-badge facilitator">4</div>
+            <div class="step-label">Meeting Starts</div>
+            <div class="step-sub">Facilitator greets you</div>
+            <div class="step-card facilitator">
+              <h5>Facilitator Opens</h5>
+              <ul>
+                <li>Introduces itself and the agents present</li>
+                <li>Names agents without domain labels</li>
+                <li>Asks what you'd like to explore</li>
+                <li>Waits for your first substantive question</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>Tip:</strong> Match agents to your topic. For a budget discussion, include Capital (finance), Guardian (governance), and Sage (change management). For technical architecture, include Architect, Guardian, and Pioneer.
+      </div>
+    </div>
+
+    <!-- Guided Discussion Flow -->
+    <div class="section">
+      <div class="section-title">Step 2a: Guided Discussion Flow</div>
+      <div style="overflow-x: auto;">
+        <div class="flow" style="min-width: 1100px;">
+          <!-- User asks -->
+          <div class="flow-step">
+            <div class="step-badge user">&#9998;</div>
+            <div class="step-label">You Ask</div>
+            <div class="step-sub">Question or topic</div>
+            <div class="step-card user">
+              <h5>Your Message</h5>
+              <ul>
+                <li>Type a question or topic</li>
+                <li>Can use <code>@agent</code> for direct routing</li>
+                <li>Can request a summary</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="connector-col"><div class="h-arrow"></div></div>
+
+          <!-- Context Retrieved -->
+          <div class="flow-step">
+            <div class="step-badge context">&#9741;</div>
+            <div class="step-label">Context Retrieved</div>
+            <div class="step-sub">Automatic, every turn</div>
+            <div class="step-card context">
+              <h5>KB + Graph Search</h5>
+              <ul>
+                <li>10 KB chunks via vector search</li>
+                <li>Top 3 stakeholders + sentiment</li>
+                <li>Top 3 concerns by severity</li>
+                <li>ROI opportunities + relationships</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="connector-col"><div class="h-arrow"></div></div>
+
+          <!-- Facilitator routes -->
+          <div class="flow-step">
+            <div class="step-badge facilitator">&#9654;</div>
+            <div class="step-label">Facilitator Routes</div>
+            <div class="step-sub">Selects 1-3 agents</div>
+            <div class="step-card facilitator">
+              <h5>Intelligent Routing</h5>
+              <ul>
+                <li>Scores agents by keyword relevance</li>
+                <li>Ensures balanced participation</li>
+                <li>Force-includes Sage + Nexus if relevant</li>
+                <li>Introduces agents with context</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="connector-col"><div class="h-arrow"></div></div>
+
+          <!-- Agents respond -->
+          <div class="flow-step">
+            <div class="step-badge agents">&#9733;</div>
+            <div class="step-label">Agents Respond</div>
+            <div class="step-sub">Sequential, 50-100 words</div>
+            <div class="step-card agents">
+              <h5>Specialist Perspectives</h5>
+              <ul>
+                <li>Each agent sees KB + graph context</li>
+                <li>Each sees what previous agents said</li>
+                <li>Builds on prior points, adds new angles</li>
+                <li>Cites KB sources when relevant</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="connector-col"><div class="h-arrow"></div></div>
+
+          <!-- Cycle back -->
+          <div class="flow-step">
+            <div class="step-badge user" style="border: 3px dashed var(--gray-300); background: white; color: var(--user);">&#8634;</div>
+            <div class="step-label">Your Turn Again</div>
+            <div class="step-sub">Continue or summarize</div>
+            <div class="step-card user" style="border-style: dashed;">
+              <h5>What's Next?</h5>
+              <ul>
+                <li>Ask a follow-up question</li>
+                <li>Use <code>@agent</code> to drill deeper</li>
+                <li>Request a summary from Reporter</li>
+                <li>Switch to autonomous mode</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>Context sources are visible:</strong> After each agent response, expand the "Sources" section to see which KB documents and stakeholder data informed the answer. Similarity scores show how relevant each source is.
+      </div>
+    </div>
+
+    <!-- Autonomous Discussion Flow -->
+    <div class="section">
+      <div class="section-title">Step 2b: Autonomous Discussion Flow</div>
+
+      <p style="font-size: 0.8rem; color: var(--gray-600); margin-bottom: 1rem;">
+        Autonomous mode lets agents discuss a topic among themselves across multiple rounds. You observe the conversation unfold in real-time and can interject at any point.
+      </p>
+
+      <!-- Setup -->
+      <div style="margin-bottom: 1.25rem;">
+        <div style="font-size: 0.8rem; font-weight: 700; color: var(--gray-800); margin-bottom: 0.5rem;">Setup</div>
+        <div class="mini-flow" style="justify-content: center;">
+          <div class="mini-node user">Click "Start Autonomous Discussion"</div>
+          <span class="mini-arrow">&#8250;</span>
+          <div class="mini-node autonomous">Enter Topic</div>
+          <span class="mini-arrow">&#8250;</span>
+          <div class="mini-node autonomous">Select Rounds (1-5)</div>
+          <span class="mini-arrow">&#8250;</span>
+          <div class="mini-node" style="border-color: var(--agents); background: var(--agents-light); font-weight:600;">Discussion Begins</div>
+        </div>
+      </div>
+
+      <!-- Round structure -->
+      <div class="round-flow">
+        <div class="round-card">
+          <h5>Round 1: Establish Positions</h5>
+          <div class="guidance">"Initial positions - state your perspective clearly"</div>
+          <ul>
+            <li>Each agent speaks once in priority order</li>
+            <li>First speaker sets the frame</li>
+            <li>Later speakers see earlier responses</li>
+            <li>~75 words per agent</li>
+          </ul>
+        </div>
+        <div class="round-card">
+          <h5>Round 2+: Develop and Challenge</h5>
+          <div class="guidance">"Build on, question, or challenge what you've heard"</div>
+          <ul>
+            <li>Agents reference each other by name</li>
+            <li>Challenge assumptions, connect ideas</li>
+            <li>New evidence and perspectives emerge</li>
+            <li>Each agent sees all prior round messages</li>
+          </ul>
+        </div>
+        <div class="round-card">
+          <h5>Final Round: Synthesize</h5>
+          <div class="guidance">"Synthesize and conclude - actionable recommendations"</div>
+          <ul>
+            <li>Agents provide their key takeaways</li>
+            <li>Actionable recommendations surface</li>
+            <li>Areas of agreement and disagreement clarified</li>
+            <li>Discussion auto-completes after this round</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Interjection -->
+      <div class="callout warn" style="margin-top: 1rem;">
+        <strong>User Interjection:</strong> Type a message at any time during autonomous discussion. The discussion pauses immediately, your message is processed, and you return to guided mode. You can start a new autonomous discussion anytime after that.
+      </div>
+
+      <!-- Speaking order -->
+      <div style="margin-top: 1rem;">
+        <div style="font-size: 0.8rem; font-weight: 700; color: var(--gray-800); margin-bottom: 0.5rem;">Speaking Order Options</div>
+        <div class="two-col">
+          <div style="border: 1px solid var(--gray-200); border-radius: 0.75rem; padding: 0.75rem;">
+            <div style="font-size: 0.75rem; font-weight: 700; margin-bottom: 0.25rem;">Priority Order (Default)</div>
+            <p style="font-size: 0.7rem; color: var(--gray-600);">Agents speak in the order they were added to the meeting. Same order every round. Useful when you want a consistent flow.</p>
+          </div>
+          <div style="border: 1px solid var(--gray-200); border-radius: 0.75rem; padding: 0.75rem;">
+            <div style="font-size: 0.75rem; font-weight: 700; margin-bottom: 0.25rem;">Round Robin</div>
+            <p style="font-size: 0.7rem; color: var(--gray-600);">Starting position rotates each round. No agent always speaks first. Useful for balanced influence across perspectives.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- The Three Roles -->
+    <div class="section">
+      <div class="section-title">The Three Roles in Every Meeting</div>
+      <div class="detail-grid">
+        <!-- Facilitator -->
+        <div class="detail-card facilitator">
+          <span class="tag facilitator">Meta-Agent</span>
+          <h4>Facilitator</h4>
+          <p>Manages conversation flow. Never provides domain expertise - only orchestrates.</p>
+          <div class="output-label">Responsibilities</div>
+          <ul>
+            <li>Greets and sets the stage</li>
+            <li>Routes questions to relevant agents</li>
+            <li>Ensures balanced participation</li>
+            <li>Provides conversational bridges between agents</li>
+            <li>Detects greetings and holds before inviting agents</li>
+          </ul>
+          <div class="output-label">Routing Logic</div>
+          <ul>
+            <li>Keyword matching against agent specialties</li>
+            <li>Max 3 agents per turn</li>
+            <li>Force-includes essential perspectives (Sage, Nexus)</li>
+            <li>Skipped entirely for <code>@mentions</code></li>
+          </ul>
+        </div>
+
+        <!-- Reporter -->
+        <div class="detail-card reporter">
+          <span class="tag reporter">Meta-Agent</span>
+          <h4>Reporter</h4>
+          <p>The sole voice for summaries. Prevents multiple agents from each giving their own recap.</p>
+          <div class="output-label">Triggers</div>
+          <ul>
+            <li>"Give me a summary"</li>
+            <li>"What are the key takeaways?"</li>
+            <li>"Summarize our discussion"</li>
+            <li>"Action items", "next steps", "wrap up"</li>
+          </ul>
+          <div class="output-label">Output Style</div>
+          <ul>
+            <li>Uses domain labels, not agent names</li>
+            <li>"Financial analysis shows..." not "Capital said..."</li>
+            <li>Preserves disagreement (no false consensus)</li>
+            <li>Shorter than the source discussion</li>
+          </ul>
+        </div>
+
+        <!-- Specialist Agents -->
+        <div class="detail-card agents">
+          <span class="tag agents">Specialists</span>
+          <h4>Your Chosen Agents</h4>
+          <p>Domain experts selected when you create the meeting. Each brings a distinct perspective.</p>
+          <div class="output-label">How They Work</div>
+          <ul>
+            <li>Speak only when Facilitator invites them</li>
+            <li>See full message history + KB context</li>
+            <li>See what other agents said this round</li>
+            <li>50-100 words (guided) or ~75 words (autonomous)</li>
+          </ul>
+          <div class="output-label">Essential Perspectives</div>
+          <ul>
+            <li><strong>Sage</strong> (people/change) - auto-included when present</li>
+            <li><strong>Nexus</strong> (systems thinking) - auto-included when present</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Context Injection -->
+    <div class="section">
+      <div class="section-title">Context Injection: What Agents Know</div>
+      <p style="font-size: 0.8rem; color: var(--gray-600); margin-bottom: 1rem;">
+        Every time you ask a question (or agents discuss in autonomous mode), the system automatically retrieves relevant context from two sources and injects it into each agent's prompt.
+      </p>
+
+      <div class="two-col">
+        <div class="detail-card context" style="border-color: var(--context);">
+          <span class="tag context">Source 1</span>
+          <h4>Knowledge Base (Vector Search)</h4>
+          <p>Voyage AI embeddings search your entire KB for the most relevant content.</p>
+          <div class="output-label">What's Retrieved</div>
+          <ul>
+            <li>10 most relevant document chunks</li>
+            <li>Similarity scored (higher = more relevant)</li>
+            <li>Includes Obsidian vault files, uploads, transcripts</li>
+            <li>Includes past conversation excerpts</li>
+          </ul>
+          <div class="output-label">Agent Instruction</div>
+          <p style="margin-top: 0.25rem; font-style: italic;">"If KB context addresses the question, you MUST reference it specifically. Quote or paraphrase relevant passages and cite the source."</p>
+        </div>
+
+        <div class="detail-card" style="border-color: #a855f7;">
+          <span class="tag" style="background: #a855f7;">Source 2</span>
+          <h4>Knowledge Graph (Neo4j)</h4>
+          <p>Structured relationship data about your organization's stakeholders and concerns.</p>
+          <div class="output-label">What's Retrieved</div>
+          <ul>
+            <li>Top 3 stakeholders with roles + sentiment</li>
+            <li>Top 3 concerns with severity levels</li>
+            <li>Top 2 ROI opportunities with status</li>
+            <li>Key relationships between entities</li>
+          </ul>
+          <div class="output-label">How Agents Use It</div>
+          <p style="margin-top: 0.25rem;">Agents reference specific people, concerns, and opportunities by name. "Given that [Stakeholder] has expressed concern about..."</p>
+        </div>
+      </div>
+
+      <div class="callout success">
+        <strong>Transparency:</strong> After each agent response, click "Sources" to see exactly which KB documents and graph entities informed the answer. Each KB source shows a similarity percentage.
+      </div>
+    </div>
+
+    <!-- Special Interactions -->
+    <div class="section">
+      <div class="section-title">Special Interactions</div>
+      <div class="four-col">
+        <div style="border: 2px solid var(--user); border-radius: 0.75rem; padding: 0.75rem;">
+          <div style="font-size: 0.8rem; font-weight: 700; color: var(--user); margin-bottom: 0.25rem;">@Mention Direct Routing</div>
+          <p style="font-size: 0.7rem; color: var(--gray-600);">Type <code>@capital</code> to speak directly to Capital. Bypasses Facilitator entirely. Agent responds alone with full context. Supports multiple mentions: <code>@capital @guardian</code>.</p>
+        </div>
+
+        <div style="border: 2px solid var(--reporter); border-radius: 0.75rem; padding: 0.75rem;">
+          <div style="font-size: 0.8rem; font-weight: 700; color: var(--reporter); margin-bottom: 0.25rem;">Summary Request</div>
+          <p style="font-size: 0.7rem; color: var(--gray-600);">Ask for a "summary", "recap", "takeaways", "action items", or "next steps". Reporter responds exclusively - other agents stay silent. Uses domain labels for external-ready output.</p>
+        </div>
+
+        <div style="border: 2px solid var(--autonomous); border-radius: 0.75rem; padding: 0.75rem;">
+          <div style="font-size: 0.8rem; font-weight: 700; color: var(--autonomous); margin-bottom: 0.25rem;">Autonomous Interjection</div>
+          <p style="font-size: 0.7rem; color: var(--gray-600);">During autonomous discussion, type any message to immediately pause the discussion. Your message is processed, and the meeting returns to guided mode. Start autonomous again anytime.</p>
+        </div>
+
+        <div style="border: 2px solid var(--reporter); border-radius: 0.75rem; padding: 0.75rem;">
+          <div style="font-size: 0.8rem; font-weight: 700; color: var(--reporter); margin-bottom: 0.25rem;">Export to KB</div>
+          <p style="font-size: 0.7rem; color: var(--gray-600);">Click "Export to KB" to save the entire meeting transcript as a Knowledge Base document. This makes the discussion searchable and available as context in future conversations.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Guided vs Autonomous Comparison -->
+    <div class="section">
+      <div class="section-title">Guided vs. Autonomous: Quick Comparison</div>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Aspect</th>
+            <th class="col-guided">Guided Discussion</th>
+            <th class="col-auto">Autonomous Discussion</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Who drives?</strong></td>
+            <td>You ask, agents answer</td>
+            <td>Agents discuss, you observe</td>
+          </tr>
+          <tr>
+            <td><strong>Facilitator role</strong></td>
+            <td>Routes every turn, introduces agents</td>
+            <td>Only introduces the topic</td>
+          </tr>
+          <tr>
+            <td><strong>Who speaks?</strong></td>
+            <td>1-3 agents per turn (most relevant)</td>
+            <td>All agents speak every round</td>
+          </tr>
+          <tr>
+            <td><strong>Response length</strong></td>
+            <td>50-100 words per agent</td>
+            <td>~75 words per agent</td>
+          </tr>
+          <tr>
+            <td><strong>Context between agents</strong></td>
+            <td>Each sees what prior agents said this turn</td>
+            <td>Each sees all prior round messages</td>
+          </tr>
+          <tr>
+            <td><strong>Your involvement</strong></td>
+            <td>Active (message every turn)</td>
+            <td>Passive (observe, interject if needed)</td>
+          </tr>
+          <tr>
+            <td><strong>Best for</strong></td>
+            <td>Specific questions, drill-downs, directed analysis</td>
+            <td>Brainstorming, exploring tensions, surfacing diverse views</td>
+          </tr>
+          <tr>
+            <td><strong>Can switch to other mode?</strong></td>
+            <td>Yes - start autonomous anytime</td>
+            <td>Yes - interject to return to guided</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Typical Session Flow -->
+    <div class="section">
+      <div class="section-title">Typical Session: End-to-End Example</div>
+      <div class="lifecycle-flow">
+        <div class="lc-node" style="border-color: var(--user); background: var(--user-light);">Create Meeting</div>
+        <span class="lc-arrow">&#8250;</span>
+        <div class="lc-node" style="border-color: var(--facilitator); background: var(--facilitator-light);">Facilitator Greeting</div>
+        <span class="lc-arrow">&#8250;</span>
+        <div class="lc-node" style="border-color: var(--user); background: var(--user-light);">Ask First Question</div>
+        <span class="lc-arrow">&#8250;</span>
+        <div class="lc-node" style="border-color: var(--agents); background: var(--agents-light);">Agents Discuss</div>
+        <span class="lc-arrow">&#8250;</span>
+        <div class="lc-node" style="border-color: var(--user); background: var(--user-light);">Follow-ups</div>
+        <span class="lc-arrow">&#8250;</span>
+        <div class="lc-node" style="border-color: var(--autonomous); background: var(--autonomous-light);">Autonomous Deep-Dive</div>
+        <span class="lc-arrow">&#8250;</span>
+        <div class="lc-node" style="border-color: var(--reporter); background: var(--reporter-light);">Request Summary</div>
+        <span class="lc-arrow">&#8250;</span>
+        <div class="lc-node" style="border-color: var(--reporter); background: var(--reporter-light);">Export to KB</div>
+      </div>
+
+      <div class="two-col" style="margin-top: 1rem;">
+        <div>
+          <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem;">Example: Security Investment Discussion</div>
+          <div style="font-size: 0.7rem; color: var(--gray-600); line-height: 1.6;">
+            <p><strong>1.</strong> Create meeting with Capital, Guardian, Sage, Architect</p>
+            <p><strong>2.</strong> "What's the ROI of investing in AI security tooling?"</p>
+            <p><strong>3.</strong> Capital discusses financial models, Guardian highlights compliance requirements, Sage raises adoption concerns</p>
+            <p><strong>4.</strong> <code>@guardian</code> "What specific compliance gaps do we have?"</p>
+            <p><strong>5.</strong> Start autonomous: "Debate the trade-offs between building vs. buying security tooling" (3 rounds)</p>
+            <p><strong>6.</strong> "Give me a summary with action items"</p>
+            <p><strong>7.</strong> Export transcript to Knowledge Base</p>
+          </div>
+        </div>
+        <div>
+          <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem;">Example: Meeting Prep</div>
+          <div style="font-size: 0.7rem; color: var(--gray-600); line-height: 1.6;">
+            <p><strong>1.</strong> Create meeting prep with Oracle, Strategist, Sage</p>
+            <p><strong>2.</strong> "I'm meeting with [CTO] tomorrow about our AI roadmap. What should I prepare?"</p>
+            <p><strong>3.</strong> Oracle surfaces past meeting themes and concerns; Strategist suggests framing; Sage advises on stakeholder approach</p>
+            <p><strong>4.</strong> "What objections might come up and how should I handle them?"</p>
+            <p><strong>5.</strong> "Summarize into a prep sheet"</p>
+            <p><strong>6.</strong> Export to KB for reference before the meeting</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Token Budget -->
+    <div class="section">
+      <div class="section-title">Under the Hood: Token Budgets</div>
+      <div class="four-col">
+        <div style="border: 1px solid var(--gray-200); border-radius: 0.75rem; padding: 0.75rem; text-align: center;">
+          <div style="font-size: 1.5rem; font-weight: 800; color: var(--facilitator);">150</div>
+          <div style="font-size: 0.7rem; color: var(--gray-500); font-weight: 600;">Facilitator</div>
+          <div style="font-size: 0.6rem; color: var(--gray-400);">Routing only</div>
+        </div>
+        <div style="border: 1px solid var(--gray-200); border-radius: 0.75rem; padding: 0.75rem; text-align: center;">
+          <div style="font-size: 1.5rem; font-weight: 800; color: var(--agents);">300</div>
+          <div style="font-size: 0.7rem; color: var(--gray-500); font-weight: 600;">Agent (Guided)</div>
+          <div style="font-size: 0.6rem; color: var(--gray-400);">~100 words</div>
+        </div>
+        <div style="border: 1px solid var(--gray-200); border-radius: 0.75rem; padding: 0.75rem; text-align: center;">
+          <div style="font-size: 1.5rem; font-weight: 800; color: var(--autonomous);">200</div>
+          <div style="font-size: 0.7rem; color: var(--gray-500); font-weight: 600;">Agent (Autonomous)</div>
+          <div style="font-size: 0.6rem; color: var(--gray-400);">~75 words</div>
+        </div>
+        <div style="border: 1px solid var(--gray-200); border-radius: 0.75rem; padding: 0.75rem; text-align: center;">
+          <div style="font-size: 1.5rem; font-weight: 800; color: var(--reporter);">2048</div>
+          <div style="font-size: 0.7rem; color: var(--gray-500); font-weight: 600;">Reporter</div>
+          <div style="font-size: 0.6rem; color: var(--gray-400);">Full summaries</div>
+        </div>
+      </div>
+      <div class="callout">
+        <strong>Why short responses?</strong> Agents are deliberately concise to encourage multi-perspective dialogue rather than monologues. Each agent makes one clear point, then the next agent builds on it. Depth comes from the interplay between perspectives, not the length of individual responses.
+      </div>
+    </div>
+
+    <!-- Key Principles -->
+    <div class="section">
+      <div class="section-title">Key Principles</div>
+      <div class="principles">
+        <div class="principle">
+          <div class="icon">&#9733;</div>
+          <h5>Multi-Perspective</h5>
+          <p>Every topic benefits from multiple viewpoints. Mix financial, technical, people, and governance lenses.</p>
+        </div>
+        <div class="principle">
+          <div class="icon">&#9878;</div>
+          <h5>Facilitator as Gatekeeper</h5>
+          <p>Facilitator manages flow, never provides domain answers. Ensures no agent dominates.</p>
+        </div>
+        <div class="principle">
+          <div class="icon">&#9881;</div>
+          <h5>Context-Grounded</h5>
+          <p>Agents cite your KB documents and stakeholder data. Answers are grounded in your organization's reality.</p>
+        </div>
+        <div class="principle">
+          <div class="icon">&#8634;</div>
+          <h5>Challenge Over Agreement</h5>
+          <p>Agents are instructed to question assumptions and challenge each other, not just agree.</p>
+        </div>
+        <div class="principle">
+          <div class="icon">&#9782;</div>
+          <h5>Essential Perspectives</h5>
+          <p>Sage (people) and Nexus (systems) auto-join when present to prevent blind spots.</p>
+        </div>
+        <div class="principle">
+          <div class="icon">&#9998;</div>
+          <h5>You Stay in Control</h5>
+          <p>Even in autonomous mode, one message pauses everything. You drive, agents advise.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="watermark">
+      Meeting Rooms Process Map v1.0 | Thesis Multi-Agent Platform | February 2026
+    </div>
+  </div>
+</body>
+</html>

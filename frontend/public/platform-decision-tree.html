@@ -450,9 +450,149 @@
         display: none;
       }
     }
+
+    /* Dark mode overrides */
+    html.dark {
+      --gray-50: #0a0a0a;
+      --gray-100: #111111;
+      --gray-200: #27272a;
+      --gray-300: #3f3f46;
+      --gray-600: #d4d4d8;
+      --gray-700: #e4e4e7;
+      --gray-800: #f4f4f5;
+      --gray-900: #ffffff;
+    }
+
+    html.dark body {
+      background: #0a0a0a;
+      color: #ffffff;
+    }
+
+    html.dark .decision-card {
+      background: #111111;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    }
+
+    html.dark .option-btn {
+      background: #1a1a1a;
+      border-color: #27272a;
+    }
+
+    html.dark .option-btn:hover {
+      background: #111111;
+      border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    }
+
+    html.dark .option-btn.selected {
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    html.dark .progress-step {
+      background: #111111;
+      border-color: #27272a;
+      color: #a1a1aa;
+    }
+
+    html.dark .info-box {
+      background: #111827;
+      border-color: #1e3a5f;
+    }
+
+    html.dark .info-box.warning {
+      background: #1a1400;
+      border-color: #3d3200;
+    }
+
+    html.dark .info-box.danger {
+      background: #1f0a0a;
+      border-color: #3d1515;
+    }
+
+    html.dark .nav-buttons {
+      border-top-color: #27272a;
+    }
+
+    html.dark .btn-outline {
+      color: #e4e4e7;
+    }
+
+    html.dark .btn-white {
+      background: #1a1a1a;
+      color: #e4e4e7;
+    }
+
+    html.dark .btn-white:hover {
+      background: #27272a;
+    }
+
+    html.dark .checklist-item {
+      background: #1a1a1a;
+    }
+
+    html.dark .platform-card {
+      background: #1a1a1a;
+      border-color: #27272a;
+    }
+
+    html.dark .option-icon.glean { background: #0e2a33; }
+    html.dark .option-icon.google { background: #2d2009; }
+    html.dark .option-icon.gemini { background: #1e2a4a; }
+    html.dark .option-icon.notebooklm { background: #2d2a09; }
+    html.dark .option-icon.custom { background: #1e1633; }
+    html.dark .option-icon.claude { background: #2d121e; }
+    html.dark .option-icon.mulesoft { background: #1a1533; }
+    html.dark .option-icon.yes { background: #0e261a; }
+    html.dark .option-icon.no { background: #2d1219; }
+    html.dark .option-icon.maybe { background: #2d2009; }
   </style>
 </head>
 <body>
+<script>
+(function() {
+  function applyDark() {
+    if (!document.documentElement.classList.contains('dark')) {
+      document.documentElement.classList.add('dark');
+    }
+  }
+  function getParentBrightness() {
+    try {
+      if (window.parent && window.parent !== window) {
+        var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+        if (bodyBg) {
+          var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          if (m) {
+            return (parseInt(m[1]) * 299 + parseInt(m[2]) * 587 + parseInt(m[3]) * 114) / 1000;
+          }
+        }
+      }
+    } catch (e) {}
+    return -1;
+  }
+  function checkAndApply() {
+    var brightness = getParentBrightness();
+    if (brightness >= 0 && brightness < 128) { applyDark(); return true; }
+    return false;
+  }
+  checkAndApply();
+  var attempts = 0;
+  var poller = setInterval(function() {
+    attempts++;
+    if (checkAndApply() || attempts >= 50) {
+      clearInterval(poller);
+      if (attempts >= 50 && !document.documentElement.classList.contains('dark')) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) applyDark();
+      }
+    }
+  }, 200);
+  try {
+    if (window.parent && window.parent !== window) {
+      new MutationObserver(function() { checkAndApply(); })
+        .observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+  } catch (e) {}
+})();
+</script>
   <div class="container">
     <header>
       <h1>AI Platform Selection</h1>

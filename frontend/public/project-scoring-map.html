@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Scoring & Lifecycle</title>
+  <style>
+    :root {
+      --roi: #22c55e;
+      --roi-light: #dcfce7;
+      --effort: #f59e0b;
+      --effort-light: #fef3c7;
+      --alignment: #3b82f6;
+      --alignment-light: #dbeafe;
+      --readiness: #8b5cf6;
+      --readiness-light: #ede9fe;
+      --t1: #22c55e;
+      --t1-light: #dcfce7;
+      --t2: #3b82f6;
+      --t2-light: #dbeafe;
+      --t3: #f59e0b;
+      --t3-light: #fef3c7;
+      --t4: #ef4444;
+      --t4-light: #fee2e2;
+      --confidence: #06b6d4;
+      --confidence-light: #cffafe;
+      --status: #f43f5e;
+      --status-light: #ffe4e6;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    .subtitle {
+      color: var(--gray-500);
+      font-size: 0.95rem;
+      margin-top: 0.25rem;
+    }
+
+    .section {
+      background: white;
+      border-radius: 1rem;
+      padding: 1.75rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      border: 1px solid var(--gray-200);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .section-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .section h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .section h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin: 1rem 0 0.5rem;
+      color: var(--gray-700);
+    }
+
+    .section p {
+      color: var(--gray-600);
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+
+    /* Scoring overview */
+    .score-overview {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin: 1.25rem 0;
+      padding: 1.25rem;
+      background: var(--gray-50);
+      border-radius: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .score-dim {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-align: center;
+      min-width: 90px;
+      border: 2px solid;
+    }
+
+    .score-dim.roi { background: var(--roi-light); color: var(--roi); border-color: var(--roi); }
+    .score-dim.effort { background: var(--effort-light); color: var(--effort); border-color: var(--effort); }
+    .score-dim.alignment { background: var(--alignment-light); color: var(--alignment); border-color: var(--alignment); }
+    .score-dim.readiness { background: var(--readiness-light); color: var(--readiness); border-color: var(--readiness); }
+
+    .score-dim .dim-range {
+      font-size: 0.65rem;
+      font-weight: 400;
+      opacity: 0.8;
+    }
+
+    .score-plus {
+      font-size: 1.25rem;
+      color: var(--gray-400);
+      font-weight: 700;
+    }
+
+    .score-equals {
+      font-size: 1.25rem;
+      color: var(--gray-400);
+      font-weight: 700;
+    }
+
+    .score-total {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.75rem 1.25rem;
+      border-radius: 0.75rem;
+      font-weight: 700;
+      font-size: 1rem;
+      background: var(--gray-800);
+      color: white;
+    }
+
+    .score-total .dim-range {
+      font-size: 0.65rem;
+      font-weight: 400;
+      opacity: 0.7;
+    }
+
+    /* Dimension details */
+    .dim-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .dim-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      border-top: 3px solid;
+    }
+
+    .dim-card.roi { border-top-color: var(--roi); }
+    .dim-card.effort { border-top-color: var(--effort); }
+    .dim-card.alignment { border-top-color: var(--alignment); }
+    .dim-card.readiness { border-top-color: var(--readiness); }
+
+    .dim-card h4 {
+      font-size: 0.88rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .score-scale {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      margin-top: 0.25rem;
+    }
+
+    .scale-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+    }
+
+    .scale-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.7rem;
+      flex-shrink: 0;
+      color: white;
+    }
+
+    .scale-num.s1 { background: #ef4444; }
+    .scale-num.s2 { background: #f97316; }
+    .scale-num.s3 { background: #f59e0b; }
+    .scale-num.s4 { background: #3b82f6; }
+    .scale-num.s5 { background: #22c55e; }
+
+    .scale-label {
+      color: var(--gray-600);
+    }
+
+    /* Tier cards */
+    .tier-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .tier-card {
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      border: 2px solid;
+      text-align: center;
+    }
+
+    .tier-card.t1 { border-color: var(--t1); background: var(--t1-light); }
+    .tier-card.t2 { border-color: var(--t2); background: var(--t2-light); }
+    .tier-card.t3 { border-color: var(--t3); background: var(--t3-light); }
+    .tier-card.t4 { border-color: var(--t4); background: var(--t4-light); }
+
+    .tier-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .tier-range {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+
+    .tier-desc {
+      font-size: 0.78rem;
+      color: var(--gray-700);
+    }
+
+    /* Confidence rubric */
+    .confidence-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .conf-item {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+    }
+
+    .conf-item h4 {
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .conf-item .conf-pts {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.1rem 0.4rem;
+      border-radius: 9999px;
+      background: var(--confidence-light);
+      color: var(--confidence);
+    }
+
+    .conf-item p {
+      font-size: 0.75rem;
+      color: var(--gray-600);
+      margin: 0;
+    }
+
+    /* Status lifecycle */
+    .mini-flow {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin: 0.75rem 0;
+    }
+
+    .mini-step {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.5rem 0.85rem;
+      border-radius: 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .mini-arrow {
+      color: var(--gray-400);
+      font-size: 0.85rem;
+    }
+
+    .status-proposed { background: #e0e7ff; color: #4f46e5; }
+    .status-evaluating { background: var(--effort-light); color: var(--effort); }
+    .status-approved { background: var(--roi-light); color: var(--roi); }
+    .status-active { background: var(--alignment-light); color: var(--alignment); }
+    .status-completed { background: var(--readiness-light); color: var(--readiness); }
+    .status-on-hold { background: var(--gray-200); color: var(--gray-600); }
+    .status-rejected { background: var(--t4-light); color: var(--t4); }
+
+    /* Creation paths */
+    .path-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .path-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1rem;
+    }
+
+    .path-card h4 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .path-card p {
+      font-size: 0.78rem;
+      color: var(--gray-600);
+      margin: 0;
+    }
+
+    .path-card .path-steps {
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--gray-500);
+    }
+
+    .path-card .path-steps span {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 0.25rem;
+      margin-right: 0.15rem;
+      font-size: 0.68rem;
+    }
+
+    /* Callout */
+    .callout {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 0.75rem;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+      font-size: 0.85rem;
+      color: var(--gray-700);
+    }
+
+    .callout strong {
+      color: var(--gray-900);
+    }
+
+    .callout.formula {
+      background: var(--gray-800);
+      border-color: var(--gray-700);
+      color: var(--gray-200);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      text-align: center;
+      font-size: 0.9rem;
+      letter-spacing: 0.02em;
+    }
+
+    .callout.formula strong {
+      color: white;
+    }
+
+    /* Principles */
+    .principles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    .principle {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1rem;
+    }
+
+    .principle h4 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+
+    .principle p {
+      font-size: 0.78rem;
+      color: var(--gray-600);
+      margin: 0;
+    }
+
+    /* Score bar */
+    .score-bar-container {
+      margin-top: 0.5rem;
+    }
+
+    .score-bar {
+      display: flex;
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      background: var(--gray-200);
+      margin-bottom: 0.35rem;
+    }
+
+    .score-bar .filled {
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+
+    .score-bar .filled.high { background: var(--roi); }
+    .score-bar .filled.med { background: var(--effort); }
+    .score-bar .filled.low { background: var(--t4); }
+
+    .score-bar-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.65rem;
+      color: var(--gray-400);
+    }
+
+    /* Interactive scorer */
+    .scorer {
+      background: var(--gray-50);
+      border: 2px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      margin-top: 1rem;
+    }
+
+    .scorer h3 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .scorer-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .scorer-label {
+      width: 80px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .scorer-buttons {
+      display: flex;
+      gap: 0.35rem;
+    }
+
+    .score-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 0.5rem;
+      border: 2px solid var(--gray-200);
+      background: white;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--gray-600);
+    }
+
+    .score-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .score-btn.selected {
+      color: white;
+      border-color: transparent;
+    }
+
+    .score-btn.selected.roi { background: var(--roi); }
+    .score-btn.selected.effort { background: var(--effort); }
+    .score-btn.selected.alignment { background: var(--alignment); }
+    .score-btn.selected.readiness { background: var(--readiness); }
+
+    .scorer-result {
+      text-align: center;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--gray-200);
+      margin-top: 0.5rem;
+    }
+
+    .scorer-total {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .scorer-tier {
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      display: inline-block;
+      margin-top: 0.35rem;
+    }
+
+    .scorer-tier.t1 { background: var(--t1-light); color: var(--t1); }
+    .scorer-tier.t2 { background: var(--t2-light); color: var(--t2); }
+    .scorer-tier.t3 { background: var(--t3-light); color: var(--t3); }
+    .scorer-tier.t4 { background: var(--t4-light); color: var(--t4); }
+
+    @media (max-width: 700px) {
+      .container { padding: 1rem; }
+      .score-overview { flex-direction: column; }
+      .dim-grid { grid-template-columns: 1fr; }
+      .tier-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* Dark mode overrides */
+    html.dark {
+      --gray-50: #0a0a0a;
+      --gray-100: #111111;
+      --gray-200: #27272a;
+      --gray-300: #3f3f46;
+      --gray-400: #71717a;
+      --gray-500: #a1a1aa;
+      --gray-600: #d4d4d8;
+      --gray-700: #e4e4e7;
+      --gray-800: #f4f4f5;
+      --gray-900: #ffffff;
+      --roi-light: #0e261a;
+      --effort-light: #2d2009;
+      --alignment-light: #1e2a4a;
+      --readiness-light: #1e1633;
+      --t1-light: #0e261a;
+      --t2-light: #1e2a4a;
+      --t3-light: #2d2009;
+      --t4-light: #2d1219;
+      --confidence-light: #0e2a33;
+      --status-light: #2d1219;
+    }
+
+    html.dark body {
+      background: #0a0a0a;
+      color: #ffffff;
+    }
+
+    html.dark .section {
+      background: #111111;
+      border-color: #27272a;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    html.dark header {
+      border-bottom-color: #27272a;
+    }
+
+    html.dark .score-overview {
+      background: #1a1a1a;
+    }
+
+    html.dark .dim-card {
+      background: #1a1a1a;
+      border-color: #27272a;
+    }
+
+    html.dark .principle {
+      background: #1a1a1a;
+      border-color: #27272a;
+    }
+
+    html.dark .path-card {
+      background: #1a1a1a;
+      border-color: #27272a;
+    }
+
+    html.dark .path-card .path-steps span {
+      background: #111111;
+      border-color: #27272a;
+    }
+
+    html.dark .conf-item {
+      background: #1a1a1a;
+      border-color: #27272a;
+    }
+
+    html.dark .callout {
+      background: #111827;
+      border-color: #1e3a5f;
+      color: #d4d4d8;
+    }
+
+    html.dark .callout strong {
+      color: #ffffff;
+    }
+
+    html.dark .callout.formula {
+      background: #111111;
+      border-color: #27272a;
+      color: #d4d4d8;
+    }
+
+    html.dark .callout.formula strong {
+      color: #ffffff;
+    }
+
+    html.dark .score-bar {
+      background: #27272a;
+    }
+
+    html.dark .scorer {
+      background: #1a1a1a;
+      border-color: #27272a;
+    }
+
+    html.dark .scorer-result {
+      border-top-color: #27272a;
+    }
+
+    html.dark .score-btn {
+      background: #111111;
+      border-color: #27272a;
+      color: #a1a1aa;
+    }
+
+    html.dark .score-btn:hover {
+      border-color: #6366f1;
+      color: #6366f1;
+    }
+  </style>
+</head>
+<body>
+<script>
+(function() {
+  function applyDark() {
+    if (!document.documentElement.classList.contains('dark')) {
+      document.documentElement.classList.add('dark');
+    }
+  }
+  function getParentBrightness() {
+    try {
+      if (window.parent && window.parent !== window) {
+        var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+        if (bodyBg) {
+          var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          if (m) {
+            return (parseInt(m[1]) * 299 + parseInt(m[2]) * 587 + parseInt(m[3]) * 114) / 1000;
+          }
+        }
+      }
+    } catch (e) {}
+    return -1;
+  }
+  function checkAndApply() {
+    var brightness = getParentBrightness();
+    if (brightness >= 0 && brightness < 128) { applyDark(); return true; }
+    return false;
+  }
+  checkAndApply();
+  var attempts = 0;
+  var poller = setInterval(function() {
+    attempts++;
+    if (checkAndApply() || attempts >= 50) {
+      clearInterval(poller);
+      if (attempts >= 50 && !document.documentElement.classList.contains('dark')) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) applyDark();
+      }
+    }
+  }, 200);
+  try {
+    if (window.parent && window.parent !== window) {
+      new MutationObserver(function() { checkAndApply(); })
+        .observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+  } catch (e) {}
+})();
+</script>
+  <div class="container">
+    <header>
+      <h1>Project Scoring & Lifecycle</h1>
+      <p class="subtitle">How projects are scored, tiered, and tracked from proposal to completion</p>
+    </header>
+
+    <!-- Scoring Formula -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background: var(--alignment-light);">&#128202;</div>
+        <h2>The Scoring System</h2>
+      </div>
+      <p>Every project is scored across 4 dimensions on a 1-5 scale. The total score (4-20) determines the project's tier, which guides prioritization and resource allocation.</p>
+
+      <div class="score-overview">
+        <div class="score-dim roi">
+          <span>&#128200; ROI</span>
+          <span class="dim-range">1-5</span>
+        </div>
+        <span class="score-plus">+</span>
+        <div class="score-dim effort">
+          <span>&#9881; Effort</span>
+          <span class="dim-range">1-5</span>
+        </div>
+        <span class="score-plus">+</span>
+        <div class="score-dim alignment">
+          <span>&#127919; Alignment</span>
+          <span class="dim-range">1-5</span>
+        </div>
+        <span class="score-plus">+</span>
+        <div class="score-dim readiness">
+          <span>&#128640; Readiness</span>
+          <span class="dim-range">1-5</span>
+        </div>
+        <span class="score-equals">=</span>
+        <div class="score-total">
+          <span>Total</span>
+          <span class="dim-range">4-20</span>
+        </div>
+      </div>
+
+      <div class="callout formula">
+        <strong>triage_score</strong> = roi_potential + effort_level + strategic_alignment + org_readiness
+      </div>
+    </div>
+
+    <!-- 4 Dimensions Detail -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background: var(--roi-light);">&#127919;</div>
+        <h2>The 4 Scoring Dimensions</h2>
+      </div>
+      <p>Each dimension captures a different aspect of project viability. Higher is always better (effort is inverted: 5 = minimal effort).</p>
+
+      <div class="dim-grid">
+        <div class="dim-card roi">
+          <h4>&#128200; ROI Potential</h4>
+          <div class="score-scale">
+            <div class="scale-row"><span class="scale-num s5">5</span><span class="scale-label">Transformative revenue or savings impact</span></div>
+            <div class="scale-row"><span class="scale-num s4">4</span><span class="scale-label">Significant measurable business value</span></div>
+            <div class="scale-row"><span class="scale-num s3">3</span><span class="scale-label">Moderate value, clear but limited impact</span></div>
+            <div class="scale-row"><span class="scale-num s2">2</span><span class="scale-label">Marginal value, hard to quantify</span></div>
+            <div class="scale-row"><span class="scale-num s1">1</span><span class="scale-label">Minimal or speculative value</span></div>
+          </div>
+        </div>
+        <div class="dim-card effort">
+          <h4>&#9881; Effort Level (inverted)</h4>
+          <div class="score-scale">
+            <div class="scale-row"><span class="scale-num s5">5</span><span class="scale-label">Quick win: days, minimal resources</span></div>
+            <div class="scale-row"><span class="scale-num s4">4</span><span class="scale-label">Small project: 1-2 weeks, one team</span></div>
+            <div class="scale-row"><span class="scale-num s3">3</span><span class="scale-label">Medium project: weeks, some coordination</span></div>
+            <div class="scale-row"><span class="scale-num s2">2</span><span class="scale-label">Large project: months, cross-team</span></div>
+            <div class="scale-row"><span class="scale-num s1">1</span><span class="scale-label">Massive: quarters, org-wide change</span></div>
+          </div>
+        </div>
+        <div class="dim-card alignment">
+          <h4>&#127919; Strategic Alignment</h4>
+          <div class="score-scale">
+            <div class="scale-row"><span class="scale-num s5">5</span><span class="scale-label">Core to company strategy, executive mandate</span></div>
+            <div class="scale-row"><span class="scale-num s4">4</span><span class="scale-label">Strongly aligned with strategic priorities</span></div>
+            <div class="scale-row"><span class="scale-num s3">3</span><span class="scale-label">Moderately aligned, supports goals</span></div>
+            <div class="scale-row"><span class="scale-num s2">2</span><span class="scale-label">Loosely related to strategy</span></div>
+            <div class="scale-row"><span class="scale-num s1">1</span><span class="scale-label">Not aligned with current strategy</span></div>
+          </div>
+        </div>
+        <div class="dim-card readiness">
+          <h4>&#128640; Org Readiness</h4>
+          <div class="score-scale">
+            <div class="scale-row"><span class="scale-num s5">5</span><span class="scale-label">Champion in place, team ready, budget approved</span></div>
+            <div class="scale-row"><span class="scale-num s4">4</span><span class="scale-label">Sponsor identified, resources available</span></div>
+            <div class="scale-row"><span class="scale-num s3">3</span><span class="scale-label">Some support, resources partially available</span></div>
+            <div class="scale-row"><span class="scale-num s2">2</span><span class="scale-label">Interest but no commitment or resources</span></div>
+            <div class="scale-row"><span class="scale-num s1">1</span><span class="scale-label">No sponsor, resistance, or competing priorities</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tier Calculation -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background: var(--t1-light);">&#127942;</div>
+        <h2>Tier Classification</h2>
+      </div>
+      <p>The total score maps to a tier that determines project priority. Tiers are computed automatically in the database.</p>
+
+      <div class="tier-grid">
+        <div class="tier-card t1">
+          <div class="tier-name">Tier 1</div>
+          <div class="tier-range">17 - 20 points</div>
+          <div class="tier-desc">Quick wins and strategic priorities. High value, low effort, strong alignment. Act immediately.</div>
+        </div>
+        <div class="tier-card t2">
+          <div class="tier-name">Tier 2</div>
+          <div class="tier-range">14 - 16 points</div>
+          <div class="tier-desc">Strong opportunities worth pursuing. Plan and resource within the quarter.</div>
+        </div>
+        <div class="tier-card t3">
+          <div class="tier-name">Tier 3</div>
+          <div class="tier-range">11 - 13 points</div>
+          <div class="tier-desc">Worth tracking but not urgent. May need conditions to change before acting.</div>
+        </div>
+        <div class="tier-card t4">
+          <div class="tier-name">Tier 4</div>
+          <div class="tier-range">4 - 10 points</div>
+          <div class="tier-desc">Low priority or not viable now. Park or revisit when circumstances change.</div>
+        </div>
+      </div>
+
+      <div class="callout formula">
+        <strong>CASE</strong> WHEN triage_score >= 17 THEN 'T1'
+        WHEN triage_score >= 14 THEN 'T2'
+        WHEN triage_score >= 11 THEN 'T3'
+        ELSE 'T4' <strong>END</strong>
+      </div>
+    </div>
+
+    <!-- Confidence Rubric -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background: var(--confidence-light);">&#128161;</div>
+        <h2>Confidence Score</h2>
+      </div>
+      <p>Independent of the triage score, each project has a confidence score (0-100) reflecting how certain you are about the scoring inputs. Higher confidence means the triage score is more reliable.</p>
+
+      <div class="confidence-grid">
+        <div class="conf-item">
+          <h4>&#128218; Evidence Quality <span class="conf-pts">25 pts</span></h4>
+          <p>How strong is the data backing the scores? Direct measurements, customer research, or just assumptions?</p>
+        </div>
+        <div class="conf-item">
+          <h4>&#128101; Stakeholder Validation <span class="conf-pts">25 pts</span></h4>
+          <p>Have key stakeholders reviewed and agreed with the assessment?</p>
+        </div>
+        <div class="conf-item">
+          <h4>&#128200; Precedent Exists <span class="conf-pts">25 pts</span></h4>
+          <p>Has something similar been done before? Is there a track record to reference?</p>
+        </div>
+        <div class="conf-item">
+          <h4>&#128269; Scope Clarity <span class="conf-pts">25 pts</span></h4>
+          <p>How well-defined are requirements, timeline, and success criteria?</p>
+        </div>
+      </div>
+
+      <div class="score-bar-container" style="margin-top: 1rem;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.35rem;">
+          <span style="color: var(--t4);">Low (0-30)</span>
+          <span style="color: var(--effort);">Medium (31-60)</span>
+          <span style="color: var(--roi);">High (61-100)</span>
+        </div>
+        <div class="score-bar">
+          <div class="filled low" style="width: 30%;"></div>
+          <div class="filled med" style="width: 30%;"></div>
+          <div class="filled high" style="width: 40%;"></div>
+        </div>
+        <div class="score-bar-labels">
+          <span>Speculative</span>
+          <span>Informed estimates</span>
+          <span>Well-validated</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Scorer -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background: #eef2ff;">&#128171;</div>
+        <h2>Try It: Score a Project</h2>
+      </div>
+      <p>Click the numbers below to score a hypothetical project and see the tier it would receive.</p>
+
+      <div class="scorer">
+        <div class="scorer-row">
+          <div class="scorer-label" style="color: var(--roi);">ROI</div>
+          <div class="scorer-buttons" id="roi-btns"></div>
+        </div>
+        <div class="scorer-row">
+          <div class="scorer-label" style="color: var(--effort);">Effort</div>
+          <div class="scorer-buttons" id="effort-btns"></div>
+        </div>
+        <div class="scorer-row">
+          <div class="scorer-label" style="color: var(--alignment);">Alignment</div>
+          <div class="scorer-buttons" id="alignment-btns"></div>
+        </div>
+        <div class="scorer-row">
+          <div class="scorer-label" style="color: var(--readiness);">Readiness</div>
+          <div class="scorer-buttons" id="readiness-btns"></div>
+        </div>
+        <div class="scorer-result">
+          <div class="scorer-total" id="scorer-total">--</div>
+          <div class="scorer-tier" id="scorer-tier" style="visibility: hidden;">--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Lifecycle -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background: var(--status-light);">&#128260;</div>
+        <h2>Project Status Lifecycle</h2>
+      </div>
+      <p>Projects move through a defined status progression. Status changes are tracked and visible in the Pipeline view.</p>
+
+      <h3>Primary Flow</h3>
+      <div class="mini-flow">
+        <span class="mini-step status-proposed">&#128221; Proposed</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step status-evaluating">&#128269; Evaluating</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step status-approved">&#9989; Approved</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step status-active">&#9889; Active</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step status-completed">&#127942; Completed</span>
+      </div>
+
+      <h3>Alternative Paths</h3>
+      <div class="mini-flow">
+        <span class="mini-step status-evaluating">&#128269; Evaluating</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step status-on-hold">&#9208; On Hold</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step status-evaluating">&#128269; Re-evaluate</span>
+      </div>
+      <div class="mini-flow">
+        <span class="mini-step status-evaluating">&#128269; Evaluating</span>
+        <span class="mini-arrow">&#8594;</span>
+        <span class="mini-step status-rejected">&#10060; Rejected</span>
+      </div>
+    </div>
+
+    <!-- Creation Paths -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background: var(--alignment-light);">&#128295;</div>
+        <h2>How Projects Are Created</h2>
+      </div>
+      <p>Projects can enter the system through four paths. DISCO Convergence is the recommended path for well-researched opportunities.</p>
+
+      <div class="path-grid">
+        <div class="path-card">
+          <h4>&#128270; DISCO Convergence</h4>
+          <p>Best path: initiative analysis produces a validated project proposal with pre-filled scores based on discovery evidence.</p>
+          <div class="path-steps"><span>Discovery</span> &#8594; <span>Intelligence</span> &#8594; <span>Synthesis</span> &#8594; <span>Convergence</span> &#8594; <span>Project</span></div>
+        </div>
+        <div class="path-card">
+          <h4>&#128221; Manual Creation</h4>
+          <p>Create directly from the Projects page. You fill in all details and scores yourself.</p>
+          <div class="path-steps"><span>Projects page</span> &#8594; <span>New Project</span> &#8594; <span>Score</span> &#8594; <span>Save</span></div>
+        </div>
+        <div class="path-card">
+          <h4>&#128172; Chat Suggestion</h4>
+          <p>Agents like Oracle or Strategist can recommend creating a project from analysis. You confirm and score.</p>
+          <div class="path-steps"><span>Chat</span> &#8594; <span>Agent analysis</span> &#8594; <span>Create project</span> &#8594; <span>Score</span></div>
+        </div>
+        <div class="path-card">
+          <h4>&#127908; Meeting Action Item</h4>
+          <p>Meeting notes may surface opportunities that become projects via the Granola pipeline.</p>
+          <div class="path-steps"><span>Meeting</span> &#8594; <span>Granola sync</span> &#8594; <span>Action item</span> &#8594; <span>Project</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key Principles -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background: var(--gray-100);">&#128161;</div>
+        <h2>Key Principles</h2>
+      </div>
+
+      <div class="principles">
+        <div class="principle">
+          <h4>&#128200; Score Honestly</h4>
+          <p>Inflated scores undermine the system. Use the confidence rubric to flag uncertainty rather than guessing high.</p>
+        </div>
+        <div class="principle">
+          <h4>&#127942; Tiers Guide Action</h4>
+          <p>T1 projects get immediate attention. T4 projects aren't bad -- they're just not ready yet. Conditions change.</p>
+        </div>
+        <div class="principle">
+          <h4>&#128260; Status Reflects Reality</h4>
+          <p>Update status as projects progress. The Pipeline view depends on accurate status for workload management.</p>
+        </div>
+        <div class="principle">
+          <h4>&#128279; Link Everything</h4>
+          <p>Attach relevant KB documents, connect tasks, and reference stakeholders. Context makes scoring more reliable.</p>
+        </div>
+        <div class="principle">
+          <h4>&#128257; Re-score When Conditions Change</h4>
+          <p>Scores aren't permanent. When new information arrives or circumstances shift, update the scores and tier.</p>
+        </div>
+        <div class="principle">
+          <h4>&#128218; Evidence Beats Intuition</h4>
+          <p>DISCO-originated projects start with better scores because they're backed by document analysis and structured research.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Interactive scorer
+    const scores = { roi: 0, effort: 0, alignment: 0, readiness: 0 };
+    const dims = ['roi', 'effort', 'alignment', 'readiness'];
+
+    dims.forEach(dim => {
+      const container = document.getElementById(`${dim}-btns`);
+      for (let i = 1; i <= 5; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'score-btn';
+        btn.textContent = i;
+        btn.onclick = () => {
+          scores[dim] = i;
+          container.querySelectorAll('.score-btn').forEach(b => {
+            b.classList.remove('selected', dim);
+          });
+          btn.classList.add('selected', dim);
+          updateTotal();
+        };
+        container.appendChild(btn);
+      }
+    });
+
+    function updateTotal() {
+      const total = scores.roi + scores.effort + scores.alignment + scores.readiness;
+      const allSet = dims.every(d => scores[d] > 0);
+
+      const totalEl = document.getElementById('scorer-total');
+      const tierEl = document.getElementById('scorer-tier');
+
+      if (allSet) {
+        totalEl.textContent = total + ' / 20';
+
+        let tier, tierClass;
+        if (total >= 17) { tier = 'Tier 1 - Act Now'; tierClass = 't1'; }
+        else if (total >= 14) { tier = 'Tier 2 - Plan This Quarter'; tierClass = 't2'; }
+        else if (total >= 11) { tier = 'Tier 3 - Track & Wait'; tierClass = 't3'; }
+        else { tier = 'Tier 4 - Park or Revisit'; tierClass = 't4'; }
+
+        tierEl.textContent = tier;
+        tierEl.className = 'scorer-tier ' + tierClass;
+        tierEl.style.visibility = 'visible';
+      } else {
+        totalEl.textContent = dims.filter(d => scores[d] > 0).reduce((s, d) => s + scores[d], 0) + ' / 20';
+        tierEl.style.visibility = 'hidden';
+      }
+    }
+  </script>
+</body>
+</html>
