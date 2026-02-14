@@ -2,7 +2,7 @@
 
 ## Layer 1: The Poster
 
-Here's the thing. I built Thesis because I was drowning. Not in work -- in information, decisions, stakeholders, context. Every meeting generated more questions than answers. Every initiative connected to three others. Every tool promised transformation and delivered a dashboard.
+I built Thesis as a life jacket because I had a legitimate fear of drowning. Not in work -- in information, decisions, stakeholders, context. Every meeting generated more questions than answers. Every initiative connected to three others. Every tool promised transformation and delivered a dashboard.
 
 I needed my brain for *thinking*, not synthesizing. And I realized the people I'd be building a team with would face the same firehose. Without shared methodology, four people building AI things at Contentful would create four different approaches, four different standards, and exactly zero compounding knowledge.
 
@@ -46,7 +46,7 @@ The methodology is shared. The conclusions are context-specific. When the team s
 
 ### 1. State change or it doesn't count.
 
-Here's the thing about state change: it's not just money. Not just time saved. It's *psychological*. Did someone's understanding shift? Did a team start working differently? Did a process actually change, or did we just document a new one that nobody follows?
+State change isn't just money. Not just time saved. It's *psychological*. Did someone's understanding shift? Did a team start working differently? Did a process actually change, or did we just document a new one that nobody follows?
 
 I borrowed this from Stuart Winter-Tear's UNHYPED framework: "You do not buy AI. You buy state change." And from Cory Ondrejka's Outcome Engineering: "Verified reality is the only truth." Both are saying the same thing from different angles -- the only measure that matters is whether something actually moved.
 
@@ -58,7 +58,7 @@ This is the foundation. Every other principle serves this one.
 
 ### 2. Problems before solutions.
 
-I get it. The technology is exciting. You see a demo and your brain immediately starts connecting dots -- "we could use this for X, we could automate Y." That creative impulse is valuable. But it's also dangerous when it runs ahead of understanding.
+The technology is exciting. You see a demo and your brain immediately starts connecting dots -- "we could use this for X, we could automate Y." That creative impulse is valuable. But it's dangerous when it runs ahead of understanding.
 
 Starting with the solution is how you end up with a graveyard of proofs of concept that solved problems nobody actually had. It's like prescribing medication before running the diagnosis. Sure, you might get lucky. But at enterprise scale, "getting lucky" isn't a strategy.
 
@@ -68,7 +68,7 @@ The right answer might be "do nothing." It might be "this doesn't need AI." It m
 
 ### 3. Evidence over eloquence.
 
-This one keeps me up at night. Because fluency -- whether from a person or an AI model -- *feels* like truth. A well-structured argument, a polished presentation, a confident recommendation. Our brains are wired to trust eloquence. And that's exactly the vulnerability.
+Fluency -- whether from a person or an AI model -- *feels* like truth. A well-structured argument, a polished presentation, a confident recommendation. Our brains are wired to trust eloquence. And that's exactly the vulnerability.
 
 UNHYPED nails it: "Receipts, not promises. Tone feels like truth." Ondrejka's version: "Code is a vanity metric; vibes are not tests."
 
@@ -78,7 +78,7 @@ So we cite our sources. We show our work. When an agent makes a recommendation, 
 
 ### 4. People are the center.
 
-I stole the phrasing of this from UNHYPED's sequencing rule: "People first, then processes, then platforms." Not as a sentiment. As an operational sequence. You figure out the human experience before you design the process. You design the process before you choose the platform.
+UNHYPED's sequencing rule: "People first, then processes, then platforms." Not as a sentiment. As an operational sequence. Figure out the human experience before you design the process. Design the process before you choose the platform.
 
 Fear of job loss is rational. I need to say that clearly because too many AI conversations dance around it. When you tell someone "AI will handle the repetitive parts of your job," what they hear is "AI will handle the parts of my job that justify my salary." Address that honestly or lose trust permanently.
 
@@ -88,7 +88,7 @@ The human experience isn't a nice-to-have bolt-on at the end. It's the thing tha
 
 ### 5. Humans decide.
 
-This is non-negotiable, and it's simpler than people make it.
+Non-negotiable, and simpler than people make it.
 
 Agents explore paths. Humans choose the destination. AI recommends. Humans decide. No automation by default. Veto power without justification required. You don't have to explain *why* you're overriding the AI. The fact that you want to is enough.
 
@@ -98,7 +98,7 @@ This doesn't mean humans make every micro-decision. It means the important ones 
 
 ### 6. Multiple perspectives.
 
-Here's why Thesis has 22 agents instead of one really good one.
+Thesis has 22 agents instead of one really good one. There's a reason for that.
 
 No single viewpoint is sufficient for complex decisions. Finance sees ROI and payback periods. Security sees attack surfaces and compliance gaps. Legal sees liability and regulatory exposure. People-focused analysis sees adoption barriers and change fatigue. Systems thinking sees second-order effects nobody else is looking for.
 
@@ -122,7 +122,7 @@ Use your big and beautiful brain for thinking, not synthesizing. That's the prom
 
 ### 8. Guardrails, not gates.
 
-I use this metaphor constantly because it captures something that governance conversations usually miss.
+This metaphor captures something governance conversations usually miss.
 
 Gates keep you off the road. They say "stop, justify yourself, wait for approval, proceed if deemed worthy." Gates create bottlenecks, breed resentment, and incentivize people to find ways around them. Most corporate governance is gates dressed up as process improvement.
 
@@ -134,7 +134,7 @@ Structured process isn't bureaucracy. The right framework frees people to build 
 
 ### 9. Trace the connections.
 
-This is Nexus's core philosophy, and I think it might be the most underrated principle here.
+Nexus's core philosophy, and possibly the most underrated principle here.
 
 Everything is connected. There are no isolated changes in a complex organization. Deploy a new tool in one department and it affects the workflows of three others. Change an incentive structure and watch behavior shift in places you didn't predict. Automate a process and discover that the "inefficiency" you eliminated was actually serving a communication function nobody documented.
 
@@ -146,7 +146,7 @@ This is why systems thinking isn't optional. It's not a nice-to-have for academi
 
 ### 10. The questions stay the same.
 
-This is the scaling principle. The one that makes everything else compound.
+The scaling principle. The one that makes everything else compound.
 
 DISCO doesn't prescribe the same answer every time. It asks the right *questions* every time. Discovery, Intelligence, Synthesis, Convergence -- the methodology is the same whether you're evaluating a customer service chatbot or a company-wide knowledge management overhaul. The conclusions are context-specific. The inquiry is standardized.
 

@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import PageLayout from '@/components/PageLayout'
 import LoadingSpinner from '@/components/LoadingSpinner'
 
-type ManifestoTab = 'poster' | 'rationale' | 'check'
+type ManifestoTab = 'poster' | 'check'
 
 const principles = [
   {
@@ -14,7 +14,7 @@ const principles = [
     title: 'State change or it doesn\'t count.',
     summary: 'If nothing moved -- no behavior shifted, no mindset changed, no system updated -- then nothing happened. Show me what moved.',
     rationale: [
-      'Here\'s the thing about state change: it\'s not just money. Not just time saved. It\'s psychological. Did someone\'s understanding shift? Did a team start working differently? Did a process actually change, or did we just document a new one that nobody follows?',
+      'State change isn\'t just money. Not just time saved. It\'s psychological. Did someone\'s understanding shift? Did a team start working differently? Did a process actually change, or did we just document a new one that nobody follows?',
       'I borrowed this from Stuart Winter-Tear\'s UNHYPED framework: "You do not buy AI. You buy state change." And from Cory Ondrejka\'s Outcome Engineering: "Verified reality is the only truth." Both are saying the same thing from different angles -- the only measure that matters is whether something actually moved.',
       'A document that nobody reads didn\'t change state. A demo that doesn\'t connect to production didn\'t change state. A strategy deck that sits in a SharePoint folder gathering digital dust didn\'t change state. We\'ve all seen this. The graveyard of proofs of concept is real, and every headstone reads "looked great in the meeting."',
       'So we ask: What state are we trying to change? How will we know it changed? And if it didn\'t change, what do we do differently?',
@@ -27,7 +27,7 @@ const principles = [
     title: 'Problems before solutions.',
     summary: 'Explore the problem deeply before ever discussing tools. The right answer might be "do nothing."',
     rationale: [
-      'I get it. The technology is exciting. You see a demo and your brain immediately starts connecting dots -- "we could use this for X, we could automate Y." That creative impulse is valuable. But it\'s also dangerous when it runs ahead of understanding.',
+      'The technology is exciting. You see a demo and your brain immediately starts connecting dots -- "we could use this for X, we could automate Y." That creative impulse is valuable. But it\'s dangerous when it runs ahead of understanding.',
       'Starting with the solution is how you end up with a graveyard of proofs of concept that solved problems nobody actually had. It\'s like prescribing medication before running the diagnosis. Sure, you might get lucky. But at enterprise scale, "getting lucky" isn\'t a strategy.',
       'UNHYPED puts it sharply: "Do not start from what the model can generate. Start from which state must change." And from Lean methodology: go and see. Understand the current state before imagining the future one.',
       'The right answer might be "do nothing." It might be "this doesn\'t need AI." It might be "we need to fix the process first." Those are all valid outcomes of good problem discovery. DISCO exists precisely for this -- structured exploration of the problem space before anyone starts building.',
@@ -39,7 +39,7 @@ const principles = [
     title: 'Evidence over eloquence.',
     summary: 'Fluency feels like truth. A polished demo feels like progress. Neither is. Show your receipts.',
     rationale: [
-      'This one keeps me up at night. Because fluency -- whether from a person or an AI model -- feels like truth. A well-structured argument, a polished presentation, a confident recommendation. Our brains are wired to trust eloquence. And that\'s exactly the vulnerability.',
+      'Fluency -- whether from a person or an AI model -- feels like truth. A well-structured argument, a polished presentation, a confident recommendation. Our brains are wired to trust eloquence. That\'s exactly the vulnerability.',
       'UNHYPED nails it: "Receipts, not promises. Tone feels like truth." Ondrejka\'s version: "Code is a vanity metric; vibes are not tests."',
       'If you can\'t point to data, documents, observed reality, or measured outcomes, you\'re guessing. And guessing at enterprise scale is expensive. Not just financially -- it erodes trust. When we recommend something and can\'t show why, we\'re asking people to take it on faith. And faith doesn\'t scale across an organization.',
       'So we cite our sources. We show our work. When an agent makes a recommendation, it points to the knowledge base documents, the interview transcripts, the research that informed it. Not because we don\'t trust our judgment, but because judgment improves when it\'s grounded in evidence.',
@@ -51,7 +51,7 @@ const principles = [
     title: 'People are the center.',
     summary: 'Technology adoption is a community problem, not a technology problem. The human experience determines whether everything else works.',
     rationale: [
-      'I stole the phrasing of this from UNHYPED\'s sequencing rule: "People first, then processes, then platforms." Not as a sentiment. As an operational sequence. You figure out the human experience before you design the process. You design the process before you choose the platform.',
+      'UNHYPED\'s sequencing rule: "People first, then processes, then platforms." Not as a sentiment. As an operational sequence. Figure out the human experience before you design the process. Design the process before you choose the platform.',
       'Fear of job loss is rational. I need to say that clearly because too many AI conversations dance around it. When you tell someone "AI will handle the repetitive parts of your job," what they hear is "AI will handle the parts of my job that justify my salary." Address that honestly or lose trust permanently.',
       'Warren Buffett said it best (and our Sage agent lives by this): show me the incentive and I\'ll show you the outcome. If you want people to adopt new tools, you need to understand what they\'re incentivized to do. Champions burn out without support. Dignity isn\'t sentiment; it\'s an operational control. When people don\'t feel respected by the process, they\'ll find ways to work around it -- and they\'ll be right to.',
       'The human experience isn\'t a nice-to-have bolt-on at the end. It\'s the thing that determines whether everything else works.',
@@ -63,7 +63,7 @@ const principles = [
     title: 'Humans decide.',
     summary: 'Agents explore paths; humans choose the destination. No automation by default.',
     rationale: [
-      'This is non-negotiable, and it\'s simpler than people make it.',
+      'Non-negotiable, and simpler than people make it.',
       'Agents explore paths. Humans choose the destination. AI recommends. Humans decide. No automation by default. Veto power without justification required. You don\'t have to explain why you\'re overriding the AI. The fact that you want to is enough.',
       'Ondrejka frames it beautifully: "We decide where we are going; the agents get us there." The process of human judgment -- messy, intuitive, experience-driven, sometimes irrational -- has value. It should never be optimized away, even when the optimization looks like efficiency.',
       'This doesn\'t mean humans make every micro-decision. It means the important ones -- what to pursue, what to stop, what to recommend to leadership -- always have a human at the helm. The agents do the synthesis, the analysis, the pattern-finding. The human brings the judgment that no amount of training data can replicate.',
@@ -75,7 +75,7 @@ const principles = [
     title: 'Multiple perspectives.',
     summary: 'No single viewpoint is sufficient for complex decisions. The goal isn\'t consensus -- it\'s completeness.',
     rationale: [
-      'Here\'s why Thesis has 22 agents instead of one really good one.',
+      'Thesis has 22 agents instead of one really good one. There\'s a reason for that.',
       'No single viewpoint is sufficient for complex decisions. Finance sees ROI and payback periods. Security sees attack surfaces and compliance gaps. Legal sees liability and regulatory exposure. People-focused analysis sees adoption barriers and change fatigue. Systems thinking sees second-order effects nobody else is looking for.',
       'The goal isn\'t consensus. Consensus is often just the lowest-common-denominator answer that nobody disagrees with strongly enough to fight. The goal is completeness. Put all the perspectives on the table, let them genuinely interrogate each other, and then the human decides.',
       'Stuart Winter-Tear writes about the "Misfit Language of AI" -- the idea that different disciplines can\'t even talk to each other about AI because they\'re using different vocabularies, different frameworks, different definitions of success. Thesis bridges that by having specialized agents who translate between these worlds.',
@@ -101,7 +101,7 @@ const principles = [
     title: 'Guardrails, not gates.',
     summary: 'Governance isn\'t gatekeeping. The right framework frees people to build with confidence. Guardrails keep you on the road; gates keep you off it.',
     rationale: [
-      'I use this metaphor constantly because it captures something that governance conversations usually miss.',
+      'This metaphor captures something governance conversations usually miss.',
       'Gates keep you off the road. They say "stop, justify yourself, wait for approval, proceed if deemed worthy." Gates create bottlenecks, breed resentment, and incentivize people to find ways around them. Most corporate governance is gates dressed up as process improvement.',
       'Guardrails keep you on the road. They say "go ahead, build, experiment -- and here are the important questions to answer along the way." Maintenance plan. Adoption strategy. Evaluation criteria. Sustainability model. These aren\'t obstacles. They\'re the things that prevent your proof of concept from becoming an orphan.',
       'UNHYPED draws the line between "agents on rails" and "agents with vibes." Ondrejka frames risk as "stopping the line" -- not as punishment, but as an enabling function borrowed from Toyota\'s production system. When anyone can pull the andon cord, quality goes up because problems get caught early.',
@@ -114,7 +114,7 @@ const principles = [
     title: 'Trace the connections.',
     summary: 'Everything is connected. Follow the ripples before you drop the stone.',
     rationale: [
-      'This is Nexus\'s core philosophy, and I think it might be the most underrated principle here.',
+      'Nexus\'s core philosophy, and possibly the most underrated principle here.',
       'Everything is connected. There are no isolated changes in a complex organization. Deploy a new tool in one department and it affects the workflows of three others. Change an incentive structure and watch behavior shift in places you didn\'t predict. Automate a process and discover that the "inefficiency" you eliminated was actually serving a communication function nobody documented.',
       '"And then what happens?" is the most important question you can ask. And you need to ask it more than once. First-order effects are obvious. Second-order effects are where the real consequences live. Third-order effects are where the surprises hide.',
       'The obvious intervention is rarely the most effective one. Follow the ripples before you drop the stone. Today\'s solution becomes tomorrow\'s problem without looking at the whole system.',
@@ -127,7 +127,7 @@ const principles = [
     title: 'The questions stay the same.',
     summary: 'The methodology is shared. The conclusions are context-specific. When the team shares a common way of discovering, their work compounds.',
     rationale: [
-      'This is the scaling principle. The one that makes everything else compound.',
+      'The scaling principle. The one that makes everything else compound.',
       'DISCO doesn\'t prescribe the same answer every time. It asks the right questions every time. Discovery, Intelligence, Synthesis, Convergence -- the methodology is the same whether you\'re evaluating a customer service chatbot or a company-wide knowledge management overhaul. The conclusions are context-specific. The inquiry is standardized.',
       'From Lean: standardized work isn\'t about making everyone do the same thing. It\'s about making the process of improvement consistent so that insights transfer. When one team discovers a better way to evaluate AI readiness, that insight should be immediately available to every other team.',
       'When a team of AI Solutions Partners shares a common way of discovering, analyzing, and operationalizing, their work compounds. They learn from each other\'s investigations. They build on each other\'s conclusions. They speak the same language.',
@@ -251,8 +251,7 @@ export default function ManifestoPage() {
   if (!user) return null
 
   const tabs: { id: ManifestoTab; label: string }[] = [
-    { id: 'poster', label: 'The Poster' },
-    { id: 'rationale', label: 'The Rationale' },
+    { id: 'poster', label: 'The Principles' },
     { id: 'check', label: 'The Check' },
   ]
 
@@ -302,7 +301,7 @@ export default function ManifestoPage() {
               <div className="card p-6 mb-8">
                 <div className="max-w-3xl">
                   <p className="text-secondary leading-relaxed mb-4">
-                    Here&apos;s the thing. I built Thesis because I was drowning. Not in work &mdash; in information, decisions, stakeholders, context. Every meeting generated more questions than answers. Every initiative connected to three others. Every tool promised transformation and delivered a dashboard.
+                    I built Thesis as a life jacket because I had a legitimate fear of drowning. Not in work &mdash; in information, decisions, stakeholders, context. Every meeting generated more questions than answers. Every initiative connected to three others. Every tool promised transformation and delivered a dashboard.
                   </p>
                   <p className="text-secondary leading-relaxed mb-4">
                     I needed my brain for <em className="text-primary font-medium not-italic">thinking</em>, not synthesizing. And I realized the people I&apos;d be building a team with would face the same firehose. Without shared methodology, four people building AI things at Contentful would create four different approaches, four different standards, and exactly zero compounding knowledge.
@@ -325,24 +324,6 @@ export default function ManifestoPage() {
                 <p className="text-muted text-sm italic">
                   This manifesto is a living document. If it stops changing state, it stopped working.
                 </p>
-              </div>
-            </div>
-          )}
-
-          {/* ===== THE RATIONALE ===== */}
-          {activeTab === 'rationale' && (
-            <div>
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-primary mb-2">Here&apos;s the thing...</h2>
-                <p className="text-secondary">
-                  Each principle expanded with the &ldquo;why&rdquo; behind it. Not academic, not corporate &mdash; just the reasoning, explained across a table.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {principles.map((p) => (
-                  <PrincipleCard key={p.id} principle={p} expanded={true} />
-                ))}
               </div>
             </div>
           )}
