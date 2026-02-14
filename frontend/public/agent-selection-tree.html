@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Selection Guide</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-light: #818cf8;
+      --stakeholder: #f43f5e;
+      --stakeholder-light: #ffe4e6;
+      --consulting: #3b82f6;
+      --consulting-light: #dbeafe;
+      --enablement: #22c55e;
+      --enablement-light: #dcfce7;
+      --task: #f59e0b;
+      --task-light: #fef3c7;
+      --systems: #06b6d4;
+      --systems-light: #cffafe;
+      --personal: #8b5cf6;
+      --personal-light: #ede9fe;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+      min-height: 100vh;
+      color: var(--gray-800);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: 0.25rem;
+    }
+
+    .subtitle {
+      color: var(--gray-600);
+      font-size: 0.95rem;
+    }
+
+    /* Mode Toggle */
+    .mode-toggle {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin: 1.5rem 0;
+    }
+
+    .mode-btn {
+      padding: 0.5rem 1.25rem;
+      border-radius: 9999px;
+      border: 2px solid var(--gray-200);
+      background: white;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--gray-600);
+    }
+
+    .mode-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .mode-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    /* Wizard Mode */
+    .wizard-container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .progress-bar {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .progress-step {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 0.85rem;
+      background: white;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--gray-500);
+      border: 1px solid var(--gray-200);
+      transition: all 0.3s;
+    }
+
+    .progress-step.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .progress-step.completed {
+      background: #22c55e;
+      color: white;
+      border-color: #22c55e;
+    }
+
+    .decision-card {
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .question {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--gray-900);
+      margin-bottom: 1.25rem;
+    }
+
+    .options-grid {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .option-btn {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      padding: 1rem;
+      background: var(--gray-50);
+      border: 2px solid var(--gray-200);
+      border-radius: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+      width: 100%;
+    }
+
+    .option-btn:hover {
+      border-color: var(--primary);
+      background: white;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.12);
+    }
+
+    .option-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .option-content { flex: 1; }
+
+    .option-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--gray-800);
+      margin-bottom: 0.15rem;
+    }
+
+    .option-desc {
+      font-size: 0.8rem;
+      color: var(--gray-600);
+    }
+
+    /* Result card */
+    .result-card {
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      overflow: hidden;
+      animation: slideIn 0.3s ease;
+    }
+
+    .result-header {
+      padding: 1.5rem 2rem;
+      color: white;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    }
+
+    .result-header h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .result-header p {
+      opacity: 0.9;
+      font-size: 0.85rem;
+    }
+
+    .result-body { padding: 1.5rem 2rem; }
+
+    /* Situation breadcrumb */
+    .situation-path {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .path-chip {
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      background: var(--gray-100);
+      color: var(--gray-600);
+    }
+
+    .path-arrow {
+      color: var(--gray-400);
+      font-size: 0.7rem;
+    }
+
+    /* Primary agent cards */
+    .primary-agents {
+      margin-bottom: 1.25rem;
+    }
+
+    .primary-agents h4 {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+    }
+
+    .primary-agent {
+      display: flex;
+      gap: 0.85rem;
+      padding: 1rem;
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      margin-bottom: 0.5rem;
+      border-left: 3px solid var(--primary);
+    }
+
+    .primary-agent-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .primary-agent-content { flex: 1; }
+
+    .primary-agent-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--gray-800);
+      margin-bottom: 0.15rem;
+    }
+
+    .primary-agent-name .mention-tag {
+      margin-left: 0.5rem;
+    }
+
+    .primary-agent-why {
+      font-size: 0.82rem;
+      color: var(--gray-600);
+    }
+
+    /* Supporting agents */
+    .supporting-agents {
+      margin-bottom: 1.25rem;
+    }
+
+    .supporting-agents h4 {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    .supporting-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .supporting-chip {
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      border: 1px solid;
+    }
+
+    .supporting-chip.stakeholder { color: var(--stakeholder); border-color: var(--stakeholder); background: var(--stakeholder-light); }
+    .supporting-chip.consulting { color: var(--consulting); border-color: var(--consulting); background: var(--consulting-light); }
+    .supporting-chip.enablement { color: var(--enablement); border-color: var(--enablement); background: var(--enablement-light); }
+    .supporting-chip.task { color: var(--task); border-color: var(--task); background: var(--task-light); }
+    .supporting-chip.systems { color: var(--systems); border-color: var(--systems); background: var(--systems-light); }
+    .supporting-chip.personal { color: var(--personal); border-color: var(--personal); background: var(--personal-light); }
+
+    /* Approach section */
+    .approach-section {
+      margin-bottom: 1.25rem;
+      padding: 1rem;
+      background: #f0f4ff;
+      border-radius: 0.75rem;
+      border: 1px solid #c7d2fe;
+    }
+
+    .approach-section h4 {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.35rem;
+    }
+
+    .approach-section p {
+      font-size: 0.82rem;
+      color: var(--gray-700);
+    }
+
+    .meeting-room-callout {
+      background: #fef3c7;
+      border-color: #fbbf24;
+    }
+
+    .meeting-room-callout h4 {
+      color: #b45309;
+    }
+
+    /* Principle section */
+    .principle-section {
+      padding-top: 1rem;
+      border-top: 1px solid var(--gray-200);
+    }
+
+    .principle-section p {
+      font-size: 0.78rem;
+      color: var(--gray-500);
+      font-style: italic;
+    }
+
+    .mention-tag {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      background: var(--primary);
+      color: white;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      font-family: monospace;
+    }
+
+    .nav-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1.5rem;
+      padding: 0 2rem 1.5rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.6rem 1.25rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      font-size: 0.82rem;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover { opacity: 0.9; }
+
+    .btn-outline {
+      background: transparent;
+      border: 2px solid var(--gray-300);
+      color: var(--gray-600);
+    }
+
+    .btn-outline:hover {
+      border-color: var(--gray-400);
+    }
+
+    /* Browse Mode */
+    .browse-container {}
+
+    .category-section {
+      margin-bottom: 2rem;
+    }
+
+    .category-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .category-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .category-icon.stakeholder { background: var(--stakeholder-light); }
+    .category-icon.consulting { background: var(--consulting-light); }
+    .category-icon.enablement { background: var(--enablement-light); }
+    .category-icon.task { background: var(--task-light); }
+    .category-icon.systems { background: var(--systems-light); }
+    .category-icon.personal { background: var(--personal-light); }
+
+    .category-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .category-desc {
+      font-size: 0.8rem;
+      color: var(--gray-500);
+    }
+
+    .agent-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .agent-card {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      transition: all 0.2s;
+      cursor: default;
+    }
+
+    .agent-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      transform: translateY(-1px);
+    }
+
+    .agent-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .agent-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .agent-card-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .agent-card-mention {
+      font-size: 0.7rem;
+      font-family: monospace;
+      color: var(--primary);
+      background: #eef2ff;
+      padding: 0.1rem 0.4rem;
+      border-radius: 0.25rem;
+      margin-left: auto;
+    }
+
+    .agent-card-desc {
+      font-size: 0.78rem;
+      color: var(--gray-600);
+      margin-bottom: 0.5rem;
+    }
+
+    .agent-card-keywords {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+    }
+
+    .keyword {
+      padding: 0.1rem 0.45rem;
+      border-radius: 9999px;
+      font-size: 0.65rem;
+      font-weight: 500;
+      background: var(--gray-100);
+      color: var(--gray-600);
+    }
+
+    .hidden { display: none !important; }
+
+    /* Visual Map */
+    .map-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .map-root {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .map-root-label {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      background: var(--primary);
+      color: white;
+      border-radius: 0.75rem;
+      font-weight: 700;
+      font-size: 1rem;
+      position: relative;
+    }
+
+    .map-root-label::after {
+      content: '';
+      position: absolute;
+      bottom: -1.5rem;
+      left: 50%;
+      width: 2px;
+      height: 1.5rem;
+      background: var(--gray-300);
+    }
+
+    .map-connector-bar {
+      height: 2px;
+      background: var(--gray-300);
+      margin: 0 auto 0;
+      position: relative;
+    }
+
+    .map-paths {
+      display: flex;
+      gap: 0.75rem;
+      overflow-x: auto;
+      padding-bottom: 1rem;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .map-path {
+      min-width: 240px;
+      max-width: 280px;
+      flex: 1;
+      flex-shrink: 0;
+      background: white;
+      border-radius: 0.75rem;
+      border: 1px solid var(--gray-200);
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      position: relative;
+    }
+
+    .map-path::before {
+      content: '';
+      position: absolute;
+      top: -1rem;
+      left: 50%;
+      width: 2px;
+      height: 1rem;
+      background: var(--gray-300);
+    }
+
+    .map-path-header {
+      padding: 0.65rem 0.85rem;
+      font-weight: 700;
+      font-size: 0.78rem;
+      border-bottom: 2px solid var(--gray-200);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .map-path-icon {
+      font-size: 1rem;
+    }
+
+    .map-subtree {
+      padding: 0.65rem 0.75rem;
+    }
+
+    .map-q {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--gray-700);
+      margin-bottom: 0.35rem;
+      padding: 0.3rem 0.5rem;
+      background: var(--gray-50);
+      border-radius: 0.35rem;
+      border-left: 3px solid var(--primary);
+    }
+
+    .map-opts {
+      margin-left: 0.35rem;
+      border-left: 2px solid var(--gray-200);
+      padding-left: 0.65rem;
+    }
+
+    .map-opt {
+      padding: 0.25rem 0;
+      position: relative;
+    }
+
+    .map-opt::before {
+      content: '';
+      position: absolute;
+      left: -0.65rem;
+      top: 0.65rem;
+      width: 0.65rem;
+      height: 2px;
+      background: var(--gray-200);
+    }
+
+    .map-opt:last-child > .map-opt-inner::after {
+      display: none;
+    }
+
+    .map-opt-label {
+      font-size: 0.68rem;
+      font-weight: 500;
+      color: var(--gray-600);
+      margin-bottom: 0.15rem;
+    }
+
+    .map-result {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.4rem;
+      padding: 0.3rem 0.45rem;
+      margin-top: 0.1rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .map-result-title {
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.15rem;
+    }
+
+    .map-result-agents {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.15rem;
+    }
+
+    .map-agent-tag {
+      display: inline-block;
+      font-size: 0.58rem;
+      font-family: monospace;
+      color: white;
+      background: var(--primary);
+      padding: 0.05rem 0.3rem;
+      border-radius: 9999px;
+    }
+
+    .map-support-line {
+      font-size: 0.55rem;
+      color: var(--gray-400);
+      margin-top: 0.1rem;
+    }
+
+    .map-meeting-room {
+      border-color: #fbbf24;
+      background: #fffbeb;
+    }
+
+    .map-meeting-room .map-result-title {
+      color: #b45309;
+    }
+
+    .map-legend {
+      display: flex;
+      justify-content: center;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .map-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.72rem;
+      color: var(--gray-600);
+    }
+
+    .map-legend-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 0.25rem;
+      flex-shrink: 0;
+    }
+
+    .map-legend-swatch.question { background: var(--primary); }
+    .map-legend-swatch.result { background: var(--gray-50); border: 1px solid var(--gray-200); }
+    .map-legend-swatch.meeting { background: #fffbeb; border: 1px solid #fbbf24; }
+
+    @media (max-width: 640px) {
+      .container { padding: 1rem; }
+      .agent-grid { grid-template-columns: 1fr; }
+      .mode-toggle { flex-wrap: wrap; }
+      .map-path { min-width: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Agent Selection Guide</h1>
+      <p class="subtitle">Describe your situation and we'll recommend the right agent(s) -- or browse all 22 agents</p>
+    </header>
+
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="wizard" onclick="setMode('wizard')">Discovery Mode</button>
+      <button class="mode-btn" data-mode="browse" onclick="setMode('browse')">Browse All Agents</button>
+      <button class="mode-btn" data-mode="map" onclick="setMode('map')">Visual Map</button>
+    </div>
+
+    <!-- Wizard Mode -->
+    <div id="wizard-view" class="wizard-container">
+      <div class="progress-bar" id="progress-bar"></div>
+      <div id="wizard-content"></div>
+    </div>
+
+    <!-- Browse Mode -->
+    <div id="browse-view" class="browse-container hidden"></div>
+
+    <!-- Visual Map Mode -->
+    <div id="map-view" class="map-container hidden"></div>
+  </div>
+
+  <script>
+    // Agent database
+    const agents = {
+      cto: { name: "CTO Advisor", mention: "@cto", emoji: "\uD83D\uDCBB", category: "stakeholder",
+        desc: "Technology strategy, architecture decisions, build vs buy analysis",
+        keywords: ["architecture", "tech stack", "engineering", "infrastructure", "platform"],
+        bestFor: ["Technical architecture decisions", "Build vs buy trade-offs", "Engineering team concerns", "Technology roadmap planning"]
+      },
+      cfo: { name: "CFO Advisor", mention: "@cfo", emoji: "\uD83D\uDCB0", category: "stakeholder",
+        desc: "Financial analysis, ROI modeling, budget justification",
+        keywords: ["ROI", "budget", "cost", "revenue", "financial"],
+        bestFor: ["ROI calculations", "Budget proposals", "Cost-benefit analysis", "Financial impact assessment"]
+      },
+      ciso: { name: "CISO Advisor", mention: "@ciso", emoji: "\uD83D\uDD12", category: "stakeholder",
+        desc: "Security review, compliance assessment, risk evaluation",
+        keywords: ["security", "compliance", "risk", "GDPR", "SOC2"],
+        bestFor: ["Security risk assessment", "Compliance checklists", "Data privacy concerns", "Vendor security review"]
+      },
+      cdo: { name: "CDO Advisor", mention: "@cdo", emoji: "\uD83D\uDCCA", category: "stakeholder",
+        desc: "Data strategy, analytics, data governance",
+        keywords: ["data", "analytics", "governance", "metrics", "KPIs"],
+        bestFor: ["Data architecture planning", "Analytics strategy", "Data governance frameworks", "KPI definition"]
+      },
+      oracle: { name: "Oracle", mention: "@oracle", emoji: "\uD83D\uDD2E", category: "consulting",
+        desc: "Deep analysis with KB context, comprehensive research synthesis",
+        keywords: ["analysis", "research", "deep-dive", "synthesis", "insight"],
+        bestFor: ["Deep research questions", "Synthesizing across multiple documents", "Comprehensive analysis", "Strategic insight generation"]
+      },
+      strategist: { name: "Strategist", mention: "@strategist", emoji: "\u265F\uFE0F", category: "consulting",
+        desc: "Strategic frameworks, positioning, competitive analysis",
+        keywords: ["strategy", "framework", "positioning", "competitive", "market"],
+        bestFor: ["Strategic planning", "Competitive positioning", "Framework application", "Business case development"]
+      },
+      architect: { name: "Solution Architect", mention: "@architect", emoji: "\uD83C\uDFD7\uFE0F", category: "consulting",
+        desc: "Solution design, system architecture, integration planning",
+        keywords: ["solution", "design", "integration", "system", "implementation"],
+        bestFor: ["Solution architecture design", "Integration planning", "Technical design review", "System component mapping"]
+      },
+      adoption: { name: "Adoption Lead", mention: "@adoption", emoji: "\uD83D\uDE80", category: "enablement",
+        desc: "Adoption strategy, rollout planning, success metrics",
+        keywords: ["adoption", "rollout", "launch", "users", "engagement"],
+        bestFor: ["Rollout planning", "Adoption measurement", "User engagement strategy", "Pilot design"]
+      },
+      change: { name: "Change Manager", mention: "@change", emoji: "\uD83C\uDF31", category: "enablement",
+        desc: "Change management, stakeholder alignment, resistance handling",
+        keywords: ["change", "transformation", "resistance", "alignment", "communication"],
+        bestFor: ["Change impact assessment", "Communication plans", "Stakeholder alignment", "Resistance management"]
+      },
+      training: { name: "Training Lead", mention: "@training", emoji: "\uD83C\uDF93", category: "enablement",
+        desc: "Training program design, skill gap analysis, learning paths",
+        keywords: ["training", "learning", "skills", "education", "curriculum"],
+        bestFor: ["Training program design", "Skill gap identification", "Learning path creation", "Workshop planning"]
+      },
+      evangelist: { name: "Evangelist", mention: "@evangelist", emoji: "\uD83C\uDF1F", category: "enablement",
+        desc: "Internal advocacy, success stories, demo preparation",
+        keywords: ["advocacy", "demo", "storytelling", "wins", "showcase"],
+        bestFor: ["Building internal champions", "Success story crafting", "Demo preparation", "Executive presentations"]
+      },
+      legal: { name: "Legal Advisor", mention: "@legal", emoji: "\u2696\uFE0F", category: "consulting",
+        desc: "Legal review, contract implications, regulatory compliance",
+        keywords: ["legal", "contract", "regulatory", "liability", "terms"],
+        bestFor: ["Contract review implications", "Regulatory compliance check", "Legal risk assessment", "Terms and conditions review"]
+      },
+      taskmaster: { name: "Taskmaster", mention: "@taskmaster", emoji: "\uD83D\uDCCB", category: "task",
+        desc: "Break work into sequenced task plans with dependencies",
+        keywords: ["tasks", "planning", "breakdown", "sequencing", "action items"],
+        bestFor: ["Breaking projects into tasks", "Sprint planning", "Work sequencing", "Dependency mapping"]
+      },
+      kraken: { name: "Kraken", mention: "@kraken", emoji: "\uD83D\uDC19", category: "task",
+        desc: "Evaluate tasks for AI automation potential (automatable, assistable, manual)",
+        keywords: ["automation", "evaluation", "agenticity", "feasibility", "AI-ready"],
+        bestFor: ["Task automation assessment", "AI readiness scoring", "Identifying AI-ready work", "Efficiency analysis"]
+      },
+      facilitator: { name: "Facilitator", mention: "@facilitator", emoji: "\uD83C\uDFAF", category: "systems",
+        desc: "Meeting room orchestration, discussion management, turn allocation",
+        keywords: ["meeting", "discussion", "facilitation", "orchestration", "moderation"],
+        bestFor: ["Running meeting rooms", "Multi-agent discussions", "Structured debate", "Consensus building"]
+      },
+      reporter: { name: "Reporter", mention: "@reporter", emoji: "\uD83D\uDCF0", category: "systems",
+        desc: "Synthesize discussions into clear summaries with action items",
+        keywords: ["summary", "report", "synthesis", "action items", "recap"],
+        bestFor: ["Meeting summaries", "Discussion synthesis", "Action item extraction", "Decision documentation"]
+      },
+      librarian: { name: "Librarian", mention: "@librarian", emoji: "\uD83D\uDCDA", category: "systems",
+        desc: "Knowledge base search, document discovery, source finding",
+        keywords: ["search", "documents", "knowledge", "find", "source"],
+        bestFor: ["Finding specific documents", "KB content discovery", "Source verification", "Document recommendations"]
+      },
+      discovery: { name: "Discovery Guide", mention: "@discovery", emoji: "\uD83D\uDD2D", category: "systems",
+        desc: "DISCO Discovery stage: analyze documents, extract insights",
+        keywords: ["discovery", "DISCO", "insights", "analysis", "themes"],
+        bestFor: ["Running DISCO Discovery stage", "Document analysis for initiatives", "Theme extraction", "Initial research synthesis"]
+      },
+      career: { name: "Career Coach", mention: "@career", emoji: "\uD83C\uDFC6", category: "personal",
+        desc: "Career development, skill building, professional growth",
+        keywords: ["career", "growth", "promotion", "skills", "development"],
+        bestFor: ["Career path planning", "Skill development advice", "Performance review prep", "Professional growth strategy"]
+      },
+      manual: { name: "Manual", mention: "@manual", emoji: "\uD83D\uDCD6", category: "personal",
+        desc: "Help documentation, how-to guides, platform usage",
+        keywords: ["help", "how-to", "guide", "documentation", "tutorial"],
+        bestFor: ["How to use a feature", "Platform navigation help", "Troubleshooting", "Feature documentation"]
+      },
+      throughline: { name: "Throughline", mention: "@throughline", emoji: "\uD83E\uDDF5", category: "personal",
+        desc: "Investigation framing, problem statements, hypothesis generation",
+        keywords: ["framing", "hypothesis", "problem", "investigation", "throughline"],
+        bestFor: ["Defining investigation scope", "Writing problem statements", "Generating hypotheses", "Gap identification"]
+      },
+      scout: { name: "Scout", mention: "@scout", emoji: "\uD83D\uDD0D", category: "consulting",
+        desc: "Competitive intelligence, market research, trend analysis",
+        keywords: ["competitive", "market", "trends", "research", "benchmarking"],
+        bestFor: ["Competitive landscape analysis", "Market trend identification", "Benchmarking", "Vendor evaluation"]
+      }
+    };
+
+    // Category metadata
+    const categories = {
+      stakeholder: { name: "Stakeholder Perspective", icon: "\uD83C\uDFE2", color: "stakeholder",
+        desc: "See your strategy through C-suite eyes" },
+      consulting: { name: "Consulting & Implementation", icon: "\uD83D\uDCA1", color: "consulting",
+        desc: "Deep analysis, strategy, and solution design" },
+      enablement: { name: "Internal Enablement", icon: "\uD83D\uDE80", color: "enablement",
+        desc: "Adoption, change management, and training" },
+      task: { name: "Task Management", icon: "\u2705", color: "task",
+        desc: "Break down and evaluate work" },
+      systems: { name: "Systems & Coordination", icon: "\u2699\uFE0F", color: "systems",
+        desc: "Platform orchestration and knowledge management" },
+      personal: { name: "Personal Development", icon: "\uD83C\uDF1F", color: "personal",
+        desc: "Career growth, help, and investigation framing" }
+    };
+
+    // Decision tree -- situational questions first, then deduction
+    const tree = {
+      start: {
+        question: "What are you working on?",
+        options: [
+          { id: "initiative", title: "An initiative or strategic project", desc: "DISCO-scale work requiring discovery, research, and stakeholder alignment", icon: "\uD83C\uDFAF", bg: "#dbeafe", next: "initiative_stage" },
+          { id: "decision", title: "A specific decision or recommendation", desc: "Something that needs analysis and a defensible point of view", icon: "\u2696\uFE0F", bg: "#ffe4e6", next: "decision_audience" },
+          { id: "task", title: "A task or piece of execution", desc: "Break down work, plan a rollout, or handle a compliance question", icon: "\u26A1", bg: "#fef3c7", next: "task_type" },
+          { id: "research", title: "Understanding something", desc: "Explore a problem space, research competitors, or trace downstream effects", icon: "\uD83D\uDD0D", bg: "#cffafe", next: "research_type" },
+          { id: "platform", title: "Getting help with the platform", desc: "How to use features, troubleshoot, or navigate Thesis", icon: "\uD83D\uDCD6", bg: "#ede9fe", result: "platform_help" }
+        ]
+      },
+
+      initiative_stage: {
+        question: "What stage are you at?",
+        options: [
+          { id: "early", title: "Early -- still defining the problem and scope", desc: "Need to identify what we're solving before jumping to solutions", icon: "\uD83C\uDF31", bg: "#dcfce7", next: "early_stakeholders" },
+          { id: "exploring", title: "Exploring -- gathering evidence and perspectives", desc: "Active research, document analysis, building understanding", icon: "\uD83D\uDD2D", bg: "#dbeafe", result: "exploring_initiative" },
+          { id: "evaluating", title: "Evaluating -- comparing options or approaches", desc: "Have options, need structured comparison across dimensions", icon: "\uD83D\uDCCA", bg: "#fef3c7", next: "eval_dimensions" },
+          { id: "planning", title: "Planning execution -- know what to do, need to plan how", desc: "Direction is clear, need to break it into actionable work", icon: "\uD83D\uDCCB", bg: "#cffafe", result: "planning_initiative" },
+          { id: "building", title: "Already building -- need support on something in progress", desc: "Execution underway, hit a specific need", icon: "\uD83C\uDFD7\uFE0F", bg: "#ede9fe", next: "building_support" }
+        ]
+      },
+
+      early_stakeholders: {
+        question: "Have you identified the key stakeholders and their concerns?",
+        options: [
+          { id: "yes", title: "Yes, I know who's affected and what they care about", desc: "Stakeholder map is clear, need help with the problem itself", icon: "\u2705", bg: "#dcfce7", result: "early_known_stakeholders" },
+          { id: "partial", title: "Partially -- I know some but not all", desc: "Have some stakeholders identified but gaps remain", icon: "\uD83D\uDD04", bg: "#fef3c7", result: "early_partial_stakeholders" },
+          { id: "no", title: "No, that's part of what I need help with", desc: "Need to map stakeholders as part of the discovery process", icon: "\u2753", bg: "#ffe4e6", result: "early_unknown_stakeholders" }
+        ]
+      },
+
+      eval_dimensions: {
+        question: "What dimensions matter most for this evaluation?",
+        options: [
+          { id: "financial", title: "Financial impact / ROI", desc: "Cost justification, budget implications, return on investment", icon: "\uD83D\uDCB0", bg: "#fef3c7", result: "eval_financial" },
+          { id: "technical", title: "Technical feasibility / architecture", desc: "Can we build it? How does it integrate? What are the risks?", icon: "\uD83D\uDCBB", bg: "#dbeafe", result: "eval_technical" },
+          { id: "people", title: "People / adoption / change management", desc: "Will people use it? How do we manage the transition?", icon: "\uD83D\uDC65", bg: "#dcfce7", result: "eval_people" },
+          { id: "multi", title: "Multiple perspectives needed", desc: "This is complex enough to need several lenses simultaneously", icon: "\uD83D\uDD00", bg: "#ede9fe", result: "eval_multi" }
+        ]
+      },
+
+      building_support: {
+        question: "What kind of support do you need?",
+        options: [
+          { id: "compliance", title: "Security or compliance check", desc: "Need to verify the approach meets requirements", icon: "\uD83D\uDD12", bg: "#ffe4e6", result: "building_compliance" },
+          { id: "adoption", title: "Adoption or change management", desc: "Building is on track but need help with the people side", icon: "\uD83D\uDE80", bg: "#dcfce7", result: "building_adoption" },
+          { id: "technical", title: "Technical architecture question", desc: "Need design review or integration guidance", icon: "\uD83C\uDFD7\uFE0F", bg: "#dbeafe", result: "building_technical" },
+          { id: "automation", title: "Figure out what can be automated", desc: "Evaluate which parts of the work AI can handle", icon: "\uD83D\uDC19", bg: "#fef3c7", result: "building_automation" }
+        ]
+      },
+
+      decision_audience: {
+        question: "Who is this decision or recommendation for?",
+        options: [
+          { id: "myself", title: "Myself / my own understanding", desc: "Need to think through this clearly before involving others", icon: "\uD83E\uDDE0", bg: "#ede9fe", result: "decision_self" },
+          { id: "leadership", title: "My direct leadership", desc: "Preparing a recommendation for Chris, Karl, or Karthik", icon: "\uD83D\uDCC8", bg: "#dbeafe", next: "leadership_concern" },
+          { id: "stakeholder_group", title: "A broader stakeholder group", desc: "VP+, cross-functional audience, or executive briefing", icon: "\uD83C\uDFE2", bg: "#ffe4e6", next: "stakeholder_concern" },
+          { id: "department", title: "A specific department or team", desc: "Tailoring a recommendation for a particular group", icon: "\uD83D\uDC65", bg: "#dcfce7", result: "decision_department" }
+        ]
+      },
+
+      leadership_concern: {
+        question: "What's the primary concern you expect?",
+        options: [
+          { id: "cost", title: "Cost justification", desc: "They'll want to see the numbers and ROI", icon: "\uD83D\uDCB0", bg: "#fef3c7", result: "leadership_cost" },
+          { id: "risk", title: "Technical or security risk", desc: "They'll want confidence it's safe and feasible", icon: "\uD83D\uDD12", bg: "#ffe4e6", result: "leadership_risk" },
+          { id: "change", title: "Organizational change / people impact", desc: "They'll want to know how this affects teams", icon: "\uD83D\uDC65", bg: "#dcfce7", result: "leadership_change" },
+          { id: "alignment", title: "Strategic alignment", desc: "They'll want to see how this fits the bigger picture", icon: "\uD83C\uDFAF", bg: "#dbeafe", result: "leadership_alignment" }
+        ]
+      },
+
+      stakeholder_concern: {
+        question: "What's the primary concern you expect?",
+        options: [
+          { id: "cost", title: "Cost justification", desc: "Budget and ROI will be front and center", icon: "\uD83D\uDCB0", bg: "#fef3c7", result: "stakeholder_cost" },
+          { id: "risk", title: "Technical or security risk", desc: "Compliance, data privacy, and technical feasibility", icon: "\uD83D\uDD12", bg: "#ffe4e6", result: "stakeholder_risk" },
+          { id: "change", title: "Organizational change / people impact", desc: "Adoption, training, and change management", icon: "\uD83D\uDC65", bg: "#dcfce7", result: "stakeholder_change" },
+          { id: "alignment", title: "Strategic alignment", desc: "Vision, competitive positioning, and market context", icon: "\uD83C\uDFAF", bg: "#dbeafe", result: "stakeholder_alignment" }
+        ]
+      },
+
+      task_type: {
+        question: "What kind of execution?",
+        options: [
+          { id: "breakdown", title: "Break a big thing into smaller pieces", desc: "Turn a vague scope into sequenced, actionable tasks", icon: "\uD83D\uDCCB", bg: "#fef3c7", result: "task_breakdown" },
+          { id: "automation", title: "Figure out what can be automated vs. manual", desc: "Evaluate which tasks AI can handle and which need humans", icon: "\uD83D\uDC19", bg: "#fef3c7", result: "task_automation" },
+          { id: "rollout", title: "Plan a rollout or adoption", desc: "Launch strategy, pilot design, change management", icon: "\uD83D\uDE80", bg: "#dcfce7", result: "task_rollout" },
+          { id: "legal", title: "Handle a legal or compliance question", desc: "Contract review, regulatory compliance, data privacy", icon: "\u2696\uFE0F", bg: "#ffe4e6", result: "task_legal" }
+        ]
+      },
+
+      research_type: {
+        question: "What are you trying to understand?",
+        options: [
+          { id: "problem_space", title: "A problem space I haven't fully explored", desc: "Need to frame the investigation before diving into research", icon: "\uD83E\uDDED", bg: "#ede9fe", result: "research_problem" },
+          { id: "kb_docs", title: "What our documents / KB say about a topic", desc: "Search and synthesize from existing knowledge base content", icon: "\uD83D\uDCDA", bg: "#cffafe", result: "research_kb" },
+          { id: "competitive", title: "How competitors or the market are approaching this", desc: "Competitive intelligence, benchmarking, trend analysis", icon: "\uD83D\uDD0D", bg: "#dbeafe", result: "research_competitive" },
+          { id: "effects", title: "The second-order effects of a potential change", desc: "Trace downstream impact, dependencies, and ripple effects", icon: "\uD83C\uDF0A", bg: "#cffafe", result: "research_effects" }
+        ]
+      }
+    };
+
+    // Result definitions -- multi-agent recommendations with reasoning
+    const results = {
+      platform_help: {
+        title: "Platform Help",
+        primary: [
+          { id: "manual", why: "Manual is your guide to all platform features, navigation, and troubleshooting." }
+        ],
+        supporting: ["librarian"],
+        reasoning: "Platform questions have a clear path -- Manual knows the documentation inside out.",
+        approach: "Type @manual followed by your question in any chat.",
+        principle: null
+      },
+
+      exploring_initiative: {
+        title: "Initiative Exploration",
+        primary: [
+          { id: "oracle", why: "Oracle synthesizes across your documents and knowledge base to surface patterns you might miss." },
+          { id: "discovery", why: "Discovery runs structured document analysis as part of the DISCO pipeline." }
+        ],
+        supporting: ["throughline", "librarian"],
+        reasoning: "You're in active research mode. Oracle provides deep synthesis while Discovery systematically processes your initiative's documents.",
+        approach: "Start with @discovery to run a DISCO analysis on your initiative's documents, then use @oracle for deeper synthesis on specific themes that emerge.",
+        principle: "Principle 2: Problems before solutions -- let the evidence guide your understanding before committing to a direction."
+      },
+
+      early_known_stakeholders: {
+        title: "Early-Stage Problem Framing",
+        primary: [
+          { id: "throughline", why: "Throughline frames the investigation -- defining problem statements and hypotheses before diving in." }
+        ],
+        supporting: ["oracle", "discovery"],
+        reasoning: "With stakeholders already mapped, the gap is a well-framed problem statement. Throughline prevents you from jumping to solutions before the problem is clear.",
+        approach: "Use @throughline to develop your investigation framing, then @oracle for evidence gathering.",
+        principle: "Principle 2: Problems before solutions -- define what you're solving before exploring how."
+      },
+
+      early_partial_stakeholders: {
+        title: "Discovery with Stakeholder Gaps",
+        primary: [
+          { id: "throughline", why: "Throughline frames the investigation and identifies gaps in your understanding." },
+          { id: "oracle", why: "Oracle can research stakeholder landscapes and organizational dynamics from your KB." }
+        ],
+        supporting: ["discovery"],
+        reasoning: "You need two things: better problem framing and stakeholder mapping. Throughline structures the investigation while Oracle surfaces context from your documents.",
+        approach: "Start with @throughline to frame the investigation scope, which will reveal stakeholder gaps. Then use @oracle to research those gaps.",
+        principle: "Principle 9: Trace the connections -- follow the ripples before dropping the stone."
+      },
+
+      early_unknown_stakeholders: {
+        title: "Full Discovery Process",
+        primary: [
+          { id: "throughline", why: "Throughline maps the full investigation landscape, including who's affected." },
+          { id: "discovery", why: "Discovery's structured analysis will surface stakeholder implications from your documents." }
+        ],
+        supporting: ["oracle", "strategist"],
+        reasoning: "Early-stage with unknown stakeholders means you need structured discovery before anything else. Don't skip ahead to solutions.",
+        approach: "Consider running a DISCO Discovery process. Start with @throughline to frame the investigation, then @discovery to systematically analyze relevant documents.",
+        principle: "Principle 6: Multiple perspectives -- you can't consider perspectives you haven't identified yet."
+      },
+
+      planning_initiative: {
+        title: "Execution Planning",
+        primary: [
+          { id: "taskmaster", why: "Taskmaster breaks strategic intent into sequenced tasks with dependencies." },
+          { id: "architect", why: "Architect designs the implementation structure and integration approach." }
+        ],
+        supporting: ["kraken", "strategist"],
+        reasoning: "Direction is clear. Now you need execution planning -- breaking it down and designing the implementation.",
+        approach: "Use @taskmaster to create a task plan, then @kraken to evaluate which tasks can be AI-assisted. For technical implementations, involve @architect.",
+        principle: "Principle 1: State change or it doesn't count -- move from strategy to action."
+      },
+
+      eval_financial: {
+        title: "Financial Evaluation",
+        primary: [
+          { id: "cfo", why: "CFO Advisor builds financial models, ROI analysis, and budget justifications." },
+          { id: "strategist", why: "Strategist provides the strategic framing that makes financial analysis meaningful." }
+        ],
+        supporting: ["oracle"],
+        reasoning: "Financial evaluation needs both the numbers (CFO) and the strategic context that gives those numbers meaning (Strategist).",
+        approach: "Use @strategist to frame the business case, then @cfo to build the financial model and ROI analysis.",
+        principle: "Principle 3: Evidence over intuition -- let data drive the recommendation."
+      },
+
+      eval_technical: {
+        title: "Technical Evaluation",
+        primary: [
+          { id: "architect", why: "Architect evaluates technical feasibility, system design, and integration complexity." },
+          { id: "cto", why: "CTO Advisor provides the technology leadership perspective on architecture decisions." }
+        ],
+        supporting: ["ciso", "oracle"],
+        reasoning: "Technical evaluation benefits from both hands-on solution design (Architect) and strategic technology leadership (CTO Advisor).",
+        approach: "Use @architect for solution design and @cto for technology strategy alignment. If security is a factor, loop in @ciso.",
+        principle: "Principle 9: Trace the connections -- understand how technical choices ripple through the system."
+      },
+
+      eval_people: {
+        title: "People & Adoption Evaluation",
+        primary: [
+          { id: "adoption", why: "Adoption Lead designs rollout strategies and measures success." },
+          { id: "change", why: "Change Manager handles stakeholder alignment and resistance." }
+        ],
+        supporting: ["training", "evangelist"],
+        reasoning: "People-centered evaluation needs adoption planning and change management working together.",
+        approach: "Use @change to assess organizational readiness and @adoption to design the rollout strategy. For skill gaps, add @training.",
+        principle: "Principle 5: People are the center -- technology serves people, not the other way around."
+      },
+
+      eval_multi: {
+        title: "Multi-Perspective Analysis",
+        primary: [
+          { id: "facilitator", why: "Facilitator orchestrates multi-agent discussions where several perspectives can engage simultaneously." }
+        ],
+        supporting: ["oracle", "strategist", "cto", "cfo"],
+        reasoning: "When multiple dimensions matter, a single agent can't provide the full picture. A Meeting Room brings several perspectives together in structured discussion.",
+        approach: "Set up a Meeting Room session with the relevant agents (e.g., @cto, @cfo, @ciso, @adoption). The Facilitator will orchestrate the discussion across perspectives.",
+        principle: "Principle 6: Multiple perspectives -- the most robust analysis comes from structured disagreement.",
+        meetingRoom: true
+      },
+
+      building_compliance: {
+        title: "Compliance Check",
+        primary: [
+          { id: "ciso", why: "CISO Advisor reviews security posture, compliance requirements, and data privacy." },
+          { id: "legal", why: "Legal Advisor covers contractual and regulatory implications." }
+        ],
+        supporting: ["cto"],
+        reasoning: "Compliance checks mid-build need security and legal perspectives to catch issues before they become expensive to fix.",
+        approach: "Use @ciso for security and compliance review, and @legal for contractual or regulatory questions.",
+        principle: "Principle 8: Guardrails, not gates -- compliance should guide, not block."
+      },
+
+      building_adoption: {
+        title: "Adoption Support",
+        primary: [
+          { id: "adoption", why: "Adoption Lead designs engagement strategies and success metrics for what you're building." },
+          { id: "change", why: "Change Manager helps navigate the organizational transition." }
+        ],
+        supporting: ["training", "evangelist"],
+        reasoning: "Building something is only half the work. Adoption and change management ensure people actually use what you've built.",
+        approach: "Use @adoption for rollout strategy and @change for organizational readiness. Consider @evangelist for building internal champions.",
+        principle: "Principle 5: People are the center -- the best solution fails if nobody adopts it."
+      },
+
+      building_technical: {
+        title: "Technical Review",
+        primary: [
+          { id: "architect", why: "Architect provides solution design review and integration guidance." },
+          { id: "cto", why: "CTO Advisor ensures technical decisions align with broader technology strategy." }
+        ],
+        supporting: ["oracle"],
+        reasoning: "Mid-build technical questions benefit from both tactical design review (Architect) and strategic alignment (CTO Advisor).",
+        approach: "Use @architect for design review and @cto for strategic alignment checks.",
+        principle: "Principle 9: Trace the connections -- technical decisions have downstream effects."
+      },
+
+      building_automation: {
+        title: "Automation Assessment",
+        primary: [
+          { id: "kraken", why: "Kraken evaluates each task for automation potential -- what AI can handle, what needs humans." }
+        ],
+        supporting: ["taskmaster", "architect"],
+        reasoning: "Kraken's automation assessment helps you focus human effort where it matters most.",
+        approach: "Use @kraken to score your current task list for automation potential. Use @taskmaster first if you need to break work down further.",
+        principle: "Principle 4: AI illuminates -- use AI to see clearly which work is automatable."
+      },
+
+      decision_self: {
+        title: "Personal Decision Analysis",
+        primary: [
+          { id: "oracle", why: "Oracle provides deep analysis and synthesis, helping you think through complex questions." },
+          { id: "throughline", why: "Throughline helps frame the decision clearly before you evaluate options." }
+        ],
+        supporting: ["strategist"],
+        reasoning: "For personal understanding, you need both clear framing (Throughline) and deep analysis (Oracle) without the pressure of audience-specific formatting.",
+        approach: "Start with @throughline to frame the decision space, then use @oracle to research and synthesize evidence.",
+        principle: "Principle 2: Problems before solutions -- understand what you're deciding before evaluating options."
+      },
+
+      decision_department: {
+        title: "Department Recommendation",
+        primary: [
+          { id: "strategist", why: "Strategist frames recommendations in terms of strategic impact and organizational context." },
+          { id: "oracle", why: "Oracle provides the evidence base to support your recommendation." }
+        ],
+        supporting: ["adoption", "change"],
+        reasoning: "Department-specific recommendations need strategic framing backed by solid evidence, tailored to the audience's concerns.",
+        approach: "Use @strategist to frame the recommendation and @oracle to gather supporting evidence. If the recommendation involves change, add @change for adoption planning.",
+        principle: "Principle 3: Evidence over intuition -- recommendations should be backed by data."
+      },
+
+      leadership_cost: {
+        title: "Cost-Justified Recommendation",
+        primary: [
+          { id: "cfo", why: "CFO Advisor builds the financial case with ROI models and budget justification." },
+          { id: "strategist", why: "Strategist provides the strategic context that makes the cost story compelling." }
+        ],
+        supporting: ["oracle"],
+        reasoning: "Cost-focused leadership presentations need financial rigor (CFO) wrapped in strategic narrative (Strategist).",
+        approach: "Use @cfo for financial modeling and @strategist for strategic framing. Then consider a quick @oracle synthesis of supporting evidence.",
+        principle: "Principle 3: Evidence over intuition -- financial cases need data, not just slides."
+      },
+
+      leadership_risk: {
+        title: "Risk-Mitigated Recommendation",
+        primary: [
+          { id: "ciso", why: "CISO Advisor provides security and compliance risk assessment." },
+          { id: "cto", why: "CTO Advisor evaluates technical risk and architecture concerns." }
+        ],
+        supporting: ["architect", "strategist"],
+        reasoning: "Risk concerns from leadership need both technical and security perspectives to address comprehensively.",
+        approach: "Use @ciso for security/compliance assessment and @cto for technical risk evaluation. Combine their outputs into a risk-mitigated recommendation.",
+        principle: "Principle 8: Guardrails, not gates -- show how risks are managed, not just identified."
+      },
+
+      leadership_change: {
+        title: "Change-Ready Recommendation",
+        primary: [
+          { id: "change", why: "Change Manager assesses organizational readiness and designs transition plans." },
+          { id: "adoption", why: "Adoption Lead provides concrete rollout strategies with measurable outcomes." }
+        ],
+        supporting: ["training", "strategist"],
+        reasoning: "When leadership worries about people impact, you need a concrete change plan with measurable adoption metrics.",
+        approach: "Use @change for change impact assessment and @adoption for rollout planning with success metrics. This shows leadership you've thought through the human side.",
+        principle: "Principle 5: People are the center -- the best technology strategy fails without a people strategy."
+      },
+
+      leadership_alignment: {
+        title: "Strategically Aligned Recommendation",
+        primary: [
+          { id: "strategist", why: "Strategist connects your recommendation to broader organizational strategy." },
+          { id: "oracle", why: "Oracle synthesizes evidence from your KB to demonstrate strategic fit." }
+        ],
+        supporting: ["scout"],
+        reasoning: "Strategic alignment concerns need you to show how this connects to the bigger picture, backed by evidence.",
+        approach: "Use @strategist for strategic framing and @oracle to synthesize supporting evidence from your knowledge base.",
+        principle: "Principle 10: The questions stay the same -- how does this fit the pattern of what we're trying to achieve?"
+      },
+
+      stakeholder_cost: {
+        title: "Executive Financial Case",
+        primary: [
+          { id: "cfo", why: "CFO Advisor builds financial models with ROI analysis for executive audiences." },
+          { id: "strategist", why: "Strategist frames the cost story within broader strategic impact." }
+        ],
+        supporting: ["oracle", "facilitator"],
+        reasoning: "Broad stakeholder audiences scrutinize costs closely. You need rigorous financial analysis wrapped in compelling strategic narrative.",
+        approach: "Use @cfo for detailed financial modeling and @strategist for executive-level framing. Consider a Meeting Room to stress-test the case from multiple angles.",
+        principle: "Principle 3: Evidence over intuition -- executive audiences demand data-driven cases."
+      },
+
+      stakeholder_risk: {
+        title: "Multi-Dimensional Risk Assessment",
+        primary: [
+          { id: "ciso", why: "CISO Advisor provides comprehensive security and compliance assessment." },
+          { id: "cto", why: "CTO Advisor evaluates technical architecture risks." }
+        ],
+        supporting: ["legal", "facilitator"],
+        reasoning: "Broad stakeholder risk concerns span security, compliance, and technical dimensions. Multiple perspectives reduce blind spots.",
+        approach: "Use @ciso and @cto for risk assessment. For complex risk discussions, consider a Meeting Room with @ciso, @cto, and @legal to cover all angles.",
+        principle: "Principle 6: Multiple perspectives -- risk assessment needs multiple lenses to avoid blind spots.",
+        meetingRoom: true
+      },
+
+      stakeholder_change: {
+        title: "Organizational Transition Plan",
+        primary: [
+          { id: "change", why: "Change Manager designs comprehensive transition plans for organizational change." },
+          { id: "adoption", why: "Adoption Lead creates concrete rollout strategies with measurable outcomes." }
+        ],
+        supporting: ["training", "evangelist", "facilitator"],
+        reasoning: "Organizational change at scale requires change management, adoption strategy, and internal advocacy working together.",
+        approach: "Use @change for change impact assessment and @adoption for rollout planning. Consider @evangelist for building champions and @training for skill development.",
+        principle: "Principle 5: People are the center -- scaled change only works when the people strategy is as rigorous as the technology strategy."
+      },
+
+      stakeholder_alignment: {
+        title: "Strategic Positioning",
+        primary: [
+          { id: "strategist", why: "Strategist articulates strategic positioning for executive audiences." },
+          { id: "scout", why: "Scout provides competitive context and market validation." }
+        ],
+        supporting: ["oracle", "facilitator"],
+        reasoning: "Strategic alignment for broad audiences needs both internal strategic framing and external market validation.",
+        approach: "Use @strategist for positioning and @scout for competitive context. Consider a Meeting Room to challenge assumptions before presenting.",
+        principle: "Principle 10: The questions stay the same -- strategic alignment is about consistent methodology applied to your specific context."
+      },
+
+      task_breakdown: {
+        title: "Task Decomposition",
+        primary: [
+          { id: "taskmaster", why: "Taskmaster breaks complex work into sequenced tasks with clear dependencies." }
+        ],
+        supporting: ["kraken", "architect"],
+        reasoning: "Task breakdown is Taskmaster's core strength. Once broken down, Kraken can evaluate automation potential.",
+        approach: "Use @taskmaster to create a sequenced task plan. Follow up with @kraken to score tasks for AI automation potential.",
+        principle: "Principle 1: State change or it doesn't count -- break big goals into measurable state changes."
+      },
+
+      task_automation: {
+        title: "Automation Assessment",
+        primary: [
+          { id: "kraken", why: "Kraken evaluates tasks across automatable, assistable, and manual categories." },
+          { id: "taskmaster", why: "Taskmaster helps break down work first so Kraken has clear tasks to evaluate." }
+        ],
+        supporting: ["architect"],
+        reasoning: "Automation assessment works best on well-defined tasks. Taskmaster provides the breakdown, Kraken provides the evaluation.",
+        approach: "If you already have a task list, go straight to @kraken. If not, start with @taskmaster to break down the work, then @kraken to evaluate each task.",
+        principle: "Principle 4: AI illuminates -- understand where AI helps before assuming it can do everything."
+      },
+
+      task_rollout: {
+        title: "Rollout Planning",
+        primary: [
+          { id: "adoption", why: "Adoption Lead designs rollout strategies with pilot plans and success metrics." },
+          { id: "change", why: "Change Manager handles the organizational transition that any rollout requires." }
+        ],
+        supporting: ["training", "evangelist"],
+        reasoning: "Rollout planning is adoption strategy plus change management. Both are needed for successful launches.",
+        approach: "Use @adoption for rollout planning and success metrics. Use @change for stakeholder alignment and communication plans. Add @training for skill development needs.",
+        principle: "Principle 5: People are the center -- rollouts succeed when people are prepared, not surprised."
+      },
+
+      task_legal: {
+        title: "Legal & Compliance Review",
+        primary: [
+          { id: "legal", why: "Legal Advisor handles contract review, regulatory compliance, and legal risk assessment." },
+          { id: "ciso", why: "CISO Advisor covers data privacy, security compliance, and risk evaluation." }
+        ],
+        supporting: ["cto"],
+        reasoning: "Legal and compliance questions typically span both legal frameworks and security/privacy requirements.",
+        approach: "Use @legal for contract and regulatory questions. Use @ciso for security and data privacy compliance.",
+        principle: "Principle 8: Guardrails, not gates -- compliance frameworks should enable informed decisions."
+      },
+
+      research_problem: {
+        title: "Investigation Framing",
+        primary: [
+          { id: "throughline", why: "Throughline frames investigations -- defining problem statements, hypotheses, and research scope." },
+          { id: "oracle", why: "Oracle provides deep synthesis once you know what questions to ask." }
+        ],
+        supporting: ["discovery"],
+        reasoning: "Unexplored problem spaces need framing before research. Throughline ensures you're asking the right questions before Oracle dives deep.",
+        approach: "Start with @throughline to frame the investigation and generate hypotheses. Then use @oracle to research and synthesize evidence.",
+        principle: "Principle 2: Problems before solutions -- frame the investigation before diving into research."
+      },
+
+      research_kb: {
+        title: "Knowledge Base Research",
+        primary: [
+          { id: "librarian", why: "Librarian searches and discovers content across your knowledge base." },
+          { id: "oracle", why: "Oracle synthesizes findings from multiple documents into coherent analysis." }
+        ],
+        supporting: ["throughline"],
+        reasoning: "KB research needs both discovery (finding the right documents) and synthesis (making sense of them together).",
+        approach: "Use @librarian to find relevant documents, then @oracle to synthesize across them. If you need to frame the research question first, start with @throughline.",
+        principle: "Principle 3: Evidence over intuition -- start with what your documents actually say."
+      },
+
+      research_competitive: {
+        title: "Competitive Intelligence",
+        primary: [
+          { id: "scout", why: "Scout provides competitive intelligence, market research, and trend analysis." },
+          { id: "strategist", why: "Strategist turns competitive research into strategic positioning and recommendations." }
+        ],
+        supporting: ["oracle"],
+        reasoning: "Competitive research needs both intelligence gathering (Scout) and strategic interpretation (Strategist).",
+        approach: "Use @scout for competitive landscape analysis and market research. Then @strategist to turn findings into strategic recommendations.",
+        principle: "Principle 3: Evidence over intuition -- competitive positioning should be based on actual market data."
+      },
+
+      research_effects: {
+        title: "Second-Order Effects Analysis",
+        primary: [
+          { id: "oracle", why: "Oracle traces connections across your knowledge base to surface non-obvious downstream effects." },
+          { id: "strategist", why: "Strategist evaluates systemic implications and strategic ripple effects." }
+        ],
+        supporting: ["throughline", "facilitator"],
+        reasoning: "Second-order effects require both deep analysis and systems thinking. For complex situations, consider a Meeting Room to surface blind spots.",
+        approach: "Use @oracle for deep analysis of connections and @strategist for strategic implications. For highly complex changes, consider a Meeting Room to get multiple perspectives on potential effects.",
+        principle: "Principle 9: Trace the connections -- follow the ripples before dropping the stone.",
+        meetingRoom: true
+      }
+    };
+
+    let currentNode = 'start';
+    let history = [];
+    let currentMode = 'wizard';
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.mode-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === mode);
+      });
+
+      document.getElementById('wizard-view').classList.toggle('hidden', mode !== 'wizard');
+      document.getElementById('browse-view').classList.toggle('hidden', mode !== 'browse');
+      document.getElementById('map-view').classList.toggle('hidden', mode !== 'map');
+
+      if (mode === 'browse') renderBrowse();
+      if (mode === 'map') renderMap();
+    }
+
+    function getProgressStep() {
+      // Step 1: Situation (Q1), Step 2: Context (Q2+Q3), Step 3: Recommendation
+      if (history.length === 0) return 1;
+      return 2;
+    }
+
+    function renderWizard() {
+      const node = tree[currentNode];
+      if (!node) return;
+
+      const step = getProgressStep();
+      const labels = ['Situation', 'Context', 'Recommendation'];
+      let progressHTML = '';
+      for (let i = 1; i <= 3; i++) {
+        const cls = i < step ? 'completed' : i === step ? 'active' : '';
+        progressHTML += `<div class="progress-step ${cls}"><span>${labels[i-1]}</span></div>`;
+      }
+      document.getElementById('progress-bar').innerHTML = progressHTML;
+
+      let html = `<div class="decision-card"><div class="question">${node.question}</div><div class="options-grid">`;
+      node.options.forEach(opt => {
+        const nextVal = opt.next || '';
+        const resultVal = opt.result || '';
+        const titleEscaped = opt.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        html += `
+          <button class="option-btn" onclick="selectOption('${nextVal}', '${resultVal}', '${titleEscaped}')">
+            <div class="option-icon" style="background: ${opt.bg}">${opt.icon}</div>
+            <div class="option-content">
+              <div class="option-title">${opt.title}</div>
+              <div class="option-desc">${opt.desc}</div>
+            </div>
+          </button>`;
+      });
+      html += '</div></div>';
+
+      if (history.length > 0) {
+        html += `<div style="text-align: center; margin-top: 0.5rem;">
+          <button class="btn btn-outline" onclick="goBack()">&#8592; Back</button>
+        </div>`;
+      }
+
+      document.getElementById('wizard-content').innerHTML = html;
+    }
+
+    function selectOption(next, result, label) {
+      history.push({ node: currentNode, label });
+
+      if (result) {
+        showResult(result);
+      } else if (next) {
+        currentNode = next;
+        renderWizard();
+      }
+    }
+
+    function showResult(resultId) {
+      const result = results[resultId];
+      if (!result) return;
+
+      // Progress bar: all completed, recommendation active
+      const labels = ['Situation', 'Context', 'Recommendation'];
+      let progressHTML = '';
+      for (let i = 1; i <= 3; i++) {
+        const cls = i < 3 ? 'completed' : 'active';
+        progressHTML += `<div class="progress-step ${cls}"><span>${labels[i-1]}</span></div>`;
+      }
+      document.getElementById('progress-bar').innerHTML = progressHTML;
+
+      // Build situation path breadcrumb
+      let pathHTML = '<div class="situation-path">';
+      history.forEach((h, i) => {
+        pathHTML += `<span class="path-chip">${h.label}</span>`;
+        if (i < history.length - 1) {
+          pathHTML += '<span class="path-arrow">\u2192</span>';
+        }
+      });
+      pathHTML += '</div>';
+
+      // Build primary agents
+      let primaryHTML = '<div class="primary-agents"><h4>Recommended Agents</h4>';
+      result.primary.forEach(p => {
+        const agent = agents[p.id];
+        if (!agent) return;
+        primaryHTML += `
+          <div class="primary-agent">
+            <div class="primary-agent-icon">${agent.emoji}</div>
+            <div class="primary-agent-content">
+              <div class="primary-agent-name">${agent.name} <span class="mention-tag">${agent.mention}</span></div>
+              <div class="primary-agent-why">${p.why}</div>
+            </div>
+          </div>`;
+      });
+      primaryHTML += '</div>';
+
+      // Build supporting agents
+      let supportingHTML = '';
+      if (result.supporting && result.supporting.length > 0) {
+        supportingHTML = '<div class="supporting-agents"><h4>Also Consider</h4><div class="supporting-chips">';
+        result.supporting.forEach(sId => {
+          const agent = agents[sId];
+          if (!agent) return;
+          supportingHTML += `<span class="supporting-chip ${agent.category}">${agent.emoji} ${agent.name} (${agent.mention})</span>`;
+        });
+        supportingHTML += '</div></div>';
+      }
+
+      // Build approach section
+      const approachClass = result.meetingRoom ? 'approach-section meeting-room-callout' : 'approach-section';
+      const approachLabel = result.meetingRoom ? 'Suggested Approach -- Meeting Room' : 'Suggested Approach';
+      let approachHTML = `
+        <div class="${approachClass}">
+          <h4>${approachLabel}</h4>
+          <p>${result.approach}</p>
+        </div>`;
+
+      // Build principle section
+      let principleHTML = '';
+      if (result.principle) {
+        principleHTML = `
+          <div class="principle-section">
+            <p>${result.principle}</p>
+          </div>`;
+      }
+
+      // Assemble result card
+      let html = `
+        <div class="result-card">
+          <div class="result-header">
+            <h2>${result.title}</h2>
+            <p>${result.reasoning}</p>
+          </div>
+          <div class="result-body">
+            ${pathHTML}
+            ${primaryHTML}
+            ${supportingHTML}
+            ${approachHTML}
+            ${principleHTML}
+          </div>
+          <div class="nav-buttons">
+            <button class="btn btn-outline" onclick="goBack()">&#8592; Back</button>
+            <button class="btn btn-primary" onclick="restart()">Start Over</button>
+          </div>
+        </div>`;
+
+      document.getElementById('wizard-content').innerHTML = html;
+    }
+
+    function goBack() {
+      if (history.length === 0) return;
+      const prev = history.pop();
+      currentNode = prev.node;
+      renderWizard();
+    }
+
+    function restart() {
+      history = [];
+      currentNode = 'start';
+      renderWizard();
+    }
+
+    function renderBrowse() {
+      const container = document.getElementById('browse-view');
+      let html = '';
+
+      const categoryOrder = ['stakeholder', 'consulting', 'enablement', 'task', 'systems', 'personal'];
+
+      categoryOrder.forEach(catId => {
+        const cat = categories[catId];
+        const catAgents = Object.entries(agents).filter(([, a]) => a.category === catId);
+
+        html += `
+          <div class="category-section">
+            <div class="category-header">
+              <div class="category-icon ${catId}">${cat.icon}</div>
+              <div>
+                <div class="category-title">${cat.name}</div>
+                <div class="category-desc">${cat.desc}</div>
+              </div>
+            </div>
+            <div class="agent-grid">`;
+
+        catAgents.forEach(([id, agent]) => {
+          html += `
+            <div class="agent-card">
+              <div class="agent-card-header">
+                <span class="agent-dot" style="background: var(--${catId})"></span>
+                <span class="agent-card-name">${agent.emoji} ${agent.name}</span>
+                <span class="agent-card-mention">${agent.mention}</span>
+              </div>
+              <div class="agent-card-desc">${agent.desc}</div>
+              <div class="agent-card-keywords">
+                ${agent.keywords.map(k => `<span class="keyword">${k}</span>`).join('')}
+              </div>
+            </div>`;
+        });
+
+        html += '</div></div>';
+      });
+
+      container.innerHTML = html;
+    }
+
+    function renderMapResult(resultId) {
+      const result = results[resultId];
+      if (!result) return '';
+
+      const agentTags = result.primary.map(p => {
+        const agent = agents[p.id];
+        return agent ? `<span class="map-agent-tag">${agent.emoji} ${agent.mention}</span>` : '';
+      }).join('');
+
+      const supportLine = result.supporting.map(sId => {
+        const agent = agents[sId];
+        return agent ? agent.mention : '';
+      }).filter(Boolean).join(', ');
+
+      const mrClass = result.meetingRoom ? ' map-meeting-room' : '';
+
+      return `<div class="map-result${mrClass}">
+        <div class="map-result-title">${result.title}</div>
+        <div class="map-result-agents">${agentTags}</div>
+        ${supportLine ? `<div class="map-support-line">+ ${supportLine}</div>` : ''}
+      </div>`;
+    }
+
+    function renderMapSubtree(nodeId) {
+      const node = tree[nodeId];
+      if (!node) return '';
+
+      let html = `<div class="map-q">${node.question}</div>`;
+      html += '<div class="map-opts">';
+
+      node.options.forEach(opt => {
+        html += '<div class="map-opt">';
+        html += `<div class="map-opt-label">${opt.icon} ${opt.title}</div>`;
+
+        if (opt.result) {
+          html += renderMapResult(opt.result);
+        } else if (opt.next) {
+          html += renderMapSubtree(opt.next);
+        }
+
+        html += '</div>';
+      });
+
+      html += '</div>';
+      return html;
+    }
+
+    function renderMap() {
+      const container = document.getElementById('map-view');
+
+      let html = '<div class="map-legend">';
+      html += '<div class="map-legend-item"><div class="map-legend-swatch question"></div> Question</div>';
+      html += '<div class="map-legend-item"><div class="map-legend-swatch result"></div> Agent Recommendation</div>';
+      html += '<div class="map-legend-item"><div class="map-legend-swatch meeting"></div> Meeting Room Suggested</div>';
+      html += '</div>';
+
+      html += '<div class="map-root"><div class="map-root-label">What are you working on?</div></div>';
+
+      // Connector bar
+      html += '<div class="map-connector-bar" style="margin-top: 1.5rem; margin-bottom: 1rem;"></div>';
+
+      html += '<div class="map-paths">';
+
+      tree.start.options.forEach(opt => {
+        html += '<div class="map-path">';
+        html += `<div class="map-path-header"><span class="map-path-icon">${opt.icon}</span> ${opt.title}</div>`;
+        html += '<div class="map-subtree">';
+
+        if (opt.result) {
+          html += renderMapResult(opt.result);
+        } else if (opt.next) {
+          html += renderMapSubtree(opt.next);
+        }
+
+        html += '</div></div>';
+      });
+
+      html += '</div>';
+
+      container.innerHTML = html;
+    }
+
+    // Initialize
+    renderWizard();
+  </script>
+</body>
+</html>
