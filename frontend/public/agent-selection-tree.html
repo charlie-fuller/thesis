@@ -825,67 +825,66 @@
 <body>
   <script>
     // Sync theme from parent frame (same-origin iframe)
-    // ThemeContext applies dark CSS vars asynchronously after auth loads,
-    // so we poll the parent's actual background brightness until it stabilizes.
+    // Copies parent's actual CSS custom properties so the iframe follows the user's chosen theme.
     (function() {
-      function applyDark() {
-        if (!document.documentElement.classList.contains('dark')) {
-          document.documentElement.classList.add('dark');
-        }
-      }
+      var root = document.documentElement;
 
-      function getParentBrightness() {
+      function syncFromParent() {
         try {
-          if (window.parent && window.parent !== window) {
-            // Check body's computed background color brightness
-            var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
-            if (bodyBg) {
-              var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-              if (m) {
-                return (parseInt(m[1]) * 299 + parseInt(m[2]) * 587 + parseInt(m[3]) * 114) / 1000;
-              }
-            }
+          if (!window.parent || window.parent === window) return false;
+          var ps = getComputedStyle(window.parent.document.documentElement);
+
+          // Detect dark/light from body background brightness
+          var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+          if (!bodyBg) return false;
+          var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          if (!m) return false;
+          var brightness = (parseInt(m[1]) * 299 + parseInt(m[2]) * 587 + parseInt(m[3]) * 114) / 1000;
+
+          if (brightness < 128) {
+            root.classList.add('dark');
+          } else {
+            root.classList.remove('dark');
           }
-        } catch (e) { /* cross-origin */ }
-        return -1;
-      }
 
-      function checkAndApply() {
-        var brightness = getParentBrightness();
-        if (brightness >= 0 && brightness < 128) {
-          applyDark();
+          // Copy parent theme properties to override iframe defaults
+          var bgPage = ps.getPropertyValue('--color-bg-page').trim();
+          var bgCard = ps.getPropertyValue('--color-bg-card').trim();
+          var bgHover = ps.getPropertyValue('--color-bg-hover').trim();
+          var primary = ps.getPropertyValue('--color-primary').trim();
+          var primaryHover = ps.getPropertyValue('--color-primary-hover').trim();
+
+          if (bgPage) { root.style.setProperty('--bg-page', bgPage); root.style.setProperty('--bg-page-end', bgPage); }
+          if (bgCard) root.style.setProperty('--bg-card', bgCard);
+          if (bgHover) root.style.setProperty('--gray-50', bgHover);
+          if (primary) root.style.setProperty('--primary', primary);
+          if (primaryHover) root.style.setProperty('--primary-light', primaryHover);
+
           return true;
-        }
-        return false;
+        } catch (e) { return false; }
       }
 
-      // Immediate check
-      checkAndApply();
+      syncFromParent();
 
-      // Poll every 200ms for up to 10 seconds to catch async ThemeContext load
       var attempts = 0;
       var poller = setInterval(function() {
         attempts++;
-        if (checkAndApply() || attempts >= 50) {
+        if (syncFromParent() || attempts >= 50) {
           clearInterval(poller);
-          // Final fallback: system preference
-          if (attempts >= 50 && !document.documentElement.classList.contains('dark')) {
+          if (attempts >= 50 && !root.classList.contains('dark')) {
             if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-              applyDark();
+              root.classList.add('dark');
             }
           }
         }
       }, 200);
 
-      // MutationObserver for runtime theme toggles after initial load
       try {
         if (window.parent && window.parent !== window) {
-          new MutationObserver(function() { checkAndApply(); })
-            .observe(window.parent.document.documentElement, {
-              attributes: true, attributeFilter: ['class', 'style']
-            });
+          new MutationObserver(function() { syncFromParent(); })
+            .observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
         }
-      } catch (e) { /* cross-origin */ }
+      } catch (e) {}
     })();
   </script>
   <div class="container">

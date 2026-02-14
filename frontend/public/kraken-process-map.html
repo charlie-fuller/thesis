@@ -393,44 +393,44 @@
 <body>
 <script>
 (function() {
-  function applyDark() {
-    if (!document.documentElement.classList.contains('dark')) {
-      document.documentElement.classList.add('dark');
-    }
-  }
-  function getParentBrightness() {
+  var root = document.documentElement;
+  function syncFromParent() {
     try {
-      if (window.parent && window.parent !== window) {
-        var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
-        if (bodyBg) {
-          var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-          if (m) {
-            return (parseInt(m[1]) * 299 + parseInt(m[2]) * 587 + parseInt(m[3]) * 114) / 1000;
-          }
-        }
-      }
-    } catch (e) {}
-    return -1;
+      if (!window.parent || window.parent === window) return false;
+      var ps = getComputedStyle(window.parent.document.documentElement);
+      var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+      if (!bodyBg) return false;
+      var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      if (!m) return false;
+      var brightness = (parseInt(m[1]) * 299 + parseInt(m[2]) * 587 + parseInt(m[3]) * 114) / 1000;
+      if (brightness < 128) { root.classList.add('dark'); } else { root.classList.remove('dark'); }
+      var bgPage = ps.getPropertyValue('--color-bg-page').trim();
+      var bgCard = ps.getPropertyValue('--color-bg-card').trim();
+      var bgHover = ps.getPropertyValue('--color-bg-hover').trim();
+      var primary = ps.getPropertyValue('--color-primary').trim();
+      var primaryHover = ps.getPropertyValue('--color-primary-hover').trim();
+      if (bgPage) { root.style.setProperty('--bg-page', bgPage); root.style.setProperty('--bg-page-end', bgPage); }
+      if (bgCard) root.style.setProperty('--bg-card', bgCard);
+      if (bgHover) root.style.setProperty('--gray-50', bgHover);
+      if (primary) root.style.setProperty('--primary', primary);
+      if (primaryHover) root.style.setProperty('--primary-light', primaryHover);
+      return true;
+    } catch (e) { return false; }
   }
-  function checkAndApply() {
-    var brightness = getParentBrightness();
-    if (brightness >= 0 && brightness < 128) { applyDark(); return true; }
-    return false;
-  }
-  checkAndApply();
+  syncFromParent();
   var attempts = 0;
   var poller = setInterval(function() {
     attempts++;
-    if (checkAndApply() || attempts >= 50) {
+    if (syncFromParent() || attempts >= 50) {
       clearInterval(poller);
-      if (attempts >= 50 && !document.documentElement.classList.contains('dark')) {
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) applyDark();
+      if (attempts >= 50 && !root.classList.contains('dark')) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) root.classList.add('dark');
       }
     }
   }, 200);
   try {
     if (window.parent && window.parent !== window) {
-      new MutationObserver(function() { checkAndApply(); })
+      new MutationObserver(function() { syncFromParent(); })
         .observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
     }
   } catch (e) {}
