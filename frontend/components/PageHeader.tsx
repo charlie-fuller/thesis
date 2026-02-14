@@ -42,6 +42,7 @@ export default function PageHeader({
     { href: '/intelligence', label: 'Intelligence' },
     // Conditionally add DISCo link for users with access
     ...(hasDiscoAccess ? [{ href: '/disco', label: 'DISCo' }] : []),
+    { href: '/manifesto', label: 'Manifesto' },
   ]
 
   const isActive = (href: string) => {
