@@ -30,13 +30,71 @@
       --gray-700: #374151;
       --gray-800: #1f2937;
       --gray-900: #111827;
+      --bg-page: #f9fafb;
+      --bg-page-end: #f3f4f6;
+      --bg-card: #ffffff;
+    }
+
+    html.dark {
+      --gray-50: #1a1a1a;
+      --gray-100: #1f1f1f;
+      --gray-200: #27272a;
+      --gray-300: #3f3f46;
+      --gray-400: #52525b;
+      --gray-500: #71717a;
+      --gray-600: #a1a1aa;
+      --gray-700: #d4d4d8;
+      --gray-800: #e4e4e7;
+      --gray-900: #ffffff;
+      --bg-page: #0a0a0a;
+      --bg-page-end: #0e0e0e;
+      --bg-card: #111111;
+      --stakeholder-light: #2d1219;
+      --consulting-light: #172135;
+      --enablement-light: #12261a;
+      --task-light: #261e0b;
+      --systems-light: #0e2429;
+      --personal-light: #1c172e;
+    }
+
+    html.dark .option-btn:hover {
+      background: var(--gray-100);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    }
+
+    html.dark .agent-card-mention {
+      background: #1e1b4b;
+      color: #a5b4fc;
+    }
+
+    html.dark .approach-section {
+      background: #1a1640;
+      border-color: #312e81;
+    }
+
+    html.dark .meeting-room-callout {
+      background: #2a1f05;
+      border-color: #92400e;
+    }
+
+    html.dark .meeting-room-callout h4 {
+      color: #fbbf24;
+    }
+
+    html.dark .map-meeting-room {
+      background: #2a1f05;
+      border-color: #92400e;
+    }
+
+    html.dark .map-meeting-room .map-result-title {
+      color: #fbbf24;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+      background: linear-gradient(135deg, var(--bg-page) 0%, var(--bg-page-end) 100%);
       min-height: 100vh;
       color: var(--gray-800);
       line-height: 1.5;
@@ -77,7 +135,7 @@
       padding: 0.5rem 1.25rem;
       border-radius: 9999px;
       border: 2px solid var(--gray-200);
-      background: white;
+      background: var(--bg-card);
       font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
@@ -115,7 +173,7 @@
       align-items: center;
       gap: 0.35rem;
       padding: 0.4rem 0.85rem;
-      background: white;
+      background: var(--bg-card);
       border-radius: 9999px;
       font-size: 0.72rem;
       font-weight: 500;
@@ -137,7 +195,7 @@
     }
 
     .decision-card {
-      background: white;
+      background: var(--bg-card);
       border-radius: 1rem;
       box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
       padding: 2rem;
@@ -178,7 +236,7 @@
 
     .option-btn:hover {
       border-color: var(--primary);
-      background: white;
+      background: var(--bg-card);
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(99, 102, 241, 0.12);
     }
@@ -210,7 +268,7 @@
 
     /* Result card */
     .result-card {
-      background: white;
+      background: var(--bg-card);
       border-radius: 1rem;
       box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
       overflow: hidden;
@@ -484,7 +542,7 @@
     }
 
     .agent-card {
-      background: white;
+      background: var(--bg-card);
       border: 1px solid var(--gray-200);
       border-radius: 0.75rem;
       padding: 1rem;
@@ -601,7 +659,7 @@
       max-width: 280px;
       flex: 1;
       flex-shrink: 0;
-      background: white;
+      background: var(--bg-card);
       border-radius: 0.75rem;
       border: 1px solid var(--gray-200);
       overflow: hidden;
@@ -754,6 +812,8 @@
     .map-legend-swatch.result { background: var(--gray-50); border: 1px solid var(--gray-200); }
     .map-legend-swatch.meeting { background: #fffbeb; border: 1px solid #fbbf24; }
 
+    html.dark .map-legend-swatch.meeting { background: #2a1f05; border-color: #92400e; }
+
     @media (max-width: 640px) {
       .container { padding: 1rem; }
       .agent-grid { grid-template-columns: 1fr; }
@@ -763,6 +823,30 @@
   </style>
 </head>
 <body>
+  <script>
+    // Sync theme from parent frame (same-origin iframe) or system preference
+    (function() {
+      try {
+        if (window.parent && window.parent !== window) {
+          var parentEl = window.parent.document.documentElement;
+          if (parentEl.classList.contains('dark')) {
+            document.documentElement.classList.add('dark');
+            return;
+          }
+          // Fallback: check parent's --color-bg-page (set by ThemeContext)
+          var bgPage = getComputedStyle(parentEl).getPropertyValue('--color-bg-page').trim();
+          if (bgPage && bgPage !== '#f9fafb' && bgPage !== '#ffffff' && bgPage !== '') {
+            document.documentElement.classList.add('dark');
+            return;
+          }
+        }
+      } catch (e) { /* cross-origin - ignore */ }
+      // Final fallback: system preference
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
   <div class="container">
     <header>
       <h1>Agent Selection Guide</h1>
