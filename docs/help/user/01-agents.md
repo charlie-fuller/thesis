@@ -1,22 +1,18 @@
 # Understanding the Agent System
 
-Here's something I keep thinking about: most AI tools give you one voice, one perspective. It's like asking a single consultant for advice on everything from your security posture to your change management strategy to your legal exposure.
+Most AI tools give you one voice. Thesis has twenty-two agents, each with a distinct perspective and domain expertise. Security, finance, legal, change management, research, architecture -- they think differently because they're designed to.
 
-That's... not how expertise works in the real world.
+**Finding the agent roster:** Go to **Intelligence** in the navigation, then click the **Agents** tab. You'll see all agents with their stats -- versions, KB docs, chats, and meetings.
 
-Thesis has twenty agents. Each one thinks differently. Has different concerns. Notices different things. And that's the point.
-
-**Finding the agent roster:** Go to **Intelligence** in the navigation, then click the **Agents** tab. You'll see all agents with their stats - versions, KB docs, chats, and meetings.
+**Finding the right agent:** Use the **Agent Selection Guide** (Agent Guide tab above the chat input). It asks about your situation and recommends the right agent(s), including supporting agents when multi-perspective analysis would help.
 
 ---
 
 ## The Big Idea
 
-Each agent is designed around a specific stakeholder perspective or domain. When you ask Capital about an AI initiative, you're getting the finance lens - ROI, business case, budget justification. Ask Guardian the same question and suddenly you're in security and compliance territory.
+Each agent is designed around a specific stakeholder perspective or domain. Ask Capital about an AI initiative and you get the finance lens -- ROI, business case, budget justification. Ask Guardian the same question and you're in security and compliance territory.
 
-Neither is wrong. They're just seeing different parts of the elephant.
-
-What gets interesting is when you put them in a room together.
+Neither is wrong. They're seeing different parts of the elephant. It gets interesting when you put them in a room together.
 
 ---
 
@@ -150,10 +146,10 @@ Your project specialist. Understands project structure, scoring rubrics, linked 
 
 *Best for:* Questions about a specific project's scores, status, linked documents, or implementation approach. Access via the Chat button in any project detail modal.
 
-**Initiative Agent**
-Your DISCO discovery specialist. Knows the discovery workflow, all agent outputs, linked documents, and PuRDy methodology. Can guide you through the discovery process and help extract project ideas from conversations.
+**Discovery Agent** (Initiative Agent)
+Your DISCO discovery specialist. Knows the discovery workflow, all agent outputs, linked documents, and throughline methodology. Can guide you through the discovery process, propose structured framing (problem statements, hypotheses, gaps), and help extract project ideas from conversations.
 
-*Best for:* Questions about a specific discovery's progress, agent outputs, or methodology. Access via the Chat button on any discovery detail page.
+*Best for:* Questions about a specific discovery's progress, agent outputs, or framing. Access via the Chat button on any discovery detail page.
 
 ---
 
@@ -171,40 +167,29 @@ You don't talk to Coordinator directly. It works behind the scenes in Auto mode,
 
 ## How to Choose
 
-Here's my mental model:
+### Quick Reference
 
-**Money question?** → Capital
-**Security/compliance?** → Guardian
-**Legal risk?** → Counselor
-**People/adoption?** → Sage
-**Research needed?** → Atlas
-**Technical architecture?** → Architect
-**Process/operations?** → Operator
-**Emerging tech?** → Pioneer
-**Executive politics?** → Strategist
-**Training/enablement?** → Scholar
-**Internal comms?** → Catalyst
+**Money question?** → Capital | **Security/compliance?** → Guardian | **Legal risk?** → Counselor | **People/adoption?** → Sage | **Research needed?** → Atlas | **Technical architecture?** → Architect | **Process/operations?** → Operator | **Emerging tech?** → Pioneer | **Executive politics?** → Strategist | **Training/enablement?** → Scholar | **Internal comms?** → Catalyst | **Task planning?** → Taskmaster | **Task evaluation?** → Kraken
 
-**Task evaluation?** → Kraken
-**Not sure?** Use Auto mode. Or put a few of them in a meeting room and see what emerges.
+**Not sure?** Use the **Agent Selection Guide** (Agent Guide tab above chat). It asks about your situation -- what you're working on, what stage you're at, who the audience is -- and recommends the right agent(s). It can suggest primary agents, supporting agents, and when to use a Meeting Room for multi-perspective analysis.
+
+You can also use **Auto mode** to let the Coordinator route for you, or browse the full 22-agent catalog in the Guide's Browse tab.
 
 ---
 
 ## The @Mention Trick
 
-You can invoke agents inline with `@agentname`. This is useful when you want a specific perspective mid-conversation:
+Invoke agents inline with `@agentname` for a specific perspective mid-conversation:
 
 > "I love this ROI analysis from Capital, but @guardian what security considerations should we add?"
 
 > "Before we finalize this recommendation, @nexus what system effects should we consider?"
 
-It's like being able to tap someone on the shoulder and say "hey, what do you think?"
-
 ---
 
 ## Multi-Agent Dynamics
 
-Here's where it gets interesting. In meeting rooms, agents don't just take turns. They:
+In meeting rooms, agents don't just take turns. They:
 
 - **Build on each other's points** - "Building on what Sage said about adoption..."
 - **Challenge each other** - "I hear Guardian's concern, but from the business side..."

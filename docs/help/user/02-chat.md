@@ -14,18 +14,23 @@ Easy enough. But here's what makes it interesting:
 
 ## Agent Selection
 
-Above the message input, you'll see the **Agent Selector**.
+Above the message input, you'll see the **Agent Selector** and the **Agent Guide** tab.
 
-**Auto Mode** (the default): The Coordinator analyzes your query and routes it to the most appropriate specialist. Ask about ROI and you'll probably get Capital. Ask about security and Guardian shows up.
+**Auto Mode** (the default): The Coordinator analyzes your query and routes it to the most appropriate specialist. Ask about ROI and you get Capital. Ask about security and Guardian shows up.
 
-**Manual Selection**: Click the dropdown and pick specific agents. You can select up to three. Each will respond to your query from their perspective.
+**Manual Selection**: Click the dropdown and pick specific agents. You can select up to three. Each responds from their perspective.
 
-**Agent stickiness**: Once an agent is selected (manually or via routing), subsequent messages in the same conversation stay with that agent rather than re-routing every time. This gives you a more natural back-and-forth. Start a new conversation or manually switch agents to change.
+**Agent Guide**: Click the **Agent Guide** tab above the chat to open the Agent Selection Guide. Three modes:
+- **Wizard** - Answers situational questions ("What are you working on?", "What stage?") and recommends primary + supporting agents
+- **Browse** - Searchable catalog of all 22 agents with descriptions and use cases
+- **Visual Map** - Interactive decision tree showing the full recommendation logic
 
-**When to use Auto vs. Manual:**
-- Auto when you're not sure who should answer
-- Manual when you have a specific question for a specific domain
-- Manual with multiple agents when you want different perspectives on the same question
+**Agent stickiness**: Once an agent is selected (manually or via routing), subsequent messages in the same conversation stay with that agent. Start a new conversation or manually switch to change.
+
+**When to use Auto vs. Manual vs. Guide:**
+- **Auto** when you're not sure who should answer
+- **Manual** when you know the domain (e.g., security → Guardian)
+- **Agent Guide** when you want a recommendation based on your situation
 
 ---
 

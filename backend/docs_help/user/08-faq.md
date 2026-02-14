@@ -7,16 +7,20 @@ Quick answers to common questions. If you're looking for something specific, thi
 ## Agents
 
 **How many agents are there?**
-Twenty. See the [Agent Guide](./01-agents.md) for the full roster.
+Twenty-two. See the [Agent Guide](./01-agents.md) for the full roster.
 
 **Which agent should I use?**
-Depends on the question. Use Auto mode to let the Coordinator decide, or pick based on domain:
-- Money → Capital
-- Security → Guardian
-- Legal → Counselor
-- People → Sage
-- Research → Atlas
-- Technical → Architect
+Use the **Agent Selection Guide** (Agent Guide tab above chat). It asks about your situation and recommends agents. Or use Auto mode to let the Coordinator decide.
+
+Quick reference by domain: Money → Capital | Security → Guardian | Legal → Counselor | People → Sage | Research → Atlas | Technical → Architect | Task planning → Taskmaster | Task execution → Kraken
+
+**What's the Agent Selection Guide?**
+An interactive tool accessible via the Agent Guide tab in Chat. Three modes:
+- **Wizard** - Situational questions that deduce the right agent(s)
+- **Browse** - Searchable catalog of all 22 agents
+- **Visual Map** - Full decision tree visualization
+
+It recommends primary agents, supporting agents, and when to use a Meeting Room.
 
 **Can I use multiple agents at once?**
 Yes. In Chat, select up to 3 agents. In Meeting Rooms, select 2-5.
@@ -190,6 +194,26 @@ Yes. When you click **Accept**, a modal opens with pre-filled data. Edit any fie
 
 **How do I avoid duplicates?**
 The system checks for potential duplicates when you accept. If a match is found, you can link to the existing item instead of creating a new one.
+
+---
+
+## Manifesto
+
+**What is the Thesis Manifesto?**
+Ten core organizational principles that guide how Thesis approaches AI strategy. Topics include problem-first thinking, multiple perspectives, human-AI collaboration, and bias awareness. Access it via **Manifesto** in the top navigation bar.
+
+**Can agents use the manifesto?**
+Yes. The principles are available in agent-loadable XML format. Agents can reference manifesto principles when framing recommendations or evaluating approaches.
+
+---
+
+## Appearance
+
+**Does Thesis support dark mode?**
+Yes. Set your theme in account settings. The theme applies consistently across all pages, including embedded visualizations (process maps, decision trees, agent selection guide).
+
+**Why do some pages look different from the main app?**
+Embedded pages (process maps, decision trees) inherit the application's theme colors automatically. If you notice a mismatch, try refreshing the page -- the theme sync relies on reading your current settings.
 
 ---
 
