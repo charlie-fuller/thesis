@@ -729,3 +729,71 @@ Added a standalone HTML process map visualizing the complete DISCO pipeline.
 - Key principles
 
 **Files**: `frontend/public/disco-process-map.html`
+
+### AI Platform Governance Maps
+
+Added two HTML visualizations for AI platform governance, embedded as tabs on the DISCO page.
+
+**Platform Process Map** (`/platform-process-map.html`):
+- Approved platform set: Glean, Gemini/Gems, NotebookLM, Claude, MuleSoft, Custom
+- Platform comparison matrix across 6 dimensions (Reliability, Governance, Traceability, Auditability, Fault Tolerance, German Approved)
+- Quick decision paths for common scenarios (JD generator, cash app automation, codebase analysis, etc.)
+- Hub-and-spoke governance model
+
+**Platform Decision Tree** (`/platform-decision-tree.html`):
+- Guided decision flow for selecting the right AI platform
+- Considers data sensitivity, user scope, integration needs, and governance requirements
+
+**Files**: `frontend/public/platform-process-map.html`, `frontend/public/platform-decision-tree.html`, `frontend/app/disco/page.tsx`
+
+---
+
+## February 13-14, 2026
+
+### Thesis Manifesto
+
+New page defining 10 core organizational principles for AI strategy work.
+
+**Features**:
+- Tabbed layout: Principles tab (card format with core statement and elaboration) and XML tab (agent-loadable format)
+- 10 principles covering: state change orientation, problems before solutions, outcomes not activities, multiple perspectives, simplest effective tool, trace connections, and more
+- Accessible from top navigation bar
+- Designed to guide both human decision-making and agent behavior
+
+**Files**: `frontend/app/manifesto/page.tsx`, `frontend/components/Header.tsx`
+
+### Agent Selection Guide Redesign
+
+Redesigned the agent selection tree from a tool-picker into a deductive discovery process.
+
+**Old Flow**: Category → Tool subcategory → Single agent (2 clicks)
+**New Flow**: Situation → Context → Recommendation (3 steps, tool-agnostic)
+
+**Three Modes**:
+- **Discovery Mode**: 3-step wizard asks situational questions before recommending agents. Results include primary agents with "why" explanations, supporting agents, suggested approach, and manifesto principle alignment
+- **Browse All Agents**: Catalog of all 22 agents organized by category
+- **Visual Map**: Full decision tree visualization showing all paths and outcomes
+
+**Multi-Agent Results**: Recommendations can suggest 2-3 agents with roles (primary + supporting) and Meeting Room sessions when multi-perspective analysis is needed.
+
+**Files**: `frontend/public/agent-selection-tree.html`
+
+### Iframe Theme Inheritance
+
+All 8 embedded HTML visualizations now inherit the parent app's theme settings.
+
+**How It Works**:
+- Sync script reads ThemeContext CSS custom properties from the parent frame (bg-page, bg-card, bg-hover, text-primary, text-secondary, text-muted, border-default, primary, primary-hover)
+- Computes full gray ramp (--gray-50 through --gray-900) via color interpolation between anchor points
+- Polls every 200ms until ThemeContext applies inline styles (handles async auth + API delay)
+- MutationObserver detects runtime theme changes
+- Falls back to prefers-color-scheme media query for standalone viewing
+- Supports bidirectional dark/light switching
+
+**Files affected** (8 HTML files in `frontend/public/`): `agent-selection-tree.html`, `data-flow-map.html`, `meeting-rooms-process-map.html`, `throughline-process-map.html`, `platform-process-map.html`, `platform-decision-tree.html`, `kraken-process-map.html`, `project-scoring-map.html`
+
+### N8N Removal
+
+Removed all N8N references from platform process map. N8N is no longer part of the approved platform set.
+
+**Files**: `frontend/public/platform-process-map.html`
