@@ -312,7 +312,6 @@
     .platform-card.notebooklm { border-color: var(--orange); }
     .platform-card.claude { border-color: var(--pink); }
     .platform-card.mulesoft { border-color: var(--teal); }
-    .platform-card.n8n { border-color: var(--info); }
     .platform-card.custom { border-color: #8b5cf6; }
 
     /* Governance Grid */
@@ -829,7 +828,7 @@
             </div>
             <div class="node decision">
               <div class="node-title">Actions Layer</div>
-              <div class="node-desc">Glean Actions, MuleSoft, N8N, or Custom</div>
+              <div class="node-desc">Glean Actions, MuleSoft, or Custom</div>
             </div>
           </div>
 
@@ -1072,24 +1071,6 @@
           </div>
         </div>
 
-        <!-- N8N -->
-        <div class="platform-card n8n" style="border-color: var(--info);">
-          <h4>N8N <span class="tag available">Active</span></h4>
-          <ul>
-            <li>Workflow automation platform</li>
-            <li>Finance team success: 10hrs/week saved</li>
-            <li>Good for data pipelines and scheduled tasks</li>
-            <li>AI agent capabilities improving</li>
-            <li>Less enterprise governance vs MuleSoft</li>
-          </ul>
-          <div class="specs">
-            <span class="spec-label">Best for:</span><span class="spec-value">Process automation</span>
-            <span class="spec-label">Governance:</span><span class="spec-value">Standard (self-managed)</span>
-            <span class="spec-label">Success:</span><span class="spec-value">Cash app automation</span>
-            <span class="spec-label">Team:</span><span class="spec-value">Finance (Raza's team)</span>
-          </div>
-        </div>
-
         <!-- Custom Build -->
         <div class="platform-card custom">
           <h4>Custom Build <span class="tag enterprise">Case-by-Case</span></h4>
@@ -1161,7 +1142,6 @@
               <th>Gemini/Gems</th>
               <th>Claude</th>
               <th>MuleSoft</th>
-              <th>N8N</th>
               <th>Custom Build</th>
             </tr>
           </thead>
@@ -1172,7 +1152,6 @@
               <td><span class="partial">~</span> Non-deterministic</td>
               <td><span class="partial">~</span> Better reasoning</td>
               <td><span class="check">Y</span> Deterministic APIs + AI</td>
-              <td><span class="check">Y</span> Scripted workflows</td>
               <td><span class="check">Y</span> Full control</td>
             </tr>
             <tr>
@@ -1181,7 +1160,6 @@
               <td><span class="check">Y</span> Workspace IAM</td>
               <td><span class="partial">~</span> Projects only</td>
               <td><span class="check">Y</span> Full policy engine</td>
-              <td><span class="partial">~</span> Basic</td>
               <td><span class="cross">N</span> Must build</td>
             </tr>
             <tr>
@@ -1190,7 +1168,6 @@
               <td><span class="partial">~</span> GCP logging</td>
               <td><span class="partial">~</span> Conversation logs</td>
               <td><span class="check">Y</span> Full trace IDs</td>
-              <td><span class="check">Y</span> Execution logs</td>
               <td><span class="cross">N</span> Must build (Splunk/CW)</td>
             </tr>
             <tr>
@@ -1199,7 +1176,6 @@
               <td><span class="partial">~</span> Admin reports</td>
               <td><span class="cross">N</span> Limited</td>
               <td><span class="check">Y</span> SOC-ready</td>
-              <td><span class="partial">~</span> Basic logs</td>
               <td><span class="cross">N</span> Must build</td>
             </tr>
             <tr>
@@ -1208,7 +1184,6 @@
               <td><span class="check">Y</span> Google managed</td>
               <td><span class="check">Y</span> SaaS managed</td>
               <td><span class="check">Y</span> Enterprise SLA</td>
-              <td><span class="partial">~</span> Self-managed</td>
               <td><span class="cross">N</span> Must build</td>
             </tr>
             <tr>
@@ -1217,7 +1192,6 @@
               <td><span class="check">Y</span> Enterprise agreement</td>
               <td><span class="cross">N</span> Not yet</td>
               <td><span class="check">Y</span> Existing contract</td>
-              <td><span class="partial">~</span> Internal tool</td>
               <td><span class="partial">~</span> Depends on platform</td>
             </tr>
           </tbody>
@@ -1318,7 +1292,7 @@
             <span class="mini-arrow">→</span>
             <div class="mini-node">IT-maintained</div>
             <span class="mini-arrow">→</span>
-            <div class="mini-node result-custom">N8N / Script</div>
+            <div class="mini-node result-custom">MuleSoft / Script</div>
           </div>
         </div>
 
@@ -1507,7 +1481,7 @@
           <div class="gov-grid" style="grid-template-columns: 1fr;">
             <div class="gov-card">
               <h5>Approved Platform Set</h5>
-              <p>Glean, Gemini/Gems, NotebookLM, Claude (with approval), MuleSoft (enterprise), N8N (automation), Custom (with justification)</p>
+              <p>Glean, Gemini/Gems, NotebookLM, Claude (with approval), MuleSoft (enterprise), Custom (with justification)</p>
             </div>
             <div class="gov-card">
               <h5>Experimentation Path</h5>
