@@ -826,25 +826,63 @@
   <script>
     // Sync theme from parent frame (same-origin iframe) or system preference
     (function() {
-      try {
-        if (window.parent && window.parent !== window) {
-          var parentEl = window.parent.document.documentElement;
-          if (parentEl.classList.contains('dark')) {
-            document.documentElement.classList.add('dark');
-            return;
-          }
-          // Fallback: check parent's --color-bg-page (set by ThemeContext)
-          var bgPage = getComputedStyle(parentEl).getPropertyValue('--color-bg-page').trim();
-          if (bgPage && bgPage !== '#f9fafb' && bgPage !== '#ffffff' && bgPage !== '') {
-            document.documentElement.classList.add('dark');
-            return;
-          }
-        }
-      } catch (e) { /* cross-origin - ignore */ }
-      // Final fallback: system preference
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      function applyDark() {
         document.documentElement.classList.add('dark');
       }
+
+      function checkParent() {
+        try {
+          if (window.parent && window.parent !== window) {
+            var parentEl = window.parent.document.documentElement;
+            // Check for Tailwind dark class
+            if (parentEl.classList.contains('dark')) {
+              applyDark();
+              return true;
+            }
+            // Check --color-bg-page set by ThemeContext
+            var bgPage = getComputedStyle(parentEl).getPropertyValue('--color-bg-page').trim();
+            if (bgPage && bgPage !== '#f9fafb' && bgPage !== '#ffffff' && bgPage !== '') {
+              applyDark();
+              return true;
+            }
+            // Check actual computed background color of parent body
+            var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+            if (bodyBg) {
+              var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+              if (m) {
+                var brightness = (parseInt(m[1]) * 299 + parseInt(m[2]) * 587 + parseInt(m[3]) * 114) / 1000;
+                if (brightness < 128) { applyDark(); return true; }
+              }
+            }
+          }
+        } catch (e) { /* cross-origin */ }
+        return false;
+      }
+
+      // Immediate check
+      if (!checkParent()) {
+        // System preference fallback
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          applyDark();
+        }
+      }
+
+      // Retry after delay to catch async ThemeContext initialization
+      setTimeout(function() {
+        if (!document.documentElement.classList.contains('dark')) {
+          checkParent();
+        }
+      }, 500);
+
+      // Watch for parent class/style changes (theme toggle, late ThemeContext load)
+      try {
+        if (window.parent && window.parent !== window) {
+          var observer = new MutationObserver(function() { checkParent(); });
+          observer.observe(window.parent.document.documentElement, {
+            attributes: true, attributeFilter: ['class', 'style']
+          });
+        }
+      } catch (e) { /* cross-origin */ }
     })();
   </script>
   <div class="container">
