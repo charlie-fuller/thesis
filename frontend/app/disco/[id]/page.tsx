@@ -560,7 +560,7 @@ export default function InitiativeDetailPage() {
                 <button
                   onClick={handleOpenEditModal}
                   className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Edit discovery"
+                  title="Edit name and description"
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
@@ -587,26 +587,6 @@ export default function InitiativeDetailPage() {
               </div>
             )}
 
-            {/* Framing summary hint - click to go to Framing tab */}
-            {!initiative.throughline?.problem_statements?.length && !initiative.throughline?.hypotheses?.length && !initiative.throughline?.gaps?.length ? (
-              <button
-                onClick={() => setActiveTab('framing')}
-                className="mt-1 text-xs text-slate-400 dark:text-slate-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
-              >
-                No framing yet — click to set up
-              </button>
-            ) : (
-              <button
-                onClick={() => setActiveTab('framing')}
-                className="mt-1 text-xs text-slate-400 dark:text-slate-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
-              >
-                {[
-                  initiative.throughline?.problem_statements?.length && `${initiative.throughline.problem_statements.length} problem statement${initiative.throughline.problem_statements.length !== 1 ? 's' : ''}`,
-                  initiative.throughline?.hypotheses?.length && `${initiative.throughline.hypotheses.length} hypothes${initiative.throughline.hypotheses.length !== 1 ? 'es' : 'is'}`,
-                  initiative.throughline?.gaps?.length && `${initiative.throughline.gaps.length} gap${initiative.throughline.gaps.length !== 1 ? 's' : ''}`,
-                ].filter(Boolean).join(' · ')}
-              </button>
-            )}
 
             {/* Show linked projects or user role if applicable */}
             {(linkedProjects.length > 0 || initiative.user_role !== 'owner') && (
