@@ -812,25 +812,40 @@ DISCO agents now enforce a character budget when loading initiative documents, p
 
 **Solution**:
 - `get_all_initiative_content()` now accepts a `max_chars` parameter (default 500k chars, ~150k tokens)
-- Documents loaded in order of link recency (most recently linked first)
+- Documents ordered by creation date (newest first) with date and position shown in headers
 - When budget exceeded, remaining documents skipped with a context budget notice
 - Leaves room for system prompt, agent instructions, previous outputs, and KB folder documents
 
 **Files**: `backend/services/disco/document_service.py`
 
-### Inline Generate Framing Button
+### Dedicated Framing Tab
 
-Added a "Generate from Documents" button directly in the discovery framing section, eliminating the need to navigate to the Run Agents tab.
+Investigation framing (problem statements, hypotheses, gaps) moved from the discovery header into a dedicated "Framing" tab.
+
+**Tab Order**: Documents > Framing > Alignment > Projects > Run Agents > Outputs
 
 **Features**:
-- "Generate from Documents" button appears in empty framing state when documents are linked
-- Sparkles icon button appears on hover in populated framing state for regeneration
-- Triggers Discovery Guide agent inline with streaming status updates
-- On completion, triage review panel appears with extracted suggestions
-- Review panel now shows whenever suggestions have content, not only when framing is completely empty
-- Existing "Accept All" and "Dismiss" workflow unchanged
+- "Edit Framing" and "Generate from Documents" buttons prominently displayed at top of tab
+- "Generate from Documents" triggers Discovery Guide inline with streaming status updates
+- On completion, review panel appears with extracted suggestions (Accept All / Dismiss)
+- Review panel shows whenever suggestions have content, regardless of existing framing state
+- Full ThroughlineSummary with resolution annotations displayed below
+- Empty state guides users to set up framing manually or generate from documents
+- Header pencil icon scoped to name/description editing only
 
 **Files**: `frontend/app/disco/[id]/page.tsx`
+
+### Document Temporal Awareness
+
+DISCO agents now understand document chronology, with newer documents given priority during analysis.
+
+**Changes**:
+- Documents ordered by creation date (`original_date`) instead of link date, newest first
+- Each document header shows position and date: `[1/15] Document Name (2026-02-14)`
+- Preamble instructs agents that newer documents represent latest findings
+- Discovery Guide v1.4 updated with "Temporal Priority" section: weight recent documents more heavily, note when newer evidence supersedes earlier assumptions, flag evolved problem statements
+
+**Files**: `backend/services/disco/document_service.py`, `backend/disco_agents/discovery-guide-v1.4.md`
 
 ### Project Deep-Linking from Discovery
 
