@@ -794,7 +794,11 @@ export default function InitiativeDetailPage() {
                     ) : (
                       <Sparkles className="w-3.5 h-3.5" />
                     )}
-                    {generatingFraming ? framingGenerationStatus || 'Generating...' : 'Generate from Documents'}
+                    {generatingFraming
+                      ? framingGenerationStatus || 'Generating...'
+                      : (initiative.throughline?.problem_statements?.length || initiative.throughline?.hypotheses?.length || initiative.throughline?.gaps?.length)
+                        ? 'Regenerate from Documents'
+                        : 'Generate from Documents'}
                   </button>
                 )}
               </div>

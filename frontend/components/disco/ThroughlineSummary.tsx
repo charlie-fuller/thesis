@@ -2,9 +2,6 @@
 
 import { useState, useCallback } from 'react'
 import {
-  ChevronDown,
-  ChevronRight,
-  AlertCircle,
   CheckCircle,
   HelpCircle,
   XCircle,
@@ -203,7 +200,6 @@ export default function ThroughlineSummary({
   resolutionAnnotations,
   onAnnotationsUpdated,
 }: ThroughlineSummaryProps) {
-  const [expanded, setExpanded] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -264,42 +260,8 @@ export default function ThroughlineSummary({
   const canEdit = !!initiativeId
 
   return (
-    <div className="mt-2">
-      {/* Compact pills + toggle */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-      >
-        {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-        <span className="flex items-center gap-1.5">
-          <AlertCircle className="w-3.5 h-3.5 text-indigo-500" />
-          <span className="font-medium">Throughline:</span>
-          {problemCount > 0 && (
-            <span className="px-1.5 py-0.5 text-xs bg-slate-100 dark:bg-slate-800 rounded">
-              {problemCount} problem{problemCount !== 1 ? 's' : ''}
-            </span>
-          )}
-          {hypothesisCount > 0 && (
-            <span className="px-1.5 py-0.5 text-xs bg-slate-100 dark:bg-slate-800 rounded">
-              {hypothesisCount} hypothes{hypothesisCount !== 1 ? 'es' : 'is'}
-            </span>
-          )}
-          {gapCount > 0 && (
-            <span className="px-1.5 py-0.5 text-xs bg-slate-100 dark:bg-slate-800 rounded">
-              {gapCount} gap{gapCount !== 1 ? 's' : ''}
-            </span>
-          )}
-          {resolution && (
-            <span className="px-1.5 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded font-medium">
-              resolved
-            </span>
-          )}
-        </span>
-      </button>
-
-      {/* Expanded detail view */}
-      {expanded && (
-        <div className="mt-3 p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg space-y-4 text-sm">
+    <div>
+      <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg space-y-4 text-sm">
           {/* Problem Statements */}
           {problemCount > 0 && (
             <div>
@@ -470,7 +432,6 @@ export default function ThroughlineSummary({
             </div>
           )}
         </div>
-      )}
     </div>
   )
 }
