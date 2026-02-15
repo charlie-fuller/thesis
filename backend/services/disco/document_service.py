@@ -484,29 +484,50 @@ async def get_all_initiative_content(initiative_id: str, max_chars: int = 500_00
         Concatenated document content (truncated if over budget)
     """
     try:
-        # Get linked KB document IDs with link timestamps for ordering
+        # Get linked KB document IDs
         links_result = await asyncio.to_thread(
             lambda: supabase.table("disco_initiative_documents")
-            .select("document_id, linked_at")
+            .select("document_id")
             .eq("initiative_id", initiative_id)
-            .order("linked_at", desc=True)
             .execute()
         )
 
         if not links_result.data:
             return ""
 
-        doc_ids = [link["document_id"] for link in links_result.data]
+        linked_doc_ids = [link["document_id"] for link in links_result.data]
+
+        # Fetch document dates for ordering by creation date (newest first)
+        docs_meta = await asyncio.to_thread(
+            lambda: supabase.table("documents")
+            .select("id, original_date, uploaded_at")
+            .in_("id", linked_doc_ids)
+            .execute()
+        )
+
+        # Sort by original_date (falling back to uploaded_at), newest first
+        doc_dates = {d["id"]: d.get("original_date") or d.get("uploaded_at") or "" for d in (docs_meta.data or [])}
+        doc_ids = sorted(linked_doc_ids, key=lambda did: doc_dates.get(did, ""), reverse=True)
         total_docs = len(doc_ids)
 
         # Fetch document content from KB (document_chunks table)
-        content_parts = []
-        current_chars = 0
+        # Ordered newest-first so agents see most recent findings first
+        content_parts = [
+            "--- LINKED DOCUMENTS (ordered by date, newest first) ---\n"
+            "Documents are presented in reverse chronological order. "
+            "Newer documents represent the latest findings and should take priority "
+            "when they update, refine, or contradict earlier material.\n"
+        ]
+        current_chars = sum(len(p) for p in content_parts)
         included_docs = 0
         for doc_id in doc_ids:
             # Get document metadata
             doc_result = await asyncio.to_thread(
-                lambda d=doc_id: supabase.table("documents").select("filename, title").eq("id", d).single().execute()
+                lambda d=doc_id: supabase.table("documents")
+                .select("filename, title, original_date, uploaded_at")
+                .eq("id", d)
+                .single()
+                .execute()
             )
 
             if not doc_result.data:
@@ -514,6 +535,10 @@ async def get_all_initiative_content(initiative_id: str, max_chars: int = 500_00
 
             doc = doc_result.data
             display_name = doc.get("title") or doc.get("filename", "Unknown")
+            doc_date = doc.get("original_date") or doc.get("uploaded_at", "")
+            # Format date for display (just the date portion)
+            if doc_date and "T" in str(doc_date):
+                doc_date = str(doc_date).split("T")[0]
 
             # Get document chunks (full content)
             chunks_result = await asyncio.to_thread(
@@ -526,7 +551,9 @@ async def get_all_initiative_content(initiative_id: str, max_chars: int = 500_00
 
             if chunks_result.data:
                 # Calculate this document's size before adding
-                doc_header = f"\n\n=== {display_name} ===\n"
+                date_suffix = f" ({doc_date})" if doc_date else ""
+                doc_position = f"[{included_docs + 1}/{total_docs}]"
+                doc_header = f"\n\n=== {doc_position} {display_name}{date_suffix} ===\n"
                 doc_content = "\n".join(chunk["content"] for chunk in chunks_result.data)
                 doc_size = len(doc_header) + len(doc_content)
 

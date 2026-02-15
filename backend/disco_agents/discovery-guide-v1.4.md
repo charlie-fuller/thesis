@@ -80,6 +80,14 @@ Output a structured "Suggested Framing" section that the frontend can parse:
 
 **If no throughline is provided, operate as before - this section only applies when throughline data is present.**
 
+### Temporal Priority
+
+Documents are presented in reverse chronological order (newest first). When analyzing:
+- **Newer documents take priority** over older ones when they update, refine, or contradict earlier findings
+- Note when newer evidence supersedes previous assumptions or hypotheses
+- Flag when earlier problem statements have evolved based on recent findings
+- When extracting framing, weight recent documents more heavily as they reflect the current state of understanding
+
 ---
 
 ## MODE DETECTION
