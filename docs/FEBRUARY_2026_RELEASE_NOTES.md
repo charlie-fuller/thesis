@@ -818,6 +818,32 @@ DISCO agents now enforce a character budget when loading initiative documents, p
 
 **Files**: `backend/services/disco/document_service.py`
 
+### Inline Generate Framing Button
+
+Added a "Generate from Documents" button directly in the discovery framing section, eliminating the need to navigate to the Run Agents tab.
+
+**Features**:
+- "Generate from Documents" button appears in empty framing state when documents are linked
+- Sparkles icon button appears on hover in populated framing state for regeneration
+- Triggers Discovery Guide agent inline with streaming status updates
+- On completion, triage review panel appears with extracted suggestions
+- Review panel now shows whenever suggestions have content, not only when framing is completely empty
+- Existing "Accept All" and "Dismiss" workflow unchanged
+
+**Files**: `frontend/app/disco/[id]/page.tsx`
+
+### Project Deep-Linking from Discovery
+
+Clicking a linked project from the discovery page now opens that specific project's detail modal instead of navigating to the filtered projects list.
+
+**Features**:
+- Project cards in discovery Projects tab link to `/projects?project={id}`
+- Single linked project in header also deep-links directly
+- Multiple linked projects in header still link to filtered list
+- Projects page reads `project` URL param and auto-opens ProjectDetailModal
+
+**Files**: `frontend/app/disco/[id]/page.tsx`, `frontend/app/projects/page.tsx`
+
 ### KB Duplicate Document Cleanup
 
 Cleaned up duplicate document records caused by multiple copies of the same files in different Obsidian vault folders.
