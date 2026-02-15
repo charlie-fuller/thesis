@@ -52,7 +52,7 @@ Every discovery has five tabs:
 
 **Projects tab features:**
 - View all projects linked to this discovery
-- Click a project to navigate to its detail view
+- Click a project to open its detail modal directly (deep-links to the Projects page with the modal open)
 - See project status and tier at a glance
 - **Active only** toggle (on by default) - hides archived projects
 
@@ -73,12 +73,14 @@ The Investigation Framing is an optional but powerful way to give your discovery
 
 ### Three Ways to Get a Throughline
 
-**Option 1: Let Triage Extract It (Recommended for new discoveries)**
+**Option 1: Generate from Documents (Recommended for new discoveries)**
 1. Create a discovery with just a name, description, and linked documents
-2. Run the **Triage** agent
-3. If your throughline is sparse, the agent analyzes your documents and suggests problem statements, hypotheses, gaps, KPIs, and stakeholders
-4. A **Review Suggested Framing** panel appears after triage completes
+2. In the Investigation Framing section, click **Generate from Documents**
+3. The Discovery Guide agent analyzes your linked documents and suggests problem statements, hypotheses, gaps, KPIs, and stakeholders
+4. A **Review Suggested Framing** panel appears when complete
 5. Click **Accept All** to populate your throughline, or **Dismiss** if the suggestions aren't useful
+
+This also works when you already have some framing defined - the agent will suggest additional items based on what's in your documents.
 
 **Option 2: Chat with the Discovery Agent (Recommended for iterating)**
 1. Click the **Chat** button in the discovery header
@@ -220,7 +222,7 @@ Convergence outputs now include tool/platform recommendations, evaluation/QA pla
 
 Agents run in sequence - earlier stages inform later ones. The system will tell you if you're trying to run something out of order.
 
-**Framing hints:** If your discovery has no throughline and triage hasn't been run yet, you'll see a hint to run triage first for auto-discovery of framing. If triage has already run with suggestions available, you'll see a prompt to review the suggested framing.
+**Framing hints:** If your discovery has no throughline, you'll see a **Generate from Documents** button in the Investigation Framing section. If the Discovery Guide has already run with suggestions available, you'll see a prompt to review the suggested framing.
 
 ---
 
@@ -499,7 +501,7 @@ Both maps are standalone interactive HTML pages. Navigate through nodes by click
 
 1. **Link context first.** The more documents you provide, the better Discovery Prep and Triage can assess the opportunity.
 
-2. **Let agents suggest framing.** Instead of manually defining problem statements and hypotheses, either run triage for auto-extraction, or chat with the Discovery Agent to iteratively build your framing through conversation.
+2. **Let agents suggest framing.** Instead of manually defining problem statements and hypotheses, click **Generate from Documents** in the framing section, or chat with the Discovery Agent to iteratively build your framing through conversation.
 
 3. **Run agents in order.** The workflow is designed to build on itself. Skipping steps weakens later outputs.
 
