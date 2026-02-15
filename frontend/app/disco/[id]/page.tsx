@@ -23,9 +23,10 @@ import {
   ExternalLink,
   BarChart3,
   X,
-  Plus
+  Plus,
+  Sparkles
 } from 'lucide-react'
-import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api'
+import { apiGet, apiPost, apiPatch, apiDelete, authenticatedFetch } from '@/lib/api'
 import DocumentUpload from '@/components/disco/DocumentUpload'
 import DocumentList from '@/components/disco/DocumentList'
 import AgentRunner from '@/components/disco/AgentRunner'
@@ -190,6 +191,11 @@ export default function InitiativeDetailPage() {
   // Triage suggestions review panel
   const [triageReviewDismissed, setTriageReviewDismissed] = useState(false)
   const [acceptingSuggestions, setAcceptingSuggestions] = useState(false)
+
+  // Generate framing state
+  const [generatingFraming, setGeneratingFraming] = useState(false)
+  const [framingGenerationStatus, setFramingGenerationStatus] = useState('')
+  const [framingGenerationError, setFramingGenerationError] = useState<string | null>(null)
 
   const canEdit = initiative?.user_role === 'owner' || initiative?.user_role === 'editor'
 
@@ -398,6 +404,72 @@ export default function InitiativeDetailPage() {
     loadInitiative() // Refresh status
   }
 
+  const handleGenerateFraming = async () => {
+    setGeneratingFraming(true)
+    setFramingGenerationStatus('Starting Discovery Guide...')
+    setFramingGenerationError(null)
+
+    try {
+      const response = await authenticatedFetch(
+        `/api/disco/initiatives/${initiativeId}/runs`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent_type: 'discovery_guide', output_format: 'markdown' }),
+          timeout: 300000,
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to start Discovery Guide')
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      if (!reader) throw new Error('No response body')
+
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('event: status')) continue
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+            if (data.startsWith('{')) {
+              try {
+                const parsed = JSON.parse(data)
+                if (parsed.status) setFramingGenerationStatus(parsed.status)
+              } catch { /* ignore parse errors */ }
+            }
+          }
+        }
+      }
+
+      // Reload outputs to get triage suggestions
+      const result = await apiGet<{ success: boolean; outputs: Output[] }>(
+        `/api/disco/initiatives/${initiativeId}/outputs`
+      )
+      const newOutputs = result.outputs || []
+      setOutputs(newOutputs)
+      if (newOutputs.length > 0 && newOutputs[0].triage_suggestions) {
+        setTriageReviewDismissed(false)
+      }
+      loadInitiative()
+      setFramingGenerationStatus('')
+    } catch (err) {
+      setFramingGenerationError(err instanceof Error ? err.message : 'Failed to generate framing')
+      setFramingGenerationStatus('')
+    } finally {
+      setGeneratingFraming(false)
+    }
+  }
+
   const handleDeleteOutput = async (outputId: string) => {
     await apiDelete(`/api/disco/initiatives/${initiativeId}/outputs/${outputId}`)
     // Remove from local state
@@ -522,13 +594,29 @@ export default function InitiativeDetailPage() {
                   />
                 </div>
                 {canEdit && (
-                  <button
-                    onClick={handleOpenEditModal}
-                    className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 opacity-0 group-hover/framing:opacity-100 transition-opacity shrink-0"
-                    title="Edit framing"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1 opacity-0 group-hover/framing:opacity-100 transition-opacity shrink-0">
+                    {documents.length > 0 && (
+                      <button
+                        onClick={handleGenerateFraming}
+                        disabled={generatingFraming}
+                        className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                        title={generatingFraming ? framingGenerationStatus || 'Generating...' : 'Regenerate framing from documents'}
+                      >
+                        {generatingFraming ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    )}
+                    <button
+                      onClick={handleOpenEditModal}
+                      className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                      title="Edit framing"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 )}
               </div>
             ) : (
@@ -543,13 +631,32 @@ export default function InitiativeDetailPage() {
                       Define your perspective (problem statements, hypotheses, gaps) to give the Discovery Guide a lens for analyzing documents. Or link documents and run the Discovery Guide to extract framing automatically.
                     </p>
                     {canEdit && (
-                      <button
-                        onClick={handleOpenEditModal}
-                        className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-300 dark:border-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                        Add Framing
-                      </button>
+                      <div className="flex items-center gap-2 mt-2">
+                        <button
+                          onClick={handleOpenEditModal}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-300 dark:border-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          Add Framing
+                        </button>
+                        {documents.length > 0 && (
+                          <button
+                            onClick={handleGenerateFraming}
+                            disabled={generatingFraming}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                          >
+                            {generatingFraming ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Sparkles className="w-3 h-3" />
+                            )}
+                            {generatingFraming ? framingGenerationStatus || 'Generating...' : 'Generate from Documents'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {framingGenerationError && (
+                      <p className="mt-1.5 text-xs text-red-500">{framingGenerationError}</p>
                     )}
                   </div>
                 </div>
@@ -561,7 +668,7 @@ export default function InitiativeDetailPage() {
               <div className="flex items-center gap-4 mt-2 text-sm text-slate-500 dark:text-slate-400">
                 {linkedProjects.length > 0 && (
                   <a
-                    href={`/projects?initiative=${initiativeId}`}
+                    href={linkedProjects.length === 1 ? `/projects?project=${linkedProjects[0].id}` : `/projects?initiative=${initiativeId}`}
                     className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline"
                   >
                     <Target className="w-4 h-4" />
@@ -603,13 +710,15 @@ export default function InitiativeDetailPage() {
       {(() => {
         // Find the latest discovery_guide output with triage suggestions
         const triageOutput = outputs.find(o => o.agent_type === 'discovery_guide' && o.triage_suggestions)
-        const hasSparseFraming = !initiative.throughline ||
-          (!initiative.throughline.problem_statements?.length &&
-           !initiative.throughline.hypotheses?.length &&
-           !initiative.throughline.gaps?.length)
         const suggestions = triageOutput?.triage_suggestions
+        const hasSuggestionContent = suggestions && (
+          (suggestions.problem_statements?.length ?? 0) > 0 ||
+          (suggestions.hypotheses?.length ?? 0) > 0 ||
+          (suggestions.gaps?.length ?? 0) > 0 ||
+          (suggestions.kpis?.length ?? 0) > 0
+        )
 
-        if (suggestions && hasSparseFraming && !triageReviewDismissed) {
+        if (hasSuggestionContent && !triageReviewDismissed) {
           return (
             <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4 mb-6">
               <div className="flex items-start justify-between mb-3">
@@ -871,7 +980,7 @@ export default function InitiativeDetailPage() {
                   {filteredProjects.map((project) => (
                   <a
                     key={project.id}
-                    href={`/projects?highlight=${project.id}`}
+                    href={`/projects?project=${project.id}`}
                     className="block p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-indigo-300 dark:hover:border-indigo-600 hover:shadow-md transition-all group"
                   >
                     <div className="flex items-start justify-between mb-2">

@@ -282,8 +282,9 @@ function ProjectsPageContent() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
 
-  // Get initiative filter from URL
+  // Get initiative filter and project deep-link from URL
   const initiativeFilter = searchParams.get('initiative') || ''
+  const projectDeepLink = searchParams.get('project') || ''
 
   // Filters
   const [departmentFilter, setDepartmentFilter] = useState('')
@@ -327,6 +328,14 @@ function ProjectsPageContent() {
       fetchProjects()
     }
   }, [user, fetchProjects])
+
+  // Auto-open project detail modal from URL deep-link
+  useEffect(() => {
+    if (projectDeepLink && projects.length > 0 && !selectedProject) {
+      const target = projects.find(p => p.id === projectDeepLink)
+      if (target) setSelectedProject(target)
+    }
+  }, [projectDeepLink, projects, selectedProject])
 
   const handleViewProject = (project: Project) => {
     setSelectedProject(project)
