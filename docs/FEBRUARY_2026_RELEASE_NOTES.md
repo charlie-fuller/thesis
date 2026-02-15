@@ -797,3 +797,38 @@ All 8 embedded HTML visualizations now inherit the parent app's theme settings.
 Removed all N8N references from platform process map. N8N is no longer part of the approved platform set.
 
 **Files**: `frontend/public/platform-process-map.html`
+
+---
+
+## February 15, 2026
+
+### Agent Context Token Budget
+
+DISCO agents now enforce a character budget when loading initiative documents, preventing prompt overflow errors.
+
+**Problem Solved**:
+- Initiatives with many linked documents (83+) could exceed the 200k token model context limit
+- This caused a 400 error ("prompt is too long") when running agents like Discovery Guide
+
+**Solution**:
+- `get_all_initiative_content()` now accepts a `max_chars` parameter (default 500k chars, ~150k tokens)
+- Documents loaded in order of link recency (most recently linked first)
+- When budget exceeded, remaining documents skipped with a context budget notice
+- Leaves room for system prompt, agent instructions, previous outputs, and KB folder documents
+
+**Files**: `backend/services/disco/document_service.py`
+
+### KB Duplicate Document Cleanup
+
+Cleaned up duplicate document records caused by multiple copies of the same files in different Obsidian vault folders.
+
+**Root Cause**:
+- Three mirrored folder trees in the vault (`GitHub/archived/purdy-cf/`, `projects/strategic-account-planning/purdy/`, `agents/BuRDy/`) contained copies of the same files
+- Obsidian sync correctly created separate records per path, but the content was identical
+- 83 documents linked to a single initiative included 18 duplicate filename entries
+
+**Cleanup**:
+- Removed 209 duplicate files from the Obsidian vault (kept most recent of each)
+- Removed 452 duplicate document records from the database (kept newest by `uploaded_at`)
+- Cleaned up orphaned initiative and project document links
+- KB reduced from 1,851 to ~1,399 documents with 0 remaining filename duplicates
