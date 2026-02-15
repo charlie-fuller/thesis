@@ -467,25 +467,29 @@ async def search_linked_kb_docs(
         return []
 
 
-async def get_all_initiative_content(initiative_id: str) -> str:
+async def get_all_initiative_content(initiative_id: str, max_chars: int = 500_000) -> str:
     """Get all document content for an initiative as a single string.
 
-    Used for building agent context.
+    Used for building agent context. Enforces a character budget to prevent
+    exceeding model context limits (~150k tokens ≈ 500k chars).
 
     Fetches content from linked KB documents (via disco_initiative_documents junction table).
+    Documents are included in order until the budget is exhausted.
 
     Args:
         initiative_id: Initiative UUID
+        max_chars: Maximum total characters to return (default 500k ≈ ~150k tokens)
 
     Returns:
-        Concatenated document content
+        Concatenated document content (truncated if over budget)
     """
     try:
-        # Get linked KB document IDs
+        # Get linked KB document IDs with link timestamps for ordering
         links_result = await asyncio.to_thread(
             lambda: supabase.table("disco_initiative_documents")
-            .select("document_id")
+            .select("document_id, linked_at")
             .eq("initiative_id", initiative_id)
+            .order("linked_at", desc=True)
             .execute()
         )
 
@@ -493,9 +497,12 @@ async def get_all_initiative_content(initiative_id: str) -> str:
             return ""
 
         doc_ids = [link["document_id"] for link in links_result.data]
+        total_docs = len(doc_ids)
 
         # Fetch document content from KB (document_chunks table)
         content_parts = []
+        current_chars = 0
+        included_docs = 0
         for doc_id in doc_ids:
             # Get document metadata
             doc_result = await asyncio.to_thread(
@@ -518,10 +525,31 @@ async def get_all_initiative_content(initiative_id: str) -> str:
             )
 
             if chunks_result.data:
-                content_parts.append(f"\n\n=== {display_name} ===\n")
-                # Concatenate all chunks
-                for chunk in chunks_result.data:
-                    content_parts.append(chunk["content"])
+                # Calculate this document's size before adding
+                doc_header = f"\n\n=== {display_name} ===\n"
+                doc_content = "\n".join(chunk["content"] for chunk in chunks_result.data)
+                doc_size = len(doc_header) + len(doc_content)
+
+                if current_chars + doc_size > max_chars:
+                    # Budget exceeded - stop adding documents
+                    skipped = total_docs - included_docs
+                    content_parts.append(
+                        f"\n\n--- CONTEXT BUDGET REACHED ---\n"
+                        f"{skipped} of {total_docs} documents omitted to stay within model context limits.\n"
+                        f"To include specific documents, reduce the number linked to this initiative."
+                    )
+                    break
+
+                content_parts.append(doc_header)
+                content_parts.append(doc_content)
+                current_chars += doc_size
+                included_docs += 1
+
+        if included_docs > 0:
+            logger.info(
+                f"Initiative {initiative_id}: included {included_docs}/{total_docs} documents "
+                f"({current_chars:,} chars)"
+            )
 
         return "\n".join(content_parts)
 
