@@ -344,15 +344,24 @@ export default function InitiativeDetailPage() {
         ...(initiative.throughline || {}),
         problem_statements: [
           ...(initiative.throughline?.problem_statements || []),
-          ...(suggestions.problem_statements || []).map(ps => ({ id: `ps-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text: ps })),
+          ...(suggestions.problem_statements || []).map(ps => {
+            if (typeof ps === 'object' && ps !== null) return ps as { id: string; text: string }
+            return { id: `ps-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text: ps as string }
+          }),
         ],
         hypotheses: [
           ...(initiative.throughline?.hypotheses || []),
-          ...(suggestions.hypotheses || []).map(h => ({ id: `h-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, statement: h })),
+          ...(suggestions.hypotheses || []).map(h => {
+            if (typeof h === 'object' && h !== null) return h as { id: string; statement: string }
+            return { id: `h-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, statement: h as string }
+          }),
         ],
         gaps: [
           ...(initiative.throughline?.gaps || []),
-          ...(suggestions.gaps || []).map(g => ({ id: `g-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, description: g, type: 'data' as const })),
+          ...(suggestions.gaps || []).map(g => {
+            if (typeof g === 'object' && g !== null) return g as { id: string; description: string; type: 'data' }
+            return { id: `g-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, description: g as string, type: 'data' as const }
+          }),
         ],
       }
 
@@ -744,7 +753,7 @@ export default function InitiativeDetailPage() {
                     <span className="font-medium text-slate-700 dark:text-slate-300">Problem Statements:</span>
                     <ul className="ml-4 mt-1 space-y-0.5">
                       {suggestions.problem_statements.map((ps, i) => (
-                        <li key={i} className="text-slate-600 dark:text-slate-400">- {ps}</li>
+                        <li key={i} className="text-slate-600 dark:text-slate-400">- {typeof ps === 'string' ? ps : (ps as { text?: string }).text || JSON.stringify(ps)}</li>
                       ))}
                     </ul>
                   </div>
@@ -754,7 +763,7 @@ export default function InitiativeDetailPage() {
                     <span className="font-medium text-slate-700 dark:text-slate-300">Hypotheses:</span>
                     <ul className="ml-4 mt-1 space-y-0.5">
                       {suggestions.hypotheses.map((h, i) => (
-                        <li key={i} className="text-slate-600 dark:text-slate-400">- {h}</li>
+                        <li key={i} className="text-slate-600 dark:text-slate-400">- {typeof h === 'string' ? h : (h as { statement?: string }).statement || JSON.stringify(h)}</li>
                       ))}
                     </ul>
                   </div>
@@ -764,7 +773,7 @@ export default function InitiativeDetailPage() {
                     <span className="font-medium text-slate-700 dark:text-slate-300">Gaps:</span>
                     <ul className="ml-4 mt-1 space-y-0.5">
                       {suggestions.gaps.map((g, i) => (
-                        <li key={i} className="text-slate-600 dark:text-slate-400">- {g}</li>
+                        <li key={i} className="text-slate-600 dark:text-slate-400">- {typeof g === 'string' ? g : (g as { description?: string }).description || JSON.stringify(g)}</li>
                       ))}
                     </ul>
                   </div>
