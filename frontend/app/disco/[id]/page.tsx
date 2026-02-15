@@ -783,24 +783,22 @@ export default function InitiativeDetailPage() {
                   <Edit3 className="w-3.5 h-3.5" />
                   Edit Framing
                 </button>
-                {documents.length > 0 && (
-                  <button
-                    onClick={handleGenerateFraming}
-                    disabled={generatingFraming}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-                  >
-                    {generatingFraming ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-3.5 h-3.5" />
-                    )}
-                    {generatingFraming
-                      ? framingGenerationStatus || 'Generating...'
-                      : (initiative.throughline?.problem_statements?.length || initiative.throughline?.hypotheses?.length || initiative.throughline?.gaps?.length)
-                        ? 'Regenerate from Documents'
-                        : 'Generate from Documents'}
-                  </button>
-                )}
+                <button
+                  onClick={handleGenerateFraming}
+                  disabled={generatingFraming}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                >
+                  {generatingFraming ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  )}
+                  {generatingFraming
+                    ? framingGenerationStatus || 'Generating...'
+                    : (initiative.throughline?.problem_statements?.length || initiative.throughline?.hypotheses?.length || initiative.throughline?.gaps?.length)
+                      ? 'Regenerate from Documents'
+                      : 'Generate from Documents'}
+                </button>
               </div>
             )}
             {framingGenerationError && (
