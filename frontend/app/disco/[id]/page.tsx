@@ -695,8 +695,11 @@ export default function InitiativeDetailPage() {
 
       {/* Post-Discovery Guide Framing Review Panel - show above tabs when not on framing tab */}
       {activeTab !== 'framing' && (() => {
-        const triageOutput = outputs.find(o => o.agent_type === 'discovery_guide' && o.triage_suggestions)
-        const suggestions = triageOutput?.triage_suggestions
+        // Only check the LATEST discovery_guide output for suggestions
+        const latestDiscoveryGuide = outputs
+          .filter(o => o.agent_type === 'discovery_guide')
+          .sort((a, b) => (b.version || 0) - (a.version || 0))[0]
+        const suggestions = latestDiscoveryGuide?.triage_suggestions
         const hasSuggestionContent = suggestions && (
           (suggestions.problem_statements?.length ?? 0) > 0 ||
           (suggestions.hypotheses?.length ?? 0) > 0 ||
@@ -874,10 +877,12 @@ export default function InitiativeDetailPage() {
               <p className="text-sm text-red-500">{framingGenerationError}</p>
             )}
 
-            {/* Review panel for suggestions */}
+            {/* Review panel for suggestions - only check latest output */}
             {(() => {
-              const triageOutput = outputs.find(o => o.agent_type === 'discovery_guide' && o.triage_suggestions)
-              const suggestions = triageOutput?.triage_suggestions
+              const latestDG = outputs
+                .filter(o => o.agent_type === 'discovery_guide')
+                .sort((a, b) => (b.version || 0) - (a.version || 0))[0]
+              const suggestions = latestDG?.triage_suggestions
               const hasSuggestionContent = suggestions && (
                 (suggestions.problem_statements?.length ?? 0) > 0 ||
                 (suggestions.hypotheses?.length ?? 0) > 0 ||
