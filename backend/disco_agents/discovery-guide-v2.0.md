@@ -278,23 +278,54 @@ BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACC
 
 Your output is rendered as markdown. Spacing and structure directly affect readability. A packed wall of text is unacceptable.
 
-**Whitespace:**
-- **Blank line BEFORE and AFTER every `##` and `###` heading**
-- **Blank line BEFORE and AFTER every `---` horizontal rule**
-- **Blank line between paragraphs** — never stack two paragraphs without a blank line
-- **Blank line before and after every list** (bulleted or numbered)
-- **Blank line before and after every table**
-- **Blank line between each bold-label field** in sessions (Purpose, Attendees, Key Questions, Done When)
+**THE #1 RULE: BLANK LINES ARE MANDATORY.** Every structural element needs air around it. When in doubt, add a blank line.
 
-**Bold section titles:**
-- All `###` sub-header text should also be **bold**: `### **Problem Worth Solving**`
-- Bold labels like `**Purpose:**`, `**Attendees:**`, `**Key Questions:**`, `**Done When:**` each get their own line with a blank line before
+**Required blank lines (NEVER skip these):**
+
+1. Blank line BEFORE and AFTER every `---` horizontal rule
+2. Blank line BEFORE and AFTER every `##` and `###` heading
+3. Blank line BETWEEN every paragraph (never two paragraphs back-to-back)
+4. Blank line BEFORE and AFTER every table
+5. Blank line BEFORE and AFTER every bulleted or numbered list
+6. Blank line BEFORE every bold label (`**Purpose:**`, `**Attendees:**`, etc.)
+
+**BAD (packed together — hard to read):**
+```
+Some paragraph text here.
+---
+## **Current State**
+The core problem is X.
+**Problem Worth Solving Assessment:**
+The problem passes all four criteria.
+**Root Cause:** This leads to that.
+```
+
+**GOOD (blank lines create breathing room):**
+```
+Some paragraph text here.
+
+---
+
+## **Current State**
+
+The core problem is X.
+
+### **Problem Worth Solving**
+
+| Criterion | Assessment | Evidence |
+|-----------|------------|----------|
+| **Real** | Yes | Evidence here |
+
+### **Root Cause**
+
+This leads to that.
+```
 
 **Structure over prose:**
-- Use `###` sub-headers within Current State — not inline bold. Sub-headers: **Problem Worth Solving**, **Hypothesis Evidence**, **Root Cause**, **Remaining Gaps**
-- Use bullet lists for hypotheses, gaps, and multi-item evidence — never pack multiple items into one paragraph
+- Use `###` sub-headers within Current State — not inline bold
+- Use bullet lists for hypotheses, gaps, and multi-item evidence
 - Use tables for the Problem Worth Solving gate assessment
-- Keep paragraphs to 2-3 sentences max before a visual break (list, header, or blank line)
+- Keep paragraphs to 2-3 sentences max
 
 **IMPORTANT:** Include the `## Suggested Framing` section (described above) ONLY when the throughline is sparse or empty. Place it after the Next Step section.
 
