@@ -210,7 +210,7 @@ def get_model_for_agent(agent_type: str) -> str:
 # - prd_generator, tech_evaluation, meta_consolidator, meta_synthesizer
 AGENT_FILES = {
     # === Consolidated Agents (v2.0, throughline-aware v1.2) ===
-    "discovery_guide": "discovery-guide-v1.4.md",
+    "discovery_guide": "discovery-guide-v1.5.md",
     "insight_analyst": "insight-analyst-v1.2.md",
     "initiative_builder": "initiative-builder-v1.2.md",
     "requirements_generator": "requirements-generator-v1.4.md",
@@ -1520,7 +1520,7 @@ def parse_throughline_resolution(raw_output: str) -> Optional[Dict]:
     # Expected format: | h-1 | confirmed | Evidence text |
     hypothesis_resolutions = []
     hyp_rows = re.findall(
-        r"\|\s*(h-\d+)\s*\|\s*(confirmed|refuted|inconclusive)\s*\|\s*(.+?)\s*\|",
+        r"\|\s*(h-\d+)[^|]*\|\s*(confirmed|refuted|inconclusive)\s*\|\s*(.+?)\s*\|",
         section,
         re.IGNORECASE,
     )
@@ -1539,7 +1539,7 @@ def parse_throughline_resolution(raw_output: str) -> Optional[Dict]:
     # Expected format: | g-1 | addressed | Findings text |
     gap_statuses = []
     gap_rows = re.findall(
-        r"\|\s*(g-\d+)\s*\|\s*(addressed|unaddressed|partially_addressed|partially addressed)\s*\|\s*(.+?)\s*\|",
+        r"\|\s*(g-\d+)[^|]*\|\s*(addressed|unaddressed|partially_addressed|partially addressed)\s*\|\s*(.+?)\s*\|",
         section,
         re.IGNORECASE,
     )
