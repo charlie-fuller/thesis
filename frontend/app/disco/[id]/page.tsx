@@ -636,13 +636,48 @@ export default function InitiativeDetailPage() {
                     </span>
                   )}
                   {initiative.value_alignment?.kpis?.map((kpi, i) => (
-                    <span key={i} className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 group">
                       {kpi}
+                      {canEdit && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            const updatedKpis = initiative.value_alignment?.kpis?.filter((_, j) => j !== i) || []
+                            try {
+                              const result = await apiPatch<{ success: boolean; initiative: Initiative }>(
+                                `/api/disco/initiatives/${initiativeId}`,
+                                { value_alignment: { ...initiative.value_alignment, kpis: updatedKpis.length > 0 ? updatedKpis : undefined } }
+                              )
+                              if (result.success && result.initiative) setInitiative(result.initiative)
+                            } catch (err) { console.error('Failed to remove KPI:', err) }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600 dark:hover:text-red-400 -mr-0.5"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
                     </span>
                   ))}
                   {initiative.value_alignment?.strategic_pillar && (
-                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 capitalize">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 capitalize group">
                       {initiative.value_alignment.strategic_pillar}
+                      {canEdit && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            try {
+                              const result = await apiPatch<{ success: boolean; initiative: Initiative }>(
+                                `/api/disco/initiatives/${initiativeId}`,
+                                { value_alignment: { ...initiative.value_alignment, strategic_pillar: undefined } }
+                              )
+                              if (result.success && result.initiative) setInitiative(result.initiative)
+                            } catch (err) { console.error('Failed to remove pillar:', err) }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600 dark:hover:text-red-400 -mr-0.5"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
                     </span>
                   )}
                 </div>
