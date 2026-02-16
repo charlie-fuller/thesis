@@ -196,6 +196,28 @@ export default function InitiativeDetailPage() {
   const [triageReviewDismissed, setTriageReviewDismissed] = useState(false)
   const [acceptingSuggestions, setAcceptingSuggestions] = useState(false)
 
+  // Check if suggestions have already been accepted into the throughline
+  const areSuggestionsAlreadyAccepted = (suggestions: TriageSuggestions): boolean => {
+    const throughline = initiative?.throughline
+    if (!throughline) return false
+    const existingPS = new Set((throughline.problem_statements || []).map(p => p.text))
+    const existingH = new Set((throughline.hypotheses || []).map(h => h.statement))
+    const existingG = new Set((throughline.gaps || []).map(g => g.description))
+    const newPS = (suggestions.problem_statements || []).filter(ps => {
+      const text = typeof ps === 'string' ? ps : (ps as { text?: string }).text
+      return text && !existingPS.has(text)
+    })
+    const newH = (suggestions.hypotheses || []).filter(h => {
+      const stmt = typeof h === 'string' ? h : (h as { statement?: string }).statement
+      return stmt && !existingH.has(stmt)
+    })
+    const newG = (suggestions.gaps || []).filter(g => {
+      const desc = typeof g === 'string' ? g : (g as { description?: string }).description
+      return desc && !existingG.has(desc)
+    })
+    return newPS.length === 0 && newH.length === 0 && newG.length === 0
+  }
+
   // Generate framing state
   const [generatingFraming, setGeneratingFraming] = useState(false)
   const [framingGenerationStatus, setFramingGenerationStatus] = useState('')
@@ -682,7 +704,7 @@ export default function InitiativeDetailPage() {
           (suggestions.kpis?.length ?? 0) > 0
         )
 
-        if (hasSuggestionContent && !triageReviewDismissed) {
+        if (hasSuggestionContent && !triageReviewDismissed && !areSuggestionsAlreadyAccepted(suggestions)) {
           return (
             <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4 mb-6">
               <div className="flex items-start justify-between mb-3">
@@ -863,7 +885,7 @@ export default function InitiativeDetailPage() {
                 (suggestions.kpis?.length ?? 0) > 0
               )
 
-              if (hasSuggestionContent && !triageReviewDismissed) {
+              if (hasSuggestionContent && !triageReviewDismissed && !areSuggestionsAlreadyAccepted(suggestions)) {
                 return (
                   <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
                     <div className="flex items-start justify-between mb-3">
