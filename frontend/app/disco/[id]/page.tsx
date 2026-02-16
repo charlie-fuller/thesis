@@ -201,7 +201,7 @@ export default function InitiativeDetailPage() {
   const [framingGenerationStatus, setFramingGenerationStatus] = useState('')
   const [framingGenerationError, setFramingGenerationError] = useState<string | null>(null)
 
-  const canEdit = initiative?.user_role === 'owner' || initiative?.user_role === 'editor'
+  const canEdit = !!initiative
 
   // Load initiative data
   const loadInitiative = useCallback(async () => {
