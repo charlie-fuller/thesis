@@ -214,6 +214,7 @@ BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACC
 [2-3 sentences tracing from symptom to root cause. Use → chains if helpful.]
 
 ### **Remaining Gaps**
+(MUST be a bulleted list — never a paragraph)
 
 - [Gap description] (g-X)
 
@@ -242,6 +243,7 @@ BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACC
 **Attendees:** [Names/Roles]
 
 **Key Questions:**
+(MUST be a numbered list — never inline text)
 
 1. [Must answer]
 2. [Quantification: "How long/often/many?"]
@@ -257,6 +259,7 @@ BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACC
 **Attendees:** [Names/Roles]
 
 **Key Questions:**
+(MUST be a numbered list — never inline text)
 
 1. [Must answer]
 2. [Quantification question]
@@ -374,6 +377,9 @@ When the throughline or your analysis identifies gaps, design sessions targeting
 | Output over 800 words | Reader fatigue | Cut ruthlessly; every sentence earns its place |
 | Dense paragraphs with inline bold labels | Reads as a wall of text | Use `###` sub-headers, bullet lists, tables, blank lines between elements |
 | No blank lines between bold fields | Fields collapse together visually | Add blank line after each bold field (Purpose, Attendees, etc.) |
+| Key Questions as inline text | Hard to scan, loses structure | Always use numbered list (`1.`, `2.`) for Key Questions |
+| Remaining Gaps as a paragraph | Gaps get lost in prose | Always use bulleted list (`-`) for Remaining Gaps |
+| Hypotheses as a paragraph | Evidence status gets buried | Always use bulleted list with bold hypothesis text and status tag |
 
 ---
 
