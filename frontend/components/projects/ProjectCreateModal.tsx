@@ -240,7 +240,7 @@ export default function ProjectCreateModal({
         <div className="flex items-center justify-between p-6 border-b border-default">
           <div>
             <h2 className="text-xl font-semibold text-primary">New Project</h2>
-            <p className="text-sm text-muted mt-1">Create a new AI initiative to track</p>
+            <p className="text-sm text-muted mt-1">Create a new project to track</p>
           </div>
           <button
             onClick={handleClose}

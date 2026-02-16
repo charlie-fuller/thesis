@@ -1177,12 +1177,6 @@ export default function InitiativeDetailPage() {
           loadLinkedProjects()
         }}
         initiativeId={initiativeId}
-        initialData={{
-          title: initiative.name,
-          description: initiative.description || undefined,
-          department: initiative.target_department || undefined,
-          desired_state: initiative.throughline?.desired_outcome_state || undefined,
-        }}
       />
 
       {/* Edit Discovery Modal */}
