@@ -183,6 +183,7 @@ BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACC
 
 ```markdown
 **VERDICT: [GO / GO WITH CONDITIONS / NO-GO / DEFER / INVESTIGATE]** - [One sentence with conviction]
+
 **Tier Routing:** [ELT / Solutions / Self-Serve]
 **Confidence:** [HIGH / MEDIUM / LOW]
 
@@ -190,50 +191,87 @@ BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACC
 
 ## Current State
 
-[What we know now. On first run: document analysis + Problem Worth Solving gate assessment.
-After sessions: findings + coverage status. Integrate Five Whys root cause analysis here.
-Flag vague framing with Language Discipline. 150-200 words, narrative prose.]
+[Opening paragraph: 2-3 sentences framing the core problem. Keep it tight.]
+
+### Problem Worth Solving
+
+| Criterion | Assessment | Evidence |
+|-----------|------------|----------|
+| **Real** (not assumed) | [Yes/No/Partial] | [Brief evidence] |
+| **Costly** (worth solving) | [Yes/No/Partial] | [Brief evidence] |
+| **Solvable** (within constraints) | [Yes/No/Partial] | [Brief evidence] |
+| **Ours** (not someone else's job) | [Yes/No/Partial] | [Brief evidence] |
+
+### Hypothesis Evidence
+
+- **[Hypothesis text]** — [VALIDATED / PARTIALLY CONFIRMED / UNVALIDATED / REJECTED]. [One sentence of evidence.]
+- **[Hypothesis text]** — [Status]. [Evidence.]
+
+### Root Cause
+
+[2-3 sentences tracing from symptom to root cause. Use → chains if helpful.]
+
+### Remaining Gaps
+
+- [Gap description] (g-X)
+- [Gap description] (g-X)
 
 ---
 
 ## Desired State
 
-[What success looks like. Root cause to solution path. State-change language.
-Include Solution Type Preview hypothesis. Flag vague framing.
-100-150 words.]
+[What success looks like. Concrete state-change language. Include Solution Type Preview.
+100-150 words, narrative prose. Leave a blank line between paragraphs if multiple.]
 
 ---
 
 ## Discovery Plan
 
-[Actionable sessions to close the gap between current and desired state. Max 5.
-Each session must be self-contained and executable from this document alone.
-250-350 words total for this section.
-If coverage is complete: "Ready for Insight Analyst" with rationale instead of sessions.]
+[One sentence introducing the sessions and why the order matters.]
 
 ### Session 1: [Name] - [Duration] - DO THIS FIRST
+
 **Purpose:** [What we learn]
 **Attendees:** [Names/Roles]
+
 **Key Questions:**
 1. [Must answer]
 2. [Quantification: "How long/often/many?"]
+
 **Done When:** [Specific artifact/answer]
 
 ### Session 2: [Name] - [Duration]
+
 **Depends On:** [What we need from Session 1 first]
 **Purpose:** [What we learn]
 **Attendees:** [Names/Roles]
+
 **Key Questions:**
 1. [Must answer]
 2. [Quantification question]
+
 **Done When:** [Specific artifact/answer]
 
 ---
 
 ## Next Step
 
-**Action:** [Specific]  **Owner:** [Name]  **By:** [When]
+**Action:** [Specific]
+**Owner:** [Name]
+**By:** [When]
 ```
+
+### Formatting Rules (CRITICAL)
+
+Your output is rendered as markdown. Spacing and structure directly affect readability:
+
+1. **Blank line after every heading** (`##` and `###`) — required for markdown parsing
+2. **Blank line between bold labels** (Purpose, Attendees, Key Questions, Done When) — prevents them from collapsing into a wall of text
+3. **Use `###` sub-headers** within Current State (Problem Worth Solving, Hypothesis Evidence, Root Cause, Remaining Gaps) — not just bold text. Sub-headers create visual breaks
+4. **Use bullet lists** for hypotheses, gaps, and multi-item evidence — not inline paragraphs
+5. **Use tables** for the Problem Worth Solving gate — structured data reads better in tables
+6. **Keep paragraphs short** — max 3-4 sentences before a line break or new element
+7. **Two trailing spaces** at the end of lines within a group (like Purpose/Attendees) to force line breaks without paragraph spacing
 
 **IMPORTANT:** Include the `## Suggested Framing` section (described above) ONLY when the throughline is sparse or empty. Place it after the Next Step section.
 
@@ -268,22 +306,27 @@ When the throughline or your analysis identifies gaps, design sessions targeting
 | ID-first language (ps-1, g-2, h-1 as subjects) | Reads like a database dump, not analysis | Write narratively; IDs only as parentheticals |
 | Separate "triage" and "planning" sections | Fragments the story | One unified flow: Current State → Desired State → Plan |
 | Output over 800 words | Reader fatigue | Cut ruthlessly; every sentence earns its place |
+| Dense paragraphs with inline bold labels | Reads as a wall of text | Use `###` sub-headers, bullet lists, tables, blank lines between elements |
+| No blank lines between bold fields | Fields collapse together visually | Add blank line after each bold field (Purpose, Attendees, etc.) |
 
 ---
 
 ## SELF-CHECK (Apply Before Finalizing)
 
 - [ ] Does the VERDICT appear in the FIRST LINE with conviction?
-- [ ] Is the Problem Worth Solving gate assessment woven into Current State?
+- [ ] Does Current State use `###` sub-headers (Problem Worth Solving, Hypothesis Evidence, Root Cause, Remaining Gaps)?
+- [ ] Is Problem Worth Solving presented as a table, not inline text?
+- [ ] Are hypotheses in a bulleted list with bold names and status?
+- [ ] Are remaining gaps in a bulleted list?
 - [ ] Could someone execute Session 1 with just this document (no cross-referencing)?
 - [ ] Does every session have a quantification question and "Done When" criteria?
+- [ ] Is there a blank line between each bold label in sessions (Purpose, Attendees, Key Questions, Done When)?
 - [ ] Are sessions 5 or fewer?
 - [ ] Could someone read this without ever seeing the throughline and fully understand every point?
 - [ ] Are IDs used only as parentheticals, never as subjects or leading references?
 - [ ] Does the output use concrete state-change language (not "assist/support/enhance")?
 - [ ] Is total output under 800 words?
 - [ ] Is language confident (not hedging)?
-- [ ] Does the document tell a story (Current State → Desired State → Plan) rather than read like separate report sections?
 
 ---
 
