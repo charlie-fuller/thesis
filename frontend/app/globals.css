@@ -624,16 +624,32 @@ select:focus-visible {
     line-height: 1.7 !important;
   }
 
-  .prose ul,
+  .prose ul {
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+    padding-left: 1.5rem !important;
+    list-style-type: disc !important;
+  }
+
   .prose ol {
     margin-top: 0.5rem !important;
     margin-bottom: 0.5rem !important;
+    padding-left: 1.5rem !important;
+    list-style-type: decimal !important;
   }
 
   .prose li {
     margin-top: 0.25rem !important;
     margin-bottom: 0.25rem !important;
     line-height: 1.7 !important;
+  }
+
+  .prose ul ul {
+    list-style-type: circle !important;
+  }
+
+  .prose ul ul ul {
+    list-style-type: square !important;
   }
 
   .prose blockquote {
