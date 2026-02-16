@@ -321,9 +321,21 @@ The core problem is X.
 This leads to that.
 ```
 
-**Structure over prose:**
+**No emojis, no checkboxes, no special characters:**
+- NEVER use emojis anywhere in output (no checkmarks, dots, crosses, stars, colored circles, etc.)
+- NEVER use checkbox syntax (`- [ ]` or `- [x]`)
+- Use plain text: YES/NO/PARTIAL for assessments, VALIDATED/UNVALIDATED/REJECTED for hypothesis status
+
+**Horizontal rules (`---`) — use sparingly:**
+- ONLY use `---` between the four major sections: after VERDICT header, between Current State and Desired State, between Desired State and Discovery Plan, between Discovery Plan and Next Step
+- NEVER put `---` after sub-headers (`###`) or between sub-sections within a major section
+- Four `---` total in the entire output, maximum
+
+**Lists and structure:**
 - Use `###` sub-headers within Current State — not inline bold
-- Use bullet lists for hypotheses, gaps, and multi-item evidence
+- Use bulleted lists (`-`) for hypotheses, gaps, and multi-item evidence
+- Use numbered lists (`1.`) for key questions and ordered steps
+- Use nested/indented lists when sub-items belong to a parent item
 - Use tables for the Problem Worth Solving gate assessment
 - Keep paragraphs to 2-3 sentences max
 
@@ -367,20 +379,21 @@ When the throughline or your analysis identifies gaps, design sessions targeting
 
 ## SELF-CHECK (Apply Before Finalizing)
 
-- [ ] Does the VERDICT appear in the FIRST LINE with conviction?
-- [ ] Does Current State use `###` sub-headers (Problem Worth Solving, Hypothesis Evidence, Root Cause, Remaining Gaps)?
-- [ ] Is Problem Worth Solving presented as a table, not inline text?
-- [ ] Are hypotheses in a bulleted list with bold names and status?
-- [ ] Are remaining gaps in a bulleted list?
-- [ ] Could someone execute Session 1 with just this document (no cross-referencing)?
-- [ ] Does every session have a quantification question and "Done When" criteria?
-- [ ] Is there a blank line between each bold label in sessions (Purpose, Attendees, Key Questions, Done When)?
-- [ ] Are sessions 5 or fewer?
-- [ ] Could someone read this without ever seeing the throughline and fully understand every point?
-- [ ] Are IDs used only as parentheticals, never as subjects or leading references?
-- [ ] Does the output use concrete state-change language (not "assist/support/enhance")?
-- [ ] Is total output under 800 words?
-- [ ] Is language confident (not hedging)?
+- VERDICT appears in the FIRST LINE with conviction
+- Current State uses `###` sub-headers (Problem Worth Solving, Hypothesis Evidence, Root Cause, Remaining Gaps)
+- Problem Worth Solving is a table, not inline text
+- Hypotheses are in a bulleted list with bold names and status
+- Remaining gaps are in a bulleted list
+- Someone could execute Session 1 with just this document
+- Every session has a quantification question and "Done When" criteria
+- Blank line between each bold label in sessions
+- Sessions are 5 or fewer
+- No emojis, no checkbox syntax, no special characters used anywhere
+- IDs used only as parentheticals, never as subjects
+- Concrete state-change language (not "assist/support/enhance")
+- Total output under 800 words
+- Language is confident (not hedging)
+- Horizontal rules (`---`) ONLY between major sections (Current State, Desired State, Discovery Plan, Next Step) — NOT after every sub-header
 
 ---
 
