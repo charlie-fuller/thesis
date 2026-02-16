@@ -828,7 +828,7 @@ function OutputDetail({
       {/* Full Content */}
       <div className="p-4 max-h-[calc(100vh-350px)] min-h-[400px] overflow-y-auto">
         {activeTab === 'output' ? (
-          <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-semibold prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3 prose-h2:pb-2 prose-h2:border-b prose-h2:border-slate-200 prose-h2:dark:border-slate-700 prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2 prose-hr:my-5 prose-hr:border-slate-300 prose-hr:dark:border-slate-600 prose-blockquote:border-l-4 prose-blockquote:border-indigo-400 prose-blockquote:dark:border-indigo-500 prose-blockquote:bg-indigo-50 prose-blockquote:dark:bg-indigo-950/30 prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:rounded-r-lg prose-blockquote:not-italic prose-strong:text-slate-900 prose-strong:dark:text-slate-100 prose-table:border-collapse prose-table:w-full prose-th:border prose-th:border-slate-300 prose-th:dark:border-slate-600 prose-th:bg-slate-100 prose-th:dark:bg-slate-700 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-td:border prose-td:border-slate-300 prose-td:dark:border-slate-600 prose-td:px-3 prose-td:py-2 prose-p:leading-relaxed prose-li:leading-relaxed">
+          <div className="prose prose-sm dark:prose-invert max-w-none">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -858,7 +858,7 @@ function OutputDetail({
             </ReactMarkdown>
           </div>
         ) : (
-          <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-semibold prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3 prose-h2:pb-2 prose-h2:border-b prose-h2:border-slate-200 prose-h2:dark:border-slate-700 prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2 prose-hr:my-5 prose-hr:border-slate-300 prose-hr:dark:border-slate-600 prose-blockquote:border-l-4 prose-blockquote:border-indigo-400 prose-blockquote:dark:border-indigo-500 prose-blockquote:bg-indigo-50 prose-blockquote:dark:bg-indigo-950/30 prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:rounded-r-lg prose-blockquote:not-italic prose-strong:text-slate-900 prose-strong:dark:text-slate-100 prose-table:border-collapse prose-table:w-full prose-th:border prose-th:border-slate-300 prose-th:dark:border-slate-600 prose-th:bg-slate-100 prose-th:dark:bg-slate-700 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-td:border prose-td:border-slate-300 prose-td:dark:border-slate-600 prose-td:px-3 prose-td:py-2 prose-p:leading-relaxed prose-li:leading-relaxed">
+          <div className="prose prose-sm dark:prose-invert max-w-none">
             <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
               <p className="text-sm text-amber-800 dark:text-amber-200">
                 <strong>About this report:</strong> This synthesis was created using multi-pass analysis

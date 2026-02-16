@@ -579,3 +579,104 @@ select:focus-visible {
 .shadow-card-hover {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
+
+/* ========================================
+   PROSE / MARKDOWN OUTPUT STYLES
+   ========================================
+   Used by OutputViewer and AgentRunner for
+   rendered agent output (Discovery Guide, etc.)
+*/
+
+.prose h2 {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  margin-top: 1.75rem !important;
+  margin-bottom: 0.75rem !important;
+  padding-bottom: 0.5rem !important;
+  border-bottom: 1px solid var(--color-border-default, #e5e5e9) !important;
+}
+
+.dark .prose h2 {
+  border-bottom-color: #374151 !important;
+}
+
+.prose h3 {
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.prose hr {
+  margin-top: 1.5rem !important;
+  margin-bottom: 1.5rem !important;
+  border-color: var(--color-border-default, #e5e5e9) !important;
+}
+
+.dark .prose hr {
+  border-color: #374151 !important;
+}
+
+.prose p {
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+  line-height: 1.7 !important;
+}
+
+.prose ul,
+.prose ol {
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.prose li {
+  margin-top: 0.25rem !important;
+  margin-bottom: 0.25rem !important;
+  line-height: 1.7 !important;
+}
+
+.prose blockquote {
+  border-left: 4px solid #6366f1 !important;
+  background-color: rgba(99, 102, 241, 0.05) !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 0 0.5rem 0.5rem 0 !important;
+  font-style: normal !important;
+}
+
+.dark .prose blockquote {
+  border-left-color: #818cf8 !important;
+  background-color: rgba(99, 102, 241, 0.1) !important;
+}
+
+.prose table {
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.75rem !important;
+  border-collapse: collapse !important;
+  width: 100% !important;
+}
+
+.prose th {
+  border: 1px solid var(--color-border-default, #d1d5db) !important;
+  padding: 0.5rem 0.75rem !important;
+  text-align: left !important;
+  font-weight: 600 !important;
+  background-color: var(--color-bg-hover, #f7f7f8) !important;
+}
+
+.dark .prose th {
+  border-color: #4b5563 !important;
+  background-color: #1f2937 !important;
+}
+
+.prose td {
+  border: 1px solid var(--color-border-default, #d1d5db) !important;
+  padding: 0.5rem 0.75rem !important;
+}
+
+.dark .prose td {
+  border-color: #4b5563 !important;
+}
+
+.prose strong {
+  font-weight: 700 !important;
+}
