@@ -181,7 +181,7 @@ export default function ThroughlineEditor({ throughline, onChange }: Throughline
               value={ps.text}
               onChange={(e) => updateProblem(i, e.target.value)}
               placeholder="Describe the problem..."
-              className="input-field flex-1 text-sm"
+              className="input-field !w-auto flex-1 min-w-0 text-sm"
             />
             <button
               type="button"
@@ -211,12 +211,12 @@ export default function ThroughlineEditor({ throughline, onChange }: Throughline
               value={h.statement}
               onChange={(e) => updateHypothesis(i, 'statement', e.target.value)}
               placeholder="State the hypothesis..."
-              className="input-field flex-1 text-sm"
+              className="input-field !w-auto flex-1 min-w-0 text-sm"
             />
             <select
               value={h.type || 'assumption'}
               onChange={(e) => updateHypothesis(i, 'type', e.target.value)}
-              className="input-field w-28 text-sm shrink-0"
+              className="input-field !w-auto w-28 text-sm shrink-0"
             >
               {HYPOTHESIS_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -250,12 +250,12 @@ export default function ThroughlineEditor({ throughline, onChange }: Throughline
               value={g.description}
               onChange={(e) => updateGap(i, 'description', e.target.value)}
               placeholder="Describe the gap..."
-              className="input-field flex-1 text-sm"
+              className="input-field !w-auto flex-1 min-w-0 text-sm"
             />
             <select
               value={g.type || 'data'}
               onChange={(e) => updateGap(i, 'type', e.target.value)}
-              className="input-field w-28 text-sm shrink-0"
+              className="input-field !w-auto w-28 text-sm shrink-0"
             >
               {GAP_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
