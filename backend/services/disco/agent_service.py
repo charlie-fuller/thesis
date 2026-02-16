@@ -210,7 +210,7 @@ def get_model_for_agent(agent_type: str) -> str:
 # - prd_generator, tech_evaluation, meta_consolidator, meta_synthesizer
 AGENT_FILES = {
     # === Consolidated Agents (v2.0, throughline-aware v1.2) ===
-    "discovery_guide": "discovery-guide-v1.5.md",
+    "discovery_guide": "discovery-guide-v2.0.md",
     "insight_analyst": "insight-analyst-v1.2.md",
     "initiative_builder": "initiative-builder-v1.2.md",
     "requirements_generator": "requirements-generator-v1.4.md",
@@ -933,7 +933,6 @@ async def run_agent(
     agent_type: str,
     user_id: str,
     document_ids: Optional[List[str]] = None,
-    output_format: str = "comprehensive",
     kb_folder: Optional[str] = None,
     kb_tags: Optional[List[str]] = None,
 ) -> AsyncGenerator[Dict, None]:
@@ -977,7 +976,7 @@ async def run_agent(
                     "agent_type": agent_type,
                     "run_by": user_id,
                     "status": "running",
-                    "metadata": {"output_format": output_format},
+                    "metadata": {"output_format": "unified"},
                 }
             )
             .execute()
@@ -1009,8 +1008,8 @@ async def run_agent(
                 context["kb_folder_documents"] = kb_docs_content
                 logger.info(f"[PURDY] Added {len(kb_docs_content)} chars from KB folder")
 
-        # Build the full prompt with format guidance
-        full_prompt = build_full_prompt(agent_type, context, output_format)
+        # Build the full prompt
+        full_prompt = build_full_prompt(agent_type, context)
 
         # Track document IDs used
         if document_ids:
@@ -1103,7 +1102,7 @@ async def run_agent(
             "executive_summary": parsed_output.get("executive_summary"),
             "content_markdown": full_response,
             "content_structured": parsed_output,
-            "output_format": output_format,
+            "output_format": "unified",
             "source_outputs": context.get("source_outputs", []),
             "throughline_resolution": throughline_resolution,
             "triage_suggestions": triage_suggestions,
@@ -1193,39 +1192,6 @@ async def run_agent(
         yield {"type": "error", "data": error_msg}
 
 
-def get_format_guidance(agent_type: str, output_format: str) -> str:
-    """Return format-specific instructions for the agent."""
-    if output_format == "comprehensive":
-        return ""  # No additional guidance, use full prompt
-
-    elif output_format == "executive":
-        return """## OUTPUT FORMAT: EXECUTIVE SUMMARY
-
-Provide a condensed executive summary (500-800 words max):
-- Lead with the key decision/recommendation
-- Include only the most critical 3-5 findings
-- One table maximum for quantitative data
-- Skip detailed analysis, methodology, and appendices
-- End with clear next steps (3 max)
-
-Use headers: Decision, Key Findings, Critical Risks, Next Steps
-"""
-
-    elif output_format == "brief":
-        return """## OUTPUT FORMAT: BRIEF
-
-Provide only the essential decision points (200-300 words max):
-- Recommendation: [GO/NO-GO/CONDITIONAL] with one-line rationale
-- Confidence: [HIGH/MEDIUM/LOW]
-- Top 3 risks (one line each)
-- Immediate next step
-
-No tables, no analysis, no background. Just the decision.
-"""
-
-    return ""
-
-
 def _format_throughline_for_prompt(throughline: Dict) -> str:
     """Format throughline data as markdown for injection into agent prompts."""
     sections = []
@@ -1263,15 +1229,9 @@ def _format_throughline_for_prompt(throughline: Dict) -> str:
     return "\n".join(sections)
 
 
-def build_full_prompt(agent_type: str, context: Dict, output_format: str = "comprehensive") -> str:
+def build_full_prompt(agent_type: str, context: Dict) -> str:
     """Build the full user prompt for the agent."""
     parts = []
-
-    # Add format guidance FIRST if not comprehensive
-    format_guidance = get_format_guidance(agent_type, output_format)
-    if format_guidance:
-        parts.append(format_guidance)
-        parts.append("\n")
 
     parts.append("# Initiative Context\n")
 
@@ -1307,16 +1267,9 @@ def build_full_prompt(agent_type: str, context: Dict, output_format: str = "comp
         # === Consolidated Agents (v2.0) ===
         "discovery_guide": """Please guide this initiative through the Discovery stage.
 
-FIRST, detect the appropriate mode based on what exists:
-- If no prior Discovery Guide outputs: Run TRIAGE mode
-- If triage was GO but no session transcripts: Run PLANNING mode
-- If session transcripts exist: Run COVERAGE mode
-
-Then execute the appropriate mode as defined in your prompt.
-
-For TRIAGE: Validate the problem worth solving with 4-criteria gate, provide GO/NO-GO/INVESTIGATE.
-For PLANNING: Design discovery sessions for humans to execute (max 5 sessions, each with quantification questions).
-For COVERAGE: Assess if we have enough to proceed to Insight Analyst, or need more discovery.""",
+Produce a single unified output: VERDICT, Current State, Desired State, Discovery Plan, Next Step.
+Adapt depth based on available context (documents, prior outputs, session transcripts).
+Target 600-800 words total. Every section should be self-contained and readable without cross-referencing.""",
         "insight_analyst": """Please analyze all discovery artifacts and create a decision document.
 
 Your process:
@@ -1387,19 +1340,25 @@ FINALLY, create the discovery plan with:
         "tech_evaluation": "Please evaluate technical platform options for this initiative. Provide recommendations with confidence-tagged effort estimates.",
     }
 
+    # Global rules for all agents
+    parts.append("## Global Rules\n")
+    parts.append(
+        "- The correct spelling is **Mikki** (not Mickey, Micky, or any other variant). Always use this spelling.\n"
+    )
+
     parts.append("## Your Task\n")
     parts.append(agent_instructions.get(agent_type, "Please analyze this initiative and provide your assessment."))
 
     # Add throughline-awareness instructions when throughline is present
     if context.get("throughline"):
+        default_throughline = "\n\nTHROUGHLINE: The Initiative Throughline above is the framing for this initiative - its problem statements, hypotheses, and gaps. Treat it as a key input. Reference throughline items narratively in your output (describe them in plain language, use IDs only as parentheticals for traceability)."
         throughline_instructions = {
-            "discovery_guide": "\n\nTHROUGHLINE: Reference throughline items in your analysis. For TRIAGE: evaluate problem statements against the 4-criteria gate. For PLANNING: design sessions targeting specific gaps. For COVERAGE: report per-hypothesis evidence status.",
-            "insight_analyst": "\n\nTHROUGHLINE: After key insights, include a Hypothesis Evidence section mapping findings to throughline hypothesis IDs. Note which gaps remain unaddressed.",
-            "initiative_builder": "\n\nTHROUGHLINE: For each bundle, note which throughline problem statements and hypotheses it addresses. Flag any unaddressed items.",
-            "requirements_generator": "\n\nTHROUGHLINE: Include a ## Throughline Resolution section with: Hypothesis Resolution Table (ID | Status | Evidence), Gap Status Table (ID | Status | Findings), Recommended State Changes, and So What? section.",
+            "discovery_guide": "\n\nTHROUGHLINE: The Initiative Throughline is the framing for this initiative. Evaluate problem statements against the 4-criteria gate, design sessions targeting specific gaps, and report per-hypothesis evidence status. Always reference items narratively, not by bare ID.",
+            "insight_analyst": "\n\nTHROUGHLINE: The Initiative Throughline is the framing for this initiative. After key insights, include a Hypothesis Evidence section mapping findings to throughline hypotheses. Note which gaps remain unaddressed. Reference items narratively, not by bare ID.",
+            "initiative_builder": "\n\nTHROUGHLINE: The Initiative Throughline is the framing for this initiative. For each bundle, describe which problem statements and hypotheses it addresses. Flag any unaddressed items. Reference items narratively, not by bare ID.",
+            "requirements_generator": "\n\nTHROUGHLINE: The Initiative Throughline is the framing for this initiative. Include a ## Throughline Resolution section with: Hypothesis Resolution Table (ID | Status | Evidence), Gap Status Table (ID | Status | Findings), Recommended State Changes, and So What? section.",
         }
-        if agent_type in throughline_instructions:
-            parts.append(throughline_instructions[agent_type])
+        parts.append(throughline_instructions.get(agent_type, default_throughline))
 
     return "\n".join(parts)
 
@@ -1428,10 +1387,11 @@ def parse_agent_output(agent_type: str, raw_output: str) -> Dict:
     if title_match:
         parsed["title"] = title_match.group(1).strip()
 
-    # Extract recommendation (GO/NO-GO)
+    # Extract recommendation (GO/NO-GO/VERDICT)
     rec_patterns = [
-        r"(?:Recommendation|Decision)[:\s]+\*?\*?(GO|NO-GO|CONDITIONAL GO)\*?\*?",
-        r"\*\*(GO|NO-GO|CONDITIONAL GO)\*\*",
+        r"\*?\*?VERDICT:\s*\*?\*?\s*\[?\*?\*?(GO WITH CONDITIONS|GO|NO-GO|DEFER|INVESTIGATE)\*?\*?\]?",
+        r"(?:Recommendation|Decision)[:\s]+\*?\*?(GO WITH CONDITIONS|GO|NO-GO|CONDITIONAL GO|DEFER|INVESTIGATE)\*?\*?",
+        r"\*\*(GO WITH CONDITIONS|GO|NO-GO|CONDITIONAL GO|DEFER|INVESTIGATE)\*\*",
         r"^(GO|NO-GO|CONDITIONAL GO)$",
     ]
     for pattern in rec_patterns:
@@ -1761,7 +1721,6 @@ async def run_agent_multi_pass(
     agent_type: str,
     user_id: str,
     document_ids: Optional[List[str]] = None,
-    output_format: str = "comprehensive",
 ) -> AsyncGenerator[Dict, None]:
     """Execute a multi-pass agent run with meta-synthesis.
 
@@ -1773,7 +1732,6 @@ async def run_agent_multi_pass(
         agent_type: Type of agent to run (must be in MULTI_PASS_CONFIG["supported_agents"])
         user_id: User running the agent
         document_ids: Optional list of specific document IDs to use
-        output_format: Output format (comprehensive, executive, brief)
 
     Yields:
         Dict with type (status, content, pass_complete, complete) and data
@@ -1800,7 +1758,7 @@ async def run_agent_multi_pass(
                     "run_by": user_id,
                     "status": "running",
                     "metadata": {
-                        "output_format": output_format,
+                        "output_format": "unified",
                         "synthesis_mode": "multi_pass",
                         "passes": len(passes_config),
                     },
@@ -1821,7 +1779,7 @@ async def run_agent_multi_pass(
 
         # Build context ONCE (shared across all passes)
         context = await build_agent_context(initiative_id, agent_type)
-        full_prompt = build_full_prompt(agent_type, context, output_format)
+        full_prompt = build_full_prompt(agent_type, context)
 
         # Track document IDs used
         if document_ids:
@@ -2010,7 +1968,7 @@ Create a unified synthesis that combines the best of all three passes. Follow th
             "executive_summary": parsed_output.get("executive_summary"),
             "content_markdown": main_content,  # Clean PRD without synthesis notes
             "content_structured": parsed_output,
-            "output_format": output_format,
+            "output_format": "unified",
             "source_outputs": context.get("source_outputs", []),
             "synthesis_mode": "multi_pass",
             "synthesis_notes": synthesis_notes,  # Separate explainability report

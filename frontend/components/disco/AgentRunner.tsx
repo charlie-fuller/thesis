@@ -185,7 +185,6 @@ export default function AgentRunner({
   const [completed, setCompleted] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [startTime, setStartTime] = useState<number | null>(null)
-  const [outputFormat, setOutputFormat] = useState<'comprehensive' | 'executive' | 'brief'>('comprehensive')
   const [multiPass, setMultiPass] = useState(true)
   const [passesCompleted, setPassesCompleted] = useState(0)
   const [currentPassLabel, setCurrentPassLabel] = useState('')
@@ -357,7 +356,6 @@ export default function AgentRunner({
 
       const requestBody: Record<string, unknown> = {
         agent_type: selectedAgent,
-        output_format: outputFormat,
         multi_pass: isMultiPassAgent && multiPass
       }
 
@@ -557,45 +555,6 @@ export default function AgentRunner({
               {/* Expanded Agent Panel */}
               {isSelected && (
                 <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-4">
-                  {/* Output Format Selection */}
-                  <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-                    <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
-                      Output Format
-                    </h4>
-                    <div className="space-y-2">
-                      {([
-                        { value: 'comprehensive', label: 'Comprehensive', description: 'Full detailed analysis with all sections and supporting evidence' },
-                        { value: 'executive', label: 'Executive', description: 'Summary focused on key decisions and recommendations' },
-                        { value: 'brief', label: 'Brief', description: 'Concise bullet points for quick review' }
-                      ] as const).map(format => (
-                        <label key={format.value} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                          outputFormat === format.value
-                            ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
-                            : 'border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                        }`}>
-                          <input
-                            type="radio"
-                            name="outputFormat"
-                            value={format.value}
-                            checked={outputFormat === format.value}
-                            onChange={() => setOutputFormat(format.value)}
-                            disabled={running}
-                            className="mt-0.5 w-4 h-4 text-indigo-600"
-                          />
-                          <div>
-                            <span className="text-sm font-medium text-slate-900 dark:text-white">
-                              {format.label}
-                            </span>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                              {format.description}
-                            </p>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-
                   {/* Multi-Pass Toggle (Insight Analyst, Initiative Builder) */}
                   {(selectedAgent === 'insight_analyst' || selectedAgent === 'initiative_builder') && (
                     <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 border border-amber-200 dark:border-amber-800">

@@ -615,9 +615,9 @@ export default function InitiativeDetailPage() {
               )}
             </div>
             {/* Description + Tags row */}
-            <div className="flex items-baseline gap-3 mt-0.5 flex-wrap">
+            <div className="mt-0.5 space-y-1.5">
               {initiative.description ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-slate-500 dark:text-slate-400 whitespace-pre-line line-clamp-3 max-w-4xl">
                   {initiative.description}
                 </p>
               ) : canEdit ? (
@@ -629,7 +629,7 @@ export default function InitiativeDetailPage() {
                 </button>
               ) : null}
               {(initiative.target_department || initiative.value_alignment?.kpis?.length || initiative.value_alignment?.strategic_pillar) && (
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {initiative.target_department && (
                     <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                       {initiative.target_department}

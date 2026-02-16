@@ -377,7 +377,6 @@ async def api_run_synthesis(
                 initiative_id=initiative_id,
                 agent_type="strategist",
                 user_id=current_user["id"],
-                output_format="comprehensive",
             ):
                 if event["type"] == "complete":
                     output_id = event.get("data", {}).get("id")

@@ -200,7 +200,7 @@ Extract the 5 decision-forcing elements (Leverage Point, Feedback Loop, Decision
                 "extraction_ratio": extraction_ratio,
                 "extraction_type": "decision_forcing_elements",
             },
-            "output_format": "executive",
+            "output_format": "unified",
             "source_outputs": [{"agent_type": original_agent_type, "version": original_version, "id": output_id}],
         }
 

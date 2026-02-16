@@ -237,15 +237,6 @@ function OutputListItem({
               {output.recommendation}
             </span>
           )}
-          {output.output_format && output.output_format !== 'comprehensive' && (
-            <span className={`px-1.5 py-0.5 text-xs rounded ${
-              output.output_format === 'executive'
-                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-            }`}>
-              {output.output_format === 'executive' ? 'Exec' : 'Brief'}
-            </span>
-          )}
           {output.synthesis_mode === 'multi_pass' && (
             <span className="px-1.5 py-0.5 text-xs rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
               Multi-Pass
@@ -558,15 +549,6 @@ function OutputDetail({
           {output.confidence_level && (
             <span className="px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
               {output.confidence_level} Confidence
-            </span>
-          )}
-          {output.output_format && output.output_format !== 'comprehensive' && (
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              output.output_format === 'executive'
-                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-            }`}>
-              {output.output_format === 'executive' ? 'Executive Summary' : 'Brief'}
             </span>
           )}
         </div>

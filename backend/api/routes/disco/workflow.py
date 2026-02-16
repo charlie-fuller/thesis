@@ -77,7 +77,6 @@ async def api_start_run(
                     agent_type=data.agent_type,
                     user_id=current_user["id"],
                     document_ids=data.document_ids,
-                    output_format=data.output_format or "comprehensive",
                 )
             else:
                 agent_gen = run_agent(
@@ -85,7 +84,6 @@ async def api_start_run(
                     agent_type=data.agent_type,
                     user_id=current_user["id"],
                     document_ids=data.document_ids,
-                    output_format=data.output_format or "comprehensive",
                     kb_folder=data.kb_folder,
                     kb_tags=data.kb_tags,
                 )
