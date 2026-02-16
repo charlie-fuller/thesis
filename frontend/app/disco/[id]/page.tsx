@@ -35,7 +35,6 @@ import OutputViewer from '@/components/disco/OutputViewer'
 import ShareModal from '@/components/disco/ShareModal'
 import InitiativeAlignmentTab from '@/components/disco/InitiativeAlignmentTab'
 import ThroughlineEditor, { type Throughline } from '@/components/disco/ThroughlineEditor'
-import ThroughlineSummary, { type ThroughlineResolution } from '@/components/disco/ThroughlineSummary'
 import { type GoalAlignmentDetails } from '@/components/projects/GoalAlignmentSection'
 import LinkedFoldersSection from '@/components/disco/LinkedFoldersSection'
 import ProjectCreateModal from '@/components/projects/ProjectCreateModal'
@@ -182,12 +181,16 @@ export default function InitiativeDetailPage() {
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editedName, setEditedName] = useState('')
   const [editedDescription, setEditedDescription] = useState('')
-  const [editedThroughline, setEditedThroughline] = useState<Throughline>({})
   const [editedDepartment, setEditedDepartment] = useState('')
   const [editedKpis, setEditedKpis] = useState<string[]>([])
   const [editedKpiInput, setEditedKpiInput] = useState('')
   const [editedStrategicPillar, setEditedStrategicPillar] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+
+  // Inline framing editor state
+  const [inlineFraming, setInlineFraming] = useState<Throughline>({})
+  const [framingDirty, setFramingDirty] = useState(false)
+  const [savingFraming, setSavingFraming] = useState(false)
 
   // Triage suggestions review panel
   const [triageReviewDismissed, setTriageReviewDismissed] = useState(false)
@@ -212,6 +215,8 @@ export default function InitiativeDetailPage() {
 
       if (result.success && result.initiative) {
         setInitiative(result.initiative)
+        setInlineFraming(result.initiative.throughline || {})
+        setFramingDirty(false)
       } else {
         setError('Discovery not found')
       }
@@ -294,7 +299,6 @@ export default function InitiativeDetailPage() {
   const handleOpenEditModal = () => {
     setEditedName(initiative?.name || '')
     setEditedDescription(initiative?.description || '')
-    setEditedThroughline(initiative?.throughline || {})
     setEditedDepartment(initiative?.target_department || '')
     setEditedKpis(initiative?.value_alignment?.kpis || [])
     setEditedKpiInput('')
@@ -312,7 +316,6 @@ export default function InitiativeDetailPage() {
         {
           name: editedName,
           description: editedDescription,
-          throughline: editedThroughline,
           target_department: editedDepartment || null,
           value_alignment: editedKpis.length > 0 || editedStrategicPillar
             ? { kpis: editedKpis.length > 0 ? editedKpis : undefined, strategic_pillar: editedStrategicPillar || undefined }
@@ -336,34 +339,66 @@ export default function InitiativeDetailPage() {
     setEditedDescription('')
   }
 
+  const handleInlineFramingChange = (updated: Throughline) => {
+    setInlineFraming(updated)
+    setFramingDirty(true)
+  }
+
+  const handleSaveFraming = async () => {
+    if (!initiative) return
+    setSavingFraming(true)
+    try {
+      const result = await apiPatch<{ success: boolean; initiative: Initiative }>(
+        `/api/disco/initiatives/${initiativeId}`,
+        { throughline: inlineFraming }
+      )
+      if (result.success && result.initiative) {
+        setInitiative(result.initiative)
+        setInlineFraming(result.initiative.throughline || {})
+      }
+      setFramingDirty(false)
+    } catch (err) {
+      console.error('Failed to save framing:', err)
+    } finally {
+      setSavingFraming(false)
+    }
+  }
+
   const handleAcceptSuggestions = async (suggestions: TriageSuggestions) => {
     if (!initiative) return
     setAcceptingSuggestions(true)
     try {
-      // Build throughline from suggestions
+      // Build throughline from suggestions, deduplicating against existing items
+      const existingPS = new Set((initiative.throughline?.problem_statements || []).map(p => p.text))
+      const existingH = new Set((initiative.throughline?.hypotheses || []).map(h => h.statement))
+      const existingG = new Set((initiative.throughline?.gaps || []).map(g => g.description))
+
+      const newPS = (suggestions.problem_statements || [])
+        .map(ps => {
+          if (typeof ps === 'object' && ps !== null) return ps as { id: string; text: string }
+          return { id: `ps-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text: ps as string }
+        })
+        .filter(ps => ps.text && !existingPS.has(ps.text))
+
+      const newH = (suggestions.hypotheses || [])
+        .map(h => {
+          if (typeof h === 'object' && h !== null) return h as { id: string; statement: string }
+          return { id: `h-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, statement: h as string }
+        })
+        .filter(h => h.statement && !existingH.has(h.statement))
+
+      const newG = (suggestions.gaps || [])
+        .map(g => {
+          if (typeof g === 'object' && g !== null) return g as { id: string; description: string; type: 'data' }
+          return { id: `g-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, description: g as string, type: 'data' as const }
+        })
+        .filter(g => g.description && !existingG.has(g.description))
+
       const throughline: Throughline = {
         ...(initiative.throughline || {}),
-        problem_statements: [
-          ...(initiative.throughline?.problem_statements || []),
-          ...(suggestions.problem_statements || []).map(ps => {
-            if (typeof ps === 'object' && ps !== null) return ps as { id: string; text: string }
-            return { id: `ps-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text: ps as string }
-          }),
-        ],
-        hypotheses: [
-          ...(initiative.throughline?.hypotheses || []),
-          ...(suggestions.hypotheses || []).map(h => {
-            if (typeof h === 'object' && h !== null) return h as { id: string; statement: string }
-            return { id: `h-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, statement: h as string }
-          }),
-        ],
-        gaps: [
-          ...(initiative.throughline?.gaps || []),
-          ...(suggestions.gaps || []).map(g => {
-            if (typeof g === 'object' && g !== null) return g as { id: string; description: string; type: 'data' }
-            return { id: `g-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, description: g as string, type: 'data' as const }
-          }),
-        ],
+        problem_statements: [...(initiative.throughline?.problem_statements || []), ...newPS],
+        hypotheses: [...(initiative.throughline?.hypotheses || []), ...newH],
+        gaps: [...(initiative.throughline?.gaps || []), ...newG],
       }
 
       // Build value alignment from suggestions
@@ -382,6 +417,8 @@ export default function InitiativeDetailPage() {
       )
       if (result.success && result.initiative) {
         setInitiative(result.initiative)
+        setInlineFraming(result.initiative.throughline || {})
+        setFramingDirty(false)
       }
       setTriageReviewDismissed(true)
     } catch (err) {
@@ -537,55 +574,58 @@ export default function InitiativeDetailPage() {
         </button>
 
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-1">
               <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
                 {initiative.name}
               </h1>
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusConfig.bgColor} ${statusConfig.color}`}>
                 {statusConfig.label}
               </span>
-            </div>
-            <div className="flex items-start gap-2 group">
-              {initiative.description ? (
-                <p className="text-slate-500 dark:text-slate-400 max-w-2xl">
-                  {initiative.description}
-                </p>
-              ) : canEdit ? (
-                <p className="text-slate-400 dark:text-slate-500 italic">
-                  No description
-                </p>
-              ) : null}
               {canEdit && (
                 <button
                   onClick={handleOpenEditModal}
-                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Edit name and description"
+                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-0 hover:opacity-100 transition-opacity"
+                  title="Edit discovery details"
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
               )}
             </div>
-            {/* Value Alignment Tags */}
-            {(initiative.target_department || initiative.value_alignment?.kpis?.length) && (
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                {initiative.target_department && (
-                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                    {initiative.target_department}
-                  </span>
-                )}
-                {initiative.value_alignment?.kpis?.map((kpi, i) => (
-                  <span key={i} className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
-                    {kpi}
-                  </span>
-                ))}
-                {initiative.value_alignment?.strategic_pillar && (
-                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 capitalize">
-                    {initiative.value_alignment.strategic_pillar}
-                  </span>
-                )}
-              </div>
-            )}
+            {/* Description + Tags row */}
+            <div className="flex items-baseline gap-3 mt-0.5 flex-wrap">
+              {initiative.description ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {initiative.description}
+                </p>
+              ) : canEdit ? (
+                <button
+                  onClick={handleOpenEditModal}
+                  className="text-sm text-slate-400 dark:text-slate-500 italic hover:text-slate-600 dark:hover:text-slate-300"
+                >
+                  Add description...
+                </button>
+              ) : null}
+              {(initiative.target_department || initiative.value_alignment?.kpis?.length || initiative.value_alignment?.strategic_pillar) && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {initiative.target_department && (
+                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                      {initiative.target_department}
+                    </span>
+                  )}
+                  {initiative.value_alignment?.kpis?.map((kpi, i) => (
+                    <span key={i} className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                      {kpi}
+                    </span>
+                  ))}
+                  {initiative.value_alignment?.strategic_pillar && (
+                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 capitalize">
+                      {initiative.value_alignment.strategic_pillar}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
 
 
             {/* Show linked projects or user role if applicable */}
@@ -777,13 +817,6 @@ export default function InitiativeDetailPage() {
             {canEdit && (
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleOpenEditModal}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-300 dark:border-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  Edit Framing
-                </button>
-                <button
                   onClick={handleGenerateFraming}
                   disabled={generatingFraming}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
@@ -799,6 +832,20 @@ export default function InitiativeDetailPage() {
                       ? 'Regenerate from Documents'
                       : 'Generate from Documents'}
                 </button>
+                {framingDirty && (
+                  <button
+                    onClick={handleSaveFraming}
+                    disabled={savingFraming}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                  >
+                    {savingFraming ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-3.5 h-3.5" />
+                    )}
+                    {savingFraming ? 'Saving...' : 'Save Framing'}
+                  </button>
+                )}
               </div>
             )}
             {framingGenerationError && (
@@ -900,30 +947,11 @@ export default function InitiativeDetailPage() {
               return null
             })()}
 
-            {/* Throughline content */}
-            {initiative.throughline && (initiative.throughline.problem_statements?.length || initiative.throughline.hypotheses?.length || initiative.throughline.gaps?.length) ? (
-              <ThroughlineSummary
-                throughline={initiative.throughline}
-                initiativeId={initiativeId}
-                resolutionAnnotations={initiative.resolution_annotations as { hypothesis_overrides?: Record<string, { status: string; note?: string }>; gap_overrides?: Record<string, { status: string; note?: string }> } | null}
-                onAnnotationsUpdated={(annotations) => {
-                  setInitiative({
-                    ...initiative,
-                    resolution_annotations: annotations as Record<string, unknown>,
-                  })
-                }}
-              />
-            ) : (
-              <div className="p-6 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-center">
-                <Crosshair className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">
-                  No investigation framing yet.
-                </p>
-                <p className="text-xs text-slate-400 dark:text-slate-500 max-w-md mx-auto">
-                  Define your perspective (problem statements, hypotheses, gaps) to give the Discovery Guide a lens for analyzing documents. Or link documents and generate framing automatically.
-                </p>
-              </div>
-            )}
+            {/* Inline framing editor */}
+            <ThroughlineEditor
+              throughline={inlineFraming}
+              onChange={handleInlineFramingChange}
+            />
           </div>
         )}
 
@@ -1138,7 +1166,7 @@ export default function InitiativeDetailPage() {
             onClick={handleCloseEditModal}
           />
           <div
-            className="relative w-full max-w-2xl mx-4 bg-white dark:bg-slate-900 rounded-xl shadow-xl max-h-[90vh] flex flex-col"
+            className="relative w-full max-w-4xl mx-4 bg-white dark:bg-slate-900 rounded-xl shadow-xl max-h-[90vh] flex flex-col"
             onKeyDown={(e) => {
               if (e.key === 'Escape') handleCloseEditModal()
             }}
@@ -1146,7 +1174,7 @@ export default function InitiativeDetailPage() {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                Edit Discovery
+                Edit Discovery Details
               </h2>
               <button
                 onClick={handleCloseEditModal}
@@ -1259,12 +1287,6 @@ export default function InitiativeDetailPage() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Investigation Framing
-                </label>
-                <ThroughlineEditor throughline={editedThroughline} onChange={setEditedThroughline} compact />
-              </div>
             </div>
 
             {/* Footer */}

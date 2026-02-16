@@ -818,22 +818,23 @@ DISCO agents now enforce a character budget when loading initiative documents, p
 
 **Files**: `backend/services/disco/document_service.py`
 
-### Dedicated Framing Tab
+### Inline Framing Editor
 
-Investigation framing (problem statements, hypotheses, gaps) moved from the discovery header into a dedicated "Framing" tab.
+Investigation framing (problem statements, hypotheses, gaps) is now edited directly on the Framing tab via an inline ThroughlineEditor. The previous read-only ThroughlineSummary with per-item resolution annotations has been removed -- framing is a narrative alignment tool that drives task creation, not a separate tracking system.
 
 **Tab Order**: Documents > Framing > Alignment > Projects > Run Agents > Outputs
 
 **Features**:
-- "Edit Framing" and "Generate from Documents" buttons prominently displayed at top of tab
-- "Generate from Documents" triggers Discovery Guide inline with streaming status updates
-- On completion, review panel appears with extracted suggestions (Accept All / Dismiss)
-- Review panel shows whenever suggestions have content, regardless of existing framing state
-- Full ThroughlineSummary with resolution annotations displayed below
-- Empty state guides users to set up framing manually or generate from documents
-- Header pencil icon scoped to name/description editing only
+- ThroughlineEditor embedded directly on the Framing tab (all sections default expanded)
+- "Generate/Regenerate from Documents" button triggers Discovery Guide inline with streaming status
+- Green "Save Framing" button appears when edits are pending
+- Accept All deduplicates suggestions against existing items (prevents repeated accept from creating duplicates)
+- Empty items (gaps without descriptions) filtered out on accept
+- Edit modal ("Edit Discovery Details") handles only name, description, department, KPIs, strategic pillar (widened to max-w-4xl)
+- Compact header: description and tags share a row, full width layout
+- Resolution status visible in Outputs tab via convergence analysis
 
-**Files**: `frontend/app/disco/[id]/page.tsx`
+**Files**: `frontend/app/disco/[id]/page.tsx`, `frontend/components/disco/ThroughlineEditor.tsx`
 
 ### Document Temporal Awareness
 

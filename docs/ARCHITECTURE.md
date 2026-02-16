@@ -103,11 +103,11 @@ This document contains detailed architecture documentation. For essential Claude
     - Projects linked to parent discovery with `source_type: disco_prd`
 27. **Discovery Projects View** - Dedicated endpoint for querying projects linked to a discovery with source badges
 28. **Discovery Goal Alignment** - Analyzes discoveries against IS FY27 strategic goals (same 4-pillar framework as projects). Uses rich context from agent outputs for scoring. Project roll-up shows linked projects' alignment scores with distribution.
-29. **Discovery Throughline** - Structured input framing for discoveries: problem statements, hypotheses (assumption/belief/prediction), known gaps (data/people/process/capability), and desired outcome state. Throughline is threaded through all 4 DISCO agent stages and resolved at convergence with hypothesis resolutions, gap statuses, state changes, and "So What?" analysis.
-30. **Framing Extraction** - Dedicated Framing tab with three generation paths: (1) "Generate from Documents" button triggers Discovery Guide inline and shows review panel, (2) Run Agents tab for full agent control, (3) Discovery Agent in chat proposes structured `<framing_proposal>` blocks via FramingProposalCard. Documents presented newest-first with temporal priority - newer findings take precedence over earlier material.
+29. **Discovery Throughline** - Structured input framing for discoveries: problem statements, hypotheses (assumption/belief/prediction), known gaps (data/people/process/capability), and desired outcome state. Throughline is threaded through all 4 DISCO agent stages and resolved at convergence with hypothesis resolutions, gap statuses, state changes, and "So What?" analysis. Framing is a narrative alignment tool that drives task creation, not a separate tracking system.
+30. **Framing Extraction** - Dedicated Framing tab with inline ThroughlineEditor for direct editing. Three generation paths: (1) "Generate/Regenerate from Documents" button triggers Discovery Guide inline and shows review panel, (2) Run Agents tab for full agent control, (3) Discovery Agent in chat proposes structured `<framing_proposal>` blocks via FramingProposalCard. Accept All deduplicates against existing items. Documents presented newest-first with temporal priority. Save button appears when edits are pending.
 31. **Value Alignment** - Flexible alignment tracking per discovery: target department, KPIs, department goals, company priority, strategic pillar, notes. Populated progressively as information emerges during discovery.
 32. **Sponsor/Stakeholder Linking** - Discoveries can be linked to an executive sponsor and multiple stakeholders from the stakeholder database.
-33. **Resolution Annotations** - Users can override agent-assigned hypothesis/gap resolution statuses with their own assessment and notes. Annotations persist alongside agent output.
+33. **Resolution Annotations** - Convergence resolution (hypothesis/gap statuses) visible in Outputs tab via agent analysis. Per-item annotation UI removed from Framing tab to avoid redundancy with Tasks.
 34. **Task Source Tracking** - Tasks created from DISCO convergence state changes include `source_initiative_id` and `source_disco_output_id` for full traceability back to the discovery process.
 35. **Gap Taxonomy** - Reference taxonomy for gap categorization (data/people/process/capability) with investigation focus guidance. Available as KB reference for Discovery Guide agent.
 36. **Initiative Folder Links** - Link vault folders to discoveries. When a folder is linked, all documents in that folder are automatically linked to the initiative. Folder link state tracked in `disco_initiative_folder_links`. Removal sync unlinks documents when folders are removed.
@@ -298,7 +298,7 @@ Run migrations in order from `/database/migrations/`:
 - `/frontend/app/tasks/` - Kanban board
 - `/frontend/app/projects/` - Project pipeline
 - `/frontend/app/disco/` - DISCO feature (formerly `purdy/`, route `/purdy` still redirects)
-- `/frontend/components/disco/` - DISCO components (10 files, including ThroughlineEditor, ThroughlineSummary, LinkedFoldersSection) (formerly `purdy/`)
+- `/frontend/components/disco/` - DISCO components (10 files, including ThroughlineEditor, LinkedFoldersSection) (formerly `purdy/`)
 - `/frontend/components/chat/FramingProposalCard.tsx` - Selective framing proposal card for Discovery Agent chat responses
 - `/frontend/components/chat/TaskProposalCard.tsx` - Selective task proposal card for Taskmaster chat responses
 

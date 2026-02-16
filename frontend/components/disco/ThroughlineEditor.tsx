@@ -40,7 +40,6 @@ export interface Throughline {
 interface ThroughlineEditorProps {
   throughline: Throughline
   onChange: (throughline: Throughline) => void
-  compact?: boolean
 }
 
 // ============================================================================
@@ -103,7 +102,7 @@ function CollapsibleSection({
 // MAIN COMPONENT
 // ============================================================================
 
-export default function ThroughlineEditor({ throughline, onChange, compact }: ThroughlineEditorProps) {
+export default function ThroughlineEditor({ throughline, onChange }: ThroughlineEditorProps) {
   const problems = throughline.problem_statements || []
   const hypotheses = throughline.hypotheses || []
   const gaps = throughline.gaps || []
@@ -174,10 +173,9 @@ export default function ThroughlineEditor({ throughline, onChange, compact }: Th
   return (
     <div className="space-y-3">
       {/* Problem Statements */}
-      <CollapsibleSection title="Problem Statements" count={problems.length} defaultOpen={!compact}>
+      <CollapsibleSection title="Problem Statements" count={problems.length} defaultOpen>
         {problems.map((ps, i) => (
-          <div key={i} className="flex items-start gap-2">
-            <span className="mt-2 text-xs font-mono text-slate-400 w-8 shrink-0">ps-{i + 1}</span>
+          <div key={i} className="flex items-center gap-2">
             <input
               type="text"
               value={ps.text}
@@ -188,7 +186,7 @@ export default function ThroughlineEditor({ throughline, onChange, compact }: Th
             <button
               type="button"
               onClick={() => removeProblem(i)}
-              className="mt-1.5 p-1 text-slate-400 hover:text-red-500"
+              className="p-1 text-slate-400 hover:text-red-500 shrink-0"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -205,44 +203,32 @@ export default function ThroughlineEditor({ throughline, onChange, compact }: Th
       </CollapsibleSection>
 
       {/* Hypotheses */}
-      <CollapsibleSection title="Hypotheses" count={hypotheses.length} defaultOpen={!compact}>
+      <CollapsibleSection title="Hypotheses" count={hypotheses.length} defaultOpen>
         {hypotheses.map((h, i) => (
-          <div key={i} className="space-y-1.5 pb-2 border-b border-slate-100 dark:border-slate-800 last:border-0">
-            <div className="flex items-start gap-2">
-              <span className="mt-2 text-xs font-mono text-slate-400 w-8 shrink-0">h-{i + 1}</span>
-              <input
-                type="text"
-                value={h.statement}
-                onChange={(e) => updateHypothesis(i, 'statement', e.target.value)}
-                placeholder="State the hypothesis..."
-                className="input-field flex-1 text-sm"
-              />
-              <select
-                value={h.type || 'assumption'}
-                onChange={(e) => updateHypothesis(i, 'type', e.target.value)}
-                className="input-field w-28 text-sm"
-              >
-                {HYPOTHESIS_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => removeHypothesis(i)}
-                className="mt-1.5 p-1 text-slate-400 hover:text-red-500"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <div className="ml-10">
-              <input
-                type="text"
-                value={h.rationale || ''}
-                onChange={(e) => updateHypothesis(i, 'rationale', e.target.value)}
-                placeholder="Rationale (optional)..."
-                className="input-field w-full text-sm text-slate-500"
-              />
-            </div>
+          <div key={i} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={h.statement}
+              onChange={(e) => updateHypothesis(i, 'statement', e.target.value)}
+              placeholder="State the hypothesis..."
+              className="input-field flex-1 text-sm"
+            />
+            <select
+              value={h.type || 'assumption'}
+              onChange={(e) => updateHypothesis(i, 'type', e.target.value)}
+              className="input-field w-28 text-sm shrink-0"
+            >
+              {HYPOTHESIS_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => removeHypothesis(i)}
+              className="p-1 text-slate-400 hover:text-red-500 shrink-0"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           </div>
         ))}
         <button
@@ -256,10 +242,9 @@ export default function ThroughlineEditor({ throughline, onChange, compact }: Th
       </CollapsibleSection>
 
       {/* Gaps */}
-      <CollapsibleSection title="Known Gaps" count={gaps.length} defaultOpen={!compact}>
+      <CollapsibleSection title="Known Gaps" count={gaps.length} defaultOpen>
         {gaps.map((g, i) => (
-          <div key={i} className="flex items-start gap-2">
-            <span className="mt-2 text-xs font-mono text-slate-400 w-8 shrink-0">g-{i + 1}</span>
+          <div key={i} className="flex items-center gap-2">
             <input
               type="text"
               value={g.description}
@@ -270,7 +255,7 @@ export default function ThroughlineEditor({ throughline, onChange, compact }: Th
             <select
               value={g.type || 'data'}
               onChange={(e) => updateGap(i, 'type', e.target.value)}
-              className="input-field w-28 text-sm"
+              className="input-field w-28 text-sm shrink-0"
             >
               {GAP_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -279,7 +264,7 @@ export default function ThroughlineEditor({ throughline, onChange, compact }: Th
             <button
               type="button"
               onClick={() => removeGap(i)}
-              className="mt-1.5 p-1 text-slate-400 hover:text-red-500"
+              className="p-1 text-slate-400 hover:text-red-500 shrink-0"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -304,7 +289,7 @@ export default function ThroughlineEditor({ throughline, onChange, compact }: Th
           value={throughline.desired_outcome_state || ''}
           onChange={(e) => onChange({ ...throughline, desired_outcome_state: e.target.value })}
           placeholder="What does the world look like when this discovery succeeds?"
-          rows={compact ? 2 : 3}
+          rows={3}
           className="textarea-field text-sm"
         />
       </div>
