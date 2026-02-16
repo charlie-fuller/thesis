@@ -185,15 +185,16 @@ BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACC
 **VERDICT: [GO / GO WITH CONDITIONS / NO-GO / DEFER / INVESTIGATE]** - [One sentence with conviction]
 
 **Tier Routing:** [ELT / Solutions / Self-Serve]
+
 **Confidence:** [HIGH / MEDIUM / LOW]
 
 ---
 
-## Current State
+## **Current State**
 
 [Opening paragraph: 2-3 sentences framing the core problem. Keep it tight.]
 
-### Problem Worth Solving
+### **Problem Worth Solving**
 
 | Criterion | Assessment | Evidence |
 |-----------|------------|----------|
@@ -202,51 +203,61 @@ BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACC
 | **Solvable** (within constraints) | [Yes/No/Partial] | [Brief evidence] |
 | **Ours** (not someone else's job) | [Yes/No/Partial] | [Brief evidence] |
 
-### Hypothesis Evidence
+### **Hypothesis Evidence**
 
 - **[Hypothesis text]** — [VALIDATED / PARTIALLY CONFIRMED / UNVALIDATED / REJECTED]. [One sentence of evidence.]
+
 - **[Hypothesis text]** — [Status]. [Evidence.]
 
-### Root Cause
+### **Root Cause**
 
 [2-3 sentences tracing from symptom to root cause. Use → chains if helpful.]
 
-### Remaining Gaps
+### **Remaining Gaps**
 
 - [Gap description] (g-X)
+
 - [Gap description] (g-X)
 
 ---
 
-## Desired State
+## **Desired State**
 
-[What success looks like. Concrete state-change language. Include Solution Type Preview.
-100-150 words, narrative prose. Leave a blank line between paragraphs if multiple.]
+[What success looks like. Concrete state-change language. Include Solution Type Preview.]
+
+[Second paragraph if needed. Leave blank lines between paragraphs.]
+
+**Solution Type:** [BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACCEPT]. [One sentence rationale.]
 
 ---
 
-## Discovery Plan
+## **Discovery Plan**
 
 [One sentence introducing the sessions and why the order matters.]
 
-### Session 1: [Name] - [Duration] - DO THIS FIRST
+### **Session 1: [Name] - [Duration] - DO THIS FIRST**
 
 **Purpose:** [What we learn]
+
 **Attendees:** [Names/Roles]
 
 **Key Questions:**
+
 1. [Must answer]
 2. [Quantification: "How long/often/many?"]
 
 **Done When:** [Specific artifact/answer]
 
-### Session 2: [Name] - [Duration]
+### **Session 2: [Name] - [Duration]**
 
 **Depends On:** [What we need from Session 1 first]
+
 **Purpose:** [What we learn]
+
 **Attendees:** [Names/Roles]
 
 **Key Questions:**
+
 1. [Must answer]
 2. [Quantification question]
 
@@ -254,24 +265,36 @@ BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACC
 
 ---
 
-## Next Step
+## **Next Step**
 
 **Action:** [Specific]
+
 **Owner:** [Name]
+
 **By:** [When]
 ```
 
-### Formatting Rules (CRITICAL)
+### Formatting Rules (CRITICAL — READ CAREFULLY)
 
-Your output is rendered as markdown. Spacing and structure directly affect readability:
+Your output is rendered as markdown. Spacing and structure directly affect readability. A packed wall of text is unacceptable.
 
-1. **Blank line after every heading** (`##` and `###`) — required for markdown parsing
-2. **Blank line between bold labels** (Purpose, Attendees, Key Questions, Done When) — prevents them from collapsing into a wall of text
-3. **Use `###` sub-headers** within Current State (Problem Worth Solving, Hypothesis Evidence, Root Cause, Remaining Gaps) — not just bold text. Sub-headers create visual breaks
-4. **Use bullet lists** for hypotheses, gaps, and multi-item evidence — not inline paragraphs
-5. **Use tables** for the Problem Worth Solving gate — structured data reads better in tables
-6. **Keep paragraphs short** — max 3-4 sentences before a line break or new element
-7. **Two trailing spaces** at the end of lines within a group (like Purpose/Attendees) to force line breaks without paragraph spacing
+**Whitespace:**
+- **Blank line BEFORE and AFTER every `##` and `###` heading**
+- **Blank line BEFORE and AFTER every `---` horizontal rule**
+- **Blank line between paragraphs** — never stack two paragraphs without a blank line
+- **Blank line before and after every list** (bulleted or numbered)
+- **Blank line before and after every table**
+- **Blank line between each bold-label field** in sessions (Purpose, Attendees, Key Questions, Done When)
+
+**Bold section titles:**
+- All `###` sub-header text should also be **bold**: `### **Problem Worth Solving**`
+- Bold labels like `**Purpose:**`, `**Attendees:**`, `**Key Questions:**`, `**Done When:**` each get their own line with a blank line before
+
+**Structure over prose:**
+- Use `###` sub-headers within Current State — not inline bold. Sub-headers: **Problem Worth Solving**, **Hypothesis Evidence**, **Root Cause**, **Remaining Gaps**
+- Use bullet lists for hypotheses, gaps, and multi-item evidence — never pack multiple items into one paragraph
+- Use tables for the Problem Worth Solving gate assessment
+- Keep paragraphs to 2-3 sentences max before a visual break (list, header, or blank line)
 
 **IMPORTANT:** Include the `## Suggested Framing` section (described above) ONLY when the throughline is sparse or empty. Place it after the Next Step section.
 
