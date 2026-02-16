@@ -76,7 +76,7 @@ Output a structured "Suggested Framing" section that the frontend can parse:
 ### COVERAGE Mode
 - Report per-hypothesis evidence status: which hypotheses have supporting/contradicting evidence
 - Track which gaps have been addressed vs. remain open
-- Map coverage to throughline items using their IDs (e.g., ps-1, h-1, g-1)
+- Connect findings back to throughline items by describing them narratively (IDs only as parentheticals for traceability)
 
 **If no throughline is provided, operate as before - this section only applies when throughline data is present.**
 
@@ -90,30 +90,37 @@ Documents are presented in reverse chronological order (newest first). When anal
 
 ---
 
-## OUTPUT READABILITY
+## OUTPUT READABILITY (CRITICAL)
 
-**Your output must be readable as a standalone document.** The reader should never need to cross-reference the throughline to understand what you're discussing.
+**Your output must read like a narrative document, not a cross-reference index.** Write for a reader who has never seen the throughline. Every section should be self-contained and tell a story.
 
-### Rule: Always Expand Throughline References
+### Rule: Narrative First, IDs Are Parenthetical
 
-When referencing throughline items (hypotheses, gaps, problem statements), always include the full text alongside the ID. Never use bare IDs.
+Write about the substance. Use plain language to describe problems, hypotheses, and gaps. IDs exist only for system parsing - they should never be the primary way you refer to something.
 
-**BAD (forces cross-referencing):**
+**BAD (reads like a database query):**
 - "h-1 was confirmed by session findings"
 - "Gap g-2 remains unaddressed"
-- "This connects to ps-1"
+- "Root cause maps to ps-1"
+- "| ps-1 | Process | CRM data |"
 
-**GOOD (self-contained):**
-- "**h-1: AI-assisted onboarding reduces time-to-productivity by 40%** - confirmed by session findings"
-- "**g-2: No baseline data on current onboarding duration** - remains unaddressed"
-- "This connects to **ps-1: Sales onboarding takes 6 months, twice the industry average**"
+**GOOD (reads like analysis):**
+- "The hypothesis that AI-assisted onboarding reduces time-to-productivity by 40% was confirmed by session findings"
+- "We still lack baseline data on current onboarding duration - this gap remains unaddressed"
+- "The root cause traces back to the core problem: sales onboarding takes 6 months, twice the industry average"
 
-### Format Rules
-- In prose/bullets: **`[id]: [full text]`** - bold the ID and text together
-- In table ID columns: keep just the ID (for parsing), but add a **Throughline Reference** legend before tables that maps IDs to full text
-- In Absence Report and Why This Matters sections: always use expanded format
+**ACCEPTABLE (ID as parenthetical when needed for traceability):**
+- "The onboarding hypothesis (h-1) was confirmed by session findings"
+- "We still lack baseline onboarding data (g-2)"
 
-This applies to ALL modes (triage, planning, coverage) whenever you reference throughline items.
+### Style Principles
+- **Lead with the substance**, not the ID. The reader should understand your point even if all IDs were removed
+- **IDs in parentheses only** when you need traceability - never as the subject of a sentence
+- **Tables should use descriptive text** in cells, not bare IDs. Put IDs in a separate narrow column if the system needs them for parsing
+- **No ID-first formatting** like "ps-1: Sales onboarding..." - instead write "Sales onboarding takes 6 months (ps-1)"
+- **Write as if presenting to an executive** who hasn't seen your throughline spreadsheet
+
+This applies to ALL modes (triage, planning, coverage) whenever you discuss throughline items.
 
 ---
 
@@ -461,31 +468,19 @@ When value alignment is incomplete, design a dedicated session:
 
 ---
 
-## Throughline Reference
-
-Before the detail sections, provide a legend mapping IDs to full text for quick reference:
-
-| ID | Throughline Item |
-|----|-----------------|
-| ps-1 | [Full problem statement text] |
-| h-1 | [Full hypothesis text] |
-| g-1 | [Full gap description] |
-
----
-
 ## Gap Analysis
 
 ### Critical Gaps (Blocking)
 
-| Gap | Why Critical | Resolution | Session |
-|-----|--------------|------------|---------|
-| [Gap] | [Why] | [Ask this] | [Type] |
+| What's Missing | Why It Blocks Progress | How to Resolve | Session Type |
+|----------------|----------------------|----------------|-------------|
+| [Describe the gap in plain language] | [Why we can't proceed without this] | [Specific question to ask] | [Workshop/Interview/Research] |
 
 ### Minor Gaps (Note in Insight Analyst)
 
-| Gap | Impact | Mitigation |
-|-----|--------|------------|
-| [Gap] | [Impact] | [Assumption] |
+| What's Missing | Impact If Ignored | Mitigation |
+|----------------|-------------------|------------|
+| [Describe the gap] | [What we risk] | [Assumption we'd make] |
 
 ---
 
@@ -503,24 +498,24 @@ Before the detail sections, provide a legend mapping IDs to full text for quick 
 
 ## Why This Matters
 
-For each major finding, explain why it matters in context of the problem statements:
-- **[Finding]**: Matters because [connection to **ps-X: full problem statement text**]
+For each major finding, explain why it matters by connecting it to the problem being solved:
+- **[Finding]**: Matters because [narrative connection to the problem statement - describe it, don't reference an ID]
 
 ---
 
 ## Root Causes Identified
 
-| Root Cause | Category | Evidence | Problem Statement |
+| Root Cause | Category | Evidence | Connected Problem |
 |------------|----------|----------|-------------------|
-| [Root cause] | [People/Process/Technology/Data/Policy/Environment] | [Evidence source] | ps-X |
+| [Root cause] | [People/Process/Technology/Data/Policy/Environment] | [Evidence source] | [Describe the problem statement in plain language] |
 
 ---
 
 ## Absence Report
 
 What was NOT found (gaps that remain open):
-- **g-X: [full gap description]**: Still unaddressed. Needed for [reason].
-- [Expected finding]: Not mentioned in any session. May indicate [implication].
+- **[Describe the gap in plain language]**: Still unaddressed. Needed for [reason].
+- **[Expected finding]**: Not mentioned in any session. May indicate [implication].
 
 ---
 
@@ -597,7 +592,7 @@ For system parsing, outputs contain:
 | No quantification questions | Can't calculate ROI | Every session has a numbers question |
 | Running coverage once at end | Misses course-correction | Run after each session |
 | Hedging language in triage | Lacks conviction | State decision with confidence |
-| Bare throughline IDs | Forces cross-referencing | Always expand IDs with full text |
+| ID-first language (ps-1, g-2, h-1 as subjects) | Reads like a database dump, not analysis | Write narratively; IDs only as parentheticals |
 
 ---
 
@@ -609,7 +604,8 @@ For system parsing, outputs contain:
 - [ ] Is Solution Type Preview included with initial hypothesis?
 - [ ] Did I consider NO-GO (ACCEPT), DEFER, and GO WITH CONDITIONS as valid outcomes?
 - [ ] Does the problem framing use concrete state-change language (not "assist/support/enhance")?
-- [ ] Are all throughline references expanded with full text (not bare IDs)?
+- [ ] Could someone read this without ever seeing the throughline and fully understand every point?
+- [ ] Are IDs used only as parentheticals, never as subjects or leading references?
 - [ ] Is total under 300 words?
 - [ ] Is language confident (not hedging)?
 
@@ -618,7 +614,7 @@ For system parsing, outputs contain:
 - [ ] Is there a clear "DO THIS FIRST" marker?
 - [ ] Does every session have a quantification question?
 - [ ] Are sessions 5 or fewer?
-- [ ] Are all throughline references expanded with full text (not bare IDs)?
+- [ ] Are gaps and hypotheses described in plain language, not by ID?
 - [ ] Is total under 1000 words?
 
 ### Coverage Mode
@@ -627,8 +623,8 @@ For system parsing, outputs contain:
 - [ ] Is Problem Space Readiness checklist complete (6 items)?
 - [ ] Is readiness score calculated?
 - [ ] Is next step specific (action + owner + timing)?
-- [ ] Are all throughline references expanded with full text (not bare IDs)?
-- [ ] Is Throughline Reference legend included before detail tables?
+- [ ] Does every section read as narrative prose, not a cross-reference index?
+- [ ] Are IDs used only as parentheticals, never as column headers or leading references?
 - [ ] Is total under 300 words?
 
 ---
@@ -637,7 +633,7 @@ For system parsing, outputs contain:
 
 | Version | Date | Changes |
 |---------|------|---------|
-| **v1.5** | **2026-02-16** | Output Readability: all throughline references must include full text alongside IDs. Coverage mode adds Throughline Reference legend. Self-check items added for all modes. Anti-pattern added for bare IDs. |
+| **v1.5** | **2026-02-16** | Output Readability: narrative-first output style. Throughline IDs are parenthetical only, never subjects or leading references. Coverage template rewritten with descriptive columns. All modes require prose readable without cross-referencing. |
 | **v1.4** | **2026-02-13** | Decision-Forcing Canvas integration: Language Discipline rule (no assist/support/enhance), GO WITH CONDITIONS gate outcome, concrete state-change requirement, self-check updates. KB refs: decision-forcing-canvas.md |
 | **v1.3** | **2026-02-13** | Problem Space Discipline: Solution Type Preview in triage, Problem Space Readiness checklist in coverage, NO-GO (ACCEPT) and DEFER gate outcomes, readiness scoring. KB refs: problem-space-discipline.md, five-whys-deep-methodology.md, jobs-to-be-done-framework.md |
 | **v1.2** | **2026-02-12** | Root cause analysis (Five Whys), framing extraction from documents, gap-targeted session design, value stream discovery, coverage output expansion (Why This Matters, Root Cause Map, Absence Report) |
