@@ -24,7 +24,7 @@ interface TrendsResponse {
 const AGENT_COLORS: Record<string, string> = {
   // Chat agents
   'Atlas': '#8b5cf6',      // purple
-  'Coordinator': '#3b82f6', // blue
+  'Thesis': '#3b82f6',     // blue (coordinator)
   'Guardian': '#10b981',   // green
   'Capital': '#f59e0b',    // amber
   'Oracle': '#ef4444',     // red
@@ -38,20 +38,16 @@ const AGENT_COLORS: Record<string, string> = {
   'Counselor': '#eab308',  // yellow
   'Echo': '#0ea5e9',       // sky
   'Nexus': '#22c55e',      // emerald
-  // DISCO pipeline agents
-  'Triage': '#7c3aed',           // violet
-  'Discovery Planner': '#d97706', // amber-dark
-  'Discovery Guide': '#2563eb',   // blue-bright
-  'Coverage Tracker': '#9333ea',  // purple-bright
-  'Insight Extractor': '#0891b2', // cyan-dark
-  'Insight Analyst': '#0e7490',   // cyan-darker
-  'Consolidator': '#0d9488',      // teal-dark
-  'Synthesizer': '#16a34a',       // green-dark
-  'Initiative Builder': '#059669', // emerald-dark
-  'DISCo Strategist': '#65a30d',  // lime-dark
-  'PRD Generator': '#e11d48',     // rose
+  'Taskmaster': '#f472b6', // pink-light
+  'Kraken': '#fb923c',     // orange-light
+  'Compass': '#2dd4bf',    // teal-light
+  'Facilitator': '#818cf8', // indigo-light
+  'Reporter': '#a3e635',   // lime-light
+  // DISCO pipeline agents (4 consolidated)
+  'Discovery Guide': '#2563eb',        // blue-bright
+  'Insight Analyst': '#0e7490',        // cyan-darker
+  'Initiative Builder': '#059669',     // emerald-dark
   'Requirements Generator': '#be123c', // rose-dark
-  'Tech Evaluation': '#4f46e5',   // indigo-dark
 };
 
 // Fallback colors for unknown agents
