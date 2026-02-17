@@ -11,7 +11,8 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
-  Check
+  Check,
+  RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiGet, apiPost } from '@/lib/api';
@@ -85,7 +86,8 @@ type TabType = 'tasks' | 'projects' | 'stakeholders';
 export default function UnifiedDiscoveryPanel() {
   const { user, session, loading: authLoading } = useAuth();
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [counts, setCounts] = useState<DiscoveryCounts>({ tasks: 0, projects: 0, stakeholders: 0, total: 0 });
 
   // Candidate data
@@ -103,6 +105,7 @@ export default function UnifiedDiscoveryPanel() {
 
   // Fetch counts and candidates
   const fetchData = useCallback(async () => {
+    setRefreshing(true);
     try {
       const data = await apiGet<DiscoveryAllResponse>('/api/discovery/all');
       setCounts(data.counts);
@@ -114,23 +117,9 @@ export default function UnifiedDiscoveryPanel() {
       logger.error('Error fetching discovery data:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
-
-  useEffect(() => {
-    if (authLoading || !user || !session) return;
-    fetchData();
-  }, [authLoading, user, session, fetchData]);
-
-  // Only poll while a scan is actively running
-  useEffect(() => {
-    if (!scanning?.active) return;
-    const interval = setInterval(fetchData, 5000);
-    return () => clearInterval(interval);
-  }, [scanning?.active, fetchData]);
-
-  // Don't render while loading
-  if (loading) return null;
 
   // Don't render if nothing to review (but show scanning status if active)
   if (counts.total === 0) {
@@ -144,7 +133,7 @@ export default function UnifiedDiscoveryPanel() {
               <Search className="w-5 h-5 text-green-600 dark:text-green-400" />
             )}
           </div>
-          <div>
+          <div className="flex-1">
             <h3 className="text-lg font-semibold text-primary">Discovery Inbox</h3>
             {scanning?.active ? (
               <p className="text-sm text-secondary">
@@ -154,6 +143,14 @@ export default function UnifiedDiscoveryPanel() {
               <p className="text-sm text-secondary">All caught up - no items to review</p>
             )}
           </div>
+          <button
+            onClick={fetchData}
+            disabled={refreshing}
+            className="p-2 rounded-lg text-muted hover:text-primary hover:bg-hover transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
     );
@@ -398,12 +395,22 @@ export default function UnifiedDiscoveryPanel() {
               </p>
             </div>
           </div>
-          {scanning?.active && (
-            <div className="flex items-center gap-2 text-xs text-amber-500">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              <span>Analyzing {scanning.pending_documents} more...</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {scanning?.active && (
+              <div className="flex items-center gap-2 text-xs text-amber-500">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>Analyzing {scanning.pending_documents} more...</span>
+              </div>
+            )}
+            <button
+              onClick={fetchData}
+              disabled={refreshing}
+              className="p-2 rounded-lg text-muted hover:text-primary hover:bg-hover transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
       </div>
 
