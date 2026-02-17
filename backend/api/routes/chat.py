@@ -1932,9 +1932,30 @@ Instructions:
                 )
                 if sd_match:
                     try:
-                        # LLMs emit raw newlines inside JSON strings; escape them before parsing
+                        # LLMs emit raw newlines inside JSON string values.
+                        # Escape only newlines INSIDE strings, not structural whitespace.
                         raw_json = sd_match.group(1)
-                        raw_json = raw_json.replace("\r\n", "\\n").replace("\r", "\\n").replace("\n", "\\n")
+                        fixed_chars = []
+                        in_str = False
+                        esc = False
+                        for ch in raw_json:
+                            if esc:
+                                fixed_chars.append(ch)
+                                esc = False
+                                continue
+                            if ch == "\\":
+                                fixed_chars.append(ch)
+                                esc = True
+                                continue
+                            if ch == '"':
+                                in_str = not in_str
+                            if in_str and ch == "\n":
+                                fixed_chars.append("\\n")
+                                continue
+                            if in_str and ch == "\r":
+                                continue
+                            fixed_chars.append(ch)
+                        raw_json = "".join(fixed_chars)
                         save_document_data = json.loads(raw_json)
                         full_response = full_response[: sd_match.start()] + full_response[sd_match.end() :]
                         full_response = full_response.rstrip()
