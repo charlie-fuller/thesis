@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react'
-import { Target, RefreshCw, TrendingUp, Database, Users, Building2 } from 'lucide-react'
+import { Target, RefreshCw, TrendingUp, Database, Users, Building2, X, Edit3, Save } from 'lucide-react'
 
 export interface PillarScore {
   score: number
@@ -32,6 +32,8 @@ interface GoalAlignmentSectionProps {
   goalAlignmentScore: number | null
   goalAlignmentDetails: GoalAlignmentDetails | null
   onAnalyze: () => Promise<void>
+  onDetailsUpdated?: (details: GoalAlignmentDetails) => void
+  canEdit?: boolean
 }
 
 // Pillar definitions with icons and colors (FY27 IS Priorities)
@@ -134,10 +136,16 @@ function getPillarScoreColor(score: number): string {
 function PillarCard({
   pillarKey,
   pillarScore,
+  canEdit,
+  onRationaleChange,
 }: {
   pillarKey: PillarKey
   pillarScore: PillarScore | undefined
+  canEdit?: boolean
+  onRationaleChange?: (rationale: string) => void
 }) {
+  const [editing, setEditing] = useState(false)
+  const [editValue, setEditValue] = useState('')
   const pillar = PILLARS[pillarKey]
   const Icon = pillar.icon
   const score = pillarScore?.score ?? 0
@@ -168,7 +176,43 @@ function PillarCard({
       </div>
 
       {/* Rationale */}
-      <p className="text-sm text-secondary">{rationale}</p>
+      {editing ? (
+        <div className="space-y-1">
+          <textarea
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            rows={2}
+            className="w-full text-sm px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+          />
+          <div className="flex gap-1">
+            <button
+              onClick={() => { onRationaleChange?.(editValue); setEditing(false) }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs text-white bg-indigo-600 rounded hover:bg-indigo-700"
+            >
+              <Save className="w-3 h-3" /> Save
+            </button>
+            <button
+              onClick={() => setEditing(false)}
+              className="px-2 py-0.5 text-xs text-slate-500 hover:text-slate-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="group flex items-start gap-1">
+          <p className="text-sm text-secondary flex-1">{rationale}</p>
+          {canEdit && onRationaleChange && (
+            <button
+              onClick={() => { setEditValue(rationale); setEditing(true) }}
+              className="p-0.5 text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
+              title="Edit rationale"
+            >
+              <Edit3 className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="flex flex-wrap gap-1">
@@ -190,11 +234,16 @@ export default function GoalAlignmentSection({
   goalAlignmentScore,
   goalAlignmentDetails,
   onAnalyze,
+  onDetailsUpdated,
+  canEdit: canEditProp,
 }: GoalAlignmentSectionProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [editingSummary, setEditingSummary] = useState(false)
+  const [summaryEditValue, setSummaryEditValue] = useState('')
 
   const alignmentLevel = getAlignmentLevel(goalAlignmentScore)
   const hasBeenAnalyzed = goalAlignmentScore !== null
+  const editable = canEditProp !== false && !!onDetailsUpdated
 
   const handleAnalyze = async () => {
     setIsAnalyzing(true)
@@ -203,6 +252,36 @@ export default function GoalAlignmentSection({
     } finally {
       setIsAnalyzing(false)
     }
+  }
+
+  const removeKpiImpact = (kpi: string) => {
+    if (!goalAlignmentDetails || !onDetailsUpdated) return
+    const updated = {
+      ...goalAlignmentDetails,
+      kpi_impacts: goalAlignmentDetails.kpi_impacts.filter(k => k !== kpi),
+    }
+    onDetailsUpdated(updated)
+  }
+
+  const updatePillarRationale = (pillarKey: PillarKey, rationale: string) => {
+    if (!goalAlignmentDetails || !onDetailsUpdated) return
+    const updated = {
+      ...goalAlignmentDetails,
+      pillar_scores: {
+        ...goalAlignmentDetails.pillar_scores,
+        [pillarKey]: {
+          ...goalAlignmentDetails.pillar_scores[pillarKey],
+          rationale,
+        },
+      },
+    }
+    onDetailsUpdated(updated)
+  }
+
+  const saveSummary = () => {
+    if (!goalAlignmentDetails || !onDetailsUpdated) return
+    onDetailsUpdated({ ...goalAlignmentDetails, summary: summaryEditValue })
+    setEditingSummary(false)
   }
 
   return (
@@ -255,8 +334,44 @@ export default function GoalAlignmentSection({
       {/* Summary */}
       {goalAlignmentDetails?.summary && (
         <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-          <h4 className="text-sm font-medium text-primary mb-2">Analysis Summary</h4>
-          <p className="text-sm text-secondary leading-relaxed">{goalAlignmentDetails.summary}</p>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-medium text-primary">Analysis Summary</h4>
+            {editable && !editingSummary && (
+              <button
+                onClick={() => { setSummaryEditValue(goalAlignmentDetails.summary); setEditingSummary(true) }}
+                className="p-0.5 text-slate-400 hover:text-indigo-600 transition-colors"
+                title="Edit summary"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {editingSummary ? (
+            <div className="space-y-1">
+              <textarea
+                value={summaryEditValue}
+                onChange={(e) => setSummaryEditValue(e.target.value)}
+                rows={3}
+                className="w-full text-sm px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+              />
+              <div className="flex gap-1">
+                <button
+                  onClick={saveSummary}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs text-white bg-indigo-600 rounded hover:bg-indigo-700"
+                >
+                  <Save className="w-3 h-3" /> Save
+                </button>
+                <button
+                  onClick={() => setEditingSummary(false)}
+                  className="px-2 py-0.5 text-xs text-slate-500 hover:text-slate-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-secondary leading-relaxed">{goalAlignmentDetails.summary}</p>
+          )}
         </div>
       )}
 
@@ -270,9 +385,18 @@ export default function GoalAlignmentSection({
             {goalAlignmentDetails.kpi_impacts.map((kpi) => (
               <span
                 key={kpi}
-                className="px-3 py-1 text-sm bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full"
+                className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full group"
               >
                 {kpi}
+                {editable && (
+                  <button
+                    onClick={() => removeKpiImpact(kpi)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600 dark:hover:text-red-400 -mr-1"
+                    title="Remove this KPI impact"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </span>
             ))}
           </div>
@@ -291,6 +415,8 @@ export default function GoalAlignmentSection({
                 key={key}
                 pillarKey={key}
                 pillarScore={goalAlignmentDetails.pillar_scores[key]}
+                canEdit={editable}
+                onRationaleChange={editable ? (rationale) => updatePillarRationale(key, rationale) : undefined}
               />
             ))}
           </div>

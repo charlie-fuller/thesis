@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { AlertTriangle, ExternalLink, Target } from 'lucide-react'
-import { apiGet, apiPost } from '@/lib/api'
+import { apiGet, apiPatch, apiPost } from '@/lib/api'
 import GoalAlignmentSection from '@/components/projects/GoalAlignmentSection'
 import { type GoalAlignmentDetails, getAlignmentLevel } from '@/components/projects/GoalAlignmentSection'
 
@@ -88,6 +88,17 @@ export default function InitiativeAlignmentTab({
     }
   }
 
+  const handleDetailsUpdated = useCallback(async (details: GoalAlignmentDetails) => {
+    try {
+      await apiPatch(`/api/disco/initiatives/${initiativeId}`, {
+        goal_alignment_details: details,
+      })
+      onAlignmentUpdated(goalAlignmentScore ?? 0, details)
+    } catch (err) {
+      console.error('Failed to update alignment details:', err)
+    }
+  }, [initiativeId, goalAlignmentScore, onAlignmentUpdated])
+
   return (
     <div className="space-y-8">
       {/* Section A: Initiative Alignment */}
@@ -114,6 +125,8 @@ export default function InitiativeAlignmentTab({
             goalAlignmentScore={goalAlignmentScore}
             goalAlignmentDetails={goalAlignmentDetails}
             onAnalyze={handleAnalyze}
+            onDetailsUpdated={handleDetailsUpdated}
+            canEdit
           />
         ) : goalAlignmentScore !== null ? (
           <GoalAlignmentSection

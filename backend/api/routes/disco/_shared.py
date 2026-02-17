@@ -183,6 +183,7 @@ class InitiativeUpdate(BaseModel):
     stakeholder_ids: Optional[List[str]] = None
     resolution_annotations: Optional[ResolutionAnnotations] = None
     user_corrections: Optional[str] = None
+    goal_alignment_details: Optional[dict] = None
 
 
 # ============================================================================

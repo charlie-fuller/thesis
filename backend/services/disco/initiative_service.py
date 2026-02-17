@@ -326,6 +326,8 @@ async def update_initiative(initiative_id: str, user_id: str, updates: Dict) -> 
         "sponsor_stakeholder_id",
         "stakeholder_ids",
         "resolution_annotations",
+        "user_corrections",
+        "goal_alignment_details",
     }
     filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
 
