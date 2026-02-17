@@ -319,7 +319,7 @@ export default function ProjectDetailModal({
   const [shouldAutoGenerateTasks, setShouldAutoGenerateTasks] = useState(false)
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'tasks' | 'documents' | 'related'>('scores')
+  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'tasks' | 'documents' | 'related' | 'kraken-guide' | 'scoring-guide'>('scores')
 
   const router = useRouter()
 
@@ -568,6 +568,17 @@ export default function ProjectDetailModal({
       console.error('Failed to analyze goal alignment:', error)
       alert('Failed to analyze goal alignment. Please try again.')
       throw error // Re-throw so the component can handle loading state
+    }
+  }
+
+  const handleAlignmentDetailsUpdated = async (details: import('./GoalAlignmentSection').GoalAlignmentDetails) => {
+    try {
+      const updated = await apiPatch<Project>(`/api/projects/${project.id}`, {
+        goal_alignment_details: details,
+      })
+      setProject(updated)
+    } catch (error) {
+      console.error('Failed to update alignment details:', error)
     }
   }
 
@@ -833,6 +844,8 @@ export default function ProjectDetailModal({
             { id: 'tasks' as const, label: 'Tasks', icon: ListTodo },
             { id: 'documents' as const, label: 'Documents', icon: Link },
             { id: 'related' as const, label: 'Related', icon: ExternalLink },
+            { id: 'kraken-guide' as const, label: 'Kraken Guide', icon: Zap },
+            { id: 'scoring-guide' as const, label: 'Scoring Guide', icon: Target },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -1199,6 +1212,8 @@ export default function ProjectDetailModal({
               goalAlignmentScore={project.goal_alignment_score ?? null}
               goalAlignmentDetails={project.goal_alignment_details ?? null}
               onAnalyze={handleAnalyzeGoalAlignment}
+              onDetailsUpdated={handleAlignmentDetailsUpdated}
+              canEdit
             />
           )}
 
@@ -1842,6 +1857,28 @@ export default function ProjectDetailModal({
               </div>
             )}
           </section>
+            </div>
+          )}
+
+          {/* KRAKEN GUIDE TAB */}
+          {activeTab === 'kraken-guide' && (
+            <div className="overflow-hidden rounded-lg border border-default" style={{ height: 'calc(100vh - 320px)' }}>
+              <iframe
+                src="/kraken-process-map.html"
+                className="w-full h-full border-0"
+                title="Kraken Task Automation Process Map"
+              />
+            </div>
+          )}
+
+          {/* SCORING GUIDE TAB */}
+          {activeTab === 'scoring-guide' && (
+            <div className="overflow-hidden rounded-lg border border-default" style={{ height: 'calc(100vh - 320px)' }}>
+              <iframe
+                src="/project-scoring-map.html"
+                className="w-full h-full border-0"
+                title="Project Scoring and Lifecycle Guide"
+              />
             </div>
           )}
 
