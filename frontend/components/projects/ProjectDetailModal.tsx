@@ -53,7 +53,6 @@ import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api'
 import ScoreJustification from './ScoreJustification'
 import DocumentViewerModal from './DocumentViewerModal'
 import ProjectNameModal from './ProjectNameModal'
-import TaskmasterChatSection from './TaskmasterChatSection'
 import GoalAlignmentSection from './GoalAlignmentSection'
 import ProjectDocumentBrowser from './ProjectDocumentBrowser'
 import KrakenPanel from './KrakenPanel'
@@ -315,8 +314,10 @@ export default function ProjectDetailModal({
   const [showProjectNameModal, setShowProjectNameModal] = useState(false)
   const [pendingStatus, setPendingStatus] = useState<'active' | null>(null)
 
-  // Auto-generate tasks state (triggers after project creation)
+  // Task generation state
   const [shouldAutoGenerateTasks, setShouldAutoGenerateTasks] = useState(false)
+  const [generatingTasks, setGeneratingTasks] = useState(false)
+  const [tasksGeneratedCount, setTasksGeneratedCount] = useState<number | null>(null)
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'tasks' | 'documents' | 'related' | 'kraken-guide' | 'scoring-guide'>('scores')
@@ -524,6 +525,34 @@ export default function ProjectDetailModal({
       setTasksLoading(false)
     }
   }
+
+  const handleGenerateTasks = async () => {
+    if (generatingTasks) return
+    setGeneratingTasks(true)
+    setTasksGeneratedCount(null)
+    try {
+      const result = await apiPost<{ response: string; tasks_created: number; task_titles: string[] }>(
+        `/api/projects/${project.id}/taskmaster-chat`,
+        { message: 'Break this project into actionable tasks based on its description, current state, desired state, and any blockers.' }
+      )
+      setTasksGeneratedCount(result.tasks_created)
+      await fetchProjectTasks()
+    } catch (error) {
+      console.error('Failed to generate tasks:', error)
+      alert('Failed to generate tasks. Make sure the project has been activated first.')
+    } finally {
+      setGeneratingTasks(false)
+      setShouldAutoGenerateTasks(false)
+    }
+  }
+
+  // Auto-generate tasks when shouldAutoGenerateTasks is set (after project activation)
+  useEffect(() => {
+    if (shouldAutoGenerateTasks && activeTab === 'tasks' && !generatingTasks) {
+      handleGenerateTasks()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldAutoGenerateTasks, activeTab])
 
   const openDocumentInNewTab = (doc: RelatedDocument) => {
     // For now, open KB page with document ID as param
@@ -1455,13 +1484,34 @@ export default function ProjectDetailModal({
                     <span className="text-xs font-normal">({projectTasks.length})</span>
                   )}
                 </h3>
-                <a
-                  href={`/tasks?project=${project.id}`}
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                >
-                  View all in Tasks
-                  <ExternalLink className="w-3 h-3" />
-                </a>
+                <div className="flex items-center gap-3">
+                  {tasksGeneratedCount !== null && (
+                    <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                      {tasksGeneratedCount} tasks added to inbox
+                    </span>
+                  )}
+                  {project.project_name && (
+                    <button
+                      onClick={handleGenerateTasks}
+                      disabled={generatingTasks}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors disabled:opacity-50"
+                    >
+                      {generatingTasks ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Zap className="w-3.5 h-3.5" />
+                      )}
+                      {generatingTasks ? 'Generating...' : 'Generate Tasks'}
+                    </button>
+                  )}
+                  <a
+                    href={`/tasks?project=${project.id}`}
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                  >
+                    View all in Tasks
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
               </div>
 
               {tasksLoading ? (
@@ -1474,7 +1524,9 @@ export default function ProjectDetailModal({
                   <ListTodo className="w-8 h-8 mx-auto text-muted mb-2" />
                   <p className="text-sm text-muted">No tasks linked to this project yet.</p>
                   <p className="text-xs text-muted mt-1">
-                    Tasks can be created from the Chat tab using Taskmaster, or linked manually.
+                    {project.project_name
+                      ? 'Use the Generate Tasks button above to break this project into actionable tasks.'
+                      : 'Activate this project first, then use Generate Tasks to create a task breakdown.'}
                   </p>
                 </div>
               ) : (
@@ -1931,6 +1983,8 @@ export default function ProjectDetailModal({
         }}
         onSubmit={handleProjectNameSubmit}
         projectTitle={project.title}
+        existingProjectName={project.project_name}
+        existingProjectDescription={project.project_description || project.description}
         newStatus={pendingStatus || 'active'}
       />
 

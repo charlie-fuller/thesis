@@ -8,6 +8,8 @@ interface ProjectNameModalProps {
   onClose: () => void
   onSubmit: (projectName: string, projectDescription?: string) => void
   projectTitle?: string
+  existingProjectName?: string | null
+  existingProjectDescription?: string | null
   newStatus: 'active'
 }
 
@@ -16,20 +18,21 @@ export default function ProjectNameModal({
   onClose,
   onSubmit,
   projectTitle,
+  existingProjectName,
+  existingProjectDescription,
 }: ProjectNameModalProps) {
   const [projectName, setProjectName] = useState('')
   const [projectDescription, setProjectDescription] = useState('')
 
-  // Reset form when modal opens
+  // Pre-fill form when modal opens with existing data
   useEffect(() => {
     if (open) {
-      // Using setTimeout to avoid synchronous setState in effect
       setTimeout(() => {
-        setProjectName('')
-        setProjectDescription('')
+        setProjectName(existingProjectName || projectTitle || '')
+        setProjectDescription(existingProjectDescription || '')
       }, 0)
     }
-  }, [open])
+  }, [open, existingProjectName, existingProjectDescription, projectTitle])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -60,7 +63,7 @@ export default function ProjectNameModal({
                 Activate Project
               </h2>
               <p className="text-sm text-secondary">
-                Give this project a name to get started
+                Confirm project details to activate
               </p>
             </div>
           </div>
