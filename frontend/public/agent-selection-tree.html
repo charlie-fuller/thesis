@@ -851,10 +851,7 @@
           if (!window.parent || window.parent === window) return false;
           var parentRoot = window.parent.document.documentElement;
 
-          // Only sync after ThemeContext has applied inline styles
-          if (!parentRoot.style.getPropertyValue('--color-bg-page')) return false;
-
-          var ps = getComputedStyle(parentRoot);
+          var ps = getComputedStyle(parentRoot); if (!ps.getPropertyValue('--color-bg-page').trim()) return false;
           var bgPage = ps.getPropertyValue('--color-bg-page').trim();
           var bgCard = ps.getPropertyValue('--color-bg-card').trim();
           var bgHover = ps.getPropertyValue('--color-bg-hover').trim();
