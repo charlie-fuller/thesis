@@ -118,6 +118,8 @@ But leaving in filler is a tax on everyone's time. Nobody needs the preamble. No
 
 This is the tension Thesis navigates every day. Smart Brevity isn't about being terse -- it's about being *thoughtful* about what you include. Supply enough context that people can engage meaningfully. Don't assume shared understanding. But don't bury them either.
 
+Thinking isn't one thing. It's framing the right problem. It's judgment -- making the call when the data doesn't decide for you. It's evaluation -- interrogating whether something is actually true or just sounds true. It's empathy -- modeling how other people will experience what you're building. It's systems reasoning -- tracing second and third-order effects before you act. It's perspective-shifting -- deliberately seeing through a lens that isn't yours. It's sense-making -- the step between having all the information and knowing what it means. These are the cognitive acts that change outcomes. Synthesis is the cost of entry; thinking is the value creation.
+
 Use your big and beautiful brain for thinking, not synthesizing. That's the promise. We handle the synthesis so you can do the work that actually requires human judgment.
 
 ### 8. Guardrails, not gates.
