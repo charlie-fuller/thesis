@@ -37,6 +37,23 @@ async def get_usage_trends(
         )
         agent_display_names = {a["name"]: a.get("display_name", a["name"]) for a in (agents_result.data or [])}
 
+        # Display names for DISCO agents
+        disco_display_names = {
+            "triage": "Triage",
+            "discovery_planner": "Discovery Planner",
+            "discovery_guide": "Discovery Guide",
+            "coverage_tracker": "Coverage Tracker",
+            "insight_extractor": "Insight Extractor",
+            "insight_analyst": "Insight Analyst",
+            "consolidator": "Consolidator",
+            "synthesizer": "Synthesizer",
+            "initiative_builder": "Initiative Builder",
+            "strategist": "DISCo Strategist",
+            "prd_generator": "PRD Generator",
+            "requirements_generator": "Requirements Generator",
+            "tech_evaluation": "Tech Evaluation",
+        }
+
         # Get all assistant messages in range WITH metadata
         messages = await asyncio.to_thread(
             lambda: supabase.table("messages")
@@ -54,6 +71,14 @@ async def get_usage_trends(
             .gte("created_at", start_date.isoformat())
             .lte("created_at", end_date.isoformat())
             .not_.is_("agent_id", "null")
+            .execute()
+        )
+
+        # Get DISCO pipeline runs
+        disco_runs = await asyncio.to_thread(
+            lambda: supabase.table("disco_runs")
+            .select("agent_type, started_at")
+            .gte("started_at", start_date.isoformat())
             .execute()
         )
 
@@ -117,6 +142,18 @@ async def get_usage_trends(
                         normalized_name = normalized_name.capitalize()
                     trends_by_date[date]["agent_usage"][normalized_name] = (
                         trends_by_date[date]["agent_usage"].get(normalized_name, 0) + 1
+                    )
+
+        # Count DISCO runs by date and agent type
+        for run in disco_runs.data or []:
+            started_at = run.get("started_at")
+            if started_at:
+                date = datetime.fromisoformat(started_at.replace("Z", "+00:00")).date().isoformat()
+                if date in trends_by_date:
+                    agent_type = run.get("agent_type", "unknown")
+                    display_name = disco_display_names.get(agent_type, agent_type.replace("_", " ").title())
+                    trends_by_date[date]["agent_usage"][display_name] = (
+                        trends_by_date[date]["agent_usage"].get(display_name, 0) + 1
                     )
 
         # Count conversations by date

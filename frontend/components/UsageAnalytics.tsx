@@ -20,20 +20,9 @@ interface TrendsResponse {
   agent_totals?: Record<string, number>;
 }
 
-interface DiscoTrendData {
-  date: string;
-  [key: string]: string | number;  // Dynamic agent keys
-}
-
-interface DiscoTrendsResponse {
-  trends?: DiscoTrendData[];
-  agents?: string[];
-  agent_totals?: Record<string, number>;
-  total_runs?: number;
-}
-
-// Distinct colors for agents
+// Distinct colors for agents (chat + DISCO)
 const AGENT_COLORS: Record<string, string> = {
+  // Chat agents
   'Atlas': '#8b5cf6',      // purple
   'Coordinator': '#3b82f6', // blue
   'Guardian': '#10b981',   // green
@@ -49,6 +38,20 @@ const AGENT_COLORS: Record<string, string> = {
   'Counselor': '#eab308',  // yellow
   'Echo': '#0ea5e9',       // sky
   'Nexus': '#22c55e',      // emerald
+  // DISCO pipeline agents
+  'Triage': '#7c3aed',           // violet
+  'Discovery Planner': '#d97706', // amber-dark
+  'Discovery Guide': '#2563eb',   // blue-bright
+  'Coverage Tracker': '#9333ea',  // purple-bright
+  'Insight Extractor': '#0891b2', // cyan-dark
+  'Insight Analyst': '#0e7490',   // cyan-darker
+  'Consolidator': '#0d9488',      // teal-dark
+  'Synthesizer': '#16a34a',       // green-dark
+  'Initiative Builder': '#059669', // emerald-dark
+  'DISCo Strategist': '#65a30d',  // lime-dark
+  'PRD Generator': '#e11d48',     // rose
+  'Requirements Generator': '#be123c', // rose-dark
+  'Tech Evaluation': '#4f46e5',   // indigo-dark
 };
 
 // Fallback colors for unknown agents
@@ -57,55 +60,18 @@ const FALLBACK_COLORS = [
   '#c084fc', '#2dd4bf', '#a3e635', '#fb923c', '#818cf8',
 ];
 
-// DISCo agent colors (matching DISCo workflow stages)
-const DISCO_AGENT_COLORS: Record<string, string> = {
-  'triage': '#3b82f6',           // blue - Discovery
-  'discovery_planner': '#f59e0b', // amber - Discovery
-  'coverage_tracker': '#8b5cf6',  // purple - Discovery
-  'insight_extractor': '#06b6d4', // cyan - Intelligence
-  'consolidator': '#14b8a6',      // teal - Intelligence
-  'synthesizer': '#22c55e',       // green - Synthesis
-  'strategist': '#10b981',        // emerald - Synthesis
-  'prd_generator': '#f43f5e',     // rose - Capabilities
-  'tech_evaluation': '#6366f1',   // indigo - Capabilities
-};
-
-// Display names for DISCo agents
-const DISCO_AGENT_NAMES: Record<string, string> = {
-  'triage': 'Triage',
-  'discovery_planner': 'Discovery Planner',
-  'coverage_tracker': 'Coverage Tracker',
-  'insight_extractor': 'Insight Extractor',
-  'consolidator': 'Consolidator',
-  'synthesizer': 'Synthesizer',
-  'strategist': 'Strategist',
-  'prd_generator': 'PRD Generator',
-  'tech_evaluation': 'Tech Evaluation',
-};
 
 function getAgentColor(agentName: string, index: number): string {
   return AGENT_COLORS[agentName] || FALLBACK_COLORS[index % FALLBACK_COLORS.length];
-}
-
-function getDiscoAgentColor(agentName: string, index: number): string {
-  return DISCO_AGENT_COLORS[agentName] || FALLBACK_COLORS[index % FALLBACK_COLORS.length];
-}
-
-function getDiscoAgentDisplayName(agentName: string): string {
-  return DISCO_AGENT_NAMES[agentName] || agentName;
 }
 
 export default function UsageAnalytics() {
   const [trends, setTrends] = useState<TrendData[]>([]);
   const [agents, setAgents] = useState<string[]>([]);
   const [agentTotals, setAgentTotals] = useState<Record<string, number>>({});
-  const [discoTrends, setDiscoTrends] = useState<DiscoTrendData[]>([]);
-  const [discoAgents, setDiscoAgents] = useState<string[]>([]);
-  const [discoAgentTotals, setDiscoAgentTotals] = useState<Record<string, number>>({});
-  const [discoTotalRuns, setDiscoTotalRuns] = useState(0);
   const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'agents' | 'activity' | 'disco'>('agents');
+  const [activeTab, setActiveTab] = useState<'agents' | 'activity'>('agents');
 
   useEffect(() => {
     fetchAnalytics();
@@ -114,27 +80,14 @@ export default function UsageAnalytics() {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      // Fetch usage trends and DISCo trends in parallel
-      const [trendsData, discoData] = await Promise.all([
-        apiGet<TrendsResponse>(`/api/admin/analytics/usage-trends?days=${days}`),
-        apiGet<DiscoTrendsResponse>(`/api/disco/analytics/usage?days=${days}`).catch(() => null),
-      ]);
+      const trendsData = await apiGet<TrendsResponse>(`/api/admin/analytics/usage-trends?days=${days}`);
 
       logger.debug('Usage Trends Response:', trendsData);
       setTrends(trendsData?.trends || []);
       setAgents(trendsData?.agents || []);
       setAgentTotals(trendsData?.agent_totals || {});
-
-      if (discoData) {
-        logger.debug('DISCo Trends Response:', discoData);
-        setDiscoTrends(discoData.trends || []);
-        setDiscoAgents(discoData.agents || []);
-        setDiscoAgentTotals(discoData.agent_totals || {});
-        setDiscoTotalRuns(discoData.total_runs || 0);
-      }
     } catch (error) {
       logger.error('Error fetching analytics:', error);
-      // Set empty data on error to prevent crashes
       setTrends([]);
       setAgents([]);
       setAgentTotals({});
@@ -229,16 +182,6 @@ export default function UsageAnalytics() {
         >
           Activity Breakdown
         </button>
-        <button
-          onClick={() => setActiveTab('disco')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 ${
-            activeTab === 'disco'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-secondary hover:text-primary'
-          }`}
-        >
-          DISCo Usage
-        </button>
       </div>
 
       {/* Charts */}
@@ -281,7 +224,7 @@ export default function UsageAnalytics() {
               </div>
             )}
           </div>
-        ) : activeTab === 'activity' ? (
+        ) : (
           <div>
             <h3 className="text-lg font-semibold text-primary mb-4">Activity Breakdown</h3>
             <ResponsiveContainer width="100%" height={400}>
@@ -304,79 +247,6 @@ export default function UsageAnalytics() {
                 <Bar dataKey="documents" fill="#10b981" name="Documents" />
               </BarChart>
             </ResponsiveContainer>
-          </div>
-        ) : (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-primary">DISCo Agent Usage</h3>
-              <span className="text-sm text-secondary">
-                Total Runs: <span className="font-semibold text-primary">{discoTotalRuns}</span>
-              </span>
-            </div>
-
-            {/* Agent summary cards */}
-            {discoAgents.length > 0 && (
-              <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2 mb-6">
-                {discoAgents.map((agent, idx) => (
-                  <div
-                    key={agent}
-                    className="p-2 rounded-lg text-center"
-                    style={{ backgroundColor: `${getDiscoAgentColor(agent, idx)}20` }}
-                  >
-                    <div
-                      className="text-lg font-bold"
-                      style={{ color: getDiscoAgentColor(agent, idx) }}
-                    >
-                      {discoAgentTotals[agent] || 0}
-                    </div>
-                    <div className="text-xs text-secondary truncate" title={getDiscoAgentDisplayName(agent)}>
-                      {getDiscoAgentDisplayName(agent).split(' ')[0]}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Chart */}
-            {discoAgents.length > 0 ? (
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={discoTrends}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={formatDate}
-                    stroke="#888"
-                  />
-                  <YAxis stroke="#888" allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333' }}
-                    labelStyle={{ color: '#fff' }}
-                    labelFormatter={formatDate}
-                    formatter={(value, name) => [value ?? 0, getDiscoAgentDisplayName(String(name))]}
-                  />
-                  <Legend formatter={(value) => getDiscoAgentDisplayName(value)} />
-                  {discoAgents.map((agentName, idx) => (
-                    <Line
-                      key={agentName}
-                      type="monotone"
-                      dataKey={agentName}
-                      stroke={getDiscoAgentColor(agentName, idx)}
-                      strokeWidth={2}
-                      name={agentName}
-                      dot={false}
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="text-center py-12 text-secondary">
-                <svg className="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <p>No DISCo usage data available for this period.</p>
-                <p className="text-sm mt-1">Run some DISCo agents to see analytics here.</p>
-              </div>
-            )}
           </div>
         )}
       </div>
