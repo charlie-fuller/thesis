@@ -268,15 +268,9 @@ export default function ThroughlineSummary({
               <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-1.5">Problem Statements</h4>
               <ul className="space-y-1">
                 {throughline.problem_statements!.map((ps, i) => (
-                  <li key={i} className={`flex items-start gap-2 ${ps.rejected ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-600 dark:text-slate-400'}`}>
+                  <li key={i} className="flex items-start gap-2 text-slate-600 dark:text-slate-400">
                     <span className="font-mono text-xs text-slate-400 mt-0.5">{ps.id || `ps-${i + 1}`}</span>
                     <span>{ps.text}</span>
-                    {ps.rejected && (
-                      <span className="no-underline inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">rejected</span>
-                    )}
-                    {ps.rejected && ps.rejection_reason && (
-                      <span className="no-underline text-xs italic text-slate-400">{ps.rejection_reason}</span>
-                    )}
                   </li>
                 ))}
               </ul>
@@ -294,18 +288,15 @@ export default function ThroughlineSummary({
                   const override = hypOverrides[hId]
                   const isEditing = editingId === `hyp-${hId}`
                   return (
-                    <li key={i} className={`flex items-start gap-2 ${h.rejected ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
+                    <li key={i} className="flex items-start gap-2">
                       <span className="font-mono text-xs text-slate-400 mt-0.5">{hId}</span>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className={h.rejected ? '' : 'text-slate-600 dark:text-slate-400'}>{h.statement}</span>
+                          <span className="text-slate-600 dark:text-slate-400">{h.statement}</span>
                           <span className="text-xs text-slate-400">({h.type || 'assumption'})</span>
-                          {h.rejected && (
-                            <span className="no-underline inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">rejected</span>
-                          )}
-                          {!h.rejected && res && <StatusBadge status={res.status} />}
-                          {!h.rejected && override && <UserOverrideBadge status={override.status} note={override.note} />}
-                          {!h.rejected && canEdit && !isEditing && (
+                          {res && <StatusBadge status={res.status} />}
+                          {override && <UserOverrideBadge status={override.status} note={override.note} />}
+                          {canEdit && !isEditing && (
                             <button
                               onClick={() => setEditingId(`hyp-${hId}`)}
                               className="p-0.5 text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
@@ -315,19 +306,16 @@ export default function ThroughlineSummary({
                             </button>
                           )}
                         </div>
-                        {h.rejected && h.rejection_reason && (
-                          <p className="no-underline text-xs italic text-slate-400 mt-0.5">{h.rejection_reason}</p>
-                        )}
-                        {!h.rejected && h.rationale && (
+                        {h.rationale && (
                           <p className="text-xs text-slate-400 mt-0.5">Rationale: {h.rationale}</p>
                         )}
-                        {!h.rejected && res?.evidence_summary && (
+                        {res?.evidence_summary && (
                           <p className="text-xs text-slate-500 mt-0.5 italic">Evidence: {res.evidence_summary}</p>
                         )}
-                        {!h.rejected && override?.note && !isEditing && (
+                        {override?.note && !isEditing && (
                           <p className="text-xs text-violet-600 dark:text-violet-400 mt-0.5 italic">Note: {override.note}</p>
                         )}
-                        {!h.rejected && isEditing && (
+                        {isEditing && (
                           <OverrideEditor
                             itemId={hId}
                             statusOptions={HYPOTHESIS_STATUS_OPTIONS}
@@ -356,18 +344,15 @@ export default function ThroughlineSummary({
                   const override = gapOverrides[gId]
                   const isEditing = editingId === `gap-${gId}`
                   return (
-                    <li key={i} className={`flex items-start gap-2 ${g.rejected ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
+                    <li key={i} className="flex items-start gap-2">
                       <span className="font-mono text-xs text-slate-400 mt-0.5">{gId}</span>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className={g.rejected ? '' : 'text-slate-600 dark:text-slate-400'}>{g.description}</span>
+                          <span className="text-slate-600 dark:text-slate-400">{g.description}</span>
                           <span className="text-xs px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 rounded">{g.type || 'data'}</span>
-                          {g.rejected && (
-                            <span className="no-underline inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">rejected</span>
-                          )}
-                          {!g.rejected && res && <StatusBadge status={res.status} />}
-                          {!g.rejected && override && <UserOverrideBadge status={override.status} note={override.note} />}
-                          {!g.rejected && canEdit && !isEditing && (
+                          {res && <StatusBadge status={res.status} />}
+                          {override && <UserOverrideBadge status={override.status} note={override.note} />}
+                          {canEdit && !isEditing && (
                             <button
                               onClick={() => setEditingId(`gap-${gId}`)}
                               className="p-0.5 text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
@@ -377,16 +362,13 @@ export default function ThroughlineSummary({
                             </button>
                           )}
                         </div>
-                        {g.rejected && g.rejection_reason && (
-                          <p className="no-underline text-xs italic text-slate-400 mt-0.5">{g.rejection_reason}</p>
-                        )}
-                        {!g.rejected && res?.findings && (
+                        {res?.findings && (
                           <p className="text-xs text-slate-500 mt-0.5 italic">Findings: {res.findings}</p>
                         )}
-                        {!g.rejected && override?.note && !isEditing && (
+                        {override?.note && !isEditing && (
                           <p className="text-xs text-violet-600 dark:text-violet-400 mt-0.5 italic">Note: {override.note}</p>
                         )}
-                        {!g.rejected && isEditing && (
+                        {isEditing && (
                           <OverrideEditor
                             itemId={gId}
                             statusOptions={GAP_STATUS_OPTIONS}

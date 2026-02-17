@@ -4,8 +4,6 @@ import { useState } from 'react'
 import {
   Plus,
   Trash2,
-  Ban,
-  RotateCcw,
   ChevronDown,
   ChevronRight
 } from 'lucide-react'
@@ -138,19 +136,6 @@ export default function ThroughlineEditor({ throughline, onChange, corrections, 
     })
   }
 
-  const toggleRejectProblem = (index: number) => {
-    const updated = [...problems]
-    const wasRejected = updated[index].rejected
-    updated[index] = { ...updated[index], rejected: !wasRejected, rejection_reason: wasRejected ? undefined : updated[index].rejection_reason }
-    onChange({ ...throughline, problem_statements: updated })
-  }
-
-  const updateProblemRejectionReason = (index: number, reason: string) => {
-    const updated = [...problems]
-    updated[index] = { ...updated[index], rejection_reason: reason || undefined }
-    onChange({ ...throughline, problem_statements: updated })
-  }
-
   // Hypotheses
   const addHypothesis = () => {
     onChange({
@@ -170,19 +155,6 @@ export default function ThroughlineEditor({ throughline, onChange, corrections, 
       ...throughline,
       hypotheses: hypotheses.filter((_, i) => i !== index),
     })
-  }
-
-  const toggleRejectHypothesis = (index: number) => {
-    const updated = [...hypotheses]
-    const wasRejected = updated[index].rejected
-    updated[index] = { ...updated[index], rejected: !wasRejected, rejection_reason: wasRejected ? undefined : updated[index].rejection_reason }
-    onChange({ ...throughline, hypotheses: updated })
-  }
-
-  const updateHypothesisRejectionReason = (index: number, reason: string) => {
-    const updated = [...hypotheses]
-    updated[index] = { ...updated[index], rejection_reason: reason || undefined }
-    onChange({ ...throughline, hypotheses: updated })
   }
 
   // Gaps
@@ -206,59 +178,26 @@ export default function ThroughlineEditor({ throughline, onChange, corrections, 
     })
   }
 
-  const toggleRejectGap = (index: number) => {
-    const updated = [...gaps]
-    const wasRejected = updated[index].rejected
-    updated[index] = { ...updated[index], rejected: !wasRejected, rejection_reason: wasRejected ? undefined : updated[index].rejection_reason }
-    onChange({ ...throughline, gaps: updated })
-  }
-
-  const updateGapRejectionReason = (index: number, reason: string) => {
-    const updated = [...gaps]
-    updated[index] = { ...updated[index], rejection_reason: reason || undefined }
-    onChange({ ...throughline, gaps: updated })
-  }
-
   return (
     <div className="space-y-3">
       {/* Problem Statements */}
       <CollapsibleSection title="Problem Statements" count={problems.length} defaultOpen>
         {problems.map((ps, i) => (
-          <div key={i} className="space-y-1">
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={ps.text}
-                onChange={(e) => updateProblem(i, e.target.value)}
-                placeholder="Describe the problem..."
-                className={`input-field !w-auto flex-1 min-w-0 text-sm ${ps.rejected ? 'line-through opacity-50' : ''}`}
-                disabled={ps.rejected}
-              />
-              <button
-                type="button"
-                onClick={() => toggleRejectProblem(i)}
-                className={`p-1 shrink-0 ${ps.rejected ? 'text-amber-500 hover:text-amber-600' : 'text-slate-400 hover:text-red-500'}`}
-                title={ps.rejected ? 'Undo reject' : 'Reject (agents will skip)'}
-              >
-                {ps.rejected ? <RotateCcw className="w-3.5 h-3.5" /> : <Ban className="w-3.5 h-3.5" />}
-              </button>
-              <button
-                type="button"
-                onClick={() => removeProblem(i)}
-                className="p-1 text-slate-400 hover:text-red-500 shrink-0"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            {ps.rejected && (
-              <input
-                type="text"
-                value={ps.rejection_reason || ''}
-                onChange={(e) => updateProblemRejectionReason(i, e.target.value)}
-                placeholder="Why rejected? (optional)"
-                className="input-field !w-auto ml-0 text-xs text-slate-500 w-full"
-              />
-            )}
+          <div key={i} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={ps.text}
+              onChange={(e) => updateProblem(i, e.target.value)}
+              placeholder="Describe the problem..."
+              className="input-field !w-auto flex-1 min-w-0 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => removeProblem(i)}
+              className="p-1 text-slate-400 hover:text-red-500 shrink-0"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           </div>
         ))}
         <button
@@ -274,51 +213,30 @@ export default function ThroughlineEditor({ throughline, onChange, corrections, 
       {/* Hypotheses */}
       <CollapsibleSection title="Hypotheses" count={hypotheses.length} defaultOpen>
         {hypotheses.map((h, i) => (
-          <div key={i} className="space-y-1">
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={h.statement}
-                onChange={(e) => updateHypothesis(i, 'statement', e.target.value)}
-                placeholder="State the hypothesis..."
-                className={`input-field !w-auto flex-1 min-w-0 text-sm ${h.rejected ? 'line-through opacity-50' : ''}`}
-                disabled={h.rejected}
-              />
-              <select
-                value={h.type || 'assumption'}
-                onChange={(e) => updateHypothesis(i, 'type', e.target.value)}
-                className={`input-field !w-auto w-28 text-sm shrink-0 ${h.rejected ? 'opacity-50' : ''}`}
-                disabled={h.rejected}
-              >
-                {HYPOTHESIS_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => toggleRejectHypothesis(i)}
-                className={`p-1 shrink-0 ${h.rejected ? 'text-amber-500 hover:text-amber-600' : 'text-slate-400 hover:text-red-500'}`}
-                title={h.rejected ? 'Undo reject' : 'Reject (agents will skip)'}
-              >
-                {h.rejected ? <RotateCcw className="w-3.5 h-3.5" /> : <Ban className="w-3.5 h-3.5" />}
-              </button>
-              <button
-                type="button"
-                onClick={() => removeHypothesis(i)}
-                className="p-1 text-slate-400 hover:text-red-500 shrink-0"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            {h.rejected && (
-              <input
-                type="text"
-                value={h.rejection_reason || ''}
-                onChange={(e) => updateHypothesisRejectionReason(i, e.target.value)}
-                placeholder="Why rejected? (optional)"
-                className="input-field !w-auto ml-0 text-xs text-slate-500 w-full"
-              />
-            )}
+          <div key={i} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={h.statement}
+              onChange={(e) => updateHypothesis(i, 'statement', e.target.value)}
+              placeholder="State the hypothesis..."
+              className="input-field !w-auto flex-1 min-w-0 text-sm"
+            />
+            <select
+              value={h.type || 'assumption'}
+              onChange={(e) => updateHypothesis(i, 'type', e.target.value)}
+              className="input-field !w-auto w-28 text-sm shrink-0"
+            >
+              {HYPOTHESIS_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => removeHypothesis(i)}
+              className="p-1 text-slate-400 hover:text-red-500 shrink-0"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           </div>
         ))}
         <button
@@ -334,51 +252,30 @@ export default function ThroughlineEditor({ throughline, onChange, corrections, 
       {/* Gaps */}
       <CollapsibleSection title="Known Gaps" count={gaps.length} defaultOpen>
         {gaps.map((g, i) => (
-          <div key={i} className="space-y-1">
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={g.description}
-                onChange={(e) => updateGap(i, 'description', e.target.value)}
-                placeholder="Describe the gap..."
-                className={`input-field !w-auto flex-1 min-w-0 text-sm ${g.rejected ? 'line-through opacity-50' : ''}`}
-                disabled={g.rejected}
-              />
-              <select
-                value={g.type || 'data'}
-                onChange={(e) => updateGap(i, 'type', e.target.value)}
-                className={`input-field !w-auto w-28 text-sm shrink-0 ${g.rejected ? 'opacity-50' : ''}`}
-                disabled={g.rejected}
-              >
-                {GAP_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => toggleRejectGap(i)}
-                className={`p-1 shrink-0 ${g.rejected ? 'text-amber-500 hover:text-amber-600' : 'text-slate-400 hover:text-red-500'}`}
-                title={g.rejected ? 'Undo reject' : 'Reject (agents will skip)'}
-              >
-                {g.rejected ? <RotateCcw className="w-3.5 h-3.5" /> : <Ban className="w-3.5 h-3.5" />}
-              </button>
-              <button
-                type="button"
-                onClick={() => removeGap(i)}
-                className="p-1 text-slate-400 hover:text-red-500 shrink-0"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            {g.rejected && (
-              <input
-                type="text"
-                value={g.rejection_reason || ''}
-                onChange={(e) => updateGapRejectionReason(i, e.target.value)}
-                placeholder="Why rejected? (optional)"
-                className="input-field !w-auto ml-0 text-xs text-slate-500 w-full"
-              />
-            )}
+          <div key={i} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={g.description}
+              onChange={(e) => updateGap(i, 'description', e.target.value)}
+              placeholder="Describe the gap..."
+              className="input-field !w-auto flex-1 min-w-0 text-sm"
+            />
+            <select
+              value={g.type || 'data'}
+              onChange={(e) => updateGap(i, 'type', e.target.value)}
+              className="input-field !w-auto w-28 text-sm shrink-0"
+            >
+              {GAP_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => removeGap(i)}
+              className="p-1 text-slate-400 hover:text-red-500 shrink-0"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           </div>
         ))}
         <button
