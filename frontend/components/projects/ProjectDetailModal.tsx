@@ -1505,6 +1505,102 @@ export default function ProjectDetailModal({
                 </section>
               )}
 
+              {/* Linked Initiatives */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
+                    <Compass className="w-4 h-4" />
+                    Linked Initiatives
+                    {linkedInitiatives.length > 0 && (
+                      <span className="text-xs font-normal">({linkedInitiatives.length})</span>
+                    )}
+                  </h3>
+                  {editingInitiatives ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={handleSaveInitiatives}
+                        disabled={isSaving}
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                      >
+                        {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        Save
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingInitiatives(false)
+                          setSelectedInitiativeIds(project.initiative_ids || [])
+                        }}
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:bg-hover rounded"
+                      >
+                        <XCircle className="w-3 h-3" />
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditingInitiatives(true)}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                      title="Edit linked initiatives"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      Edit
+                    </button>
+                  )}
+                </div>
+
+                {initiativesLoading ? (
+                  <div className="flex items-center gap-2 text-muted py-4">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">Loading initiatives...</span>
+                  </div>
+                ) : editingInitiatives ? (
+                  <div className="space-y-2">
+                    {availableInitiatives.length === 0 ? (
+                      <p className="text-sm text-muted py-4">No initiatives available.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                        {availableInitiatives.map((initiative) => (
+                          <label
+                            key={initiative.id}
+                            className={`flex items-center gap-2 p-2 border rounded-lg cursor-pointer transition-colors ${
+                              selectedInitiativeIds.includes(initiative.id)
+                                ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
+                                : 'border-default hover:bg-hover'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedInitiativeIds.includes(initiative.id)}
+                              onChange={() => toggleInitiative(initiative.id)}
+                              className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                            />
+                            <span className="text-sm text-primary truncate">{initiative.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : linkedInitiatives.length === 0 ? (
+                  <p className="text-sm text-muted py-4">
+                    No initiatives linked. Click Edit to connect this project to DISCo initiatives.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {linkedInitiatives.map((initiative) => (
+                      <a
+                        key={initiative.id}
+                        href={`/disco/${initiative.id}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-sm hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
+                      >
+                        <Compass className="w-3.5 h-3.5" />
+                        {initiative.name}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </section>
+
               {/* Activate Project CTA */}
               {project.status === 'backlog' && (
                 <section className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
@@ -1886,102 +1982,6 @@ export default function ProjectDetailModal({
               )}
             </section>
           )}
-
-          {/* Linked Initiatives */}
-          <section className="group">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-muted uppercase tracking-wide flex items-center gap-2">
-                <Compass className="w-4 h-4" />
-                Linked Initiatives
-                {linkedInitiatives.length > 0 && (
-                  <span className="text-xs font-normal">({linkedInitiatives.length})</span>
-                )}
-              </h3>
-              {editingInitiatives ? (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={handleSaveInitiatives}
-                    disabled={isSaving}
-                    className="flex items-center gap-1 px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
-                  >
-                    {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                    Save
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditingInitiatives(false)
-                      setSelectedInitiativeIds(project.initiative_ids || [])
-                    }}
-                    className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:bg-hover rounded"
-                  >
-                    <XCircle className="w-3 h-3" />
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setEditingInitiatives(true)}
-                  className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-                  title="Edit linked initiatives"
-                >
-                  <Pencil className="w-3 h-3" />
-                  Edit
-                </button>
-              )}
-            </div>
-
-            {initiativesLoading ? (
-              <div className="flex items-center gap-2 text-muted py-4">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Loading initiatives...</span>
-              </div>
-            ) : editingInitiatives ? (
-              <div className="space-y-2">
-                {availableInitiatives.length === 0 ? (
-                  <p className="text-sm text-muted py-4">No initiatives available.</p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                    {availableInitiatives.map((initiative) => (
-                      <label
-                        key={initiative.id}
-                        className={`flex items-center gap-2 p-2 border rounded-lg cursor-pointer transition-colors ${
-                          selectedInitiativeIds.includes(initiative.id)
-                            ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
-                            : 'border-default hover:bg-hover'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedInitiativeIds.includes(initiative.id)}
-                          onChange={() => toggleInitiative(initiative.id)}
-                          className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-                        />
-                        <span className="text-sm text-primary truncate">{initiative.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : linkedInitiatives.length === 0 ? (
-              <p className="text-sm text-muted py-4">
-                No initiatives linked. Click Edit to connect this project to DISCo initiatives.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {linkedInitiatives.map((initiative) => (
-                  <a
-                    key={initiative.id}
-                    href={`/disco/${initiative.id}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-sm hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
-                  >
-                    <Compass className="w-3.5 h-3.5" />
-                    {initiative.name}
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                ))}
-              </div>
-            )}
-          </section>
 
           {/* Related Documents */}
           <section>
