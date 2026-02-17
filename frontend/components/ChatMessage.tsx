@@ -18,6 +18,14 @@ interface Document {
   mime_type?: string
 }
 
+interface SaveDocumentResult {
+  document_id: string
+  title: string
+  filename: string
+  folder_path: string
+  obsidian_file_path: string
+}
+
 interface MessageMetadata {
   agent_name?: string
   agent_display_name?: string
@@ -28,7 +36,10 @@ interface MessageMetadata {
   framing_proposal?: FramingProposal
   framing_proposal_initiative_id?: string | null
   framing_applied?: boolean
-  [key: string]: unknown
+  save_document?: SaveDocumentResult
+  image_suggestion?: Record<string, unknown>
+  web_research?: Record<string, unknown>
+  manifesto_compliance?: Record<string, unknown>
 }
 
 // State for expanded sections
@@ -379,7 +390,7 @@ function ChatMessage({ content, role, timestamp, documents, sources, onSourceCli
         {role === 'assistant' && !!metadata?.framing_proposal && !metadata?.framing_applied && metadata?.framing_proposal_initiative_id && (
           <FramingProposalCard
             proposal={metadata.framing_proposal}
-            initiativeId={metadata.framing_proposal_initiative_id}
+            initiativeId={metadata.framing_proposal_initiative_id!}
           />
         )}
 
@@ -399,9 +410,9 @@ function ChatMessage({ content, role, timestamp, documents, sources, onSourceCli
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Saved to KB: {(metadata.save_document as { title?: string }).title}
-            {(metadata.save_document as { folder_path?: string }).folder_path && (
-              <span className="text-blue-500 dark:text-blue-500"> in {(metadata.save_document as { folder_path?: string }).folder_path}</span>
+            Saved to KB: {metadata.save_document.title}
+            {metadata.save_document.folder_path && (
+              <span className="text-blue-500 dark:text-blue-500"> in {metadata.save_document.folder_path}</span>
             )}
           </div>
         )}
