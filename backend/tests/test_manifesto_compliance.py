@@ -446,3 +446,124 @@ class TestSemanticScorer:
                 evaluate_semantic_compliance("test", "strategist", {"score": 0.5, "signals": [], "gaps": []})
             )
         assert result is None
+
+
+# ============================================================================
+# TestDriftTracker
+# ============================================================================
+
+
+class TestDriftTracker:
+    """Tests for the in-memory compliance drift tracker."""
+
+    def setup_method(self):
+        """Reset drift tracker state before each test."""
+        from services.compliance_drift_tracker import _conversation_drift, _conversation_gaps
+
+        _conversation_drift.clear()
+        _conversation_gaps.clear()
+
+    def test_no_reminder_fewer_than_3_scores(self):
+        """No reminder should be generated with fewer than DRIFT_WINDOW scores."""
+        from services.compliance_drift_tracker import get_compliance_reminder, record_compliance_score
+
+        record_compliance_score("conv1", "strategist", 0.0, ["P1_state_change"])
+        record_compliance_score("conv1", "strategist", 0.0, ["P1_state_change"])
+        assert get_compliance_reminder("strategist", "conv1") is None
+
+    def test_no_reminder_above_threshold(self):
+        """No reminder when avg score >= drifting threshold."""
+        from services.compliance_drift_tracker import get_compliance_reminder, record_compliance_score
+
+        record_compliance_score("conv2", "strategist", 0.5, [])
+        record_compliance_score("conv2", "strategist", 0.4, [])
+        record_compliance_score("conv2", "strategist", 0.3, [])
+        # Avg = 0.4, above 0.30 threshold
+        assert get_compliance_reminder("strategist", "conv2") is None
+
+    def test_reminder_generated_when_drifting(self):
+        """Reminder generated when 3+ scores avg below threshold."""
+        from services.compliance_drift_tracker import get_compliance_reminder, record_compliance_score
+
+        record_compliance_score("conv3", "strategist", 0.1, ["P1_state_change"])
+        record_compliance_score("conv3", "strategist", 0.0, ["P1_state_change", "P2_problems_before_solutions"])
+        record_compliance_score("conv3", "strategist", 0.2, ["P1_state_change"])
+        # Avg = 0.1, below 0.30
+        reminder = get_compliance_reminder("strategist", "conv3")
+        assert reminder is not None
+        assert "[COMPLIANCE NOTE]" in reminder
+
+    def test_reminder_includes_gap_names(self):
+        """Reminder text should include human-readable principle names."""
+        from services.compliance_drift_tracker import get_compliance_reminder, record_compliance_score
+
+        record_compliance_score("conv4", "oracle", 0.0, ["P3_evidence_over_eloquence"])
+        record_compliance_score("conv4", "oracle", 0.0, ["P4_know_your_output_type"])
+        record_compliance_score("conv4", "oracle", 0.1, ["P3_evidence_over_eloquence"])
+        reminder = get_compliance_reminder("oracle", "conv4")
+        assert reminder is not None
+        assert "Evidence Over Eloquence" in reminder
+        assert "Know Your Output Type" in reminder
+
+    def test_recovery_clears_reminder(self):
+        """Reminder should disappear after scores improve."""
+        from services.compliance_drift_tracker import get_compliance_reminder, record_compliance_score
+
+        # Build up drift
+        record_compliance_score("conv5", "strategist", 0.0, ["P1_state_change"])
+        record_compliance_score("conv5", "strategist", 0.1, ["P1_state_change"])
+        record_compliance_score("conv5", "strategist", 0.0, ["P1_state_change"])
+        assert get_compliance_reminder("strategist", "conv5") is not None
+
+        # Recover with good scores
+        record_compliance_score("conv5", "strategist", 0.8, [])
+        record_compliance_score("conv5", "strategist", 0.9, [])
+        record_compliance_score("conv5", "strategist", 0.7, [])
+        assert get_compliance_reminder("strategist", "conv5") is None
+
+    def test_clear_conversation(self):
+        """clear_conversation should remove all tracking data."""
+        from services.compliance_drift_tracker import (
+            clear_conversation,
+            get_compliance_reminder,
+            record_compliance_score,
+        )
+
+        record_compliance_score("conv6", "strategist", 0.0, ["P1_state_change"])
+        record_compliance_score("conv6", "strategist", 0.0, ["P1_state_change"])
+        record_compliance_score("conv6", "strategist", 0.0, ["P1_state_change"])
+        assert get_compliance_reminder("strategist", "conv6") is not None
+
+        clear_conversation("conv6")
+        assert get_compliance_reminder("strategist", "conv6") is None
+
+    def test_memory_limit_eviction(self):
+        """Oldest conversations should be evicted past MAX_TRACKED_CONVERSATIONS."""
+        from services.compliance_drift_tracker import (
+            MAX_TRACKED_CONVERSATIONS,
+            _conversation_drift,
+            record_compliance_score,
+        )
+
+        # Fill to capacity
+        for i in range(MAX_TRACKED_CONVERSATIONS):
+            record_compliance_score(f"conv_{i}", "strategist", 0.5, [])
+
+        assert len(_conversation_drift) == MAX_TRACKED_CONVERSATIONS
+
+        # Adding one more should evict the oldest
+        record_compliance_score("conv_new", "strategist", 0.5, [])
+        assert len(_conversation_drift) == MAX_TRACKED_CONVERSATIONS
+        assert "conv_0" not in _conversation_drift
+        assert "conv_new" in _conversation_drift
+
+    def test_self_assessment_in_reminder(self):
+        """Reminder should include self-assessment instruction."""
+        from services.compliance_drift_tracker import get_compliance_reminder, record_compliance_score
+
+        record_compliance_score("conv7", "strategist", 0.0, ["P1_state_change"])
+        record_compliance_score("conv7", "strategist", 0.0, ["P1_state_change"])
+        record_compliance_score("conv7", "strategist", 0.0, ["P1_state_change"])
+        reminder = get_compliance_reminder("strategist", "conv7")
+        assert reminder is not None
+        assert "reflect on which principles" in reminder

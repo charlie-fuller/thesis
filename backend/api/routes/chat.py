@@ -20,6 +20,10 @@ from database import get_supabase
 from document_processor import search_similar_chunks
 from logger_config import get_logger
 from services.chat_agent_service import AGENT_DISPLAY_NAMES, get_chat_agent_service
+from services.compliance_drift_tracker import (
+    get_compliance_reminder,
+    record_compliance_score,
+)
 from services.conversation_service import get_conversation_service
 from services.disco.initiative_context import build_initiative_context
 from services.manifesto_compliance import (
@@ -435,6 +439,13 @@ Instructions:
         # Add the current user message (with RAG context if available)
         conversation_messages.append({"role": "user", "content": user_prompt})
 
+        # Inject compliance reminder if agent is drifting
+        agent_name = chat_request.agent_ids[0] if chat_request.agent_ids else None
+        if agent_name and chat_request.conversation_id:
+            reminder = get_compliance_reminder(agent_name, chat_request.conversation_id)
+            if reminder:
+                system_prompt = system_prompt + "\n\n" + reminder
+
         # Call Claude API with prompt caching for system instructions
         # Cached tokens are 90% cheaper - significant savings for repeated chats
         # Prepend date context so agent knows current date
@@ -507,10 +518,18 @@ Instructions:
                 )
 
             # Score manifesto compliance (pattern matching only, no LLM call)
-            agent_name = chat_request.agent_ids[0] if chat_request.agent_ids else None
             compliance = score_manifesto_compliance(response_text, agent_name, source="chat")
             if compliance.get("signals"):
                 assistant_metadata["manifesto_compliance"] = compliance
+
+            # Record score for drift tracking
+            if agent_name:
+                record_compliance_score(
+                    chat_request.conversation_id,
+                    agent_name,
+                    compliance["score"],
+                    compliance.get("gaps", []),
+                )
 
             # Batch insert both messages in a single DB call for better performance
             messages_to_insert = [
@@ -1840,6 +1859,12 @@ Instructions:
             # Add the current user message (with RAG context if available)
             conversation_messages.append({"role": "user", "content": user_prompt})
 
+            # Inject compliance reminder if agent is drifting
+            if selected_agent and chat_request.conversation_id:
+                reminder = get_compliance_reminder(selected_agent, chat_request.conversation_id)
+                if reminder:
+                    system_prompt = system_prompt + "\n\n" + reminder
+
             # Call Claude API with streaming and prompt caching
             # Cached tokens are 90% cheaper - significant savings for repeated chats
             # Prepend date context so agent knows current date
@@ -2076,6 +2101,18 @@ Instructions:
                 except Exception as save_err:
                     logger.error(f"Failed to save document from chat: {save_err}")
 
+            # Score manifesto compliance for streaming path
+            compliance = score_manifesto_compliance(full_response, selected_agent, source="chat")
+
+            # Record score for drift tracking
+            if selected_agent and chat_request.conversation_id:
+                record_compliance_score(
+                    chat_request.conversation_id,
+                    selected_agent,
+                    compliance["score"],
+                    compliance.get("gaps", []),
+                )
+
             # Save messages to database if conversation_id provided
             image_suggestion_data = None  # Will hold suggestion to send as SSE event
 
@@ -2153,6 +2190,10 @@ Instructions:
                     if save_document_result:
                         assistant_metadata["save_document"] = save_document_result
 
+                    # Add manifesto compliance to metadata
+                    if compliance.get("signals"):
+                        assistant_metadata["manifesto_compliance"] = compliance
+
                     messages_to_insert = [
                         {
                             "conversation_id": chat_request.conversation_id,
@@ -2200,6 +2241,16 @@ Instructions:
                         user_message_id_saved = save_result.data[0]["id"]
                     if len(save_result.data) > 1:
                         assistant_message_id = save_result.data[1]["id"]
+
+                # Trigger semantic evaluation if warranted (fire-and-forget)
+                if should_semantic_evaluate(compliance, selected_agent):
+                    trigger_semantic_evaluation(
+                        full_response,
+                        selected_agent,
+                        compliance,
+                        message_id=assistant_message_id,
+                        table_name="messages",
+                    )
 
                 # Process for useable output detection (Bradbury Impact Loop)
                 # Run in thread pool to avoid blocking the stream

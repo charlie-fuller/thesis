@@ -17,7 +17,11 @@ const LazyUsageAnalytics = dynamic(() => import('@/components/LazyUsageAnalytics
   loading: () => <div className="flex items-center justify-center py-12"><LoadingSpinner size="lg" /></div>
 })
 
-type HomeTab = 'system' | 'knowledge-graph' | 'analytics' | 'process-map'
+const LazyManifestoCompliancePanel = dynamic(() => import('@/components/ManifestoCompliancePanel'), {
+  loading: () => <div className="flex items-center justify-center py-12"><LoadingSpinner size="lg" /></div>
+})
+
+type HomeTab = 'system' | 'knowledge-graph' | 'analytics' | 'process-map' | 'compliance'
 type GraphSubTab = 'data' | 'visualization' | 'what-is-this'
 
 export default function HomePage() {
@@ -90,6 +94,16 @@ export default function HomePage() {
                 }`}
               >
                 Process Map
+              </button>
+              <button
+                onClick={() => setActiveTab('compliance')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  activeTab === 'compliance'
+                    ? 'border-brand text-brand'
+                    : 'border-transparent text-muted hover:text-primary'
+                }`}
+              >
+                Compliance
               </button>
               <button
                 onClick={() => setActiveTab('knowledge-graph')}
@@ -256,6 +270,13 @@ export default function HomePage() {
         {activeTab === 'process-map' && (
           <div>
             <ProcessMapPanel />
+          </div>
+        )}
+
+        {/* Compliance Tab */}
+        {activeTab === 'compliance' && (
+          <div className="space-y-6">
+            <LazyManifestoCompliancePanel />
           </div>
         )}
       </main>

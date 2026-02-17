@@ -26,6 +26,10 @@ from uuid import UUID
 import anthropic
 
 from agents.base_agent import BaseAgent
+from services.compliance_drift_tracker import (
+    get_compliance_reminder,
+    record_compliance_score,
+)
 from services.manifesto_compliance import (
     score_manifesto_compliance,
     should_semantic_evaluate,
@@ -778,6 +782,14 @@ The user can always ask you to expand. Default to SHORT.
         if facilitator_compliance.get("signals"):
             facilitator_metadata["manifesto_compliance"] = facilitator_compliance
 
+        # Record score for drift tracking
+        record_compliance_score(
+            str(context.meeting_room_id),
+            "facilitator",
+            facilitator_compliance["score"],
+            facilitator_compliance.get("gaps", []),
+        )
+
         # Store the facilitator message
         facilitator_msg_id = await self._store_message(
             meeting_room_id=context.meeting_room_id,
@@ -870,6 +882,14 @@ The user's current request is below. Create a unified summary based on what the 
             }
             if reporter_compliance.get("signals"):
                 reporter_metadata["manifesto_compliance"] = reporter_compliance
+
+            # Record score for drift tracking
+            record_compliance_score(
+                str(context.meeting_room_id),
+                "reporter",
+                reporter_compliance["score"],
+                reporter_compliance.get("gaps", []),
+            )
 
             # Store the reporter's response
             reporter_msg_id = await self._store_message(
@@ -1152,11 +1172,16 @@ Respond with ONLY the handoff message, nothing else."""
                     # Build meeting-aware context for the agent
                     other_participants = [n for n in all_participant_names if n != agent_display_name]
 
+                    effective_instruction = agent.system_instruction
+                    reminder = get_compliance_reminder(agent_name, str(context.meeting_room_id))
+                    if reminder:
+                        effective_instruction = effective_instruction + "\n\n" + reminder
+
                     meeting_system_prompt = self._build_meeting_system_prompt(
                         agent_name=agent_name,
                         agent_display_name=agent_display_name,
                         context=context,
-                        base_instruction=agent.system_instruction,
+                        base_instruction=effective_instruction,
                         other_participants=other_participants,
                         recent_agent_turns=current_round_turns,  # Pass recent turns for context
                     )
@@ -1189,6 +1214,14 @@ Respond with ONLY the handoff message, nothing else."""
                     msg_metadata = {"tokens": {"input": tokens_input, "output": tokens_output}}
                     if compliance.get("signals"):
                         msg_metadata["manifesto_compliance"] = compliance
+
+                    # Record score for drift tracking
+                    record_compliance_score(
+                        str(context.meeting_room_id),
+                        agent_name,
+                        compliance["score"],
+                        compliance.get("gaps", []),
+                    )
 
                     # Store the agent's response
                     agent_msg_id = await self._store_message(
@@ -1713,11 +1746,16 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
 
                         other_participants = [n for n in all_participant_names if n != agent_display_name]
 
+                        effective_instruction = agent.system_instruction
+                        reminder = get_compliance_reminder(agent_name, str(context.meeting_room_id))
+                        if reminder:
+                            effective_instruction = effective_instruction + "\n\n" + reminder
+
                         autonomous_system_prompt = self._build_autonomous_system_prompt(
                             agent_name=agent_name,
                             agent_display_name=agent_display_name,
                             context=context,
-                            base_instruction=agent.system_instruction,
+                            base_instruction=effective_instruction,
                             autonomous_context=autonomous_ctx,
                             other_participants=other_participants,
                         )
@@ -1759,6 +1797,14 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
                         }
                         if autonomous_compliance.get("signals"):
                             autonomous_metadata["manifesto_compliance"] = autonomous_compliance
+
+                        # Record score for drift tracking
+                        record_compliance_score(
+                            str(context.meeting_room_id),
+                            agent_name,
+                            autonomous_compliance["score"],
+                            autonomous_compliance.get("gaps", []),
+                        )
 
                         # Store the agent's response
                         auto_msg_id = await self._store_autonomous_message(
