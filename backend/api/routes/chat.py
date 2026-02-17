@@ -22,6 +22,7 @@ from logger_config import get_logger
 from services.chat_agent_service import AGENT_DISPLAY_NAMES, get_chat_agent_service
 from services.conversation_service import get_conversation_service
 from services.disco.initiative_context import build_initiative_context
+from services.manifesto_compliance import score_manifesto_compliance
 from services.project_context import build_project_context, get_scoring_related_documents
 from services.useable_output_detector import process_conversation_for_useable_output
 from system_instructions_loader import (
@@ -500,6 +501,11 @@ Instructions:
                 logger.info(
                     f"Image suggestion added: {suggestion.get('image_type', 'general')} - {suggestion['suggested_prompt']}"
                 )
+
+            # Score manifesto compliance (pattern matching only, no LLM call)
+            compliance = score_manifesto_compliance(response_text, chat_request.agent)
+            if compliance.get("signals"):
+                assistant_metadata["manifesto_compliance"] = compliance
 
             # Batch insert both messages in a single DB call for better performance
             messages_to_insert = [
@@ -2263,6 +2269,37 @@ class DigDeeperSectionRequest(BaseModel):
     original_content: str  # The full content of the original message
     section_id: str  # The section identifier from dig-deeper:section_id link
     section_context: Optional[str] = None  # Optional surrounding context for the section
+
+
+# ============================================================================
+# Copy Event Tracking (KPI)
+# ============================================================================
+
+
+@router.post("/copy-event/{conversation_id}")
+async def track_copy_event(
+    conversation_id: str,
+    data: dict,
+    current_user: dict = Depends(get_current_user),
+):
+    """Track when a user copies substantial content from a chat message.
+
+    This signals the message provided useable output (Bradbury Impact Loop).
+    """
+    try:
+        message_id = data.get("message_id")
+        if not message_id:
+            return {"success": False, "error": "message_id required"}
+
+        from services.useable_output_detector import mark_useable_output
+
+        result = await asyncio.to_thread(
+            mark_useable_output, conversation_id, message_id, "copy_event", current_user["id"]
+        )
+        return {"success": result}
+    except Exception as e:
+        logger.warning(f"Copy event tracking failed: {e}")
+        return {"success": False}
 
 
 # ============================================================================

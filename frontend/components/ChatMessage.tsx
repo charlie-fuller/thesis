@@ -83,7 +83,7 @@ function CodeBlock({
       // Track copy event for KPI if we have conversation context
       if (conversationId && messageId && value.length >= 50) {
         try {
-          await apiPost(`/api/kpis/copy-event/${conversationId}`, {
+          await apiPost(`/api/chat/copy-event/${conversationId}`, {
             message_id: messageId,
             content_length: value.length
           });
@@ -184,7 +184,7 @@ function ChatMessage({ content, role, timestamp, documents, sources, onSourceCli
     // Only track significant copies (50+ chars)
     if (selectedText.length >= 50) {
       try {
-        await apiPost(`/api/kpis/copy-event/${conversationId}`, {
+        await apiPost(`/api/chat/copy-event/${conversationId}`, {
           message_id: messageId,
           content_length: selectedText.length
         });
