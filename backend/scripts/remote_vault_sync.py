@@ -300,6 +300,92 @@ class RemoteVaultSyncer:
             observer.join()
             print(f"\nStopped. Total synced: {self._synced_count}, errors: {self._error_count}")
 
+    def reverse_sync(self):
+        """Pull documents from KB that need to be written to local vault."""
+        import json as _json
+
+        state_file = Path.home() / ".thesis" / "reverse_sync_state.json"
+        since = None
+        if state_file.exists():
+            try:
+                with open(state_file, "r") as f:
+                    state = _json.load(f)
+                    since = state.get("last_sync")
+            except Exception:
+                pass
+
+        print("\nChecking for documents to reverse-sync...")
+
+        params = {}
+        if since:
+            params["since"] = since
+
+        try:
+            response = self.client.get(
+                f"{self.api_url}/api/obsidian/reverse-sync",
+                headers=self._get_headers(),
+                params=params,
+            )
+            response.raise_for_status()
+            data = response.json()
+        except Exception as e:
+            print(f"  Error fetching reverse-sync documents: {e}")
+            return
+
+        documents = data.get("documents", [])
+        if not documents:
+            print("  No documents to reverse-sync.")
+            return
+
+        print(f"  Found {len(documents)} document(s) to write locally.\n")
+
+        synced_ids = []
+        for doc in documents:
+            file_path = doc.get("obsidian_file_path", "")
+            content = doc.get("content", "")
+            title = doc.get("title", "")
+
+            if not file_path or not content:
+                continue
+
+            local_path = self.vault_path / file_path
+
+            # Create parent directories
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Skip if local file exists and is newer
+            if local_path.exists():
+                print(f"  Skipping (exists): {file_path}")
+                continue
+
+            try:
+                with open(local_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+                print(f"  Written: {file_path} ({title})")
+                synced_ids.append(doc["document_id"])
+            except Exception as write_err:
+                print(f"  Error writing {file_path}: {write_err}")
+
+        # Confirm synced documents
+        if synced_ids:
+            try:
+                confirm_response = self.client.post(
+                    f"{self.api_url}/api/obsidian/reverse-sync/confirm",
+                    headers=self._get_headers(),
+                    json={"document_ids": synced_ids},
+                )
+                confirm_response.raise_for_status()
+                print(f"\n  Confirmed {len(synced_ids)} document(s) as reverse-synced.")
+            except Exception as confirm_err:
+                print(f"  Warning: Failed to confirm reverse sync: {confirm_err}")
+
+        # Save state
+        from datetime import datetime, timezone
+
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(state_file, "w") as f:
+            _json.dump({"last_sync": datetime.now(timezone.utc).isoformat()}, f)
+
     def stop(self):
         """Stop the watcher."""
         self._running = False
@@ -429,6 +515,11 @@ def main():
         help="Number of recent files to sync on startup (default: 50, 0 to skip)",
     )
     parser.add_argument("--watch-only", action="store_true", help="Only watch for changes, skip initial sync")
+    parser.add_argument(
+        "--reverse-sync",
+        action="store_true",
+        help="Pull documents from KB to local vault (reverse direction)",
+    )
 
     args = parser.parse_args()
 
@@ -477,6 +568,14 @@ def main():
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
+
+    # Reverse sync (pull from KB to local vault)
+    if args.reverse_sync:
+        syncer.reverse_sync()
+        if args.watch_only or args.initial_sync == 0:
+            # If only doing reverse sync, exit
+            print("\nReverse sync complete.")
+            sys.exit(0)
 
     # Initial sync
     if not args.watch_only and args.initial_sync > 0:

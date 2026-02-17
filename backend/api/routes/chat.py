@@ -1613,7 +1613,35 @@ User's question: {chat_request.message}"""
                         iid = conv_result.data.get("initiative_id") if conv_result.data else None
                     if iid:
                         initiative_context_text = await build_initiative_context(iid, current_user["id"])
-                        user_prompt = f"""{initiative_context_text}
+
+                        # Detect most common document folder for this initiative
+                        default_folder_hint = ""
+                        try:
+                            linked_docs = await asyncio.to_thread(
+                                lambda: supabase.table("disco_initiative_documents")
+                                .select("document_id, documents(obsidian_file_path)")
+                                .eq("initiative_id", iid)
+                                .execute()
+                            )
+                            if linked_docs.data:
+                                from collections import Counter
+
+                                folder_paths = []
+                                for row in linked_docs.data:
+                                    doc = row.get("documents") or {}
+                                    fp = doc.get("obsidian_file_path") or ""
+                                    if "/" in fp:
+                                        folder_paths.append(fp.rsplit("/", 1)[0])
+                                if folder_paths:
+                                    most_common = Counter(folder_paths).most_common(1)[0][0]
+                                    default_folder_hint = (
+                                        f"\n\nDefault document folder for this initiative: {most_common}"
+                                    )
+                                    logger.info(f"Default folder for initiative {iid}: {most_common}")
+                        except Exception as folder_err:
+                            logger.warning(f"Failed to detect default folder: {folder_err}")
+
+                        user_prompt = f"""{initiative_context_text}{default_folder_hint}
 
 User's question: {chat_request.message}"""
                         initiative_id_for_context = iid
@@ -1888,6 +1916,120 @@ Instructions:
                         logger.warning(f"Failed to parse framing_proposal JSON: {json_err}")
                         framing_proposal_data = None
 
+            # Extract save_document from Discovery Agent responses
+            save_document_data = None
+            if selected_agent == "initiative_agent" and "<save_document>" in full_response:
+                sd_match = _re_extract.search(
+                    r"<save_document>\s*(\{.*?\})\s*</save_document>",
+                    full_response,
+                    _re_extract.DOTALL,
+                )
+                if sd_match:
+                    try:
+                        save_document_data = json.loads(sd_match.group(1))
+                        full_response = full_response[: sd_match.start()] + full_response[sd_match.end() :]
+                        full_response = full_response.rstrip()
+                        logger.info(
+                            f"Extracted save_document from Discovery Agent: {save_document_data.get('title', '?')}"
+                        )
+                    except json.JSONDecodeError as json_err:
+                        logger.warning(f"Failed to parse save_document JSON: {json_err}")
+                        save_document_data = None
+
+            # Process save_document: create KB document, link to initiative
+            save_document_result = None
+            if save_document_data and initiative_id_for_context:
+                try:
+                    doc_title = save_document_data.get("title", "Untitled")
+                    doc_filename = save_document_data.get("filename", "document.md")
+                    doc_folder = save_document_data.get("folder_path", "")
+                    doc_content = save_document_data.get("content", "")
+
+                    if doc_content.strip():
+                        import uuid as _uuid
+
+                        client_id = current_user.get("client_id") or "default"
+                        user_id = current_user["id"]
+                        now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+
+                        markdown_content = (
+                            f"# {doc_title}\n\n{doc_content}\n\n---\n*Saved from DISCo chat on {now_str}*\n"
+                        )
+                        file_content = markdown_content.encode("utf-8")
+
+                        safe_fn = "".join(c if c.isalnum() or c in " -_." else "_" for c in doc_filename)[:60]
+                        if not safe_fn.endswith(".md"):
+                            safe_fn += ".md"
+                        unique_filename = f"{safe_fn.rsplit('.', 1)[0]}_{_uuid.uuid4().hex[:8]}.md"
+                        storage_path = f"{client_id}/{unique_filename}"
+
+                        # Build obsidian_file_path for reverse sync
+                        obsidian_file_path = f"{doc_folder}/{safe_fn}" if doc_folder else safe_fn
+
+                        # Upload to storage
+                        await asyncio.to_thread(
+                            lambda: supabase.storage.from_("documents").upload(
+                                storage_path, file_content, file_options={"content-type": "text/markdown"}
+                            )
+                        )
+
+                        storage_url = (
+                            f"{os.environ.get('SUPABASE_URL', '')}/storage/v1/object/public/documents/{storage_path}"
+                        )
+
+                        doc_record = {
+                            "client_id": client_id,
+                            "uploaded_by": user_id,
+                            "user_id": user_id,
+                            "title": doc_title.strip(),
+                            "filename": unique_filename,
+                            "storage_path": storage_path,
+                            "storage_url": storage_url,
+                            "mime_type": "text/markdown",
+                            "file_size": len(file_content),
+                            "processed": False,
+                            "source_platform": "disco_chat",
+                            "obsidian_file_path": obsidian_file_path,
+                            "needs_reverse_sync": True,
+                        }
+
+                        doc_result = await asyncio.to_thread(
+                            lambda: supabase.table("documents").insert(doc_record).execute()
+                        )
+                        document_id = doc_result.data[0]["id"]
+
+                        # Link to initiative
+                        await asyncio.to_thread(
+                            lambda: supabase.table("disco_initiative_documents")
+                            .upsert(
+                                {
+                                    "initiative_id": initiative_id_for_context,
+                                    "document_id": document_id,
+                                    "linked_by": user_id,
+                                },
+                                on_conflict="initiative_id,document_id",
+                            )
+                            .execute()
+                        )
+
+                        # Queue background processing (chunking/embedding)
+                        from document_processor import process_document
+
+                        asyncio.get_event_loop().create_task(asyncio.to_thread(process_document, document_id))
+
+                        save_document_result = {
+                            "document_id": document_id,
+                            "title": doc_title,
+                            "filename": unique_filename,
+                            "folder_path": doc_folder,
+                            "obsidian_file_path": obsidian_file_path,
+                        }
+                        logger.info(f"Saved document from chat: {document_id} -> {obsidian_file_path}")
+                    else:
+                        logger.warning("save_document had empty content, skipping")
+                except Exception as save_err:
+                    logger.error(f"Failed to save document from chat: {save_err}")
+
             # Save messages to database if conversation_id provided
             image_suggestion_data = None  # Will hold suggestion to send as SSE event
 
@@ -1960,6 +2102,10 @@ Instructions:
                     if framing_proposal_data:
                         assistant_metadata["framing_proposal"] = framing_proposal_data
                         assistant_metadata["framing_proposal_initiative_id"] = initiative_id_for_context
+
+                    # Add save_document result to metadata if extracted
+                    if save_document_result:
+                        assistant_metadata["save_document"] = save_document_result
 
                     messages_to_insert = [
                         {
@@ -2050,6 +2196,11 @@ Instructions:
             if framing_proposal_data:
                 yield f"data: {json.dumps({'type': 'framing_proposal', 'proposal': framing_proposal_data, 'initiative_id': initiative_id_for_context})}\n\n"
                 logger.info("Sent framing_proposal SSE event")
+
+            # Send save_document_result event if a document was saved (BEFORE done event)
+            if save_document_result:
+                yield f"data: {json.dumps({'type': 'save_document_result', **save_document_result})}\n\n"
+                logger.info(f"Sent save_document_result SSE event: {save_document_result.get('title', '')}")
 
             # Send completion message with token stats and message IDs
             completion_data = {

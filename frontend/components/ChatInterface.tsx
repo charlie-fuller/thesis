@@ -583,6 +583,30 @@ export default function ChatInterface({
                   }
                   return updated
                 })
+              } else if (data.type === 'save_document_result') {
+                // Discovery Agent saved a document to KB
+                logger.debug('Document saved:', data.title)
+                setMessages(prev => {
+                  const updated = [...prev]
+                  if (updated[messageIndex]) {
+                    updated[messageIndex] = {
+                      ...updated[messageIndex],
+                      metadata: {
+                        ...updated[messageIndex].metadata,
+                        save_document: {
+                          document_id: data.document_id,
+                          title: data.title,
+                          filename: data.filename,
+                          folder_path: data.folder_path,
+                          obsidian_file_path: data.obsidian_file_path,
+                        },
+                      }
+                    }
+                  }
+                  return updated
+                })
+                const folderInfo = data.folder_path ? ` in ${data.folder_path}` : ''
+                toast.success(`Document saved: "${data.title}"${folderInfo}`)
               } else if (data.type === 'tasks_created') {
                 // Tasks were created from proposals
                 logger.debug(`${data.count} tasks created`)

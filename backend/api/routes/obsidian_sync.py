@@ -855,3 +855,103 @@ async def upload_remote_file(
     except Exception as e:
         logger.error(f"Remote upload error: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred. Please try again.") from e
+
+
+@router.get("/reverse-sync")
+async def reverse_sync(
+    since: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+):
+    """Get documents that need to be synced back to the local Obsidian vault.
+
+    Returns documents created in-app (e.g. from DISCo chat) that have
+    obsidian_file_path set and needs_reverse_sync=true.
+    """
+    try:
+        db = _get_db()
+        user_id = current_user["id"]
+
+        query = (
+            db.table("documents")
+            .select("id, title, obsidian_file_path, storage_path, updated_at, file_size")
+            .eq("user_id", user_id)
+            .eq("needs_reverse_sync", True)
+            .not_.is_("obsidian_file_path", "null")
+        )
+
+        if since:
+            query = query.gt("updated_at", since)
+
+        result = await asyncio.to_thread(lambda: query.order("updated_at").execute())
+
+        documents = []
+        for doc in result.data or []:
+            # Retrieve content from storage
+            content = None
+            if doc.get("storage_path"):
+                try:
+                    file_bytes = await asyncio.to_thread(
+                        lambda sp=doc["storage_path"]: db.storage.from_("documents").download(sp)
+                    )
+                    content = file_bytes.decode("utf-8") if file_bytes else None
+                except Exception as dl_err:
+                    logger.warning(f"Failed to download content for {doc['id']}: {dl_err}")
+                    continue
+
+            if content:
+                documents.append(
+                    {
+                        "document_id": doc["id"],
+                        "obsidian_file_path": doc["obsidian_file_path"],
+                        "content": content,
+                        "updated_at": doc["updated_at"],
+                        "title": doc["title"],
+                    }
+                )
+
+        return {
+            "success": True,
+            "count": len(documents),
+            "documents": documents,
+        }
+
+    except Exception as e:
+        logger.error(f"Reverse sync error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch reverse sync documents") from e
+
+
+@router.post("/reverse-sync/confirm")
+async def confirm_reverse_sync(
+    data: dict,
+    current_user: dict = Depends(get_current_user),
+):
+    """Mark documents as reverse-synced after the local client has written them.
+
+    Expects: {"document_ids": ["uuid1", "uuid2", ...]}
+    """
+    try:
+        db = _get_db()
+        document_ids = data.get("document_ids", [])
+        if not document_ids:
+            return {"success": True, "updated": 0}
+
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        result = await asyncio.to_thread(
+            lambda: db.table("documents")
+            .update({"needs_reverse_sync": False, "reverse_synced_at": now})
+            .in_("id", document_ids)
+            .eq("user_id", current_user["id"])
+            .execute()
+        )
+
+        updated = len(result.data) if result.data else 0
+        logger.info(f"Confirmed reverse sync for {updated} documents")
+
+        return {"success": True, "updated": updated}
+
+    except Exception as e:
+        logger.error(f"Reverse sync confirm error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to confirm reverse sync") from e
