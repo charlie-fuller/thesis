@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { apiGet } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import LoadingSpinner from './LoadingSpinner';
-import AgentIcon from './AgentIcon';
+import { AgentIcon } from './AgentIcon';
 
 interface AgentCompliance {
   agent: string;
@@ -219,7 +219,7 @@ export default function ManifestoCompliancePanel() {
                   <tr key={agent.agent} className="border-b border-default last:border-0">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <AgentIcon agentName={agent.agent} size="sm" />
+                        <AgentIcon name={agent.agent} size="sm" />
                         <span className="text-primary capitalize">{agent.agent}</span>
                       </div>
                     </td>
@@ -248,7 +248,7 @@ export default function ManifestoCompliancePanel() {
             {data.drift_alerts.map((alert, i) => (
               <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <div className="flex items-center gap-2">
-                  <AgentIcon agentName={alert.agent} size="sm" />
+                  <AgentIcon name={alert.agent} size="sm" />
                   <div>
                     <span className="text-primary capitalize">{alert.agent}</span>
                     <span className="text-muted mx-2">--</span>
