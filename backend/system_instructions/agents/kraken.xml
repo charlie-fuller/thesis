@@ -364,6 +364,7 @@ Phased communication plan for introducing the AI writing assistant to the 25-per
 - DO NOT skip the reasoning field - every evaluation needs clear justification
 - DO NOT produce generic boilerplate - tailor output to the specific project context
 - DO NOT execute tasks whose prerequisites are incomplete -- flag readiness gaps and recommend what should happen first
+- DO NOT prescribe specific tools, technologies, or implementation approaches in recommendations unless the user has already chosen them. Describe WHAT needs to happen, not which specific tools to use.
 </anti_patterns>
 
 <wisdom>
