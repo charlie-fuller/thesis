@@ -85,6 +85,20 @@ async def chat_with_taskmaster(
 
     project_context = "\n".join(context_parts)
 
+    # Add KB document awareness via digests
+    try:
+        from services.document_digests import get_project_document_digests
+
+        doc_digests = get_project_document_digests(project_id, supabase)
+        docs_with_digests = [d for d in doc_digests if d.get("digest")][:20]
+        if docs_with_digests:
+            kb_lines = ["", "KNOWLEDGE BASE DOCUMENTS:"]
+            for doc in docs_with_digests:
+                kb_lines.append(f"- {doc['title']}: {doc['digest']}")
+            project_context += "\n".join(kb_lines)
+    except Exception as e:
+        logger.warning(f"Failed to load document digests for Taskmaster: {e}")
+
     # Get user name for task assignment
     user_result = supabase.table("users").select("name, email").eq("id", user_id).single().execute()
 

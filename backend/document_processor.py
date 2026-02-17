@@ -600,6 +600,18 @@ async def process_document_with_classification(
         logger.error(f"Classification failed for document {document_id}: {e}")
         result["classification"] = {"status": "failed", "error": str(e)}
 
+    # Generate digest for the document
+    try:
+        from services.document_digests import generate_and_store_digest
+
+        digest = await generate_and_store_digest(document_id)
+        result["digest"] = {"status": "completed" if digest else "skipped"}
+        if digest:
+            logger.info(f"Digest generated for document {document_id} ({len(digest)} chars)")
+    except Exception as e:
+        logger.warning(f"Digest generation failed for document {document_id}: {e}")
+        result["digest"] = {"status": "failed", "error": str(e)}
+
     # Check if this document affects any opportunities and update justifications
     try:
         from services.project_kb_sync import check_and_sync_opportunities_for_document
