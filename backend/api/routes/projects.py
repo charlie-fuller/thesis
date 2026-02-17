@@ -2060,7 +2060,7 @@ async def kraken_get_evaluation(
 
         client_id = get_default_client_id()
 
-    result = await asyncio.to_thread(lambda: get_kraken_evaluation(project_id, client_id, supabase))
+    result = await get_kraken_evaluation(project_id, client_id, supabase)
 
     if not result:
         return {"evaluation": None, "agenticity_score": None, "is_stale": False}
