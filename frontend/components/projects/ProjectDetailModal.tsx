@@ -1660,14 +1660,104 @@ export default function ProjectDetailModal({
                   <Link className="w-4 h-4" />
                   Linked Documents
                 </h3>
-                <button
-                  onClick={() => setShowDocumentBrowser(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Link from KB
-                </button>
+                <div className="flex items-center gap-2">
+                  {(project.initiative_ids?.length ?? 0) > 0 && (
+                    <button
+                      onClick={handleShowInitiativeDocPicker}
+                      className="flex items-center gap-2 px-3 py-1.5 text-sm border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      Link from Initiative
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowDocumentBrowser(true)}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Link from KB
+                  </button>
+                </div>
               </div>
+
+              {/* Initiative Document Picker */}
+              {showInitiativeDocPicker && (
+                <div className="border border-indigo-200 dark:border-indigo-800 rounded-lg bg-indigo-50/50 dark:bg-indigo-900/10">
+                  <div className="flex items-center justify-between p-3 border-b border-indigo-200 dark:border-indigo-800">
+                    <span className="text-sm font-medium text-primary">Select initiative documents to link</span>
+                    <button
+                      onClick={() => { setShowInitiativeDocPicker(false); setSelectedInitiativeDocIds([]) }}
+                      className="p-1 text-muted hover:text-primary rounded"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {initiativeDocsLoading ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+                    </div>
+                  ) : initiativeDocs.length === 0 ? (
+                    <div className="text-center py-6 text-sm text-muted">
+                      No additional initiative documents to link. All are already linked to this project.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+                        <label className="flex items-center gap-2 px-2 py-1 text-xs text-muted cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/20 rounded">
+                          <input
+                            type="checkbox"
+                            checked={selectedInitiativeDocIds.length === initiativeDocs.length}
+                            onChange={(e) => {
+                              setSelectedInitiativeDocIds(e.target.checked ? initiativeDocs.map(d => d.document_id) : [])
+                            }}
+                            className="rounded border-gray-300 text-indigo-600"
+                          />
+                          Select all ({initiativeDocs.length})
+                        </label>
+                        <div className="border-t border-indigo-200 dark:border-indigo-800 my-1" />
+                        {initiativeDocs.map(doc => (
+                          <label
+                            key={doc.document_id}
+                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-primary cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/20 rounded"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedInitiativeDocIds.includes(doc.document_id)}
+                              onChange={(e) => {
+                                setSelectedInitiativeDocIds(prev =>
+                                  e.target.checked
+                                    ? [...prev, doc.document_id]
+                                    : prev.filter(id => id !== doc.document_id)
+                                )
+                              }}
+                              className="rounded border-gray-300 text-indigo-600"
+                            />
+                            <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                            <span className="truncate">{doc.title || doc.filename}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between p-3 border-t border-indigo-200 dark:border-indigo-800">
+                        <span className="text-xs text-muted">
+                          {selectedInitiativeDocIds.length} of {initiativeDocs.length} selected
+                        </span>
+                        <button
+                          onClick={handleLinkSelectedInitiativeDocs}
+                          disabled={selectedInitiativeDocIds.length === 0 || linkingInitiativeDocs}
+                          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                        >
+                          {linkingInitiativeDocs ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Plus className="w-4 h-4" />
+                          )}
+                          Link Selected
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Loading state */}
               {linkedDocsLoading ? (
