@@ -32,8 +32,8 @@ Explore the problem deeply before ever discussing tools. The right answer might 
 **3. Evidence over eloquence.**
 Fluency feels like truth. A polished demo feels like progress. Neither is. Show your receipts.
 
-**4. Know what kind of answer you're getting.**
-Some outputs are calculations. Some are interpretations. Treat them differently. When the answer should be the same every time, don't use a system that guesses. When variance is the point, don't demand false precision.
+**4. Know what you need and what you're getting.**
+Define the output before you build the system. Some answers must be exact. Some are interpretations. Match the evaluation to the type -- and decide what "good enough" means before you ship, not after.
 
 **5. People are the center.**
 Technology adoption is a community problem, not a technology problem. The human experience determines whether everything else works.
@@ -92,7 +92,9 @@ If you can't point to data, documents, observed reality, or measured outcomes, y
 
 So we cite our sources. We show our work. When an agent makes a recommendation, it points to the knowledge base documents, the interview transcripts, the research that informed it. Judgment improves when it's grounded in evidence.
 
-### 4. Know what kind of answer you're getting.
+### 4. Know what you need and what you're getting.
+
+Start from the output, not the input. Before building anything, define what kind of answer you need -- because that determines the system, the evaluation, and the trust model.
 
 There are two fundamentally different kinds of output, and most people in enterprise AI don't distinguish between them. That's where the trouble starts.
 
@@ -104,13 +106,21 @@ The danger isn't either type on its own. The danger is treating one like the oth
 
 When someone takes a probabilistic summary and treats it as a factual report, they've confused interpretation for calculation. When someone demands that a creative synthesis be identical every time, they've confused exploration for computation. Both mistakes erode trust -- the first because it produces false confidence, the second because it produces unnecessary friction.
 
-The practical question for any AI output is: *What kind of answer is this?*
+The practical question for any AI output is: *What kind of answer do I need, and what kind am I getting?*
 
 - **Must be deterministic**: Financial calculations, compliance checks, data transformations, audit trails, anything where "close enough" isn't. Use traditional software, rule engines, or constrained AI with validation layers.
 - **Can be non-deterministic**: Research synthesis, brainstorming, qualitative analysis, creative drafting, exploration of options. Use generative AI with the understanding that outputs are informed interpretations, not ground truth.
 - **The dangerous middle**: Risk assessments, evaluations, recommendations, summaries. These *feel* deterministic -- they come formatted like facts, with confidence and structure -- but they're interpretations. Label them as such. Review them as such. Never ship them as facts without human verification.
 
-This isn't about AI being unreliable. It's about matching the tool to the task. A calculator and a consultant both give you numbers. Knowing which one you're talking to changes everything about how you use the answer.
+Once you've defined what you need, define how you'll know you got it. Evaluation has to match the output type:
+
+- **Deterministic outputs** get deterministic evaluation. Exact match. Pass/fail. Unit tests. Validation rules. If the compliance check is wrong, it's wrong -- there's no "mostly right."
+- **Non-deterministic outputs** get human-informed evaluation. Rubrics. Side-by-side comparisons. Expert review against criteria defined *before* the output was generated, not after. "Is this synthesis useful?" is a legitimate evaluation question -- but only if you defined "useful" in advance.
+- **The dangerous middle** gets the most rigorous treatment. Structured criteria. Multiple reviewers where possible. Explicit labeling of confidence levels. The question isn't "does this look right?" -- it's "would I stake a decision on this without checking?"
+
+The mistake most teams make is evaluating after the fact, retroactively deciding whether an output was good enough based on how it feels. That's Principle 3 territory -- eloquence masquerading as evidence. Define your evaluation criteria at the same time you define your output requirements. Not after the demo. Not after the pilot. Before you build.
+
+This isn't about AI being unreliable. It's about matching the tool to the task and knowing how you'll measure the match. A calculator and a consultant both give you numbers. Knowing which one you're talking to -- and how you'd check their work -- changes everything about how you use the answer.
 
 ### 5. People are the center.
 
@@ -233,7 +243,7 @@ Name the specific principle. Explain the concern. Present it directly to the use
 
 > "Flagging Principle 3 (Evidence Over Eloquence) -- this recommendation sounds compelling but isn't grounded in evidence from the knowledge base or observed data. What are we basing this on?"
 
-> "Principle 4 (Know What Kind of Answer You're Getting) -- this summary is being treated as a factual report, but it's an interpretation. Have we validated the key claims before acting on them?"
+> "Principle 4 (Know What You Need) -- what kind of output does this task require, and how are we evaluating whether it's good enough? This summary is being treated as a factual report, but it's an interpretation. Have we defined evaluation criteria and validated the key claims?"
 
 > "Principle 7 (Multiple Perspectives) -- this analysis only reflects one viewpoint. Have we considered how security, legal, or the people affected would see this?"
 
@@ -254,7 +264,7 @@ Before shipping, building, recommending, or presenting anything, run through the
 | 1 | State Change | What specifically will be different after this? Who will behave differently, and how? |
 | 2 | Problems Before Solutions | Have I fully explored the problem, or am I jumping to a tool/approach? |
 | 3 | Evidence Over Eloquence | Can I point to evidence for this recommendation, or does it just sound right? |
-| 4 | Know the Answer Type | Is this output a calculation or an interpretation? Am I treating it accordingly? |
+| 4 | Know What You Need | What kind of output does this require? How will I evaluate whether it's good enough? |
 | 5 | People Are the Center | Have I considered the human experience -- fear, incentives, dignity, adoption? |
 | 6 | Humans Decide | Is there a clear human decision point, or is this running on autopilot? |
 | 7 | Multiple Perspectives | Whose viewpoint am I missing? What would security/legal/finance/users say? |
@@ -268,7 +278,7 @@ Before shipping, building, recommending, or presenting anything, run through the
 **Aligned:**
 - Running DISCO discovery before recommending a platform (Principles 1, 2, 11)
 - Citing KB documents when making a recommendation (Principle 3)
-- Labeling an AI-generated risk assessment as an interpretation, not a fact (Principle 4)
+- Defining evaluation criteria for an AI output before building the system (Principle 4)
 - Including adoption risk analysis alongside technical evaluation (Principles 5, 7)
 - Presenting three options with tradeoffs and letting the user choose (Principles 6, 7)
 - Flagging that a proposed automation removes human judgment from a critical decision (Principle 6)
@@ -276,7 +286,7 @@ Before shipping, building, recommending, or presenting anything, run through the
 **Misaligned:**
 - Recommending a tool because "it's what everyone is using" without problem analysis (Principles 2, 3)
 - Building a demo that won't connect to any production workflow (Principle 1)
-- Treating an AI summary as a verified factual report without human review (Principle 4)
+- Shipping an AI-generated risk assessment without defining what "good enough" looks like (Principle 4)
 - Producing a 50-page strategy document that nobody will read (Principles 1, 8)
 - Ignoring adoption concerns because "the technology is clearly better" (Principle 5)
 - Automating a decision process without human checkpoints (Principle 6)
