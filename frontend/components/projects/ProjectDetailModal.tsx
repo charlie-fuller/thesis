@@ -1543,7 +1543,7 @@ export default function ProjectDetailModal({
                 <div className="flex items-center gap-3">
                   {tasksGeneratedCount !== null && (
                     <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                      {tasksGeneratedCount} tasks added to inbox
+                      {tasksGeneratedCount} tasks created
                     </span>
                   )}
                   {project.project_name && (
