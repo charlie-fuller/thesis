@@ -168,7 +168,7 @@ function PillarCard({
               {canEdit && onRemove && (
                 <button
                   onClick={onRemove}
-                  className="p-0.5 border border-red-300 dark:border-red-700 rounded text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover/card:opacity-100 transition-opacity"
+                  className="p-0.5 border border-red-300 dark:border-red-700 rounded text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   title="Remove this pillar"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -411,7 +411,7 @@ export default function GoalAlignmentSection({
                 {editable && (
                   <button
                     onClick={() => removeKpiImpact(kpi)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600 dark:hover:text-red-400 -mr-1"
+                    className="hover:text-red-600 dark:hover:text-red-400 transition-colors -mr-1"
                     title="Remove this KPI impact"
                   >
                     <X className="w-3.5 h-3.5" />
