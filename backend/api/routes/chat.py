@@ -1926,7 +1926,10 @@ Instructions:
                 )
                 if sd_match:
                     try:
-                        save_document_data = json.loads(sd_match.group(1))
+                        # LLMs emit raw newlines inside JSON strings; escape them before parsing
+                        raw_json = sd_match.group(1)
+                        raw_json = raw_json.replace("\r\n", "\\n").replace("\r", "\\n").replace("\n", "\\n")
+                        save_document_data = json.loads(raw_json)
                         full_response = full_response[: sd_match.start()] + full_response[sd_match.end() :]
                         full_response = full_response.rstrip()
                         logger.info(
