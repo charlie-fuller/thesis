@@ -897,7 +897,7 @@ export default function ProjectDetailModal({
               </p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={() => {
                 onClose()
@@ -913,7 +913,8 @@ export default function ProjectDetailModal({
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-muted hover:text-primary hover:bg-hover rounded-lg transition-colors"
+              className="p-2.5 text-muted hover:text-primary hover:bg-hover rounded-lg transition-colors"
+              title="Close"
             >
               <X className="w-5 h-5" />
             </button>
