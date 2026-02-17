@@ -116,58 +116,40 @@ def _build_task_list(tasks: list[dict]) -> str:
 
 
 def _fetch_kb_context(project_id: str, supabase: Client, client_id: str) -> str:
-    """Fetch linked KB documents and initiative docs for context.
+    """Fetch linked KB documents for context using precomputed digests.
 
-    Uses direct document content (up to 25 project docs + 10 per initiative)
-    with generous content previews to give Kraken rich context for evaluation.
+    Uses digests (3-5 sentence summaries) instead of raw content truncation.
+    This gives broader coverage (~35 docs) with more focused context (~7K chars
+    vs ~100K chars previously). Falls back to content[:2000] for docs without digests.
     """
+    from services.document_digests import get_project_document_digests
+
+    docs = get_project_document_digests(project_id, supabase)
+    if not docs:
+        return ""
+
     context_parts = []
-
-    # Fetch project-linked documents
-    try:
-        doc_result = (
-            supabase.table("project_documents")
-            .select("document_id, documents(id, title, content)")
-            .eq("project_id", project_id)
-            .limit(25)
-            .execute()
-        )
-
-        if doc_result.data:
-            for link in doc_result.data:
-                doc = link.get("documents")
-                if doc and doc.get("content"):
-                    content_preview = doc["content"][:4000]
-                    context_parts.append(f"## KB Document: {doc.get('title', 'Untitled')}\n{content_preview}")
-    except Exception as e:
-        logger.warning(f"Failed to fetch project documents: {e}")
-
-    # Fetch initiative-linked documents if project has linked initiatives
-    try:
-        project_result = (
-            supabase.table("project_initiative_links").select("initiative_id").eq("project_id", project_id).execute()
-        )
-
-        if project_result.data:
-            initiative_ids = [r["initiative_id"] for r in project_result.data]
-            for init_id in initiative_ids[:5]:
-                init_docs = (
-                    supabase.table("disco_initiative_documents")
-                    .select("document_id, documents(id, title, content)")
-                    .eq("initiative_id", init_id)
-                    .limit(10)
+    for doc in docs[:35]:
+        title = doc.get("title", "Untitled")
+        digest = doc.get("digest")
+        if digest:
+            context_parts.append(f"## {title}\n{digest}")
+        else:
+            # Fallback: fetch first few chunks for docs without digests
+            try:
+                chunks = (
+                    supabase.table("document_chunks")
+                    .select("content")
+                    .eq("document_id", doc["id"])
+                    .order("chunk_index")
+                    .limit(3)
                     .execute()
                 )
-                if init_docs.data:
-                    for link in init_docs.data:
-                        doc = link.get("documents")
-                        if doc and doc.get("content"):
-                            content_preview = doc["content"][:3000]
-                            context_parts.append(
-                                f"## Initiative Document: {doc.get('title', 'Untitled')}\n{content_preview}"
-                            )
-    except Exception as e:
-        logger.warning(f"Failed to fetch initiative documents: {e}")
+                content = "\n".join(c["content"] for c in (chunks.data or []))
+                if content:
+                    context_parts.append(f"## {title}\n{content[:2000]}")
+            except Exception:
+                pass
 
     if context_parts:
         return "\n\n---\n\n".join(context_parts)
@@ -198,7 +180,7 @@ async def evaluate_project_tasks(
         )
         .eq("id", project_id)
         .eq("client_id", client_id)
-        .single()
+        .maybe_single()
         .execute()
     )
 
@@ -401,7 +383,7 @@ async def execute_approved_tasks(
         )
         .eq("id", project_id)
         .eq("client_id", client_id)
-        .single()
+        .maybe_single()
         .execute()
     )
 
@@ -427,8 +409,18 @@ async def execute_approved_tasks(
         yield {"type": "error", "data": "No approved tasks found"}
         return
 
-    # 3. Fetch KB context
+    # 3. Fetch KB context (digests for broad overview)
     kb_context = _fetch_kb_context(project_id, supabase, client_id)
+
+    # Collect all project document IDs for per-task vector search
+    _project_doc_ids = []
+    try:
+        from services.document_digests import get_project_document_digests
+
+        _project_docs = get_project_document_digests(project_id, supabase)
+        _project_doc_ids = [d["id"] for d in _project_docs]
+    except Exception:
+        pass
 
     # 4. Load system instructions
     system_instructions = _load_system_instructions()
@@ -450,13 +442,38 @@ async def execute_approved_tasks(
         yield {"type": "task_started", "data": {"task_id": task_id, "title": task_title}}
         yield {"type": "status", "data": f"Working on: {task_title}"}
 
+        # Get deep context for this specific task via vector search
+        task_deep_context = ""
+        if _project_doc_ids:
+            try:
+                from document_processor import search_similar_chunks
+
+                query = f"{task_title} {task.get('description', '')}"
+                chunks = search_similar_chunks(
+                    query=query,
+                    client_id=client_id,
+                    limit=5,
+                    include_conversations=False,
+                    document_ids=_project_doc_ids,
+                )
+                if chunks:
+                    chunk_parts = []
+                    for chunk in chunks:
+                        source = chunk.get("metadata", {}).get("filename", "Unknown")
+                        chunk_parts.append(f"[Source: {source}]\n{chunk.get('content', '')}")
+                    task_deep_context = "\n\n".join(chunk_parts)
+            except Exception as e:
+                logger.warning(f"Vector search failed for task {task_id}: {e}")
+
         # Build task-specific execution prompt
         execution_prompt = f"""Execute the following task and produce substantive, actionable output.
 
 PROJECT CONTEXT:
 {project_context}
 
-{f"KNOWLEDGE BASE CONTEXT:{chr(10)}{kb_context}" if kb_context else "No KB documents linked."}
+{f"KNOWLEDGE BASE CONTEXT (document summaries):{chr(10)}{kb_context}" if kb_context else "No KB documents linked."}
+
+{f"DEEP CONTEXT (relevant document excerpts for this task):{chr(10)}{task_deep_context}" if task_deep_context else ""}
 
 TASK TO EXECUTE:
 - **Title**: {task_title}
@@ -606,7 +623,7 @@ async def get_evaluation(
         .select("agenticity_score, agenticity_evaluated_at, agenticity_evaluation, agenticity_task_hash")
         .eq("id", project_id)
         .eq("client_id", client_id)
-        .single()
+        .maybe_single()
         .execute()
     )
 

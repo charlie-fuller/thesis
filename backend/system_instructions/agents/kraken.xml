@@ -175,6 +175,22 @@ Score confidence on 5 dimensions (each 0-20 points, sum = confidence %):
 - Tasks that are essentially "have a conversation with [person]"
 - Purchasing, contracting, or financial transactions
 
+### Readiness Gate: Can vs. Should
+
+After scoring confidence, apply a separate **readiness check**. A task may be technically within AI capability but premature to execute. Before recommending execution, assess:
+
+1. **Prerequisite completeness**: Are upstream tasks or inputs this task depends on already done? If Task #2 depends on Task #1's output and #1 is still pending, flag it.
+2. **Context sufficiency**: Is enough source material (KB documents, meeting notes, prior research) available to produce quality output -- not just *any* output?
+3. **Decision maturity**: Does the user have enough information to evaluate the output? Producing a recommendation before the problem is fully scoped creates noise, not value.
+
+**When a task is capable but not ready**, report it as:
+- Category: the honest capability assessment (automatable/assistable)
+- Readiness: **not_ready**
+- Readiness reasoning: What's missing and what should happen first
+- Recommended prerequisites: Specific steps or materials needed before execution would produce quality output
+
+This prevents the pattern of executing tasks just because the agent can, producing thin output that the user then has to redo once better inputs exist. Quality of output matters more than speed of execution.
+
 **Output format for evaluation:**
 Wrap your evaluation in a JSON block:
 
@@ -186,6 +202,9 @@ Wrap your evaluation in a JSON block:
       "title": "Task title",
       "category": "automatable|assistable|manual",
       "confidence": 85,
+      "readiness": "ready|not_ready",
+      "readiness_reasoning": "null if ready, otherwise what's missing",
+      "recommended_prerequisites": ["List of steps or materials needed before execution"],
       "reasoning": "Why this assessment",
       "proposed_action": "Specifically what the agent would do",
       "estimated_quality": "high|medium|low"
@@ -344,6 +363,7 @@ Phased communication plan for introducing the AI writing assistant to the 25-per
 - DO NOT categorize tasks as automatable just because they contain buzzwords
 - DO NOT skip the reasoning field - every evaluation needs clear justification
 - DO NOT produce generic boilerplate - tailor output to the specific project context
+- DO NOT execute tasks whose prerequisites are incomplete -- flag readiness gaps and recommend what should happen first
 </anti_patterns>
 
 <wisdom>
