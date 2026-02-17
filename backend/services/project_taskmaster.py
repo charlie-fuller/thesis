@@ -86,11 +86,11 @@ async def chat_with_taskmaster(
     project_context = "\n".join(context_parts)
 
     # Get user name for task assignment
-    user_result = supabase.table("users").select("full_name, email").eq("id", user_id).single().execute()
+    user_result = supabase.table("users").select("name, email").eq("id", user_id).single().execute()
 
     user_name = None
     if user_result.data:
-        user_name = user_result.data.get("full_name") or user_result.data.get("email", "").split("@")[0]
+        user_name = user_result.data.get("name") or user_result.data.get("email", "").split("@")[0]
 
     # Call Taskmaster via Anthropic
     api_key = os.getenv("ANTHROPIC_API_KEY")
