@@ -41,6 +41,7 @@ const AGENT_COLORS: Record<string, string> = {
   'Taskmaster': '#f472b6', // pink-light
   'Kraken': '#fb923c',     // orange-light
   'Compass': '#2dd4bf',    // teal-light
+  'Project Agent': '#7c3aed', // violet
   'Facilitator': '#818cf8', // indigo-light
   'Reporter': '#a3e635',   // lime-light
   // DISCO pipeline agents (4 consolidated)

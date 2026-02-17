@@ -37,6 +37,18 @@ async def get_usage_trends(
         )
         agent_display_names = {a["name"]: a.get("display_name", a["name"]) for a in (agents_result.data or [])}
 
+        # Normalize legacy/inconsistent agent names stored in message metadata
+        agent_name_aliases = {
+            "Atlas (Research)": "Atlas",
+            "Catalyst (Communications)": "Catalyst",
+            "Fortuna (Finance)": "Capital",
+            "Discovery Agent": "Discovery Guide",
+            "discovery_agent": "Discovery Guide",
+            "discovery": "Discovery Guide",
+            "Project_agent": "Project Agent",
+            "project_agent": "Project Agent",
+        }
+
         # Display names for current DISCO agents (4 consolidated)
         disco_display_names = {
             "discovery_guide": "Discovery Guide",
@@ -114,7 +126,9 @@ async def get_usage_trends(
                 metadata = msg.get("metadata") or {}
                 agent_name = metadata.get("agent_display_name") or metadata.get("agent_name")
                 if agent_name:
-                    normalized_name = agent_display_names.get(agent_name, agent_name)
+                    normalized_name = agent_name_aliases.get(
+                        agent_name, agent_display_names.get(agent_name, agent_name)
+                    )
                     if normalized_name and normalized_name[0].islower():
                         normalized_name = normalized_name.capitalize()
                     trends_by_date[date]["agent_usage"][normalized_name] = (
@@ -128,7 +142,9 @@ async def get_usage_trends(
                 trends_by_date[date]["messages"] += 1
                 agent_name = msg.get("agent_name", "Unknown")
                 if agent_name:
-                    normalized_name = agent_display_names.get(agent_name, agent_name)
+                    normalized_name = agent_name_aliases.get(
+                        agent_name, agent_display_names.get(agent_name, agent_name)
+                    )
                     if normalized_name and normalized_name[0].islower():
                         normalized_name = normalized_name.capitalize()
                     trends_by_date[date]["agent_usage"][normalized_name] = (
