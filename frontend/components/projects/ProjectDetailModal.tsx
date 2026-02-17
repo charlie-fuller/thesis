@@ -451,9 +451,10 @@ export default function ProjectDetailModal({
         )
         if (result.documents) {
           for (const doc of result.documents) {
-            // Skip docs already linked to this project
-            if (!alreadyLinkedIds.has(doc.document_id) && !allDocs.some(d => d.document_id === doc.document_id)) {
-              allDocs.push(doc)
+            // Backend returns `id` as the document ID; normalize to `document_id`
+            const docId = doc.document_id || doc.id
+            if (!alreadyLinkedIds.has(docId) && !allDocs.some(d => d.document_id === docId)) {
+              allDocs.push({ ...doc, document_id: docId })
             }
           }
         }
