@@ -42,7 +42,7 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--gray-50);
+      background: var(--bg-page, #f8fafc);
       color: var(--gray-900);
       line-height: 1.5;
     }
@@ -73,7 +73,7 @@
     }
 
     .section {
-      background: white;
+      background: var(--bg-card, white);
       border-radius: 1rem;
       padding: 1.75rem;
       margin-bottom: 1.5rem;
@@ -401,7 +401,7 @@
     .path-card .path-steps span {
       display: inline-block;
       padding: 0.1rem 0.4rem;
-      background: white;
+      background: var(--bg-card, white);
       border: 1px solid var(--gray-200);
       border-radius: 0.25rem;
       margin-right: 0.15rem;
@@ -532,7 +532,7 @@
       height: 36px;
       border-radius: 0.5rem;
       border: 2px solid var(--gray-200);
-      background: white;
+      background: var(--bg-card, white);
       font-weight: 700;
       font-size: 0.85rem;
       cursor: pointer;
@@ -613,86 +613,86 @@
     }
 
     html.dark body {
-      background: #0a0a0a;
-      color: #ffffff;
+      background: var(--bg-page, #0a0a0a);
+      color: var(--gray-900);
     }
 
     html.dark .section {
-      background: #111111;
-      border-color: #27272a;
+      background: var(--bg-card, #111111);
+      border-color: var(--gray-200);
       box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     }
 
     html.dark header {
-      border-bottom-color: #27272a;
+      border-bottom-color: var(--gray-200);
     }
 
     html.dark .score-overview {
-      background: #1a1a1a;
+      background: var(--gray-100, #1a1a1a);
     }
 
     html.dark .dim-card {
-      background: #1a1a1a;
-      border-color: #27272a;
+      background: var(--gray-100, #1a1a1a);
+      border-color: var(--gray-200);
     }
 
     html.dark .principle {
-      background: #1a1a1a;
-      border-color: #27272a;
+      background: var(--gray-100, #1a1a1a);
+      border-color: var(--gray-200);
     }
 
     html.dark .path-card {
-      background: #1a1a1a;
-      border-color: #27272a;
+      background: var(--gray-100, #1a1a1a);
+      border-color: var(--gray-200);
     }
 
     html.dark .path-card .path-steps span {
-      background: #111111;
-      border-color: #27272a;
+      background: var(--bg-card, #111111);
+      border-color: var(--gray-200);
     }
 
     html.dark .conf-item {
-      background: #1a1a1a;
-      border-color: #27272a;
+      background: var(--gray-100, #1a1a1a);
+      border-color: var(--gray-200);
     }
 
     html.dark .callout {
-      background: #111827;
-      border-color: #1e3a5f;
-      color: #d4d4d8;
+      background: var(--bg-card, #111827);
+      border-color: var(--gray-300);
+      color: var(--gray-600);
     }
 
     html.dark .callout strong {
-      color: #ffffff;
+      color: var(--gray-900);
     }
 
     html.dark .callout.formula {
-      background: #111111;
-      border-color: #27272a;
-      color: #d4d4d8;
+      background: var(--bg-card, #111111);
+      border-color: var(--gray-200);
+      color: var(--gray-600);
     }
 
     html.dark .callout.formula strong {
-      color: #ffffff;
+      color: var(--gray-900);
     }
 
     html.dark .score-bar {
-      background: #27272a;
+      background: var(--gray-200);
     }
 
     html.dark .scorer {
-      background: #1a1a1a;
-      border-color: #27272a;
+      background: var(--gray-100, #1a1a1a);
+      border-color: var(--gray-200);
     }
 
     html.dark .scorer-result {
-      border-top-color: #27272a;
+      border-top-color: var(--gray-200);
     }
 
     html.dark .score-btn {
-      background: #111111;
-      border-color: #27272a;
-      color: #a1a1aa;
+      background: var(--bg-card, #111111);
+      border-color: var(--gray-200);
+      color: var(--gray-500);
     }
 
     html.dark .score-btn:hover {
