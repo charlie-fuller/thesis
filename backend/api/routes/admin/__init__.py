@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from . import analytics, cache, health, help_docs, stats, users_and_clients
+from . import analytics, cache, health, help_docs, manifesto_compliance, stats, users_and_clients
 from ._shared import limiter
 
 # Create main router with prefix and tags
@@ -15,6 +15,7 @@ router.include_router(users_and_clients.router)
 router.include_router(health.router)
 router.include_router(cache.router)
 router.include_router(help_docs.router)
+router.include_router(manifesto_compliance.router)
 
 # Export shared utilities
 __all__ = ["router", "limiter"]

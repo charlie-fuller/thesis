@@ -22,7 +22,11 @@ from logger_config import get_logger
 from services.chat_agent_service import AGENT_DISPLAY_NAMES, get_chat_agent_service
 from services.conversation_service import get_conversation_service
 from services.disco.initiative_context import build_initiative_context
-from services.manifesto_compliance import score_manifesto_compliance
+from services.manifesto_compliance import (
+    score_manifesto_compliance,
+    should_semantic_evaluate,
+    trigger_semantic_evaluation,
+)
 from services.project_context import build_project_context, get_scoring_related_documents
 from services.useable_output_detector import process_conversation_for_useable_output
 from system_instructions_loader import (
@@ -503,7 +507,8 @@ Instructions:
                 )
 
             # Score manifesto compliance (pattern matching only, no LLM call)
-            compliance = score_manifesto_compliance(response_text, chat_request.agent)
+            agent_name = chat_request.agent_ids[0] if chat_request.agent_ids else None
+            compliance = score_manifesto_compliance(response_text, agent_name, source="chat")
             if compliance.get("signals"):
                 assistant_metadata["manifesto_compliance"] = compliance
 
@@ -524,6 +529,17 @@ Instructions:
             result = supabase.table("messages").insert(messages_to_insert).execute()
 
             logger.info("Messages saved to conversation")
+
+            # Trigger semantic evaluation if warranted (fire-and-forget)
+            if should_semantic_evaluate(compliance, agent_name):
+                assistant_msg_id = result.data[1]["id"] if len(result.data) > 1 else None
+                trigger_semantic_evaluation(
+                    response_text,
+                    agent_name,
+                    compliance,
+                    message_id=assistant_msg_id,
+                    table_name="messages",
+                )
 
             # Link uploaded documents to the user's message
             if chat_request.document_ids and len(chat_request.document_ids) > 0:

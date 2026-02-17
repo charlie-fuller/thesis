@@ -385,6 +385,18 @@ def cleanup():
 
 
 @pytest.fixture
+def sample_compliance_response():
+    """Sample response text with known manifesto principle trigger phrases."""
+    return (
+        "We need to measure the state change from baseline to target. "
+        "Research shows that evidence supports this approach based on available data. "
+        "This is a non-deterministic informed interpretation, not ground truth. "
+        "People are the center of this transformation and we must consider the human experience. "
+        "I recommend this approach, but ultimately you decide."
+    )
+
+
+@pytest.fixture
 def sample_agent_response():
     """Sample agent response for quality testing."""
     return """**Key AI Trends for 2026**.

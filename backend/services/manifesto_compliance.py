@@ -14,6 +14,32 @@ from logger_config import get_logger
 
 logger = get_logger(__name__)
 
+# Compliance level thresholds
+COMPLIANCE_THRESHOLDS = {
+    "aligned": 0.60,  # >= 0.60
+    "drifting": 0.30,  # >= 0.30 and < 0.60
+    "misaligned": 0.0,  # < 0.30
+}
+DRIFT_ALERT_THRESHOLD = 0.25  # Hit rate below this triggers a drift alert
+MIN_MESSAGES_FOR_EVALUATION = 3  # Minimum messages before evaluating an agent
+
+
+def _get_compliance_level(score: float) -> str:
+    """Classify a compliance score into a human-readable level.
+
+    Args:
+        score: Compliance score between 0.0 and 1.0.
+
+    Returns:
+        "aligned", "drifting", or "misaligned".
+    """
+    if score >= COMPLIANCE_THRESHOLDS["aligned"]:
+        return "aligned"
+    if score >= COMPLIANCE_THRESHOLDS["drifting"]:
+        return "drifting"
+    return "misaligned"
+
+
 # Principle signal patterns: keywords/phrases that indicate an agent is
 # engaging with each manifesto principle. Patterns are case-insensitive.
 # Numbering matches manifesto.xml v1.1 (11 principles).
@@ -204,6 +230,7 @@ AGENT_EXPECTED_PRINCIPLES: dict[str, list[str]] = {
 def score_manifesto_compliance(
     response_text: str,
     agent_name: Optional[str] = None,
+    source: Optional[str] = None,
 ) -> dict:
     """Score a response for manifesto principle signals.
 
@@ -220,8 +247,11 @@ def score_manifesto_compliance(
             "agent": "strategist"
         }
     """
-    if not response_text:
-        return {"score": 0.0, "signals": [], "gaps": [], "agent": agent_name}
+    if not response_text or not isinstance(response_text, str):
+        result = {"score": 0.0, "signals": [], "gaps": [], "agent": agent_name, "level": "misaligned"}
+        if source:
+            result["source"] = source
+        return result
 
     text_lower = response_text.lower()
     detected_signals = []
@@ -247,12 +277,17 @@ def score_manifesto_compliance(
         # No expected config -- score based on total principle coverage
         score = len(detected_signals) / len(PRINCIPLE_SIGNALS)
 
-    return {
-        "score": round(score, 2),
+    rounded_score = round(score, 2)
+    result = {
+        "score": rounded_score,
         "signals": detected_signals,
         "gaps": gaps,
         "agent": clean_name,
+        "level": _get_compliance_level(rounded_score),
     }
+    if source:
+        result["source"] = source
+    return result
 
 
 def _normalize_agent_name(agent_name: str) -> str:
@@ -267,3 +302,59 @@ def _normalize_agent_name(agent_name: str) -> str:
         if name.startswith(prefix):
             name = name[len(prefix) :]
     return name.strip()
+
+
+# ============================================================================
+# Semantic Evaluation Selection + Trigger
+# ============================================================================
+
+import asyncio
+import random
+
+
+def should_semantic_evaluate(regex_result: dict, agent_name: Optional[str] = None) -> bool:
+    """Decide whether a response warrants semantic LLM evaluation.
+
+    Triggers when:
+    - 0 signals detected but agent has expected principles (likely gap)
+    - 20% random sample of all scored messages (for calibration)
+    """
+    clean_name = _normalize_agent_name(agent_name) if agent_name else None
+    expected = AGENT_EXPECTED_PRINCIPLES.get(clean_name, []) if clean_name else []
+
+    if not regex_result.get("signals") and expected:
+        return True
+
+    if random.random() < 0.20:
+        return True
+
+    return False
+
+
+def trigger_semantic_evaluation(
+    response_text: str,
+    agent_name: str,
+    regex_result: dict,
+    message_id: Optional[str] = None,
+    table_name: str = "messages",
+) -> None:
+    """Fire-and-forget async semantic evaluation."""
+
+    async def _evaluate_and_store():
+        try:
+            from services.manifesto_semantic_scorer import (
+                _store_semantic_result,
+                evaluate_semantic_compliance,
+            )
+
+            result = await evaluate_semantic_compliance(response_text, agent_name, regex_result)
+            if result and message_id:
+                await _store_semantic_result(message_id, table_name, result)
+        except Exception as e:
+            logger.error(f"Semantic evaluation background task failed: {e}")
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_evaluate_and_store())
+    except RuntimeError:
+        logger.debug("No running event loop for semantic evaluation, skipping")

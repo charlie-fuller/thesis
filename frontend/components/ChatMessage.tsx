@@ -26,6 +26,15 @@ interface SaveDocumentResult {
   obsidian_file_path: string
 }
 
+interface ManifestoCompliance {
+  score?: number
+  level?: 'aligned' | 'drifting' | 'misaligned'
+  signals?: string[]
+  gaps?: string[]
+  agent?: string
+  source?: string
+}
+
 interface MessageMetadata {
   agent_name?: string
   agent_display_name?: string
@@ -39,7 +48,7 @@ interface MessageMetadata {
   save_document?: SaveDocumentResult
   image_suggestion?: Record<string, unknown>
   web_research?: Record<string, unknown>
-  manifesto_compliance?: Record<string, unknown>
+  manifesto_compliance?: ManifestoCompliance
 }
 
 // State for expanded sections
@@ -62,6 +71,43 @@ interface ChatMessageProps {
   isDigDeeperLoading?: boolean
   metadata?: MessageMetadata
   onSaveToKB?: (messageId: string, content: string) => void
+}
+
+// Manifesto principle human-readable labels
+const PRINCIPLE_LABELS: Record<string, string> = {
+  P1_state_change: 'State Change',
+  P2_problems_before_solutions: 'Problems First',
+  P3_evidence_over_eloquence: 'Evidence',
+  P4_know_your_output_type: 'Output Type',
+  P5_people_are_the_center: 'People',
+  P6_humans_decide: 'Humans Decide',
+  P7_multiple_perspectives: 'Perspectives',
+  P8_context_and_brevity: 'Brevity',
+  P9_guardrails_not_gates: 'Guardrails',
+  P10_trace_connections: 'Connections',
+  P11_disco_methodology: 'DISCo',
+};
+
+const COMPLIANCE_COLORS: Record<string, { dot: string; text: string }> = {
+  aligned: { dot: 'bg-teal-500', text: 'text-teal-700 dark:text-teal-400' },
+  drifting: { dot: 'bg-amber-500', text: 'text-amber-700 dark:text-amber-400' },
+  misaligned: { dot: 'bg-red-500', text: 'text-red-700 dark:text-red-400' },
+};
+
+function ManifestoIndicator({ compliance }: { compliance: ManifestoCompliance }) {
+  const level = compliance.level || 'misaligned';
+  const colors = COMPLIANCE_COLORS[level] || COMPLIANCE_COLORS.misaligned;
+  const signals = (compliance.signals || []).map(s => PRINCIPLE_LABELS[s] || s);
+  const tooltip = signals.length > 0
+    ? `${level} (${signals.join(', ')})`
+    : level;
+
+  return (
+    <span
+      className={`inline-block w-2 h-2 rounded-full ${colors.dot} ml-1.5`}
+      title={tooltip}
+    />
+  );
 }
 
 // Code block component with copy button
@@ -254,6 +300,9 @@ function ChatMessage({ content, role, timestamp, documents, sources, onSourceCli
             <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${getAgentColor(metadata.agent_name)}`}>
               <AgentIcon name={metadata.agent_name} size="sm" />
               <span>{metadata.agent_display_name || metadata.agent_name}</span>
+              {metadata.manifesto_compliance?.level && (
+                <ManifestoIndicator compliance={metadata.manifesto_compliance} />
+              )}
             </div>
           </div>
         )}

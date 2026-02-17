@@ -76,6 +76,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Warning: Could not start engagement scheduler: {e}")
 
+    # Start Manifesto Compliance Digest scheduler (weekly)
+    try:
+        from services.manifesto_digest_scheduler import start_manifesto_digest_scheduler
+
+        start_manifesto_digest_scheduler(day_of_week="mon", hour_utc=7, minute=0)
+        logger.info("Manifesto compliance digest scheduler started")
+    except Exception as e:
+        logger.error(f"Warning: Could not start manifesto digest scheduler: {e}")
+
     # Start Vault Watcher (if VAULT_WATCHER_USER_ID is configured)
     try:
         from services.vault_watcher_scheduler import start_vault_watcher
@@ -118,6 +127,13 @@ async def lifespan(app: FastAPI):
         stop_engagement_scheduler()
     except Exception as e:
         logger.error(f"Warning during engagement scheduler shutdown: {e}")
+
+    try:
+        from services.manifesto_digest_scheduler import stop_manifesto_digest_scheduler
+
+        stop_manifesto_digest_scheduler()
+    except Exception as e:
+        logger.error(f"Warning during manifesto digest scheduler shutdown: {e}")
 
     try:
         from services.vault_watcher_scheduler import stop_vault_watcher

@@ -42,6 +42,39 @@ interface ContextSources {
   graph_sources: GraphSources
 }
 
+// Manifesto compliance indicator
+const PRINCIPLE_LABELS: Record<string, string> = {
+  P1_state_change: 'State Change',
+  P2_problems_before_solutions: 'Problems First',
+  P3_evidence_over_eloquence: 'Evidence',
+  P4_know_your_output_type: 'Output Type',
+  P5_people_are_the_center: 'People',
+  P6_humans_decide: 'Humans Decide',
+  P7_multiple_perspectives: 'Perspectives',
+  P8_context_and_brevity: 'Brevity',
+  P9_guardrails_not_gates: 'Guardrails',
+  P10_trace_connections: 'Connections',
+  P11_disco_methodology: 'DISCo',
+};
+
+const COMPLIANCE_COLORS: Record<string, string> = {
+  aligned: 'bg-teal-500',
+  drifting: 'bg-amber-500',
+  misaligned: 'bg-red-500',
+};
+
+function ManifestoIndicator({ metadata }: { metadata: Record<string, unknown> }) {
+  const compliance = metadata?.manifesto_compliance as { level?: string; signals?: string[] } | undefined;
+  if (!compliance?.level) return null;
+  const level = compliance.level;
+  const dotColor = COMPLIANCE_COLORS[level] || COMPLIANCE_COLORS.misaligned;
+  const signals = (compliance.signals || []).map((s: string) => PRINCIPLE_LABELS[s] || s);
+  const tooltip = signals.length > 0 ? `${level} (${signals.join(', ')})` : level;
+  return (
+    <span className={`inline-block w-2 h-2 rounded-full ${dotColor} ml-1`} title={tooltip} />
+  );
+}
+
 interface MeetingMessageProps {
   message: Message
   participants: Participant[]
@@ -155,6 +188,7 @@ export default function MeetingMessage({
         <div className="flex items-center gap-2 mb-1">
           <span className="text-sm font-medium text-primary">
             {message.agent_display_name || agentName}
+            {message.metadata && <ManifestoIndicator metadata={message.metadata} />}
           </span>
           {isAutonomous && (
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-100 text-indigo-700">

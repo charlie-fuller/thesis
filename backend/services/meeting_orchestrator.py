@@ -26,6 +26,11 @@ from uuid import UUID
 import anthropic
 
 from agents.base_agent import BaseAgent
+from services.manifesto_compliance import (
+    score_manifesto_compliance,
+    should_semantic_evaluate,
+    trigger_semantic_evaluation,
+)
 from supabase import Client
 
 logger = logging.getLogger(__name__)
@@ -767,16 +772,32 @@ The user can always ask you to expand. Default to SHORT.
             yield {"type": "facilitator_token", "content": token}
             await asyncio.sleep(0.02)  # Small delay for natural streaming feel
 
+        # Score manifesto compliance for facilitator
+        facilitator_compliance = score_manifesto_compliance(message, "facilitator", source="meeting")
+        facilitator_metadata = {"is_facilitator": True}
+        if facilitator_compliance.get("signals"):
+            facilitator_metadata["manifesto_compliance"] = facilitator_compliance
+
         # Store the facilitator message
-        await self._store_message(
+        facilitator_msg_id = await self._store_message(
             meeting_room_id=context.meeting_room_id,
             role="agent",
             content=message,
             agent_name="facilitator",
             agent_display_name="Facilitator",
             turn_number=context.turn_number,
-            metadata={"is_facilitator": True},
+            metadata=facilitator_metadata,
         )
+
+        # Trigger semantic evaluation if warranted
+        if should_semantic_evaluate(facilitator_compliance, "facilitator"):
+            trigger_semantic_evaluation(
+                message,
+                "facilitator",
+                facilitator_compliance,
+                message_id=facilitator_msg_id,
+                table_name="meeting_room_messages",
+            )
 
         yield {"type": "facilitator_turn_end", "agent_name": "facilitator"}
 
@@ -840,20 +861,36 @@ The user's current request is below. Create a unified summary based on what the 
                 tokens_input = final_message.usage.input_tokens
                 tokens_output = final_message.usage.output_tokens
 
+            # Score manifesto compliance for reporter
+            reporter_compliance = score_manifesto_compliance(full_response, "reporter", source="meeting")
+            reporter_metadata = {
+                "is_reporter": True,
+                "is_summary": True,
+                "tokens": {"input": tokens_input, "output": tokens_output},
+            }
+            if reporter_compliance.get("signals"):
+                reporter_metadata["manifesto_compliance"] = reporter_compliance
+
             # Store the reporter's response
-            await self._store_message(
+            reporter_msg_id = await self._store_message(
                 meeting_room_id=context.meeting_room_id,
                 role="agent",
                 content=full_response,
                 agent_name="reporter",
                 agent_display_name="Reporter",
                 turn_number=context.turn_number,
-                metadata={
-                    "is_reporter": True,
-                    "is_summary": True,
-                    "tokens": {"input": tokens_input, "output": tokens_output},
-                },
+                metadata=reporter_metadata,
             )
+
+            # Trigger semantic evaluation if warranted
+            if should_semantic_evaluate(reporter_compliance, "reporter"):
+                trigger_semantic_evaluation(
+                    full_response,
+                    "reporter",
+                    reporter_compliance,
+                    message_id=reporter_msg_id,
+                    table_name="meeting_room_messages",
+                )
 
             # Signal turn end
             yield {
@@ -1147,8 +1184,14 @@ Respond with ONLY the handoff message, nothing else."""
                         tokens_input = final_message.usage.input_tokens
                         tokens_output = final_message.usage.output_tokens
 
+                    # Score manifesto compliance (pattern matching only, no LLM call)
+                    compliance = score_manifesto_compliance(full_response, agent_name, source="meeting")
+                    msg_metadata = {"tokens": {"input": tokens_input, "output": tokens_output}}
+                    if compliance.get("signals"):
+                        msg_metadata["manifesto_compliance"] = compliance
+
                     # Store the agent's response
-                    await self._store_message(
+                    agent_msg_id = await self._store_message(
                         meeting_room_id=context.meeting_room_id,
                         role="agent",
                         content=full_response,
@@ -1156,8 +1199,18 @@ Respond with ONLY the handoff message, nothing else."""
                         agent_name=agent_name,
                         agent_display_name=agent_display_name,
                         turn_number=context.turn_number,
-                        metadata={"tokens": {"input": tokens_input, "output": tokens_output}},
+                        metadata=msg_metadata,
                     )
+
+                    # Trigger semantic evaluation if warranted
+                    if should_semantic_evaluate(compliance, agent_name):
+                        trigger_semantic_evaluation(
+                            full_response,
+                            agent_name,
+                            compliance,
+                            message_id=agent_msg_id,
+                            table_name="meeting_room_messages",
+                        )
 
                     # Update participant stats
                     await self._update_participant_stats(
@@ -1698,8 +1751,17 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
                         # Determine responding_to (last speaker)
                         responding_to = round_messages[-1]["agent_name"] if round_messages else None
 
+                        # Score manifesto compliance for autonomous agent
+                        autonomous_compliance = score_manifesto_compliance(full_response, agent_name, source="meeting")
+                        autonomous_metadata = {
+                            "tokens": {"input": tokens_input, "output": tokens_output},
+                            "autonomous": True,
+                        }
+                        if autonomous_compliance.get("signals"):
+                            autonomous_metadata["manifesto_compliance"] = autonomous_compliance
+
                         # Store the agent's response
-                        await self._store_autonomous_message(
+                        auto_msg_id = await self._store_autonomous_message(
                             meeting_room_id=context.meeting_room_id,
                             content=full_response,
                             agent_id=agent_id,
@@ -1707,11 +1769,18 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
                             agent_display_name=agent_display_name,
                             discussion_round=round_num,
                             responding_to_agent=responding_to,
-                            metadata={
-                                "tokens": {"input": tokens_input, "output": tokens_output},
-                                "autonomous": True,
-                            },
+                            metadata=autonomous_metadata,
                         )
+
+                        # Trigger semantic evaluation if warranted
+                        if should_semantic_evaluate(autonomous_compliance, agent_name):
+                            trigger_semantic_evaluation(
+                                full_response,
+                                agent_name,
+                                autonomous_compliance,
+                                message_id=auto_msg_id,
+                                table_name="meeting_room_messages",
+                            )
 
                         # Update participant stats
                         await self._update_participant_stats(
