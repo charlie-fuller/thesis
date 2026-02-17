@@ -1644,7 +1644,7 @@ export default function ProjectDetailModal({
                       {tasksGeneratedCount} tasks created
                     </span>
                   )}
-                  {project.project_name && (
+                  {(project.project_name || project.status === 'active') && (
                     <button
                       onClick={handleGenerateTasks}
                       disabled={generatingTasks}
@@ -1678,7 +1678,7 @@ export default function ProjectDetailModal({
                   <ListTodo className="w-8 h-8 mx-auto text-muted mb-2" />
                   <p className="text-sm text-muted">No tasks linked to this project yet.</p>
                   <p className="text-xs text-muted mt-1">
-                    {project.project_name
+                    {(project.project_name || project.status === 'active')
                       ? 'Use the Generate Tasks button above to break this project into actionable tasks.'
                       : 'Activate this project first, then use Generate Tasks to create a task breakdown.'}
                   </p>
