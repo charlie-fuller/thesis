@@ -252,6 +252,19 @@
       gap: 0.25rem;
       flex: 1;
       max-width: 220px;
+      position: relative;
+    }
+
+    /* Vertical drop stub from horizontal bar down to label */
+    .branch-path::before {
+      content: '';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 12px;
+      background: var(--gray-300);
     }
 
     .path-line {
@@ -692,6 +705,10 @@
 
     html.dark .path-line::after {
       border-top-color: #3f3f46;
+    }
+
+    html.dark .branch-path::before {
+      background: #3f3f46;
     }
 
     html.dark .legend-box.decision {
