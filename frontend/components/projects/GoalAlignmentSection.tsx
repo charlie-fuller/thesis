@@ -138,11 +138,13 @@ function PillarCard({
   pillarScore,
   canEdit,
   onRationaleChange,
+  onRemove,
 }: {
   pillarKey: PillarKey
   pillarScore: PillarScore | undefined
   canEdit?: boolean
   onRationaleChange?: (rationale: string) => void
+  onRemove?: () => void
 }) {
   const [editing, setEditing] = useState(false)
   const [editValue, setEditValue] = useState('')
@@ -153,7 +155,16 @@ function PillarCard({
   const percentage = (score / 25) * 100
 
   return (
-    <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg space-y-3">
+    <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg space-y-3 group/card relative">
+      {canEdit && onRemove && (
+        <button
+          onClick={onRemove}
+          className="absolute top-2 right-2 p-0.5 text-slate-400 hover:text-red-500 opacity-0 group-hover/card:opacity-100 transition-opacity"
+          title="Remove this pillar"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      )}
       <div className="flex items-start gap-3">
         <div className={`p-2 rounded-lg bg-${pillar.color}-100 dark:bg-${pillar.color}-900/30`}>
           <Icon className={`w-4 h-4 text-${pillar.color}-600 dark:text-${pillar.color}-400`} />
@@ -252,6 +263,13 @@ export default function GoalAlignmentSection({
     } finally {
       setIsAnalyzing(false)
     }
+  }
+
+  const removePillar = (pillarKey: PillarKey) => {
+    if (!goalAlignmentDetails || !onDetailsUpdated) return
+    const scores = { ...goalAlignmentDetails.pillar_scores }
+    delete (scores as Record<string, PillarScore>)[pillarKey]
+    onDetailsUpdated({ ...goalAlignmentDetails, pillar_scores: scores as GoalAlignmentDetails['pillar_scores'] })
   }
 
   const removeKpiImpact = (kpi: string) => {
@@ -410,13 +428,14 @@ export default function GoalAlignmentSection({
             Strategic Pillar Breakdown
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(Object.keys(PILLARS) as PillarKey[]).map((key) => (
+            {(Object.keys(PILLARS) as PillarKey[]).filter(key => goalAlignmentDetails.pillar_scores[key]).map((key) => (
               <PillarCard
                 key={key}
                 pillarKey={key}
                 pillarScore={goalAlignmentDetails.pillar_scores[key]}
                 canEdit={editable}
                 onRationaleChange={editable ? (rationale) => updatePillarRationale(key, rationale) : undefined}
+                onRemove={editable ? () => removePillar(key) : undefined}
               />
             ))}
           </div>
