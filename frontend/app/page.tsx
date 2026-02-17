@@ -21,14 +21,16 @@ const LazyManifestoCompliancePanel = dynamic(() => import('@/components/Manifest
   loading: () => <div className="flex items-center justify-center py-12"><LoadingSpinner size="lg" /></div>
 })
 
-type HomeTab = 'system' | 'knowledge-graph' | 'analytics' | 'process-map' | 'compliance'
+type HomeTab = 'system' | 'knowledge-graph' | 'analytics' | 'process-map'
 type GraphSubTab = 'data' | 'visualization' | 'what-is-this'
+type AnalyticsSubTab = 'compliance' | 'usage'
 
 export default function HomePage() {
   const router = useRouter()
   const { user, session, loading: authLoading, isAdmin } = useAuth()
   const [activeTab, setActiveTab] = useState<HomeTab>('system')
   const [graphSubTab, setGraphSubTab] = useState<GraphSubTab>('data')
+  const [analyticsSubTab, setAnalyticsSubTab] = useState<AnalyticsSubTab>('compliance')
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -84,16 +86,6 @@ export default function HomePage() {
                 }`}
               >
                 Analytics
-              </button>
-              <button
-                onClick={() => setActiveTab('compliance')}
-                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                  activeTab === 'compliance'
-                    ? 'border-brand text-brand'
-                    : 'border-transparent text-muted hover:text-primary'
-                }`}
-              >
-                Compliance
               </button>
               <button
                 onClick={() => setActiveTab('process-map')}
@@ -261,8 +253,38 @@ export default function HomePage() {
         {/* Analytics Tab */}
         {activeTab === 'analytics' && (
           <div className="space-y-6">
-            <LazyUsageAnalytics />
-            <InterfaceHealthPanel />
+            {/* Sub-tab Navigation */}
+            <div className="flex gap-1 bg-hover rounded-lg p-1 max-w-md">
+              <button
+                onClick={() => setAnalyticsSubTab('compliance')}
+                className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  analyticsSubTab === 'compliance'
+                    ? 'bg-card text-primary shadow-sm'
+                    : 'text-muted hover:text-primary'
+                }`}
+              >
+                Compliance
+              </button>
+              <button
+                onClick={() => setAnalyticsSubTab('usage')}
+                className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  analyticsSubTab === 'usage'
+                    ? 'bg-card text-primary shadow-sm'
+                    : 'text-muted hover:text-primary'
+                }`}
+              >
+                Usage
+              </button>
+            </div>
+
+            {/* Sub-tab Content */}
+            {analyticsSubTab === 'compliance' && <LazyManifestoCompliancePanel />}
+            {analyticsSubTab === 'usage' && (
+              <>
+                <LazyUsageAnalytics />
+                <InterfaceHealthPanel />
+              </>
+            )}
           </div>
         )}
 
@@ -273,12 +295,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Compliance Tab */}
-        {activeTab === 'compliance' && (
-          <div className="space-y-6">
-            <LazyManifestoCompliancePanel />
-          </div>
-        )}
       </main>
     </PageLayout>
   )
