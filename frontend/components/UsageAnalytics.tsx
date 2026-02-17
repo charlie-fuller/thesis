@@ -61,13 +61,16 @@ function getAgentColor(agentName: string, index: number): string {
   return AGENT_COLORS[agentName] || FALLBACK_COLORS[index % FALLBACK_COLORS.length];
 }
 
-export default function UsageAnalytics() {
+interface UsageAnalyticsProps {
+  view?: 'agents' | 'activity';
+}
+
+export default function UsageAnalytics({ view = 'agents' }: UsageAnalyticsProps) {
   const [trends, setTrends] = useState<TrendData[]>([]);
   const [agents, setAgents] = useState<string[]>([]);
   const [agentTotals, setAgentTotals] = useState<Record<string, number>>({});
   const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'agents' | 'activity'>('agents');
 
   useEffect(() => {
     fetchAnalytics();
@@ -156,33 +159,9 @@ export default function UsageAnalytics() {
         </button>
       </div>
 
-      {/* Tab Selector */}
-      <div className="flex border-b border-border">
-        <button
-          onClick={() => setActiveTab('agents')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 ${
-            activeTab === 'agents'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-secondary hover:text-primary'
-          }`}
-        >
-          Agent Usage
-        </button>
-        <button
-          onClick={() => setActiveTab('activity')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 ${
-            activeTab === 'activity'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-secondary hover:text-primary'
-          }`}
-        >
-          Activity Breakdown
-        </button>
-      </div>
-
       {/* Charts */}
       <div className="card p-6">
-        {activeTab === 'agents' ? (
+        {view === 'agents' ? (
           <div>
             <h3 className="text-lg font-semibold text-primary mb-4">Agent Usage Over Time</h3>
             {agents.length > 0 ? (
