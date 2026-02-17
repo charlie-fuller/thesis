@@ -220,7 +220,7 @@ class TestAgentFiles:
     def test_consolidated_agents_updated_versions(self):
         from services.disco.agent_service import AGENT_FILES
 
-        assert AGENT_FILES["discovery_guide"] == "discovery-guide-v1.4.md"
+        assert AGENT_FILES["discovery_guide"] == "discovery-guide-v2.0.md"
         assert AGENT_FILES["insight_analyst"] == "insight-analyst-v1.2.md"
         assert AGENT_FILES["initiative_builder"] == "initiative-builder-v1.2.md"
         assert AGENT_FILES["requirements_generator"] == "requirements-generator-v1.4.md"
@@ -448,7 +448,7 @@ class TestAgentPromptFiles:
     @pytest.mark.parametrize(
         "filename",
         [
-            "discovery-guide-v1.4.md",
+            "discovery-guide-v2.0.md",
             "insight-analyst-v1.2.md",
             "initiative-builder-v1.2.md",
             "requirements-generator-v1.4.md",

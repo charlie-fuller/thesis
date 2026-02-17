@@ -34,10 +34,12 @@ export default function UnifiedWorkspace({
   const [selectedInitiativeId, setSelectedInitiativeId] = useState<string | null>(initiativeId ?? null)
 
   // Sync with URL params when they change
+  /* eslint-disable react-hooks/set-state-in-effect -- standard prop-to-state sync pattern */
   useEffect(() => {
     setSelectedProjectId(projectId ?? null)
     setSelectedInitiativeId(initiativeId ?? null)
   }, [projectId, initiativeId])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // When a project is selected but no initiative, resolve the project's linked initiative
   useEffect(() => {

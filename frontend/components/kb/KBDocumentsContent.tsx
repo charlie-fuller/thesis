@@ -70,11 +70,19 @@ export default function KBDocumentsContent() {
   }, [])
 
   // Initial load: check status
+  /* eslint-disable react-hooks/set-state-in-effect -- initial data fetch on mount */
   useEffect(() => {
+    checkObsidianStatus()
+  }, [checkObsidianStatus])
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const handleDocumentsChange = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1)
     checkObsidianStatus()
   }, [checkObsidianStatus])
 
   // Handle OAuth callbacks from search params
+  /* eslint-disable react-hooks/set-state-in-effect -- one-time OAuth callback on mount */
   useEffect(() => {
     const driveParam = searchParams?.get('google_drive')
     const notionParam = searchParams?.get('notion')
@@ -105,6 +113,7 @@ export default function KBDocumentsContent() {
       }
     }
   }, [])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Listen for OAuth messages from popups
   useEffect(() => {
@@ -131,11 +140,6 @@ export default function KBDocumentsContent() {
     window.addEventListener('notion-oauth-complete', handleNotionOAuth)
     return () => window.removeEventListener('notion-oauth-complete', handleNotionOAuth)
   }, [])
-
-  function handleDocumentsChange() {
-    setRefreshTrigger(prev => prev + 1)
-    checkObsidianStatus()
-  }
 
   function handleDocumentClick(doc: Document) {
     setSelectedDoc(doc)

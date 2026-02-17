@@ -54,7 +54,7 @@ export default function LinkedFoldersSection({
           <Folder className="w-3 h-3" />
           {f.folder_path}
           {f.recursive && (
-            <span className="text-emerald-500 dark:text-emerald-500 opacity-60">/*</span>
+            <span className="text-emerald-500 dark:text-emerald-500 opacity-60">{'/*'}</span>
           )}
           {canEdit && (
             <button

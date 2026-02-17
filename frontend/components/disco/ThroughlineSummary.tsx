@@ -208,20 +208,6 @@ export default function ThroughlineSummary({
   const gapCount = throughline.gaps?.length || 0
   const totalItems = problemCount + hypothesisCount + gapCount
 
-  if (totalItems === 0 && !throughline.desired_outcome_state) return null
-
-  // Build resolution lookup maps
-  const hypResMap = new Map(
-    (resolution?.hypothesis_resolutions || []).map(hr => [hr.hypothesis_id, hr])
-  )
-  const gapResMap = new Map(
-    (resolution?.gap_statuses || []).map(gs => [gs.gap_id, gs])
-  )
-
-  // Build annotation lookup
-  const hypOverrides = resolutionAnnotations?.hypothesis_overrides || {}
-  const gapOverrides = resolutionAnnotations?.gap_overrides || {}
-
   const handleSaveOverride = useCallback(async (
     itemId: string,
     status: string,
@@ -256,6 +242,20 @@ export default function ThroughlineSummary({
       setSaving(false)
     }
   }, [initiativeId, onAnnotationsUpdated])
+
+  if (totalItems === 0 && !throughline.desired_outcome_state) return null
+
+  // Build resolution lookup maps
+  const hypResMap = new Map(
+    (resolution?.hypothesis_resolutions || []).map(hr => [hr.hypothesis_id, hr])
+  )
+  const gapResMap = new Map(
+    (resolution?.gap_statuses || []).map(gs => [gs.gap_id, gs])
+  )
+
+  // Build annotation lookup
+  const hypOverrides = resolutionAnnotations?.hypothesis_overrides || {}
+  const gapOverrides = resolutionAnnotations?.gap_overrides || {}
 
   const canEdit = !!initiativeId
 

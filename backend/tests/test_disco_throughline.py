@@ -336,6 +336,120 @@ class TestFormatThroughlineForPrompt:
         assert "Known Gaps" in result
         assert "Desired Outcome State" in result
 
+    def test_rejected_problem_statements_filtered(self):
+        from services.disco.agent_service import _format_throughline_for_prompt
+
+        t = {
+            "problem_statements": [
+                {"id": "ps-1", "text": "Active problem"},
+                {"id": "ps-2", "text": "Rejected problem", "rejected": True},
+            ]
+        }
+        result = _format_throughline_for_prompt(t)
+        assert "Active problem" in result
+        assert "Rejected problem" not in result
+
+    def test_rejected_hypotheses_filtered(self):
+        from services.disco.agent_service import _format_throughline_for_prompt
+
+        t = {
+            "hypotheses": [
+                {"id": "h-1", "statement": "Good hyp", "type": "assumption"},
+                {"id": "h-2", "statement": "Bad hyp", "type": "belief", "rejected": True},
+            ]
+        }
+        result = _format_throughline_for_prompt(t)
+        assert "Good hyp" in result
+        assert "Bad hyp" not in result
+
+    def test_rejected_gaps_filtered(self):
+        from services.disco.agent_service import _format_throughline_for_prompt
+
+        t = {
+            "gaps": [
+                {"id": "g-1", "description": "Real gap", "type": "data"},
+                {"id": "g-2", "description": "Not a gap", "type": "process", "rejected": True},
+            ]
+        }
+        result = _format_throughline_for_prompt(t)
+        assert "Real gap" in result
+        assert "Not a gap" not in result
+
+    def test_all_rejected_returns_empty_section(self):
+        from services.disco.agent_service import _format_throughline_for_prompt
+
+        t = {
+            "problem_statements": [
+                {"id": "ps-1", "text": "Rejected", "rejected": True},
+            ]
+        }
+        result = _format_throughline_for_prompt(t)
+        assert "Problem Statements" not in result
+
+
+class TestBuildFullPromptUserCorrections:
+    """Tests for user_corrections injection in build_full_prompt()."""
+
+    def test_user_corrections_included(self):
+        from services.disco.agent_service import build_full_prompt
+
+        context = {
+            "user_corrections": "The budget is $2M not $5M. Timeline is Q3 not Q4.",
+        }
+        result = build_full_prompt("discovery", context)
+        assert "Ground-Truth Corrections" in result
+        assert "AUTHORITATIVE" in result
+        assert "The budget is $2M not $5M" in result
+
+    def test_no_user_corrections(self):
+        from services.disco.agent_service import build_full_prompt
+
+        context = {}
+        result = build_full_prompt("discovery", context)
+        assert "Ground-Truth Corrections" not in result
+
+    def test_empty_user_corrections_excluded(self):
+        from services.disco.agent_service import build_full_prompt
+
+        context = {"user_corrections": ""}
+        result = build_full_prompt("discovery", context)
+        assert "Ground-Truth Corrections" not in result
+
+
+class TestModelRejectedFields:
+    """Tests for rejected/rejection_reason fields on throughline models."""
+
+    def test_problem_statement_rejected_field(self):
+        from api.routes.disco._shared import ProblemStatement
+
+        ps = ProblemStatement(text="Test", rejected=True, rejection_reason="Outdated")
+        assert ps.rejected is True
+        assert ps.rejection_reason == "Outdated"
+
+    def test_hypothesis_rejected_field(self):
+        from api.routes.disco._shared import Hypothesis
+
+        h = Hypothesis(statement="Test", rejected=True, rejection_reason="Disproven")
+        assert h.rejected is True
+
+    def test_gap_rejected_field(self):
+        from api.routes.disco._shared import Gap
+
+        g = Gap(description="Test", rejected=True, rejection_reason="Resolved")
+        assert g.rejected is True
+
+    def test_initiative_update_user_corrections(self):
+        from api.routes.disco._shared import InitiativeUpdate
+
+        update = InitiativeUpdate(user_corrections="Budget is $2M")
+        assert update.user_corrections == "Budget is $2M"
+
+    def test_initiative_update_goal_alignment_details(self):
+        from api.routes.disco._shared import InitiativeUpdate
+
+        update = InitiativeUpdate(goal_alignment_details={"summary": "test"})
+        assert update.goal_alignment_details == {"summary": "test"}
+
 
 # ============================================================================
 # PARSE RESOLUTION TESTS
