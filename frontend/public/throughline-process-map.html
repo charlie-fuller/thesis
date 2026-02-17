@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Throughline Deep-Dive</title>
+  <title>Investigation Framing Guide</title>
   <style>
     :root {
       --framing: #6366f1;
@@ -85,7 +85,7 @@
     .callout.warn { background: #fef3c7; border-color: #fde68a; }
     .callout.success { background: #dcfce7; border-color: #bbf7d0; }
 
-    /* Throughline anatomy */
+    /* Framing anatomy */
     .anatomy-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -429,56 +429,56 @@
 </script>
   <div class="container">
     <header>
-      <h1>Investigation Framing (Throughline)</h1>
-      <p class="subtitle">The structured lens that threads through every DISCO stage and resolves at Convergence</p>
+      <h1>Investigation Framing Guide</h1>
+      <p class="subtitle">Four numbered components that give every DISCO agent a consistent lens -- defined once, resolved at Convergence</p>
       <div style="display:flex; justify-content:center; gap:0.25rem; margin-top:1rem; flex-wrap:wrap;">
-        <span style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.4rem 0.85rem; border-radius:9999px; font-size:0.8rem; font-weight:600; color:white; background:var(--framing);">Define</span>
+        <span style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.4rem 0.85rem; border-radius:9999px; font-size:0.8rem; font-weight:600; color:white; background:var(--framing);">1. Frame</span>
         <span style="color:var(--gray-300); font-size:1.25rem; align-self:center;">&#8250;</span>
-        <span style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.4rem 0.85rem; border-radius:9999px; font-size:0.8rem; font-weight:600; color:white; background:var(--discovery);">Thread</span>
+        <span style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.4rem 0.85rem; border-radius:9999px; font-size:0.8rem; font-weight:600; color:white; background:var(--discovery);">2. Investigate</span>
         <span style="color:var(--gray-300); font-size:1.25rem; align-self:center;">&#8250;</span>
-        <span style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.4rem 0.85rem; border-radius:9999px; font-size:0.8rem; font-weight:600; color:white; background:var(--convergence);">Resolve</span>
+        <span style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.4rem 0.85rem; border-radius:9999px; font-size:0.8rem; font-weight:600; color:white; background:var(--convergence);">3. Resolve</span>
       </div>
     </header>
 
-    <!-- What is a Throughline? -->
+    <!-- What is Investigation Framing? -->
     <div class="section">
-      <div class="section-title">What is a Throughline?</div>
+      <div class="section-title">What is Investigation Framing?</div>
       <div class="two-col">
         <div>
           <p style="font-size: 0.8rem; color: var(--gray-600); margin-bottom: 0.75rem;">
-            A throughline is your <strong>investigation framing</strong> - the structured set of problem statements, hypotheses, and gaps that give every DISCO agent a consistent lens for analysis. Think of it as the "research questions" for your discovery.
+            Investigation framing is the structured set of problem statements, hypotheses, gaps, and a desired outcome that give every DISCO agent a consistent lens for analysis. These are the research questions for your discovery.
           </p>
           <p style="font-size: 0.8rem; color: var(--gray-600); margin-bottom: 0.75rem;">
-            Without a throughline, agents analyze documents in isolation. With one, every agent maps its findings back to your specific questions, and the final Convergence stage resolves each item with evidence.
+            Without framing, agents analyze documents in isolation. With it, every agent maps its findings back to your specific questions, and Convergence resolves each item with evidence.
           </p>
           <p style="font-size: 0.8rem; color: var(--gray-600);">
-            You don't need to define it upfront - the Discovery Guide can extract one from your documents automatically.
+            You can define framing upfront, let the Discovery Guide extract it from your documents, or build it interactively through chat.
           </p>
         </div>
         <div>
           <div style="border: 2px solid var(--framing); border-radius: 0.75rem; padding: 1rem; background: var(--framing-light);">
-            <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem;">Before Throughline</div>
+            <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem;">Without Framing</div>
             <p style="font-size: 0.7rem; color: var(--gray-600); margin-bottom: 0.75rem;">"Analyze these documents about AI governance."</p>
             <p style="font-size: 0.65rem; color: var(--gray-400); font-style: italic;">Agent produces generic analysis</p>
           </div>
           <div style="border: 2px solid var(--synthesis); border-radius: 0.75rem; padding: 1rem; background: var(--synthesis-light); margin-top: 0.5rem;">
-            <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem;">With Throughline</div>
+            <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem;">With Framing</div>
             <p style="font-size: 0.7rem; color: var(--gray-600); margin-bottom: 0.75rem;">"Analyze these documents to test whether [h-1] German Works Council approval will block GenAI deployment, address [g-1] missing data classification policy, and resolve [ps-1] unclear governance ownership."</p>
-            <p style="font-size: 0.65rem; color: var(--synthesis); font-style: italic;">Agent maps every finding to your specific questions</p>
+            <p style="font-size: 0.65rem; color: var(--synthesis); font-style: italic;">Agent maps every finding to your numbered framing items</p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Anatomy of a Throughline -->
+    <!-- Four Framing Components -->
     <div class="section">
-      <div class="section-title">Anatomy: Four Components</div>
+      <div class="section-title">Four Framing Components</div>
       <div class="anatomy-grid">
         <div class="anatomy-card ps">
-          <span class="tag">Problem Statements</span>
+          <span class="tag">1. Problem Statements</span>
           <h4>What's Wrong?</h4>
           <div class="id-fmt">ps-1, ps-2, ps-3 ...</div>
-          <p>Defines the specific problems the initiative is investigating. Each problem statement anchors the analysis.</p>
+          <p>The specific problems this initiative investigates. Each one anchors the analysis and must be addressed by Convergence.</p>
           <ul>
             <li>Clear, specific problem definition</li>
             <li>Scoped to what you can influence</li>
@@ -487,7 +487,7 @@
         </div>
 
         <div class="anatomy-card hy">
-          <span class="tag">Hypotheses</span>
+          <span class="tag">2. Hypotheses</span>
           <h4>What Do We Believe?</h4>
           <div class="id-fmt">h-1, h-2, h-3 ...</div>
           <p>Testable assumptions, beliefs, or predictions that agents seek to confirm or refute with evidence.</p>
@@ -499,10 +499,10 @@
         </div>
 
         <div class="anatomy-card gap">
-          <span class="tag">Gaps</span>
+          <span class="tag">3. Known Gaps</span>
           <h4>What Don't We Know?</h4>
           <div class="id-fmt">g-1, g-2, g-3 ...</div>
-          <p>Known unknowns that discovery sessions and document analysis should address.</p>
+          <p>Known unknowns that discovery sessions and document analysis should address. Each gap has a type.</p>
           <ul>
             <li><strong>Data:</strong> Missing metrics or evidence</li>
             <li><strong>People:</strong> Stakeholders not yet consulted</li>
@@ -512,7 +512,7 @@
         </div>
 
         <div class="anatomy-card outcome">
-          <span class="tag">Desired Outcome</span>
+          <span class="tag">4. Desired Outcome</span>
           <h4>What Does Success Look Like?</h4>
           <div class="id-fmt">Free text</div>
           <p>A clear description of the desired end state. Agents use this to evaluate whether proposed solutions actually solve the problem.</p>
@@ -525,9 +525,9 @@
       </div>
     </div>
 
-    <!-- Three Ways to Define -->
+    <!-- Three Ways to Define Framing -->
     <div class="section">
-      <div class="section-title">Three Ways to Define a Throughline</div>
+      <div class="section-title">Three Ways to Define Framing</div>
       <div class="methods-grid">
         <div class="method-card">
           <h5>1. Agent-Extracted (Recommended)</h5>
@@ -537,9 +537,9 @@
             <li>Link documents or folders to your discovery</li>
             <li>Run the Discovery Guide (auto-detects Triage mode)</li>
             <li>Agent outputs a "Suggested Framing" section</li>
-            <li>A review panel appears with extracted items</li>
+            <li>A review panel appears with numbered items</li>
             <li>Accept all, select individually, or dismiss</li>
-            <li>Accepted items populate the throughline</li>
+            <li>Accepted items populate the Framing tab</li>
           </ol>
         </div>
 
@@ -551,7 +551,7 @@
             <li>Open Chat from your discovery</li>
             <li>Ask: "Help me frame this discovery"</li>
             <li>Agent proposes problem statements, hypotheses, gaps</li>
-            <li>Items appear as selectable cards</li>
+            <li>Items appear as selectable cards with IDs</li>
             <li>Check the items you want to keep</li>
             <li>Click "Apply to Discovery" to save</li>
           </ol>
@@ -560,29 +560,29 @@
         <div class="method-card">
           <h5>3. Manual Entry</h5>
           <div class="rec">Best for: When you know exactly what to investigate</div>
-          <p style="margin-bottom: 0.5rem;">Directly add items through the create/edit modal. Full control over every component.</p>
+          <p style="margin-bottom: 0.5rem;">Directly add items through the Framing tab on your discovery. Full control over every component.</p>
           <ol class="steps">
-            <li>Create or edit a discovery</li>
-            <li>Expand "Investigation Framing" section</li>
-            <li>Click "+ Add" for problem statements, hypotheses, or gaps</li>
+            <li>Open your discovery and go to the Framing tab</li>
+            <li>Expand Problem Statements, Hypotheses, or Known Gaps</li>
+            <li>Click "+ Add" to create a new item</li>
             <li>Enter the text and select type (for hypotheses/gaps)</li>
             <li>IDs are auto-assigned (ps-1, h-1, g-1)</li>
-            <li>Save to commit the throughline</li>
+            <li>Add a Desired Outcome State at the bottom</li>
           </ol>
         </div>
       </div>
 
       <div class="callout">
-        <strong>You can combine methods:</strong> Start with agent-extracted framing from documents, then refine through chat, and add manual items for specific questions you want answered. The throughline can be edited at any point during the DISCO process.
+        <strong>You can combine methods:</strong> Start with agent-extracted framing from documents, then refine through chat, and add manual items for specific questions you want answered. Framing can be edited at any point during the DISCO process.
       </div>
     </div>
 
-    <!-- How Throughline Flows Through Stages -->
+    <!-- How Framing Flows Through Stages -->
     <div class="section">
-      <div class="section-title">How the Throughline Flows Through Every Stage</div>
+      <div class="section-title">How Framing Flows Through Every Stage</div>
 
       <div class="mini-flow" style="margin-bottom: 1.25rem;">
-        <div class="mini-node framing" style="font-weight:600;">Throughline Defined</div>
+        <div class="mini-node framing" style="font-weight:600;">Framing Defined</div>
         <span class="mini-arrow">&#8250;</span>
         <div class="mini-node d">Discovery<br><span style="font-size:0.55rem; color:var(--gray-400);">Extracts + validates</span></div>
         <span class="mini-arrow">&#8250;</span>
@@ -596,7 +596,7 @@
       <div class="injection-grid">
         <div class="injection-card d">
           <h5 class="d">Discovery</h5>
-          <p>The Discovery Guide reads the throughline and uses it to focus analysis.</p>
+          <p>The Discovery Guide reads the framing and uses it to focus analysis.</p>
           <div class="label">What It Does</div>
           <ul>
             <li><strong>Triage:</strong> Extracts suggested framing from documents (ps, h, g items)</li>
@@ -609,7 +609,7 @@
 
         <div class="injection-card i">
           <h5 class="i">Intelligence</h5>
-          <p>The Insight Analyst maps evidence directly to throughline items.</p>
+          <p>The Insight Analyst maps evidence directly to framing items.</p>
           <div class="label">What It Does</div>
           <ul>
             <li>Creates hypothesis-evidence mapping table</li>
@@ -622,7 +622,7 @@
 
         <div class="injection-card s">
           <h5 class="s">Synthesis</h5>
-          <p>The Initiative Builder links proposed bundles to throughline items.</p>
+          <p>The Initiative Builder links proposed bundles to framing items.</p>
           <div class="label">What It Does</div>
           <ul>
             <li>Each proposed initiative references which ps/h/g items it addresses</li>
@@ -635,7 +635,7 @@
 
         <div class="injection-card c">
           <h5 class="c">Convergence (Resolution)</h5>
-          <p>The Requirements Generator produces the final resolution of every throughline item.</p>
+          <p>The Requirements Generator produces the final resolution of every framing item.</p>
           <div class="label">What It Does</div>
           <ul>
             <li>Hypothesis resolution table (confirmed/refuted/inconclusive)</li>
@@ -654,7 +654,7 @@
       <div class="section-title">Convergence Resolution: How Every Item Gets Resolved</div>
 
       <p style="font-size: 0.8rem; color: var(--gray-600); margin-bottom: 1rem;">
-        At the Convergence stage, the Requirements Generator produces a resolution table for every throughline item. This is the payoff of the entire throughline system - every question you asked at the start gets a definitive answer backed by evidence.
+        At Convergence, the Requirements Generator produces a resolution table for every framing item. Every question you asked at the start gets a definitive answer backed by evidence.
       </p>
 
       <!-- Hypothesis Resolution -->
@@ -736,12 +736,12 @@
     <div class="section">
       <div class="section-title">The "So What?" Analysis</div>
       <p style="font-size: 0.8rem; color: var(--gray-600); margin-bottom: 1rem;">
-        For every resolved throughline item, Convergence answers three questions that turn analysis into action.
+        For every resolved framing item, Convergence answers three questions that turn analysis into action.
       </p>
 
       <div class="sowhat-grid">
         <div class="sowhat-card">
-          <h5>State Change Proposed</h5>
+          <h5>1. State Change Proposed</h5>
           <p>What should change as a result of this finding? Expressed as a concrete organizational shift, not an aspiration.</p>
           <ul>
             <li>"Move from ad-hoc to policy-governed AI procurement"</li>
@@ -751,7 +751,7 @@
         </div>
 
         <div class="sowhat-card">
-          <h5>Next Human Action</h5>
+          <h5>2. Next Human Action</h5>
           <p>The single most important thing a human must do next. Becomes a high-priority task if you click "Create Tasks from State Changes."</p>
           <ul>
             <li>"Schedule Works Council briefing by March 15"</li>
@@ -761,7 +761,7 @@
         </div>
 
         <div class="sowhat-card">
-          <h5>Kill Test</h5>
+          <h5>3. Kill Test</h5>
           <p>The condition under which you should stop pursuing this initiative. Prevents sunk-cost escalation.</p>
           <ul>
             <li>"If Works Council rejects consultation framework by April"</li>
@@ -772,16 +772,16 @@
       </div>
 
       <div class="callout success">
-        <strong>From analysis to tasks:</strong> Click "Create Tasks from State Changes" in the output viewer. Each state change becomes a task linked to the source discovery, with the Next Human Action flagged as high priority. Full traceability from task back to throughline item.
+        <strong>From analysis to tasks:</strong> Click "Create Tasks from State Changes" in the output viewer. Each state change becomes a task linked to the source discovery, with the Next Human Action flagged as high priority. Full traceability from task back to framing item.
       </div>
     </div>
 
-    <!-- When to Define vs. Skip -->
+    <!-- When to Define Framing -->
     <div class="section">
-      <div class="section-title">When to Define a Throughline</div>
+      <div class="section-title">When to Define Framing</div>
       <div class="two-col">
         <div style="border: 2px solid var(--synthesis); border-radius: 0.75rem; padding: 1rem;">
-          <div style="font-size: 0.85rem; font-weight: 700; color: var(--synthesis); margin-bottom: 0.5rem;">Define Throughline When:</div>
+          <div style="font-size: 0.85rem; font-weight: 700; color: var(--synthesis); margin-bottom: 0.5rem;">Define Framing When:</div>
           <ul style="font-size: 0.7rem; color: var(--gray-600); margin-left: 1rem;">
             <li>You have specific questions to answer</li>
             <li>Multiple stakeholders with different assumptions</li>
@@ -792,7 +792,7 @@
           </ul>
         </div>
         <div style="border: 2px solid var(--gray-300); border-radius: 0.75rem; padding: 1rem;">
-          <div style="font-size: 0.85rem; font-weight: 700; color: var(--gray-700); margin-bottom: 0.5rem;">Start Without Throughline When:</div>
+          <div style="font-size: 0.85rem; font-weight: 700; color: var(--gray-700); margin-bottom: 0.5rem;">Start Without Framing When:</div>
           <ul style="font-size: 0.7rem; color: var(--gray-600); margin-left: 1rem;">
             <li>You're exploring a new area with no specific questions yet</li>
             <li>You just want a general analysis of documents</li>
@@ -800,7 +800,7 @@
             <li>You plan to let the Discovery Guide suggest framing first</li>
           </ul>
           <div class="callout" style="margin-top: 0.5rem;">
-            <strong>No throughline? No problem.</strong> Run the Discovery Guide on your documents. If it detects content worth framing, it will suggest items. You can always add a throughline later.
+            <strong>No framing defined? No problem.</strong> Run the Discovery Guide on your documents. If it detects content worth framing, it will suggest items. You can always add framing later.
           </div>
         </div>
       </div>
@@ -808,11 +808,11 @@
 
     <!-- Full Lifecycle -->
     <div class="section">
-      <div class="section-title">Throughline Lifecycle: End-to-End</div>
+      <div class="section-title">Framing Lifecycle: End-to-End</div>
       <div class="mini-flow" style="padding: 1rem 0;">
         <div class="mini-node" style="border-color: var(--gray-400);">Link Documents</div>
         <span class="mini-arrow">&#8250;</span>
-        <div class="mini-node framing">Define or Extract<br>Throughline</div>
+        <div class="mini-node framing">Define or Extract<br>Framing</div>
         <span class="mini-arrow">&#8250;</span>
         <div class="mini-node d">Discovery Validates<br>+ Plans Sessions</div>
         <span class="mini-arrow">&#8250;</span>
@@ -832,7 +832,7 @@
       </div>
 
       <div class="callout">
-        <strong>Iterative refinement:</strong> The throughline is not locked after initial definition. You can add, edit, or remove items at any point. If you add new items mid-process, subsequent agents will pick them up. Re-run earlier stages if you want them to incorporate the updated framing.
+        <strong>Iterative refinement:</strong> Framing is not locked after initial definition. You can add, edit, or remove items at any point. If you add new items mid-process, subsequent agents will pick them up. Re-run earlier stages if you want them to incorporate the updated framing.
       </div>
     </div>
 
@@ -843,7 +843,7 @@
         <div class="principle">
           <div class="icon">&#9733;</div>
           <h5>Structured Lens</h5>
-          <p>The throughline gives agents a consistent framework. Every finding maps back to your questions.</p>
+          <p>Framing gives agents a consistent framework. Every finding maps back to your questions.</p>
         </div>
         <div class="principle">
           <div class="icon">&#9878;</div>
@@ -868,13 +868,13 @@
         <div class="principle">
           <div class="icon">&#9782;</div>
           <h5>Optional but Powerful</h5>
-          <p>DISCO works without a throughline. But with one, the output quality jumps significantly.</p>
+          <p>DISCO works without framing. But with it, the output quality jumps significantly.</p>
         </div>
       </div>
     </div>
 
     <div class="watermark">
-      Investigation Framing (Throughline) Deep-Dive v1.0 | Thesis Multi-Agent Platform | February 2026
+      Investigation Framing Guide v2.0 | Thesis Multi-Agent Platform | February 2026
     </div>
   </div>
 </body>
