@@ -183,6 +183,11 @@ async def _generate_and_send_digest() -> dict:
     </p>
     """
 
+    newline = "\n"
+    drift_section = (
+        f"Drift Alerts:{newline}{newline.join(drift_alerts)}" if drift_alerts else "No drift alerts this week."
+    )
+
     text_body = f"""Weekly Manifesto Compliance Digest
 Period: {period_start} - {period_end}
 
@@ -194,7 +199,7 @@ Summary:
 
 Per-Agent Breakdown:
 {agent_rows_text}
-{"Drift Alerts:\\n" + "\\n".join(drift_alerts) if drift_alerts else "No drift alerts this week."}
+{drift_section}
 """
 
     return await _send_digest_email(subject, html_body, text_body)

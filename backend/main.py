@@ -85,6 +85,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Warning: Could not start manifesto digest scheduler: {e}")
 
+    # Start Discovery Inbox scan scheduler (daily)
+    try:
+        from services.discovery_scan_scheduler import start_discovery_scan_scheduler
+
+        start_discovery_scan_scheduler(hour_utc=5, minute=0)
+        logger.info("Discovery scan scheduler started")
+    except Exception as e:
+        logger.error(f"Warning: Could not start discovery scan scheduler: {e}")
+
     # Start Vault Watcher (if VAULT_WATCHER_USER_ID is configured)
     try:
         from services.vault_watcher_scheduler import start_vault_watcher
@@ -134,6 +143,13 @@ async def lifespan(app: FastAPI):
         stop_manifesto_digest_scheduler()
     except Exception as e:
         logger.error(f"Warning during manifesto digest scheduler shutdown: {e}")
+
+    try:
+        from services.discovery_scan_scheduler import stop_discovery_scan_scheduler
+
+        stop_discovery_scan_scheduler()
+    except Exception as e:
+        logger.error(f"Warning during discovery scan scheduler shutdown: {e}")
 
     try:
         from services.vault_watcher_scheduler import stop_vault_watcher

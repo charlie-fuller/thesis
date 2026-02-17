@@ -102,6 +102,7 @@ export default function UnifiedDiscoveryPanel() {
 
   const [processing, setProcessing] = useState(false);
   const [scanning, setScanning] = useState<ScanningStatus | null>(null);
+  const [scanRunning, setScanRunning] = useState(false);
 
   // Fetch counts and candidates
   const fetchData = useCallback(async () => {
@@ -120,6 +121,56 @@ export default function UnifiedDiscoveryPanel() {
       setRefreshing(false);
     }
   }, []);
+
+  // Load data on mount
+  useEffect(() => {
+    setLoading(true);
+    fetchData();
+  }, [fetchData]);
+
+  // Trigger a background document scan then refresh
+  const triggerScan = useCallback(async () => {
+    setScanRunning(true);
+    try {
+      await apiPost('/api/pipeline/granola/scan?background=true', {});
+      toast.success('Discovery scan started');
+      // Poll for completion then refresh
+      const poll = setInterval(async () => {
+        try {
+          const data = await apiGet<DiscoveryAllResponse>('/api/discovery/all');
+          if (!data.scanning?.active) {
+            clearInterval(poll);
+            setCounts(data.counts);
+            setTasks(data.tasks);
+            setProjects(data.projects);
+            setStakeholders(data.stakeholders);
+            setScanning(data.scanning || null);
+            setScanRunning(false);
+            toast.success('Discovery scan complete');
+          }
+        } catch {
+          clearInterval(poll);
+          setScanRunning(false);
+        }
+      }, 5000);
+    } catch (err) {
+      logger.error('Error triggering scan:', err);
+      toast.error('Failed to start scan');
+      setScanRunning(false);
+    }
+  }, []);
+
+  // Loading state on initial mount
+  if (loading) {
+    return (
+      <div className="card p-6">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-5 h-5 text-muted animate-spin" />
+          <span className="text-sm text-secondary">Loading discovery inbox...</span>
+        </div>
+      </div>
+    );
+  }
 
   // Don't render if nothing to review (but show scanning status if active)
   if (counts.total === 0) {
@@ -143,14 +194,30 @@ export default function UnifiedDiscoveryPanel() {
               <p className="text-sm text-secondary">All caught up - no items to review</p>
             )}
           </div>
-          <button
-            onClick={fetchData}
-            disabled={refreshing}
-            className="p-2 rounded-lg text-muted hover:text-primary hover:bg-hover transition-colors"
-            title="Refresh"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={triggerScan}
+              disabled={scanRunning || scanning?.active}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+              title="Scan documents for new items"
+            >
+              {scanRunning ? (
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Scanning...
+                </span>
+              ) : (
+                'Scan Now'
+              )}
+            </button>
+            <button
+              onClick={fetchData}
+              disabled={refreshing}
+              className="p-2 rounded-lg text-muted hover:text-primary hover:bg-hover transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -396,12 +463,20 @@ export default function UnifiedDiscoveryPanel() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {scanning?.active && (
+            {(scanning?.active || scanRunning) && (
               <div className="flex items-center gap-2 text-xs text-amber-500">
                 <Loader2 className="w-3 h-3 animate-spin" />
-                <span>Analyzing {scanning.pending_documents} more...</span>
+                <span>{scanning?.active ? `Analyzing ${scanning.pending_documents} more...` : 'Scanning...'}</span>
               </div>
             )}
+            <button
+              onClick={triggerScan}
+              disabled={scanRunning || scanning?.active}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+              title="Scan documents for new items"
+            >
+              Scan Now
+            </button>
             <button
               onClick={fetchData}
               disabled={refreshing}
