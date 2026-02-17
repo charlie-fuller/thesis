@@ -1921,7 +1921,7 @@ export default function ProjectDetailModal({
               ) : (
                 <button
                   onClick={() => setEditingInitiatives(true)}
-                  className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
                   title="Edit linked initiatives"
                 >
                   <Pencil className="w-3 h-3" />
