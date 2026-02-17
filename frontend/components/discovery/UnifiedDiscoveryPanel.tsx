@@ -120,10 +120,14 @@ export default function UnifiedDiscoveryPanel() {
   useEffect(() => {
     if (authLoading || !user || !session) return;
     fetchData();
-    // Poll every 5 seconds to catch scanning status and new items quickly
+  }, [authLoading, user, session, fetchData]);
+
+  // Only poll while a scan is actively running
+  useEffect(() => {
+    if (!scanning?.active) return;
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
-  }, [authLoading, user, session, fetchData]);
+  }, [scanning?.active, fetchData]);
 
   // Don't render while loading
   if (loading) return null;
