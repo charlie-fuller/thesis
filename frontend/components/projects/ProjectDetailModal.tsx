@@ -827,7 +827,7 @@ export default function ProjectDetailModal({
       />
 
       {/* Modal - Fixed large size */}
-      <div className="relative bg-card border border-default rounded-xl shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col mx-4">
+      <div className="relative bg-card border border-default rounded-xl shadow-2xl w-full max-w-[1400px] h-[90vh] flex flex-col mx-4">
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b border-default group">
           <div className="flex-1 min-w-0 pr-4">
