@@ -67,6 +67,8 @@ Every response shows a badge indicating which agent answered. This matters becau
 2. You can follow up with the same agent or switch to another
 3. In multi-agent responses, you can see who said what
 
+**Manifesto compliance indicators:** Messages also display small compliance dots indicating how well the response aligns with the Thesis Manifesto principles. These are scored in the background by a semantic evaluator and appear as colored indicators (green = aligned, amber = drifting, red = misaligned).
+
 ---
 
 ## Conversation History
@@ -181,6 +183,19 @@ The agents remember context within a conversation but not across conversations. 
 Responses stream in real-time. You'll see text appearing as the agent generates it.
 
 If a response is going in the wrong direction, you can interrupt by sending a new message.
+
+---
+
+## Saving Documents from Chat
+
+The Discovery Agent can save documents directly to the Knowledge Base during initiative chat conversations.
+
+When the agent generates a substantial artifact (a framework, analysis, or proposal), it can save it as a KB document. You'll see:
+- A toast notification confirming the document was saved
+- A metadata badge on the message indicating a document was created
+- The document appears in the KB and is automatically linked to the initiative
+
+Saved documents are also flagged for **reverse sync** -- they flow back to your local Obsidian vault on the next sync cycle. This means work products from chat conversations end up alongside your other vault files.
 
 ---
 

@@ -84,6 +84,16 @@ Use the "Create Project from Chat" action to extract project details from a conv
 
 ---
 
+## Project Activation
+
+When moving a project to **Active** status, the activation dialog pre-fills the project name and description from the existing record. You confirm (or edit) rather than re-entering from scratch.
+
+After activation:
+- The project receives an automatic **confidence score** from the rubric evaluator
+- The **Generate Tasks** button triggers in the Tasks tab, calling the Taskmaster endpoint to propose initial tasks
+
+---
+
 ## Status Tracking
 
 Projects move through a simple lifecycle:
@@ -166,6 +176,37 @@ In Tier View, you'll see projects grouped by tier with counts:
 - Quick visibility into your portfolio distribution
 
 If everything is Tier 4, you might need better projects. If everything is Tier 1, you might need to be more honest about scoring.
+
+---
+
+## Documents Tab
+
+The project detail modal includes a **Documents** tab for managing linked KB documents.
+
+**Link from Initiative:** If the project is linked to a DISCO discovery, a **Link from Initiative** button shows all documents linked to the parent initiative. Select which ones to import into the project without searching the full KB.
+
+**Link from KB:** Browse and link documents from the full Knowledge Base using the same search/filter browser as DISCO.
+
+**Unlink:** Remove document associations (keeps the document in KB).
+
+---
+
+## Goal Alignment Tab
+
+The **Alignment** tab shows how the project aligns with IS FY27 strategic pillars.
+
+**Editing results:** After generating alignment analysis, you can refine results directly:
+- **Remove KPI impacts** - Hover over any green KPI chip and click X
+- **Remove strategic pillars** - Hover over any pillar card to reveal the X button next to the score
+- **Edit pillar rationales** - Hover and click the pencil icon to rewrite
+
+All edits save immediately.
+
+---
+
+## Generate Tasks
+
+The **Tasks** tab includes a **Generate Tasks** button that calls the Taskmaster endpoint to propose tasks based on the project's description and context. Tasks are created directly on the project (not in the inbox).
 
 ---
 

@@ -488,6 +488,9 @@ When you ask the Discovery Agent to help with framing, it can propose structured
 
 The agent references existing throughline items and avoids duplicating them. You can iterate multiple times to build up your framing progressively.
 
+**Document save:**
+The Discovery Agent can also save documents directly to the KB during chat. When it produces a substantial artifact (framework, analysis, proposal), it saves it as a KB document linked to the initiative. You'll see a toast notification and a metadata badge on the message. Saved documents are flagged for reverse sync to your local Obsidian vault.
+
 **Conversation History:**
 All conversations with discovery context are saved and can be filtered in the main chat sidebar. Select the discovery from the dropdown to see all related conversations.
 
@@ -495,7 +498,7 @@ All conversations with discovery context are saved and can be filtered in the ma
 
 ## Platform Governance Maps
 
-The DISCO page includes two platform governance reference tabs, separated by a visual divider from the workflow tabs:
+The DISCO page includes platform governance reference tabs, separated by a visual divider from the workflow tabs:
 
 ### Platform Map
 
@@ -513,7 +516,11 @@ An interactive decision tree that guides platform selection decisions step by st
 - **Governance evaluation** - Reliability, governance, traceability, auditability, fault tolerance
 - **Compliance check** - Works Council approval status for each platform
 
-Both maps are standalone interactive HTML pages. Navigate through nodes by clicking options to explore different decision paths.
+### Hub-and-Spoke Model
+
+A standalone visualization of the hub-and-spoke governance model for AI platform management. Shows the central governance hub and its relationships to platform spokes, team responsibilities, and decision flows.
+
+All governance maps are standalone interactive HTML pages. Navigate through nodes by clicking options to explore different decision paths.
 
 ---
 

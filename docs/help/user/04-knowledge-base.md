@@ -147,6 +147,9 @@ Mirrors your vault using a 5-phase process. Changes are processed first for fast
 **Linked document protection:**
 During cleanup, documents linked to DISCO initiatives or projects are never deleted, even if their source file is missing from the vault. This prevents accidental loss of curated document associations. Unlinked orphan documents are cleaned up normally.
 
+**Reverse vault sync:**
+Documents created inside the app (e.g., saved from Discovery Agent chat conversations) are flagged for reverse sync. On the next sync cycle, `remote_vault_sync.py --reverse-sync` pulls these documents and writes them to your local Obsidian vault. This keeps your vault and KB in two-way sync -- vault files flow into the KB, and app-created documents flow back out.
+
 **Pending files:**
 If pending files are detected, the toolbar shows a pending count badge. Click the pending count in Sync Settings to see which files are queued for sync.
 

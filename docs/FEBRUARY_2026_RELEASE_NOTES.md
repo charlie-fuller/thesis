@@ -922,3 +922,99 @@ Goal alignment analysis results are now editable after generation, eliminating t
 KPI tags and strategic pillar badges in the discovery header now have inline delete (X) buttons visible on hover.
 
 **Files**: `frontend/app/disco/[id]/page.tsx`
+
+---
+
+## February 17, 2026
+
+### DISCo Chat Document Save and Reverse Vault Sync
+
+The Discovery Agent can now save documents directly to the KB from initiative chat conversations, and a new reverse sync pipeline pushes app-created documents back to the local Obsidian vault.
+
+**Chat Document Save**:
+- Discovery Agent outputs `<save_document>` XML tag to persist documents from chat
+- Backend extracts XML, saves to documents table with `obsidian_file_path` and `needs_reverse_sync=true`
+- Frontend handles `save_document_result` SSE event with toast notification and metadata badge
+- Default save folder detected from the most common folder in the initiative's linked documents
+
+**Reverse Vault Sync**:
+- `GET /api/obsidian/reverse-sync` returns docs where `needs_reverse_sync=true`
+- `POST /api/obsidian/reverse-sync/confirm` marks docs as synced after writing to vault
+- `remote_vault_sync.py --reverse-sync` pulls docs and writes to local vault
+- State tracked in `~/.thesis/reverse_sync_state.json`
+
+**Files**: `backend/api/routes/chat.py`, `backend/api/routes/obsidian_sync.py`, `backend/scripts/remote_vault_sync.py`, `backend/system_instructions/agents/initiative_agent.xml`, `database/migrations/077_reverse_sync.sql`, `frontend/components/ChatInterface.tsx`, `frontend/components/ChatMessage.tsx`
+
+### Hub-and-Spoke Model DISCO Tab
+
+The hub-and-spoke governance model diagram has been broken out from the platform process map into its own dedicated DISCO tab for standalone viewing.
+
+**Files**: `frontend/public/hub-spoke-model.html`, `frontend/app/disco/page.tsx`
+
+### Dashboard Agent Usage Unification
+
+DISCO agent usage is now unified into the dashboard's agent usage chart, providing a single consolidated view of all agent activity across both chat and DISCO pipelines.
+
+**Files**: `frontend/app/dashboard/page.tsx`
+
+### Manifesto Updates
+
+Multiple updates to the Thesis Manifesto:
+
+- **Principle 4 Added**: "Know what kind of answer you're getting" -- covers output requirements and evaluation, distinguishing deterministic vs non-deterministic outputs
+- **Five Guardrails**: Named as non-negotiable deployment requirements for all AI use cases
+- **Manifesto Alignment Agent Instructions**: Shared agent docs aligned with manifesto principles
+
+**Files**: `frontend/app/manifesto/page.tsx`, `backend/system_instructions/shared/`
+
+### Manifesto Compliance System (Level 4)
+
+Background semantic evaluation that scores chat and meeting messages against manifesto principles, with compliance indicators in the UI.
+
+**Features**:
+- Compliance level thresholds: aligned, drifting, misaligned
+- Metadata source tagging (chat vs meeting)
+- Background semantic evaluation via Claude Haiku
+- Weekly digest email scheduler
+- Compliance indicator dots on chat and meeting messages
+- Admin endpoint for compliance analytics
+- 34 unit tests covering the full compliance system
+
+**Files**: `backend/services/manifesto_compliance.py`, `backend/services/manifesto_semantic_scorer.py`, `backend/services/manifesto_digest_scheduler.py`, `backend/api/routes/admin/manifesto_compliance.py`, `frontend/components/ChatMessage.tsx`, `frontend/components/meeting-room/MeetingMessage.tsx`
+
+### Project Activation UX Improvements
+
+- **Pre-fill project fields**: Activating a project now pre-fills the name and description from the existing project record instead of prompting for them again
+- **Auto-confidence scoring**: New projects receive an immediate confidence score from the rubric evaluator on creation
+- **Generate Tasks button**: One-click task generation from the project Tasks tab that calls the taskmaster endpoint; auto-triggers after project activation
+
+**Files**: `frontend/components/projects/ProjectNameModal.tsx`, `frontend/components/projects/ProjectDetailModal.tsx`, `backend/api/routes/projects.py`
+
+### "Link from Initiative" Document Picker
+
+Project Documents tab now includes a "Link from Initiative" button that shows all documents linked to the project's parent initiative, allowing users to selectively import them into the project.
+
+**Files**: `frontend/components/projects/ProjectDetailModal.tsx`
+
+### Project Alignment Tab: KPI and Pillar Removal
+
+The project alignment tab now supports removing individual items from "Impacted KPIs" and "Strategic Pillar Breakdown" sections, matching the same remove functionality already present on the discovery alignment page.
+
+**Files**: `frontend/components/projects/GoalAlignmentSection.tsx`
+
+### Kraken Document Context Limits
+
+Raised Kraken agent document context limits for richer task evaluation when analyzing project tasks with linked KB and initiative documents.
+
+**Files**: `backend/services/task_kraken.py`
+
+### Bug Fixes
+
+- **Taskmaster project targeting**: Tasks created by Taskmaster now go directly to the associated project instead of the inbox (`backend/services/project_taskmaster.py`)
+- **Taskmaster column name**: Fixed `full_name` to `name` column reference in taskmaster service (`backend/services/project_taskmaster.py`)
+- **Initiative doc picker**: Fixed field name mismatch (`id` not `document_id`) that caused only one document to show instead of all linked documents
+- **Iframe theme sync**: Kraken process map and scoring guide HTML pages now follow parent theme colors
+- **ChatMessage type error**: Resolved TS2322 by replacing index signature with explicit types in ChatMessage component
+- **Save document JSON parsing**: Fixed newline escaping in `save_document` JSON -- first escaped all raw newlines, then refined to only escape inside JSON string values
+- **Missing modules**: Added missing `manifesto_compliance` service module and `copy-event` endpoint for KPI tracking
+- **Platform process map**: Aligned branch labels with corresponding nodes; corrected "Mickey" to "Mikki"

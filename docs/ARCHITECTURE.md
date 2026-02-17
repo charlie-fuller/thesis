@@ -75,7 +75,7 @@ This document contains detailed architecture documentation. For essential Claude
 17. **Career Status Reports (Compass)** - 5-dimension rubric assessment
 
 ### Integrations
-18. **Obsidian Vault Sync** - File watching, frontmatter parsing, wikilink conversion, binary doc support (PDF/DOCX/XLSX/PPTX with OCR fallback), move/rename detection preserves document IDs, linked documents protected from orphan cleanup, remote upload endpoint with file_mtime for accurate date extraction, future-date guard prevents false date matches
+18. **Obsidian Vault Sync** - File watching, frontmatter parsing, wikilink conversion, binary doc support (PDF/DOCX/XLSX/PPTX with OCR fallback), move/rename detection preserves document IDs, linked documents protected from orphan cleanup, remote upload endpoint with file_mtime for accurate date extraction, future-date guard prevents false date matches, reverse sync pushes app-created documents back to local Obsidian vault
 19. **Enhanced RAG Search** - Document type auto-classification (transcript, notes, report, etc.), date filtering for recency queries, 20% recency boost for recent docs
 
 ### Discovery & Pipeline
@@ -119,7 +119,9 @@ This document contains detailed architecture documentation. For essential Claude
 42. **Thesis Manifesto** - 10 core organizational principles accessible from top navigation. Tabbed layout: Principles (cards with core statement and elaboration) and XML (agent-loadable format). Principles cover state change orientation, problems before solutions, multiple perspectives, trace connections, and more.
 43. **Agent Selection Guide (Deductive Discovery)** - Redesigned from tool-picker to situational discovery process at `/agent-selection-tree.html`. Three modes: Discovery Mode (3-step wizard: Situation → Context → Recommendation), Browse All Agents (22-agent catalog), Visual Map (full decision tree visualization). Results recommend primary + supporting agents with reasoning, approach, and manifesto alignment.
 44. **Agent Context Token Budget** - `get_all_initiative_content()` enforces a 500k character (~150k token) budget when loading initiative documents for agent prompts. Documents loaded by link recency. Prevents prompt overflow on initiatives with many linked documents.
-45. **Iframe Theme Inheritance** - All 8 embedded HTML visualizations (agent-selection-tree, data-flow-map, meeting-rooms-process-map, throughline-process-map, platform-process-map, platform-decision-tree, kraken-process-map, project-scoring-map) sync with the parent app's theme. Script reads ThemeContext CSS custom properties and computes a full gray ramp via color interpolation. Supports dark/light detection with polling and MutationObserver for runtime changes.
+45. **Iframe Theme Inheritance** - All 9 embedded HTML visualizations (agent-selection-tree, data-flow-map, meeting-rooms-process-map, throughline-process-map, platform-process-map, platform-decision-tree, kraken-process-map, project-scoring-map, hub-spoke-model) sync with the parent app's theme. Script reads ThemeContext CSS custom properties and computes a full gray ramp via color interpolation. Supports dark/light detection with polling and MutationObserver for runtime changes.
+46. **DISCo Chat Document Save** - Discovery Agent can save documents directly to the KB from initiative chat via `<save_document>` XML tag. Backend extracts XML, saves to documents table with `obsidian_file_path` and `needs_reverse_sync=true`. Frontend handles `save_document_result` SSE event. Default folder detected from most common folder in initiative's linked documents.
+47. **Manifesto Compliance System** - Background semantic evaluation of chat and meeting messages against manifesto principles. Claude Haiku scores messages for compliance. Three levels: aligned, drifting, misaligned. Compliance indicator dots on chat and meeting messages. Weekly digest scheduler. Admin analytics endpoint.
 
 **Consolidated Agent Architecture (v1.2):**
 | # | Agent | Color | Consolidates | Checkpoint After |
@@ -138,7 +140,7 @@ This document contains detailed architecture documentation. For essential Claude
 
 **Legacy Agent Support:** Original 8 agents available via `include_legacy=true` query param on `/api/disco/agents`. Legacy outputs display correctly in UI.
 
-**Prompt Version:** v2.0 Consolidated (2026-02-16) - Discovery Guide v2.0 adds unified adaptive output. All agents filter rejected throughline items and receive user corrections as authoritative ground-truth context. Previous: v1.4 (2026-02-15) adds Five Whys/root cause, framing extraction, temporal priority. Requirements Generator v1.4 adds tool/platform recommendations, eval/QA plans, value alignment confirmation, AI risk/compliance review. See `/backend/disco_agents/`
+**Prompt Version:** v2.0 Consolidated (2026-02-16) - Discovery Guide v2.0 adds unified adaptive output. All agents filter rejected throughline items and receive user corrections as authoritative ground-truth context. Agent instructions aligned with manifesto principles (2026-02-17). Previous: v1.4 (2026-02-15) adds Five Whys/root cause, framing extraction, temporal priority. Requirements Generator v1.4 adds tool/platform recommendations, eval/QA plans, value alignment confirmation, AI risk/compliance review. See `/backend/disco_agents/`
 **Previous Version:** v1.1 (2026-02-12) - Throughline awareness, v1.0 (2026-02-02), v4.2 (2026-01-25) - Legacy agents still available for backwards compatibility
 
 ## Database Schema
@@ -254,6 +256,7 @@ Run migrations in order from `/database/migrations/`:
 | 074 | initiative_folder_links | `disco_initiative_folder_links` table for vault folder-to-initiative associations |
 | 075 | task_kraken | Agenticity columns on `ai_projects` (score, evaluation JSONB, task hash) |
 | 076 | initiative_corrections | `user_corrections` TEXT on `disco_initiatives` for ground-truth overrides |
+| 077 | reverse_sync | `needs_reverse_sync` BOOLEAN and `reverse_synced_at` TIMESTAMPTZ on `documents` for app-to-vault sync |
 
 ## Important Files Reference
 
@@ -278,6 +281,9 @@ Run migrations in order from `/database/migrations/`:
 - `/backend/services/disco/initiative_context.py` - Builds XML context for Discovery Agent (throughline, agent outputs, linked docs)
 - `/backend/services/goal_alignment_analyzer.py` - Project goal alignment (IS FY27 pillars)
 - `/backend/services/disco/initiative_alignment_analyzer.py` - Initiative goal alignment with agent output context
+- `/backend/services/manifesto_compliance.py` - Manifesto compliance tracking and level thresholds
+- `/backend/services/manifesto_semantic_scorer.py` - Claude Haiku semantic scoring of messages against manifesto principles
+- `/backend/services/manifesto_digest_scheduler.py` - Weekly compliance digest email scheduler
 - `/backend/services/graph/` - Neo4j services
 
 ### Backend API Routes
