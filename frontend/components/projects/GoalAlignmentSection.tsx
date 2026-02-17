@@ -155,16 +155,7 @@ function PillarCard({
   const percentage = (score / 25) * 100
 
   return (
-    <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg space-y-3 group/card relative">
-      {canEdit && onRemove && (
-        <button
-          onClick={onRemove}
-          className="absolute top-2 right-2 p-0.5 text-slate-400 hover:text-red-500 opacity-0 group-hover/card:opacity-100 transition-opacity"
-          title="Remove this pillar"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      )}
+    <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg space-y-3 group/card">
       <div className="flex items-start gap-3">
         <div className={`p-2 rounded-lg bg-${pillar.color}-100 dark:bg-${pillar.color}-900/30`}>
           <Icon className={`w-4 h-4 text-${pillar.color}-600 dark:text-${pillar.color}-400`} />
@@ -172,7 +163,18 @@ function PillarCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <h4 className="text-sm font-medium text-primary truncate">{pillar.shortLabel}</h4>
-            <span className="text-sm font-bold text-primary flex-shrink-0">{score}/25</span>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <span className="text-sm font-bold text-primary">{score}/25</span>
+              {canEdit && onRemove && (
+                <button
+                  onClick={onRemove}
+                  className="p-0.5 border border-red-300 dark:border-red-700 rounded text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover/card:opacity-100 transition-opacity"
+                  title="Remove this pillar"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
           <p className="text-xs text-muted mt-0.5">{pillar.description}</p>
         </div>
