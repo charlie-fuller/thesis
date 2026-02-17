@@ -73,7 +73,7 @@ export default function HomePage() {
                     : 'border-transparent text-muted hover:text-primary'
                 }`}
               >
-                System Health
+                Discovery Inbox
               </button>
               <button
                 onClick={() => setActiveTab('analytics')}
@@ -86,16 +86,6 @@ export default function HomePage() {
                 Analytics
               </button>
               <button
-                onClick={() => setActiveTab('process-map')}
-                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                  activeTab === 'process-map'
-                    ? 'border-brand text-brand'
-                    : 'border-transparent text-muted hover:text-primary'
-                }`}
-              >
-                Process Map
-              </button>
-              <button
                 onClick={() => setActiveTab('compliance')}
                 className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
                   activeTab === 'compliance'
@@ -104,6 +94,16 @@ export default function HomePage() {
                 }`}
               >
                 Compliance
+              </button>
+              <button
+                onClick={() => setActiveTab('process-map')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  activeTab === 'process-map'
+                    ? 'border-brand text-brand'
+                    : 'border-transparent text-muted hover:text-primary'
+                }`}
+              >
+                Process Map
               </button>
               <button
                 onClick={() => setActiveTab('knowledge-graph')}
@@ -119,7 +119,7 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* System Health Tab */}
+        {/* Discovery Inbox Tab */}
         {activeTab === 'system' && (
           <div className="space-y-6">
             <UnifiedDiscoveryPanel />
