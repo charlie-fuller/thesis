@@ -116,7 +116,11 @@ def _build_task_list(tasks: list[dict]) -> str:
 
 
 def _fetch_kb_context(project_id: str, supabase: Client, client_id: str) -> str:
-    """Fetch linked KB documents and initiative docs for RAG context."""
+    """Fetch linked KB documents and initiative docs for context.
+
+    Uses direct document content (up to 25 project docs + 10 per initiative)
+    with generous content previews to give Kraken rich context for evaluation.
+    """
     context_parts = []
 
     # Fetch project-linked documents
@@ -125,7 +129,7 @@ def _fetch_kb_context(project_id: str, supabase: Client, client_id: str) -> str:
             supabase.table("project_documents")
             .select("document_id, documents(id, title, content)")
             .eq("project_id", project_id)
-            .limit(10)
+            .limit(25)
             .execute()
         )
 
@@ -133,7 +137,7 @@ def _fetch_kb_context(project_id: str, supabase: Client, client_id: str) -> str:
             for link in doc_result.data:
                 doc = link.get("documents")
                 if doc and doc.get("content"):
-                    content_preview = doc["content"][:2000]
+                    content_preview = doc["content"][:4000]
                     context_parts.append(f"## KB Document: {doc.get('title', 'Untitled')}\n{content_preview}")
     except Exception as e:
         logger.warning(f"Failed to fetch project documents: {e}")
@@ -146,19 +150,19 @@ def _fetch_kb_context(project_id: str, supabase: Client, client_id: str) -> str:
 
         if project_result.data:
             initiative_ids = [r["initiative_id"] for r in project_result.data]
-            for init_id in initiative_ids[:3]:
+            for init_id in initiative_ids[:5]:
                 init_docs = (
                     supabase.table("disco_initiative_documents")
                     .select("document_id, documents(id, title, content)")
                     .eq("initiative_id", init_id)
-                    .limit(5)
+                    .limit(10)
                     .execute()
                 )
                 if init_docs.data:
                     for link in init_docs.data:
                         doc = link.get("documents")
                         if doc and doc.get("content"):
-                            content_preview = doc["content"][:1500]
+                            content_preview = doc["content"][:3000]
                             context_parts.append(
                                 f"## Initiative Document: {doc.get('title', 'Untitled')}\n{content_preview}"
                             )
