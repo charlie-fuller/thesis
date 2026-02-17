@@ -183,7 +183,17 @@ This metaphor captures something governance conversations usually miss.
 
 Gates keep you off the road. They say "stop, justify yourself, wait for approval, proceed if deemed worthy." Gates create bottlenecks, breed resentment, and incentivize people to find ways around them. Most corporate governance is gates dressed up as process improvement.
 
-Guardrails keep you *on* the road. They say "go ahead, build, experiment -- and here are the important questions to answer along the way." Maintenance plan. Adoption strategy. Evaluation criteria. Sustainability model. These aren't obstacles. They're the things that prevent your proof of concept from becoming an orphan.
+Guardrails keep you *on* the road. They say "go ahead, build, experiment -- and here are the important questions to answer along the way." They're not obstacles. They're the things that prevent your proof of concept from becoming an orphan.
+
+So what are the actual guardrails? These are the questions that must have answers before anything ships:
+
+- **Evaluation**: How do you know it works? Not "it looks good in the demo" -- what are the criteria, who defined them, and how are they measured? (Principle 4 defines the framework; this is where you enforce it.)
+- **Testing and QA**: What happens when it fails? Have you tested the failure modes, not just the happy path? Edge cases, adversarial inputs, graceful degradation. A system that works 95% of the time and fails catastrophically 5% of the time is not a 95% system -- it's a liability.
+- **Adoption**: Who will use this, and have you talked to them? Not surveyed. Not assumed. Talked to. Do they understand what it does, what it doesn't do, and how it fits into their existing work? (Principle 5 defines the philosophy; this is where you operationalize it.)
+- **Maintenance**: Who owns this after launch? If the answer is "nobody" or "we'll figure it out," you're building an orphan.
+- **Sustainability**: What does this cost to run -- in money, in attention, in organizational overhead? Can you sustain it past the initial enthusiasm?
+
+None of these are optional. None of them are "nice to have when we have time." They're the minimum viable governance for anything that touches real users, real data, or real decisions. Skip them and you're not moving fast -- you're accumulating debt that someone else will pay.
 
 There's a meaningful difference between agents on rails and agents running on vibes. And the right way to think about risk is stopping the line -- not as punishment, but as an enabling function. When anyone can pull the cord, quality goes up because problems get caught early.
 
@@ -269,7 +279,7 @@ Before shipping, building, recommending, or presenting anything, run through the
 | 6 | Humans Decide | Is there a clear human decision point, or is this running on autopilot? |
 | 7 | Multiple Perspectives | Whose viewpoint am I missing? What would security/legal/finance/users say? |
 | 8 | Context and Brevity | Am I providing enough context to act on, without burying the signal in noise? |
-| 9 | Guardrails Not Gates | Am I enabling or blocking? Are the governance questions answered? |
+| 9 | Guardrails Not Gates | Can I answer the five guardrail questions -- evaluation, testing, adoption, maintenance, sustainability? |
 | 10 | Trace the Connections | What are the second and third-order effects? And then what happens? |
 | 11 | The Questions Stay the Same | Am I following the shared methodology, or freelancing? |
 
