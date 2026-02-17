@@ -1708,7 +1708,7 @@ export default function ProjectDetailModal({
                             type="checkbox"
                             checked={selectedInitiativeDocIds.length === initiativeDocs.length}
                             onChange={(e) => {
-                              setSelectedInitiativeDocIds(e.target.checked ? initiativeDocs.map(d => d.document_id) : [])
+                              setSelectedInitiativeDocIds(e.target.checked ? initiativeDocs.map(d => d.id) : [])
                             }}
                             className="rounded border-gray-300 text-indigo-600"
                           />
@@ -1717,17 +1717,17 @@ export default function ProjectDetailModal({
                         <div className="border-t border-indigo-200 dark:border-indigo-800 my-1" />
                         {initiativeDocs.map(doc => (
                           <label
-                            key={doc.document_id}
+                            key={doc.id}
                             className="flex items-center gap-2 px-2 py-1.5 text-sm text-primary cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/20 rounded"
                           >
                             <input
                               type="checkbox"
-                              checked={selectedInitiativeDocIds.includes(doc.document_id)}
+                              checked={selectedInitiativeDocIds.includes(doc.id)}
                               onChange={(e) => {
                                 setSelectedInitiativeDocIds(prev =>
                                   e.target.checked
-                                    ? [...prev, doc.document_id]
-                                    : prev.filter(id => id !== doc.document_id)
+                                    ? [...prev, doc.id]
+                                    : prev.filter(id => id !== doc.id)
                                 )
                               }}
                               className="rounded border-gray-300 text-indigo-600"
