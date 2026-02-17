@@ -92,7 +92,7 @@ const principles = [
       'Leaving out context is a tax on everyone downstream. When you send a recommendation without the reasoning, every recipient has to reconstruct the logic themselves -- or worse, they just trust the conclusion without understanding it. That\'s not efficiency. That\'s a setup for misalignment.',
       'But leaving in filler is a tax on everyone\'s time. Nobody needs the preamble. Nobody needs three paragraphs of background before the recommendation. Say what matters, cut everything else, and if someone needs more depth, they\'ll ask. That\'s what dig-deeper links are for.',
       'This is the tension Thesis navigates every day. Smart Brevity isn\'t about being terse -- it\'s about being thoughtful about what you include. Supply enough context that people can engage meaningfully. Don\'t assume shared understanding. But don\'t bury them either.',
-      'Thinking isn\'t one thing. It\'s framing the right problem. It\'s judgment -- making the call when the data doesn\'t decide for you. It\'s evaluation -- interrogating whether something is actually true or just sounds true. It\'s empathy -- modeling how other people will experience what you\'re building. It\'s systems reasoning -- tracing second and third-order effects before you act. It\'s perspective-shifting -- deliberately seeing through a lens that isn\'t yours. It\'s sense-making -- the step between having all the information and knowing what it means. These are the cognitive acts that change outcomes. Synthesis is the cost of entry; thinking is the value creation.',
+      'Thinking -- framing, judgment, evaluation, empathy, systems reasoning, perspective-shifting, sense-making -- these are the cognitive acts that change outcomes. Synthesis is the cost of entry; thinking is the value creation.',
       'Use your big and beautiful brain for thinking, not synthesizing. That\'s the promise. We handle the synthesis so you can do the work that actually requires human judgment.',
     ],
     checkQuestion: 'Am I providing enough context to act on, without burying the signal in noise?',
@@ -302,13 +302,28 @@ export default function ManifestoPage() {
               <div className="card p-6 mb-8">
                 <div className="max-w-3xl">
                   <p className="text-secondary leading-relaxed mb-4">
-                    I built Thesis as a life jacket because I had a legitimate fear of drowning. Not in work &mdash; in information, decisions, stakeholders, context. Every meeting generated more questions than answers. Every initiative connected to three others. Every tool promised transformation and delivered a dashboard.
+                    I built Thesis as a life jacket because I had a legitimate fear of drowning, in information, decisions, stakeholders, context. I knew that meetings would generate more questions than answers. Every initiative would be connected to three others. Every tool promises transformation and delivers a dashboard.
+                  </p>
+                  <p className="text-secondary leading-relaxed mb-2">
+                    I wanted to make sure I could use my brain for <em className="text-primary font-medium not-italic">thinking</em>, not synthesizing. To be clear, &ldquo;thinking&rdquo; isn&apos;t one thing:
+                  </p>
+                  <ol className="list-decimal list-inside text-secondary leading-relaxed mb-4 space-y-1 pl-1">
+                    <li>It&apos;s framing the right problem.</li>
+                    <li>It&apos;s judgment &mdash; making the call when the data doesn&apos;t decide for you.</li>
+                    <li>It&apos;s evaluation &mdash; interrogating whether something is actually true or just sounds true.</li>
+                    <li>It&apos;s empathy &mdash; modeling how other people will experience what you&apos;re building.</li>
+                    <li>It&apos;s systems reasoning &mdash; tracing second and third-order effects before you act.</li>
+                    <li>It&apos;s perspective-shifting &mdash; deliberately seeing through a lens that isn&apos;t yours.</li>
+                    <li>It&apos;s sense-making &mdash; the step between having all the information and knowing what it means.</li>
+                  </ol>
+                  <p className="text-secondary leading-relaxed mb-4">
+                    These are the cognitive acts that change outcomes. Synthesis is the cost of entry; thinking is the value creation.
                   </p>
                   <p className="text-secondary leading-relaxed mb-4">
-                    I needed my brain for <em className="text-primary font-medium not-italic">thinking</em>, not synthesizing. And I realized the people I&apos;d be building a team with would face the same firehose. Without shared methodology, four people building AI things at Contentful would create four different approaches, four different standards, and exactly zero compounding knowledge.
+                    I also realized the people I&apos;d be building a team with would face the same firehose. Without shared methodology, people building AI things at Contentful would create just as many different approaches, different standards, and very little compounding knowledge.
                   </p>
                   <p className="text-primary leading-relaxed font-medium">
-                    So this is what we believe. These are the principles behind every agent, every process, every recommendation that comes out of this platform. If something we build doesn&apos;t align with these, we fix the build &mdash; not the principles.
+                    So this is what I believe. These are the principles behind every agent, every process, every recommendation that comes out of this platform. If something we build doesn&apos;t align with these, we fix the build &mdash; not the principles.
                   </p>
                 </div>
               </div>

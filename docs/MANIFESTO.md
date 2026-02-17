@@ -2,11 +2,24 @@
 
 ## Layer 1: The Poster
 
-I built Thesis as a life jacket because I had a legitimate fear of drowning. Not in work -- in information, decisions, stakeholders, context. Every meeting generated more questions than answers. Every initiative connected to three others. Every tool promised transformation and delivered a dashboard.
+I built Thesis as a life jacket because I had a legitimate fear of drowning, in information, decisions, stakeholders, context. I knew that meetings would generate more questions than answers. Every initiative would be connected to three others. Every tool promises transformation and delivers a dashboard.
 
-I needed my brain for *thinking*, not synthesizing. And I realized the people I'd be building a team with would face the same firehose. Without shared methodology, four people building AI things at Contentful would create four different approaches, four different standards, and exactly zero compounding knowledge.
+I wanted to make sure I could use my brain for *thinking*, not synthesizing.
+To be clear, "thinking" isn't one thing:
 
-So this is what we believe. These are the principles behind every agent, every process, every recommendation that comes out of this platform. If something we build doesn't align with these, we fix the build -- not the principles.
+1. It's framing the right problem.
+2. It's judgment -- making the call when the data doesn't decide for you.
+3. It's evaluation -- interrogating whether something is actually true or just sounds true.
+4. It's empathy -- modeling how other people will experience what you're building.
+5. It's systems reasoning -- tracing second and third-order effects before you act.
+6. It's perspective-shifting -- deliberately seeing through a lens that isn't yours.
+7. It's sense-making -- the step between having all the information and knowing what it means.
+
+These are the cognitive acts that change outcomes. Synthesis is the cost of entry; thinking is the value creation.
+
+I also realized the people I'd be building a team with would face the same firehose. Without shared methodology, people building AI things at Contentful would create just as many different approaches, different standards, and very little compounding knowledge.
+
+So this is what I believe. These are the principles behind every agent, every process, every recommendation that comes out of this platform. If something we build doesn't align with these, we fix the build -- not the principles.
 
 ---
 
@@ -118,7 +131,7 @@ But leaving in filler is a tax on everyone's time. Nobody needs the preamble. No
 
 This is the tension Thesis navigates every day. Smart Brevity isn't about being terse -- it's about being *thoughtful* about what you include. Supply enough context that people can engage meaningfully. Don't assume shared understanding. But don't bury them either.
 
-Thinking isn't one thing. It's framing the right problem. It's judgment -- making the call when the data doesn't decide for you. It's evaluation -- interrogating whether something is actually true or just sounds true. It's empathy -- modeling how other people will experience what you're building. It's systems reasoning -- tracing second and third-order effects before you act. It's perspective-shifting -- deliberately seeing through a lens that isn't yours. It's sense-making -- the step between having all the information and knowing what it means. These are the cognitive acts that change outcomes. Synthesis is the cost of entry; thinking is the value creation.
+Thinking -- framing, judgment, evaluation, empathy, systems reasoning, perspective-shifting, sense-making -- these are the cognitive acts that change outcomes. Synthesis is the cost of entry; thinking is the value creation.
 
 Use your big and beautiful brain for thinking, not synthesizing. That's the promise. We handle the synthesis so you can do the work that actually requires human judgment.
 
