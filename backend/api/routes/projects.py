@@ -1178,6 +1178,23 @@ async def create_project(
         except Exception as e:
             logger.warning(f"Failed to generate justifications on create: {e}")
 
+    # Evaluate confidence score (fast rubric check, no AI call)
+    try:
+        from services.project_confidence import evaluate_project_confidence
+
+        confidence, questions = evaluate_project_confidence(created_proj)
+        supabase.table("ai_projects").update(
+            {
+                "scoring_confidence": confidence,
+                "confidence_questions": questions,
+            }
+        ).eq("id", created_proj["id"]).execute()
+        # Refetch to include confidence in response
+        updated = supabase.table("ai_projects").select("*").eq("id", created_proj["id"]).single().execute()
+        created_proj = updated.data
+    except Exception as e:
+        logger.warning(f"Failed to evaluate confidence on create: {e}")
+
     return _format_project(created_proj)
 
 

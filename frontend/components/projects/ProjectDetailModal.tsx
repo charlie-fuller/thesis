@@ -48,6 +48,7 @@ import {
   Zap,
   AlertTriangle,
   RefreshCw,
+  Download,
 } from 'lucide-react'
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api'
 import ScoreJustification from './ScoreJustification'
@@ -257,6 +258,11 @@ export default function ProjectDetailModal({
   const [linkedDocsLoading, setLinkedDocsLoading] = useState(false)
   const [showDocumentBrowser, setShowDocumentBrowser] = useState(false)
   const [unlinkingDocId, setUnlinkingDocId] = useState<string | null>(null)
+  const [showInitiativeDocPicker, setShowInitiativeDocPicker] = useState(false)
+  const [initiativeDocs, setInitiativeDocs] = useState<{ id: string; document_id: string; filename: string; title?: string }[]>([])
+  const [initiativeDocsLoading, setInitiativeDocsLoading] = useState(false)
+  const [selectedInitiativeDocIds, setSelectedInitiativeDocIds] = useState<string[]>([])
+  const [linkingInitiativeDocs, setLinkingInitiativeDocs] = useState(false)
   const [linkedStakeholders, setLinkedStakeholders] = useState<LinkedStakeholder[]>([])
   const [stakeholdersLoading, setStakeholdersLoading] = useState(false)
   const [linkedInitiatives, setLinkedInitiatives] = useState<Initiative[]>([])
@@ -426,6 +432,56 @@ export default function ProjectDetailModal({
 
   const handleDocumentsLinked = () => {
     fetchLinkedDocuments()
+  }
+
+  const handleShowInitiativeDocPicker = async () => {
+    const initiativeIds = project.initiative_ids || []
+    if (initiativeIds.length === 0) return
+
+    setShowInitiativeDocPicker(true)
+    setInitiativeDocsLoading(true)
+    setSelectedInitiativeDocIds([])
+    try {
+      // Fetch docs from all linked initiatives
+      const allDocs: typeof initiativeDocs = []
+      const alreadyLinkedIds = new Set(linkedDocuments.map(d => d.document_id))
+      for (const initId of initiativeIds) {
+        const result = await apiGet<{ documents: { id: string; document_id: string; filename: string; title?: string }[] }>(
+          `/api/disco/initiatives/${initId}/linked-documents`
+        )
+        if (result.documents) {
+          for (const doc of result.documents) {
+            // Skip docs already linked to this project
+            if (!alreadyLinkedIds.has(doc.document_id) && !allDocs.some(d => d.document_id === doc.document_id)) {
+              allDocs.push(doc)
+            }
+          }
+        }
+      }
+      setInitiativeDocs(allDocs)
+    } catch (error) {
+      console.error('Failed to fetch initiative documents:', error)
+    } finally {
+      setInitiativeDocsLoading(false)
+    }
+  }
+
+  const handleLinkSelectedInitiativeDocs = async () => {
+    if (selectedInitiativeDocIds.length === 0) return
+    setLinkingInitiativeDocs(true)
+    try {
+      await apiPost(`/api/projects/${project.id}/documents/link`, {
+        document_ids: selectedInitiativeDocIds,
+      })
+      fetchLinkedDocuments()
+      setShowInitiativeDocPicker(false)
+      setSelectedInitiativeDocIds([])
+      setInitiativeDocs([])
+    } catch (error) {
+      console.error('Failed to link initiative documents:', error)
+    } finally {
+      setLinkingInitiativeDocs(false)
+    }
   }
 
   const fetchLinkedStakeholders = async () => {
