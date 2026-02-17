@@ -224,6 +224,58 @@
       background: var(--gray-300);
     }
 
+    .branch-paths {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin: 0.5rem 0;
+      position: relative;
+      padding-top: 28px;
+    }
+
+    /* Vertical stem from parent node to horizontal bar */
+    .branch-paths::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 16px;
+      background: var(--gray-300);
+    }
+
+    .branch-path {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      flex: 1;
+      max-width: 220px;
+    }
+
+    .path-line {
+      width: 2px;
+      height: 20px;
+      background: var(--gray-300);
+      position: relative;
+    }
+
+    .path-line::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid var(--gray-300);
+    }
+
+    .branch-path .node {
+      width: 100%;
+    }
+
     .stage-badge {
       display: inline-flex;
       align-items: center;
@@ -634,6 +686,14 @@
       background: #3f3f46;
     }
 
+    html.dark .path-line {
+      background: #3f3f46;
+    }
+
+    html.dark .path-line::after {
+      border-top-color: #3f3f46;
+    }
+
     html.dark .legend-box.decision {
       background: #111111;
     }
@@ -755,34 +815,46 @@
             <div class="node-desc">Classify the core capability the build must deliver</div>
           </div>
 
-          <div class="branch-connector">
-            <div class="branch-line"><span class="label branch-label path">Information Retrieval</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label path">Guided Workflow</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label path">Process Automation</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label path">System Integration</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label path">Custom Application</span><div class="line"></div></div>
-          </div>
-
-          <div class="flow-level" style="gap: 1rem;">
-            <div class="node decision" style="min-width: 140px;">
-              <div class="node-title">Search & Report</div>
-              <div class="node-desc">Q&A, research, summaries, reports</div>
+          <div class="branch-paths">
+            <div class="branch-path">
+              <span class="branch-label path">Information Retrieval</span>
+              <div class="path-line"></div>
+              <div class="node decision">
+                <div class="node-title">Search & Report</div>
+                <div class="node-desc">Q&A, research, summaries, reports</div>
+              </div>
             </div>
-            <div class="node decision" style="min-width: 140px;">
-              <div class="node-title">Agent Workflow</div>
-              <div class="node-desc">Multi-step prompts, structured output</div>
+            <div class="branch-path">
+              <span class="branch-label path">Guided Workflow</span>
+              <div class="path-line"></div>
+              <div class="node decision">
+                <div class="node-title">Agent Workflow</div>
+                <div class="node-desc">Multi-step prompts, structured output</div>
+              </div>
             </div>
-            <div class="node decision" style="min-width: 140px;">
-              <div class="node-title">Automation</div>
-              <div class="node-desc">Data pipelines, scheduled tasks, triggers</div>
+            <div class="branch-path">
+              <span class="branch-label path">Process Automation</span>
+              <div class="path-line"></div>
+              <div class="node decision">
+                <div class="node-title">Automation</div>
+                <div class="node-desc">Data pipelines, scheduled tasks, triggers</div>
+              </div>
             </div>
-            <div class="node decision" style="min-width: 140px;">
-              <div class="node-title">Integration</div>
-              <div class="node-desc">Connect systems, write data, take actions</div>
+            <div class="branch-path">
+              <span class="branch-label path">System Integration</span>
+              <div class="path-line"></div>
+              <div class="node decision">
+                <div class="node-title">Integration</div>
+                <div class="node-desc">Connect systems, write data, take actions</div>
+              </div>
             </div>
-            <div class="node decision" style="min-width: 140px;">
-              <div class="node-title">Custom App</div>
-              <div class="node-desc">Unique UX, external users, novel needs</div>
+            <div class="branch-path">
+              <span class="branch-label path">Custom Application</span>
+              <div class="path-line"></div>
+              <div class="node decision">
+                <div class="node-title">Custom App</div>
+                <div class="node-desc">Unique UX, external users, novel needs</div>
+              </div>
             </div>
           </div>
 
@@ -795,42 +867,51 @@
             <div class="node-desc">Source, volume, sensitivity, and connectivity</div>
           </div>
 
-          <div class="branch-connector">
-            <div class="branch-line"><span class="label branch-label path">Company Docs</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label path">Google Workspace</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label path">Business Systems</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label path">Multiple Sources</span><div class="line"></div></div>
-          </div>
-
-          <div class="flow-level">
-            <div class="node decision">
-              <div class="node-title">Glean Connected?</div>
-              <div class="node-desc">Check: Confluence, Drive, Slack, Notion, GitHub, Chorus</div>
-              <div class="branch">
-                <span class="branch-label yes">Yes</span>
-                <span class="branch-label no">No - connector?</span>
+          <div class="branch-paths">
+            <div class="branch-path">
+              <span class="branch-label path">Company Docs</span>
+              <div class="path-line"></div>
+              <div class="node decision">
+                <div class="node-title">Glean Connected?</div>
+                <div class="node-desc">Check: Confluence, Drive, Slack, Notion, GitHub, Chorus</div>
+                <div class="branch">
+                  <span class="branch-label yes">Yes</span>
+                  <span class="branch-label no">No - connector?</span>
+                </div>
               </div>
             </div>
-            <div class="node decision">
-              <div class="node-title">Google Native</div>
-              <div class="node-desc">Drive, Sheets, Slides, Gmail, Calendar</div>
-              <div class="branch">
-                <span class="branch-label info">Gemini / NotebookLM</span>
+            <div class="branch-path">
+              <span class="branch-label path">Google Workspace</span>
+              <div class="path-line"></div>
+              <div class="node decision">
+                <div class="node-title">Google Native</div>
+                <div class="node-desc">Drive, Sheets, Slides, Gmail, Calendar</div>
+                <div class="branch">
+                  <span class="branch-label info">Gemini / NotebookLM</span>
+                </div>
               </div>
             </div>
-            <div class="node decision">
-              <div class="node-title">External API?</div>
-              <div class="node-desc">Salesforce, NetSuite, Jira, etc.</div>
-              <div class="branch">
-                <span class="branch-label yes">API exists</span>
-                <span class="branch-label no">No API</span>
+            <div class="branch-path">
+              <span class="branch-label path">Business Systems</span>
+              <div class="path-line"></div>
+              <div class="node decision">
+                <div class="node-title">External API?</div>
+                <div class="node-desc">Salesforce, NetSuite, Jira, etc.</div>
+                <div class="branch">
+                  <span class="branch-label yes">API exists</span>
+                  <span class="branch-label no">No API</span>
+                </div>
               </div>
             </div>
-            <div class="node decision">
-              <div class="node-title">Orchestration</div>
-              <div class="node-desc">MCP-based or custom integration needed</div>
-              <div class="branch">
-                <span class="branch-label info">MuleSoft / Custom</span>
+            <div class="branch-path">
+              <span class="branch-label path">Multiple Sources</span>
+              <div class="path-line"></div>
+              <div class="node decision">
+                <div class="node-title">Orchestration</div>
+                <div class="node-desc">MCP-based or custom integration needed</div>
+                <div class="branch">
+                  <span class="branch-label info">MuleSoft / Custom</span>
+                </div>
               </div>
             </div>
           </div>
@@ -844,29 +925,38 @@
             <div class="node-desc">Context window, file sizes, reasoning depth</div>
           </div>
 
-          <div class="branch-connector">
-            <div class="branch-line"><span class="label branch-label path">Small context</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label path">Medium context</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label path">Large context / files</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label path">Actions required</span><div class="line"></div></div>
-          </div>
-
-          <div class="flow-level">
-            <div class="node platform">
-              <div class="node-title">Glean</div>
-              <div class="node-desc">Context &lt; 128K tokens, curated docs</div>
+          <div class="branch-paths">
+            <div class="branch-path">
+              <span class="branch-label path">Small context</span>
+              <div class="path-line"></div>
+              <div class="node platform">
+                <div class="node-title">Glean</div>
+                <div class="node-desc">Context &lt; 128K tokens, curated docs</div>
+              </div>
             </div>
-            <div class="node platform">
-              <div class="node-title">Claude</div>
-              <div class="node-desc">Up to 200K tokens, complex reasoning</div>
+            <div class="branch-path">
+              <span class="branch-label path">Medium context</span>
+              <div class="path-line"></div>
+              <div class="node platform">
+                <div class="node-title">Claude</div>
+                <div class="node-desc">Up to 200K tokens, complex reasoning</div>
+              </div>
             </div>
-            <div class="node platform">
-              <div class="node-title">Gemini</div>
-              <div class="node-desc">Up to 2M tokens, files up to 2GB, video</div>
+            <div class="branch-path">
+              <span class="branch-label path">Large context / files</span>
+              <div class="path-line"></div>
+              <div class="node platform">
+                <div class="node-title">Gemini</div>
+                <div class="node-desc">Up to 2M tokens, files up to 2GB, video</div>
+              </div>
             </div>
-            <div class="node decision">
-              <div class="node-title">Actions Layer</div>
-              <div class="node-desc">Glean Actions, MuleSoft, or Custom</div>
+            <div class="branch-path">
+              <span class="branch-label path">Actions required</span>
+              <div class="path-line"></div>
+              <div class="node decision">
+                <div class="node-title">Actions Layer</div>
+                <div class="node-desc">Glean Actions, MuleSoft, or Custom</div>
+              </div>
             </div>
           </div>
 
@@ -879,29 +969,38 @@
             <div class="node-desc">Scope, licensing, regional considerations</div>
           </div>
 
-          <div class="branch-connector">
-            <div class="branch-line"><span class="label branch-label path">Company-wide</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label path">Department / Team</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label path">Individual</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label path">External</span><div class="line"></div></div>
-          </div>
-
-          <div class="flow-level">
-            <div class="node platform">
-              <div class="node-title">Glean (default)</div>
-              <div class="node-desc">91% adoption, everyone has a license</div>
+          <div class="branch-paths">
+            <div class="branch-path">
+              <span class="branch-label path">Company-wide</span>
+              <div class="path-line"></div>
+              <div class="node platform">
+                <div class="node-title">Glean (default)</div>
+                <div class="node-desc">91% adoption, everyone has a license</div>
+              </div>
             </div>
-            <div class="node decision">
-              <div class="node-title">Team Options</div>
-              <div class="node-desc">Glean, Gems, Claude Projects, Custom</div>
+            <div class="branch-path">
+              <span class="branch-label path">Department / Team</span>
+              <div class="path-line"></div>
+              <div class="node decision">
+                <div class="node-title">Team Options</div>
+                <div class="node-desc">Glean, Gems, Claude Projects, Custom</div>
+              </div>
             </div>
-            <div class="node decision">
-              <div class="node-title">Individual</div>
-              <div class="node-desc">Gemini, Claude, NotebookLM, Glean</div>
+            <div class="branch-path">
+              <span class="branch-label path">Individual</span>
+              <div class="path-line"></div>
+              <div class="node decision">
+                <div class="node-title">Individual</div>
+                <div class="node-desc">Gemini, Claude, NotebookLM, Glean</div>
+              </div>
             </div>
-            <div class="node review">
-              <div class="node-title">Security Review</div>
-              <div class="node-desc">External access requires auth + legal</div>
+            <div class="branch-path">
+              <span class="branch-label path">External</span>
+              <div class="path-line"></div>
+              <div class="node review">
+                <div class="node-title">Security Review</div>
+                <div class="node-desc">External access requires auth + legal</div>
+              </div>
             </div>
           </div>
 
@@ -914,24 +1013,30 @@
             <div class="node-desc">Reliability, Traceability, Auditability, Fault Tolerance</div>
           </div>
 
-          <div class="branch-connector">
-            <div class="branch-line"><span class="label branch-label yes">Standard</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label maybe">Elevated</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label no">Enterprise</span><div class="line"></div></div>
-          </div>
-
-          <div class="flow-level">
-            <div class="node platform">
-              <div class="node-title">SaaS Platforms</div>
-              <div class="node-desc">Glean, Gemini, Claude - vendor-managed</div>
+          <div class="branch-paths">
+            <div class="branch-path">
+              <span class="branch-label yes">Standard</span>
+              <div class="path-line"></div>
+              <div class="node platform">
+                <div class="node-title">SaaS Platforms</div>
+                <div class="node-desc">Glean, Gemini, Claude - vendor-managed</div>
+              </div>
             </div>
-            <div class="node decision">
-              <div class="node-title">Audit-Ready</div>
-              <div class="node-desc">Logging, change tracking, backup owner</div>
+            <div class="branch-path">
+              <span class="branch-label maybe">Elevated</span>
+              <div class="path-line"></div>
+              <div class="node decision">
+                <div class="node-title">Audit-Ready</div>
+                <div class="node-desc">Logging, change tracking, backup owner</div>
+              </div>
             </div>
-            <div class="node governance">
-              <div class="node-title">MuleSoft / Enterprise</div>
-              <div class="node-desc">Full SOC compliance, trace IDs, policies</div>
+            <div class="branch-path">
+              <span class="branch-label no">Enterprise</span>
+              <div class="path-line"></div>
+              <div class="node governance">
+                <div class="node-title">MuleSoft / Enterprise</div>
+                <div class="node-desc">Full SOC compliance, trace IDs, policies</div>
+              </div>
             </div>
           </div>
 
@@ -944,28 +1049,34 @@
             <div class="node-desc">Ownership, SLA, handoff plan, evaluation cadence</div>
           </div>
 
-          <div class="branch-connector">
-            <div class="branch-line"><span class="label branch-label yes">Builder Maintains</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label maybe">IT Supports</span><div class="line"></div></div>
-            <div class="branch-line"><span class="label branch-label no">Mission Critical</span><div class="line"></div></div>
-          </div>
-
-          <div class="flow-level">
-            <div class="node decision">
-              <div class="node-title">Builder Check</div>
-              <div class="node-desc">Tenure? Backup owner? Eval cadence?</div>
-              <div class="branch">
-                <span class="branch-label yes">Confirmed</span>
-                <span class="branch-label no">Find owner</span>
+          <div class="branch-paths">
+            <div class="branch-path">
+              <span class="branch-label yes">Builder Maintains</span>
+              <div class="path-line"></div>
+              <div class="node decision">
+                <div class="node-title">Builder Check</div>
+                <div class="node-desc">Tenure? Backup owner? Eval cadence?</div>
+                <div class="branch">
+                  <span class="branch-label yes">Confirmed</span>
+                  <span class="branch-label no">Find owner</span>
+                </div>
               </div>
             </div>
-            <div class="node review">
-              <div class="node-title">IT-Supportable?</div>
-              <div class="node-desc">Platform must be in IT's supported set</div>
+            <div class="branch-path">
+              <span class="branch-label maybe">IT Supports</span>
+              <div class="path-line"></div>
+              <div class="node review">
+                <div class="node-title">IT-Supportable?</div>
+                <div class="node-desc">Platform must be in IT's supported set</div>
+              </div>
             </div>
-            <div class="node stop">
-              <div class="node-title">Full Governance</div>
-              <div class="node-desc">SLA, DR plan, escalation path required</div>
+            <div class="branch-path">
+              <span class="branch-label no">Mission Critical</span>
+              <div class="path-line"></div>
+              <div class="node stop">
+                <div class="node-title">Full Governance</div>
+                <div class="node-desc">SLA, DR plan, escalation path required</div>
+              </div>
             </div>
           </div>
 
@@ -1490,56 +1601,7 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- SECTION 6: HUB AND SPOKE MODEL -->
-    <!-- ============================================================ -->
-    <div class="section">
-      <div class="section-title">Hub-and-Spoke Governance Model</div>
-      <div class="section-subtitle">Teams can use preferred tools within standards -- the hub provides governance, the spokes provide flexibility</div>
-
-      <div class="grid-2">
-        <div>
-          <h5 style="font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--gray-800);">Hub: Central Standards</h5>
-          <div class="gov-grid" style="grid-template-columns: 1fr;">
-            <div class="gov-card">
-              <h5>Standard Configuration Files</h5>
-              <p>Every tool/agent must have: standard MD documentation, JSON config where applicable, KB entry in Thesis platform, evaluation criteria defined</p>
-            </div>
-            <div class="gov-card">
-              <h5>Accountability Requirements</h5>
-              <p>Process lead identified, backup owner named, evaluation cadence set, handoff documentation maintained</p>
-            </div>
-            <div class="gov-card">
-              <h5>Security Baseline</h5>
-              <p>Enterprise agreement with vendor, proper authentication (not just password), no uncontrolled external sharing, data classification applied</p>
-            </div>
-          </div>
-        </div>
-        <div>
-          <h5 style="font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--gray-800);">Spokes: Team Flexibility</h5>
-          <div class="gov-grid" style="grid-template-columns: 1fr;">
-            <div class="gov-card">
-              <h5>Approved Platform Set</h5>
-              <p>Glean, Gemini/Gems, NotebookLM, Claude (with approval), MuleSoft (enterprise), Custom (with justification)</p>
-            </div>
-            <div class="gov-card">
-              <h5>Experimentation Path</h5>
-              <p>No-cost + less than 1 month: experimentation ticket. Requires budget: procurement process. New vendor: security + legal review.</p>
-            </div>
-            <div class="gov-card">
-              <h5>Evaluation Before Deployment</h5>
-              <p>Test against defined criteria before release. Ongoing evaluation cadence after deployment. Standard QA process for agents and workflows.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="callout warn">
-        <strong>MCP Architecture Note (from Raza):</strong> MCPs should be designed per use case, not as 1:1 API replacements. "If I say 'give me all pull requests during November 2025,' the MCP should know exactly which tool to use. Don't expose raw API endpoints as MCP tools -- that makes things less deterministic, not more."
-      </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- SECTION 7: OPEN ITEMS -->
+    <!-- SECTION 6: OPEN ITEMS -->
     <!-- ============================================================ -->
     <div class="section">
       <div class="section-title">Open Items & Pending Decisions</div>
@@ -1578,5 +1640,29 @@
       Sources: Raza (Business Platforms, Feb 13), Steffen (IT Engineering, Feb 13), Platform Inventory Research, Slack Analysis, CKO Workshop Notes
     </div>
   </div>
+<script>
+// Draw horizontal connector bars spanning from first to last branch-path center
+(function() {
+  function drawBars() {
+    document.querySelectorAll('.branch-paths .tree-bar').forEach(function(el) { el.remove(); });
+    document.querySelectorAll('.branch-paths').forEach(function(container) {
+      var paths = container.querySelectorAll('.branch-path');
+      if (paths.length < 2) return;
+      var first = paths[0];
+      var last = paths[paths.length - 1];
+      var containerRect = container.getBoundingClientRect();
+      var firstCenter = first.getBoundingClientRect().left + first.getBoundingClientRect().width / 2 - containerRect.left;
+      var lastCenter = last.getBoundingClientRect().left + last.getBoundingClientRect().width / 2 - containerRect.left;
+      var bar = document.createElement('div');
+      bar.className = 'tree-bar';
+      bar.style.cssText = 'position:absolute;top:16px;height:2px;background:var(--gray-300);left:' + firstCenter + 'px;width:' + (lastCenter - firstCenter) + 'px;';
+      container.appendChild(bar);
+    });
+  }
+  window.addEventListener('load', drawBars);
+  window.addEventListener('resize', drawBars);
+  setTimeout(drawBars, 500);
+})();
+</script>
 </body>
 </html>

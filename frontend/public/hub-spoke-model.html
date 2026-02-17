@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hub-and-Spoke Governance Model</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-light: #a5b4fc;
+      --primary-bg: #eef2ff;
+      --success: #22c55e;
+      --success-light: #bbf7d0;
+      --warning: #f59e0b;
+      --warning-light: #fde68a;
+      --danger: #ef4444;
+      --danger-light: #fecaca;
+      --info: #3b82f6;
+      --info-light: #dbeafe;
+      --teal: #14b8a6;
+      --teal-light: #ccfbf1;
+      --orange: #f97316;
+      --orange-light: #fed7aa;
+      --pink: #ec4899;
+      --pink-light: #fce7f3;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8fafc;
+      color: var(--gray-900);
+      line-height: 1.5;
+    }
+
+    .container { padding: 2rem; max-width: 1600px; margin: 0 auto; }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--gray-500); font-size: 0.875rem; }
+
+    .section {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-bottom: 0.25rem;
+    }
+
+    .section-subtitle {
+      font-size: 0.8rem;
+      color: var(--gray-500);
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+
+    .gov-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .gov-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+    }
+
+    .gov-card h5 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      color: var(--gray-800);
+    }
+
+    .gov-card p {
+      font-size: 0.7rem;
+      color: var(--gray-500);
+    }
+
+    .callout {
+      background: var(--info-light);
+      border: 1px solid #93c5fd;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      font-size: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .callout.warn {
+      background: var(--warning-light);
+      border-color: #fcd34d;
+    }
+
+    .callout strong { color: var(--gray-800); }
+
+    .watermark {
+      text-align: center;
+      padding: 2rem;
+      color: var(--gray-400);
+      font-size: 0.7rem;
+    }
+
+    @media (max-width: 900px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    /* Dark mode overrides */
+    html.dark {
+      --gray-50: #0a0a0a;
+      --gray-100: #111111;
+      --gray-200: #27272a;
+      --gray-300: #3f3f46;
+      --gray-400: #71717a;
+      --gray-500: #a1a1aa;
+      --gray-600: #d4d4d8;
+      --gray-700: #e4e4e7;
+      --gray-800: #f4f4f5;
+      --gray-900: #ffffff;
+      --primary-bg: #1e1b4b;
+      --success-light: #0e261a;
+      --warning-light: #2d2009;
+      --danger-light: #2d1219;
+      --info-light: #1e2a4a;
+      --teal-light: #0e2a2a;
+      --orange-light: #2d1f0e;
+      --pink-light: #2d121e;
+    }
+
+    html.dark body {
+      background: #0a0a0a;
+      color: #ffffff;
+    }
+
+    html.dark .section {
+      background: #111111;
+      border-color: #27272a;
+    }
+
+    html.dark .section-subtitle {
+      border-bottom-color: #27272a;
+    }
+
+    html.dark header {
+      border-bottom-color: #27272a;
+    }
+
+    html.dark .gov-card {
+      background: #1a1a1a;
+      border-color: #27272a;
+    }
+
+    html.dark .callout {
+      background: #111827;
+      border-color: #1e3a5f;
+    }
+
+    html.dark .callout.warn {
+      background: #1a1400;
+      border-color: #3d3200;
+    }
+  </style>
+</head>
+<body>
+<script>
+(function() {
+  var root = document.documentElement;
+  function parseHex(h) {
+    if (!h || h.charAt(0) !== '#') return null;
+    h = h.replace('#','');
+    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
+  function toHex(r,g,b) {
+    return '#' + [r,g,b].map(function(c) {
+      var x = Math.round(Math.max(0,Math.min(255,c))).toString(16);
+      return x.length < 2 ? '0'+x : x;
+    }).join('');
+  }
+  function mix(a,b,t) {
+    if (!a||!b) return null;
+    return toHex(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);
+  }
+  function syncFromParent() {
+    try {
+      if (!window.parent || window.parent === window) return false;
+      var parentRoot = window.parent.document.documentElement;
+      if (!parentRoot.style.getPropertyValue('--color-bg-page')) return false;
+      var ps = getComputedStyle(parentRoot);
+      var bgPage = ps.getPropertyValue('--color-bg-page').trim();
+      var bgCard = ps.getPropertyValue('--color-bg-card').trim();
+      var bgHover = ps.getPropertyValue('--color-bg-hover').trim();
+      var textPrimary = ps.getPropertyValue('--color-text-primary').trim();
+      var textSecondary = ps.getPropertyValue('--color-text-secondary').trim();
+      var textMuted = ps.getPropertyValue('--color-text-muted').trim();
+      var borderDefault = ps.getPropertyValue('--color-border-default').trim();
+      var primary = ps.getPropertyValue('--color-primary').trim();
+      var primaryHover = ps.getPropertyValue('--color-primary-hover').trim();
+      if (!bgPage || !textPrimary) return false;
+      var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+      if (bodyBg) {
+        var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (m) {
+          var br = (parseInt(m[1])*299+parseInt(m[2])*587+parseInt(m[3])*114)/1000;
+          if (br < 128) root.classList.add('dark'); else root.classList.remove('dark');
+        }
+      }
+      var cCard = parseHex(bgCard), cBorder = parseHex(borderDefault);
+      var cMuted = parseHex(textMuted), cSecondary = parseHex(textSecondary);
+      var cPrimary = parseHex(textPrimary);
+      root.style.setProperty('--bg-page', bgPage);
+      root.style.setProperty('--bg-page-end', bgPage);
+      root.style.setProperty('--bg-card', bgCard);
+      root.style.setProperty('--gray-50', bgHover);
+      root.style.setProperty('--gray-100', mix(cCard, cBorder, 0.3) || bgHover);
+      root.style.setProperty('--gray-200', borderDefault);
+      root.style.setProperty('--gray-300', mix(cBorder, cMuted, 0.25) || borderDefault);
+      root.style.setProperty('--gray-400', mix(cBorder, cMuted, 0.5) || textMuted);
+      root.style.setProperty('--gray-500', textMuted);
+      root.style.setProperty('--gray-600', textSecondary);
+      root.style.setProperty('--gray-700', mix(cSecondary, cPrimary, 0.4) || textSecondary);
+      root.style.setProperty('--gray-800', mix(cSecondary, cPrimary, 0.75) || textPrimary);
+      root.style.setProperty('--gray-900', textPrimary);
+      if (primary) root.style.setProperty('--primary', primary);
+      if (primaryHover) root.style.setProperty('--primary-light', primaryHover);
+      return true;
+    } catch (e) { return false; }
+  }
+  syncFromParent();
+  var attempts = 0;
+  var poller = setInterval(function() {
+    attempts++;
+    if (syncFromParent() || attempts >= 50) {
+      clearInterval(poller);
+      if (attempts >= 50 && !root.classList.contains('dark')) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) root.classList.add('dark');
+      }
+    }
+  }, 200);
+  try {
+    if (window.parent && window.parent !== window) {
+      new MutationObserver(function() { syncFromParent(); })
+        .observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+  } catch (e) {}
+})();
+</script>
+  <div class="container">
+    <header>
+      <h1>Hub-and-Spoke Governance Model</h1>
+      <p class="subtitle">Teams can use preferred tools within standards -- the hub provides governance, the spokes provide flexibility</p>
+    </header>
+
+    <div class="section">
+      <div class="section-title">Hub-and-Spoke Governance Model</div>
+      <div class="section-subtitle">Teams can use preferred tools within standards -- the hub provides governance, the spokes provide flexibility</div>
+
+      <div class="grid-2">
+        <div>
+          <h5 style="font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--gray-800);">Hub: Central Standards</h5>
+          <div class="gov-grid" style="grid-template-columns: 1fr;">
+            <div class="gov-card">
+              <h5>Standard Configuration Files</h5>
+              <p>Every tool/agent must have: standard MD documentation, JSON config where applicable, KB entry in Thesis platform, evaluation criteria defined</p>
+            </div>
+            <div class="gov-card">
+              <h5>Accountability Requirements</h5>
+              <p>Process lead identified, backup owner named, evaluation cadence set, handoff documentation maintained</p>
+            </div>
+            <div class="gov-card">
+              <h5>Security Baseline</h5>
+              <p>Enterprise agreement with vendor, proper authentication (not just password), no uncontrolled external sharing, data classification applied</p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h5 style="font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--gray-800);">Spokes: Team Flexibility</h5>
+          <div class="gov-grid" style="grid-template-columns: 1fr;">
+            <div class="gov-card">
+              <h5>Approved Platform Set</h5>
+              <p>Glean, Gemini/Gems, NotebookLM, Claude (with approval), MuleSoft (enterprise), Custom (with justification)</p>
+            </div>
+            <div class="gov-card">
+              <h5>Experimentation Path</h5>
+              <p>No-cost + less than 1 month: experimentation ticket. Requires budget: procurement process. New vendor: security + legal review.</p>
+            </div>
+            <div class="gov-card">
+              <h5>Evaluation Before Deployment</h5>
+              <p>Test against defined criteria before release. Ongoing evaluation cadence after deployment. Standard QA process for agents and workflows.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <strong>MCP Architecture Note (from Raza):</strong> MCPs should be designed per use case, not as 1:1 API replacements. "If I say 'give me all pull requests during November 2025,' the MCP should know exactly which tool to use. Don't expose raw API endpoints as MCP tools -- that makes things less deterministic, not more."
+      </div>
+    </div>
+
+    <div class="watermark">
+      Hub-and-Spoke Governance Model | Contentful AI Governance | February 13, 2026<br>
+      Sources: Raza (Business Platforms, Feb 13), Steffen (IT Engineering, Feb 13)
+    </div>
+  </div>
+</body>
+</html>

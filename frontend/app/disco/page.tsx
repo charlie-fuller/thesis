@@ -17,7 +17,8 @@ import {
   Map,
   GitBranch,
   LayoutGrid,
-  TreeDeciduous
+  TreeDeciduous,
+  Network
 } from 'lucide-react'
 import DiscoProcessMap from '@/components/disco/DiscoProcessMap'
 import DiscoOperationalizeMap from '@/components/disco/DiscoOperationalizeMap'
@@ -394,7 +395,7 @@ export default function DiscoInitiativesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [createModalOpen, setCreateModalOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'discoveries' | 'workflow' | 'operationalize' | 'platform-map' | 'platform-tree'>('discoveries')
+  const [activeTab, setActiveTab] = useState<'discoveries' | 'workflow' | 'throughline' | 'operationalize' | 'platform-map' | 'platform-tree' | 'hub-spoke'>('discoveries')
 
   const loadInitiatives = async () => {
     try {
@@ -488,6 +489,17 @@ export default function DiscoInitiativesPage() {
           Workflow Map
         </button>
         <button
+          onClick={() => setActiveTab('throughline')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+            activeTab === 'throughline'
+              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          Throughline Guide
+        </button>
+        <button
           onClick={() => setActiveTab('operationalize')}
           className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
             activeTab === 'operationalize'
@@ -498,7 +510,6 @@ export default function DiscoInitiativesPage() {
           <GitBranch className="w-4 h-4" />
           Operationalize Map
         </button>
-        <div className="mx-2 border-l border-slate-200 dark:border-slate-700 h-6 self-center" />
         <button
           onClick={() => setActiveTab('platform-map')}
           className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
@@ -521,11 +532,30 @@ export default function DiscoInitiativesPage() {
           <TreeDeciduous className="w-4 h-4" />
           Platform Decision Tree
         </button>
+        <button
+          onClick={() => setActiveTab('hub-spoke')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+            activeTab === 'hub-spoke'
+              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          <Network className="w-4 h-4" />
+          Hub & Spoke
+        </button>
       </div>
 
       {/* Tab Content */}
       {activeTab === 'workflow' ? (
         <DiscoProcessMap />
+      ) : activeTab === 'throughline' ? (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+          <iframe
+            src="/throughline-process-map.html"
+            className="w-full h-full border-0"
+            title="Investigation Framing (Throughline) Deep-Dive"
+          />
+        </div>
       ) : activeTab === 'operationalize' ? (
         <DiscoOperationalizeMap />
       ) : activeTab === 'platform-map' ? (
@@ -542,6 +572,14 @@ export default function DiscoInitiativesPage() {
             src="/platform-decision-tree.html"
             className="w-full h-full border-0"
             title="AI Platform Selection Decision Tree"
+          />
+        </div>
+      ) : activeTab === 'hub-spoke' ? (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+          <iframe
+            src="/hub-spoke-model.html"
+            className="w-full h-full border-0"
+            title="Hub-and-Spoke Governance Model"
           />
         </div>
       ) : (
