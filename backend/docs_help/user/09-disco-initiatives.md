@@ -25,21 +25,20 @@ Click **Create Discovery**. You'll land on the discovery detail view.
 
 ## The Discovery Detail View
 
-Every discovery has five tabs:
+Every discovery has six tabs:
 
 | Tab | What It's For |
 |-----|---------------|
 | **Documents** | Link documents from the Knowledge Base or upload new ones |
-| **Run Agent** | Execute discovery agents and see streaming output |
-| **Outputs** | View all agent results in one place |
-| **Projects** | See and manage projects linked to this discovery |
+| **Framing** | Edit problem statements, hypotheses, gaps, and desired outcome inline |
 | **Alignment** | Analyze how well the discovery aligns with strategic goals |
+| **Projects** | See and manage projects linked to this discovery |
+| **Run Agents** | Execute discovery agents and see streaming output |
+| **Outputs** | View all agent results in one place |
 
-**Editing name and description:** Click the discovery name or description in the header to open an edit modal. This provides more space for editing multi-line descriptions than inline editing. You can also edit the throughline from here.
+**Editing discovery details:** Click the pencil icon next to the discovery name, or use "Edit Discovery Details" to open a modal for name, description, department, KPIs, and strategic pillar.
 
-**Throughline summary:** If you defined a throughline, a compact summary appears below the description showing counts of problem statements, hypotheses, and gaps. Click to expand the full detail.
-
-**Value alignment tags:** When populated, KPI tags and department goal badges appear in the header area.
+**Value alignment tags:** When populated, department, KPI, and strategic pillar badges appear inline with the description in the header.
 
 **Chat Button:** In the header area, click the **Chat** button to open the main chat interface with full discovery context. This redirects to `/chat?initiative_id=xxx` with the Discovery Agent auto-selected.
 
@@ -75,12 +74,13 @@ The Investigation Framing is an optional but powerful way to give your discovery
 
 **Option 1: Generate from Documents (Recommended for new discoveries)**
 1. Create a discovery with just a name, description, and linked documents
-2. In the Investigation Framing section, click **Generate from Documents**
+2. Go to the **Framing** tab and click **Generate from Documents**
 3. The Discovery Guide agent analyzes your linked documents and suggests problem statements, hypotheses, gaps, KPIs, and stakeholders
 4. A **Review Suggested Framing** panel appears when complete
 5. Click **Accept All** to populate your throughline, or **Dismiss** if the suggestions aren't useful
+6. Accepting deduplicates against existing items - clicking Accept All multiple times won't create duplicates
 
-This also works when you already have some framing defined - the agent will suggest additional items based on what's in your documents.
+If you already have framing, the button reads **Regenerate from Documents** and suggests additional items.
 
 **Option 2: Chat with the Discovery Agent (Recommended for iterating)**
 1. Click the **Chat** button in the discovery header
@@ -90,12 +90,30 @@ This also works when you already have some framing defined - the agent will sugg
 5. Select which items to keep, then click **Apply to Discovery** to merge them into your throughline
 6. You can iterate - chat more and get additional proposals
 
-**Option 3: Define It Manually**
-1. When creating or editing a discovery, expand **Investigation Framing**
+**Option 3: Edit Directly on the Framing Tab**
+1. Go to the **Framing** tab
 2. Add items to each section using the **+ Add** buttons
-3. Each hypothesis has a type: `assumption`, `belief`, or `prediction`
-4. Each gap has a type: `data`, `people`, `process`, or `capability`
-5. Items get auto-assigned IDs (ps-1, h-1, g-1) for tracking
+3. Edit any item inline - the full text is editable in the input field
+4. Each hypothesis has a type dropdown: Assumption, Belief, or Prediction
+5. Each gap has a type dropdown: Data, People, Process, or Capability
+6. Delete items with the trash icon
+7. Click the **Save Framing** button (appears when you have unsaved changes)
+
+### Ground-Truth Corrections
+
+At the bottom of the Framing tab, expand **Ground-Truth Corrections** to enter free-text overrides that correct errors in your linked documents.
+
+Agents treat corrections as authoritative and prioritize them over conflicting document content. Use this when:
+- Documents contain misattributions (e.g., wrong team owns a tool)
+- Stats or figures are outdated
+- Assumptions in source documents are known to be wrong
+
+Example corrections:
+- "Our company uses Salesforce, NOT HubSpot"
+- "Q3 revenue was $12M (not $8M as stated in the deck)"
+- "The n8n integration is owned by IT, not Engineering"
+
+Corrections are injected into every agent prompt as a dedicated "Ground-Truth Corrections" section between the throughline and document content.
 
 ### How Agents Use the Throughline
 
@@ -128,16 +146,9 @@ After running the Requirements Generator (Convergence stage), the output include
 
 Resolution results appear color-coded in the output viewer (green = confirmed/addressed, red = refuted/unaddressed, yellow = inconclusive/partial).
 
-### Resolution Annotations
+### Resolution in Outputs
 
-You can override agent-assigned resolution statuses with your own assessment:
-
-1. In the throughline summary, click the edit icon next to any hypothesis or gap
-2. Select your status override (e.g., "You: refuted" or "You: addressed")
-3. Add an optional note explaining why
-4. Your annotation appears alongside the agent's assessment
-
-This lets you track corrections as new information emerges without re-running agents.
+Resolution results from the Requirements Generator appear in the **Outputs** tab. If a gap needs action, create a task for it from the state changes section rather than annotating the framing items directly.
 
 ---
 
@@ -222,7 +233,7 @@ Convergence outputs now include tool/platform recommendations, evaluation/QA pla
 
 Agents run in sequence - earlier stages inform later ones. The system will tell you if you're trying to run something out of order.
 
-**Framing hints:** If your discovery has no throughline, you'll see a **Generate from Documents** button in the Investigation Framing section. If the Discovery Guide has already run with suggestions available, you'll see a prompt to review the suggested framing.
+**Framing hints:** If your discovery has no throughline, head to the **Framing** tab to add items directly or click **Generate from Documents**. If the Discovery Guide has already run with suggestions available, you'll see a prompt to review the suggested framing.
 
 ---
 
@@ -357,6 +368,15 @@ The **Alignment** tab lets you analyze how well a discovery (and its linked proj
 5. An analysis summary and impacted KPIs are shown at the top
 
 If agent outputs exist (triage, strategist, insight analyst, etc.), they are included in the analysis for more accurate scoring. Without outputs, analysis uses only the discovery name and description.
+
+**Editing alignment results:**
+Analysis results are editable after generation - no need to re-analyze to fix incorrect items:
+- **Remove KPI impacts**: Hover over any green KPI chip and click the X to dismiss it
+- **Edit pillar rationales**: Hover over a pillar's rationale text and click the pencil icon to rewrite it
+- **Correct the summary**: Click the pencil icon next to "Analysis Summary" to edit the text
+- **Remove irrelevant pillars**: Hover over any pillar card to reveal the X button (red square outline) next to the score
+
+All edits save immediately. Re-analyzing will regenerate all results from scratch.
 
 **Project roll-up:**
 - Shows the average alignment score across all linked projects
@@ -501,7 +521,7 @@ Both maps are standalone interactive HTML pages. Navigate through nodes by click
 
 1. **Link context first.** The more documents you provide, the better Discovery Prep and Triage can assess the opportunity.
 
-2. **Let agents suggest framing.** Instead of manually defining problem statements and hypotheses, click **Generate from Documents** in the framing section, or chat with the Discovery Agent to iteratively build your framing through conversation.
+2. **Let agents suggest framing.** Instead of manually defining problem statements and hypotheses, go to the **Framing** tab and click **Generate from Documents**, or chat with the Discovery Agent to iteratively build your framing through conversation.
 
 3. **Run agents in order.** The workflow is designed to build on itself. Skipping steps weakens later outputs.
 
