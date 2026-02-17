@@ -267,6 +267,38 @@
 
     .watermark { text-align: center; padding: 2rem; color: var(--gray-400); font-size: 0.75rem; }
 
+    /* Collapsible sections */
+    details.section { cursor: default; }
+    details.section > summary {
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    details.section > summary::-webkit-details-marker { display: none; }
+    details.section > summary::before {
+      content: '\25B6';
+      font-size: 0.65rem;
+      color: var(--gray-400);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    details[open].section > summary::before {
+      transform: rotate(90deg);
+    }
+    details.section > summary .section-title {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+      flex: 1;
+    }
+    details[open].section > .section-content {
+      margin-top: 1rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--gray-200);
+    }
+
     /* Dark mode overrides */
     html.dark {
       --gray-50: #0a0a0a;
@@ -577,8 +609,9 @@
     </div>
 
     <!-- Five Evaluation Dimensions -->
-    <div class="section">
-      <div class="section-title">Five Evaluation Dimensions (0-20 Points Each)</div>
+    <details class="section">
+      <summary><div class="section-title">Five Evaluation Dimensions (0-20 Points Each)</div></summary>
+      <div class="section-content">
       <p style="font-size: 0.8rem; color: var(--gray-600); margin-bottom: 1rem;">
         Each task is scored on five dimensions. The total (0-100) determines the confidence level and category. Kraken uses project context, linked KB documents, and web search to inform its assessment.
       </p>
@@ -624,11 +657,13 @@
           <div class="score-bar"><div class="score-fill" style="width: 100%;"></div></div>
         </div>
       </div>
-    </div>
+      </div>
+    </details>
 
     <!-- Three Categories -->
-    <div class="section">
-      <div class="section-title">Three-Tier Categorization</div>
+    <details class="section">
+      <summary><div class="section-title">Three-Tier Categorization</div></summary>
+      <div class="section-content">
       <div class="cat-grid">
         <div class="cat-card auto">
           <span class="tag">Automatable</span>
@@ -727,11 +762,13 @@
           </tbody>
         </table>
       </div>
-    </div>
+      </div>
+    </details>
 
     <!-- Agenticity Score -->
-    <div class="section">
-      <div class="section-title">Agenticity Score: Project-Level AI Readiness</div>
+    <details class="section">
+      <summary><div class="section-title">Agenticity Score: Project-Level AI Readiness</div></summary>
+      <div class="section-content">
       <div class="two-col">
         <div>
           <p style="font-size: 0.8rem; color: var(--gray-600); margin-bottom: 0.75rem;">
@@ -755,11 +792,13 @@
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </details>
 
     <!-- Execution Details -->
-    <div class="section">
-      <div class="section-title">What Happens During Execution</div>
+    <details class="section">
+      <summary><div class="section-title">What Happens During Execution</div></summary>
+      <div class="section-content">
       <div class="exec-grid">
         <div class="exec-card">
           <h5>1. Context Assembly</h5>
@@ -809,11 +848,13 @@
       <div class="callout success">
         <strong>Non-destructive guarantee:</strong> Kraken never changes task status, deletes tasks, or modifies existing content. All output is additive - task comments and new KB documents. You review and decide what to use.
       </div>
-    </div>
+      </div>
+    </details>
 
     <!-- Safety Guardrails -->
-    <div class="section">
-      <div class="section-title">Safety Guardrails</div>
+    <details class="section">
+      <summary><div class="section-title">Safety Guardrails</div></summary>
+      <div class="section-content">
       <div class="safety-grid">
         <div class="safety-card">
           <h5>What Kraken Cannot Do</h5>
@@ -859,11 +900,13 @@
           </ul>
         </div>
       </div>
-    </div>
+      </div>
+    </details>
 
     <!-- When to Use Kraken -->
-    <div class="section">
-      <div class="section-title">When to Use Kraken</div>
+    <details class="section">
+      <summary><div class="section-title">When to Use Kraken</div></summary>
+      <div class="section-content">
       <div class="two-col">
         <div style="border: 2px solid var(--auto); border-radius: 0.75rem; padding: 1rem;">
           <div style="font-size: 0.85rem; font-weight: 700; color: var(--auto); margin-bottom: 0.5rem;">Best Suited For</div>
@@ -887,11 +930,13 @@
           </ul>
         </div>
       </div>
-    </div>
+      </div>
+    </details>
 
     <!-- Key Principles -->
-    <div class="section">
-      <div class="section-title">Key Principles</div>
+    <details class="section">
+      <summary><div class="section-title">Key Principles</div></summary>
+      <div class="section-content">
       <div class="principles">
         <div class="principle">
           <div class="icon">&#9733;</div>
@@ -924,7 +969,8 @@
           <p>Uses project docs, initiative docs, and web search. Not working blind.</p>
         </div>
       </div>
-    </div>
+      </div>
+    </details>
 
     <div class="watermark">
       Kraken Task Automation v1.0 | Thesis Multi-Agent Platform | February 2026
