@@ -30,6 +30,8 @@ class ProblemStatement(BaseModel):
 
     id: Optional[str] = None
     text: str
+    rejected: Optional[bool] = None
+    rejection_reason: Optional[str] = None
 
 
 class Hypothesis(BaseModel):
@@ -39,6 +41,8 @@ class Hypothesis(BaseModel):
     statement: str
     rationale: Optional[str] = None
     type: Optional[str] = "assumption"
+    rejected: Optional[bool] = None
+    rejection_reason: Optional[str] = None
 
     @field_validator("type")
     @classmethod
@@ -54,6 +58,8 @@ class Gap(BaseModel):
     id: Optional[str] = None
     description: str
     type: Optional[str] = "data"
+    rejected: Optional[bool] = None
+    rejection_reason: Optional[str] = None
 
     @field_validator("type")
     @classmethod
@@ -161,6 +167,7 @@ class InitiativeCreate(BaseModel):
     value_alignment: Optional[ValueAlignment] = None
     sponsor_stakeholder_id: Optional[str] = None
     stakeholder_ids: Optional[List[str]] = None
+    user_corrections: Optional[str] = None
 
 
 class InitiativeUpdate(BaseModel):
@@ -175,6 +182,7 @@ class InitiativeUpdate(BaseModel):
     sponsor_stakeholder_id: Optional[str] = None
     stakeholder_ids: Optional[List[str]] = None
     resolution_annotations: Optional[ResolutionAnnotations] = None
+    user_corrections: Optional[str] = None
 
 
 # ============================================================================

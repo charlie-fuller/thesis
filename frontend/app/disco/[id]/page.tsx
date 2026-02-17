@@ -71,6 +71,7 @@ interface Initiative {
     email: string
   }
   throughline?: Throughline | null
+  user_corrections?: string | null
   goal_alignment_score: number | null
   goal_alignment_details: GoalAlignmentDetails | null
   latest_outputs?: Record<string, {
@@ -189,6 +190,7 @@ export default function InitiativeDetailPage() {
 
   // Inline framing editor state
   const [inlineFraming, setInlineFraming] = useState<Throughline>({})
+  const [corrections, setCorrections] = useState('')
   const [framingDirty, setFramingDirty] = useState(false)
   const [savingFraming, setSavingFraming] = useState(false)
 
@@ -238,6 +240,7 @@ export default function InitiativeDetailPage() {
       if (result.success && result.initiative) {
         setInitiative(result.initiative)
         setInlineFraming(result.initiative.throughline || {})
+        setCorrections(result.initiative.user_corrections || '')
         setFramingDirty(false)
       } else {
         setError('Discovery not found')
@@ -372,11 +375,12 @@ export default function InitiativeDetailPage() {
     try {
       const result = await apiPatch<{ success: boolean; initiative: Initiative }>(
         `/api/disco/initiatives/${initiativeId}`,
-        { throughline: inlineFraming }
+        { throughline: inlineFraming, user_corrections: corrections || null }
       )
       if (result.success && result.initiative) {
         setInitiative(result.initiative)
         setInlineFraming(result.initiative.throughline || {})
+        setCorrections(result.initiative.user_corrections || '')
       }
       setFramingDirty(false)
     } catch (err) {
@@ -1013,6 +1017,8 @@ export default function InitiativeDetailPage() {
             <ThroughlineEditor
               throughline={inlineFraming}
               onChange={handleInlineFramingChange}
+              corrections={corrections}
+              onCorrectionsChange={(val) => { setCorrections(val); setFramingDirty(true) }}
             />
           </div>
         )}

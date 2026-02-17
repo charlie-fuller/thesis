@@ -747,10 +747,17 @@ async def build_agent_context(initiative_id: str, agent_type: str, include_syste
     # Fetch initiative throughline
     try:
         initiative_result = await asyncio.to_thread(
-            lambda: supabase.table("disco_initiatives").select("throughline").eq("id", initiative_id).single().execute()
+            lambda: supabase.table("disco_initiatives")
+            .select("throughline, user_corrections")
+            .eq("id", initiative_id)
+            .single()
+            .execute()
         )
-        if initiative_result.data and initiative_result.data.get("throughline"):
-            context["throughline"] = initiative_result.data["throughline"]
+        if initiative_result.data:
+            if initiative_result.data.get("throughline"):
+                context["throughline"] = initiative_result.data["throughline"]
+            if initiative_result.data.get("user_corrections"):
+                context["user_corrections"] = initiative_result.data["user_corrections"]
     except Exception as e:
         logger.warning(f"Failed to fetch throughline for initiative {initiative_id}: {e}")
 
@@ -1196,14 +1203,14 @@ def _format_throughline_for_prompt(throughline: Dict) -> str:
     """Format throughline data as markdown for injection into agent prompts."""
     sections = []
 
-    problem_statements = throughline.get("problem_statements") or []
+    problem_statements = [ps for ps in (throughline.get("problem_statements") or []) if not ps.get("rejected")]
     if problem_statements:
         sections.append("### Problem Statements")
         for ps in problem_statements:
             ps_id = ps.get("id", "?")
             sections.append(f"- **{ps_id}**: {ps.get('text', '')}")
 
-    hypotheses = throughline.get("hypotheses") or []
+    hypotheses = [h for h in (throughline.get("hypotheses") or []) if not h.get("rejected")]
     if hypotheses:
         sections.append("\n### Hypotheses")
         for h in hypotheses:
@@ -1214,7 +1221,7 @@ def _format_throughline_for_prompt(throughline: Dict) -> str:
                 line += f" -- Rationale: {h['rationale']}"
             sections.append(line)
 
-    gaps = throughline.get("gaps") or []
+    gaps = [g for g in (throughline.get("gaps") or []) if not g.get("rejected")]
     if gaps:
         sections.append("\n### Known Gaps")
         for g in gaps:
@@ -1239,6 +1246,15 @@ def build_full_prompt(agent_type: str, context: Dict) -> str:
     if context.get("throughline"):
         parts.append("## Initiative Throughline\n")
         parts.append(_format_throughline_for_prompt(context["throughline"]))
+        parts.append("\n")
+
+    # Ground-truth corrections from initiative owner
+    if context.get("user_corrections"):
+        parts.append("## Ground-Truth Corrections (AUTHORITATIVE)\n")
+        parts.append(
+            "The following corrections from the initiative owner override any conflicting information in the documents below. Treat these as factual ground truth.\n"
+        )
+        parts.append(context["user_corrections"])
         parts.append("\n")
 
     # KB folder documents (for discovery_prep - these are the PRIMARY input)
