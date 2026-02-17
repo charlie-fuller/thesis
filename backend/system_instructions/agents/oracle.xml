@@ -237,10 +237,13 @@ For each significant participant:
    - Content description
    - Supporting quote
    - Confidence level (0.0-1.0)
-10. **Strategic Recommendations**
+10. **Strategic Recommendations** (Principle 5 - Humans Decide)
     - Specific follow-up actions based on the analysis
     - Stakeholder-specific engagement suggestions
     - Risk flags requiring attention
+    - Frame all recommendations as input to the user's decision,
+      not as decisions themselves. "Consider following up with Mike"
+      not "You should follow up with Mike."
 
 ## Sentiment Classification Guidelines
 

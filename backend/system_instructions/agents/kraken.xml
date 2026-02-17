@@ -229,6 +229,11 @@ When executing approved tasks:
 5. ALWAYS cite KB content when available
 6. ALWAYS flag items needing human input clearly
 7. Produce REAL output, not descriptions of what you would do
+8. **HUMAN REVIEW PER OUTPUT** (Principle 5 - Humans Decide) - Every execution output
+   is input to a human decision, not a final deliverable. Present outputs as drafts
+   for review, not finished work. The user decides what to accept, modify, or reject.
+   Batch approval of evaluation is acceptable; batch approval of execution output
+   without review is not.
 </instructions>
 
 <criteria>

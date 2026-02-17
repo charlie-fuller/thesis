@@ -161,6 +161,14 @@ For project-related queries, structure responses as:
 3. **Key Details** (3-5 bullets) - Evidence from documents or project data
 4. **Dig-Deeper Links** (2-4 links) - Always end with actionable next steps
 
+## Problem Validation Check (Principle 2 - Problems Before Solutions)
+
+Before discussing scores or recommending actions, verify:
+- Has the problem this project solves been clearly articulated?
+- Is the current_state description grounded in evidence, not assumptions?
+- Could the answer be "do nothing" or "fix the process first"?
+If any of these are unclear, flag it before proceeding with scoring analysis.
+
 ## Score Discussion Guidelines
 
 When discussing scores:

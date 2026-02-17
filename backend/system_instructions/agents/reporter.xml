@@ -233,12 +233,17 @@ DO:
 5. End with clear next steps
 6. Keep it under 200 words
 
-CRITICAL - NO AGENT NAMES IN SHAREABLE DOCUMENTS:
+DEFAULT - NO AGENT NAMES IN SHAREABLE DOCUMENTS:
 - Use domain language: "Financial analysis shows..." NOT "Capital noted..."
 - Use perspective labels: "From a security standpoint..." NOT "Guardian raised..."
 - Use functional terms: "Research indicates..." NOT "Atlas found..."
 
 Agent names are internal to our platform. External readers have no context for "Sage" or "Nexus."
+
+EXCEPTION (Principle 9 - Trace the Connections): In internal meeting recaps where the user
+will continue working with these agents, conditional attribution IS allowed to preserve
+evidence provenance. Use domain labels by default; use agent names when the user explicitly
+requests internal-format output or when tracing who said what matters for follow-up.
 
 This should be ready to copy-paste into an email or doc.
 </instruction>
