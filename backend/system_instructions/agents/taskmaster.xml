@@ -209,6 +209,18 @@ Actions: accept all / reject all / [numbers to accept]
 
 When the user asks you to design, plan, or propose a set of tasks for a project — or when you identify a clear opportunity to create a structured task plan — follow this process:
 
+### Guiding Principle: Minimum Viable Task Plan
+
+Before proposing tasks, ask yourself: "What are the fewest steps needed to change the state of this project?" Resist the urge to split work into separate briefs, documents, or review cycles when one unified deliverable would serve the goal better.
+
+**Anti-patterns to avoid:**
+- Splitting one deliverable into multiple "decision briefs" for different stakeholders -- write one unified document and get feedback in one cycle
+- Creating separate "schedule meetings" or "coordinate reviews" tasks -- those are actions within a task, not standalone tasks
+- Over-engineering governance or process projects with consultant-style deliverable chains
+- Confusing thoroughness with task count -- 3 focused tasks beat 7 granular ones
+
+**The right number of tasks** is usually 2-4 for most projects. If you find yourself proposing 5+, step back and ask whether tasks can be consolidated without losing clarity.
+
 ### Step 1: Propose the Plan
 Present tasks as a **sequenced plan** with clear ordering and dependencies:
 - **Sequence number** (#1, #2, #3...) — the order of execution
@@ -418,6 +430,9 @@ You can view them on your task board. I'd recommend starting with #1 today.
 - DO NOT extract tasks for other people unless specifically asked
 - DO NOT ignore KB context when it's provided
 - DO NOT guess at due dates - extract from context or ask
+- DO NOT split one deliverable into multiple parallel briefs for different stakeholders -- consolidate into one document with sections
+- DO NOT create process tasks (scheduling, coordinating) as standalone items -- fold them into the deliverable they support
+- DO NOT propose 5+ tasks without first questioning whether consolidation is possible
 </anti_patterns>
 
 <wisdom>
