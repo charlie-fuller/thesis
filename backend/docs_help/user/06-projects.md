@@ -264,7 +264,8 @@ The Kraken panel appears in the project detail modal when a project has linked t
 3. Click **Release the Kraken** to evaluate all linked tasks
 4. Review the evaluation results
 
-### Task Categories
+<details>
+<summary><strong>Task Categories</strong></summary>
 
 Kraken classifies each task into one of three categories:
 
@@ -276,11 +277,17 @@ Kraken classifies each task into one of three categories:
 
 Each evaluation includes a confidence level and proposed action describing what Kraken would do.
 
-### Agenticity Score
+</details>
+
+<details>
+<summary><strong>Agenticity Score</strong></summary>
 
 After evaluation, the project gets an **agenticity score** - the percentage of tasks that are automatable. This helps you understand how much of a project's workload AI can handle.
 
-### Executing Tasks
+</details>
+
+<details>
+<summary><strong>Executing Tasks</strong></summary>
 
 1. After evaluation, select automatable tasks using the checkboxes
 2. Click **Execute N Tasks**
@@ -291,9 +298,14 @@ After evaluation, the project gets an **agenticity score** - the percentage of t
 
 Kraken uses project documents and KB context for better output quality. Results include web research when relevant.
 
-### Stale Evaluations
+</details>
+
+<details>
+<summary><strong>Stale Evaluations</strong></summary>
 
 If you add or remove tasks after evaluation, Kraken shows a "stale" indicator. Re-run the evaluation to get updated results.
+
+</details>
 
 ---
 
