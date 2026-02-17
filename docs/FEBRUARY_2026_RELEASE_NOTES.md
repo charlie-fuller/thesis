@@ -874,3 +874,51 @@ Cleaned up duplicate document records caused by multiple copies of the same file
 - Removed 452 duplicate document records from the database (kept newest by `uploaded_at`)
 - Cleaned up orphaned initiative and project document links
 - KB reduced from 1,851 to ~1,399 documents with 0 remaining filename duplicates
+
+---
+
+## February 15-16, 2026
+
+### Discovery Guide v2.0
+
+Unified adaptive output replaces the previous 3x3 mode/format matrix with a single intelligent output style.
+
+**Changes**:
+- Single agent prompt replaces separate mode-specific prompts
+- Output adapts based on document count and discovery maturity
+- Structured formatting enforced: bold section titles, list markers, no emojis/checkboxes
+- Prose styling fixes: list markers restored, h2 double-lines eliminated, CSS layer conflicts resolved
+
+**Files**: `backend/disco_agents/discovery-guide-v2.0.md`, `frontend/app/globals.css`
+
+### Ground-Truth Corrections
+
+Discoveries now support free-text corrections that override conflicting information in linked documents. Agents treat corrections as authoritative ground truth, preventing misattributions and stale data from propagating through the pipeline.
+
+**Features**:
+- "Ground-Truth Corrections" collapsible section on the Framing tab
+- Multi-line textarea with example placeholder
+- Injected into every agent prompt as `## Ground-Truth Corrections (AUTHORITATIVE)` section between throughline and documents
+- Saves alongside throughline via existing PATCH endpoint
+
+**Files**: `database/migrations/076_initiative_corrections.sql`, `backend/api/routes/disco/_shared.py`, `backend/services/disco/agent_service.py`, `frontend/components/disco/ThroughlineEditor.tsx`, `frontend/app/disco/[id]/page.tsx`
+
+### Alignment Tab Inline Editing
+
+Goal alignment analysis results are now editable after generation, eliminating the need to re-analyze to fix incorrect items.
+
+**Features**:
+- Remove KPI impact chips (hover to reveal X button)
+- Edit pillar rationales in-place (hover to reveal pencil icon)
+- Correct analysis summary text (edit button next to header)
+- Remove irrelevant strategic pillar cards (X button inline with score, red square outline)
+- All edits persist immediately via PATCH to backend
+- Only pillars with scores render (removed pillars disappear)
+
+**Files**: `frontend/components/projects/GoalAlignmentSection.tsx`, `frontend/components/disco/InitiativeAlignmentTab.tsx`, `backend/services/disco/initiative_service.py`
+
+### Inline Delete for KPIs and Strategic Pillars
+
+KPI tags and strategic pillar badges in the discovery header now have inline delete (X) buttons visible on hover.
+
+**Files**: `frontend/app/disco/[id]/page.tsx`

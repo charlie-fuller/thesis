@@ -102,9 +102,9 @@ This document contains detailed architecture documentation. For essential Claude
     - Optional task extraction from PRD requirements section
     - Projects linked to parent discovery with `source_type: disco_prd`
 27. **Discovery Projects View** - Dedicated endpoint for querying projects linked to a discovery with source badges
-28. **Discovery Goal Alignment** - Analyzes discoveries against IS FY27 strategic goals (same 4-pillar framework as projects). Uses rich context from agent outputs for scoring. Project roll-up shows linked projects' alignment scores with distribution.
+28. **Discovery Goal Alignment** - Analyzes discoveries against IS FY27 strategic goals (same 4-pillar framework as projects). Uses rich context from agent outputs for scoring. Project roll-up shows linked projects' alignment scores with distribution. Alignment results are editable: remove KPI impact chips, edit pillar rationales in-place, correct analysis summary, and dismiss irrelevant pillar cards.
 29. **Discovery Throughline** - Structured input framing for discoveries: problem statements, hypotheses (assumption/belief/prediction), known gaps (data/people/process/capability), and desired outcome state. Throughline is threaded through all 4 DISCO agent stages and resolved at convergence with hypothesis resolutions, gap statuses, state changes, and "So What?" analysis. Framing is a narrative alignment tool that drives task creation, not a separate tracking system.
-30. **Framing Extraction** - Dedicated Framing tab with inline ThroughlineEditor for direct editing. Three generation paths: (1) "Generate/Regenerate from Documents" button triggers Discovery Guide inline and shows review panel, (2) Run Agents tab for full agent control, (3) Discovery Agent in chat proposes structured `<framing_proposal>` blocks via FramingProposalCard. Accept All deduplicates against existing items. Documents presented newest-first with temporal priority. Save button appears when edits are pending.
+30. **Framing Extraction** - Dedicated Framing tab with inline ThroughlineEditor for direct editing. Three generation paths: (1) "Generate/Regenerate from Documents" button triggers Discovery Guide inline and shows review panel, (2) Run Agents tab for full agent control, (3) Discovery Agent in chat proposes structured `<framing_proposal>` blocks via FramingProposalCard. Accept All deduplicates against existing items. Documents presented newest-first with temporal priority. Save button appears when edits are pending. Includes Ground-Truth Corrections textarea for free-text overrides injected into every agent prompt as authoritative context.
 31. **Value Alignment** - Flexible alignment tracking per discovery: target department, KPIs, department goals, company priority, strategic pillar, notes. Populated progressively as information emerges during discovery.
 32. **Sponsor/Stakeholder Linking** - Discoveries can be linked to an executive sponsor and multiple stakeholders from the stakeholder database.
 33. **Resolution Annotations** - Convergence resolution (hypothesis/gap statuses) visible in Outputs tab via agent analysis. Per-item annotation UI removed from Framing tab to avoid redundancy with Tasks.
@@ -138,7 +138,7 @@ This document contains detailed architecture documentation. For essential Claude
 
 **Legacy Agent Support:** Original 8 agents available via `include_legacy=true` query param on `/api/disco/agents`. Legacy outputs display correctly in UI.
 
-**Prompt Version:** v1.4 Consolidated (2026-02-15) - Discovery Guide v1.4 adds Five Whys/root cause analysis, framing extraction, and temporal priority (newer documents weighted higher). Requirements Generator v1.4 adds tool/platform recommendations, eval/QA plans, value alignment confirmation, AI risk/compliance review. See `/backend/disco_agents/`
+**Prompt Version:** v2.0 Consolidated (2026-02-16) - Discovery Guide v2.0 adds unified adaptive output. All agents filter rejected throughline items and receive user corrections as authoritative ground-truth context. Previous: v1.4 (2026-02-15) adds Five Whys/root cause, framing extraction, temporal priority. Requirements Generator v1.4 adds tool/platform recommendations, eval/QA plans, value alignment confirmation, AI risk/compliance review. See `/backend/disco_agents/`
 **Previous Version:** v1.1 (2026-02-12) - Throughline awareness, v1.0 (2026-02-02), v4.2 (2026-01-25) - Legacy agents still available for backwards compatibility
 
 ## Database Schema
@@ -195,7 +195,7 @@ This document contains detailed architecture documentation. For essential Claude
 - `compass_status_reports` - Career status reports with rubric scores
 
 ### DISCO Tables (formerly PuRDy - `purdy_*` table names still accepted for backwards compatibility)
-- `disco_initiatives` - Discovery container (includes `goal_alignment_score`, `goal_alignment_details` for strategic alignment, `throughline` JSONB for structured input framing, `value_alignment` JSONB for KPIs/goals/pillar, `target_department`, `sponsor_stakeholder_id`, `stakeholder_ids UUID[]`, `resolution_annotations` JSONB for user overrides)
+- `disco_initiatives` - Discovery container (includes `goal_alignment_score`, `goal_alignment_details` for strategic alignment, `throughline` JSONB for structured input framing, `value_alignment` JSONB for KPIs/goals/pillar, `target_department`, `sponsor_stakeholder_id`, `stakeholder_ids UUID[]`, `resolution_annotations` JSONB for user overrides, `user_corrections` TEXT for ground-truth overrides injected into agent prompts)
 - `disco_initiative_members` - Multi-user sharing
 - `disco_documents` - Per-discovery documents
 - `disco_document_chunks` - Chunked + embedded for RAG
@@ -253,6 +253,7 @@ Run migrations in order from `/database/migrations/`:
 | 072 | disco_restructure | Value alignment, sponsor/stakeholder, resolution annotations on `disco_initiatives`; triage_suggestions on `disco_outputs`; source tracking on `project_tasks` |
 | 074 | initiative_folder_links | `disco_initiative_folder_links` table for vault folder-to-initiative associations |
 | 075 | task_kraken | Agenticity columns on `ai_projects` (score, evaluation JSONB, task hash) |
+| 076 | initiative_corrections | `user_corrections` TEXT on `disco_initiatives` for ground-truth overrides |
 
 ## Important Files Reference
 
