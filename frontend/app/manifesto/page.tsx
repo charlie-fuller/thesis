@@ -139,39 +139,22 @@ const principles = [
   },
 ]
 
-const agentExamples = [
-  {
-    principle: 'Principle 1 (State Change)',
-    quote: 'This doesn\'t align with Principle 1 (State Change). The proposed action would produce documentation but no measurable shift in behavior, process, or outcome. What state are we trying to change here?',
-  },
-  {
-    principle: 'Principle 2 (Problems Before Solutions)',
-    quote: 'We\'re discussing tools before fully understanding the problem space. What problem are we solving, and have we confirmed it\'s the right one?',
-  },
-  {
-    principle: 'Principle 3 (Evidence Over Eloquence)',
-    quote: 'This recommendation sounds compelling but isn\'t grounded in evidence from the knowledge base or observed data. What are we basing this on?',
-  },
-]
-
 const alignedExamples = [
-  { text: 'Running DISCO discovery before recommending a platform', principles: '1, 2, 10' },
-  { text: 'Citing KB documents when making a recommendation', principles: '3' },
-  { text: 'Including adoption risk analysis alongside technical evaluation', principles: '4, 6' },
-  { text: 'Presenting three options with tradeoffs and letting the user choose', principles: '5, 6' },
-  { text: 'Flagging that a proposed automation removes human judgment', principles: '5' },
+  { text: 'Running DISCO discovery before recommending a platform', principles: 'P1, P2, P10' },
+  { text: 'Agent cites KB documents to support a recommendation', principles: 'P3' },
+  { text: 'Analysis includes adoption risk alongside technical evaluation', principles: 'P4, P6' },
+  { text: 'Presenting options with tradeoffs; user chooses', principles: 'P5, P6' },
+  { text: 'Flagging that a proposed automation removes a human decision point', principles: 'P5' },
 ]
 
 const misalignedExamples = [
-  { text: 'Recommending a tool because "it\'s what everyone is using" without problem analysis', principles: '2, 3' },
-  { text: 'Building a demo that won\'t connect to any production workflow', principles: '1' },
-  { text: 'Producing a 50-page strategy document that nobody will read', principles: '1, 7' },
-  { text: 'Ignoring adoption concerns because "the technology is clearly better"', principles: '4' },
-  { text: 'Automating a decision process without human checkpoints', principles: '5' },
-  { text: 'Analyzing an initiative from only a financial perspective', principles: '6' },
-  { text: 'Blocking a team from experimenting because governance hasn\'t been "approved" yet', principles: '8' },
-  { text: 'Implementing a change without considering downstream effects', principles: '9' },
-  { text: 'Each team member using a completely different evaluation framework', principles: '10' },
+  { text: 'Recommending a tool because "everyone is using it" without problem analysis', principles: 'P2, P3' },
+  { text: 'Building a demo disconnected from any production workflow', principles: 'P1' },
+  { text: '50-page strategy document that nobody will read', principles: 'P1, P7' },
+  { text: 'Ignoring adoption concerns because "the technology is better"', principles: 'P4' },
+  { text: 'Automating a decision process without human checkpoints', principles: 'P5' },
+  { text: 'Analyzing from only a financial perspective', principles: 'P6' },
+  { text: 'Blocking experimentation because governance hasn\'t been "approved"', principles: 'P8' },
 ]
 
 function PrincipleCard({ principle, expanded = false }: { principle: typeof principles[0]; expanded?: boolean }) {
@@ -223,6 +206,61 @@ function PrincipleCard({ principle, expanded = false }: { principle: typeof prin
                 {paragraph}
               </p>
             ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CollapsibleSection({
+  icon,
+  iconBg,
+  title,
+  summary,
+  children,
+  defaultOpen = false,
+}: {
+  icon: React.ReactNode
+  iconBg: string
+  title: string
+  summary: string
+  children: React.ReactNode
+  defaultOpen?: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen)
+
+  return (
+    <div className="card overflow-hidden">
+      <div
+        className="flex items-start gap-4 p-5 cursor-pointer hover:bg-hover transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center`}>
+          {icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg font-semibold text-primary leading-snug">{title}</h3>
+          <p className="text-secondary mt-1 text-sm leading-relaxed">{summary}</p>
+        </div>
+        <button
+          className="flex-shrink-0 mt-1 p-1 text-muted hover:text-primary transition-colors"
+          aria-label={isOpen ? 'Collapse' : 'Expand'}
+        >
+          <svg
+            className={`w-5 h-5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+      {isOpen && (
+        <div className="px-5 pb-5 pt-0">
+          <div className="border-t border-default pt-4 ml-12">
+            {children}
           </div>
         </div>
       )}
@@ -347,186 +385,291 @@ export default function ManifestoPage() {
           {/* ===== THE CHECK ===== */}
           {activeTab === 'check' && (
             <div>
-              {/* Intro */}
+              {/* Intro -- always visible */}
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-primary mb-2">The Manifesto Check</h2>
-                <p className="text-secondary">
-                  An operational test any action, command, or feature can be run against &mdash; for both agents and humans.
+                <p className="text-secondary leading-relaxed">
+                  These principles aren&apos;t aspirational. The platform scores every agent response against them in real time, flags drift, and surfaces compliance data to you. This is how we enforce it.
                 </p>
               </div>
 
-              {/* Agent Protocol */}
-              <div className="card p-6 mb-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+              <div className="space-y-4">
+                {/* Section 1: How the System Enforces It */}
+                <CollapsibleSection
+                  icon={
                     <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
+                  }
+                  iconBg="bg-purple-100 dark:bg-purple-900/30"
+                  title="How the System Enforces It"
+                  summary="Runtime scoring on every response. Semantic evaluation in the background. Weekly digest of trends."
+                >
+                  <div className="space-y-6">
+                    <div>
+                      <h4 className="text-sm font-semibold text-primary uppercase tracking-wide mb-3">Runtime Scoring (Always On)</h4>
+                      <ul className="space-y-2">
+                        {[
+                          'Every agent response scored against the manifesto in real time',
+                          'Pattern-matching detects principle signals -- microsecond latency, zero impact on response time',
+                          '14 agents have designated "champion" principles they\'re expected to demonstrate',
+                          'Results per message: score (0-1), detected principles, gaps, compliance level',
+                        ].map((item, i) => (
+                          <li key={i} className="flex items-start gap-2.5">
+                            <svg className="w-4 h-4 text-teal-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4" />
+                            </svg>
+                            <span className="text-secondary text-sm">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-semibold text-primary uppercase tracking-wide mb-3">Semantic Evaluation (Background)</h4>
+                      <ul className="space-y-2">
+                        {[
+                          'When pattern matching finds zero signals on an agent with expected principles, or on a 20% random sample, background LLM evaluation fires',
+                          'Evaluates against the full manifesto text using Claude Haiku',
+                          'Fire-and-forget -- never blocks or slows the response',
+                        ].map((item, i) => (
+                          <li key={i} className="flex items-start gap-2.5">
+                            <svg className="w-4 h-4 text-teal-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4" />
+                            </svg>
+                            <span className="text-secondary text-sm">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-semibold text-primary uppercase tracking-wide mb-3">Feedback Loops</h4>
+                      <ul className="space-y-2">
+                        {[
+                          'Weekly digest: per-agent compliance stats, level distribution, drift alerts',
+                          'Admin analytics endpoint for deeper analysis',
+                          '34 dedicated unit tests ensure the scoring system itself stays accurate',
+                        ].map((item, i) => (
+                          <li key={i} className="flex items-start gap-2.5">
+                            <svg className="w-4 h-4 text-teal-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4" />
+                            </svg>
+                            <span className="text-secondary text-sm">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
-                  <h3 className="text-lg font-semibold text-primary">For Agents</h3>
-                </div>
+                </CollapsibleSection>
 
-                <p className="text-secondary leading-relaxed mb-4">
-                  Every agent carries these principles as operational context. When output conflicts with the manifesto, agents flag it directly &mdash; not as a footnote, not softened, not silently ignored.
-                </p>
-
-                <div className="mb-4">
-                  <h4 className="text-sm font-semibold text-primary uppercase tracking-wide mb-3">When to invoke</h4>
-                  <ul className="space-y-2">
-                    {[
-                      'Before finalizing any recommendation or output',
-                      'When evaluating initiatives, projects, or proposals',
-                      'When a user request conflicts with manifesto principles',
-                      'When generating content that could be theatre rather than substance',
-                      'During DISCO processes at each phase transition',
-                    ].map((item, i) => (
-                      <li key={i} className="flex items-start gap-2.5">
-                        <svg className="w-4 h-4 text-teal-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4" />
-                        </svg>
-                        <span className="text-secondary text-sm">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="text-sm font-semibold text-primary uppercase tracking-wide mb-3">How agents flag concerns</h4>
-                  <div className="space-y-3">
-                    {agentExamples.map((ex, i) => (
-                      <div key={i} className="border-l-3 border-purple-400 bg-purple-50 dark:bg-purple-900/10 rounded-r-lg px-4 py-3">
-                        <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide">{ex.principle}</span>
-                        <p className="text-secondary text-sm mt-1 leading-relaxed italic">&ldquo;{ex.quote}&rdquo;</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Human Self-Check */}
-              <div className="card p-6 mb-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                {/* Section 2: Compliance Levels */}
+                <CollapsibleSection
+                  icon={
+                    <svg className="w-4 h-4 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
-                  </div>
-                  <h3 className="text-lg font-semibold text-primary">For Humans: Self-Check</h3>
-                </div>
-
-                <p className="text-secondary leading-relaxed mb-5">
-                  Before shipping, building, recommending, or presenting anything, run through these:
-                </p>
-
-                <div className="overflow-x-auto -mx-6 px-6">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-default">
-                        <th className="text-left py-3 pr-4 text-xs font-semibold text-muted uppercase tracking-wide w-8">#</th>
-                        <th className="text-left py-3 pr-4 text-xs font-semibold text-muted uppercase tracking-wide w-48">Principle</th>
-                        <th className="text-left py-3 text-xs font-semibold text-muted uppercase tracking-wide">Ask Yourself</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {principles.map((p) => (
-                        <tr key={p.id} className="border-b border-default last:border-0">
-                          <td className="py-3 pr-4 text-primary font-semibold">{p.id}</td>
-                          <td className="py-3 pr-4 text-primary font-medium">{p.title.replace(/\.$/, '')}</td>
-                          <td className="py-3 text-secondary">{p.checkQuestion}</td>
-                        </tr>
+                  }
+                  iconBg="bg-teal-100 dark:bg-teal-900/30"
+                  title="Compliance Levels & What You See"
+                  summary="Three levels -- aligned, drifting, misaligned -- visible on every scored message."
+                >
+                  <div className="space-y-4">
+                    {/* Level rows */}
+                    <div className="space-y-3">
+                      {[
+                        {
+                          level: 'Aligned',
+                          threshold: '>= 0.60',
+                          color: 'teal',
+                          dotClass: 'bg-teal-500',
+                          bgClass: 'bg-teal-50 dark:bg-teal-900/10 border-teal-200 dark:border-teal-800',
+                          textClass: 'text-teal-700 dark:text-teal-400',
+                          desc: 'Agent actively demonstrates expected principles',
+                        },
+                        {
+                          level: 'Drifting',
+                          threshold: '0.30 - 0.59',
+                          color: 'amber',
+                          dotClass: 'bg-amber-500',
+                          bgClass: 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800',
+                          textClass: 'text-amber-700 dark:text-amber-400',
+                          desc: 'Some principle engagement but gaps detected',
+                        },
+                        {
+                          level: 'Misaligned',
+                          threshold: '< 0.30',
+                          color: 'red',
+                          dotClass: 'bg-red-500',
+                          bgClass: 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800',
+                          textClass: 'text-red-700 dark:text-red-400',
+                          desc: 'Agent is not demonstrating expected principles',
+                        },
+                      ].map((row) => (
+                        <div key={row.level} className={`flex items-center gap-4 px-4 py-3 rounded-lg border ${row.bgClass}`}>
+                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${row.dotClass}`} />
+                          <div className="flex-1 min-w-0">
+                            <span className={`font-semibold text-sm ${row.textClass}`}>{row.level}</span>
+                            <span className="text-muted text-xs ml-2">({row.threshold})</span>
+                            <p className="text-secondary text-sm mt-0.5">{row.desc}</p>
+                          </div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Aligned vs Misaligned */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {/* Aligned */}
-                <div className="card p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                      <svg className="w-3.5 h-3.5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                      </svg>
                     </div>
-                    <h3 className="font-semibold text-green-700 dark:text-green-400">Aligned</h3>
-                  </div>
-                  <ul className="space-y-3">
-                    {alignedExamples.map((ex, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="text-secondary text-sm leading-relaxed">{ex.text}</span>
-                        <span className="flex-shrink-0 text-xs font-mono text-muted bg-hover px-1.5 py-0.5 rounded">
-                          {ex.principles}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
 
-                {/* Misaligned */}
-                <div className="card p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-6 h-6 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                      <svg className="w-3.5 h-3.5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                    {/* What You See */}
+                    <div className="mt-4 pt-4 border-t border-default">
+                      <h4 className="text-sm font-semibold text-primary uppercase tracking-wide mb-3">What You See</h4>
+                      <ul className="space-y-2">
+                        {[
+                          'Colored dot appears next to agent messages in chat and meeting rooms',
+                          'Hover shows which principles were detected',
+                          'If an agent drifts on expected principles for 3+ messages, a drift alert is raised',
+                        ].map((item, i) => (
+                          <li key={i} className="flex items-start gap-2.5">
+                            <svg className="w-4 h-4 text-teal-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4" />
+                            </svg>
+                            <span className="text-secondary text-sm">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <h3 className="font-semibold text-red-700 dark:text-red-400">Misaligned</h3>
                   </div>
-                  <ul className="space-y-3">
-                    {misalignedExamples.map((ex, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="text-secondary text-sm leading-relaxed">{ex.text}</span>
-                        <span className="flex-shrink-0 text-xs font-mono text-muted bg-hover px-1.5 py-0.5 rounded">
-                          {ex.principles}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
+                </CollapsibleSection>
 
-              {/* Stop and Present Protocol */}
-              <div className="card p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                {/* Section 3: Aligned vs Misaligned */}
+                <CollapsibleSection
+                  icon={
+                    <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  }
+                  iconBg="bg-blue-100 dark:bg-blue-900/30"
+                  title="Aligned vs Misaligned"
+                  summary="Quick reference: what alignment looks like in practice, plus a self-check for your own work."
+                >
+                  <div className="space-y-6">
+                    {/* Side-by-side grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Aligned */}
+                      <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10 p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                            <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <h4 className="font-semibold text-sm text-green-700 dark:text-green-400">Aligned</h4>
+                        </div>
+                        <ul className="space-y-2.5">
+                          {alignedExamples.map((ex, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="text-secondary text-sm leading-relaxed">{ex.text}</span>
+                              <span className="flex-shrink-0 text-xs font-mono text-muted bg-white/60 dark:bg-white/5 px-1.5 py-0.5 rounded">
+                                {ex.principles}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Misaligned */}
+                      <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/10 p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-5 h-5 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                            <svg className="w-3 h-3 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </div>
+                          <h4 className="font-semibold text-sm text-red-700 dark:text-red-400">Misaligned</h4>
+                        </div>
+                        <ul className="space-y-2.5">
+                          {misalignedExamples.map((ex, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="text-secondary text-sm leading-relaxed">{ex.text}</span>
+                              <span className="flex-shrink-0 text-xs font-mono text-muted bg-white/60 dark:bg-white/5 px-1.5 py-0.5 rounded">
+                                {ex.principles}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Human Self-Check */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-primary uppercase tracking-wide mb-3">Human Self-Check</h4>
+                      <p className="text-secondary text-sm mb-4">
+                        Before shipping, building, recommending, or presenting anything:
+                      </p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-default">
+                              <th className="text-left py-2 pr-3 text-xs font-semibold text-muted uppercase tracking-wide w-8">#</th>
+                              <th className="text-left py-2 pr-3 text-xs font-semibold text-muted uppercase tracking-wide w-44">Principle</th>
+                              <th className="text-left py-2 text-xs font-semibold text-muted uppercase tracking-wide">Ask Yourself</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {principles.map((p) => (
+                              <tr key={p.id} className="border-b border-default last:border-0">
+                                <td className="py-2 pr-3 text-primary font-semibold">{p.id}</td>
+                                <td className="py-2 pr-3 text-primary font-medium text-sm">{p.title.replace(/\.$/, '')}</td>
+                                <td className="py-2 text-secondary text-sm">{p.checkQuestion}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </CollapsibleSection>
+
+                {/* Section 4: Stop-and-Present Protocol */}
+                <CollapsibleSection
+                  icon={
                     <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                     </svg>
-                  </div>
-                  <h3 className="text-lg font-semibold text-primary">The Stop-and-Present Protocol</h3>
-                </div>
+                  }
+                  iconBg="bg-amber-100 dark:bg-amber-900/30"
+                  title="The Stop-and-Present Protocol"
+                  summary="When an agent identifies a genuine manifesto conflict, it stops and presents the conflict directly."
+                >
+                  <div>
+                    <p className="text-secondary leading-relaxed mb-5">
+                      When an agent identifies a genuine manifesto conflict:
+                    </p>
 
-                <p className="text-secondary leading-relaxed mb-5">
-                  When an agent identifies a genuine manifesto conflict:
-                </p>
+                    <div className="space-y-3">
+                      {[
+                        { step: 1, label: 'Stop', desc: 'generating the current output direction' },
+                        { step: 2, label: 'Name', desc: 'the specific principle being violated' },
+                        { step: 3, label: 'Explain', desc: 'why the current path conflicts with the principle' },
+                        { step: 4, label: 'Present', desc: 'the conflict to the user clearly and directly' },
+                        { step: 5, label: 'Ask', desc: 'the user how they want to proceed' },
+                      ].map((item) => (
+                        <div key={item.step} className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                            <span className="text-amber-700 dark:text-amber-400 text-xs font-bold">{item.step}</span>
+                          </div>
+                          <p className="text-sm">
+                            <span className="font-semibold text-primary">{item.label}</span>
+                            <span className="text-secondary"> {item.desc}</span>
+                          </p>
+                        </div>
+                      ))}
+                    </div>
 
-                <div className="space-y-3">
-                  {[
-                    { step: 1, label: 'Stop', desc: 'generating the current output direction' },
-                    { step: 2, label: 'Name', desc: 'the specific principle being violated' },
-                    { step: 3, label: 'Explain', desc: 'why the current path conflicts with the principle' },
-                    { step: 4, label: 'Present', desc: 'the conflict to the user clearly and directly' },
-                    { step: 5, label: 'Ask', desc: 'the user how they want to proceed' },
-                  ].map((item) => (
-                    <div key={item.step} className="flex items-center gap-3">
-                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                        <span className="text-amber-700 dark:text-amber-400 text-xs font-bold">{item.step}</span>
-                      </div>
-                      <p className="text-sm">
-                        <span className="font-semibold text-primary">{item.label}</span>
-                        <span className="text-secondary"> {item.desc}</span>
+                    <div className="mt-5 pt-4 border-t border-default">
+                      <p className="text-muted text-sm italic">
+                        The user always has the final say. The manifesto informs; it doesn&apos;t override human judgment. That would violate Principle 5.
                       </p>
                     </div>
-                  ))}
-                </div>
-
-                <div className="mt-5 pt-4 border-t border-default">
-                  <p className="text-muted text-sm italic">
-                    The user always has the final say. The manifesto informs; it doesn&apos;t override human judgment. That would violate Principle 5.
-                  </p>
-                </div>
+                  </div>
+                </CollapsibleSection>
               </div>
             </div>
           )}
