@@ -912,7 +912,6 @@ export default function ProjectDetailModal({
               Chat
             </button>
             <button
-              onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
               onClick={(e) => { e.stopPropagation(); onClose(); }}
               className="p-3 text-muted hover:text-primary hover:bg-hover rounded-lg transition-colors relative z-20 cursor-pointer"
               title="Close"

@@ -639,6 +639,8 @@ async def get_project_linked_documents(
     Returns documents linked via the project_documents junction table,
     sorted by linked_at descending (most recent first).
     """
+    if not current_user.get("client_id"):
+        raise HTTPException(status_code=401, detail="User profile not found")
     # Verify project exists and belongs to client
     project_result = (
         supabase.table("ai_projects")
@@ -791,6 +793,8 @@ async def get_project_conversation_history(
 
     Returns conversations newest first.
     """
+    if not current_user.get("client_id"):
+        raise HTTPException(status_code=401, detail="User profile not found")
     # Verify project exists and belongs to client
     proj = (
         supabase.table("ai_projects")
@@ -1371,6 +1375,8 @@ async def get_project_stakeholders(
     project_id: str, current_user: dict = Depends(get_current_user), supabase=Depends(get_supabase)
 ):
     """Get all stakeholders linked to a project."""
+    if not current_user.get("client_id"):
+        raise HTTPException(status_code=401, detail="User profile not found")
     # Verify project exists and belongs to client
     proj = (
         supabase.table("ai_projects")

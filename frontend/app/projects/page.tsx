@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Target,
@@ -281,6 +281,7 @@ function ProjectsPageContent() {
   const [error, setError] = useState<string | null>(null)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const closingRef = useRef(false)
 
   // Get initiative filter and project deep-link from URL
   const initiativeFilter = searchParams.get('initiative') || ''
@@ -338,6 +339,7 @@ function ProjectsPageContent() {
   }, [projectDeepLink, projects, selectedProject])
 
   const handleViewProject = (project: Project) => {
+    if (closingRef.current) return
     setSelectedProject(project)
   }
 
@@ -689,7 +691,11 @@ function ProjectsPageContent() {
         <ProjectDetailModal
           project={selectedProject}
           open={true}
-          onClose={() => setSelectedProject(null)}
+          onClose={() => {
+            closingRef.current = true
+            setSelectedProject(null)
+            setTimeout(() => { closingRef.current = false }, 300)
+          }}
         />
       )}
 
