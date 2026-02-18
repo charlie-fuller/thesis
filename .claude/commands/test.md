@@ -55,8 +55,8 @@ Based on the user's final selection:
 2. **DOTENV_PRIVATE_KEY** - Required for decryption. Found in `backend/.env.keys`.
 
 ### For Full E2E mode (production)
-1. **Chrome DevTools MCP** - Chrome browser must be open with DevTools MCP connected
-2. **Authentication** - You should be logged into thesis-mvp.vercel.app in Chrome
+1. **Playwright MCP** - Use the Playwright MCP server for all browser automation (not Chrome DevTools)
+2. **Authentication** - You should be logged into thesis-mvp.vercel.app
 
 ### For Quality mode
 1. **pre-commit** - Install with `pip install pre-commit`
@@ -255,7 +255,7 @@ Record: passed, failed, skipped counts.
 
 ## Stage 4: Basic E2E Browser Tests
 
-E2E tests use Chrome DevTools MCP to automate browser interactions.
+E2E tests use **Playwright MCP** to automate browser interactions.
 
 ### Step 4.1: Check Server Status
 
@@ -285,9 +285,9 @@ npm run dev
 
 Wait for both servers to be ready.
 
-### Step 4.3: Verify Chrome DevTools MCP Connection
+### Step 4.3: Verify Playwright MCP Connection
 
-Use `mcp__chrome-devtools__list_pages` to verify Chrome is connected.
+Use `mcp__playwright__browser_navigate` to verify Playwright is connected.
 
 ### Step 4.4: Run Basic E2E Test Scenarios
 
@@ -351,7 +351,7 @@ TOTAL:                       XXX passed, XXX failed, XXX skipped
 
 # OPTION: --full (Comprehensive Production E2E)
 
-Run comprehensive end-to-end test of ALL Thesis functionality using Chrome DevTools MCP on production.
+Run comprehensive end-to-end test of ALL Thesis functionality using **Playwright MCP** on production.
 
 **Test Configuration:**
 - **Production URL**: https://thesis-mvp.vercel.app
@@ -392,7 +392,7 @@ Execute ALL test phases in order. After each test, record PASS/FAIL.
 ### Test 2.1: Dashboard Initial Load
 1. Navigate to `/`
 2. Verify dashboard content loads
-3. Check for console errors via `list_console_messages`
+3. Check for console errors via `mcp__playwright__browser_console_messages`
 
 ### Test 2.2: Dashboard Widgets Present
 1. Verify key dashboard sections are visible
@@ -897,7 +897,7 @@ Execute ALL test phases in order. After each test, record PASS/FAIL.
 3. Check projects for "E2E" - should be empty
 
 ### Cleanup 15.5: Final Console Error Check
-1. Run `list_console_messages`
+1. Run `mcp__playwright__browser_console_messages`
 2. Check for any ERROR level messages
 3. Document any issues found
 
@@ -1234,13 +1234,13 @@ Tests pass individually but fail together - module state pollution. Use `pytest-
 
 ## E2E Issues
 
-### Chrome Not Connected
-- Ensure Chrome is open
-- Run `mcp__chrome-devtools__list_pages` to verify
+### Playwright Not Connected
+- Verify Playwright MCP server is running via `/mcp`
+- Use `mcp__playwright__browser_snapshot` to check page state
 
 ### Element Not Found
-- Always take fresh snapshot before interacting
-- UIDs change between page loads
+- Always take a fresh snapshot (`mcp__playwright__browser_snapshot`) before interacting
+- Use accessibility snapshots to find interactive elements
 
 ### Authentication Issues
 - Complete login flow if redirected
@@ -1248,7 +1248,7 @@ Tests pass individually but fail together - module state pollution. Use `pytest-
 
 ### Slow Responses
 - KB context chat may take 10-15 seconds
-- Use `mcp__chrome-devtools__wait_for` for expected content
+- Use `mcp__playwright__browser_wait_for` for expected content
 
 ---
 
