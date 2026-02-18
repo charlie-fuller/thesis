@@ -261,6 +261,7 @@ def build_project_context(project: Dict, related_documents: List[Dict]) -> str:
 
     # Project details section
     context_parts.append("<project_context>")
+    context_parts.append(f"Project ID: {project.get('id', 'Unknown')}")
     context_parts.append(f"Title: {project.get('title', 'Unknown')}")
     context_parts.append(f"Code: {project.get('project_code', 'N/A')}")
     context_parts.append(f"Department: {project.get('department', 'Not specified')}")

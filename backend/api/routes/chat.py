@@ -1699,14 +1699,14 @@ When the user asks to update the project, you can propose changes.
 3. After explicit user confirmation, emit at the END of your response:
 
 <project_updates>
-{"project_id": "uuid", "status": "active", "next_step": "...", "roi_potential": 4}
+{"project_id": "use Project ID from <project_context>", "status": "active", "next_step": "...", "roi_potential": 4}
 </project_updates>
 
-Updatable fields: status, next_step, blockers, description, current_state, desired_state, roi_potential (1-5), implementation_effort (1-5), strategic_alignment (1-5), stakeholder_readiness (1-5).
+The project_id MUST come from the "Project ID:" field in <project_context>. Updatable fields: status, next_step, blockers, description, current_state, desired_state, roi_potential (1-5), implementation_effort (1-5), strategic_alignment (1-5), stakeholder_readiness (1-5), department.
 
 RULES:
 - Only include action tags AFTER explicit user confirmation
-- Only use IDs from injected context -- never guess or fabricate IDs
+- Use the Project ID from <project_context> and task IDs from <project_tasks> -- never guess or fabricate IDs
 - For score changes, explain your rationale
 </project_action_capabilities>"""
                             system_prompt = system_prompt + project_action_instructions
