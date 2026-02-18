@@ -266,7 +266,7 @@ export default function AgentSelector({
 
       {/* Dropdown menu - opens upward */}
       {isOpen && (
-        <div className="absolute z-50 bottom-full mb-2 w-80 rounded-lg border border-neutral-700 bg-neutral-800 shadow-xl">
+        <div className="absolute z-50 bottom-full mb-2 w-[28rem] max-h-[70vh] overflow-y-auto rounded-lg border border-neutral-700 bg-neutral-800 shadow-xl">
           <div className="p-1.5">
             <div className="text-xs font-medium text-neutral-500 px-2 py-0.5 mb-0.5">
               Select agents (max {maxAgents})
@@ -287,13 +287,13 @@ export default function AgentSelector({
               <div className={`p-1 rounded-md ${getAgentColor('coordinator')}`}>
                 <AgentIcon name="coordinator" size="sm" />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-neutral-200 leading-tight">
+              <div className="flex-1 min-w-0 truncate">
+                <span className="text-sm font-medium text-neutral-200">
                   Auto (Coordinator)
-                </div>
-                <div className="text-xs text-neutral-500 truncate leading-tight">
+                </span>
+                <span className="text-xs text-neutral-500 ml-1.5">
                   Automatically routes to the best agent
-                </div>
+                </span>
               </div>
               {selectedAgents.length === 0 && (
                 <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
@@ -334,13 +334,13 @@ export default function AgentSelector({
                         <div className={`p-1 rounded-md ${getAgentColor(agent)}`}>
                           <AgentIcon name={agent} size="sm" />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-neutral-200 leading-tight">
+                        <div className="flex-1 min-w-0 truncate">
+                          <span className="text-sm font-medium text-neutral-200">
                             {info?.displayName || agent}
-                          </div>
-                          <div className="text-xs text-neutral-500 truncate leading-tight">
+                          </span>
+                          <span className="text-xs text-neutral-500 ml-1.5">
                             {info?.description || ''}
-                          </div>
+                          </span>
                         </div>
                         {isSelected && (
                           <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
