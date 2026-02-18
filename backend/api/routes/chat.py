@@ -1677,36 +1677,40 @@ User's question: {chat_request.message}"""
 
                             # Append project action instructions to system prompt
                             # so any agent can handle task/project editing
-                            project_action_instructions = """
+                            # Include the actual project ID so agents don't need to parse it
+                            _action_pid = pid
+                            project_action_instructions = f"""
 
 <project_action_capabilities>
+IMPORTANT: This conversation is linked to project ID: {_action_pid}
+The user's message includes <project_context>, <project_tasks>, and <project_kb_documents> blocks with full project data. Use these for context.
+
 ## Task Editing
-When the user asks to update tasks listed in <project_tasks>, you can propose edits.
-1. Reference the task by its ID from <project_tasks> context
-2. Present proposed changes clearly (field: current -> new)
-3. After explicit user confirmation, emit at the END of your response:
+When the user asks to update tasks, propose edits referencing task IDs from the <project_tasks> block in the user message.
+1. Present proposed changes clearly (field: current -> new)
+2. After explicit user confirmation, emit at the END of your response:
 
 <task_updates>
-[{"task_id": "uuid", "status": "in_progress"}, {"task_id": "uuid", "priority": 1}]
+[{{"task_id": "uuid-from-project-tasks", "status": "in_progress"}}]
 </task_updates>
 
 Updatable fields: title, status (pending/in_progress/blocked/completed), priority (1-5), assignee_name, due_date (YYYY-MM-DD or null), description, blocker_reason, notes.
 
 ## Project Editing
-When the user asks to update the project, you can propose changes.
-1. Reference current values from <project_context>
-2. Present proposed changes with rationale
-3. After explicit user confirmation, emit at the END of your response:
+When the user asks to update the project, propose changes referencing current values from <project_context>.
+1. Present proposed changes with rationale
+2. After explicit user confirmation, emit at the END of your response:
 
 <project_updates>
-{"project_id": "use Project ID from <project_context>", "status": "active", "next_step": "...", "roi_potential": 4}
+{{"project_id": "{_action_pid}", "status": "active", "next_step": "..."}}
 </project_updates>
 
-The project_id MUST come from the "Project ID:" field in <project_context>. Updatable fields: status, next_step, blockers, description, current_state, desired_state, roi_potential (1-5), implementation_effort (1-5), strategic_alignment (1-5), stakeholder_readiness (1-5), department.
+Updatable fields: status, next_step, blockers, description, current_state, desired_state, roi_potential (1-5), implementation_effort (1-5), strategic_alignment (1-5), stakeholder_readiness (1-5), department.
 
 RULES:
 - Only include action tags AFTER explicit user confirmation
-- Use the Project ID from <project_context> and task IDs from <project_tasks> -- never guess or fabricate IDs
+- The project_id for this conversation is: {_action_pid}
+- Use task IDs from <project_tasks> -- never guess or fabricate IDs
 - For score changes, explain your rationale
 </project_action_capabilities>"""
                             system_prompt = system_prompt + project_action_instructions
