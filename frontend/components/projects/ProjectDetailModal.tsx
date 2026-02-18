@@ -19,6 +19,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import {
   X,
@@ -818,7 +819,7 @@ export default function ProjectDetailModal({
   const statusConfig = STATUS_CONFIG[project.status] || STATUS_CONFIG.backlog
   const tierConfig = TIER_CONFIG[project.tier as keyof typeof TIER_CONFIG] || TIER_CONFIG[4]
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
@@ -2147,4 +2148,7 @@ export default function ProjectDetailModal({
       />
     </div>
   )
+
+  if (typeof document === 'undefined') return modalContent
+  return createPortal(modalContent, document.body)
 }
