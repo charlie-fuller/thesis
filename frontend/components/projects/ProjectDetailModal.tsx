@@ -827,10 +827,10 @@ export default function ProjectDetailModal({
       />
 
       {/* Modal - Fixed large size */}
-      <div className="relative bg-card border border-default rounded-xl shadow-2xl w-full max-w-[1400px] h-[90vh] flex flex-col mx-4">
+      <div className="relative bg-card border border-default rounded-xl shadow-2xl w-full max-w-[1400px] h-[90vh] flex flex-col mx-4" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b border-default group">
-          <div className="flex-1 min-w-0 pr-4">
+          <div className="flex-1 min-w-0 mr-4 overflow-hidden">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm font-mono font-bold text-muted">
                 {project.project_code || project.opportunity_code}
@@ -897,7 +897,7 @@ export default function ProjectDetailModal({
               </p>
             )}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0 relative z-10">
+          <div className="flex items-center gap-2 flex-shrink-0 relative z-20">
             <button
               onClick={() => {
                 onClose()
@@ -912,11 +912,13 @@ export default function ProjectDetailModal({
               Chat
             </button>
             <button
-              onClick={onClose}
-              className="p-3 text-muted hover:text-primary hover:bg-hover rounded-lg transition-colors relative z-10"
+              onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
+              className="p-3 text-muted hover:text-primary hover:bg-hover rounded-lg transition-colors relative z-20 cursor-pointer"
               title="Close"
+              aria-label="Close modal"
             >
-              <X className="w-6 h-6" />
+              <X className="w-6 h-6 pointer-events-none" />
             </button>
           </div>
         </div>
