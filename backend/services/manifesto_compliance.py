@@ -224,6 +224,16 @@ AGENT_EXPECTED_PRINCIPLES: dict[str, list[str]] = {
         "P3_evidence_over_eloquence",
         "P8_context_and_brevity",
     ],
+    "project_agent": [
+        "P3_evidence_over_eloquence",
+        "P8_context_and_brevity",
+        "P11_disco_methodology",
+    ],
+    "compass": [
+        "P3_evidence_over_eloquence",
+        "P5_people_are_the_center",
+        "P6_humans_decide",
+    ],
 }
 
 
