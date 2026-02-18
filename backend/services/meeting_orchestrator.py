@@ -779,7 +779,7 @@ The user can always ask you to expand. Default to SHORT.
         # Score manifesto compliance for facilitator
         facilitator_compliance = score_manifesto_compliance(message, "facilitator", source="meeting")
         facilitator_metadata = {"is_facilitator": True}
-        if facilitator_compliance.get("signals"):
+        if facilitator_compliance:
             facilitator_metadata["manifesto_compliance"] = facilitator_compliance
 
         # Record score for drift tracking
@@ -880,7 +880,7 @@ The user's current request is below. Create a unified summary based on what the 
                 "is_summary": True,
                 "tokens": {"input": tokens_input, "output": tokens_output},
             }
-            if reporter_compliance.get("signals"):
+            if reporter_compliance:
                 reporter_metadata["manifesto_compliance"] = reporter_compliance
 
             # Record score for drift tracking
@@ -1212,7 +1212,7 @@ Respond with ONLY the handoff message, nothing else."""
                     # Score manifesto compliance (pattern matching only, no LLM call)
                     compliance = score_manifesto_compliance(full_response, agent_name, source="meeting")
                     msg_metadata = {"tokens": {"input": tokens_input, "output": tokens_output}}
-                    if compliance.get("signals"):
+                    if compliance:
                         msg_metadata["manifesto_compliance"] = compliance
 
                     # Record score for drift tracking
@@ -1795,7 +1795,7 @@ Format: 1-2 sentences + optional question to another agent IN THIS MEETING.
                             "tokens": {"input": tokens_input, "output": tokens_output},
                             "autonomous": True,
                         }
-                        if autonomous_compliance.get("signals"):
+                        if autonomous_compliance:
                             autonomous_metadata["manifesto_compliance"] = autonomous_compliance
 
                         # Record score for drift tracking

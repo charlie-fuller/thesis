@@ -519,7 +519,7 @@ Instructions:
 
             # Score manifesto compliance (pattern matching only, no LLM call)
             compliance = score_manifesto_compliance(response_text, agent_name, source="chat")
-            if compliance.get("signals"):
+            if compliance:
                 assistant_metadata["manifesto_compliance"] = compliance
 
             # Record score for drift tracking
@@ -2191,7 +2191,7 @@ Instructions:
                         assistant_metadata["save_document"] = save_document_result
 
                     # Add manifesto compliance to metadata
-                    if compliance.get("signals"):
+                    if compliance:
                         assistant_metadata["manifesto_compliance"] = compliance
 
                     messages_to_insert = [
