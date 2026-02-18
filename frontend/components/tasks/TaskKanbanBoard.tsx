@@ -338,7 +338,9 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
         status: newStatus,
         position: newPosition,
       })
-      toast.success(`Task moved to ${newStatus.replace('_', ' ')}`)
+      if (oldStatus !== newStatus) {
+        toast.success(`Task moved to ${newStatus.replace('_', ' ')}`)
+      }
     } catch (error) {
       console.error('Failed to update task status:', error)
       toast.error('Failed to move task')
