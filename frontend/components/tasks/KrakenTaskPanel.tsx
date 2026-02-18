@@ -266,13 +266,16 @@ export default function KrakenTaskPanel({ task, onNotesUpdated }: KrakenTaskPane
     <div className="border-t border-default pt-3 mt-3">
       {/* Idle: Show button */}
       {phase === 'idle' && (
-        <button
-          onClick={runEvaluation}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
-        >
-          <Zap className="w-4 h-4" />
-          Release the Kraken
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={runEvaluation}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors shrink-0"
+          >
+            <Zap className="w-4 h-4" />
+            Release the Kraken
+          </button>
+          <span className="text-xs text-muted">AI evaluates this task and recommends which agents to involve</span>
+        </div>
       )}
 
       {/* Evaluating: Spinner */}
