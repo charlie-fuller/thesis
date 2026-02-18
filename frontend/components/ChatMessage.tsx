@@ -10,7 +10,9 @@ import { apiPost } from '@/lib/api';
 import SourceCitations, { SourceDocument } from './SourceCitations';
 import { AgentIcon, getAgentColor } from './AgentIcon';
 import FramingProposalCard, { FramingProposal } from './chat/FramingProposalCard';
+import ProjectUpdateCard, { ProjectUpdate } from './chat/ProjectUpdateCard';
 import TaskProposalCard, { TaskProposal } from './chat/TaskProposalCard';
+import TaskUpdateCard, { TaskUpdate } from './chat/TaskUpdateCard';
 
 interface Document {
   id: string
@@ -42,6 +44,11 @@ interface MessageMetadata {
   task_proposals_project_id?: string | null
   task_proposals_conversation_id?: string | null
   tasks_created?: boolean
+  task_updates?: TaskUpdate[]
+  task_updates_project_id?: string | null
+  task_updates_applied?: boolean
+  project_updates?: ProjectUpdate
+  project_updates_applied?: boolean
   framing_proposal?: FramingProposal
   framing_proposal_initiative_id?: string | null
   framing_applied?: boolean
@@ -188,6 +195,8 @@ function ChatMessage({ content, role, timestamp, documents, sources, onSourceCli
   // Strip <task_proposals> and <framing_proposal> blocks from displayed content (raw JSON shouldn't show)
   const displayContent = content
     .replace(/<task_proposals>[\s\S]*?<\/task_proposals>/g, '')
+    .replace(/<task_updates>[\s\S]*?<\/task_updates>/g, '')
+    .replace(/<project_updates>[\s\S]*?<\/project_updates>/g, '')
     .replace(/<framing_proposal>[\s\S]*?<\/framing_proposal>/g, '')
     .replace(/<save_document>[\s\S]*?<\/save_document>/g, '')
     .trimEnd();
@@ -433,6 +442,39 @@ function ChatMessage({ content, role, timestamp, documents, sources, onSourceCli
             projectId={metadata.task_proposals_project_id ?? null}
             conversationId={metadata.task_proposals_conversation_id ?? null}
           />
+        )}
+
+        {/* Task updates for assistant messages */}
+        {role === 'assistant' && !!metadata?.task_updates && !metadata?.task_updates_applied && (
+          <TaskUpdateCard
+            updates={metadata.task_updates}
+            projectId={metadata.task_updates_project_id ?? null}
+          />
+        )}
+
+        {/* Task updates applied badge */}
+        {role === 'assistant' && metadata?.task_updates_applied && (
+          <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Tasks updated
+          </div>
+        )}
+
+        {/* Project updates for assistant messages */}
+        {role === 'assistant' && !!metadata?.project_updates && !metadata?.project_updates_applied && (
+          <ProjectUpdateCard updates={metadata.project_updates} />
+        )}
+
+        {/* Project updates applied badge */}
+        {role === 'assistant' && metadata?.project_updates_applied && (
+          <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Project updated
+          </div>
         )}
 
         {/* Framing proposals for assistant messages */}

@@ -566,6 +566,39 @@ export default function ChatInterface({
                   }
                   return updated
                 })
+              } else if (data.type === 'task_updates') {
+                // Agent proposed task edits - store in message metadata
+                logger.debug(`Received ${data.updates?.length} task updates`)
+                setMessages(prev => {
+                  const updated = [...prev]
+                  if (updated[messageIndex]) {
+                    updated[messageIndex] = {
+                      ...updated[messageIndex],
+                      metadata: {
+                        ...updated[messageIndex].metadata,
+                        task_updates: data.updates,
+                        task_updates_project_id: data.project_id,
+                      }
+                    }
+                  }
+                  return updated
+                })
+              } else if (data.type === 'project_updates') {
+                // Agent proposed project edits - store in message metadata
+                logger.debug('Received project updates')
+                setMessages(prev => {
+                  const updated = [...prev]
+                  if (updated[messageIndex]) {
+                    updated[messageIndex] = {
+                      ...updated[messageIndex],
+                      metadata: {
+                        ...updated[messageIndex].metadata,
+                        project_updates: data.updates,
+                      }
+                    }
+                  }
+                  return updated
+                })
               } else if (data.type === 'framing_proposal') {
                 // Discovery Agent proposed framing - store in message metadata
                 logger.debug('Received framing proposal')

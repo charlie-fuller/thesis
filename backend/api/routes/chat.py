@@ -31,7 +31,12 @@ from services.manifesto_compliance import (
     should_semantic_evaluate,
     trigger_semantic_evaluation,
 )
-from services.project_context import build_project_context, get_scoring_related_documents
+from services.project_context import (
+    build_doc_digest_context,
+    build_project_context,
+    build_task_context,
+    get_scoring_related_documents,
+)
 from services.useable_output_detector import process_conversation_for_useable_output
 from system_instructions_loader import (
     get_active_system_instruction_version,
@@ -1606,10 +1611,9 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
 
             user_prompt = chat_request.message
 
-            # Inject project context for agents that need project awareness
-            # Reuse project_id_for_context from the earlier RAG scoping lookup when available
-            project_aware_agents = {"project_agent", "taskmaster"}
-            if selected_agent in project_aware_agents and (project_id_for_context or chat_request.conversation_id):
+            # Inject project context for any agent in a project-linked conversation
+            # All agents can see project context and use task/project editing actions
+            if project_id_for_context or chat_request.conversation_id:
                 try:
                     pid = project_id_for_context
                     if not pid and chat_request.conversation_id:
@@ -1630,9 +1634,83 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                                 project=proj_result.data, client_id=client_id, limit=5
                             )
                             project_context_text = build_project_context(proj_result.data, related_docs)
+
+                            # Fetch project tasks for context
+                            task_context_text = ""
+                            try:
+                                _pid = pid  # capture for lambda
+                                tasks_result = await asyncio.to_thread(
+                                    lambda: supabase.table("project_tasks")
+                                    .select("id, title, status, priority, assignee_name, due_date, blocker_reason")
+                                    .eq("linked_project_id", _pid)
+                                    .neq("status", "completed")
+                                    .order("priority")
+                                    .limit(30)
+                                    .execute()
+                                )
+                                if tasks_result.data:
+                                    task_context_text = build_task_context(tasks_result.data)
+                                    logger.info(f"Injected {len(tasks_result.data)} tasks for project {pid}")
+                            except Exception as task_err:
+                                logger.warning(f"Failed to load task context: {task_err}")
+
+                            # Fetch document digests for context
+                            doc_digest_text = ""
+                            try:
+                                from services.document_digests import get_project_document_digests
+
+                                _pid2 = pid
+                                doc_digests = await asyncio.to_thread(
+                                    lambda: get_project_document_digests(_pid2, supabase)
+                                )
+                                if doc_digests:
+                                    doc_digest_text = build_doc_digest_context(doc_digests)
+                                    logger.info(f"Injected {len(doc_digests)} doc digests for project {pid}")
+                            except Exception as digest_err:
+                                logger.warning(f"Failed to load doc digests: {digest_err}")
+
                             user_prompt = f"""{project_context_text}
+{task_context_text}
+{doc_digest_text}
 
 User's question: {chat_request.message}"""
+
+                            # Append project action instructions to system prompt
+                            # so any agent can handle task/project editing
+                            project_action_instructions = """
+
+<project_action_capabilities>
+## Task Editing
+When the user asks to update tasks listed in <project_tasks>, you can propose edits.
+1. Reference the task by its ID from <project_tasks> context
+2. Present proposed changes clearly (field: current -> new)
+3. After explicit user confirmation, emit at the END of your response:
+
+<task_updates>
+[{"task_id": "uuid", "status": "in_progress"}, {"task_id": "uuid", "priority": 1}]
+</task_updates>
+
+Updatable fields: title, status (pending/in_progress/blocked/completed), priority (1-5), assignee_name, due_date (YYYY-MM-DD or null), description, blocker_reason, notes.
+
+## Project Editing
+When the user asks to update the project, you can propose changes.
+1. Reference current values from <project_context>
+2. Present proposed changes with rationale
+3. After explicit user confirmation, emit at the END of your response:
+
+<project_updates>
+{"project_id": "uuid", "status": "active", "next_step": "...", "roi_potential": 4}
+</project_updates>
+
+Updatable fields: status, next_step, blockers, description, current_state, desired_state, roi_potential (1-5), implementation_effort (1-5), strategic_alignment (1-5), stakeholder_readiness (1-5).
+
+RULES:
+- Only include action tags AFTER explicit user confirmation
+- Only use IDs from injected context -- never guess or fabricate IDs
+- For score changes, explain your rationale
+</project_action_capabilities>"""
+                            system_prompt = system_prompt + project_action_instructions
+
                             logger.info(f"Injected project context for project {pid}")
                 except Exception as proj_err:
                     logger.warning(f"Failed to load project context: {proj_err}")
@@ -1945,6 +2023,42 @@ Instructions:
                         logger.warning(f"Failed to parse task_proposals JSON: {json_err}")
                         task_proposals_data = None
 
+            # Extract task updates from any agent response (when user is in project context)
+            task_updates_data = None
+            if "<task_updates>" in full_response:
+                tu_match = _re_extract.search(
+                    r"<task_updates>\s*(\[.*?\])\s*</task_updates>",
+                    full_response,
+                    _re_extract.DOTALL,
+                )
+                if tu_match:
+                    try:
+                        task_updates_data = json.loads(tu_match.group(1))
+                        full_response = full_response[: tu_match.start()] + full_response[tu_match.end() :]
+                        full_response = full_response.rstrip()
+                        logger.info(f"Extracted {len(task_updates_data)} task updates from {selected_agent} response")
+                    except json.JSONDecodeError as json_err:
+                        logger.warning(f"Failed to parse task_updates JSON: {json_err}")
+                        task_updates_data = None
+
+            # Extract project updates from any agent response (when user is in project context)
+            project_updates_data = None
+            if "<project_updates>" in full_response:
+                pu_match = _re_extract.search(
+                    r"<project_updates>\s*(\{.*?\})\s*</project_updates>",
+                    full_response,
+                    _re_extract.DOTALL,
+                )
+                if pu_match:
+                    try:
+                        project_updates_data = json.loads(pu_match.group(1))
+                        full_response = full_response[: pu_match.start()] + full_response[pu_match.end() :]
+                        full_response = full_response.rstrip()
+                        logger.info(f"Extracted project updates from {selected_agent} response")
+                    except json.JSONDecodeError as json_err:
+                        logger.warning(f"Failed to parse project_updates JSON: {json_err}")
+                        project_updates_data = None
+
             # Extract framing proposals from Discovery Agent responses
             framing_proposal_data = None
             if selected_agent == "initiative_agent" and "<framing_proposal>" in full_response:
@@ -2181,6 +2295,14 @@ Instructions:
                     if task_proposals_data:
                         assistant_metadata["task_proposals"] = task_proposals_data
 
+                    # Add task updates to metadata if extracted
+                    if task_updates_data:
+                        assistant_metadata["task_updates"] = task_updates_data
+
+                    # Add project updates to metadata if extracted
+                    if project_updates_data:
+                        assistant_metadata["project_updates"] = project_updates_data
+
                     # Add framing proposal to metadata if extracted
                     if framing_proposal_data:
                         assistant_metadata["framing_proposal"] = framing_proposal_data
@@ -2288,6 +2410,44 @@ Instructions:
                         pass
                 yield f"data: {json.dumps({'type': 'task_proposals', 'tasks': task_proposals_data, 'project_id': tp_project_id, 'conversation_id': chat_request.conversation_id})}\n\n"
                 logger.info(f"Sent task_proposals SSE event with {len(task_proposals_data)} proposals")
+
+            # Send task updates event (BEFORE done event)
+            if task_updates_data:
+                tu_project_id = None
+                if chat_request.conversation_id:
+                    try:
+                        tu_conv = (
+                            supabase.table("conversations")
+                            .select("project_id")
+                            .eq("id", chat_request.conversation_id)
+                            .single()
+                            .execute()
+                        )
+                        tu_project_id = tu_conv.data.get("project_id") if tu_conv.data else None
+                    except Exception:
+                        pass
+                yield f"data: {json.dumps({'type': 'task_updates', 'updates': task_updates_data, 'project_id': tu_project_id})}\n\n"
+                logger.info(f"Sent task_updates SSE event with {len(task_updates_data)} updates")
+
+            # Send project updates event (BEFORE done event)
+            if project_updates_data:
+                pu_project_id = project_updates_data.get("project_id")
+                if not pu_project_id and chat_request.conversation_id:
+                    try:
+                        pu_conv = (
+                            supabase.table("conversations")
+                            .select("project_id")
+                            .eq("id", chat_request.conversation_id)
+                            .single()
+                            .execute()
+                        )
+                        pu_project_id = pu_conv.data.get("project_id") if pu_conv.data else None
+                    except Exception:
+                        pass
+                if pu_project_id:
+                    project_updates_data["project_id"] = pu_project_id
+                yield f"data: {json.dumps({'type': 'project_updates', 'updates': project_updates_data})}\n\n"
+                logger.info("Sent project_updates SSE event")
 
             # Send framing proposal event if Discovery Agent proposed framing (BEFORE done event)
             if framing_proposal_data:

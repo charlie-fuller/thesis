@@ -306,3 +306,73 @@ def build_project_context(project: Dict, related_documents: List[Dict]) -> str:
         context_parts.append("\n</related_knowledge_base_documents>")
 
     return "\n".join(context_parts)
+
+
+def build_task_context(tasks: List[Dict]) -> str:
+    """Build a <project_tasks> XML block from a list of task dicts.
+
+    Args:
+        tasks: List of task dicts from the project_tasks table
+
+    Returns:
+        Formatted XML string for injection into agent prompt
+    """
+    if not tasks:
+        return ""
+
+    STATUS_MAP = {
+        "pending": "TODO",
+        "in_progress": "IN PROGRESS",
+        "blocked": "BLOCKED",
+        "completed": "DONE",
+    }
+
+    lines = ["<project_tasks>"]
+    for t in tasks[:30]:
+        status = STATUS_MAP.get(t.get("status", ""), t.get("status", "unknown")).upper()
+        priority = t.get("priority", 3)
+        title = t.get("title", "Untitled")
+        task_id = t.get("id", "")
+        parts = [f"- [{status}] (id={task_id}) P{priority}: {title}"]
+
+        assignee = t.get("assignee_name")
+        if assignee:
+            parts.append(f"[assigned: {assignee}]")
+
+        due = t.get("due_date")
+        if due:
+            parts.append(f"[due: {due}]")
+
+        blocker = t.get("blocker_reason")
+        if blocker:
+            parts.append(f"[blocked: {blocker}]")
+
+        lines.append(" ".join(parts))
+
+    lines.append("</project_tasks>")
+    return "\n".join(lines)
+
+
+def build_doc_digest_context(docs: List[Dict]) -> str:
+    """Build a <project_kb_documents> XML block from document digest dicts.
+
+    Args:
+        docs: List of {id, title, digest} dicts from get_project_document_digests()
+
+    Returns:
+        Formatted XML string for injection into agent prompt
+    """
+    if not docs:
+        return ""
+
+    lines = ["<project_kb_documents>"]
+    for d in docs[:20]:
+        title = d.get("title", "Untitled")
+        doc_id = d.get("id", "")
+        digest = d.get("digest") or "No summary available"
+        lines.append(f"[Document: {title}] (id={doc_id})")
+        lines.append(f"Summary: {digest}")
+        lines.append("")
+
+    lines.append("</project_kb_documents>")
+    return "\n".join(lines)
