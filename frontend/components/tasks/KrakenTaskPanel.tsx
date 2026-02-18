@@ -274,7 +274,7 @@ export default function KrakenTaskPanel({ task, onNotesUpdated }: KrakenTaskPane
             <Zap className="w-4 h-4" />
             Release the Kraken
           </button>
-          <span className="text-xs text-muted">AI evaluates this task and recommends which agents to involve</span>
+          <span className="text-xs text-muted">The Kraken evaluates this task and recommends which agents to involve</span>
         </div>
       )}
 
