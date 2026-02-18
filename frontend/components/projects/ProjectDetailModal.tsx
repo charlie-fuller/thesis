@@ -814,7 +814,12 @@ export default function ProjectDetailModal({
     project.readiness_justification
   )
 
-  if (!open) return null
+  // When not open but still mounted, render invisible overlay to absorb stray clicks
+  if (!open) {
+    const blocker = <div className="fixed inset-0 z-50" onClick={(e) => e.stopPropagation()} />
+    if (typeof document === 'undefined') return blocker
+    return createPortal(blocker, document.body)
+  }
 
   const statusConfig = STATUS_CONFIG[project.status] || STATUS_CONFIG.backlog
   const tierConfig = TIER_CONFIG[project.tier as keyof typeof TIER_CONFIG] || TIER_CONFIG[4]

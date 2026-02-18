@@ -280,6 +280,8 @@ function ProjectsPageContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [modalProject, setModalProject] = useState<Project | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const closingRef = useRef(false)
 
@@ -337,6 +339,18 @@ function ProjectsPageContent() {
       if (target) setSelectedProject(target)
     }
   }, [projectDeepLink, projects, selectedProject])
+
+  // Two-phase modal: opening is instant, closing keeps modal mounted for 400ms
+  useEffect(() => {
+    if (selectedProject) {
+      setModalProject(selectedProject)
+      setModalOpen(true)
+    } else {
+      setModalOpen(false)
+      const timer = setTimeout(() => setModalProject(null), 400)
+      return () => clearTimeout(timer)
+    }
+  }, [selectedProject])
 
   const handleViewProject = (project: Project) => {
     if (closingRef.current) return
@@ -686,15 +700,15 @@ function ProjectsPageContent() {
         )}
       </main>
 
-      {/* Project Detail Modal */}
-      {selectedProject && (
+      {/* Project Detail Modal - two-phase: stays mounted 400ms after close to absorb stray clicks */}
+      {modalProject && (
         <ProjectDetailModal
-          project={selectedProject}
-          open={true}
+          project={modalProject}
+          open={modalOpen}
           onClose={() => {
             closingRef.current = true
             setSelectedProject(null)
-            setTimeout(() => { closingRef.current = false }, 300)
+            setTimeout(() => { closingRef.current = false }, 500)
           }}
         />
       )}
