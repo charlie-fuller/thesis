@@ -18,11 +18,23 @@ import { authenticatedFetch } from '@/lib/api'
 // TYPES
 // ============================================================================
 
+interface ConfidenceBreakdown {
+  information_sufficiency: number
+  output_clarity: number
+  execution_feasibility: number
+  completeness_achievable: number
+  domain_fit: number
+}
+
 interface TaskEvaluation {
   task_id: string
   title: string
+  task_understanding?: string
+  steps?: string[]
+  recommendations?: string[]
   category: 'automatable' | 'assistable' | 'manual'
   confidence: number
+  confidence_breakdown?: ConfidenceBreakdown
   reasoning: string
   proposed_action: string
   estimated_quality: 'high' | 'medium' | 'low'
@@ -624,51 +636,155 @@ function CategorySection({
 
       {expanded && (
         <div className="divide-y divide-default">
-          {tasks.map(task => {
-            const executionResult = executionResults.find(r => r.task_id === task.task_id)
-            const isExecuting = executing && selectedIds.has(task.task_id) && !executionResult
-
-            return (
-              <div key={task.task_id} className="p-3 space-y-1.5">
-                <div className="flex items-start gap-2">
-                  {selectable && (
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(task.task_id)}
-                      onChange={() => onToggleTask(task.task_id)}
-                      disabled={executing}
-                      className="mt-1 rounded border-default text-violet-600 focus:ring-violet-500"
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-primary truncate">
-                        {task.title}
-                      </span>
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${c.badge}`}>
-                        {task.confidence}%
-                      </span>
-                      {executionResult && !executionResult.error && (
-                        <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                      )}
-                      {executionResult?.error && (
-                        <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                      )}
-                      {isExecuting && (
-                        <Loader2 className="w-4 h-4 animate-spin text-green-500 flex-shrink-0" />
-                      )}
-                    </div>
-                    <p className="text-xs text-muted mt-0.5">{task.reasoning}</p>
-                    <p className="text-xs text-secondary mt-1">
-                      <span className="font-medium">Proposed:</span> {task.proposed_action}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+          {tasks.map(task => (
+            <TaskEvaluationCard
+              key={task.task_id}
+              task={task}
+              colorClasses={c}
+              selectable={selectable}
+              selectedIds={selectedIds}
+              onToggleTask={onToggleTask}
+              executing={executing}
+              executionResults={executionResults}
+            />
+          ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ============================================================================
+// TASK EVALUATION CARD (enhanced display with new fields)
+// ============================================================================
+
+interface TaskEvaluationCardProps {
+  task: TaskEvaluation
+  colorClasses: { border: string; bg: string; text: string; badge: string }
+  selectable: boolean
+  selectedIds: Set<string>
+  onToggleTask: (id: string) => void
+  executing: boolean
+  executionResults: TaskExecutionResult[]
+}
+
+function TaskEvaluationCard({
+  task,
+  colorClasses: c,
+  selectable,
+  selectedIds,
+  onToggleTask,
+  executing,
+  executionResults,
+}: TaskEvaluationCardProps) {
+  const [stepsExpanded, setStepsExpanded] = useState(false)
+  const [breakdownExpanded, setBreakdownExpanded] = useState(false)
+
+  const executionResult = executionResults.find(r => r.task_id === task.task_id)
+  const isExecuting = executing && selectedIds.has(task.task_id) && !executionResult
+
+  return (
+    <div className="p-3 space-y-1.5">
+      <div className="flex items-start gap-2">
+        {selectable && (
+          <input
+            type="checkbox"
+            checked={selectedIds.has(task.task_id)}
+            onChange={() => onToggleTask(task.task_id)}
+            disabled={executing}
+            className="mt-1 rounded border-default text-violet-600 focus:ring-violet-500"
+          />
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-primary truncate">
+              {task.title}
+            </span>
+            <span className={`px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${c.badge}`}>
+              {task.confidence}%
+            </span>
+            {executionResult && !executionResult.error && (
+              <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+            )}
+            {executionResult?.error && (
+              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+            )}
+            {isExecuting && (
+              <Loader2 className="w-4 h-4 animate-spin text-green-500 flex-shrink-0" />
+            )}
+          </div>
+
+          {/* Understanding */}
+          {task.task_understanding && (
+            <p className="text-xs text-secondary mt-1">{task.task_understanding}</p>
+          )}
+
+          {/* Recommendations callout */}
+          {task.recommendations && task.recommendations.length > 0 && (
+            <div className="mt-1.5 p-2 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded text-xs">
+              <p className="font-medium text-amber-700 dark:text-amber-400 mb-1">KB gaps:</p>
+              <ul className="space-y-0.5">
+                {task.recommendations.map((rec, i) => (
+                  <li key={i} className="text-amber-600 dark:text-amber-400 flex items-start gap-1">
+                    <span className="flex-shrink-0">-</span>
+                    {rec}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Steps (collapsible) */}
+          {task.steps && task.steps.length > 0 && (
+            <div className="mt-1">
+              <button
+                onClick={() => setStepsExpanded(!stepsExpanded)}
+                className="flex items-center gap-1 text-xs text-muted hover:text-primary transition-colors"
+              >
+                {stepsExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                {task.steps.length} steps
+              </button>
+              {stepsExpanded && (
+                <ol className="mt-1 ml-4 space-y-0.5 list-decimal list-outside text-xs text-secondary">
+                  {task.steps.map((step, i) => (
+                    <li key={i}>{step}</li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
+
+          {/* Confidence breakdown (collapsible) */}
+          {task.confidence_breakdown && (
+            <div className="mt-1">
+              <button
+                onClick={() => setBreakdownExpanded(!breakdownExpanded)}
+                className="flex items-center gap-1 text-xs text-muted hover:text-primary transition-colors"
+              >
+                {breakdownExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                Confidence breakdown
+              </button>
+              {breakdownExpanded && (
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                  {Object.entries(task.confidence_breakdown).map(([key, val]) => (
+                    <span key={key} className="text-muted">
+                      <span className={`font-medium ${val >= 14 ? 'text-green-600 dark:text-green-400' : val >= 10 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {val}/20
+                      </span>
+                      {' '}{key.replace(/_/g, ' ')}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <p className="text-xs text-muted mt-1">{task.reasoning}</p>
+          <p className="text-xs text-secondary mt-0.5">
+            <span className="font-medium">Proposed:</span> {task.proposed_action}
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

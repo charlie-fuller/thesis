@@ -146,20 +146,6 @@ interface EditFormState {
   readiness_justification: string
 }
 
-interface RelatedDocument {
-  chunk_id: string
-  document_id: string
-  document_name: string
-  relevance_score: number
-  snippet: string
-  metadata: {
-    filename?: string
-    page_number?: number
-    source_type?: string
-    storage_path?: string
-  }
-}
-
 interface LinkedStakeholder {
   id: string
   project_id: string
@@ -255,8 +241,6 @@ export default function ProjectDetailModal({
   const [project, setProject] = useState<Project>(initialProject)
 
   // State
-  const [relatedDocs, setRelatedDocs] = useState<RelatedDocument[]>([])
-  const [docsLoading, setDocsLoading] = useState(false)
   const [linkedDocuments, setLinkedDocuments] = useState<LinkedDocument[]>([])
   const [linkedDocsLoading, setLinkedDocsLoading] = useState(false)
   const [showDocumentBrowser, setShowDocumentBrowser] = useState(false)
@@ -329,7 +313,7 @@ export default function ProjectDetailModal({
   const [tasksGeneratedCount, setTasksGeneratedCount] = useState<number | null>(null)
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'tasks' | 'documents' | 'related' | 'kraken-guide' | 'scoring-guide'>('scores')
+  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'tasks' | 'documents' | 'kraken-guide' | 'scoring-guide'>('scores')
 
   const router = useRouter()
 
@@ -376,7 +360,6 @@ export default function ProjectDetailModal({
   // Fetch related documents, stakeholders, initiatives, and tasks on open
   useEffect(() => {
     if (open && project) {
-      fetchRelatedDocuments()
       fetchLinkedDocuments()
       fetchLinkedStakeholders()
       fetchConversations()
@@ -392,20 +375,6 @@ export default function ProjectDetailModal({
       setTimeout(() => questionInputRef.current?.focus(), 100)
     }
   }, [open])
-
-  const fetchRelatedDocuments = async () => {
-    setDocsLoading(true)
-    try {
-      const docs = await apiGet<RelatedDocument[]>(
-        `/api/projects/${project.id}/related-documents?limit=8`
-      )
-      setRelatedDocs(docs)
-    } catch (error) {
-      console.error('Failed to fetch related documents:', error)
-    } finally {
-      setDocsLoading(false)
-    }
-  }
 
   const fetchLinkedDocuments = async () => {
     setLinkedDocsLoading(true)
@@ -613,20 +582,6 @@ export default function ProjectDetailModal({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldAutoGenerateTasks, activeTab])
-
-  const openDocumentInNewTab = (doc: RelatedDocument) => {
-    // For now, open KB page with document ID as param
-    // In future, could open direct document URL if storage_path available
-    const url = `/kb?doc=${doc.document_id}`
-    window.open(url, '_blank')
-  }
-
-  const getRelevanceColor = (score: number) => {
-    if (score >= 0.7) return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-    if (score >= 0.5) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-    if (score >= 0.3) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-    return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-  }
 
   const handleGenerateJustifications = async () => {
     if (generating) return
@@ -941,7 +896,6 @@ export default function ProjectDetailModal({
             { id: 'details' as const, label: 'Details', icon: FileText },
             { id: 'tasks' as const, label: 'Tasks', icon: ListTodo },
             { id: 'documents' as const, label: 'Documents', icon: Link },
-            { id: 'related' as const, label: 'Related', icon: ExternalLink },
             { id: 'kraken-guide' as const, label: 'Kraken Guide', icon: Zap },
             { id: 'scoring-guide' as const, label: 'Scoring Guide', icon: Target },
           ].map((tab) => (
@@ -1932,142 +1886,8 @@ export default function ProjectDetailModal({
 
               {/* Note about auto-discovered documents */}
               <p className="text-xs text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-4">
-                These are documents you&apos;ve manually linked. Auto-discovered related documents appear in the Related tab.
+                These are documents you&apos;ve manually linked to this project.
               </p>
-            </div>
-          )}
-
-          {/* RELATED TAB */}
-          {activeTab === 'related' && (
-            <div className="space-y-8">
-          {/* Linked Stakeholders */}
-          {(linkedStakeholders.length > 0 || stakeholdersLoading) && (
-            <section>
-              <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4 flex items-center gap-2">
-                <User className="w-4 h-4" />
-                Linked Stakeholders
-                {linkedStakeholders.length > 0 && (
-                  <span className="text-xs font-normal">({linkedStakeholders.length})</span>
-                )}
-              </h3>
-
-              {stakeholdersLoading ? (
-                <div className="flex items-center gap-2 text-muted py-4">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Loading stakeholders...</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {linkedStakeholders.map((stakeholder) => (
-                    <div
-                      key={stakeholder.id}
-                      className="border border-default rounded-lg p-3 hover:bg-hover transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <User className="w-4 h-4 text-muted flex-shrink-0" />
-                            <span className="text-sm font-medium text-primary truncate">
-                              {stakeholder.stakeholder_name || 'Unknown'}
-                            </span>
-                          </div>
-                          {stakeholder.stakeholder_role && (
-                            <p className="text-xs text-muted ml-6 truncate">
-                              {stakeholder.stakeholder_role}
-                              {stakeholder.stakeholder_department && ` - ${stakeholder.stakeholder_department}`}
-                            </p>
-                          )}
-                        </div>
-                        <span className="px-2 py-0.5 rounded text-xs font-medium capitalize bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-                          {stakeholder.role}
-                        </span>
-                      </div>
-                      {stakeholder.notes && (
-                        <p className="text-xs text-muted mt-2 ml-6 line-clamp-2">
-                          {stakeholder.notes}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* Related Documents */}
-          <section>
-            <h3 className="text-sm font-medium text-muted uppercase tracking-wide mb-4 flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Related Documents
-              {relatedDocs.length > 0 && (
-                <span className="text-xs font-normal">({relatedDocs.length})</span>
-              )}
-            </h3>
-
-            {docsLoading ? (
-              <div className="flex items-center gap-2 text-muted py-4">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Finding relevant documents...</span>
-              </div>
-            ) : relatedDocs.length === 0 ? (
-              <p className="text-sm text-muted py-4">
-                No related documents found in the knowledge base.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {relatedDocs.map((doc) => (
-                  <div
-                    key={doc.chunk_id}
-                    className="border border-default rounded-lg p-3 hover:bg-hover transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <FileText className="w-4 h-4 text-muted flex-shrink-0" />
-                          <span
-                            className="text-sm font-medium text-primary truncate cursor-pointer hover:underline"
-                            onClick={() => setViewingDocument({
-                              document_id: doc.document_id,
-                              document_name: doc.document_name
-                            })}
-                            title={`View ${doc.document_name}`}
-                          >
-                            {doc.document_name}
-                          </span>
-                          <button
-                            onClick={() => setViewingDocument({
-                              document_id: doc.document_id,
-                              document_name: doc.document_name
-                            })}
-                            className="p-1 text-muted hover:text-blue-500"
-                            title="View document"
-                          >
-                            <Eye className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={() => openDocumentInNewTab(doc)}
-                            className="p-1 text-muted hover:text-primary"
-                            title="Open in Knowledge Base"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <p className="text-xs text-muted line-clamp-2">{doc.snippet}</p>
-                      </div>
-                      <span
-                        className={`px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${getRelevanceColor(
-                          doc.relevance_score
-                        )}`}
-                        title={`Relevance: ${(doc.relevance_score * 100).toFixed(0)}%`}
-                      >
-                        {(doc.relevance_score * 100).toFixed(0)}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
             </div>
           )}
 

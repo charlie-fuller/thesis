@@ -152,6 +152,27 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
   const [showCandidateReview, setShowCandidateReview] = useState(false)
 
 
+  // Active project IDs for "All Active" filter
+  const [activeProjectIds, setActiveProjectIds] = useState<Set<string>>(new Set())
+
+  // Fetch active project IDs once on mount
+  useEffect(() => {
+    const fetchActiveProjects = async () => {
+      try {
+        const response = await apiGet<Array<{ id: string; status: string }>>('/api/projects')
+        if (Array.isArray(response)) {
+          const activeIds = new Set(
+            response.filter(p => p.status === 'active').map(p => p.id)
+          )
+          setActiveProjectIds(activeIds)
+        }
+      } catch {
+        // Silent fail
+      }
+    }
+    fetchActiveProjects()
+  }, [])
+
   // Build query string from filters
   const buildQueryString = useCallback((f: TaskFiltersState) => {
     const params = new URLSearchParams()
@@ -165,7 +186,10 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
       f.source_type.forEach(s => params.append('source_type', s))
     }
     if (f.team) params.append('team', f.team)
-    if (f.linked_project_id) params.append('linked_project_id', f.linked_project_id)
+    // Don't send __active__ sentinel to API - filter client-side
+    if (f.linked_project_id && f.linked_project_id !== '__active__') {
+      params.append('linked_project_id', f.linked_project_id)
+    }
     if (f.search) params.append('search', f.search)
     params.append('include_completed', f.include_completed.toString())
     return params.toString()
@@ -181,8 +205,30 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
       const response = await apiGet<KanbanResponse>(`/api/tasks/kanban?${queryString}`)
 
       if (response.success) {
-        setColumns(response.columns)
-        setCounts(response.counts)
+        // Client-side filtering for "__active__" sentinel
+        if (filters.linked_project_id === '__active__' && activeProjectIds.size > 0) {
+          const filterActive = (tasks: Task[]) =>
+            tasks.filter(t => t.linked_project_id && activeProjectIds.has(t.linked_project_id))
+          const filtered = {
+            pending: filterActive(response.columns.pending),
+            in_progress: filterActive(response.columns.in_progress),
+            blocked: filterActive(response.columns.blocked),
+            completed: filterActive(response.columns.completed),
+          }
+          setColumns(filtered)
+          const newCounts = {
+            pending: filtered.pending.length,
+            in_progress: filtered.in_progress.length,
+            blocked: filtered.blocked.length,
+            completed: filtered.completed.length,
+            total: filtered.pending.length + filtered.in_progress.length + filtered.blocked.length + filtered.completed.length,
+            overdue: 0,
+          }
+          setCounts(newCounts)
+        } else {
+          setColumns(response.columns)
+          setCounts(response.counts)
+        }
       }
     } catch (error) {
       console.error('Failed to fetch tasks:', error)
@@ -191,7 +237,7 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
       setLoading(false)
       setRefreshing(false)
     }
-  }, [filters, buildQueryString])
+  }, [filters, buildQueryString, activeProjectIds])
 
   // Fetch task candidates
   const fetchCandidates = useCallback(async () => {

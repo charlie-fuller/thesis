@@ -1463,6 +1463,69 @@ async def scan_single_document_for_tasks(
 
 
 # ============================================================================
+# Kraken Single-Task Evaluation & Execution
+# IMPORTANT: These routes use /{task_id}/kraken/... but must be defined
+# before the generic /{task_id} catch-all routes.
+# ============================================================================
+
+
+class KrakenSingleTaskExecuteRequest(BaseModel):
+    """Request body for executing a single task via Kraken."""
+
+    evaluation_notes: str = Field(..., min_length=1)
+
+
+@router.post("/{task_id}/kraken/evaluate")
+async def kraken_evaluate_single_task(task_id: str, current_user: dict = Depends(get_current_user)):
+    """Evaluate a single task for AI workability via Kraken. Returns SSE stream."""
+    from fastapi.responses import StreamingResponse
+
+    validate_uuid(task_id, "task_id")
+    client_id = current_user.get("client_id") or get_default_client_id()
+    user_id = current_user["id"]
+
+    from services.task_kraken import evaluate_single_task
+
+    async def event_stream():
+        async for event in evaluate_single_task(task_id, client_id, user_id, supabase):
+            import json
+
+            event_type = event.get("type", "status")
+            data = event.get("data", "")
+            if isinstance(data, dict):
+                data = json.dumps(data)
+            yield f"event: {event_type}\ndata: {data}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post("/{task_id}/kraken/execute")
+async def kraken_execute_single_task(
+    task_id: str, request: KrakenSingleTaskExecuteRequest, current_user: dict = Depends(get_current_user)
+):
+    """Execute a single task via Kraken after evaluation approval. Returns SSE stream."""
+    from fastapi.responses import StreamingResponse
+
+    validate_uuid(task_id, "task_id")
+    client_id = current_user.get("client_id") or get_default_client_id()
+    user_id = current_user["id"]
+
+    from services.task_kraken import execute_single_task
+
+    async def event_stream():
+        async for event in execute_single_task(task_id, request.evaluation_notes, client_id, user_id, supabase):
+            import json
+
+            event_type = event.get("type", "status")
+            data = event.get("data", "")
+            if isinstance(data, dict):
+                data = json.dumps(data)
+            yield f"event: {event_type}\ndata: {data}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+# ============================================================================
 # Individual Task Operations (parameterized routes MUST come after static routes)
 # ============================================================================
 

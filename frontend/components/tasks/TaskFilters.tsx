@@ -237,7 +237,8 @@ export default function TaskFilters({ filters, onChange, onClose, tasks = [] }: 
           onChange={(e) => onChange({ ...filters, linked_project_id: e.target.value || null })}
           className="px-3 py-2 text-sm border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px] max-w-[320px]"
         >
-          <option value="">Project{filters.team ? ` (${filters.team})` : ''}</option>
+          <option value="">All Projects{filters.team ? ` (${filters.team})` : ''}</option>
+          <option value="__active__">All Active Projects</option>
           {filteredProjects.map(proj => (
             <option key={proj.id} value={proj.id}>
               {proj.project_code} — {proj.title}

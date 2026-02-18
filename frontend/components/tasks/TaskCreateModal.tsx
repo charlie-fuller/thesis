@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { apiPost, apiPatch, apiDelete, apiGet } from '@/lib/api'
 import { Task } from './TaskKanbanBoard'
 import ConfirmModal from '@/components/ConfirmModal'
+import KrakenTaskPanel from './KrakenTaskPanel'
 
 interface TaskCreateModalProps {
   open: boolean
@@ -194,7 +195,7 @@ export default function TaskCreateModal({
         onClick={onClose}
       >
         <div
-          className="bg-card rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+          className="bg-card rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -437,6 +438,14 @@ export default function TaskCreateModal({
                 className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand resize-none"
               />
             </div>
+
+            {/* Kraken Evaluation (only for existing tasks) */}
+            {editTask && (
+              <KrakenTaskPanel
+                task={editTask}
+                onNotesUpdated={(newNotes) => setNotes(newNotes)}
+              />
+            )}
 
             {/* Actions */}
             <div className="flex items-center justify-between pt-3 border-t border-default">

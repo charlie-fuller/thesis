@@ -242,7 +242,17 @@ Use the 5-dimension confidence framework:
 4. Completeness Achievable (0-20): Can you produce a usable end result?
 5. Domain Fit (0-20): Is this the type of work AI excels at?
 
-Return your evaluation as a JSON block wrapped in <evaluation> tags:
+Return your evaluation as a JSON block wrapped in <evaluation> tags.
+
+For each task, include:
+- task_understanding: 1-3 sentences explaining what this task is and why it matters
+- steps: ordered list of concrete steps you would take to complete this task
+- recommendations: specific, actionable KB gaps - tell the user EXACTLY what documents/info to upload so you can raise confidence. Examples:
+  - "Upload the platform-jurisdiction mapping spreadsheet to KB"
+  - "Add a document describing internal data classification tiers"
+  - "Provide meeting notes from the governance council discussion on deployment approval criteria"
+  Do NOT give vague recommendations like "gather more info" - be specific about what's missing.
+- confidence_breakdown: scores for each of the 5 dimensions above
 
 <evaluation>
 {{
@@ -250,8 +260,18 @@ Return your evaluation as a JSON block wrapped in <evaluation> tags:
     {{
       "task_id": "uuid",
       "title": "Task title",
+      "task_understanding": "What this task is and why it matters",
+      "steps": ["Step 1: ...", "Step 2: ..."],
+      "recommendations": ["Upload X document to KB", "Add Y information"],
       "category": "automatable|assistable|manual",
       "confidence": 85,
+      "confidence_breakdown": {{
+        "information_sufficiency": 18,
+        "output_clarity": 16,
+        "execution_feasibility": 18,
+        "completeness_achievable": 16,
+        "domain_fit": 14
+      }},
       "reasoning": "Clear explanation of the assessment",
       "proposed_action": "Specifically what the agent would do",
       "estimated_quality": "high|medium|low"
@@ -655,3 +675,401 @@ async def get_evaluation(
         "is_stale": is_stale,
         "current_task_count": len(tasks),
     }
+
+
+async def evaluate_single_task(
+    task_id: str,
+    client_id: str,
+    user_id: str,
+    supabase: Client,
+) -> AsyncGenerator[dict, None]:
+    """Evaluate a single task for AI workability.
+
+    Yields SSE events:
+    - {"type": "status", "data": "message"}
+    - {"type": "evaluation_complete", "data": {evaluation}}
+    - {"type": "error", "data": "message"}
+    """
+    yield {"type": "status", "data": "Loading task..."}
+
+    # Fetch the task
+    task_result = (
+        supabase.table("project_tasks")
+        .select("id, title, description, notes, status, priority, assignee_name, due_date, linked_project_id")
+        .eq("id", task_id)
+        .eq("client_id", client_id)
+        .maybe_single()
+        .execute()
+    )
+
+    if not task_result.data:
+        yield {"type": "error", "data": "Task not found"}
+        return
+
+    task = task_result.data
+
+    # Build context
+    project_context = ""
+    kb_context = ""
+    linked_project_id = task.get("linked_project_id")
+
+    if linked_project_id:
+        yield {"type": "status", "data": "Loading project context..."}
+        project_result = (
+            supabase.table("ai_projects")
+            .select(
+                "id, title, description, project_name, project_description, "
+                "current_state, desired_state, next_step, department, status"
+            )
+            .eq("id", linked_project_id)
+            .eq("client_id", client_id)
+            .maybe_single()
+            .execute()
+        )
+        if project_result.data:
+            project_context = _build_project_context(project_result.data)
+            kb_context = _fetch_kb_context(linked_project_id, supabase, client_id)
+
+    yield {"type": "status", "data": "Evaluating task..."}
+
+    task_list = _build_task_list([task])
+    system_instructions = _load_system_instructions()
+
+    evaluation_prompt = f"""Evaluate the following task for AI workability.
+
+{f"PROJECT CONTEXT:{chr(10)}{project_context}" if project_context else "No linked project."}
+
+{f"KNOWLEDGE BASE CONTEXT:{chr(10)}{kb_context}" if kb_context else "No KB documents available."}
+
+TASK TO EVALUATE:
+{task_list}
+
+INSTRUCTIONS:
+Assess whether this task can be completed by an AI agent (you) working with:
+- The project context above (if any)
+- The KB documents above (if any)
+- Your general knowledge and reasoning abilities
+- Text generation capabilities (drafting, analyzing, recommending)
+- Web search for real-time research and data gathering
+
+You CANNOT: access external systems (Jira, Salesforce, etc.), send emails, run code, or perform real-world actions.
+
+Use the 5-dimension confidence framework:
+1. Information Sufficiency (0-20): Is enough info available in context + KB + web search?
+2. Output Clarity (0-20): Is the deliverable well-defined?
+3. Execution Feasibility (0-20): Can this be done with text generation + web research?
+4. Completeness Achievable (0-20): Can you produce a usable end result?
+5. Domain Fit (0-20): Is this the type of work AI excels at?
+
+Return your evaluation as a JSON block wrapped in <evaluation> tags.
+
+Include:
+- task_understanding: 1-3 sentences explaining what this task is and why it matters
+- steps: ordered list of concrete steps you would take
+- recommendations: specific, actionable KB gaps - tell the user EXACTLY what documents/info to upload so you can raise confidence. Be specific, not vague.
+- confidence_breakdown: scores for each of the 5 dimensions
+
+<evaluation>
+{{
+  "task_id": "{task['id']}",
+  "title": "{task.get('title', 'Untitled')}",
+  "task_understanding": "What this task is and why it matters",
+  "steps": ["Step 1: ...", "Step 2: ..."],
+  "recommendations": ["Upload X document to KB", "Add Y information"],
+  "category": "automatable|assistable|manual",
+  "confidence": 85,
+  "confidence_breakdown": {{
+    "information_sufficiency": 18,
+    "output_clarity": 16,
+    "execution_feasibility": 18,
+    "completeness_achievable": 16,
+    "domain_fit": 14
+  }},
+  "reasoning": "Clear explanation",
+  "proposed_action": "Specifically what the agent would do",
+  "estimated_quality": "high|medium|low"
+}}
+</evaluation>
+"""
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        yield {"type": "error", "data": "ANTHROPIC_API_KEY not configured"}
+        return
+
+    client = anthropic.Anthropic(api_key=api_key)
+
+    try:
+        messages = [{"role": "user", "content": evaluation_prompt}]
+        response = client.messages.create(
+            model=KRAKEN_MODEL,
+            max_tokens=EVALUATION_MAX_TOKENS,
+            system=system_instructions if system_instructions else "You are Kraken, a task evaluation specialist.",
+            tools=[WEB_SEARCH_TOOL],
+            messages=messages,
+        )
+
+        max_continuations = 5
+        while response.stop_reason == "pause_turn" and max_continuations > 0:
+            messages.append({"role": "assistant", "content": response.content})
+            response = client.messages.create(
+                model=KRAKEN_MODEL,
+                max_tokens=EVALUATION_MAX_TOKENS,
+                system=system_instructions if system_instructions else "You are Kraken, a task evaluation specialist.",
+                tools=[WEB_SEARCH_TOOL],
+                messages=messages,
+            )
+            max_continuations -= 1
+
+        response_text = _extract_text_from_response(response)
+
+        import re
+
+        eval_match = re.search(r"<evaluation>(.*?)</evaluation>", response_text, re.DOTALL)
+        if not eval_match:
+            yield {"type": "error", "data": "Failed to parse evaluation response"}
+            return
+
+        evaluation = json.loads(eval_match.group(1).strip())
+
+        yield {
+            "type": "evaluation_complete",
+            "data": {"evaluation": evaluation},
+        }
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse Kraken single-task evaluation JSON: {e}")
+        yield {"type": "error", "data": "Failed to parse evaluation results"}
+    except Exception as e:
+        logger.error(f"Kraken single-task evaluation error: {e}")
+        yield {"type": "error", "data": str(e)}
+
+
+async def execute_single_task(
+    task_id: str,
+    evaluation_notes: str,
+    client_id: str,
+    user_id: str,
+    supabase: Client,
+) -> AsyncGenerator[dict, None]:
+    """Execute a single task after evaluation approval.
+
+    Appends evaluation notes to the task, then executes.
+
+    Yields SSE events:
+    - {"type": "status", "data": "message"}
+    - {"type": "task_complete", "data": {...}}
+    - {"type": "error", "data": "message"}
+    """
+    yield {"type": "status", "data": "Preparing task execution..."}
+
+    # Fetch the task
+    task_result = (
+        supabase.table("project_tasks")
+        .select("id, title, description, notes, status, priority, assignee_name, due_date, linked_project_id")
+        .eq("id", task_id)
+        .eq("client_id", client_id)
+        .maybe_single()
+        .execute()
+    )
+
+    if not task_result.data:
+        yield {"type": "error", "data": "Task not found"}
+        return
+
+    task = task_result.data
+
+    # Append evaluation notes to the task
+    existing_notes = task.get("notes") or ""
+    separator = "\n\n---\n" if existing_notes else ""
+    updated_notes = existing_notes + separator + evaluation_notes
+
+    supabase.table("project_tasks").update({"notes": updated_notes, "updated_by": user_id}).eq("id", task_id).execute()
+
+    # Build context
+    project_context = ""
+    kb_context = ""
+    project_code = "UNK"
+    linked_project_id = task.get("linked_project_id")
+    _project_doc_ids = []
+
+    if linked_project_id:
+        yield {"type": "status", "data": "Loading project context..."}
+        project_result = (
+            supabase.table("ai_projects")
+            .select(
+                "id, title, description, project_name, project_description, "
+                "current_state, desired_state, next_step, department, status, project_code"
+            )
+            .eq("id", linked_project_id)
+            .eq("client_id", client_id)
+            .maybe_single()
+            .execute()
+        )
+        if project_result.data:
+            project_context = _build_project_context(project_result.data)
+            project_code = project_result.data.get("project_code", "UNK")
+            kb_context = _fetch_kb_context(linked_project_id, supabase, client_id)
+
+            try:
+                from services.document_digests import get_project_document_digests
+
+                _project_docs = get_project_document_digests(linked_project_id, supabase)
+                _project_doc_ids = [d["id"] for d in _project_docs]
+            except Exception:
+                pass
+
+    yield {"type": "status", "data": f"Executing: {task.get('title', 'Untitled')}"}
+
+    # Get deep context via vector search
+    task_deep_context = ""
+    if _project_doc_ids:
+        try:
+            from document_processor import search_similar_chunks
+
+            query = f"{task.get('title', '')} {task.get('description', '')}"
+            chunks = search_similar_chunks(
+                query=query,
+                client_id=client_id,
+                limit=5,
+                include_conversations=False,
+                document_ids=_project_doc_ids,
+            )
+            if chunks:
+                chunk_parts = []
+                for chunk in chunks:
+                    source = chunk.get("metadata", {}).get("filename", "Unknown")
+                    chunk_parts.append(f"[Source: {source}]\n{chunk.get('content', '')}")
+                task_deep_context = "\n\n".join(chunk_parts)
+        except Exception as e:
+            logger.warning(f"Vector search failed for task {task_id}: {e}")
+
+    system_instructions = _load_system_instructions()
+    task_title = task.get("title", "Untitled")
+
+    execution_prompt = f"""Execute the following task and produce substantive, actionable output.
+
+{f"PROJECT CONTEXT:{chr(10)}{project_context}" if project_context else "No linked project."}
+
+{f"KNOWLEDGE BASE CONTEXT (document summaries):{chr(10)}{kb_context}" if kb_context else "No KB documents linked."}
+
+{f"DEEP CONTEXT (relevant document excerpts):{chr(10)}{task_deep_context}" if task_deep_context else ""}
+
+TASK TO EXECUTE:
+- **Title**: {task_title}
+- **Description**: {task.get('description', 'No description provided')}
+{f"- **Notes**: {task['notes']}" if task.get('notes') else ""}
+- **Priority**: {task.get('priority', 3)}
+- **Status**: {task.get('status', 'pending')}
+
+INSTRUCTIONS:
+1. Execute this task by producing real, substantive output - not a description of what you would do.
+2. Use the project context and KB documents to ground your work.
+3. Use web search to research current information when the task requires it.
+4. Structure your output with clear headers and actionable content.
+5. If any part requires human input or decision, mark it clearly with [USER INPUT NEEDED]: explanation.
+6. End with a brief "Next Steps" section.
+7. Do NOT use emojis.
+8. Aim for completeness - produce a usable deliverable, not just an outline.
+9. Cite sources when using web search results.
+"""
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        yield {"type": "error", "data": "ANTHROPIC_API_KEY not configured"}
+        return
+
+    client = anthropic.Anthropic(api_key=api_key)
+
+    try:
+        exec_messages = [{"role": "user", "content": execution_prompt}]
+        response = client.messages.create(
+            model=KRAKEN_MODEL,
+            max_tokens=EXECUTION_MAX_TOKENS,
+            system=system_instructions if system_instructions else "You are Kraken, executing a task.",
+            tools=[WEB_SEARCH_TOOL],
+            messages=exec_messages,
+        )
+
+        max_continuations = 10
+        while response.stop_reason == "pause_turn" and max_continuations > 0:
+            exec_messages.append({"role": "assistant", "content": response.content})
+            response = client.messages.create(
+                model=KRAKEN_MODEL,
+                max_tokens=EXECUTION_MAX_TOKENS,
+                system=system_instructions if system_instructions else "You are Kraken, executing a task.",
+                tools=[WEB_SEARCH_TOOL],
+                messages=exec_messages,
+            )
+            max_continuations -= 1
+
+        output_text = _extract_text_from_response(response)
+        word_count = len(output_text.split())
+
+        comment_content = output_text
+        doc_id = None
+
+        # For substantial outputs, also create a KB document
+        if word_count > 200 and linked_project_id:
+            doc_id = str(uuid.uuid4())
+            doc_title = f"Kraken: {task_title}"
+            doc_tags = ["kraken", "auto-generated", project_code]
+
+            try:
+                supabase.table("documents").insert(
+                    {
+                        "id": doc_id,
+                        "client_id": client_id,
+                        "filename": f"kraken-{task_id[:8]}.md",
+                        "title": doc_title,
+                        "content": output_text,
+                        "file_type": "text/markdown",
+                        "source": "kraken",
+                        "processed": False,
+                        "processing_status": "pending",
+                        "tags": doc_tags,
+                    }
+                ).execute()
+
+                supabase.table("project_documents").upsert(
+                    {
+                        "project_id": linked_project_id,
+                        "document_id": doc_id,
+                        "linked_by": user_id,
+                    },
+                    on_conflict="project_id,document_id",
+                ).execute()
+
+                summary_lines = output_text.split("\n")[:10]
+                summary_text = "\n".join(summary_lines)
+                comment_content = f'{summary_text}\n\n---\nFull output saved as KB document: "{doc_title}"'
+
+            except Exception as e:
+                logger.warning(f"Failed to create KB doc for task {task_id}: {e}")
+                comment_content = output_text
+
+        # Insert task comment
+        comment_record = {
+            "task_id": task_id,
+            "user_id": user_id,
+            "content": f"[Kraken Execution Output]\n\n{comment_content}",
+        }
+
+        comment_result = supabase.table("task_comments").insert(comment_record).execute()
+        comment_id = comment_result.data[0]["id"] if comment_result.data else None
+
+        yield {
+            "type": "task_complete",
+            "data": {
+                "task_id": task_id,
+                "title": task_title,
+                "comment_id": comment_id,
+                "doc_id": doc_id,
+                "word_count": word_count,
+                "notes": updated_notes,
+            },
+        }
+
+    except Exception as e:
+        logger.error(f"Kraken single-task execution error: {e}")
+        yield {"type": "error", "data": str(e)}
