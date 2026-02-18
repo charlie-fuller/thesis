@@ -51,6 +51,7 @@ const DEPARTMENTS = [
   { value: 'legal', label: 'Legal' },
   { value: 'people', label: 'People' },
   { value: 'it', label: 'IT' },
+  { value: 'is', label: 'IS' },
   { value: 'revops', label: 'RevOps' },
   { value: 'marketing', label: 'Marketing' },
   { value: 'sales', label: 'Sales' },

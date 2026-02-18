@@ -95,7 +95,7 @@ const STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle; c
   archived: { label: 'Archived', icon: AlertCircle, color: 'text-gray-500' },
 }
 
-const DEPARTMENTS = ['finance', 'legal', 'hr', 'it', 'revops', 'marketing', 'sales', 'onboarding']
+const DEPARTMENTS = ['finance', 'legal', 'hr', 'it', 'is', 'revops', 'marketing', 'sales', 'onboarding']
 
 // ============================================================================
 // COMPONENTS
@@ -488,7 +488,7 @@ export default function OpportunitiesPage() {
                 <option value="">All Departments</option>
                 {DEPARTMENTS.map((dept) => (
                   <option key={dept} value={dept}>
-                    {dept.charAt(0).toUpperCase() + dept.slice(1)}
+                    {dept.length <= 2 ? dept.toUpperCase() : dept.charAt(0).toUpperCase() + dept.slice(1)}
                   </option>
                 ))}
               </select>

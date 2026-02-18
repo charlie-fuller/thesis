@@ -86,7 +86,7 @@ interface Insight {
 }
 
 const ENGAGEMENT_LEVELS = ['champion', 'supporter', 'neutral', 'skeptic', 'blocker']
-const DEPARTMENTS = ['finance', 'it', 'legal', 'governance', 'hr', 'marketing', 'engineering', 'operations', 'executive']
+const DEPARTMENTS = ['finance', 'it', 'is', 'legal', 'governance', 'hr', 'marketing', 'engineering', 'operations', 'executive']
 const PRIORITY_LEVELS = [
   { value: 'tier_1', label: 'Tier 1 - Critical' },
   { value: 'tier_2', label: 'Tier 2 - Important' },
@@ -365,7 +365,7 @@ export default function StakeholderDetailPage(props: { params: Promise<{ id: str
                     >
                       <option value="">Select...</option>
                       {DEPARTMENTS.map(d => (
-                        <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
+                        <option key={d} value={d}>{d.length <= 2 ? d.toUpperCase() : d.charAt(0).toUpperCase() + d.slice(1)}</option>
                       ))}
                     </select>
                   ) : (

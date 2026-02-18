@@ -100,6 +100,7 @@ function getSentimentColor(score: number): string {
 }
 
 function formatDepartmentName(dept: string): string {
+  if (dept.length <= 2) return dept.toUpperCase()
   return dept.charAt(0).toUpperCase() + dept.slice(1)
 }
 
