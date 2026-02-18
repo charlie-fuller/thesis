@@ -717,6 +717,10 @@ function ProjectsPageContent() {
             }
             setTimeout(() => { closingRef.current = false }, 500)
           }}
+          onProjectUpdated={(updated) => {
+            setProjects(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p))
+            setSelectedProject(prev => prev ? { ...prev, ...updated } : prev)
+          }}
         />
       )}
 

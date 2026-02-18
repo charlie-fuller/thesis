@@ -199,6 +199,7 @@ interface ProjectDetailModalProps {
   project: Project
   open: boolean
   onClose: () => void
+  onProjectUpdated?: (updated: Project) => void
 }
 
 // ============================================================================
@@ -248,6 +249,7 @@ export default function ProjectDetailModal({
   project: initialProject,
   open,
   onClose,
+  onProjectUpdated,
 }: ProjectDetailModalProps) {
   // Local project state to allow refreshing after generation
   const [project, setProject] = useState<Project>(initialProject)
@@ -723,6 +725,7 @@ export default function ProjectDetailModal({
 
       const updated = await apiPatch<Project>(`/api/projects/${project.id}`, updateData)
       setProject(updated)
+      onProjectUpdated?.(updated)
       setEditingSection(null)
     } catch (error) {
       console.error('Failed to save project:', error)
@@ -743,6 +746,7 @@ export default function ProjectDetailModal({
         project_description: projectDescription,
       })
       setProject(updated)
+      onProjectUpdated?.(updated)
       setShowProjectNameModal(false)
       setPendingStatus(null)
       setEditingSection(null)
