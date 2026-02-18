@@ -28,7 +28,7 @@ type AnalyticsSubTab = 'agent-usage' | 'activity' | 'compliance'
 export default function HomePage() {
   const router = useRouter()
   const { user, session, loading: authLoading, isAdmin } = useAuth()
-  const [activeTab, setActiveTab] = useState<HomeTab>('system')
+  const [activeTab, setActiveTab] = useState<HomeTab>('analytics')
   const [graphSubTab, setGraphSubTab] = useState<GraphSubTab>('data')
   const [analyticsSubTab, setAnalyticsSubTab] = useState<AnalyticsSubTab>('agent-usage')
 
@@ -68,16 +68,6 @@ export default function HomePage() {
           {isAdmin && (
             <>
               <button
-                onClick={() => setActiveTab('system')}
-                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                  activeTab === 'system'
-                    ? 'border-brand text-brand'
-                    : 'border-transparent text-muted hover:text-primary'
-                }`}
-              >
-                Discovery Inbox
-              </button>
-              <button
                 onClick={() => setActiveTab('analytics')}
                 className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
                   activeTab === 'analytics'
@@ -86,6 +76,16 @@ export default function HomePage() {
                 }`}
               >
                 Analytics
+              </button>
+              <button
+                onClick={() => setActiveTab('system')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  activeTab === 'system'
+                    ? 'border-brand text-brand'
+                    : 'border-transparent text-muted hover:text-primary'
+                }`}
+              >
+                Discovery Inbox
               </button>
               <button
                 onClick={() => setActiveTab('process-map')}
