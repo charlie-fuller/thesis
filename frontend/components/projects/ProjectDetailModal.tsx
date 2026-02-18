@@ -1625,9 +1625,9 @@ export default function ProjectDetailModal({
                   )}
                   <a
                     href={`/tasks?project=${project.id}`}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
                   >
-                    View all in Tasks
+                    View and Edit Tasks
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
