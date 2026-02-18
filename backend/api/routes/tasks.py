@@ -1580,50 +1580,52 @@ async def update_task(task_id: str, request: TaskUpdate, current_user: dict = De
         if not existing.data:
             raise HTTPException(status_code=404, detail="Task not found")
 
-        # Build update record (only include provided fields)
+        # Build update record - use model_fields_set to distinguish
+        # "not provided" from "explicitly set to null" for clearable fields
         update_record = {"updated_by": user_id}
+        fields_set = request.model_fields_set
 
-        if request.title is not None:
+        if "title" in fields_set:
             update_record["title"] = request.title
-        if request.description is not None:
-            update_record["description"] = request.description
-        if request.status is not None:
-            update_record["status"] = request.status.value
-        if request.priority is not None:
+        if "description" in fields_set:
+            update_record["description"] = request.description or None
+        if "status" in fields_set:
+            update_record["status"] = request.status.value if request.status else None
+        if "priority" in fields_set:
             update_record["priority"] = request.priority
-        if request.assignee_stakeholder_id is not None:
+        if "assignee_stakeholder_id" in fields_set:
             if request.assignee_stakeholder_id:
                 validate_uuid(request.assignee_stakeholder_id, "assignee_stakeholder_id")
             update_record["assignee_stakeholder_id"] = request.assignee_stakeholder_id or None
-        if request.assignee_user_id is not None:
+        if "assignee_user_id" in fields_set:
             if request.assignee_user_id:
                 validate_uuid(request.assignee_user_id, "assignee_user_id")
             update_record["assignee_user_id"] = request.assignee_user_id or None
-        if request.assignee_name is not None:
+        if "assignee_name" in fields_set:
             update_record["assignee_name"] = request.assignee_name or None
-        if request.due_date is not None:
+        if "due_date" in fields_set:
             update_record["due_date"] = request.due_date.isoformat() if request.due_date else None
-        if request.category is not None:
+        if "category" in fields_set:
             update_record["category"] = request.category or None
-        if request.tags is not None:
+        if "tags" in fields_set:
             update_record["tags"] = request.tags
-        if request.team is not None:
+        if "team" in fields_set:
             update_record["team"] = request.team or None
-        if request.blocker_reason is not None:
+        if "blocker_reason" in fields_set:
             update_record["blocker_reason"] = request.blocker_reason or None
-        if request.related_project_id is not None:
+        if "related_project_id" in fields_set:
             if request.related_project_id:
                 validate_uuid(request.related_project_id, "related_project_id")
             update_record["related_project_id"] = request.related_project_id or None
-        if request.linked_project_id is not None:
+        if "linked_project_id" in fields_set:
             if request.linked_project_id:
                 validate_uuid(request.linked_project_id, "linked_project_id")
             update_record["linked_project_id"] = request.linked_project_id or None
-        if request.sequence_number is not None:
+        if "sequence_number" in fields_set:
             update_record["sequence_number"] = request.sequence_number
-        if request.depends_on is not None:
+        if "depends_on" in fields_set:
             update_record["depends_on"] = request.depends_on
-        if request.notes is not None:
+        if "notes" in fields_set:
             update_record["notes"] = request.notes or None
 
         result = await asyncio.to_thread(
