@@ -708,6 +708,13 @@ function ProjectsPageContent() {
           onClose={() => {
             closingRef.current = true
             setSelectedProject(null)
+            // Clear deep-link URL param so the useEffect doesn't re-open the modal
+            if (searchParams.get('project')) {
+              const params = new URLSearchParams(searchParams.toString())
+              params.delete('project')
+              const newUrl = params.toString() ? `?${params.toString()}` : '/projects'
+              router.replace(newUrl, { scroll: false })
+            }
             setTimeout(() => { closingRef.current = false }, 500)
           }}
         />
