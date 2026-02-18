@@ -914,12 +914,12 @@ async def taskmaster_chat_for_project(
     - Create task_candidates linked to this project
     - Tasks appear in the Discovery Inbox for review
 
-    Only available for projects that have a project_name (i.e., are active projects).
+    Only available for active projects.
     """
-    # Verify project exists, belongs to client, and is a project
+    # Verify project exists, belongs to client, and is active
     proj = (
         supabase.table("ai_projects")
-        .select("id, project_name")
+        .select("id, project_name, status")
         .eq("id", project_id)
         .eq("client_id", current_user["client_id"])
         .single()
@@ -929,10 +929,10 @@ async def taskmaster_chat_for_project(
     if not proj.data:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    if not proj.data.get("project_name"):
+    if not proj.data.get("project_name") and proj.data.get("status") != "active":
         raise HTTPException(
             status_code=400,
-            detail="Taskmaster is only available for projects that have been converted to active projects",
+            detail="Taskmaster is only available for active projects",
         )
 
     try:

@@ -671,7 +671,7 @@ async def taskmaster_chat_for_opportunity(
     # Verify opportunity exists, belongs to client, and is a project
     opp = (
         supabase.table("ai_projects")
-        .select("id, project_name")
+        .select("id, project_name, status")
         .eq("id", opportunity_id)
         .eq("client_id", current_user["client_id"])
         .single()
@@ -681,10 +681,10 @@ async def taskmaster_chat_for_opportunity(
     if not opp.data:
         raise HTTPException(status_code=404, detail="Opportunity not found")
 
-    if not opp.data.get("project_name"):
+    if not opp.data.get("project_name") and opp.data.get("status") != "active":
         raise HTTPException(
             status_code=400,
-            detail="Taskmaster is only available for opportunities that have been converted to projects",
+            detail="Taskmaster is only available for active projects",
         )
 
     try:
