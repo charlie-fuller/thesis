@@ -32,6 +32,7 @@ interface TaskEvaluation {
   task_understanding?: string
   steps?: string[]
   recommendations?: string[]
+  decision_gaps?: string[]
   category: 'automatable' | 'assistable' | 'manual'
   confidence: number
   confidence_breakdown?: ConfidenceBreakdown
@@ -701,7 +702,7 @@ function TaskEvaluationCard({
               {task.title}
             </span>
             <span className={`px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${c.badge}`}>
-              {task.confidence}%
+              Confidence Score {task.confidence}%
             </span>
             {executionResult && !executionResult.error && (
               <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -728,6 +729,21 @@ function TaskEvaluationCard({
                   <li key={i} className="text-amber-600 dark:text-amber-400 flex items-start gap-1">
                     <span className="flex-shrink-0">-</span>
                     {rec}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Decision gaps callout */}
+          {task.decision_gaps && task.decision_gaps.length > 0 && (
+            <div className="mt-1.5 p-2 bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 rounded text-xs">
+              <p className="font-medium text-purple-700 dark:text-purple-400 mb-1">Decision gaps:</p>
+              <ul className="space-y-0.5">
+                {task.decision_gaps.map((gap, i) => (
+                  <li key={i} className="text-purple-600 dark:text-purple-400 flex items-start gap-1">
+                    <span className="flex-shrink-0">-</span>
+                    {gap}
                   </li>
                 ))}
               </ul>

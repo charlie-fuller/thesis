@@ -252,6 +252,12 @@ For each task, include:
   - "Add a document describing internal data classification tiers"
   - "Provide meeting notes from the governance council discussion on deployment approval criteria"
   Do NOT give vague recommendations like "gather more info" - be specific about what's missing.
+- decision_gaps: decisions that need to be made or confirmed before this task can be executed well. These are choices, approvals, or strategic calls that block high-quality output. Examples:
+  - "Which deployment regions are in scope - EU only or global?"
+  - "Has legal signed off on the data sharing approach with the vendor?"
+  - "Who is the decision-maker for budget allocation on this initiative?"
+  - "Is the team committed to the microservices approach or is monolith still on the table?"
+  Do NOT list things that can be researched - only genuine human decisions or confirmations.
 - confidence_breakdown: scores for each of the 5 dimensions above
 
 <evaluation>
@@ -263,6 +269,7 @@ For each task, include:
       "task_understanding": "What this task is and why it matters",
       "steps": ["Step 1: ...", "Step 2: ..."],
       "recommendations": ["Upload X document to KB", "Add Y information"],
+      "decision_gaps": ["Which vendor has been selected?", "Has the budget been approved?"],
       "category": "automatable|assistable|manual",
       "confidence": 85,
       "confidence_breakdown": {{
@@ -767,6 +774,7 @@ Include:
 - task_understanding: 1-3 sentences explaining what this task is and why it matters
 - steps: ordered list of concrete steps you would take
 - recommendations: specific, actionable KB gaps - tell the user EXACTLY what documents/info to upload so you can raise confidence. Be specific, not vague.
+- decision_gaps: decisions that need to be made or confirmed before this task can be executed well. These are choices, approvals, or strategic calls that block high-quality output. Only list genuine human decisions, not things that can be researched.
 - confidence_breakdown: scores for each of the 5 dimensions
 
 <evaluation>
@@ -776,6 +784,7 @@ Include:
   "task_understanding": "What this task is and why it matters",
   "steps": ["Step 1: ...", "Step 2: ..."],
   "recommendations": ["Upload X document to KB", "Add Y information"],
+  "decision_gaps": ["Which vendor has been selected?", "Has the budget been approved?"],
   "category": "automatable|assistable|manual",
   "confidence": 85,
   "confidence_breakdown": {{

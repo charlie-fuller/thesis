@@ -31,6 +31,7 @@ interface SingleTaskEvaluation {
   task_understanding?: string
   steps?: string[]
   recommendations?: string[]
+  decision_gaps?: string[]
   category: 'automatable' | 'assistable' | 'manual'
   confidence: number
   confidence_breakdown?: ConfidenceBreakdown
@@ -293,7 +294,7 @@ export default function KrakenTaskPanel({ task, onNotesUpdated }: KrakenTaskPane
               {evaluation.category}
             </span>
             <span className={`text-sm font-medium ${confidenceColor(evaluation.confidence)}`}>
-              {evaluation.confidence}%
+              Confidence Score {evaluation.confidence}%
             </span>
           </div>
 
@@ -313,6 +314,23 @@ export default function KrakenTaskPanel({ task, onNotesUpdated }: KrakenTaskPane
                   <li key={i} className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
                     <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
                     {rec}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Decision gaps */}
+          {evaluation.decision_gaps && evaluation.decision_gaps.length > 0 && (
+            <div className="p-2.5 bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 rounded-lg">
+              <p className="text-xs font-medium text-purple-700 dark:text-purple-400 mb-1.5">
+                Decisions needed before execution:
+              </p>
+              <ul className="space-y-1">
+                {evaluation.decision_gaps.map((gap, i) => (
+                  <li key={i} className="text-xs text-purple-600 dark:text-purple-400 flex items-start gap-1.5">
+                    <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    {gap}
                   </li>
                 ))}
               </ul>
@@ -446,9 +464,16 @@ function formatEvaluationNotes(eval_: SingleTaskEvaluation): string {
   }
 
   if (eval_.recommendations && eval_.recommendations.length > 0) {
-    lines.push('\nRecommendations:')
+    lines.push('\nKB Gaps:')
     eval_.recommendations.forEach((rec, i) => {
       lines.push(`  ${i + 1}. ${rec}`)
+    })
+  }
+
+  if (eval_.decision_gaps && eval_.decision_gaps.length > 0) {
+    lines.push('\nDecision Gaps:')
+    eval_.decision_gaps.forEach((gap, i) => {
+      lines.push(`  ${i + 1}. ${gap}`)
     })
   }
 
