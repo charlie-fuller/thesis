@@ -2078,5 +2078,54 @@ CREATE INDEX IF NOT EXISTS idx_task_candidates_user_id ON public.task_candidates
 
 -- Created 48 FK indexes
 
+-- =============================================================
+-- SECTION 6: Fix search_path on SECURITY INVOKER functions
+-- Migration 079 set search_path = '' on ALL functions, but only
+-- SECURITY DEFINER functions need that. INVOKER functions need
+-- search_path = public to find tables.
+-- =============================================================
+
+ALTER FUNCTION public.calculate_disco_integration_score SET search_path = public;
+ALTER FUNCTION public.check_disco_integration_feasibility SET search_path = public;
+ALTER FUNCTION public.compute_obsidian_sync_duration SET search_path = public;
+ALTER FUNCTION public.copy_project_link_on_task_accept SET search_path = public;
+ALTER FUNCTION public.count_conversation_images SET search_path = public;
+ALTER FUNCTION public.count_recent_suggestions SET search_path = public;
+ALTER FUNCTION public.get_agents_for_topic SET search_path = public;
+ALTER FUNCTION public.get_priority_knowledge_gaps SET search_path = public;
+ALTER FUNCTION public.get_todays_research_schedule SET search_path = public;
+ALTER FUNCTION public.increment_gap_occurrence SET search_path = public;
+ALTER FUNCTION public.log_connector_request SET search_path = public;
+ALTER FUNCTION public.match_disco_all_chunks SET search_path = public;
+ALTER FUNCTION public.match_disco_document_chunks SET search_path = public;
+ALTER FUNCTION public.match_disco_system_kb_chunks SET search_path = public;
+ALTER FUNCTION public.match_document_chunks SET search_path = public;
+ALTER FUNCTION public.match_document_chunks_by_ids SET search_path = public;
+ALTER FUNCTION public.match_document_chunks_by_type SET search_path = public;
+ALTER FUNCTION public.match_document_chunks_with_agent_filter SET search_path = public;
+ALTER FUNCTION public.match_help_chunks SET search_path = public;
+ALTER FUNCTION public.match_purdy_all_chunks SET search_path = public;
+ALTER FUNCTION public.match_purdy_document_chunks SET search_path = public;
+ALTER FUNCTION public.match_purdy_system_kb_chunks SET search_path = public;
+ALTER FUNCTION public.record_task_history SET search_path = public;
+ALTER FUNCTION public.sync_document_tags_cache SET search_path = public;
+ALTER FUNCTION public.update_compass_reports_updated_at SET search_path = public;
+ALTER FUNCTION public.update_disco_checkpoint_timestamp SET search_path = public;
+ALTER FUNCTION public.update_disco_initiatives_updated_at SET search_path = public;
+ALTER FUNCTION public.update_disco_updated_at SET search_path = public;
+ALTER FUNCTION public.update_graph_sync_state SET search_path = public;
+ALTER FUNCTION public.update_meeting_rooms_updated_at SET search_path = public;
+ALTER FUNCTION public.update_obsidian_sync_state_timestamp SET search_path = public;
+ALTER FUNCTION public.update_obsidian_vault_config_timestamp SET search_path = public;
+ALTER FUNCTION public.update_project_candidate_timestamp SET search_path = public;
+ALTER FUNCTION public.update_project_task_timestamp SET search_path = public;
+ALTER FUNCTION public.update_project_timestamp SET search_path = public;
+ALTER FUNCTION public.update_purdy_initiatives_updated_at SET search_path = public;
+ALTER FUNCTION public.update_stakeholder_interactions SET search_path = public;
+ALTER FUNCTION public.update_stakeholder_metrics_timestamp SET search_path = public;
+ALTER FUNCTION public.update_stakeholder_sentiment SET search_path = public;
+ALTER FUNCTION public.update_system_instruction_versions_updated_at SET search_path = public;
+ALTER FUNCTION public.update_task_comment_timestamp SET search_path = public;
+
 NOTIFY pgrst, 'reload schema';
 COMMIT;
