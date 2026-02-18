@@ -1630,44 +1630,58 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                             lambda: supabase.table("ai_projects").select("*").eq("id", pid).single().execute()
                         )
                         if proj_result.data:
-                            related_docs = get_scoring_related_documents(
-                                project=proj_result.data, client_id=client_id, limit=5
+                            # Run all context fetches in parallel
+                            from services.document_digests import get_project_document_digests
+
+                            _pid_ctx = pid
+
+                            async def _fetch_related_docs():
+                                return await asyncio.to_thread(
+                                    lambda: get_scoring_related_documents(
+                                        project=proj_result.data, client_id=client_id, limit=5
+                                    )
+                                )
+
+                            async def _fetch_tasks():
+                                try:
+                                    result = await asyncio.to_thread(
+                                        lambda: supabase.table("project_tasks")
+                                        .select("id, title, status, priority, assignee_name, due_date, blocker_reason")
+                                        .eq("linked_project_id", _pid_ctx)
+                                        .neq("status", "completed")
+                                        .order("priority")
+                                        .limit(30)
+                                        .execute()
+                                    )
+                                    return result.data or []
+                                except Exception as e:
+                                    logger.warning(f"Failed to load task context: {e}")
+                                    return []
+
+                            async def _fetch_digests():
+                                try:
+                                    return await asyncio.to_thread(
+                                        lambda: get_project_document_digests(_pid_ctx, supabase)
+                                    )
+                                except Exception as e:
+                                    logger.warning(f"Failed to load doc digests: {e}")
+                                    return []
+
+                            related_docs, tasks_data, doc_digests = await asyncio.gather(
+                                _fetch_related_docs(), _fetch_tasks(), _fetch_digests()
                             )
+
                             project_context_text = build_project_context(proj_result.data, related_docs)
 
-                            # Fetch project tasks for context
                             task_context_text = ""
-                            try:
-                                _pid = pid  # capture for lambda
-                                tasks_result = await asyncio.to_thread(
-                                    lambda: supabase.table("project_tasks")
-                                    .select("id, title, status, priority, assignee_name, due_date, blocker_reason")
-                                    .eq("linked_project_id", _pid)
-                                    .neq("status", "completed")
-                                    .order("priority")
-                                    .limit(30)
-                                    .execute()
-                                )
-                                if tasks_result.data:
-                                    task_context_text = build_task_context(tasks_result.data)
-                                    logger.info(f"Injected {len(tasks_result.data)} tasks for project {pid}")
-                            except Exception as task_err:
-                                logger.warning(f"Failed to load task context: {task_err}")
+                            if tasks_data:
+                                task_context_text = build_task_context(tasks_data)
+                                logger.info(f"Injected {len(tasks_data)} tasks for project {pid}")
 
-                            # Fetch document digests for context
                             doc_digest_text = ""
-                            try:
-                                from services.document_digests import get_project_document_digests
-
-                                _pid2 = pid
-                                doc_digests = await asyncio.to_thread(
-                                    lambda: get_project_document_digests(_pid2, supabase)
-                                )
-                                if doc_digests:
-                                    doc_digest_text = build_doc_digest_context(doc_digests)
-                                    logger.info(f"Injected {len(doc_digests)} doc digests for project {pid}")
-                            except Exception as digest_err:
-                                logger.warning(f"Failed to load doc digests: {digest_err}")
+                            if doc_digests:
+                                doc_digest_text = build_doc_digest_context(doc_digests)
+                                logger.info(f"Injected {len(doc_digests)} doc digests for project {pid}")
 
                             user_prompt = f"""{project_context_text}
 {task_context_text}

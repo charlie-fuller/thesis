@@ -472,6 +472,7 @@ export default function ChatInterface({
         headers: {
           'Content-Type': 'application/json',
         },
+        timeout: 120000, // 2min for streaming (context injection + Claude API)
         body: JSON.stringify({
           message: userContent,
           client_id: clientId,
@@ -718,6 +719,7 @@ export default function ChatInterface({
         headers: {
           'Content-Type': 'application/json',
         },
+        timeout: 120000, // 2min for streaming
         body: JSON.stringify({
           conversation_id: currentConversationId,
           message_id: messageId,
