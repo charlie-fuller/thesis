@@ -321,9 +321,13 @@ export default function TaskKanbanBoard({ initialProjectId }: TaskKanbanBoardPro
       // Remove from old column
       newColumns[oldStatus!] = prev[oldStatus!].filter(t => t.id !== taskId)
 
-      // Add to new column
+      // Insert into new column at the specified position
       const updatedTask = { ...task!, status: newStatus, position: newPosition ?? 0 }
-      newColumns[newStatus] = [...prev[newStatus], updatedTask].sort((a, b) => a.position - b.position)
+      const targetColumn = [...newColumns[newStatus]]
+      const insertAt = newPosition != null ? Math.min(newPosition, targetColumn.length) : targetColumn.length
+      targetColumn.splice(insertAt, 0, updatedTask)
+      // Re-number positions
+      newColumns[newStatus] = targetColumn.map((t, i) => ({ ...t, position: i }))
 
       return newColumns
     })

@@ -52,6 +52,8 @@ export default function TaskColumn({
   onAssigneeChange,
 }: TaskColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false)
+  const [dropIndex, setDropIndex] = useState<number | null>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const [sortBy, setSortBy] = useState<SortOption>('priority-desc')
   const [showSortMenu, setShowSortMenu] = useState(false)
   const sortMenuRef = useRef<HTMLDivElement>(null)
@@ -109,30 +111,42 @@ export default function TaskColumn({
     }
   }, [tasks, sortBy])
 
+  const getDropIndex = useCallback((clientY: number): number => {
+    if (!listRef.current) return tasks.length
+    const cards = Array.from(listRef.current.querySelectorAll('[data-task-card]'))
+    for (let i = 0; i < cards.length; i++) {
+      const rect = cards[i].getBoundingClientRect()
+      const midY = rect.top + rect.height / 2
+      if (clientY < midY) return i
+    }
+    return cards.length
+  }, [tasks.length])
+
   const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     setIsDragOver(true)
-  }, [])
+    setDropIndex(getDropIndex(e.clientY))
+  }, [getDropIndex])
 
   const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
-    // Only set to false if we're actually leaving the column, not entering a child
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setIsDragOver(false)
+      setDropIndex(null)
     }
   }, [])
 
   const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setIsDragOver(false)
+    setDropIndex(null)
 
     const taskId = e.dataTransfer.getData('taskId')
     if (taskId) {
-      // Calculate position based on where dropped
-      const position = tasks.length // Add to end for now
+      const position = getDropIndex(e.clientY)
       onDrop(taskId, id as Task['status'], position)
     }
-  }, [id, tasks.length, onDrop])
+  }, [id, getDropIndex, onDrop])
 
   return (
     <div
@@ -191,21 +205,30 @@ export default function TaskColumn({
       </div>
 
       {/* Task List */}
-      <div className="flex-1 p-2 space-y-2 min-h-[200px] max-h-[calc(100vh-280px)] overflow-y-auto">
+      <div ref={listRef} className="flex-1 p-2 space-y-2 min-h-[200px] max-h-[calc(100vh-280px)] overflow-y-auto">
         {sortedTasks.length === 0 ? (
           <div className="flex items-center justify-center h-24 text-muted text-sm">
             No tasks
           </div>
         ) : (
-          sortedTasks.map(task => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onClick={() => onTaskClick(task)}
-              stakeholders={stakeholders}
-              onAssigneeChange={onAssigneeChange}
-            />
+          sortedTasks.map((task, i) => (
+            <div key={task.id}>
+              {isDragOver && dropIndex === i && (
+                <div className="h-1 bg-blue-500 rounded-full mx-1 mb-2" />
+              )}
+              <div data-task-card>
+                <TaskCard
+                  task={task}
+                  onClick={() => onTaskClick(task)}
+                  stakeholders={stakeholders}
+                  onAssigneeChange={onAssigneeChange}
+                />
+              </div>
+            </div>
           ))
+        )}
+        {isDragOver && dropIndex === sortedTasks.length && sortedTasks.length > 0 && (
+          <div className="h-1 bg-blue-500 rounded-full mx-1" />
         )}
       </div>
     </div>
