@@ -72,10 +72,31 @@ export default function PageHeader({
     >
       <div className="h-full px-4">
         <div className="flex items-center h-full">
-          {/* Left: UserMenu and Navigation Links */}
-          <div className="flex items-center gap-4">
+          {/* Left: UserMenu, Brand, and Navigation Links */}
+          <div className="flex items-center gap-4 flex-1">
             {/* User Menu - on the left */}
             <UserMenu />
+
+            {/* Brand / Logo */}
+            <Link href="/" className="flex items-center mx-2">
+              {theme.header_logo_url ? (
+                <img
+                  src={theme.header_logo_url}
+                  alt="Logo"
+                  style={{ maxHeight: `${logoMaxHeight}px`, width: 'auto' }}
+                  className="object-contain"
+                />
+              ) : (
+                <span
+                  className="text-2xl font-semibold"
+                  style={{
+                    color: theme.header_title_color || 'var(--header-title-color)',
+                  }}
+                >
+                  Thesis
+                </span>
+              )}
+            </Link>
 
             {/* Navigation Links */}
             <div className="hidden md:flex items-center gap-1">
@@ -101,29 +122,6 @@ export default function PageHeader({
                 {tabSwitcher}
               </div>
             )}
-          </div>
-
-          {/* Center: Logo/Brand - truly centered between nav and right edge */}
-          <div className="flex-1 flex justify-center">
-            <Link href="/" className="flex items-center">
-              {theme.header_logo_url ? (
-                <img
-                  src={theme.header_logo_url}
-                  alt="Logo"
-                  style={{ maxHeight: `${logoMaxHeight}px`, width: 'auto' }}
-                  className="object-contain"
-                />
-              ) : (
-                <span
-                  className="text-2xl font-semibold"
-                  style={{
-                    color: theme.header_title_color || 'var(--header-title-color)',
-                  }}
-                >
-                  Thesis
-                </span>
-              )}
-            </Link>
           </div>
 
           {/* Right: Panel toggles (or empty spacer to balance centering) */}
