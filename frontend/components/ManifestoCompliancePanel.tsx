@@ -110,7 +110,7 @@ export default function ManifestoCompliancePanel() {
   const driftingPct = total > 0 ? Math.round((drifting / total) * 100) : 0;
   const misalignedPct = total > 0 ? Math.round((misaligned / total) * 100) : 0;
 
-  const agents = Object.values(data.by_agent).sort((a, b) => b.messages - a.messages);
+  const agents = Object.values(data.by_agent).filter((a) => a.agent).sort((a, b) => b.messages - a.messages);
 
   return (
     <div className="space-y-6">

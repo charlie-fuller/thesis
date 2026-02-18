@@ -70,7 +70,7 @@ interface AgentIconProps {
 }
 
 export function AgentIcon({ name, className, size = 'md' }: AgentIconProps) {
-  const Icon = AGENT_ICONS[name.toLowerCase()] || Bot;
+  const Icon = AGENT_ICONS[(name || '').toLowerCase()] || Bot;
   const sizeClasses = {
     sm: 'w-4 h-4',
     md: 'w-6 h-6',
@@ -117,7 +117,7 @@ export const AGENT_COLORS: Record<string, string> = {
 };
 
 export function getAgentColor(name: string): string {
-  return AGENT_COLORS[name.toLowerCase()] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+  return AGENT_COLORS[(name || '').toLowerCase()] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
 }
 
 // Solid background colors for avatars (meeting messages)
@@ -158,5 +158,5 @@ export const AGENT_AVATAR_COLORS: Record<string, { bg: string; text: string }> =
 };
 
 export function getAgentAvatarColor(name: string): { bg: string; text: string } {
-  return AGENT_AVATAR_COLORS[name.toLowerCase()] || { bg: 'bg-gray-500', text: 'text-gray-700' };
+  return AGENT_AVATAR_COLORS[(name || '').toLowerCase()] || { bg: 'bg-gray-500', text: 'text-gray-700' };
 }
