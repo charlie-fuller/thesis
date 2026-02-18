@@ -5,9 +5,10 @@ import { Plus, ArrowUpDown } from 'lucide-react'
 import { Task } from './TaskKanbanBoard'
 import TaskCard from './TaskCard'
 
-type SortOption = 'priority-desc' | 'priority-asc' | 'due-asc' | 'due-desc' | 'created-desc' | 'created-asc' | 'alpha' | 'sequence'
+type SortOption = 'manual' | 'priority-desc' | 'priority-asc' | 'due-asc' | 'due-desc' | 'created-desc' | 'created-asc' | 'alpha' | 'sequence'
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'manual', label: 'Manual (drag to reorder)' },
   { value: 'sequence', label: 'Sequence (#01, #02...)' },
   { value: 'priority-desc', label: 'Priority (High \u2192 Low)' },
   { value: 'priority-asc', label: 'Priority (Low \u2192 High)' },
@@ -75,6 +76,8 @@ export default function TaskColumn({
   const sortedTasks = useMemo(() => {
     const sorted = [...tasks]
     switch (sortBy) {
+      case 'manual':
+        return sorted.sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
       case 'sequence':
         return sorted.sort((a, b) => {
           if (a.sequence_number == null && b.sequence_number == null) return 0
@@ -142,8 +145,13 @@ export default function TaskColumn({
     setDropIndex(null)
 
     const taskId = e.dataTransfer.getData('taskId')
+    const sourceStatus = e.dataTransfer.getData('sourceStatus')
     if (taskId) {
       const position = getDropIndex(e.clientY)
+      // Auto-switch to manual sort when reordering within same column
+      if (sourceStatus === id) {
+        setSortBy('manual')
+      }
       onDrop(taskId, id as Task['status'], position)
     }
   }, [id, getDropIndex, onDrop])

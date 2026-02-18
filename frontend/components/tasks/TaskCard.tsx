@@ -69,6 +69,7 @@ export default function TaskCard({ task, onClick, stakeholders = [], onAssigneeC
 
   const handleDragStart = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.dataTransfer.setData('taskId', task.id)
+    e.dataTransfer.setData('sourceStatus', task.status)
     e.dataTransfer.effectAllowed = 'move'
     setIsDragging(true)
 
