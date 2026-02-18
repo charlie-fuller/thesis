@@ -104,6 +104,7 @@ class ProjectUpdate(BaseModel):
     scoring_confidence: Optional[int] = Field(None, ge=0, le=100)
     confidence_questions: Optional[List[str]] = None
     display_order: Optional[int] = None
+    goal_alignment_details: Optional[dict] = None
 
 
 class ProjectScoreUpdate(BaseModel):
