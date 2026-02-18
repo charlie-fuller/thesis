@@ -24,6 +24,12 @@ interface Stakeholder {
   department?: string
 }
 
+interface ProjectOption {
+  id: string
+  title: string
+  project_code: string | null
+}
+
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'To Do' },
   { value: 'in_progress', label: 'In Progress' },
@@ -73,8 +79,10 @@ export default function TaskCreateModal({
   const [team, setTeam] = useState('')
   const [blockerReason, setBlockerReason] = useState('')
   const [notes, setNotes] = useState('')
+  const [linkedProjectId, setLinkedProjectId] = useState<string>('')
 
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([])
+  const [projects, setProjects] = useState<ProjectOption[]>([])
   const [saving, setSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -92,6 +100,18 @@ export default function TaskCreateModal({
       }
     }
     loadStakeholders()
+
+    const loadProjects = async () => {
+      try {
+        const response = await apiGet<ProjectOption[]>('/api/projects?limit=200')
+        if (Array.isArray(response)) {
+          setProjects(response.sort((a, b) => (a.title || '').localeCompare(b.title || '')))
+        }
+      } catch (error) {
+        console.error('Failed to load projects:', error)
+      }
+    }
+    loadProjects()
   }, [])
 
   // Populate form when editing
@@ -109,6 +129,7 @@ export default function TaskCreateModal({
       setTeam(editTask.team || '')
       setBlockerReason(editTask.blocker_reason || '')
       setNotes(editTask.notes || '')
+      setLinkedProjectId(editTask.linked_project_id || '')
     } else {
       // Reset form for new task
       setTitle('')
@@ -123,6 +144,7 @@ export default function TaskCreateModal({
       setTeam('')
       setBlockerReason('')
       setNotes('')
+      setLinkedProjectId('')
     }
   }, [editTask, defaultStatus])
 
@@ -150,6 +172,7 @@ export default function TaskCreateModal({
         team: team || null,
         blocker_reason: status === 'blocked' ? blockerReason.trim() || null : null,
         notes: notes.trim() || null,
+        linked_project_id: linkedProjectId || null,
       }
 
       if (editTask) {
@@ -167,7 +190,7 @@ export default function TaskCreateModal({
     } finally {
       setSaving(false)
     }
-  }, [title, description, status, priority, assigneeStakeholderId, assigneeName, dueDate, category, tags, team, blockerReason, notes, editTask, onSaved])
+  }, [title, description, status, priority, assigneeStakeholderId, assigneeName, dueDate, category, tags, team, blockerReason, notes, linkedProjectId, editTask, onSaved])
 
   const handleDelete = useCallback(async () => {
     if (!editTask) return
@@ -379,49 +402,57 @@ export default function TaskCreateModal({
               </div>
             </div>
 
-            {/* Linked Project + Sequence (read-only, condensed) */}
-            {editTask && (editTask.project_code || editTask.sequence_number != null || (editTask.depends_on && editTask.depends_on.length > 0)) && (
-              <div className="rounded-lg border border-default bg-gray-50 dark:bg-gray-800 p-3 space-y-2">
-                {editTask.project_code && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-secondary font-medium shrink-0">Project:</span>
-                    <span className="text-primary font-medium">{editTask.project_code}</span>
-                    {editTask.project_title && (
-                      <span className="text-secondary truncate">— {editTask.project_title}</span>
-                    )}
-                  </div>
-                )}
-                {(editTask.sequence_number != null || (editTask.depends_on && editTask.depends_on.length > 0)) && (
-                  <div className="flex items-start gap-4 text-sm">
-                    {editTask.sequence_number != null && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-secondary font-medium">Seq:</span>
-                        <span className="font-mono text-primary">#{String(editTask.sequence_number).padStart(2, '0')}</span>
-                      </div>
-                    )}
-                    {editTask.depends_on && editTask.depends_on.length > 0 && (
-                      <div className="flex items-start gap-1.5 min-w-0">
-                        <span className="text-secondary font-medium shrink-0">Depends on:</span>
-                        <div className="space-y-0.5">
-                          {editTask.depends_on.map(depId => {
-                            const depTask = allTasks.find(t => t.id === depId)
-                            if (depTask && depTask.sequence_number != null) {
-                              return (
-                                <div key={depId} className="flex items-center gap-1">
-                                  <span className="font-mono text-muted">#{String(depTask.sequence_number).padStart(2, '0')}</span>
-                                  <span className="truncate text-primary">{depTask.title}</span>
-                                </div>
-                              )
-                            }
+            {/* Linked Project */}
+            <div>
+              <label className="block text-sm font-medium text-secondary mb-1">
+                Linked Project
+              </label>
+              <select
+                value={linkedProjectId}
+                onChange={(e) => setLinkedProjectId(e.target.value)}
+                className="w-full px-3 py-2 border border-default rounded-lg bg-card text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+              >
+                <option value="">No project</option>
+                {projects.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.project_code ? `${p.project_code} — ` : ''}{p.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sequence + Dependencies (read-only, shown when linked) */}
+            {editTask && (editTask.sequence_number != null || (editTask.depends_on && editTask.depends_on.length > 0)) && (
+              <div className="rounded-lg border border-default bg-gray-50 dark:bg-gray-800 p-3">
+                <div className="flex items-start gap-4 text-sm">
+                  {editTask.sequence_number != null && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-secondary font-medium">Seq:</span>
+                      <span className="font-mono text-primary">#{String(editTask.sequence_number).padStart(2, '0')}</span>
+                    </div>
+                  )}
+                  {editTask.depends_on && editTask.depends_on.length > 0 && (
+                    <div className="flex items-start gap-1.5 min-w-0">
+                      <span className="text-secondary font-medium shrink-0">Depends on:</span>
+                      <div className="space-y-0.5">
+                        {editTask.depends_on.map(depId => {
+                          const depTask = allTasks.find(t => t.id === depId)
+                          if (depTask && depTask.sequence_number != null) {
                             return (
-                              <div key={depId} className="text-muted text-xs truncate">{depId}</div>
+                              <div key={depId} className="flex items-center gap-1">
+                                <span className="font-mono text-muted">#{String(depTask.sequence_number).padStart(2, '0')}</span>
+                                <span className="truncate text-primary">{depTask.title}</span>
+                              </div>
                             )
-                          })}
-                        </div>
+                          }
+                          return (
+                            <div key={depId} className="text-muted text-xs truncate">{depId}</div>
+                          )
+                        })}
                       </div>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
