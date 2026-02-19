@@ -33,6 +33,15 @@ interface SourceStats {
   avg_score: number;
 }
 
+interface ConfidenceFactors {
+  base: string;
+  length: string;
+  context: string;
+  maturity: string;
+  gap_severity: string;
+  baseline: string;
+}
+
 interface FlaggedItem {
   id: string;
   source: string;
@@ -40,6 +49,7 @@ interface FlaggedItem {
   agent: string;
   score: number;
   confidence: number;
+  confidence_factors?: ConfidenceFactors;
   level: string;
   signals: string[];
   gaps: string[];
@@ -112,6 +122,16 @@ function buildCopyText(item: FlaggedItem): string {
     `Recommendation: ${item.recommendation}`,
     `Preview: ${item.content_preview}`,
   ];
+  if (item.confidence_factors) {
+    const f = item.confidence_factors;
+    lines.push('', 'Confidence factors:');
+    lines.push(`  Base: ${f.base}`);
+    lines.push(`  Length: ${f.length}`);
+    lines.push(`  Context: ${f.context}`);
+    lines.push(`  Maturity: ${f.maturity}`);
+    lines.push(`  Gap severity: ${f.gap_severity}`);
+    lines.push(`  Baseline: ${f.baseline}`);
+  }
   return lines.join('\n');
 }
 
@@ -227,8 +247,21 @@ function FlaggedItemsPanel({
                     <span className="text-sm font-medium text-primary capitalize">
                       {item.agent}
                     </span>
-                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${getConfidenceColor(item.confidence)}`}>
-                      {item.confidence}%
+                    <span className="relative group">
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium cursor-help ${getConfidenceColor(item.confidence)}`}>
+                        {item.confidence}%
+                      </span>
+                      {item.confidence_factors && (
+                        <div className="absolute left-0 top-full mt-1 z-50 hidden group-hover:block w-56 p-2 rounded-lg bg-card border border-default shadow-lg">
+                          <p className="text-xs font-medium text-primary mb-1">Confidence breakdown</p>
+                          {Object.entries(item.confidence_factors).map(([key, val]) => (
+                            <div key={key} className="flex justify-between text-xs text-muted py-0.5">
+                              <span className="capitalize">{key === 'gap_severity' ? 'Gap severity' : key}</span>
+                              <span className="text-secondary">{val}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">

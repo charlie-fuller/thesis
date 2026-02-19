@@ -1,6 +1,7 @@
 """Admin manifesto compliance analytics -- aggregate compliance scoring data."""
 
 import asyncio
+import math
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
@@ -241,6 +242,129 @@ def _format_principle(principle_id: str) -> str:
     return principle_id
 
 
+_TEST_KEYWORDS = {"test", "demo", "example", "draft", "scratch", "debug"}
+
+
+def _compute_confidence(
+    score: float,
+    content: str,
+    gaps: list[str],
+    signals: list[str],
+    agent: str,
+    agent_baselines: dict[str, dict],
+    conv_meta: dict | None,
+    conv_message_count: int,
+) -> tuple[int, dict[str, str]]:
+    """Compute context-aware confidence score for a flagged compliance item.
+
+    Returns (confidence_int, factors_dict) where confidence is 5-99.
+    """
+    factors = {}
+
+    # 1. Base score (inverse of compliance score)
+    base = 1 - score
+    factors["base"] = str(round(base * 100))
+
+    # 2. Message length factor
+    length = len(content)
+    if length < 50:
+        length_factor = 0.3
+        factors["length"] = f"very short <50 chars (0.3x)"
+    elif length < 150:
+        length_factor = 0.6
+        factors["length"] = f"short <150 chars (0.6x)"
+    elif length < 300:
+        length_factor = 0.8
+        factors["length"] = f"medium <300 chars (0.8x)"
+    else:
+        length_factor = 1.0
+        factors["length"] = "full length (1.0x)"
+
+    # 3. Conversation context factor
+    if conv_meta:
+        title = (conv_meta.get("title") or "").lower().strip()
+        has_project = bool(conv_meta.get("project_id"))
+        has_initiative = bool(conv_meta.get("initiative_id"))
+
+        if any(kw in title for kw in _TEST_KEYWORDS):
+            context_factor = 0.2
+            factors["context"] = f"test conversation (0.2x)"
+        elif title in ("new conversation", "") or not title:
+            context_factor = 0.6
+            factors["context"] = "auto-generated title (0.6x)"
+        elif has_project and has_initiative:
+            context_factor = 1.0
+            factors["context"] = "linked to project+initiative (1.0x)"
+        elif has_project or has_initiative:
+            context_factor = 0.85
+            factors["context"] = "linked to project or initiative (0.85x)"
+        else:
+            context_factor = 0.7
+            factors["context"] = "unlinked chat (0.7x)"
+    else:
+        context_factor = 0.7
+        factors["context"] = "no conversation metadata (0.7x)"
+
+    # 4. Conversation maturity factor
+    if conv_message_count <= 1:
+        maturity_factor = 0.3
+        factors["maturity"] = "single message (0.3x)"
+    elif conv_message_count <= 3:
+        maturity_factor = 0.6
+        factors["maturity"] = f"{conv_message_count} messages (0.6x)"
+    elif conv_message_count <= 9:
+        maturity_factor = 0.8
+        factors["maturity"] = f"{conv_message_count} messages (0.8x)"
+    else:
+        maturity_factor = 1.0
+        factors["maturity"] = f"{conv_message_count} messages (1.0x)"
+
+    # 5. Gap severity factor
+    expected = AGENT_EXPECTED_PRINCIPLES.get(agent, [])
+    if expected:
+        gap_ratio = len(gaps) / len(expected) if expected else 0
+    else:
+        gap_ratio = 1 - (len(signals) / 11) if signals else 1.0
+    if gap_ratio < 0.3:
+        gap_factor = 0.5
+        factors["gap_severity"] = f"minor ({len(gaps)} gaps, 0.5x)"
+    elif gap_ratio <= 0.6:
+        gap_factor = 0.75
+        factors["gap_severity"] = f"moderate ({len(gaps)} gaps, 0.75x)"
+    else:
+        gap_factor = 1.0
+        factors["gap_severity"] = f"major ({len(gaps)} gaps, 1.0x)"
+
+    # 6. Agent historical baseline factor
+    baseline = agent_baselines.get(agent)
+    if baseline and baseline["count"] >= 3:
+        mean = baseline["mean"]
+        stddev = baseline["stddev"]
+        if stddev > 0:
+            z = (mean - score) / stddev  # positive z = score below mean
+            if z < 1:
+                baseline_factor = 0.6
+                factors["baseline"] = f"normal for {agent} (0.6x)"
+            elif z < 2:
+                baseline_factor = 0.85
+                factors["baseline"] = f"notable for {agent} (0.85x)"
+            else:
+                baseline_factor = 1.0
+                factors["baseline"] = f"significant outlier for {agent} (1.0x)"
+        else:
+            baseline_factor = 0.6
+            factors["baseline"] = f"no variance for {agent} (0.6x)"
+    else:
+        count = baseline["count"] if baseline else 0
+        baseline_factor = 0.7
+        factors["baseline"] = f"insufficient data ({count} msgs, 0.7x)"
+
+    # Final calculation
+    raw = base * length_factor * context_factor * maturity_factor * gap_factor * baseline_factor * 100
+    confidence = max(5, min(99, round(raw)))
+    return confidence, factors
+
+
 @router.get("/analytics/manifesto-compliance/flagged")
 async def get_flagged_messages(
     current_user: dict = Depends(require_admin),
@@ -281,6 +405,74 @@ async def get_flagged_messages(
             .execute()
         )
 
+        # -- Build agent baselines from ALL compliance records in the period --
+        agent_scores: dict[str, list[float]] = defaultdict(list)
+        for msg in chat_result.data or []:
+            c = (msg.get("metadata") or {}).get("manifesto_compliance")
+            if c:
+                agent_scores[c.get("agent", "unknown")].append(c.get("score", 0.0))
+        for msg in meeting_result.data or []:
+            c = (msg.get("metadata") or {}).get("manifesto_compliance")
+            if c:
+                agent_scores[c.get("agent", "unknown")].append(c.get("score", 0.0))
+
+        agent_baselines: dict[str, dict] = {}
+        for agent, scores in agent_scores.items():
+            count = len(scores)
+            mean = sum(scores) / count if count else 0.0
+            variance = sum((s - mean) ** 2 for s in scores) / count if count else 0.0
+            agent_baselines[agent] = {
+                "mean": mean,
+                "stddev": math.sqrt(variance),
+                "count": count,
+            }
+
+        # -- Build conversation message counts --
+        conv_msg_counts: dict[str, int] = defaultdict(int)
+        for msg in chat_result.data or []:
+            cid = msg.get("conversation_id")
+            if cid:
+                conv_msg_counts[f"chat:{cid}"] += 1
+        for msg in meeting_result.data or []:
+            mid = msg.get("meeting_room_id")
+            if mid:
+                conv_msg_counts[f"meeting:{mid}"] += 1
+
+        # -- Batch-fetch conversation metadata --
+        chat_conv_ids = list(
+            {msg.get("conversation_id") for msg in chat_result.data or [] if msg.get("conversation_id")}
+        )
+        meeting_room_ids = list(
+            {msg.get("meeting_room_id") for msg in meeting_result.data or [] if msg.get("meeting_room_id")}
+        )
+
+        conv_meta_map: dict[str, dict] = {}
+        if chat_conv_ids:
+            conv_result = await asyncio.to_thread(
+                lambda: supabase.table("conversations")
+                .select("id, title, project_id, initiative_id")
+                .in_("id", chat_conv_ids)
+                .execute()
+            )
+            for conv in conv_result.data or []:
+                conv_meta_map[f"chat:{conv['id']}"] = {
+                    "title": conv.get("title"),
+                    "project_id": conv.get("project_id"),
+                    "initiative_id": conv.get("initiative_id"),
+                }
+
+        if meeting_room_ids:
+            mr_result = await asyncio.to_thread(
+                lambda: supabase.table("meeting_rooms").select("id, title").in_("id", meeting_room_ids).execute()
+            )
+            for mr in mr_result.data or []:
+                conv_meta_map[f"meeting:{mr['id']}"] = {
+                    "title": mr.get("title"),
+                    "project_id": None,
+                    "initiative_id": None,
+                }
+
+        # -- Build flagged items with context-aware confidence --
         items = []
 
         for msg in chat_result.data or []:
@@ -295,14 +487,30 @@ async def get_flagged_messages(
             signals = compliance.get("signals", [])
             score = compliance.get("score", 0.0)
             content = msg.get("content") or ""
+            agent = compliance.get("agent", "unknown")
+            conv_id = msg.get("conversation_id")
+            meta_key = f"chat:{conv_id}" if conv_id else None
+
+            confidence, confidence_factors = _compute_confidence(
+                score=score,
+                content=content,
+                gaps=gaps,
+                signals=signals,
+                agent=agent,
+                agent_baselines=agent_baselines,
+                conv_meta=conv_meta_map.get(meta_key) if meta_key else None,
+                conv_message_count=conv_msg_counts.get(meta_key, 0) if meta_key else 0,
+            )
+
             items.append(
                 {
                     "id": msg["id"],
                     "source": "chat",
-                    "source_id": msg.get("conversation_id"),
-                    "agent": compliance.get("agent", "unknown"),
+                    "source_id": conv_id,
+                    "agent": agent,
                     "score": score,
-                    "confidence": round((1 - score) * 100),
+                    "confidence": confidence,
+                    "confidence_factors": confidence_factors,
                     "level": msg_level,
                     "signals": signals,
                     "gaps": gaps,
@@ -325,14 +533,30 @@ async def get_flagged_messages(
             signals = compliance.get("signals", [])
             score = compliance.get("score", 0.0)
             content = msg.get("content") or ""
+            agent = compliance.get("agent", "unknown")
+            mr_id = msg.get("meeting_room_id")
+            meta_key = f"meeting:{mr_id}" if mr_id else None
+
+            confidence, confidence_factors = _compute_confidence(
+                score=score,
+                content=content,
+                gaps=gaps,
+                signals=signals,
+                agent=agent,
+                agent_baselines=agent_baselines,
+                conv_meta=conv_meta_map.get(meta_key) if meta_key else None,
+                conv_message_count=conv_msg_counts.get(meta_key, 0) if meta_key else 0,
+            )
+
             items.append(
                 {
                     "id": msg["id"],
                     "source": "meeting_room",
-                    "source_id": msg.get("meeting_room_id"),
-                    "agent": compliance.get("agent", "unknown"),
+                    "source_id": mr_id,
+                    "agent": agent,
                     "score": score,
-                    "confidence": round((1 - score) * 100),
+                    "confidence": confidence,
+                    "confidence_factors": confidence_factors,
                     "level": msg_level,
                     "signals": signals,
                     "gaps": gaps,
