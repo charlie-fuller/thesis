@@ -155,6 +155,20 @@ PRINCIPLE_SIGNALS: dict[str, list[str]] = {
 
 # Expected principle engagement per agent. Agents are expected to show
 # signals for principles they champion or naturally engage with.
+PRINCIPLE_RECOMMENDATIONS: dict[str, str] = {
+    "P1_state_change": "Frame responses around what changed and why it matters, not just what is.",
+    "P2_problems_before_solutions": "Lead with the problem statement before proposing solutions.",
+    "P3_evidence_over_eloquence": "Cite specific data, metrics, or sources rather than general claims.",
+    "P4_know_your_output_type": "Match output format to what the user needs (analysis, decision brief, action items).",
+    "P5_people_are_the_center": "Center the response around stakeholder impact and human outcomes.",
+    "P6_humans_decide": "Present options and tradeoffs rather than making the decision.",
+    "P7_multiple_perspectives": "Consider and surface alternative viewpoints or counterarguments.",
+    "P8_context_and_brevity": "Be concise -- provide enough context without over-explaining.",
+    "P9_guardrails_not_gates": "Enable action with appropriate guardrails rather than blocking.",
+    "P10_trace_connections": "Highlight relationships between concepts, stakeholders, or initiatives.",
+    "P11_disco_methodology": "Follow the DISCO framework (Discovery > Intelligence > Synthesis > Convergence).",
+}
+
 AGENT_EXPECTED_PRINCIPLES: dict[str, list[str]] = {
     "strategist": [
         "P1_state_change",

@@ -12,6 +12,7 @@ from services.manifesto_compliance import (
     AGENT_EXPECTED_PRINCIPLES,
     DRIFT_ALERT_THRESHOLD,
     MIN_MESSAGES_FOR_EVALUATION,
+    PRINCIPLE_RECOMMENDATIONS,
     _get_compliance_level,
 )
 
@@ -129,9 +130,11 @@ async def get_manifesto_compliance(
         agent_summary = {}
         for agent, data in by_agent.items():
             msg_count = data["messages"]
+            avg = round(data["total_score"] / msg_count, 2) if msg_count else 0.0
             agent_summary[agent] = {
                 "messages": msg_count,
-                "avg_score": round(data["total_score"] / msg_count, 2) if msg_count else 0.0,
+                "avg_score": avg,
+                "level": _get_compliance_level(avg),
                 "principle_hits": dict(data["principle_hits"]),
                 "principle_gaps": dict(data["principle_gaps"]),
             }
@@ -184,6 +187,133 @@ async def get_manifesto_compliance(
 
     except Exception as e:
         logger.error(f"Manifesto compliance analytics error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred. Please try again.",
+        ) from e
+
+
+def _build_recommendation(gaps: list[str], max_items: int = 3) -> str:
+    """Build a recommendation string from the top gap principles."""
+    parts = []
+    for gap in gaps[:max_items]:
+        rec = PRINCIPLE_RECOMMENDATIONS.get(gap)
+        if rec:
+            parts.append(rec)
+    return " ".join(parts) if parts else ""
+
+
+def _format_principle(principle_id: str) -> str:
+    """Convert principle ID to readable label, e.g. P3_evidence_over_eloquence -> Evidence over eloquence."""
+    parts = principle_id.split("_", 1)
+    if len(parts) == 2:
+        return parts[1].replace("_", " ").capitalize()
+    return principle_id
+
+
+@router.get("/analytics/manifesto-compliance/flagged")
+async def get_flagged_messages(
+    current_user: dict = Depends(require_admin),
+    days: int = 30,
+    level: str = "drifting",
+):
+    """Get individual flagged messages with compliance details.
+
+    Args:
+        current_user: Injected by FastAPI dependency.
+        days: Number of days to look back (default 30).
+        level: Filter by compliance level ('drifting' or 'misaligned').
+    """
+    if level not in ("drifting", "misaligned"):
+        raise HTTPException(status_code=400, detail="level must be 'drifting' or 'misaligned'")
+
+    try:
+        end_date = datetime.now(timezone.utc)
+        start_date = end_date - timedelta(days=days)
+
+        # Query chat messages
+        chat_result = await asyncio.to_thread(
+            lambda: supabase.table("messages")
+            .select("id, conversation_id, content, metadata, created_at")
+            .eq("role", "assistant")
+            .gte("created_at", start_date.isoformat())
+            .lte("created_at", end_date.isoformat())
+            .execute()
+        )
+
+        # Query meeting room messages
+        meeting_result = await asyncio.to_thread(
+            lambda: supabase.table("meeting_room_messages")
+            .select("id, meeting_room_id, content, metadata, created_at")
+            .gte("created_at", start_date.isoformat())
+            .lte("created_at", end_date.isoformat())
+            .not_.is_("agent_id", "null")
+            .execute()
+        )
+
+        items = []
+
+        for msg in chat_result.data or []:
+            metadata = msg.get("metadata") or {}
+            compliance = metadata.get("manifesto_compliance")
+            if not compliance:
+                continue
+            msg_level = compliance.get("level") or _get_compliance_level(compliance.get("score", 0.0))
+            if msg_level != level:
+                continue
+            gaps = compliance.get("gaps", [])
+            content = msg.get("content") or ""
+            items.append(
+                {
+                    "id": msg["id"],
+                    "source": "chat",
+                    "source_id": msg.get("conversation_id"),
+                    "agent": compliance.get("agent", "unknown"),
+                    "score": compliance.get("score", 0.0),
+                    "level": msg_level,
+                    "signals": compliance.get("signals", []),
+                    "gaps": gaps,
+                    "content_preview": content[:150] + ("..." if len(content) > 150 else ""),
+                    "created_at": msg.get("created_at"),
+                    "recommendation": _build_recommendation(gaps),
+                }
+            )
+
+        for msg in meeting_result.data or []:
+            metadata = msg.get("metadata") or {}
+            compliance = metadata.get("manifesto_compliance")
+            if not compliance:
+                continue
+            msg_level = compliance.get("level") or _get_compliance_level(compliance.get("score", 0.0))
+            if msg_level != level:
+                continue
+            gaps = compliance.get("gaps", [])
+            content = msg.get("content") or ""
+            items.append(
+                {
+                    "id": msg["id"],
+                    "source": "meeting_room",
+                    "source_id": msg.get("meeting_room_id"),
+                    "agent": compliance.get("agent", "unknown"),
+                    "score": compliance.get("score", 0.0),
+                    "level": msg_level,
+                    "signals": compliance.get("signals", []),
+                    "gaps": gaps,
+                    "content_preview": content[:150] + ("..." if len(content) > 150 else ""),
+                    "created_at": msg.get("created_at"),
+                    "recommendation": _build_recommendation(gaps),
+                }
+            )
+
+        # Sort by created_at descending (most recent first)
+        items.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+
+        return {"items": items, "total": len(items)}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Flagged messages query error: {e}")
         raise HTTPException(
             status_code=500,
             detail="An error occurred. Please try again.",
