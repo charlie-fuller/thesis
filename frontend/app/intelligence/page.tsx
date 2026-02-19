@@ -30,7 +30,7 @@ const StrategyContent = dynamic(
 )
 
 // Tab type
-type TabType = 'strategy' | 'stakeholders' | 'engagement' | 'agents'
+type TabType = 'strategy' | 'stakeholders' | 'engagement' | 'agents' | 'stakeholder-guide' | 'agent-tree'
 
 // Stakeholder view mode
 type StakeholderViewMode = 'grid' | 'department'
@@ -365,6 +365,26 @@ function IntelligencePageContent() {
               </svg>
               Agents
             </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('stakeholder-guide')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'stakeholder-guide'
+                ? 'border-brand text-brand'
+                : 'border-transparent text-secondary hover:text-primary'
+            }`}
+          >
+            Stakeholder Guide
+          </button>
+          <button
+            onClick={() => setActiveTab('agent-tree')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'agent-tree'
+                ? 'border-brand text-brand'
+                : 'border-transparent text-secondary hover:text-primary'
+            }`}
+          >
+            Agent Selection Tree
           </button>
         </div>
 
@@ -905,6 +925,26 @@ function IntelligencePageContent() {
                 )}
               </>
             )}
+          </div>
+        )}
+
+        {activeTab === 'stakeholder-guide' && (
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+            <iframe
+              src="/stakeholder-workflow.html"
+              className="w-full h-full border-0"
+              title="Stakeholder Engagement Workflow"
+            />
+          </div>
+        )}
+
+        {activeTab === 'agent-tree' && (
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+            <iframe
+              src="/agent-selection-tree.html"
+              className="w-full h-full border-0"
+              title="Agent Selection Tree"
+            />
           </div>
         )}
       </div>

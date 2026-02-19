@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quick Start Guide - Thesis</title>
+<style>
+:root {
+  --primary: #6366f1;
+  --primary-light: #e0e7ff;
+  --accent: #3b82f6;
+  --accent-light: #dbeafe;
+  --success: #22c55e;
+  --success-light: #dcfce7;
+  --warning: #f59e0b;
+  --warning-light: #fef3c7;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  --bg-page: var(--gray-50);
+  --bg-card: white;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg-page, var(--gray-50));
+  color: var(--gray-800);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 20px 24px;
+}
+
+html.dark body { background: var(--bg-page, #0a0a0a); color: var(--gray-900); }
+html.dark .section { background: var(--bg-card, #111111); border-color: var(--gray-200); }
+html.dark .header { border-color: var(--gray-200); }
+html.dark .step-number { background: var(--primary); color: white; }
+html.dark .grid-row { border-color: var(--gray-200); }
+html.dark .grid-page { color: var(--primary); }
+html.dark .agent-table th { background: var(--gray-50); border-color: var(--gray-200); color: var(--gray-800); }
+html.dark .agent-table td { border-color: var(--gray-200); }
+html.dark .agent-table tr:hover td { background: var(--gray-50); }
+html.dark .mention-pattern { background: var(--gray-50); border-color: var(--gray-200); }
+html.dark .mention-code { background: var(--bg-card, #111111); }
+html.dark .tip { background: var(--gray-50); border-color: var(--gray-200); }
+html.dark .watermark { color: var(--gray-500); border-color: var(--gray-200); }
+html.dark .category-label { color: var(--gray-600); }
+
+.header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--primary);
+}
+.header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: -0.3px;
+}
+.header p {
+  font-size: 13px;
+  color: var(--gray-500);
+  margin-top: 2px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.layout .full-width { grid-column: 1 / -1; }
+
+.section {
+  background: var(--bg-card, white);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.section h2 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+/* Section 1: First 5 Things */
+.steps { list-style: none; }
+.steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.steps li:last-child { margin-bottom: 0; }
+.step-number {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  background: var(--primary-light);
+  color: var(--primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 1px;
+}
+.step-text { font-size: 13px; color: var(--gray-700); }
+
+/* Section 2: Key Actions Grid */
+.grid-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 0;
+  border-bottom: 1px solid var(--gray-100);
+  padding: 5px 0;
+}
+.grid-row:last-child { border-bottom: none; }
+.grid-page {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 12px;
+  padding-top: 1px;
+}
+.grid-actions {
+  font-size: 12px;
+  color: var(--gray-600);
+}
+
+/* Section 3: Agent Table */
+.agent-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+.agent-table th {
+  text-align: left;
+  padding: 4px 8px;
+  background: var(--gray-50);
+  border-bottom: 2px solid var(--gray-200);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.agent-table td {
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--gray-100);
+  vertical-align: top;
+}
+.agent-table tr:last-child td { border-bottom: none; }
+.agent-table tr:hover td { background: var(--gray-50); }
+.agent-name { font-weight: 600; color: var(--gray-800); white-space: nowrap; }
+.agent-specialty {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  display: inline-block;
+  white-space: nowrap;
+}
+.cat-strategy { background: var(--primary-light); color: var(--primary); }
+.cat-finance { background: var(--success-light); color: #16a34a; }
+.cat-it { background: var(--warning-light); color: #d97706; }
+.cat-legal { background: #fce7f3; color: #db2777; }
+.cat-analysis { background: var(--accent-light); color: var(--accent); }
+.cat-project { background: #f3e8ff; color: #9333ea; }
+.cat-discovery { background: #ccfbf1; color: #0d9488; }
+.cat-disco { background: #fef3c7; color: #b45309; }
+.cat-auto { background: #fee2e2; color: #dc2626; }
+.agent-use { color: var(--gray-600); font-size: 11.5px; }
+.category-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gray-400);
+  padding: 6px 8px 2px;
+}
+.category-label:first-child { padding-top: 2px; }
+
+/* Section 4: Mention Patterns */
+.mention-patterns { display: grid; gap: 6px; }
+.mention-pattern {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 5px 8px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-100);
+  border-radius: 5px;
+}
+.mention-code {
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.mention-text { font-size: 12px; color: var(--gray-600); }
+
+/* Section 5: Tips */
+.tips-list { list-style: none; }
+.tips-list li {
+  position: relative;
+  padding: 5px 0 5px 16px;
+  font-size: 12px;
+  color: var(--gray-600);
+  border-bottom: 1px solid var(--gray-100);
+}
+.tips-list li:last-child { border-bottom: none; }
+.tips-list li::before {
+  content: ">";
+  position: absolute;
+  left: 0;
+  font-weight: 700;
+  color: var(--primary);
+  font-family: monospace;
+}
+.tip-highlight {
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+/* Watermark */
+.watermark {
+  text-align: center;
+  font-size: 10px;
+  color: var(--gray-400);
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--gray-200);
+  letter-spacing: 0.3px;
+}
+</style>
+</head>
+<body>
+<script>
+(function() {
+  var root = document.documentElement;
+  function parseHex(h) {
+    if (!h || h.charAt(0) !== '#') return null;
+    h = h.replace('#','');
+    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
+  function toHex(r,g,b) {
+    return '#' + [r,g,b].map(function(c) {
+      var x = Math.round(Math.max(0,Math.min(255,c))).toString(16);
+      return x.length < 2 ? '0'+x : x;
+    }).join('');
+  }
+  function mix(a,b,t) {
+    if (!a||!b) return null;
+    return toHex(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);
+  }
+  function syncFromParent() {
+    try {
+      if (!window.parent || window.parent === window) return false;
+      var parentRoot = window.parent.document.documentElement;
+      var ps = getComputedStyle(parentRoot); if (!ps.getPropertyValue('--color-bg-page').trim()) return false;
+      var bgPage = ps.getPropertyValue('--color-bg-page').trim();
+      var bgCard = ps.getPropertyValue('--color-bg-card').trim();
+      var bgHover = ps.getPropertyValue('--color-bg-hover').trim();
+      var textPrimary = ps.getPropertyValue('--color-text-primary').trim();
+      var textSecondary = ps.getPropertyValue('--color-text-secondary').trim();
+      var textMuted = ps.getPropertyValue('--color-text-muted').trim();
+      var borderDefault = ps.getPropertyValue('--color-border-default').trim();
+      var primary = ps.getPropertyValue('--color-primary').trim();
+      var primaryHover = ps.getPropertyValue('--color-primary-hover').trim();
+      if (!bgPage || !textPrimary) return false;
+      var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+      if (bodyBg) {
+        var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (m) {
+          var br = (parseInt(m[1])*299+parseInt(m[2])*587+parseInt(m[3])*114)/1000;
+          if (br < 128) root.classList.add('dark'); else root.classList.remove('dark');
+        }
+      }
+      var cCard = parseHex(bgCard), cBorder = parseHex(borderDefault);
+      var cMuted = parseHex(textMuted), cSecondary = parseHex(textSecondary);
+      var cPrimary = parseHex(textPrimary);
+      root.style.setProperty('--bg-page', bgPage);
+      root.style.setProperty('--bg-card', bgCard);
+      root.style.setProperty('--gray-50', bgHover);
+      root.style.setProperty('--gray-100', mix(cCard, cBorder, 0.3) || bgHover);
+      root.style.setProperty('--gray-200', borderDefault);
+      root.style.setProperty('--gray-300', mix(cBorder, cMuted, 0.25) || borderDefault);
+      root.style.setProperty('--gray-400', mix(cBorder, cMuted, 0.5) || textMuted);
+      root.style.setProperty('--gray-500', textMuted);
+      root.style.setProperty('--gray-600', textSecondary);
+      root.style.setProperty('--gray-700', mix(cSecondary, cPrimary, 0.4) || textSecondary);
+      root.style.setProperty('--gray-800', mix(cSecondary, cPrimary, 0.75) || textPrimary);
+      root.style.setProperty('--gray-900', textPrimary);
+      if (primary) root.style.setProperty('--primary', primary);
+      if (primaryHover) root.style.setProperty('--primary-light', primaryHover);
+      return true;
+    } catch (e) { return false; }
+  }
+  syncFromParent();
+  var attempts = 0;
+  var poller = setInterval(function() {
+    attempts++;
+    if (syncFromParent() || attempts >= 50) {
+      clearInterval(poller);
+      if (attempts >= 50 && !root.classList.contains('dark')) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) root.classList.add('dark');
+      }
+    }
+  }, 200);
+  try {
+    if (window.parent && window.parent !== window) {
+      new MutationObserver(function() { syncFromParent(); })
+        .observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+  } catch (e) {}
+})();
+</script>
+
+<div class="header">
+  <h1>Quick Start Guide</h1>
+  <p>Everything you need to know in one page</p>
+</div>
+
+<div class="layout">
+
+  <!-- Section 1: First 5 Things -->
+  <div class="section">
+    <h2>First 5 Things to Do</h2>
+    <ol class="steps">
+      <li>
+        <span class="step-number">1</span>
+        <span class="step-text">Upload your first documents to the Knowledge Base (drag-and-drop or sync your Obsidian vault)</span>
+      </li>
+      <li>
+        <span class="step-number">2</span>
+        <span class="step-text">Start a chat with Atlas (Strategy Agent) to discuss your AI strategy context</span>
+      </li>
+      <li>
+        <span class="step-number">3</span>
+        <span class="step-text">Create your first DISCO initiative and link a document folder</span>
+      </li>
+      <li>
+        <span class="step-number">4</span>
+        <span class="step-text">Run the Discovery Guide to triage your initiative (GO / NO-GO / INVESTIGATE)</span>
+      </li>
+      <li>
+        <span class="step-number">5</span>
+        <span class="step-text">Explore the Intelligence page to set up stakeholder profiles</span>
+      </li>
+    </ol>
+  </div>
+
+  <!-- Section 2: Key Actions by Page -->
+  <div class="section">
+    <h2>Key Actions by Page</h2>
+    <div class="grid-row">
+      <span class="grid-page">Knowledge Base</span>
+      <span class="grid-actions">Upload docs, browse folders, search by tag, view data map</span>
+    </div>
+    <div class="grid-row">
+      <span class="grid-page">Chat</span>
+      <span class="grid-actions">New conversation, lock to agent, @mention agents, create meeting room</span>
+    </div>
+    <div class="grid-row">
+      <span class="grid-page">DISCO</span>
+      <span class="grid-actions">Create initiative, link docs, run pipeline stages, review checkpoints</span>
+    </div>
+    <div class="grid-row">
+      <span class="grid-page">Projects</span>
+      <span class="grid-actions">Create project, score dimensions, set tier, link tasks</span>
+    </div>
+    <div class="grid-row">
+      <span class="grid-page">Tasks</span>
+      <span class="grid-actions">Create task, drag to reorder, set assignee/due date, release the Kraken</span>
+    </div>
+    <div class="grid-row">
+      <span class="grid-page">Intelligence</span>
+      <span class="grid-actions">Add stakeholder, track engagement, view agent roster, manage strategy</span>
+    </div>
+    <div class="grid-row">
+      <span class="grid-page">Dashboard</span>
+      <span class="grid-actions">View analytics, check system health, review manifesto compliance</span>
+    </div>
+  </div>
+
+  <!-- Section 3: All 22 Agents -->
+  <div class="section full-width">
+    <h2>All 22 Agents</h2>
+    <table class="agent-table">
+      <thead>
+        <tr>
+          <th>Agent</th>
+          <th>Specialty</th>
+          <th>When to Use</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="3" class="category-label">Strategy &amp; Research</td></tr>
+        <tr>
+          <td class="agent-name">Atlas</td>
+          <td><span class="agent-specialty cat-strategy">Strategy</span></td>
+          <td class="agent-use">Strategic planning, initiative alignment, executive context</td>
+        </tr>
+        <tr>
+          <td class="agent-name">Sentinel</td>
+          <td><span class="agent-specialty cat-strategy">Research</span></td>
+          <td class="agent-use">Market research, competitive analysis, trend monitoring</td>
+        </tr>
+        <tr>
+          <td class="agent-name">Compass</td>
+          <td><span class="agent-specialty cat-strategy">Career</span></td>
+          <td class="agent-use">Career development, team growth, professional guidance</td>
+        </tr>
+        <tr><td colspan="3" class="category-label">Finance &amp; Compliance</td></tr>
+        <tr>
+          <td class="agent-name">Treasurer</td>
+          <td><span class="agent-specialty cat-finance">Finance</span></td>
+          <td class="agent-use">Budget analysis, ROI calculations, financial modeling</td>
+        </tr>
+        <tr>
+          <td class="agent-name">Auditor</td>
+          <td><span class="agent-specialty cat-finance">Compliance</span></td>
+          <td class="agent-use">Regulatory compliance, audit preparation, risk assessment</td>
+        </tr>
+        <tr><td colspan="3" class="category-label">IT &amp; Architecture</td></tr>
+        <tr>
+          <td class="agent-name">Guardian</td>
+          <td><span class="agent-specialty cat-it">IT/Security</span></td>
+          <td class="agent-use">Data governance, security policies, infrastructure</td>
+        </tr>
+        <tr>
+          <td class="agent-name">Architect</td>
+          <td><span class="agent-specialty cat-it">Technical</span></td>
+          <td class="agent-use">System design, architecture decisions, tech stack evaluation</td>
+        </tr>
+        <tr><td colspan="3" class="category-label">Legal</td></tr>
+        <tr>
+          <td class="agent-name">Counsel</td>
+          <td><span class="agent-specialty cat-legal">Legal</span></td>
+          <td class="agent-use">Contract review, IP considerations, regulatory questions</td>
+        </tr>
+        <tr><td colspan="3" class="category-label">Analysis &amp; Content</td></tr>
+        <tr>
+          <td class="agent-name">Scribe</td>
+          <td><span class="agent-specialty cat-analysis">Meeting</span></td>
+          <td class="agent-use">Meeting summarization, action item extraction</td>
+        </tr>
+        <tr>
+          <td class="agent-name">Oracle</td>
+          <td><span class="agent-specialty cat-analysis">Analysis</span></td>
+          <td class="agent-use">Data analysis, pattern recognition, insight generation</td>
+        </tr>
+        <tr>
+          <td class="agent-name">Wordsmith</td>
+          <td><span class="agent-specialty cat-analysis">Writing</span></td>
+          <td class="agent-use">Content creation, documentation, communications</td>
+        </tr>
+        <tr>
+          <td class="agent-name">Editor</td>
+          <td><span class="agent-specialty cat-analysis">Review</span></td>
+          <td class="agent-use">Content review, quality assurance, editing</td>
+        </tr>
+        <tr><td colspan="3" class="category-label">Project &amp; Process</td></tr>
+        <tr>
+          <td class="agent-name">Navigator</td>
+          <td><span class="agent-specialty cat-project">Stakeholder</span></td>
+          <td class="agent-use">Stakeholder mapping, engagement strategy</td>
+        </tr>
+        <tr>
+          <td class="agent-name">Catalyst</td>
+          <td><span class="agent-specialty cat-project">Change</span></td>
+          <td class="agent-use">Change management, adoption planning, transformation</td>
+        </tr>
+        <tr>
+          <td class="agent-name">Pathfinder</td>
+          <td><span class="agent-specialty cat-project">Process</span></td>
+          <td class="agent-use">Process optimization, workflow design, efficiency</td>
+        </tr>
+        <tr><td colspan="3" class="category-label">Discovery &amp; Knowledge</td></tr>
+        <tr>
+          <td class="agent-name">Beacon</td>
+          <td><span class="agent-specialty cat-discovery">Trends</span></td>
+          <td class="agent-use">Emerging trends, innovation scouting, signals</td>
+        </tr>
+        <tr>
+          <td class="agent-name">Librarian</td>
+          <td><span class="agent-specialty cat-discovery">Knowledge</span></td>
+          <td class="agent-use">Knowledge management, document organization</td>
+        </tr>
+        <tr><td colspan="3" class="category-label">DISCO Pipeline (run in sequence)</td></tr>
+        <tr>
+          <td class="agent-name">Discovery Guide</td>
+          <td><span class="agent-specialty cat-disco">Discovery</span></td>
+          <td class="agent-use">Triage, session planning, coverage assessment</td>
+        </tr>
+        <tr>
+          <td class="agent-name">Insight Analyst</td>
+          <td><span class="agent-specialty cat-disco">Intelligence</span></td>
+          <td class="agent-use">Evidence extraction, hypothesis mapping</td>
+        </tr>
+        <tr>
+          <td class="agent-name">Initiative Builder</td>
+          <td><span class="agent-specialty cat-disco">Synthesis</span></td>
+          <td class="agent-use">Initiative bundling, IFU scoring</td>
+        </tr>
+        <tr>
+          <td class="agent-name">Requirements Generator</td>
+          <td><span class="agent-specialty cat-disco">Convergence</span></td>
+          <td class="agent-use">PRD/eval/decision document generation</td>
+        </tr>
+        <tr><td colspan="3" class="category-label">Automation</td></tr>
+        <tr>
+          <td class="agent-name">Kraken</td>
+          <td><span class="agent-specialty cat-auto">Tasks</span></td>
+          <td class="agent-use">Task evaluation, agent-assisted automation</td>
+        </tr>
+        <tr>
+          <td class="agent-name">Project Agent</td>
+          <td><span class="agent-specialty cat-auto">Projects</span></td>
+          <td class="agent-use">Project management, scoring, prioritization</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Section 4: Common @Mention Patterns -->
+  <div class="section">
+    <h2>Common @Mention Patterns</h2>
+    <div class="mention-patterns">
+      <div class="mention-pattern">
+        <span class="mention-code">@Atlas</span>
+        <span class="mention-text">"What's our strategic position on X?"</span>
+      </div>
+      <div class="mention-pattern">
+        <span class="mention-code">@Sentinel</span>
+        <span class="mention-text">"What are competitors doing about Y?"</span>
+      </div>
+      <div class="mention-pattern">
+        <span class="mention-code">@Guardian</span>
+        <span class="mention-text">"Is this approach compliant with our data policies?"</span>
+      </div>
+      <div class="mention-pattern">
+        <span class="mention-code">@Treasurer</span>
+        <span class="mention-text">"What's the ROI projection for this initiative?"</span>
+      </div>
+      <div class="mention-pattern">
+        <span class="mention-code">@Counsel</span>
+        <span class="mention-text">"Any legal risks with this approach?"</span>
+      </div>
+      <div class="mention-pattern">
+        <span class="mention-code">@Architect</span>
+        <span class="mention-text">"What's the best technical approach for Z?"</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 5: Tips -->
+  <div class="section">
+    <h2>Tips</h2>
+    <ul class="tips-list">
+      <li><span class="tip-highlight">Auto-routing works well</span> for quick questions -- you don't always need to pick an agent</li>
+      <li><span class="tip-highlight">Link document folders</span> (not individual docs) to DISCO initiatives for best coverage</li>
+      <li><span class="tip-highlight">Run Coverage mode</span> after every discovery session to track what's addressed</li>
+      <li><span class="tip-highlight">The golden path:</span> KB docs -> Initiative -> Pipeline -> Project -> Tasks -> Done</li>
+      <li><span class="tip-highlight">Every task traces back</span> to its source through the full traceability spine</li>
+    </ul>
+  </div>
+
+</div>
+
+<div class="watermark">Quick Start Guide v1.0 | Thesis Multi-Agent Platform | February 2026</div>
+
+</body>
+</html>

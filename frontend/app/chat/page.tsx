@@ -30,7 +30,7 @@ interface MeetingRoom {
   updated_at: string
 }
 
-type TabType = 'chat' | 'meetings'
+type TabType = 'chat' | 'meetings' | 'agent-patterns' | 'meeting-guide'
 
 // ============================================================================
 // MEETING ROOMS TAB CONTENT
@@ -290,7 +290,9 @@ function ChatPageContent() {
   const tabParam = searchParams.get('tab')
   const projectId = searchParams.get('project_id') || undefined
   const initiativeId = searchParams.get('initiative_id') || undefined
-  const [activeTab, setActiveTab] = useState<TabType>(tabParam === 'meetings' ? 'meetings' : 'chat')
+  const [activeTab, setActiveTab] = useState<TabType>(
+    (tabParam && ['meetings', 'agent-patterns', 'meeting-guide'].includes(tabParam)) ? tabParam as TabType : 'chat'
+  )
   // Use a separate variable for styling comparisons to avoid TypeScript narrowing issues
   const currentTab: TabType = activeTab
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
@@ -311,8 +313,9 @@ function ChatPageContent() {
 
   // Sync tab with URL
   useEffect(() => {
-    if (tabParam === 'meetings' && activeTab !== 'meetings') {
-      setActiveTab('meetings')
+    const validTabs: TabType[] = ['chat', 'meetings', 'agent-patterns', 'meeting-guide']
+    if (tabParam && validTabs.includes(tabParam as TabType) && activeTab !== tabParam) {
+      setActiveTab(tabParam as TabType)
     } else if (!tabParam && activeTab !== 'chat') {
       setActiveTab('chat')
     }
@@ -320,10 +323,10 @@ function ChatPageContent() {
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab)
-    if (tab === 'meetings') {
-      router.push('/chat?tab=meetings')
-    } else {
+    if (tab === 'chat') {
       router.push('/chat')
+    } else {
+      router.push(`/chat?tab=${tab}`)
     }
   }
 
@@ -439,7 +442,7 @@ function ChatPageContent() {
           initiativeId={initiativeId}
           tabSwitcher={
             <div className="flex justify-center">
-              <div className="flex gap-1 bg-hover rounded-lg p-1 w-full max-w-md border border-border">
+              <div className="flex gap-1 bg-hover rounded-lg p-1 w-full max-w-2xl border border-border">
                 <button
                   onClick={() => handleTabChange('chat')}
                   className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
@@ -459,6 +462,26 @@ function ChatPageContent() {
                   }`}
                 >
                   Meeting Rooms
+                </button>
+                <button
+                  onClick={() => handleTabChange('agent-patterns')}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentTab === 'agent-patterns'
+                      ? 'bg-card text-primary shadow-sm'
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  Agent Patterns
+                </button>
+                <button
+                  onClick={() => handleTabChange('meeting-guide')}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentTab === 'meeting-guide'
+                      ? 'bg-card text-primary shadow-sm'
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  Meeting Guide
                 </button>
               </div>
             </div>
@@ -468,10 +491,10 @@ function ChatPageContent() {
         <div className="min-h-screen bg-page">
           <PageHeader />
 
-          {/* Tab Switcher for Meeting Rooms view */}
+          {/* Tab Switcher for non-chat views */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
             <div className="flex justify-center">
-              <div className="flex gap-1 bg-hover rounded-lg p-1 w-full max-w-md border border-border">
+              <div className="flex gap-1 bg-hover rounded-lg p-1 w-full max-w-2xl border border-border">
                 <button
                   onClick={() => handleTabChange('chat')}
                   className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
@@ -492,11 +515,57 @@ function ChatPageContent() {
                 >
                   Meeting Rooms
                 </button>
+                <button
+                  onClick={() => handleTabChange('agent-patterns')}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentTab === 'agent-patterns'
+                      ? 'bg-card text-primary shadow-sm'
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  Agent Patterns
+                </button>
+                <button
+                  onClick={() => handleTabChange('meeting-guide')}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentTab === 'meeting-guide'
+                      ? 'bg-card text-primary shadow-sm'
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  Meeting Guide
+                </button>
               </div>
             </div>
           </div>
 
-          <MeetingRoomsContent projectId={projectId} initiativeId={initiativeId} />
+          {activeTab === 'meetings' && (
+            <MeetingRoomsContent projectId={projectId} initiativeId={initiativeId} />
+          )}
+
+          {activeTab === 'agent-patterns' && (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+                <iframe
+                  src="/agent-patterns.html"
+                  className="w-full h-full border-0"
+                  title="Agent Interaction Patterns"
+                />
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'meeting-guide' && (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+                <iframe
+                  src="/meeting-rooms-process-map.html"
+                  className="w-full h-full border-0"
+                  title="Meeting Rooms Process Map"
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </>

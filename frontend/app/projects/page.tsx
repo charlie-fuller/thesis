@@ -296,6 +296,7 @@ function ProjectsPageContent() {
   const [sortBy, setSortBy] = useState('manual')
   const [activeOnly, setActiveOnly] = useState(true)
   const [viewMode, setViewMode] = useState<'list' | 'tier'>('list')
+  const [pageView, setPageView] = useState<'projects' | 'lifecycle'>('projects')
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -452,6 +453,40 @@ function ProjectsPageContent() {
   return (
     <PageLayout>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Page Tabs */}
+        <div className="flex gap-1 mb-6 border-b border-default">
+          <button
+            onClick={() => setPageView('projects')}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              pageView === 'projects'
+                ? 'border-brand text-brand'
+                : 'border-transparent text-muted hover:text-primary'
+            }`}
+          >
+            Projects
+          </button>
+          <button
+            onClick={() => setPageView('lifecycle')}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              pageView === 'lifecycle'
+                ? 'border-brand text-brand'
+                : 'border-transparent text-muted hover:text-primary'
+            }`}
+          >
+            Discovery to Delivery
+          </button>
+        </div>
+
+        {pageView === 'lifecycle' ? (
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+            <iframe
+              src="/discovery-to-delivery.html"
+              className="w-full h-full border-0"
+              title="Discovery to Delivery Lifecycle"
+            />
+          </div>
+        ) : (
+        <>
         {/* Page Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-primary">Projects</h1>
@@ -697,6 +732,8 @@ function ProjectsPageContent() {
               )
             })}
           </div>
+        )}
+        </>
         )}
       </main>
 

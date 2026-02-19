@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document Lifecycle</title>
+  <style>
+    :root {
+      --ingest: #3b82f6;
+      --ingest-light: #dbeafe;
+      --process: #8b5cf6;
+      --process-light: #ede9fe;
+      --organize: #22c55e;
+      --organize-light: #dcfce7;
+      --link: #f59e0b;
+      --link-light: #fef3c7;
+      --usage: #06b6d4;
+      --usage-light: #cffafe;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-page, var(--gray-50));
+      color: var(--gray-900);
+      line-height: 1.6;
+    }
+
+    html.dark body {
+      background: var(--bg-page, #0a0a0a);
+      color: var(--gray-900);
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    .subtitle {
+      color: var(--gray-500);
+      font-size: 0.95rem;
+      margin-top: 0.35rem;
+    }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .legend-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* Pipeline connector */
+    .pipeline-connector {
+      display: flex;
+      justify-content: center;
+      padding: 0.75rem 0;
+    }
+
+    .pipeline-arrow {
+      width: 2px;
+      height: 32px;
+      position: relative;
+    }
+
+    .pipeline-arrow::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+    }
+
+    .pipeline-arrow.ingest { background: var(--ingest); }
+    .pipeline-arrow.ingest::after { border-top: 6px solid var(--ingest); }
+    .pipeline-arrow.process { background: var(--process); }
+    .pipeline-arrow.process::after { border-top: 6px solid var(--process); }
+    .pipeline-arrow.organize { background: var(--organize); }
+    .pipeline-arrow.organize::after { border-top: 6px solid var(--organize); }
+    .pipeline-arrow.link { background: var(--link); }
+    .pipeline-arrow.link::after { border-top: 6px solid var(--link); }
+
+    /* Stage sections */
+    .section {
+      background: var(--bg-card, white);
+      border: 1px solid var(--gray-200);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 0;
+      position: relative;
+    }
+
+    html.dark .section {
+      background: var(--bg-card, #111111);
+      border-color: var(--gray-200);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .stage-number {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .section-header h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+    }
+
+    .section-header .stage-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      margin-left: auto;
+    }
+
+    .section-desc {
+      color: var(--gray-600);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+
+    /* Grid items within stages */
+    .item-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 640px) {
+      .item-grid { grid-template-columns: 1fr; }
+    }
+
+    .item-card {
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      background: var(--bg-card, white);
+      transition: border-color 0.15s;
+    }
+
+    html.dark .item-card {
+      background: var(--bg-card, #111111);
+      border-color: var(--gray-200);
+    }
+
+    .item-card:hover {
+      border-color: var(--gray-300);
+    }
+
+    .item-card h3 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .item-card h3 .icon-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .item-card p {
+      font-size: 0.8rem;
+      color: var(--gray-500);
+      line-height: 1.45;
+    }
+
+    /* Callout box */
+    .callout {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      margin-top: 2rem;
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+    }
+
+    html.dark .callout {
+      background: var(--gray-100);
+      border-color: var(--gray-300);
+      color: var(--gray-600);
+    }
+
+    .callout-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .callout-content h3 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .callout-content p {
+      font-size: 0.8rem;
+      color: var(--gray-500);
+      line-height: 1.5;
+    }
+
+    /* Flow summary */
+    .flow-summary {
+      margin-top: 2rem;
+      background: var(--bg-card, white);
+      border: 1px solid var(--gray-200);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    html.dark .flow-summary {
+      background: var(--bg-card, #111111);
+      border-color: var(--gray-200);
+    }
+
+    .flow-summary h3 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    .flow-chain {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+    }
+
+    .flow-chip {
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .flow-arrow-h {
+      color: var(--gray-400);
+      font-size: 1rem;
+      margin: 0 0.15rem;
+    }
+
+    /* Watermark */
+    .watermark {
+      text-align: center;
+      padding: 2rem 0 1rem;
+      font-size: 0.7rem;
+      color: var(--gray-400);
+      letter-spacing: 0.03em;
+    }
+  </style>
+</head>
+<body>
+<script>
+(function() {
+  var root = document.documentElement;
+  function parseHex(h) {
+    if (!h || h.charAt(0) !== '#') return null;
+    h = h.replace('#','');
+    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
+  function toHex(r,g,b) {
+    return '#' + [r,g,b].map(function(c) {
+      var x = Math.round(Math.max(0,Math.min(255,c))).toString(16);
+      return x.length < 2 ? '0'+x : x;
+    }).join('');
+  }
+  function mix(a,b,t) {
+    if (!a||!b) return null;
+    return toHex(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);
+  }
+  function syncFromParent() {
+    try {
+      if (!window.parent || window.parent === window) return false;
+      var parentRoot = window.parent.document.documentElement;
+      var ps = getComputedStyle(parentRoot); if (!ps.getPropertyValue('--color-bg-page').trim()) return false;
+      var bgPage = ps.getPropertyValue('--color-bg-page').trim();
+      var bgCard = ps.getPropertyValue('--color-bg-card').trim();
+      var bgHover = ps.getPropertyValue('--color-bg-hover').trim();
+      var textPrimary = ps.getPropertyValue('--color-text-primary').trim();
+      var textSecondary = ps.getPropertyValue('--color-text-secondary').trim();
+      var textMuted = ps.getPropertyValue('--color-text-muted').trim();
+      var borderDefault = ps.getPropertyValue('--color-border-default').trim();
+      var primary = ps.getPropertyValue('--color-primary').trim();
+      var primaryHover = ps.getPropertyValue('--color-primary-hover').trim();
+      if (!bgPage || !textPrimary) return false;
+      var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+      if (bodyBg) {
+        var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (m) {
+          var br = (parseInt(m[1])*299+parseInt(m[2])*587+parseInt(m[3])*114)/1000;
+          if (br < 128) root.classList.add('dark'); else root.classList.remove('dark');
+        }
+      }
+      var cCard = parseHex(bgCard), cBorder = parseHex(borderDefault);
+      var cMuted = parseHex(textMuted), cSecondary = parseHex(textSecondary);
+      var cPrimary = parseHex(textPrimary);
+      root.style.setProperty('--bg-page', bgPage);
+      root.style.setProperty('--bg-card', bgCard);
+      root.style.setProperty('--gray-50', bgHover);
+      root.style.setProperty('--gray-100', mix(cCard, cBorder, 0.3) || bgHover);
+      root.style.setProperty('--gray-200', borderDefault);
+      root.style.setProperty('--gray-300', mix(cBorder, cMuted, 0.25) || borderDefault);
+      root.style.setProperty('--gray-400', mix(cBorder, cMuted, 0.5) || textMuted);
+      root.style.setProperty('--gray-500', textMuted);
+      root.style.setProperty('--gray-600', textSecondary);
+      root.style.setProperty('--gray-700', mix(cSecondary, cPrimary, 0.4) || textSecondary);
+      root.style.setProperty('--gray-800', mix(cSecondary, cPrimary, 0.75) || textPrimary);
+      root.style.setProperty('--gray-900', textPrimary);
+      if (primary) root.style.setProperty('--primary', primary);
+      if (primaryHover) root.style.setProperty('--primary-light', primaryHover);
+      return true;
+    } catch (e) { return false; }
+  }
+  syncFromParent();
+  var attempts = 0;
+  var poller = setInterval(function() {
+    attempts++;
+    if (syncFromParent() || attempts >= 50) {
+      clearInterval(poller);
+      if (attempts >= 50 && !root.classList.contains('dark')) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) root.classList.add('dark');
+      }
+    }
+  }, 200);
+  try {
+    if (window.parent && window.parent !== window) {
+      new MutationObserver(function() { syncFromParent(); })
+        .observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+  } catch (e) {}
+})();
+</script>
+
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <h1>Document Lifecycle</h1>
+    <p class="subtitle">How documents flow from ingestion to agent-informed insights</p>
+    <div class="legend">
+      <span class="legend-badge" style="background: var(--ingest-light); color: var(--ingest);">
+        <span class="legend-dot" style="background: var(--ingest);"></span> Ingestion
+      </span>
+      <span class="legend-badge" style="background: var(--process-light); color: var(--process);">
+        <span class="legend-dot" style="background: var(--process);"></span> Processing
+      </span>
+      <span class="legend-badge" style="background: var(--organize-light); color: var(--organize);">
+        <span class="legend-dot" style="background: var(--organize);"></span> Organization
+      </span>
+      <span class="legend-badge" style="background: var(--link-light); color: var(--link);">
+        <span class="legend-dot" style="background: var(--link);"></span> Linking
+      </span>
+      <span class="legend-badge" style="background: var(--usage-light); color: var(--usage);">
+        <span class="legend-dot" style="background: var(--usage);"></span> Usage
+      </span>
+    </div>
+  </header>
+
+  <!-- Stage 1: Ingestion -->
+  <div class="section" style="border-left: 3px solid var(--ingest);">
+    <div class="section-header">
+      <div class="stage-number" style="background: var(--ingest);">1</div>
+      <h2>Ingestion</h2>
+      <span class="stage-label" style="background: var(--ingest-light); color: var(--ingest);">Entry Points</span>
+    </div>
+    <p class="section-desc">How documents enter the system -- four distinct pathways feeding the knowledge base.</p>
+    <div class="item-grid">
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--ingest);"></span> Obsidian Vault Sync</h3>
+        <p>Automatic, bidirectional sync powered by a local launchd agent. Watches your Obsidian vault and uploads new or changed markdown files to the platform. Runs continuously in the background.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--ingest);"></span> Manual Upload</h3>
+        <p>Drag-and-drop interface in the Knowledge Base. Supports markdown, PDF, and plain text files. Preserves original filename and assigns to the selected folder path.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--ingest);"></span> Agent-Generated Documents</h3>
+        <p>The Discovery Agent can save research documents directly to the KB using an inline save command. Documents are tagged with their source agent and linked initiative.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--ingest);"></span> Reverse Sync</h3>
+        <p>Generated documents flow back to the local Obsidian vault. The sync agent pulls docs flagged with <code>needs_reverse_sync</code> and writes them to the appropriate vault folder.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arrow: Ingestion -> Processing -->
+  <div class="pipeline-connector">
+    <div class="pipeline-arrow ingest"></div>
+  </div>
+
+  <!-- Stage 2: Processing -->
+  <div class="section" style="border-left: 3px solid var(--process);">
+    <div class="section-header">
+      <div class="stage-number" style="background: var(--process);">2</div>
+      <h2>Processing</h2>
+      <span class="stage-label" style="background: var(--process-light); color: var(--process);">Transformation</span>
+    </div>
+    <p class="section-desc">Raw documents are transformed into searchable, embeddable, and classifiable units.</p>
+    <div class="item-grid">
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--process);"></span> Text Extraction</h3>
+        <p>Content is extracted from markdown, PDF, and plain text formats. Markdown frontmatter is parsed separately and preserved as structured metadata.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--process);"></span> Content Chunking</h3>
+        <p>Documents are split into overlapping chunks (800 characters with 200-character overlap) to optimize for embedding quality and retrieval precision.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--process);"></span> Embedding Generation</h3>
+        <p>Each chunk is embedded using Voyage AI to produce dense vector representations. These enable semantic search -- finding documents by meaning, not just keywords.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--process);"></span> Auto-Classification</h3>
+        <p>Documents are automatically tagged across 18 tag categories. Tags are inferred from content analysis and can also be manually assigned or corrected after the fact.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arrow: Processing -> Organization -->
+  <div class="pipeline-connector">
+    <div class="pipeline-arrow process"></div>
+  </div>
+
+  <!-- Stage 3: Organization -->
+  <div class="section" style="border-left: 3px solid var(--organize);">
+    <div class="section-header">
+      <div class="stage-number" style="background: var(--organize);">3</div>
+      <h2>Organization</h2>
+      <span class="stage-label" style="background: var(--organize-light); color: var(--organize);">Structure</span>
+    </div>
+    <p class="section-desc">Documents are organized into a navigable, searchable structure that mirrors your existing workflows.</p>
+    <div class="item-grid">
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--organize);"></span> Folder Hierarchy</h3>
+        <p>Folder paths from the Obsidian vault are preserved. The KB presents a tree view built client-side from flat folder paths, with recursive document counts at each level.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--organize);"></span> Tag-Based Categorization</h3>
+        <p>Both auto-assigned and manual tags provide a cross-cutting dimension for filtering. Tags enable discovery across folders -- finding related content regardless of where it lives.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--organize);"></span> Source Tracking</h3>
+        <p>Every document records its origin: Obsidian sync, manual upload, or agent-generated. This provenance is visible in the KB interface and used for filtering and audit.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--organize);"></span> Full-Text and Semantic Search</h3>
+        <p>Keyword search (via Supabase ilike) and semantic search (via Voyage AI embeddings) work together. Results can be filtered by tags, source, folder, and sort order.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arrow: Organization -> Linking -->
+  <div class="pipeline-connector">
+    <div class="pipeline-arrow organize"></div>
+  </div>
+
+  <!-- Stage 4: Linking -->
+  <div class="section" style="border-left: 3px solid var(--link);">
+    <div class="section-header">
+      <div class="stage-number" style="background: var(--link);">4</div>
+      <h2>Linking</h2>
+      <span class="stage-label" style="background: var(--link-light); color: var(--link);">Connections</span>
+    </div>
+    <p class="section-desc">Documents connect to initiatives, projects, and stakeholders -- forming the graph that agents reason over.</p>
+    <div class="item-grid">
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--link);"></span> DISCO Initiative Folders</h3>
+        <p>Link entire folders of documents to a DISCO initiative via <code>disco_initiative_documents</code>. Agents in the DISCO pipeline analyze all linked docs at each stage.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--link);"></span> Project Documents</h3>
+        <p>Individual documents can be linked to projects via <code>project_documents</code>. This provides per-project evidence and context that agents reference during analysis.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--link);"></span> Stakeholder References</h3>
+        <p>Content is scanned for references to known stakeholders. These implicit links surface in the stakeholder graph, connecting people to the evidence that mentions them.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--link);"></span> Cross-References</h3>
+        <p>Documents that reference or overlap with existing KB content are identified. This enables agents to pull in related context even when it was not explicitly linked.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arrow: Linking -> Usage -->
+  <div class="pipeline-connector">
+    <div class="pipeline-arrow link"></div>
+  </div>
+
+  <!-- Stage 5: Usage -->
+  <div class="section" style="border-left: 3px solid var(--usage);">
+    <div class="section-header">
+      <div class="stage-number" style="background: var(--usage);">5</div>
+      <h2>Usage</h2>
+      <span class="stage-label" style="background: var(--usage-light); color: var(--usage);">Agent Consumption</span>
+    </div>
+    <p class="section-desc">Agents across the platform draw on documents to produce grounded, citation-backed analysis.</p>
+    <div class="item-grid">
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--usage);"></span> KB-Grounded Responses</h3>
+        <p>All 22 agents prioritize KB content over general knowledge. Responses include citations linking back to source documents, ensuring traceability and trust.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--usage);"></span> DISCO Pipeline Analysis</h3>
+        <p>Each DISCO stage (Discovery, Intelligence, Synthesis, Convergence) analyzes the full set of linked documents. Evidence tables with direct quotes are built during Intelligence.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--usage);"></span> Meeting Room Context</h3>
+        <p>Meeting rooms can reference KB documents as shared context. Agents in autonomous discussion mode draw on this material to inform their contributions.</p>
+      </div>
+      <div class="item-card">
+        <h3><span class="icon-dot" style="background: var(--usage);"></span> Throughline Mapping</h3>
+        <p>Insights and recommendations map back to their source documents via throughlines. This preserves the chain of evidence from raw input to final strategic output.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reverse Sync Callout -->
+  <div class="callout" style="border-left: 3px solid var(--ingest);">
+    <div class="callout-icon" style="background: var(--ingest-light); color: var(--ingest);">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M10 3v10M10 13l-3-3M10 13l3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4 17h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M10 3l-3 3M10 3l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="rotate(180 10 6)"/>
+      </svg>
+    </div>
+    <div class="callout-content">
+      <h3>Bidirectional Loop: Reverse Sync</h3>
+      <p>Documents generated by agents (Stage 1, pathway 3) are flagged with <code>needs_reverse_sync = true</code>. The local sync agent periodically pulls these documents and writes them to the corresponding Obsidian vault folder. This completes the bidirectional loop: vault content flows into the platform for analysis, and platform-generated insights flow back into the vault as first-class documents. State is tracked per-document via <code>reverse_synced_at</code> timestamps.</p>
+    </div>
+  </div>
+
+  <!-- Flow summary -->
+  <div class="flow-summary">
+    <h3>End-to-End Flow</h3>
+    <div class="flow-chain">
+      <span class="flow-chip" style="background: var(--ingest-light); color: var(--ingest);">Ingestion</span>
+      <span class="flow-arrow-h">&#8594;</span>
+      <span class="flow-chip" style="background: var(--process-light); color: var(--process);">Processing</span>
+      <span class="flow-arrow-h">&#8594;</span>
+      <span class="flow-chip" style="background: var(--organize-light); color: var(--organize);">Organization</span>
+      <span class="flow-arrow-h">&#8594;</span>
+      <span class="flow-chip" style="background: var(--link-light); color: var(--link);">Linking</span>
+      <span class="flow-arrow-h">&#8594;</span>
+      <span class="flow-chip" style="background: var(--usage-light); color: var(--usage);">Usage</span>
+      <span class="flow-arrow-h">&#8634;</span>
+      <span class="flow-chip" style="background: var(--ingest-light); color: var(--ingest);">Reverse Sync</span>
+    </div>
+  </div>
+
+  <!-- Watermark -->
+  <div class="watermark">Document Lifecycle v1.0 | Thesis Multi-Agent Platform | February 2026</div>
+
+</div>
+</body>
+</html>

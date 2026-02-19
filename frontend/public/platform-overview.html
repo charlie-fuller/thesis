@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Platform Overview</title>
+  <style>
+    :root {
+      --kb: #3b82f6;
+      --kb-light: #dbeafe;
+      --disco: #8b5cf6;
+      --disco-light: #ede9fe;
+      --projects: #22c55e;
+      --projects-light: #dcfce7;
+      --tasks: #f59e0b;
+      --tasks-light: #fef3c7;
+      --chat: #06b6d4;
+      --chat-light: #cffafe;
+      --intel: #ec4899;
+      --intel-light: #fce7f3;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-page, var(--gray-50));
+      color: var(--gray-900);
+      line-height: 1.5;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { color: var(--gray-500); font-size: 0.95rem; margin-top: 0.25rem; }
+
+    .section {
+      background: var(--bg-card, white);
+      border: 1px solid var(--gray-200);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .callout {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      font-size: 0.7rem;
+      color: var(--gray-700);
+      margin-top: 0.75rem;
+    }
+
+    .callout strong { color: var(--gray-900); }
+
+    /* Metro Map */
+    .metro-map {
+      position: relative;
+      padding: 1.5rem 0;
+    }
+
+    .metro-line {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      overflow-x: auto;
+      padding: 1rem 0;
+      position: relative;
+    }
+
+    .metro-station {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 140px;
+      flex: 1;
+      position: relative;
+      z-index: 2;
+    }
+
+    .station-dot {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      position: relative;
+    }
+
+    .station-dot.kb { background: var(--kb); }
+    .station-dot.disco { background: var(--disco); }
+    .station-dot.projects { background: var(--projects); }
+    .station-dot.tasks { background: var(--tasks); }
+    .station-dot.chat { background: var(--chat); }
+    .station-dot.intel { background: var(--intel); }
+
+    .station-name {
+      font-weight: 700;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      text-align: center;
+    }
+
+    .station-desc {
+      font-size: 0.65rem;
+      color: var(--gray-500);
+      text-align: center;
+      max-width: 130px;
+      margin-top: 0.15rem;
+    }
+
+    .metro-connector {
+      min-width: 40px;
+      flex: 0 0 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .metro-connector .track {
+      width: 100%;
+      height: 4px;
+      background: var(--gray-300);
+      position: relative;
+    }
+
+    .metro-connector .track::after {
+      content: '';
+      position: absolute;
+      right: -1px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+      border-left: 8px solid var(--gray-300);
+    }
+
+    /* Golden Path */
+    .golden-path {
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      border: 2px solid #f59e0b;
+      border-radius: 1rem;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    html.dark .golden-path {
+      background: linear-gradient(135deg, #451a03, #78350f);
+      border-color: #d97706;
+    }
+
+    .golden-path-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #92400e;
+      margin-bottom: 0.75rem;
+    }
+
+    html.dark .golden-path-title {
+      color: #fbbf24;
+    }
+
+    .golden-flow {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .golden-node {
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: white;
+      white-space: nowrap;
+    }
+
+    .golden-arrow {
+      color: #d97706;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    /* Area cards */
+    .area-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    @media (max-width: 900px) {
+      .area-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .area-grid { grid-template-columns: 1fr; }
+    }
+
+    .area-card {
+      border: 2px solid;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      position: relative;
+    }
+
+    .area-card.kb { border-color: var(--kb); }
+    .area-card.disco { border-color: var(--disco); }
+    .area-card.projects { border-color: var(--projects); }
+    .area-card.tasks { border-color: var(--tasks); }
+    .area-card.chat { border-color: var(--chat); }
+    .area-card.intel { border-color: var(--intel); }
+
+    .area-card .tag {
+      position: absolute;
+      top: -10px;
+      left: 12px;
+      padding: 0.1rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: white;
+    }
+
+    .area-card .tag.kb { background: var(--kb); }
+    .area-card .tag.disco { background: var(--disco); }
+    .area-card .tag.projects { background: var(--projects); }
+    .area-card .tag.tasks { background: var(--tasks); }
+    .area-card .tag.chat { background: var(--chat); }
+    .area-card .tag.intel { background: var(--intel); }
+
+    .area-card h4 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      margin-top: 0.25rem;
+    }
+
+    .area-card p, .area-card li {
+      font-size: 0.7rem;
+      color: var(--gray-600);
+      line-height: 1.4;
+    }
+
+    .area-card ul { margin-left: 1rem; margin-top: 0.35rem; }
+    .area-card li { margin-bottom: 0.15rem; }
+
+    .area-card .connects-label {
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: var(--gray-500);
+      margin-top: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .area-card .connects {
+      display: flex;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+      margin-top: 0.2rem;
+    }
+
+    .area-card .connects span {
+      font-size: 0.6rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 9999px;
+      font-weight: 600;
+      color: white;
+    }
+
+    /* Connection map */
+    .connections-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 700px) {
+      .connections-grid { grid-template-columns: 1fr; }
+    }
+
+    .conn-card {
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      background: var(--bg-card, white);
+    }
+
+    .conn-card h5 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .conn-card p {
+      font-size: 0.65rem;
+      color: var(--gray-500);
+    }
+
+    .conn-flow {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin-top: 0.35rem;
+    }
+
+    .conn-node {
+      font-size: 0.6rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 0.35rem;
+      font-weight: 600;
+      color: white;
+      white-space: nowrap;
+    }
+
+    .conn-arrow {
+      color: var(--gray-400);
+      font-size: 0.85rem;
+    }
+
+    /* Watermark */
+    .watermark {
+      text-align: center;
+      padding: 2rem;
+      color: var(--gray-400);
+      font-size: 0.75rem;
+    }
+
+    /* Dark mode */
+    html.dark :root {
+      --gray-50: #1a1a2e;
+      --gray-100: #1e1e33;
+      --gray-200: #2d2d44;
+      --gray-300: #3d3d55;
+      --gray-400: #6b7280;
+      --gray-500: #9ca3af;
+      --gray-600: #d1d5db;
+      --gray-700: #e5e7eb;
+      --gray-800: #f3f4f6;
+      --gray-900: #f9fafb;
+      --kb-light: #1e3a5f;
+      --disco-light: #2d1b69;
+      --projects-light: #1a3d1a;
+      --tasks-light: #3d2e0a;
+      --chat-light: #0a3d4d;
+      --intel-light: #3d1a2e;
+    }
+
+    html.dark body { background: var(--bg-page, #0a0a0a); color: var(--gray-900); }
+    html.dark .section { background: var(--bg-card, #111111); border-color: var(--gray-200); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+    html.dark .section-title { border-bottom-color: var(--gray-200); }
+    html.dark header { border-bottom-color: var(--gray-200); }
+    html.dark .area-card { background: var(--bg-card, #111111); }
+    html.dark .conn-card { background: var(--bg-card, #111111); border-color: var(--gray-200); }
+    html.dark .callout { background: var(--gray-100); border-color: var(--gray-300); color: var(--gray-600); }
+    html.dark .callout strong { color: var(--gray-900); }
+  </style>
+</head>
+<body>
+<script>
+(function() {
+  var root = document.documentElement;
+  function parseHex(h) {
+    if (!h || h.charAt(0) !== '#') return null;
+    h = h.replace('#','');
+    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
+  function toHex(r,g,b) {
+    return '#' + [r,g,b].map(function(c) {
+      var x = Math.round(Math.max(0,Math.min(255,c))).toString(16);
+      return x.length < 2 ? '0'+x : x;
+    }).join('');
+  }
+  function mix(a,b,t) {
+    if (!a||!b) return null;
+    return toHex(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);
+  }
+  function syncFromParent() {
+    try {
+      if (!window.parent || window.parent === window) return false;
+      var parentRoot = window.parent.document.documentElement;
+      var ps = getComputedStyle(parentRoot); if (!ps.getPropertyValue('--color-bg-page').trim()) return false;
+      var bgPage = ps.getPropertyValue('--color-bg-page').trim();
+      var bgCard = ps.getPropertyValue('--color-bg-card').trim();
+      var bgHover = ps.getPropertyValue('--color-bg-hover').trim();
+      var textPrimary = ps.getPropertyValue('--color-text-primary').trim();
+      var textSecondary = ps.getPropertyValue('--color-text-secondary').trim();
+      var textMuted = ps.getPropertyValue('--color-text-muted').trim();
+      var borderDefault = ps.getPropertyValue('--color-border-default').trim();
+      var primary = ps.getPropertyValue('--color-primary').trim();
+      var primaryHover = ps.getPropertyValue('--color-primary-hover').trim();
+      if (!bgPage || !textPrimary) return false;
+      var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+      if (bodyBg) {
+        var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (m) {
+          var br = (parseInt(m[1])*299+parseInt(m[2])*587+parseInt(m[3])*114)/1000;
+          if (br < 128) root.classList.add('dark'); else root.classList.remove('dark');
+        }
+      }
+      var cCard = parseHex(bgCard), cBorder = parseHex(borderDefault);
+      var cMuted = parseHex(textMuted), cSecondary = parseHex(textSecondary);
+      var cPrimary = parseHex(textPrimary);
+      root.style.setProperty('--bg-page', bgPage);
+      root.style.setProperty('--bg-card', bgCard);
+      root.style.setProperty('--gray-50', bgHover);
+      root.style.setProperty('--gray-100', mix(cCard, cBorder, 0.3) || bgHover);
+      root.style.setProperty('--gray-200', borderDefault);
+      root.style.setProperty('--gray-300', mix(cBorder, cMuted, 0.25) || borderDefault);
+      root.style.setProperty('--gray-400', mix(cBorder, cMuted, 0.5) || textMuted);
+      root.style.setProperty('--gray-500', textMuted);
+      root.style.setProperty('--gray-600', textSecondary);
+      root.style.setProperty('--gray-700', mix(cSecondary, cPrimary, 0.4) || textSecondary);
+      root.style.setProperty('--gray-800', mix(cSecondary, cPrimary, 0.75) || textPrimary);
+      root.style.setProperty('--gray-900', textPrimary);
+      if (primary) root.style.setProperty('--primary', primary);
+      if (primaryHover) root.style.setProperty('--primary-light', primaryHover);
+      return true;
+    } catch (e) { return false; }
+  }
+  syncFromParent();
+  var attempts = 0;
+  var poller = setInterval(function() {
+    attempts++;
+    if (syncFromParent() || attempts >= 50) {
+      clearInterval(poller);
+      if (attempts >= 50 && !root.classList.contains('dark')) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) root.classList.add('dark');
+      }
+    }
+  }, 200);
+  try {
+    if (window.parent && window.parent !== window) {
+      new MutationObserver(function() { syncFromParent(); })
+        .observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+  } catch (e) {}
+})();
+</script>
+  <div class="container">
+    <header>
+      <h1>Platform Overview</h1>
+      <p class="subtitle">How every section of Thesis connects -- from documents to delivery</p>
+    </header>
+
+    <!-- Golden Path -->
+    <div class="golden-path">
+      <div class="golden-path-title">The Golden Path: Document to Delivery</div>
+      <div class="golden-flow">
+        <span class="golden-node" style="background:var(--kb);">Knowledge Base</span>
+        <span class="golden-arrow">&#8250;</span>
+        <span class="golden-node" style="background:var(--disco);">DISCO Initiatives</span>
+        <span class="golden-arrow">&#8250;</span>
+        <span class="golden-node" style="background:var(--disco);">Pipeline Agents</span>
+        <span class="golden-arrow">&#8250;</span>
+        <span class="golden-node" style="background:var(--projects);">Projects</span>
+        <span class="golden-arrow">&#8250;</span>
+        <span class="golden-node" style="background:var(--tasks);">Tasks</span>
+        <span class="golden-arrow">&#8250;</span>
+        <span class="golden-node" style="background:var(--projects);">Delivery</span>
+      </div>
+      <p style="font-size: 0.65rem; color: #92400e; text-align: center; margin-top: 0.5rem;">
+        Documents enter the KB, get linked to initiatives, run through the DISCO pipeline, produce projects and tasks, then feed learnings back.
+      </p>
+    </div>
+
+    <!-- Metro Map -->
+    <div class="section">
+      <div class="section-title">Platform Metro Map</div>
+      <div style="overflow-x: auto;">
+        <div class="metro-line" style="min-width: 900px;">
+          <div class="metro-station">
+            <div class="station-dot kb">KB</div>
+            <div class="station-name">Knowledge Base</div>
+            <div class="station-desc">Documents, folders, tags, embeddings</div>
+          </div>
+          <div class="metro-connector"><div class="track"></div></div>
+          <div class="metro-station">
+            <div class="station-dot disco">D</div>
+            <div class="station-name">DISCO</div>
+            <div class="station-desc">Initiatives, pipeline, document generation</div>
+          </div>
+          <div class="metro-connector"><div class="track"></div></div>
+          <div class="metro-station">
+            <div class="station-dot projects">P</div>
+            <div class="station-name">Projects</div>
+            <div class="station-desc">Scored pipeline, prioritization, tracking</div>
+          </div>
+          <div class="metro-connector"><div class="track"></div></div>
+          <div class="metro-station">
+            <div class="station-dot tasks">T</div>
+            <div class="station-name">Tasks</div>
+            <div class="station-desc">Kanban board, assignments, dependencies</div>
+          </div>
+          <div class="metro-connector"><div class="track"></div></div>
+          <div class="metro-station">
+            <div class="station-dot chat">C</div>
+            <div class="station-name">Chat</div>
+            <div class="station-desc">Agent conversations, meeting rooms</div>
+          </div>
+          <div class="metro-connector"><div class="track"></div></div>
+          <div class="metro-station">
+            <div class="station-dot intel">I</div>
+            <div class="station-name">Intelligence</div>
+            <div class="station-desc">Stakeholders, agents, strategy</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>Bidirectional flow:</strong> While the golden path moves left to right, information flows back too. Task outcomes feed into KB as learnings. Agent chat insights can spawn new initiatives. Stakeholder intelligence informs project prioritization.
+      </div>
+    </div>
+
+    <!-- Area Details -->
+    <div class="section">
+      <div class="section-title">Platform Areas</div>
+      <div class="area-grid">
+        <!-- Knowledge Base -->
+        <div class="area-card kb">
+          <span class="tag kb">Knowledge Base</span>
+          <h4>The Foundation</h4>
+          <p>Central repository of all documents. Everything starts and ends here.</p>
+          <ul>
+            <li>Obsidian vault sync (auto)</li>
+            <li>Document upload and processing</li>
+            <li>Auto-classification and tagging</li>
+            <li>Voyage AI embeddings for search</li>
+            <li>Folder-based organization</li>
+          </ul>
+          <div class="connects-label">Connects to</div>
+          <div class="connects">
+            <span style="background:var(--disco);">DISCO</span>
+            <span style="background:var(--chat);">Chat</span>
+            <span style="background:var(--intel);">Intel</span>
+          </div>
+        </div>
+
+        <!-- DISCO -->
+        <div class="area-card disco">
+          <span class="tag disco">DISCO</span>
+          <h4>Discovery Pipeline</h4>
+          <p>Structured product discovery through 4 AI agents with human checkpoints.</p>
+          <ul>
+            <li>Create initiatives from opportunities</li>
+            <li>Link KB document folders</li>
+            <li>Run Discovery > Intelligence > Synthesis > Convergence</li>
+            <li>Generate PRDs, evaluations, decisions</li>
+          </ul>
+          <div class="connects-label">Connects to</div>
+          <div class="connects">
+            <span style="background:var(--kb);">KB</span>
+            <span style="background:var(--projects);">Projects</span>
+            <span style="background:var(--tasks);">Tasks</span>
+          </div>
+        </div>
+
+        <!-- Projects -->
+        <div class="area-card projects">
+          <span class="tag projects">Projects</span>
+          <h4>Prioritized Pipeline</h4>
+          <p>Scored project portfolio with ROI, effort, and alignment dimensions.</p>
+          <ul>
+            <li>Create from DISCO outputs or manually</li>
+            <li>Multi-dimension scoring (ROI, effort, alignment)</li>
+            <li>Tier-based prioritization (T1-T4)</li>
+            <li>Department and status tracking</li>
+          </ul>
+          <div class="connects-label">Connects to</div>
+          <div class="connects">
+            <span style="background:var(--disco);">DISCO</span>
+            <span style="background:var(--tasks);">Tasks</span>
+            <span style="background:var(--kb);">KB</span>
+          </div>
+        </div>
+
+        <!-- Tasks -->
+        <div class="area-card tasks">
+          <span class="tag tasks">Tasks</span>
+          <h4>Execution Tracking</h4>
+          <p>Kanban board for all action items, with full traceability to source.</p>
+          <ul>
+            <li>Extract from DISCO state changes</li>
+            <li>Link to projects and initiatives</li>
+            <li>Assignee, due date, priority</li>
+            <li>Kraken AI agent recommendations</li>
+          </ul>
+          <div class="connects-label">Connects to</div>
+          <div class="connects">
+            <span style="background:var(--projects);">Projects</span>
+            <span style="background:var(--disco);">DISCO</span>
+          </div>
+        </div>
+
+        <!-- Chat -->
+        <div class="area-card chat">
+          <span class="tag chat">Chat</span>
+          <h4>Agent Workspace</h4>
+          <p>Conversational AI with 22 specialized agents and multi-agent meeting rooms.</p>
+          <ul>
+            <li>Single agent or auto-routing</li>
+            <li>@mention for targeted input</li>
+            <li>Meeting rooms (autonomous discussion)</li>
+            <li>KB-grounded responses with citations</li>
+          </ul>
+          <div class="connects-label">Connects to</div>
+          <div class="connects">
+            <span style="background:var(--kb);">KB</span>
+            <span style="background:var(--disco);">DISCO</span>
+            <span style="background:var(--intel);">Intel</span>
+          </div>
+        </div>
+
+        <!-- Intelligence -->
+        <div class="area-card intel">
+          <span class="tag intel">Intelligence</span>
+          <h4>Strategic Context</h4>
+          <p>Stakeholder tracking, engagement monitoring, and agent management.</p>
+          <ul>
+            <li>Stakeholder profiles and sentiment</li>
+            <li>Engagement level tracking</li>
+            <li>Full agent roster and config</li>
+            <li>Strategy alignment tools</li>
+          </ul>
+          <div class="connects-label">Connects to</div>
+          <div class="connects">
+            <span style="background:var(--disco);">DISCO</span>
+            <span style="background:var(--projects);">Projects</span>
+            <span style="background:var(--chat);">Chat</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cross-cutting Connections -->
+    <div class="section">
+      <div class="section-title">Key Integration Points</div>
+      <div class="connections-grid">
+        <div class="conn-card">
+          <h5>KB to DISCO</h5>
+          <p>Link document folders to initiatives. Agents analyze linked docs during each pipeline stage.</p>
+          <div class="conn-flow">
+            <span class="conn-node" style="background:var(--kb);">Docs</span>
+            <span class="conn-arrow">&#8250;</span>
+            <span class="conn-node" style="background:var(--disco);">Initiative</span>
+            <span class="conn-arrow">&#8250;</span>
+            <span class="conn-node" style="background:var(--disco);">Agents</span>
+          </div>
+        </div>
+        <div class="conn-card">
+          <h5>DISCO to Projects</h5>
+          <p>Create projects from approved DISCO outputs. AI extracts title, description, scores, and initial tasks.</p>
+          <div class="conn-flow">
+            <span class="conn-node" style="background:var(--disco);">PRD</span>
+            <span class="conn-arrow">&#8250;</span>
+            <span class="conn-node" style="background:var(--projects);">Project</span>
+            <span class="conn-arrow">&#8250;</span>
+            <span class="conn-node" style="background:var(--tasks);">Tasks</span>
+          </div>
+        </div>
+        <div class="conn-card">
+          <h5>DISCO to Tasks</h5>
+          <p>State changes from Convergence output become tasks. Each traces back through the full discovery chain.</p>
+          <div class="conn-flow">
+            <span class="conn-node" style="background:var(--disco);">State Change</span>
+            <span class="conn-arrow">&#8250;</span>
+            <span class="conn-node" style="background:var(--tasks);">Task</span>
+          </div>
+        </div>
+        <div class="conn-card">
+          <h5>Chat to KB</h5>
+          <p>Agents cite KB documents in responses. Discovery Agent can save new documents back to KB.</p>
+          <div class="conn-flow">
+            <span class="conn-node" style="background:var(--chat);">Agent</span>
+            <span class="conn-arrow">&#8250;</span>
+            <span class="conn-node" style="background:var(--kb);">KB Cite</span>
+          </div>
+        </div>
+        <div class="conn-card">
+          <h5>Stakeholders to DISCO</h5>
+          <p>Link stakeholders to initiatives. Track who's a champion, who's a blocker, who needs engagement.</p>
+          <div class="conn-flow">
+            <span class="conn-node" style="background:var(--intel);">Stakeholder</span>
+            <span class="conn-arrow">&#8250;</span>
+            <span class="conn-node" style="background:var(--disco);">Initiative</span>
+          </div>
+        </div>
+        <div class="conn-card">
+          <h5>Tasks to Delivery</h5>
+          <p>Complete tasks, measure outcomes, feed learnings back into KB as new documents for future initiatives.</p>
+          <div class="conn-flow">
+            <span class="conn-node" style="background:var(--tasks);">Done</span>
+            <span class="conn-arrow">&#8250;</span>
+            <span class="conn-node" style="background:var(--kb);">Learnings</span>
+            <span class="conn-arrow">&#8250;</span>
+            <span class="conn-node" style="background:var(--disco);">Next</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Supporting Systems -->
+    <div class="section">
+      <div class="section-title">Supporting Systems</div>
+      <div class="area-grid">
+        <div class="conn-card">
+          <h5>Dashboard</h5>
+          <p>Platform health, analytics, agent usage, manifesto compliance scoring, and system overview.</p>
+        </div>
+        <div class="conn-card">
+          <h5>Obsidian Vault Sync</h5>
+          <p>Automatic bidirectional sync between local Obsidian vault and KB. New docs flow in, generated docs flow out.</p>
+        </div>
+        <div class="conn-card">
+          <h5>Manifesto</h5>
+          <p>10 platform principles that govern agent behavior. Compliance scored automatically across all interactions.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="watermark">
+      Platform Overview v1.0 | Thesis Multi-Agent Platform | February 2026
+    </div>
+  </div>
+</body>
+</html>

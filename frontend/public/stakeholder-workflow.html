@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stakeholder Engagement Workflow</title>
+  <style>
+    :root {
+      --identify: #3b82f6;
+      --identify-light: #dbeafe;
+      --assess: #8b5cf6;
+      --assess-light: #ede9fe;
+      --engage: #22c55e;
+      --engage-light: #dcfce7;
+      --track: #f59e0b;
+      --track-light: #fef3c7;
+      --adjust: #f43f5e;
+      --adjust-light: #ffe4e6;
+      --reengage: #06b6d4;
+      --reengage-light: #cffafe;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+      --bg-page: var(--gray-50);
+      --bg-card: white;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-page, var(--gray-50));
+      color: var(--gray-900);
+      line-height: 1.6;
+    }
+
+    html.dark body {
+      background: var(--bg-page, #0a0a0a);
+      color: var(--gray-900);
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    .subtitle {
+      color: var(--gray-500);
+      font-size: 0.95rem;
+      margin-top: 0.5rem;
+      max-width: 640px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Circular Workflow Visualization */
+    .workflow-ring {
+      position: relative;
+      width: 520px;
+      height: 520px;
+      margin: 2rem auto 3rem;
+    }
+
+    .ring-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: var(--bg-card, white);
+      border: 2px solid var(--gray-200);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 3;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    html.dark .ring-center {
+      background: var(--bg-card, #111111);
+      border-color: var(--gray-200);
+    }
+
+    .ring-center-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .ring-center-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .ring-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    .ring-node {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.75rem;
+      color: white;
+      z-index: 2;
+      cursor: default;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+
+    .ring-node:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+
+    .ring-node .node-number {
+      font-size: 1.25rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .ring-node .node-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      margin-top: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .ring-node.identify { background: var(--identify); top: 10px; left: 50%; margin-left: -50px; }
+    .ring-node.assess { background: var(--assess); top: 130px; right: 15px; }
+    .ring-node.engage-node { background: var(--engage); bottom: 130px; right: 15px; }
+    .ring-node.track-node { background: var(--track); bottom: 10px; left: 50%; margin-left: -50px; }
+    .ring-node.adjust-node { background: var(--adjust); bottom: 130px; left: 15px; }
+    .ring-node.reengage { background: var(--reengage); top: 130px; left: 15px; }
+
+    /* Arrow arcs */
+    .arc-arrow {
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+    }
+
+    .arc-arrowhead {
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    /* Section cards */
+    .section {
+      background: var(--bg-card, white);
+      border: 1px solid var(--gray-200);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    html.dark .section {
+      background: var(--bg-card, #111111);
+      border-color: var(--gray-200);
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    /* Phase detail grid */
+    .phases-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 900px) {
+      .phases-grid { grid-template-columns: repeat(2, 1fr); }
+      .workflow-ring { width: 380px; height: 380px; }
+      .ring-center { width: 110px; height: 110px; }
+      .ring-center-title { font-size: 0.8rem; }
+      .ring-node { width: 76px; height: 76px; }
+      .ring-node .node-number { font-size: 1rem; }
+      .ring-node .node-label { font-size: 0.6rem; }
+      .ring-node.identify { top: 5px; }
+      .ring-node.assess { top: 90px; right: 5px; }
+      .ring-node.engage-node { bottom: 90px; right: 5px; }
+      .ring-node.track-node { bottom: 5px; }
+      .ring-node.adjust-node { bottom: 90px; left: 5px; }
+      .ring-node.reengage { top: 90px; left: 5px; }
+    }
+
+    @media (max-width: 640px) {
+      .phases-grid { grid-template-columns: 1fr; }
+      .container { padding: 1rem; }
+      .workflow-ring { width: 300px; height: 300px; }
+      .ring-center { width: 90px; height: 90px; }
+      .ring-center-title { font-size: 0.7rem; }
+      .ring-center-label { font-size: 0.6rem; }
+      .ring-node { width: 62px; height: 62px; }
+      .ring-node .node-number { font-size: 0.85rem; }
+      .ring-node .node-label { font-size: 0.5rem; }
+      .ring-node.identify { top: 0px; margin-left: -31px; }
+      .ring-node.assess { top: 68px; right: 0px; }
+      .ring-node.engage-node { bottom: 68px; right: 0px; }
+      .ring-node.track-node { bottom: 0px; margin-left: -31px; }
+      .ring-node.adjust-node { bottom: 68px; left: 0px; }
+      .ring-node.reengage { top: 68px; left: 0px; }
+    }
+
+    .phase-card {
+      border: 2px solid;
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      transition: box-shadow 0.2s ease;
+    }
+
+    .phase-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .phase-card.identify { border-color: var(--identify); background: var(--identify-light); }
+    .phase-card.assess { border-color: var(--assess); background: var(--assess-light); }
+    .phase-card.engage { border-color: var(--engage); background: var(--engage-light); }
+    .phase-card.track { border-color: var(--track); background: var(--track-light); }
+    .phase-card.adjust { border-color: var(--adjust); background: var(--adjust-light); }
+    .phase-card.reengage { border-color: var(--reengage); background: var(--reengage-light); }
+
+    html.dark .phase-card.identify { background: rgba(59,130,246,0.12); }
+    html.dark .phase-card.assess { background: rgba(139,92,246,0.12); }
+    html.dark .phase-card.engage { background: rgba(34,197,94,0.12); }
+    html.dark .phase-card.track { background: rgba(245,158,11,0.12); }
+    html.dark .phase-card.adjust { background: rgba(244,63,94,0.12); }
+    html.dark .phase-card.reengage { background: rgba(6,182,212,0.12); }
+
+    .phase-header {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .phase-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.85rem;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .phase-badge.identify { background: var(--identify); }
+    .phase-badge.assess { background: var(--assess); }
+    .phase-badge.engage { background: var(--engage); }
+    .phase-badge.track { background: var(--track); }
+    .phase-badge.adjust { background: var(--adjust); }
+    .phase-badge.reengage { background: var(--reengage); }
+
+    .phase-name {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .phase-desc {
+      font-size: 0.8rem;
+      color: var(--gray-600);
+      margin-bottom: 0.75rem;
+      font-style: italic;
+    }
+
+    .phase-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .phase-list li {
+      position: relative;
+      padding-left: 1rem;
+      font-size: 0.82rem;
+      color: var(--gray-700);
+      margin-bottom: 0.35rem;
+      line-height: 1.45;
+    }
+
+    .phase-list li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.5em;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--gray-400);
+    }
+
+    .phase-card.identify .phase-list li::before { background: var(--identify); }
+    .phase-card.assess .phase-list li::before { background: var(--assess); }
+    .phase-card.engage .phase-list li::before { background: var(--engage); }
+    .phase-card.track .phase-list li::before { background: var(--track); }
+    .phase-card.adjust .phase-list li::before { background: var(--adjust); }
+    .phase-card.reengage .phase-list li::before { background: var(--reengage); }
+
+    /* Integration section */
+    .integrations-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 900px) {
+      .integrations-grid { grid-template-columns: 1fr; }
+    }
+
+    .integration-card {
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      background: var(--bg-card, white);
+    }
+
+    html.dark .integration-card {
+      background: var(--bg-card, #111111);
+      border-color: var(--gray-200);
+    }
+
+    .integration-card .int-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--gray-800);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .int-tag {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: white;
+    }
+
+    .int-tag.disco { background: var(--identify); }
+    .int-tag.projects { background: var(--assess); }
+    .int-tag.agents { background: var(--engage); }
+
+    .integration-card .int-desc {
+      font-size: 0.82rem;
+      color: var(--gray-600);
+      margin-bottom: 0.65rem;
+    }
+
+    .integration-card .int-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .integration-card .int-list li {
+      position: relative;
+      padding-left: 1rem;
+      font-size: 0.8rem;
+      color: var(--gray-700);
+      margin-bottom: 0.3rem;
+      line-height: 1.4;
+    }
+
+    .integration-card .int-list li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.45em;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--gray-400);
+    }
+
+    /* Sentiment Scale */
+    .sentiment-scale {
+      display: flex;
+      gap: 0;
+      margin: 0.75rem 0;
+      border-radius: 0.5rem;
+      overflow: hidden;
+    }
+
+    .sentiment-item {
+      flex: 1;
+      padding: 0.5rem 0.25rem;
+      text-align: center;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: white;
+    }
+
+    .sentiment-item.champion { background: #22c55e; }
+    .sentiment-item.supporter { background: #86efac; color: var(--gray-800); }
+    .sentiment-item.neutral { background: #fbbf24; color: var(--gray-800); }
+    .sentiment-item.skeptic { background: #fb923c; }
+    .sentiment-item.blocker { background: #ef4444; }
+
+    /* Influence levels */
+    .influence-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+      margin: 0.75rem 0;
+    }
+
+    .influence-item {
+      text-align: center;
+      padding: 0.4rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--gray-200);
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--gray-700);
+      background: var(--gray-50);
+    }
+
+    html.dark .influence-item {
+      background: var(--bg-card, #111111);
+      border-color: var(--gray-200);
+    }
+
+    .influence-item .inf-level {
+      display: block;
+      font-size: 0.6rem;
+      font-weight: 400;
+      color: var(--gray-500);
+      margin-top: 2px;
+    }
+
+    /* Watermark */
+    .watermark {
+      text-align: center;
+      padding: 2rem 1rem 1rem;
+      font-size: 0.7rem;
+      color: var(--gray-400);
+      border-top: 1px solid var(--gray-200);
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+<script>
+(function() {
+  var root = document.documentElement;
+  function parseHex(h) {
+    if (!h || h.charAt(0) !== '#') return null;
+    h = h.replace('#','');
+    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
+  function toHex(r,g,b) {
+    return '#' + [r,g,b].map(function(c) {
+      var x = Math.round(Math.max(0,Math.min(255,c))).toString(16);
+      return x.length < 2 ? '0'+x : x;
+    }).join('');
+  }
+  function mix(a,b,t) {
+    if (!a||!b) return null;
+    return toHex(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);
+  }
+  function syncFromParent() {
+    try {
+      if (!window.parent || window.parent === window) return false;
+      var parentRoot = window.parent.document.documentElement;
+      var ps = getComputedStyle(parentRoot); if (!ps.getPropertyValue('--color-bg-page').trim()) return false;
+      var bgPage = ps.getPropertyValue('--color-bg-page').trim();
+      var bgCard = ps.getPropertyValue('--color-bg-card').trim();
+      var bgHover = ps.getPropertyValue('--color-bg-hover').trim();
+      var textPrimary = ps.getPropertyValue('--color-text-primary').trim();
+      var textSecondary = ps.getPropertyValue('--color-text-secondary').trim();
+      var textMuted = ps.getPropertyValue('--color-text-muted').trim();
+      var borderDefault = ps.getPropertyValue('--color-border-default').trim();
+      var primary = ps.getPropertyValue('--color-primary').trim();
+      var primaryHover = ps.getPropertyValue('--color-primary-hover').trim();
+      if (!bgPage || !textPrimary) return false;
+      var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+      if (bodyBg) {
+        var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (m) {
+          var br = (parseInt(m[1])*299+parseInt(m[2])*587+parseInt(m[3])*114)/1000;
+          if (br < 128) root.classList.add('dark'); else root.classList.remove('dark');
+        }
+      }
+      var cCard = parseHex(bgCard), cBorder = parseHex(borderDefault);
+      var cMuted = parseHex(textMuted), cSecondary = parseHex(textSecondary);
+      var cPrimary = parseHex(textPrimary);
+      root.style.setProperty('--bg-page', bgPage);
+      root.style.setProperty('--bg-card', bgCard);
+      root.style.setProperty('--gray-50', bgHover);
+      root.style.setProperty('--gray-100', mix(cCard, cBorder, 0.3) || bgHover);
+      root.style.setProperty('--gray-200', borderDefault);
+      root.style.setProperty('--gray-300', mix(cBorder, cMuted, 0.25) || borderDefault);
+      root.style.setProperty('--gray-400', mix(cBorder, cMuted, 0.5) || textMuted);
+      root.style.setProperty('--gray-500', textMuted);
+      root.style.setProperty('--gray-600', textSecondary);
+      root.style.setProperty('--gray-700', mix(cSecondary, cPrimary, 0.4) || textSecondary);
+      root.style.setProperty('--gray-800', mix(cSecondary, cPrimary, 0.75) || textPrimary);
+      root.style.setProperty('--gray-900', textPrimary);
+      if (primary) root.style.setProperty('--primary', primary);
+      if (primaryHover) root.style.setProperty('--primary-light', primaryHover);
+      return true;
+    } catch (e) { return false; }
+  }
+  syncFromParent();
+  var attempts = 0;
+  var poller = setInterval(function() {
+    attempts++;
+    if (syncFromParent() || attempts >= 50) {
+      clearInterval(poller);
+      if (attempts >= 50 && !root.classList.contains('dark')) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) root.classList.add('dark');
+      }
+    }
+  }, 200);
+  try {
+    if (window.parent && window.parent !== window) {
+      new MutationObserver(function() { syncFromParent(); })
+        .observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+  } catch (e) {}
+})();
+</script>
+
+<div class="container">
+  <header>
+    <h1>Stakeholder Engagement Workflow</h1>
+    <p class="subtitle">A continuous cycle for managing stakeholder relationships through AI strategy initiatives</p>
+  </header>
+
+  <!-- Circular Workflow Visualization -->
+  <div class="workflow-ring">
+    <svg class="ring-svg" viewBox="0 0 520 520">
+      <!-- Circular connecting arcs with arrows -->
+      <!-- Identify to Assess -->
+      <path d="M 310 60 Q 410 50, 440 150" class="arc-arrow" stroke="var(--identify)" />
+      <path d="M 435 140 L 440 150 L 430 148" class="arc-arrowhead" stroke="var(--identify)" />
+      <!-- Assess to Engage -->
+      <path d="M 470 240 Q 490 330, 450 380" class="arc-arrow" stroke="var(--assess)" />
+      <path d="M 455 372 L 450 380 L 448 370" class="arc-arrowhead" stroke="var(--assess)" />
+      <!-- Engage to Track -->
+      <path d="M 400 440 Q 340 500, 290 470" class="arc-arrow" stroke="var(--engage)" />
+      <path d="M 298 472 L 290 470 L 298 464" class="arc-arrowhead" stroke="var(--engage)" />
+      <!-- Track to Adjust -->
+      <path d="M 210 470 Q 140 490, 90 420" class="arc-arrow" stroke="var(--track)" />
+      <path d="M 96 426 L 90 420 L 100 420" class="arc-arrowhead" stroke="var(--track)" />
+      <!-- Adjust to Re-engage -->
+      <path d="M 55 340 Q 30 260, 60 190" class="arc-arrow" stroke="var(--adjust)" />
+      <path d="M 56 198 L 60 190 L 66 198" class="arc-arrowhead" stroke="var(--adjust)" />
+      <!-- Re-engage to Identify (closing the loop) -->
+      <path d="M 100 130 Q 160 50, 240 50" class="arc-arrow" stroke="var(--reengage)" />
+      <path d="M 232 54 L 240 50 L 236 58" class="arc-arrowhead" stroke="var(--reengage)" />
+    </svg>
+
+    <div class="ring-node identify">
+      <span class="node-number">1</span>
+      <span class="node-label">Identify</span>
+    </div>
+    <div class="ring-node assess">
+      <span class="node-number">2</span>
+      <span class="node-label">Assess</span>
+    </div>
+    <div class="ring-node engage-node">
+      <span class="node-number">3</span>
+      <span class="node-label">Engage</span>
+    </div>
+    <div class="ring-node track-node">
+      <span class="node-number">4</span>
+      <span class="node-label">Track</span>
+    </div>
+    <div class="ring-node adjust-node">
+      <span class="node-number">5</span>
+      <span class="node-label">Adjust</span>
+    </div>
+    <div class="ring-node reengage">
+      <span class="node-number">6</span>
+      <span class="node-label">Re-engage</span>
+    </div>
+
+    <div class="ring-center">
+      <span class="ring-center-label">Continuous</span>
+      <span class="ring-center-title">Stakeholder Engagement</span>
+    </div>
+  </div>
+
+  <!-- Phase Details -->
+  <div class="section">
+    <div class="section-title">Workflow Phases</div>
+    <div class="phases-grid">
+
+      <div class="phase-card identify">
+        <div class="phase-header">
+          <div class="phase-badge identify">1</div>
+          <div class="phase-name">Identify</div>
+        </div>
+        <div class="phase-desc">Find stakeholders relevant to an initiative</div>
+        <ul class="phase-list">
+          <li>Create profiles with name, role, department</li>
+          <li>Detect stakeholder mentions in KB documents</li>
+          <li>Link stakeholders to DISCO initiatives</li>
+          <li>Navigator agent can suggest stakeholders from document content</li>
+        </ul>
+      </div>
+
+      <div class="phase-card assess">
+        <div class="phase-header">
+          <div class="phase-badge assess">2</div>
+          <div class="phase-name">Assess</div>
+        </div>
+        <div class="phase-desc">Evaluate each stakeholder's position</div>
+
+        <div style="font-size:0.72rem;font-weight:600;color:var(--gray-600);margin-bottom:0.25rem;">Sentiment Spectrum</div>
+        <div class="sentiment-scale">
+          <div class="sentiment-item champion">Champion</div>
+          <div class="sentiment-item supporter">Supporter</div>
+          <div class="sentiment-item neutral">Neutral</div>
+          <div class="sentiment-item skeptic">Skeptic</div>
+          <div class="sentiment-item blocker">Blocker</div>
+        </div>
+
+        <div style="font-size:0.72rem;font-weight:600;color:var(--gray-600);margin-bottom:0.25rem;margin-top:0.5rem;">Influence Levels</div>
+        <div class="influence-grid">
+          <div class="influence-item">Decision-maker<span class="inf-level">Highest</span></div>
+          <div class="influence-item">Influencer<span class="inf-level">High</span></div>
+          <div class="influence-item">Contributor<span class="inf-level">Medium</span></div>
+          <div class="influence-item">Observer<span class="inf-level">Low</span></div>
+        </div>
+
+        <ul class="phase-list" style="margin-top:0.5rem;">
+          <li>Department and organizational position mapping</li>
+          <li>Relationship to initiative outcomes</li>
+        </ul>
+      </div>
+
+      <div class="phase-card engage">
+        <div class="phase-header">
+          <div class="phase-badge engage">3</div>
+          <div class="phase-name">Engage</div>
+        </div>
+        <div class="phase-desc">Plan and execute engagement</div>
+        <ul class="phase-list">
+          <li>Meeting rooms for stakeholder-focused discussions</li>
+          <li>Agent-prepared talking points and briefing materials</li>
+          <li>Link meeting transcripts to stakeholder records</li>
+          <li>Track engagement frequency and quality</li>
+        </ul>
+      </div>
+
+      <div class="phase-card track">
+        <div class="phase-header">
+          <div class="phase-badge track">4</div>
+          <div class="phase-name">Track</div>
+        </div>
+        <div class="phase-desc">Monitor engagement over time</div>
+        <ul class="phase-list">
+          <li>Engagement level history and trends</li>
+          <li>Meeting notes linked to stakeholders</li>
+          <li>Sentiment changes across initiative lifecycle</li>
+          <li>Cross-initiative stakeholder views</li>
+        </ul>
+      </div>
+
+      <div class="phase-card adjust">
+        <div class="phase-header">
+          <div class="phase-badge adjust">5</div>
+          <div class="phase-name">Adjust</div>
+        </div>
+        <div class="phase-desc">Adapt strategy based on tracking data</div>
+        <ul class="phase-list">
+          <li>Identify at-risk stakeholders (sentiment declining)</li>
+          <li>Re-prioritize engagement based on initiative needs</li>
+          <li>Agent insights on stakeholder dynamics</li>
+          <li>Prepare for difficult conversations</li>
+        </ul>
+      </div>
+
+      <div class="phase-card reengage">
+        <div class="phase-header">
+          <div class="phase-badge reengage">6</div>
+          <div class="phase-name">Re-engage</div>
+        </div>
+        <div class="phase-desc">Close the loop</div>
+        <ul class="phase-list">
+          <li>Schedule follow-ups based on tracking gaps</li>
+          <li>Share outcomes and progress updates</li>
+          <li>Convert blockers to supporters through targeted engagement</li>
+          <li>Feed relationship data back into future initiatives</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Platform Integrations -->
+  <div class="section">
+    <div class="section-title">Platform Integrations</div>
+    <div class="integrations-grid">
+
+      <div class="integration-card">
+        <div class="int-title">
+          <span class="int-tag disco">DISCO</span>
+          Initiative Integration
+        </div>
+        <p class="int-desc">Stakeholders are linked directly to DISCO initiatives, providing context for every phase of product discovery.</p>
+        <ul class="int-list">
+          <li>Stakeholder profiles attached to initiatives</li>
+          <li>Discovery phase identifies relevant stakeholders from KB documents</li>
+          <li>Intelligence phase analyzes stakeholder sentiment signals</li>
+          <li>Synthesis phase incorporates stakeholder perspectives into recommendations</li>
+          <li>Convergence phase maps stakeholder alignment to decision criteria</li>
+        </ul>
+      </div>
+
+      <div class="integration-card">
+        <div class="int-title">
+          <span class="int-tag projects">Projects</span>
+          Project Sponsorship
+        </div>
+        <p class="int-desc">Stakeholders serve as project sponsors, champions, and key contacts throughout the project lifecycle.</p>
+        <ul class="int-list">
+          <li>Assign stakeholders as project sponsors or leads</li>
+          <li>Track sponsor engagement across project milestones</li>
+          <li>Surface stakeholder concerns in project health checks</li>
+          <li>Link project outcomes back to stakeholder expectations</li>
+          <li>Cross-project stakeholder view for portfolio management</li>
+        </ul>
+      </div>
+
+      <div class="integration-card">
+        <div class="int-title">
+          <span class="int-tag agents">Agents</span>
+          AI Agent Support
+        </div>
+        <p class="int-desc">Specialized agents provide analysis and recommendations for stakeholder engagement strategy.</p>
+        <ul class="int-list">
+          <li><strong>Navigator</strong> -- stakeholder mapping and analysis from document content</li>
+          <li><strong>Catalyst</strong> -- change management strategies for stakeholder buy-in</li>
+          <li>Meeting room agents prepare stakeholder-specific talking points</li>
+          <li>Agents detect stakeholder mentions across KB documents and meetings</li>
+          <li>Automated engagement gap alerts when stakeholders go cold</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="watermark">
+    Stakeholder Engagement Workflow v1.0 | Thesis Multi-Agent Platform | February 2026
+  </div>
+</div>
+
+</body>
+</html>

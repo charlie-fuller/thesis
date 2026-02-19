@@ -21,7 +21,7 @@ const LazyManifestoCompliancePanel = dynamic(() => import('@/components/Manifest
   loading: () => <div className="flex items-center justify-center py-12"><LoadingSpinner size="lg" /></div>
 })
 
-type HomeTab = 'system' | 'knowledge-graph' | 'analytics' | 'process-map'
+type HomeTab = 'system' | 'knowledge-graph' | 'analytics' | 'process-map' | 'platform-overview' | 'data-flow' | 'quick-start'
 type GraphSubTab = 'data' | 'visualization' | 'what-is-this'
 type AnalyticsSubTab = 'agent-usage' | 'activity' | 'compliance'
 
@@ -107,9 +107,72 @@ export default function HomePage() {
               >
                 Knowledge Graph
               </button>
+              <button
+                onClick={() => setActiveTab('platform-overview')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  activeTab === 'platform-overview'
+                    ? 'border-brand text-brand'
+                    : 'border-transparent text-muted hover:text-primary'
+                }`}
+              >
+                Platform Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('data-flow')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  activeTab === 'data-flow'
+                    ? 'border-brand text-brand'
+                    : 'border-transparent text-muted hover:text-primary'
+                }`}
+              >
+                Data Flow
+              </button>
+              <button
+                onClick={() => setActiveTab('quick-start')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  activeTab === 'quick-start'
+                    ? 'border-brand text-brand'
+                    : 'border-transparent text-muted hover:text-primary'
+                }`}
+              >
+                Quick Start
+              </button>
             </>
           )}
         </div>
+
+        {/* Platform Overview Tab */}
+        {activeTab === 'platform-overview' && (
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+            <iframe
+              src="/platform-overview.html"
+              className="w-full h-full border-0"
+              title="Platform Overview Map"
+            />
+          </div>
+        )}
+
+        {/* Data Flow Map Tab (previously orphaned) */}
+        {activeTab === 'data-flow' && (
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+            <iframe
+              src="/data-flow-map.html"
+              className="w-full h-full border-0"
+              title="Data Flow Map"
+            />
+          </div>
+        )}
+
+        {/* Quick Start Guide Tab */}
+        {activeTab === 'quick-start' && (
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+            <iframe
+              src="/quick-start.html"
+              className="w-full h-full border-0"
+              title="Quick Start Guide"
+            />
+          </div>
+        )}
 
         {/* Discovery Inbox Tab */}
         {activeTab === 'system' && (

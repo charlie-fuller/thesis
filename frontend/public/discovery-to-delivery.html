@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discovery to Delivery Lifecycle</title>
+  <style>
+    :root {
+      --discover: #3b82f6;
+      --discover-light: #dbeafe;
+      --scope: #8b5cf6;
+      --scope-light: #ede9fe;
+      --pipeline: #06b6d4;
+      --pipeline-light: #cffafe;
+      --operate: #22c55e;
+      --operate-light: #dcfce7;
+      --execute: #f59e0b;
+      --execute-light: #fef3c7;
+      --deliver: #f43f5e;
+      --deliver-light: #ffe4e6;
+      --user-action: #6366f1;
+      --system-action: #0ea5e9;
+      --agent-action: #a855f7;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-page, var(--gray-50));
+      color: var(--gray-900);
+      line-height: 1.5;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { color: var(--gray-500); font-size: 0.95rem; margin-top: 0.25rem; }
+
+    .phase-pills {
+      display: flex;
+      justify-content: center;
+      gap: 0.25rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .phase-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: white;
+    }
+
+    .phase-sep { color: var(--gray-300); font-size: 1.25rem; align-self: center; }
+
+    .section {
+      background: var(--bg-card, white);
+      border: 1px solid var(--gray-200);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .callout {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      font-size: 0.7rem;
+      color: var(--gray-700);
+      margin-top: 0.75rem;
+    }
+
+    .callout strong { color: var(--gray-900); }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.7rem;
+      color: var(--gray-600);
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    /* Phase sections */
+    .phase-block {
+      border: 2px solid;
+      border-radius: 1rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+
+    .phase-block .phase-tag {
+      position: absolute;
+      top: -12px;
+      left: 16px;
+      padding: 0.15rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    .phase-block.discover { border-color: var(--discover); }
+    .phase-block.discover .phase-tag { background: var(--discover); }
+    .phase-block.scope { border-color: var(--scope); }
+    .phase-block.scope .phase-tag { background: var(--scope); }
+    .phase-block.pipeline { border-color: var(--pipeline); }
+    .phase-block.pipeline .phase-tag { background: var(--pipeline); }
+    .phase-block.operate { border-color: var(--operate); }
+    .phase-block.operate .phase-tag { background: var(--operate); }
+    .phase-block.execute { border-color: var(--execute); }
+    .phase-block.execute .phase-tag { background: var(--execute); }
+    .phase-block.deliver { border-color: var(--deliver); }
+    .phase-block.deliver .phase-tag { background: var(--deliver); }
+
+    .phase-header {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      margin-top: 0.25rem;
+    }
+
+    .phase-desc {
+      font-size: 0.75rem;
+      color: var(--gray-600);
+      margin-bottom: 0.75rem;
+    }
+
+    /* Swimlane */
+    .swimlane {
+      display: grid;
+      grid-template-columns: 80px 1fr 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    @media (max-width: 700px) {
+      .swimlane { grid-template-columns: 1fr; }
+      .lane-label { display: none; }
+    }
+
+    .lane-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--gray-500);
+      display: flex;
+      align-items: center;
+    }
+
+    .lane-item {
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      font-size: 0.65rem;
+      border: 1px solid;
+    }
+
+    .lane-item.user {
+      background: rgba(99, 102, 241, 0.08);
+      border-color: var(--user-action);
+      color: var(--gray-700);
+    }
+
+    .lane-item.system {
+      background: rgba(14, 165, 233, 0.08);
+      border-color: var(--system-action);
+      color: var(--gray-700);
+    }
+
+    .lane-item.agent {
+      background: rgba(168, 85, 247, 0.08);
+      border-color: var(--agent-action);
+      color: var(--gray-700);
+    }
+
+    .lane-item strong {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 0.1rem;
+    }
+
+    /* Handoff arrow between phases */
+    .handoff {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.75rem 0;
+      position: relative;
+    }
+
+    .handoff-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--gray-500);
+    }
+
+    .handoff-arrow .arrow-shaft {
+      width: 3px;
+      height: 20px;
+      background: var(--gray-300);
+    }
+
+    .handoff-arrow .arrow-head {
+      width: 0;
+      height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 10px solid var(--gray-300);
+    }
+
+    .handoff-arrow .arrow-label {
+      font-size: 0.6rem;
+      color: var(--gray-400);
+      margin-top: 0.15rem;
+    }
+
+    /* Feedback loop */
+    .feedback-loop {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      flex-wrap: wrap;
+      padding: 0.75rem 0;
+    }
+
+    .fb-node {
+      padding: 0.3rem 0.6rem;
+      border-radius: 0.5rem;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: white;
+      white-space: nowrap;
+    }
+
+    .fb-arrow {
+      color: var(--gray-400);
+      font-size: 1rem;
+    }
+
+    .watermark {
+      text-align: center;
+      padding: 2rem;
+      color: var(--gray-400);
+      font-size: 0.75rem;
+    }
+
+    /* Dark mode */
+    html.dark body { background: var(--bg-page, #0a0a0a); color: var(--gray-900); }
+    html.dark .section { background: var(--bg-card, #111111); border-color: var(--gray-200); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+    html.dark .section-title { border-bottom-color: var(--gray-200); }
+    html.dark header { border-bottom-color: var(--gray-200); }
+    html.dark .phase-block { background: var(--bg-card, #111111); }
+    html.dark .callout { background: var(--gray-100); border-color: var(--gray-300); color: var(--gray-600); }
+    html.dark .callout strong { color: var(--gray-900); }
+    html.dark .lane-item.user { background: rgba(99, 102, 241, 0.15); }
+    html.dark .lane-item.system { background: rgba(14, 165, 233, 0.15); }
+    html.dark .lane-item.agent { background: rgba(168, 85, 247, 0.15); }
+  </style>
+</head>
+<body>
+<script>
+(function() {
+  var root = document.documentElement;
+  function parseHex(h) {
+    if (!h || h.charAt(0) !== '#') return null;
+    h = h.replace('#','');
+    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
+  function toHex(r,g,b) {
+    return '#' + [r,g,b].map(function(c) {
+      var x = Math.round(Math.max(0,Math.min(255,c))).toString(16);
+      return x.length < 2 ? '0'+x : x;
+    }).join('');
+  }
+  function mix(a,b,t) {
+    if (!a||!b) return null;
+    return toHex(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);
+  }
+  function syncFromParent() {
+    try {
+      if (!window.parent || window.parent === window) return false;
+      var parentRoot = window.parent.document.documentElement;
+      var ps = getComputedStyle(parentRoot); if (!ps.getPropertyValue('--color-bg-page').trim()) return false;
+      var bgPage = ps.getPropertyValue('--color-bg-page').trim();
+      var bgCard = ps.getPropertyValue('--color-bg-card').trim();
+      var bgHover = ps.getPropertyValue('--color-bg-hover').trim();
+      var textPrimary = ps.getPropertyValue('--color-text-primary').trim();
+      var textSecondary = ps.getPropertyValue('--color-text-secondary').trim();
+      var textMuted = ps.getPropertyValue('--color-text-muted').trim();
+      var borderDefault = ps.getPropertyValue('--color-border-default').trim();
+      var primary = ps.getPropertyValue('--color-primary').trim();
+      var primaryHover = ps.getPropertyValue('--color-primary-hover').trim();
+      if (!bgPage || !textPrimary) return false;
+      var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+      if (bodyBg) {
+        var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (m) {
+          var br = (parseInt(m[1])*299+parseInt(m[2])*587+parseInt(m[3])*114)/1000;
+          if (br < 128) root.classList.add('dark'); else root.classList.remove('dark');
+        }
+      }
+      var cCard = parseHex(bgCard), cBorder = parseHex(borderDefault);
+      var cMuted = parseHex(textMuted), cSecondary = parseHex(textSecondary);
+      var cPrimary = parseHex(textPrimary);
+      root.style.setProperty('--bg-page', bgPage);
+      root.style.setProperty('--bg-card', bgCard);
+      root.style.setProperty('--gray-50', bgHover);
+      root.style.setProperty('--gray-100', mix(cCard, cBorder, 0.3) || bgHover);
+      root.style.setProperty('--gray-200', borderDefault);
+      root.style.setProperty('--gray-300', mix(cBorder, cMuted, 0.25) || borderDefault);
+      root.style.setProperty('--gray-400', mix(cBorder, cMuted, 0.5) || textMuted);
+      root.style.setProperty('--gray-500', textMuted);
+      root.style.setProperty('--gray-600', textSecondary);
+      root.style.setProperty('--gray-700', mix(cSecondary, cPrimary, 0.4) || textSecondary);
+      root.style.setProperty('--gray-800', mix(cSecondary, cPrimary, 0.75) || textPrimary);
+      root.style.setProperty('--gray-900', textPrimary);
+      if (primary) root.style.setProperty('--primary', primary);
+      if (primaryHover) root.style.setProperty('--primary-light', primaryHover);
+      return true;
+    } catch (e) { return false; }
+  }
+  syncFromParent();
+  var attempts = 0;
+  var poller = setInterval(function() {
+    attempts++;
+    if (syncFromParent() || attempts >= 50) {
+      clearInterval(poller);
+      if (attempts >= 50 && !root.classList.contains('dark')) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) root.classList.add('dark');
+      }
+    }
+  }, 200);
+  try {
+    if (window.parent && window.parent !== window) {
+      new MutationObserver(function() { syncFromParent(); })
+        .observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+  } catch (e) {}
+})();
+</script>
+  <div class="container">
+    <header>
+      <h1>Discovery to Delivery</h1>
+      <p class="subtitle">The end-to-end journey from a raw question to a delivered outcome</p>
+      <div class="phase-pills">
+        <span class="phase-pill" style="background:var(--discover);">1. Discover</span>
+        <span class="phase-sep">&#8250;</span>
+        <span class="phase-pill" style="background:var(--scope);">2. Scope</span>
+        <span class="phase-sep">&#8250;</span>
+        <span class="phase-pill" style="background:var(--pipeline);">3. DISCO Pipeline</span>
+        <span class="phase-sep">&#8250;</span>
+        <span class="phase-pill" style="background:var(--operate);">4. Operationalize</span>
+        <span class="phase-sep">&#8250;</span>
+        <span class="phase-pill" style="background:var(--execute);">5. Execute</span>
+        <span class="phase-sep">&#8250;</span>
+        <span class="phase-pill" style="background:var(--deliver);">6. Deliver</span>
+      </div>
+    </header>
+
+    <!-- Legend -->
+    <div class="section">
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--user-action);"></div>
+          You (Human Action)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--system-action);"></div>
+          System (Automated)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--agent-action);"></div>
+          AI Agent
+        </div>
+      </div>
+
+      <!-- Phase 1: Discover -->
+      <div class="phase-block discover">
+        <span class="phase-tag">1. Discover</span>
+        <div class="phase-header">Spot an opportunity or problem</div>
+        <div class="phase-desc">Something catches your attention -- a meeting insight, a stakeholder request, a market signal, a recurring complaint. This is the raw material.</div>
+        <div class="swimlane">
+          <div class="lane-label">You</div>
+          <div class="lane-item user">
+            <strong>Notice a signal</strong>
+            Meeting note, article, Slack thread, or gut feeling about an opportunity
+          </div>
+          <div class="lane-item user">
+            <strong>Gather evidence</strong>
+            Upload docs, sync vault notes, collect relevant materials into KB
+          </div>
+          <div class="lane-item user">
+            <strong>Frame the question</strong>
+            What problem are we solving? What do we believe? What don't we know?
+          </div>
+          <div class="lane-label">System</div>
+          <div class="lane-item system">
+            <strong>Process documents</strong>
+            Auto-classify, embed, tag, and organize uploaded materials
+          </div>
+          <div class="lane-item system">
+            <strong>Vault sync</strong>
+            Pull new Obsidian notes automatically into KB
+          </div>
+          <div class="lane-item system">
+            <strong>Surface connections</strong>
+            Show related docs, similar initiatives, relevant stakeholders
+          </div>
+          <div class="lane-label">Agents</div>
+          <div class="lane-item agent">
+            <strong>Atlas (Strategy)</strong>
+            Help frame the opportunity in strategic context
+          </div>
+          <div class="lane-item agent">
+            <strong>Sentinel (Research)</strong>
+            Provide market and industry context
+          </div>
+          <div class="lane-item agent">
+            <strong>Discovery Guide</strong>
+            Suggest investigation framing (ps, h, g items)
+          </div>
+        </div>
+      </div>
+
+      <div class="handoff">
+        <div class="handoff-arrow">
+          <div class="arrow-shaft"></div>
+          <div class="arrow-head"></div>
+          <div class="arrow-label">You have enough context to define a formal initiative</div>
+        </div>
+      </div>
+
+      <!-- Phase 2: Scope -->
+      <div class="phase-block scope">
+        <span class="phase-tag">2. Scope</span>
+        <div class="phase-header">Create an initiative and link evidence</div>
+        <div class="phase-desc">Formalize the opportunity into a DISCO initiative. Link the document folders, define the investigation framing, and identify stakeholders.</div>
+        <div class="swimlane">
+          <div class="lane-label">You</div>
+          <div class="lane-item user">
+            <strong>Create initiative</strong>
+            Name, description, target department, value alignment
+          </div>
+          <div class="lane-item user">
+            <strong>Link document folders</strong>
+            Select KB folders containing relevant evidence
+          </div>
+          <div class="lane-item user">
+            <strong>Assign stakeholders</strong>
+            Identify sponsor, champions, and key participants
+          </div>
+          <div class="lane-label">System</div>
+          <div class="lane-item system">
+            <strong>Create initiative record</strong>
+            Status: draft, ready for pipeline
+          </div>
+          <div class="lane-item system">
+            <strong>Index linked docs</strong>
+            Make all linked documents available to pipeline agents
+          </div>
+          <div class="lane-item system">
+            <strong>Track relationships</strong>
+            Link stakeholders, documents, and initiative in graph
+          </div>
+          <div class="lane-label">Agents</div>
+          <div class="lane-item agent">
+            <strong>Discovery Guide</strong>
+            Extract suggested framing from linked documents (auto-triage)
+          </div>
+          <div class="lane-item agent">
+            <strong>Navigator</strong>
+            Suggest relevant stakeholders based on document content
+          </div>
+          <div class="lane-item agent" style="opacity: 0.3;">
+            <strong>--</strong>
+            Waiting for pipeline trigger
+          </div>
+        </div>
+      </div>
+
+      <div class="handoff">
+        <div class="handoff-arrow">
+          <div class="arrow-shaft"></div>
+          <div class="arrow-head"></div>
+          <div class="arrow-label">Initiative created, documents linked, ready for pipeline</div>
+        </div>
+      </div>
+
+      <!-- Phase 3: DISCO Pipeline -->
+      <div class="phase-block pipeline">
+        <span class="phase-tag">3. DISCO Pipeline</span>
+        <div class="phase-header">Run the 4-stage agent pipeline</div>
+        <div class="phase-desc">Each stage has a dedicated AI agent and a human checkpoint. Agents analyze, you review and approve. The pipeline produces actionable output documents.</div>
+        <div class="swimlane">
+          <div class="lane-label">You</div>
+          <div class="lane-item user">
+            <strong>Review at each checkpoint</strong>
+            Approve, reject, or request changes at gates 1-4
+          </div>
+          <div class="lane-item user">
+            <strong>Conduct discovery sessions</strong>
+            Interviews, workshops, stakeholder conversations (human-led)
+          </div>
+          <div class="lane-item user">
+            <strong>Select output type</strong>
+            PRD, Evaluation Framework, or Decision Framework
+          </div>
+          <div class="lane-label">System</div>
+          <div class="lane-item system">
+            <strong>Checkpoint gates</strong>
+            Enforce mandatory review between each stage
+          </div>
+          <div class="lane-item system">
+            <strong>Status progression</strong>
+            draft > triaged > in_discovery > consolidated > synthesized > documented
+          </div>
+          <div class="lane-item system">
+            <strong>Traceability</strong>
+            Every output traces back to source documents through the spine
+          </div>
+          <div class="lane-label">Agents</div>
+          <div class="lane-item agent">
+            <strong>Discovery Guide</strong>
+            Triage (GO/NO-GO), session planning, coverage assessment
+          </div>
+          <div class="lane-item agent">
+            <strong>Insight Analyst</strong>
+            Evidence extraction, hypothesis mapping, decision document
+          </div>
+          <div class="lane-item agent">
+            <strong>Initiative Builder + Req Gen</strong>
+            Bundle initiatives, score IFU, generate PRD/eval/decision docs
+          </div>
+        </div>
+      </div>
+
+      <div class="handoff">
+        <div class="handoff-arrow">
+          <div class="arrow-shaft"></div>
+          <div class="arrow-head"></div>
+          <div class="arrow-label">Approved output document ready for operationalization</div>
+        </div>
+      </div>
+
+      <!-- Phase 4: Operationalize -->
+      <div class="phase-block operate">
+        <span class="phase-tag">4. Operationalize</span>
+        <div class="phase-header">Turn documents into projects and tasks</div>
+        <div class="phase-desc">Create projects from DISCO outputs, extract tasks from state changes, score and prioritize in the project pipeline.</div>
+        <div class="swimlane">
+          <div class="lane-label">You</div>
+          <div class="lane-item user">
+            <strong>Create project</strong>
+            Direct creation or AI-extracted from approved document
+          </div>
+          <div class="lane-item user">
+            <strong>Review extracted tasks</strong>
+            Accept, modify, or reject suggested tasks from state changes
+          </div>
+          <div class="lane-item user">
+            <strong>Score and prioritize</strong>
+            Set ROI, effort, alignment scores; assign tier (T1-T4)
+          </div>
+          <div class="lane-label">System</div>
+          <div class="lane-item system">
+            <strong>Link traceability</strong>
+            Project traces back to initiative, documents, and insights
+          </div>
+          <div class="lane-item system">
+            <strong>Calculate scores</strong>
+            Composite scoring across dimensions, tier assignment
+          </div>
+          <div class="lane-item system">
+            <strong>Create task records</strong>
+            Tasks linked to project and source DISCO output
+          </div>
+          <div class="lane-label">Agents</div>
+          <div class="lane-item agent">
+            <strong>AI extraction</strong>
+            Parse document for title, description, tasks, scores
+          </div>
+          <div class="lane-item agent">
+            <strong>Kraken</strong>
+            Evaluate tasks and suggest agent-assisted automation
+          </div>
+          <div class="lane-item agent" style="opacity: 0.3;">
+            <strong>--</strong>
+            Available on demand via chat
+          </div>
+        </div>
+      </div>
+
+      <div class="handoff">
+        <div class="handoff-arrow">
+          <div class="arrow-shaft"></div>
+          <div class="arrow-head"></div>
+          <div class="arrow-label">Project in pipeline, tasks on Kanban board</div>
+        </div>
+      </div>
+
+      <!-- Phase 5: Execute -->
+      <div class="phase-block execute">
+        <span class="phase-tag">5. Execute</span>
+        <div class="phase-header">Work through tasks on the Kanban board</div>
+        <div class="phase-desc">Assign owners, set due dates, track progress. Use agents for assistance. Move tasks through the board.</div>
+        <div class="swimlane">
+          <div class="lane-label">You</div>
+          <div class="lane-item user">
+            <strong>Assign and schedule</strong>
+            Set owners, due dates, priorities for each task
+          </div>
+          <div class="lane-item user">
+            <strong>Execute work</strong>
+            Complete tasks, update status, resolve blockers
+          </div>
+          <div class="lane-item user">
+            <strong>Track dependencies</strong>
+            Manage task dependencies and sequencing
+          </div>
+          <div class="lane-label">System</div>
+          <div class="lane-item system">
+            <strong>Kanban tracking</strong>
+            Backlog > To Do > In Progress > Done
+          </div>
+          <div class="lane-item system">
+            <strong>Progress rollup</strong>
+            Task completion rates roll up to project status
+          </div>
+          <div class="lane-item system">
+            <strong>Notifications</strong>
+            Due date reminders, blocked task alerts
+          </div>
+          <div class="lane-label">Agents</div>
+          <div class="lane-item agent">
+            <strong>Kraken</strong>
+            AI recommendations for task approach and automation
+          </div>
+          <div class="lane-item agent">
+            <strong>Any agent via chat</strong>
+            Research, draft content, analyze options on demand
+          </div>
+          <div class="lane-item agent" style="opacity: 0.3;">
+            <strong>--</strong>
+            Agents available as needed
+          </div>
+        </div>
+      </div>
+
+      <div class="handoff">
+        <div class="handoff-arrow">
+          <div class="arrow-shaft"></div>
+          <div class="arrow-head"></div>
+          <div class="arrow-label">Tasks completed, outcomes measurable</div>
+        </div>
+      </div>
+
+      <!-- Phase 6: Deliver -->
+      <div class="phase-block deliver">
+        <span class="phase-tag">6. Deliver</span>
+        <div class="phase-header">Measure outcomes and feed learnings back</div>
+        <div class="phase-desc">Close the loop. Capture what worked, what didn't, and what you learned. Feed insights back into KB for future initiatives.</div>
+        <div class="swimlane">
+          <div class="lane-label">You</div>
+          <div class="lane-item user">
+            <strong>Assess outcomes</strong>
+            Did the project deliver on its value alignment and KPIs?
+          </div>
+          <div class="lane-item user">
+            <strong>Capture learnings</strong>
+            Write retrospective notes, update vault documentation
+          </div>
+          <div class="lane-item user">
+            <strong>Identify next opportunities</strong>
+            What new questions emerged? What should be investigated next?
+          </div>
+          <div class="lane-label">System</div>
+          <div class="lane-item system">
+            <strong>Archive initiative</strong>
+            Move to archived status with full audit trail
+          </div>
+          <div class="lane-item system">
+            <strong>Sync learnings to KB</strong>
+            New documents flow back via reverse vault sync
+          </div>
+          <div class="lane-item system">
+            <strong>Update graph</strong>
+            Relationship data enriched with outcomes
+          </div>
+          <div class="lane-label">Agents</div>
+          <div class="lane-item agent">
+            <strong>Atlas</strong>
+            Help contextualize outcomes in broader strategy
+          </div>
+          <div class="lane-item agent" style="opacity: 0.3;">
+            <strong>--</strong>
+            Ready for next cycle
+          </div>
+          <div class="lane-item agent" style="opacity: 0.3;">
+            <strong>--</strong>
+            Ready for next cycle
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback Loop -->
+    <div class="section">
+      <div class="section-title">The Feedback Loop</div>
+      <p style="font-size: 0.8rem; color: var(--gray-600); margin-bottom: 1rem;">
+        Delivery is not the end -- it is the beginning of the next discovery. Learnings captured in Phase 6 become source documents for future initiatives, creating a continuous improvement cycle.
+      </p>
+      <div class="feedback-loop">
+        <span class="fb-node" style="background:var(--deliver);">Deliver</span>
+        <span class="fb-arrow">&#8250;</span>
+        <span class="fb-node" style="background:var(--gray-600);">Learnings</span>
+        <span class="fb-arrow">&#8250;</span>
+        <span class="fb-node" style="background:var(--discover);">KB</span>
+        <span class="fb-arrow">&#8250;</span>
+        <span class="fb-node" style="background:var(--discover);">New Signal</span>
+        <span class="fb-arrow">&#8250;</span>
+        <span class="fb-node" style="background:var(--scope);">New Initiative</span>
+        <span class="fb-arrow">&#8250;</span>
+        <span class="fb-node" style="background:var(--pipeline);">Pipeline</span>
+        <span class="fb-arrow">&#8250;</span>
+        <span class="fb-node" style="background:var(--execute);">Execute</span>
+        <span class="fb-arrow">&#8250;</span>
+        <span class="fb-node" style="background:var(--deliver);">Deliver</span>
+      </div>
+
+      <div class="callout">
+        <strong>Compounding value:</strong> Each cycle enriches the Knowledge Base, making future discoveries faster and more evidence-based. Agent responses improve as KB context grows. Stakeholder intelligence accumulates. The platform gets smarter with use.
+      </div>
+    </div>
+
+    <div class="watermark">
+      Discovery-to-Delivery Lifecycle v1.0 | Thesis Multi-Agent Platform | February 2026
+    </div>
+  </div>
+</body>
+</html>

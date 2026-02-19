@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Interaction Patterns</title>
+<style>
+:root {
+  --single: #3b82f6;
+  --single-light: #dbeafe;
+  --auto: #22c55e;
+  --auto-light: #dcfce7;
+  --mention: #f59e0b;
+  --mention-light: #fef3c7;
+  --meeting: #8b5cf6;
+  --meeting-light: #ede9fe;
+  --kraken: #f43f5e;
+  --kraken-light: #ffe4e6;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  --bg-page: var(--gray-50);
+  --bg-card: white;
+  --primary: #3b82f6;
+  --primary-light: #dbeafe;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg-page, var(--gray-50));
+  color: var(--gray-900);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.6;
+  padding: 1.5rem;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--gray-900);
+  margin-bottom: 0.25rem;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  color: var(--gray-500);
+  margin-bottom: 2rem;
+}
+
+.section {
+  background: var(--bg-card, white);
+  border: 1px solid var(--gray-200);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--gray-200);
+  margin-bottom: 1rem;
+}
+
+.callout {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  font-size: 0.7rem;
+  color: var(--gray-700);
+  line-height: 1.5;
+}
+
+/* Pattern cards grid */
+.patterns-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .patterns-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.pattern-card {
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  border: 1px solid var(--gray-200);
+  position: relative;
+  overflow: hidden;
+}
+
+.pattern-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+.pattern-card.single { background: var(--single-light); }
+.pattern-card.single::before { background: var(--single); }
+.pattern-card.auto { background: var(--auto-light); }
+.pattern-card.auto::before { background: var(--auto); }
+.pattern-card.mention { background: var(--mention-light); }
+.pattern-card.mention::before { background: var(--mention); }
+.pattern-card.meeting { background: var(--meeting-light); }
+.pattern-card.meeting::before { background: var(--meeting); }
+.pattern-card.kraken { background: var(--kraken-light); }
+.pattern-card.kraken::before { background: var(--kraken); }
+
+.pattern-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 0.5rem;
+}
+
+.single .pattern-number { background: var(--single); }
+.auto .pattern-number { background: var(--auto); }
+.mention .pattern-number { background: var(--mention); }
+.meeting .pattern-number { background: var(--meeting); }
+.kraken .pattern-number { background: var(--kraken); }
+
+.pattern-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.single .pattern-name { color: #1e40af; }
+.auto .pattern-name { color: #15803d; }
+.mention .pattern-name { color: #b45309; }
+.meeting .pattern-name { color: #6d28d9; }
+.kraken .pattern-name { color: #be123c; }
+
+.pattern-desc {
+  font-size: 0.75rem;
+  color: var(--gray-700);
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.pattern-how {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--gray-600);
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pattern-detail {
+  font-size: 0.7rem;
+  color: var(--gray-600);
+  line-height: 1.5;
+}
+
+.pattern-best {
+  margin-top: 0.5rem;
+  font-size: 0.7rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+}
+
+.single .pattern-best { background: rgba(59,130,246,0.15); color: #1e40af; }
+.auto .pattern-best { background: rgba(34,197,94,0.15); color: #15803d; }
+.mention .pattern-best { background: rgba(245,158,11,0.15); color: #b45309; }
+.meeting .pattern-best { background: rgba(139,92,246,0.15); color: #6d28d9; }
+.kraken .pattern-best { background: rgba(244,63,94,0.15); color: #be123c; }
+
+/* Full-width card for Kraken */
+.pattern-card.kraken-full {
+  grid-column: 1 / -1;
+}
+
+/* Decision flowchart */
+.flowchart {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .flowchart {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.flow-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--gray-200);
+  background: var(--bg-card, white);
+}
+
+.flow-need {
+  font-size: 0.75rem;
+  color: var(--gray-600);
+  flex: 1;
+  font-weight: 500;
+}
+
+.flow-arrow {
+  color: var(--gray-400);
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.flow-answer {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.flow-answer.single { background: var(--single-light); color: #1e40af; }
+.flow-answer.auto { background: var(--auto-light); color: #15803d; }
+.flow-answer.mention { background: var(--mention-light); color: #b45309; }
+.flow-answer.meeting { background: var(--meeting-light); color: #6d28d9; }
+.flow-answer.kraken { background: var(--kraken-light); color: #be123c; }
+
+/* Agent roster */
+.agent-category {
+  margin-bottom: 1rem;
+}
+
+.agent-category:last-child {
+  margin-bottom: 0;
+}
+
+.category-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray-500);
+  margin-bottom: 0.5rem;
+}
+
+.agent-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.agent-tag {
+  font-size: 0.7rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  background: var(--gray-100);
+  color: var(--gray-700);
+  border: 1px solid var(--gray-200);
+  font-weight: 500;
+}
+
+.agent-tag .agent-role {
+  color: var(--gray-400);
+  font-weight: 400;
+  margin-left: 0.125rem;
+}
+
+.watermark {
+  text-align: center;
+  padding: 2rem;
+  color: var(--gray-400);
+  font-size: 0.75rem;
+}
+
+/* Dark mode */
+html.dark body { background: var(--bg-page, #0a0a0a); color: var(--gray-900); }
+html.dark .section { background: var(--bg-card, #111111); border-color: var(--gray-200); }
+html.dark .callout { background: var(--gray-100); border-color: var(--gray-300); color: var(--gray-600); }
+
+html.dark .pattern-card.single { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.25); }
+html.dark .pattern-card.auto { background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.25); }
+html.dark .pattern-card.mention { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.25); }
+html.dark .pattern-card.meeting { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.25); }
+html.dark .pattern-card.kraken { background: rgba(244,63,94,0.12); border-color: rgba(244,63,94,0.25); }
+
+html.dark .single .pattern-name { color: #93bbfd; }
+html.dark .auto .pattern-name { color: #86efac; }
+html.dark .mention .pattern-name { color: #fcd34d; }
+html.dark .meeting .pattern-name { color: #c4b5fd; }
+html.dark .kraken .pattern-name { color: #fda4af; }
+
+html.dark .pattern-desc,
+html.dark .pattern-detail { color: var(--gray-500); }
+
+html.dark .single .pattern-best { background: rgba(59,130,246,0.2); color: #93bbfd; }
+html.dark .auto .pattern-best { background: rgba(34,197,94,0.2); color: #86efac; }
+html.dark .mention .pattern-best { background: rgba(245,158,11,0.2); color: #fcd34d; }
+html.dark .meeting .pattern-best { background: rgba(139,92,246,0.2); color: #c4b5fd; }
+html.dark .kraken .pattern-best { background: rgba(244,63,94,0.2); color: #fda4af; }
+
+html.dark .flow-row { background: var(--bg-card, #111111); border-color: var(--gray-200); }
+html.dark .flow-need { color: var(--gray-500); }
+
+html.dark .flow-answer.single { background: rgba(59,130,246,0.2); color: #93bbfd; }
+html.dark .flow-answer.auto { background: rgba(34,197,94,0.2); color: #86efac; }
+html.dark .flow-answer.mention { background: rgba(245,158,11,0.2); color: #fcd34d; }
+html.dark .flow-answer.meeting { background: rgba(139,92,246,0.2); color: #c4b5fd; }
+html.dark .flow-answer.kraken { background: rgba(244,63,94,0.2); color: #fda4af; }
+
+html.dark .agent-tag { background: var(--gray-100); border-color: var(--gray-200); color: var(--gray-600); }
+html.dark .agent-tag .agent-role { color: var(--gray-400); }
+html.dark .category-label { color: var(--gray-400); }
+</style>
+</head>
+<body>
+<script>
+(function() {
+  var root = document.documentElement;
+  function parseHex(h) {
+    if (!h || h.charAt(0) !== '#') return null;
+    h = h.replace('#','');
+    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
+  function toHex(r,g,b) {
+    return '#' + [r,g,b].map(function(c) {
+      var x = Math.round(Math.max(0,Math.min(255,c))).toString(16);
+      return x.length < 2 ? '0'+x : x;
+    }).join('');
+  }
+  function mix(a,b,t) {
+    if (!a||!b) return null;
+    return toHex(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);
+  }
+  function syncFromParent() {
+    try {
+      if (!window.parent || window.parent === window) return false;
+      var parentRoot = window.parent.document.documentElement;
+      var ps = getComputedStyle(parentRoot); if (!ps.getPropertyValue('--color-bg-page').trim()) return false;
+      var bgPage = ps.getPropertyValue('--color-bg-page').trim();
+      var bgCard = ps.getPropertyValue('--color-bg-card').trim();
+      var bgHover = ps.getPropertyValue('--color-bg-hover').trim();
+      var textPrimary = ps.getPropertyValue('--color-text-primary').trim();
+      var textSecondary = ps.getPropertyValue('--color-text-secondary').trim();
+      var textMuted = ps.getPropertyValue('--color-text-muted').trim();
+      var borderDefault = ps.getPropertyValue('--color-border-default').trim();
+      var primary = ps.getPropertyValue('--color-primary').trim();
+      var primaryHover = ps.getPropertyValue('--color-primary-hover').trim();
+      if (!bgPage || !textPrimary) return false;
+      var bodyBg = getComputedStyle(window.parent.document.body).backgroundColor;
+      if (bodyBg) {
+        var m = bodyBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (m) {
+          var br = (parseInt(m[1])*299+parseInt(m[2])*587+parseInt(m[3])*114)/1000;
+          if (br < 128) root.classList.add('dark'); else root.classList.remove('dark');
+        }
+      }
+      var cCard = parseHex(bgCard), cBorder = parseHex(borderDefault);
+      var cMuted = parseHex(textMuted), cSecondary = parseHex(textSecondary);
+      var cPrimary = parseHex(textPrimary);
+      root.style.setProperty('--bg-page', bgPage);
+      root.style.setProperty('--bg-card', bgCard);
+      root.style.setProperty('--gray-50', bgHover);
+      root.style.setProperty('--gray-100', mix(cCard, cBorder, 0.3) || bgHover);
+      root.style.setProperty('--gray-200', borderDefault);
+      root.style.setProperty('--gray-300', mix(cBorder, cMuted, 0.25) || borderDefault);
+      root.style.setProperty('--gray-400', mix(cBorder, cMuted, 0.5) || textMuted);
+      root.style.setProperty('--gray-500', textMuted);
+      root.style.setProperty('--gray-600', textSecondary);
+      root.style.setProperty('--gray-700', mix(cSecondary, cPrimary, 0.4) || textSecondary);
+      root.style.setProperty('--gray-800', mix(cSecondary, cPrimary, 0.75) || textPrimary);
+      root.style.setProperty('--gray-900', textPrimary);
+      if (primary) root.style.setProperty('--primary', primary);
+      if (primaryHover) root.style.setProperty('--primary-light', primaryHover);
+      return true;
+    } catch (e) { return false; }
+  }
+  syncFromParent();
+  var attempts = 0;
+  var poller = setInterval(function() {
+    attempts++;
+    if (syncFromParent() || attempts >= 50) {
+      clearInterval(poller);
+      if (attempts >= 50 && !root.classList.contains('dark')) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) root.classList.add('dark');
+      }
+    }
+  }, 200);
+  try {
+    if (window.parent && window.parent !== window) {
+      new MutationObserver(function() { syncFromParent(); })
+        .observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+  } catch (e) {}
+})();
+</script>
+
+<h1>Agent Interaction Patterns</h1>
+<p class="subtitle">Five ways to work with AI agents in Thesis</p>
+
+<!-- 5 Interaction Patterns -->
+<div class="section">
+  <div class="section-title">Interaction Modes</div>
+  <div class="patterns-grid">
+
+    <div class="pattern-card single">
+      <div class="pattern-number">1</div>
+      <div class="pattern-name">Single Agent Mode</div>
+      <div class="pattern-desc">Lock to one agent for a deep-dive on a specific topic. You select the agent explicitly from the agent selector, and all messages in that conversation go directly to that agent.</div>
+      <div class="pattern-how">How it works</div>
+      <div class="pattern-detail">Select an agent from the dropdown in the chat sidebar. Every message you send stays with that agent until you switch.</div>
+      <div class="pattern-best">Best for: Focused research, financial analysis, legal review</div>
+    </div>
+
+    <div class="pattern-card auto">
+      <div class="pattern-number">2</div>
+      <div class="pattern-name">Auto-Routing</div>
+      <div class="pattern-desc">Let the system pick the best agent based on your question. The router analyzes your message and dispatches to the most relevant agent automatically.</div>
+      <div class="pattern-how">How it works</div>
+      <div class="pattern-detail">Leave the agent selector on "Auto" and type your question. The routing system classifies your intent and selects the agent with the best match.</div>
+      <div class="pattern-best">Best for: Quick questions when you don't know which agent to ask</div>
+    </div>
+
+    <div class="pattern-card mention">
+      <div class="pattern-number">3</div>
+      <div class="pattern-name">@Mentions</div>
+      <div class="pattern-desc">Tag specific agents mid-conversation for targeted input. Type @AgentName to pull a specific agent into an existing conversation without switching context.</div>
+      <div class="pattern-how">How it works</div>
+      <div class="pattern-detail">While chatting with any agent, type @ followed by an agent name. That agent responds to your current message, then control returns to the original agent.</div>
+      <div class="pattern-best">Best for: Getting a second opinion or specialized input</div>
+    </div>
+
+    <div class="pattern-card meeting">
+      <div class="pattern-number">4</div>
+      <div class="pattern-name">Meeting Rooms</div>
+      <div class="pattern-desc">Set up multi-agent autonomous discussions. Create a room with a topic and select participant agents. Agents discuss autonomously in 50-100 word turns, building on each other's contributions.</div>
+      <div class="pattern-how">How it works</div>
+      <div class="pattern-detail">Create a Meeting Room, set a discussion topic, and add 2-6 agents. Start the session and agents take turns contributing perspectives. You can interject at any point.</div>
+      <div class="pattern-best">Best for: Brainstorming, exploring trade-offs, competing perspectives</div>
+    </div>
+
+    <div class="pattern-card kraken kraken-full">
+      <div class="pattern-number">5</div>
+      <div class="pattern-name">Kraken (Task Automation)</div>
+      <div class="pattern-desc">AI evaluates tasks and recommends agent-assisted approaches. Kraken analyzes task context, description, and linked documents, then suggests which agent can help and how to approach the work.</div>
+      <div class="pattern-how">How it works</div>
+      <div class="pattern-detail">Open any task card and click "Release the Kraken." Kraken reviews the task details, identifies the most relevant agent, and proposes an action plan you can accept, modify, or dismiss.</div>
+      <div class="pattern-best">Best for: Breaking down tasks, getting agent recommendations for specific work items</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Decision Flowchart -->
+<div class="section">
+  <div class="section-title">Which mode should I use?</div>
+  <div class="callout" style="margin-bottom: 1rem;">Match your intent to the right interaction mode. If you're unsure, start with Auto-Routing -- the system will find the right agent for you.</div>
+  <div class="flowchart">
+    <div class="flow-row">
+      <span class="flow-need">"I need a quick answer"</span>
+      <span class="flow-arrow">&#8594;</span>
+      <span class="flow-answer auto">Auto-Routing</span>
+    </div>
+    <div class="flow-row">
+      <span class="flow-need">"I need deep analysis"</span>
+      <span class="flow-arrow">&#8594;</span>
+      <span class="flow-answer single">Single Agent</span>
+    </div>
+    <div class="flow-row">
+      <span class="flow-need">"I want a second opinion"</span>
+      <span class="flow-arrow">&#8594;</span>
+      <span class="flow-answer mention">@Mention</span>
+    </div>
+    <div class="flow-row">
+      <span class="flow-need">"I want competing perspectives"</span>
+      <span class="flow-arrow">&#8594;</span>
+      <span class="flow-answer meeting">Meeting Room</span>
+    </div>
+    <div class="flow-row" style="grid-column: 1 / -1;">
+      <span class="flow-need">"I have a task to complete"</span>
+      <span class="flow-arrow">&#8594;</span>
+      <span class="flow-answer kraken">Kraken</span>
+    </div>
+  </div>
+</div>
+
+<!-- Agent Roster -->
+<div class="section">
+  <div class="section-title">All 22 Agents by Category</div>
+
+  <div class="agent-category">
+    <div class="category-label">Strategy</div>
+    <div class="agent-tags">
+      <span class="agent-tag">Atlas <span class="agent-role">Strategy</span></span>
+      <span class="agent-tag">Sentinel <span class="agent-role">Research</span></span>
+      <span class="agent-tag">Compass <span class="agent-role">Career</span></span>
+    </div>
+  </div>
+
+  <div class="agent-category">
+    <div class="category-label">Finance</div>
+    <div class="agent-tags">
+      <span class="agent-tag">Treasurer <span class="agent-role">Finance</span></span>
+      <span class="agent-tag">Auditor <span class="agent-role">Compliance</span></span>
+    </div>
+  </div>
+
+  <div class="agent-category">
+    <div class="category-label">IT / Governance</div>
+    <div class="agent-tags">
+      <span class="agent-tag">Guardian <span class="agent-role">IT/Security</span></span>
+      <span class="agent-tag">Architect <span class="agent-role">Technical</span></span>
+    </div>
+  </div>
+
+  <div class="agent-category">
+    <div class="category-label">Legal</div>
+    <div class="agent-tags">
+      <span class="agent-tag">Counsel <span class="agent-role">Legal</span></span>
+    </div>
+  </div>
+
+  <div class="agent-category">
+    <div class="category-label">Meeting / Analysis</div>
+    <div class="agent-tags">
+      <span class="agent-tag">Scribe <span class="agent-role">Meeting</span></span>
+      <span class="agent-tag">Oracle <span class="agent-role">Analysis</span></span>
+    </div>
+  </div>
+
+  <div class="agent-category">
+    <div class="category-label">Content</div>
+    <div class="agent-tags">
+      <span class="agent-tag">Wordsmith <span class="agent-role">Writing</span></span>
+      <span class="agent-tag">Editor <span class="agent-role">Review</span></span>
+    </div>
+  </div>
+
+  <div class="agent-category">
+    <div class="category-label">Project</div>
+    <div class="agent-tags">
+      <span class="agent-tag">Navigator <span class="agent-role">Stakeholder</span></span>
+      <span class="agent-tag">Catalyst <span class="agent-role">Change</span></span>
+      <span class="agent-tag">Pathfinder <span class="agent-role">Process</span></span>
+    </div>
+  </div>
+
+  <div class="agent-category">
+    <div class="category-label">Discovery</div>
+    <div class="agent-tags">
+      <span class="agent-tag">Beacon <span class="agent-role">Trends</span></span>
+      <span class="agent-tag">Librarian <span class="agent-role">Knowledge</span></span>
+    </div>
+  </div>
+
+  <div class="agent-category">
+    <div class="category-label">DISCO Pipeline</div>
+    <div class="agent-tags">
+      <span class="agent-tag">Discovery Guide <span class="agent-role">Discovery</span></span>
+      <span class="agent-tag">Insight Analyst <span class="agent-role">Insights</span></span>
+      <span class="agent-tag">Initiative Builder <span class="agent-role">Synthesis</span></span>
+      <span class="agent-tag">Requirements Generator <span class="agent-role">Convergence</span></span>
+    </div>
+  </div>
+
+  <div class="agent-category">
+    <div class="category-label">Automation</div>
+    <div class="agent-tags">
+      <span class="agent-tag">Kraken <span class="agent-role">Tasks</span></span>
+      <span class="agent-tag">Project Agent <span class="agent-role">Project Management</span></span>
+    </div>
+  </div>
+
+</div>
+
+<div class="watermark">Agent Interaction Patterns v1.0 | Thesis Multi-Agent Platform | February 2026</div>
+
+</body>
+</html>
