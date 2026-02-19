@@ -296,7 +296,7 @@ export default function ThroughlineEditor({ throughline, onChange, corrections, 
         <textarea
           value={throughline.desired_outcome_state || ''}
           onChange={(e) => onChange({ ...throughline, desired_outcome_state: e.target.value })}
-          placeholder="What does the world look like when this discovery succeeds?"
+          placeholder="What does the world look like when this initiative succeeds?"
           rows={3}
           className="textarea-field text-sm"
         />

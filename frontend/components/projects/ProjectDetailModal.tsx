@@ -58,6 +58,7 @@ import ProjectNameModal from './ProjectNameModal'
 import GoalAlignmentSection from './GoalAlignmentSection'
 import ProjectDocumentBrowser from './ProjectDocumentBrowser'
 import KrakenPanel from './KrakenPanel'
+import ProjectAgentPanel from './ProjectAgentPanel'
 
 // ============================================================================
 // TYPES
@@ -313,7 +314,7 @@ export default function ProjectDetailModal({
   const [tasksGeneratedCount, setTasksGeneratedCount] = useState<number | null>(null)
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'tasks' | 'documents' | 'kraken-guide' | 'scoring-guide'>('scores')
+  const [activeTab, setActiveTab] = useState<'scores' | 'confidence' | 'alignment' | 'details' | 'tasks' | 'documents' | 'disco' | 'kraken-guide' | 'scoring-guide'>('scores')
 
   const router = useRouter()
 
@@ -896,6 +897,7 @@ export default function ProjectDetailModal({
             { id: 'details' as const, label: 'Details', icon: FileText },
             { id: 'tasks' as const, label: 'Tasks', icon: ListTodo },
             { id: 'documents' as const, label: 'Documents', icon: Link },
+            { id: 'disco' as const, label: 'DISCO', icon: Compass },
             { id: 'kraken-guide' as const, label: 'Kraken Guide', icon: Zap },
             { id: 'scoring-guide' as const, label: 'Scoring Guide', icon: Target },
           ].map((tab) => (
@@ -1889,6 +1891,11 @@ export default function ProjectDetailModal({
                 These are documents you&apos;ve manually linked to this project.
               </p>
             </div>
+          )}
+
+          {/* DISCO TAB */}
+          {activeTab === 'disco' && (
+            <ProjectAgentPanel projectId={project.id} />
           )}
 
           {/* KRAKEN GUIDE TAB */}

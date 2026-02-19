@@ -242,7 +242,7 @@ function CreateInitiativeModal({
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative card rounded-lg shadow-xl w-full max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-semibold text-primary mb-4">
-          Create New Discovery
+          Create New Initiative
         </h2>
 
         <div className="space-y-4">
@@ -267,7 +267,7 @@ function CreateInitiativeModal({
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of the discovery..."
+              placeholder="Brief description of the initiative..."
               rows={3}
               className="textarea-field"
             />
@@ -376,7 +376,7 @@ function CreateInitiativeModal({
             className="btn-primary flex items-center gap-2"
           >
             {creating && <Loader2 className="w-4 h-4 animate-spin" />}
-            Create Discovery
+            Create Initiative
           </button>
         </div>
       </div>
@@ -396,7 +396,7 @@ export default function DiscoInitiativesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [createModalOpen, setCreateModalOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'discoveries' | 'guides'>('discoveries')
+  const [activeTab, setActiveTab] = useState<'initiatives' | 'guides'>('initiatives')
   const [activeGuide, setActiveGuide] = useState<'workflow' | 'throughline' | 'operationalize' | 'platform-map' | 'platform-tree' | 'hub-spoke' | 'lifecycle'>('workflow')
 
   const loadInitiatives = async () => {
@@ -449,7 +449,7 @@ export default function DiscoInitiativesPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex items-center gap-2 text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
-          Loading discoveries...
+          Loading initiatives...
         </div>
       </div>
     )
@@ -470,14 +470,14 @@ export default function DiscoInitiativesPage() {
       {/* Tabs */}
       <div className="flex gap-1 mb-6 border-b border-slate-200 dark:border-slate-700">
         <button
-          onClick={() => setActiveTab('discoveries')}
+          onClick={() => setActiveTab('initiatives')}
           className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-            activeTab === 'discoveries'
+            activeTab === 'initiatives'
               ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
               : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >
-          Discoveries
+          Initiatives
         </button>
         <button
           onClick={() => setActiveTab('guides')}
@@ -575,10 +575,10 @@ export default function DiscoInitiativesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-            Discoveries
+            Initiatives
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            {initiatives.length} discover{initiatives.length !== 1 ? 'ies' : 'y'} total
+            {initiatives.length} initiative{initiatives.length !== 1 ? 's' : ''} total
           </p>
         </div>
         {initiatives.length > 0 && (
@@ -587,7 +587,7 @@ export default function DiscoInitiativesPage() {
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            New Discovery
+            New Initiative
           </button>
         )}
       </div>
@@ -624,7 +624,7 @@ export default function DiscoInitiativesPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search discoveries..."
+            placeholder="Search initiatives..."
             className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
         </div>
@@ -660,12 +660,12 @@ export default function DiscoInitiativesPage() {
         <div className="text-center py-12">
           <Folder className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
-            {searchQuery || statusFilter ? 'No matching discoveries' : 'No discoveries yet'}
+            {searchQuery || statusFilter ? 'No matching initiatives' : 'No initiatives yet'}
           </h3>
           <p className="text-slate-500 dark:text-slate-400 mb-4">
             {searchQuery || statusFilter
               ? 'Try adjusting your search or filter'
-              : 'Create your first discovery to get started with DISCO'}
+              : 'Create your first initiative to get started with DISCO'}
           </p>
           {!searchQuery && !statusFilter && (
             <button
@@ -673,7 +673,7 @@ export default function DiscoInitiativesPage() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
             >
               <Plus className="w-4 h-4" />
-              Create Discovery
+              Create Initiative
             </button>
           )}
         </div>

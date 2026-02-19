@@ -783,6 +783,256 @@ async def build_agent_context(initiative_id: str, agent_type: str, include_syste
     return context
 
 
+async def build_project_agent_context(project_id: str, agent_type: str, include_system_kb: bool = True) -> Dict:
+    """Build context for a project-level agent run.
+
+    Gathers:
+    - Project metadata (title, description, current_state, desired_state, scores)
+    - Linked documents via project_documents junction table
+    - Previous project-level agent outputs (latest of each type, for chaining)
+    - Linked initiative summaries (lightweight context from parent initiatives)
+    - Global system KB
+
+    Args:
+        project_id: Project UUID
+        agent_type: Type of agent being run
+        include_system_kb: Whether to include system KB context
+
+    Returns:
+        Dict with context sections
+    """
+    logger.info(f"Building project context for {agent_type} on project {project_id}")
+
+    context: Dict = {"documents": "", "previous_outputs": "", "system_kb": "", "methodology": "", "project_context": ""}
+
+    # 1. Fetch project metadata
+    project_result = await asyncio.to_thread(
+        lambda: supabase.table("ai_projects")
+        .select(
+            "id, title, description, current_state, desired_state, department, status, impact_score, feasibility_score, urgency_score, ai_score_justification, stakeholder_ids, initiative_ids"
+        )
+        .eq("id", project_id)
+        .single()
+        .execute()
+    )
+    project = project_result.data if project_result.data else {}
+
+    # Build project context section
+    project_parts = []
+    if project.get("title"):
+        project_parts.append(f"**Project:** {project['title']}")
+    if project.get("description"):
+        project_parts.append(f"**Description:** {project['description']}")
+    if project.get("current_state"):
+        project_parts.append(f"**Current State:** {project['current_state']}")
+    if project.get("desired_state"):
+        project_parts.append(f"**Desired State:** {project['desired_state']}")
+    if project.get("department"):
+        project_parts.append(f"**Department:** {project['department']}")
+    if project.get("status"):
+        project_parts.append(f"**Status:** {project['status']}")
+
+    scores = []
+    if project.get("impact_score") is not None:
+        scores.append(f"Impact: {project['impact_score']}")
+    if project.get("feasibility_score") is not None:
+        scores.append(f"Feasibility: {project['feasibility_score']}")
+    if project.get("urgency_score") is not None:
+        scores.append(f"Urgency: {project['urgency_score']}")
+    if scores:
+        project_parts.append(f"**Scores:** {', '.join(scores)}")
+    if project.get("ai_score_justification"):
+        project_parts.append(f"**Score Justification:** {project['ai_score_justification']}")
+
+    context["project_context"] = "\n".join(project_parts)
+
+    # 2. Fetch linked documents via project_documents junction table
+    try:
+        docs_result = await asyncio.to_thread(
+            lambda: supabase.table("project_documents")
+            .select("document_id, documents(id, title, filename, content, source_platform)")
+            .eq("project_id", project_id)
+            .execute()
+        )
+        if docs_result.data:
+            doc_parts = []
+            for link in docs_result.data:
+                doc = link.get("documents")
+                if doc and doc.get("content"):
+                    doc_name = doc.get("title") or doc.get("filename") or "Untitled"
+                    doc_parts.append(f"\n--- Document: {doc_name} ---\n{doc['content']}")
+            context["documents"] = "\n".join(doc_parts)
+    except Exception as e:
+        logger.warning(f"Failed to fetch project documents for {project_id}: {e}")
+
+    # 3. Get previous project-level outputs (latest of each type, for chaining)
+    source_outputs = []
+    try:
+        outputs_result = await asyncio.to_thread(
+            lambda: supabase.table("disco_outputs")
+            .select("id, agent_type, version, content_markdown, recommendation, confidence_level")
+            .eq("project_id", project_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        if outputs_result.data:
+            seen_types: set = set()
+            previous_outputs = []
+            for output in outputs_result.data:
+                if output["agent_type"] not in seen_types:
+                    seen_types.add(output["agent_type"])
+                    previous_outputs.append(output)
+            if previous_outputs:
+                output_parts = []
+                for output in previous_outputs:
+                    source_outputs.append(
+                        {
+                            "agent_type": output["agent_type"],
+                            "version": output["version"],
+                            "id": output.get("id"),
+                        }
+                    )
+                    output_parts.append(f"\n\n=== Previous {output['agent_type']} Output (v{output['version']}) ===\n")
+                    if output.get("recommendation"):
+                        output_parts.append(f"Recommendation: {output['recommendation']}\n")
+                    if output.get("confidence_level"):
+                        output_parts.append(f"Confidence: {output['confidence_level']}\n")
+                    output_parts.append(output["content_markdown"])
+                context["previous_outputs"] = "\n".join(output_parts)
+    except Exception as e:
+        logger.warning(f"Failed to fetch project outputs for {project_id}: {e}")
+
+    context["source_outputs"] = source_outputs
+
+    # 4. Fetch lightweight initiative context if project is linked to initiatives
+    initiative_ids = project.get("initiative_ids") or []
+    if initiative_ids:
+        try:
+            init_result = await asyncio.to_thread(
+                lambda: supabase.table("disco_initiatives")
+                .select("id, name, description, status, throughline")
+                .in_("id", initiative_ids)
+                .execute()
+            )
+            if init_result.data:
+                init_parts = []
+                for init in init_result.data:
+                    init_parts.append(f"- **{init['name']}** (status: {init['status']})")
+                    if init.get("description"):
+                        init_parts.append(f"  {init['description']}")
+                context["linked_initiatives"] = "\n".join(init_parts)
+        except Exception as e:
+            logger.warning(f"Failed to fetch linked initiatives for project {project_id}: {e}")
+
+    # 5. Include system KB context
+    if include_system_kb:
+        from .system_kb_service import search_system_kb
+
+        agent_desc = AGENT_DESCRIPTIONS.get(agent_type, {})
+        search_query = f"{agent_desc.get('description', agent_type)} product requirements discovery"
+
+        kb_chunks = await search_system_kb(search_query, limit=10)
+        if kb_chunks:
+            kb_parts = []
+            for chunk in kb_chunks:
+                kb_parts.append(f"\n--- From {chunk.get('filename', 'system KB')} ---\n")
+                kb_parts.append(chunk["content"])
+            context["system_kb"] = "\n".join(kb_parts)
+
+    # 6. Load methodology overview
+    context["methodology"] = load_methodology_overview()
+
+    return context
+
+
+def build_project_prompt(agent_type: str, context: Dict) -> str:
+    """Build the full user prompt for a project-level agent run."""
+    parts = []
+
+    parts.append("# Project Context\n")
+
+    if context.get("project_context"):
+        parts.append(context["project_context"])
+        parts.append("\n")
+
+    if context.get("linked_initiatives"):
+        parts.append("## Linked Initiatives\n")
+        parts.append(context["linked_initiatives"])
+        parts.append("\n")
+
+    # KB folder documents
+    if context.get("kb_folder_documents"):
+        parts.append("## Stakeholder Documents (from KB)\n")
+        parts.append(context["kb_folder_documents"])
+        parts.append("\n")
+
+    if context.get("documents"):
+        parts.append("## Source Documents\n")
+        parts.append(context["documents"])
+        parts.append("\n")
+
+    if context.get("previous_outputs"):
+        parts.append("## Previous Agent Outputs\n")
+        parts.append(context["previous_outputs"])
+        parts.append("\n")
+
+    if context.get("system_kb"):
+        parts.append("## Reference Knowledge Base\n")
+        parts.append(context["system_kb"])
+        parts.append("\n")
+
+    # Project-specific agent instructions
+    project_agent_instructions = {
+        "discovery_guide": """Analyze this project's current vs desired state. Identify knowledge gaps and recommend what additional research or information is needed.
+
+Focus on:
+1. Gap analysis between current and desired state
+2. What's known vs unknown about this project
+3. Key questions that need answers before proceeding
+4. Recommended next steps for gathering missing information
+
+Keep this practical and focused on the specific project scope. Target 400-600 words.""",
+        "insight_analyst": """Extract patterns from project documents and any prior Discovery output. Create a decision document.
+
+Your process:
+1. Read all documents thoroughly
+2. Extract key insights with evidence
+3. Identify patterns and themes
+4. Create a decision document with leverage point and intervention reasoning
+
+Output must start with the decision (GO/NO-GO/CONDITIONAL) as the literal first word.""",
+        "initiative_builder": """Evaluate solution approaches for this project. Score options by impact, feasibility, and urgency. Cluster findings into actionable workstreams.
+
+Your process:
+1. Identify distinct solution approaches or intervention points
+2. Score each on Impact, Feasibility, and Urgency
+3. Cluster related items into workstreams
+4. Recommend prioritization and dependencies
+
+Prepare your output for human review.""",
+        "requirements_generator": """Generate a comprehensive PRD for this project using all available context.
+
+Include all required sections:
+- Executive Summary, Problem Statement, Goals & Success Metrics
+- Stakeholders, Functional & Non-Functional Requirements
+- Technical Evaluation with options, Architecture considerations
+- Risks, Dependencies, Implementation Path with phasing
+
+Every requirement must be traceable to project findings and documents.""",
+    }
+
+    # Global rules
+    parts.append("## Global Rules\n")
+    parts.append(
+        "- The correct spelling is **Mikki** (not Mickey, Micky, or any other variant). Always use this spelling.\n"
+    )
+
+    parts.append("## Your Task\n")
+    parts.append(project_agent_instructions.get(agent_type, "Please analyze this project and provide your assessment."))
+
+    return "\n".join(parts)
+
+
 async def _fetch_kb_folder_documents(folder_path: str, user_id: str) -> str:
     """Fetch documents from a KB folder and return their content.
 
@@ -936,29 +1186,44 @@ async def _fetch_kb_tagged_documents(tags: List[str], user_id: str) -> str:
 
 
 async def run_agent(
-    initiative_id: str,
-    agent_type: str,
-    user_id: str,
+    initiative_id: Optional[str] = None,
+    agent_type: str = "",
+    user_id: str = "",
     document_ids: Optional[List[str]] = None,
     kb_folder: Optional[str] = None,
     kb_tags: Optional[List[str]] = None,
+    project_id: Optional[str] = None,
 ) -> AsyncGenerator[Dict, None]:
     """Execute an agent run with streaming response.
 
+    Supports both initiative-scoped and project-scoped runs.
+    Exactly one of initiative_id or project_id must be provided.
+
     Args:
-        initiative_id: Initiative UUID
+        initiative_id: Initiative UUID (for initiative-scoped runs)
         agent_type: Type of agent to run
         user_id: User running the agent
         document_ids: Optional list of specific document IDs to use
         kb_folder: Optional KB folder path to include documents from (deprecated, use kb_tags)
         kb_tags: Optional list of KB tags to filter documents by (preferred, uses AND logic)
+        project_id: Project UUID (for project-scoped runs)
 
     Yields:
         Dict with type (status, content, complete) and data
     """
+    # Validate exactly one scope is provided
+    if not initiative_id and not project_id:
+        raise ValueError("Either initiative_id or project_id must be provided")
+    if initiative_id and project_id:
+        raise ValueError("Cannot provide both initiative_id and project_id")
+
+    is_project_scoped = project_id is not None
+    scope_id = project_id if is_project_scoped else initiative_id
+    scope_label = "project" if is_project_scoped else "initiative"
+
     logger.info("[PURDY] ========== Starting agent run ==========")
     logger.info(f"[PURDY] Agent type: '{agent_type}' (type: {type(agent_type).__name__})")
-    logger.info(f"[PURDY] Initiative: {initiative_id}, User: {user_id}")
+    logger.info(f"[PURDY] {scope_label.title()}: {scope_id}, User: {user_id}")
     if kb_folder:
         logger.info(f"[PURDY] KB folder: {kb_folder}")
     if kb_tags:
@@ -974,20 +1239,18 @@ async def run_agent(
 
     try:
         # Create run record with output format metadata
-        await asyncio.to_thread(
-            lambda: supabase.table("disco_runs")
-            .insert(
-                {
-                    "id": run_id,
-                    "initiative_id": initiative_id,
-                    "agent_type": agent_type,
-                    "run_by": user_id,
-                    "status": "running",
-                    "metadata": {"output_format": "unified"},
-                }
-            )
-            .execute()
-        )
+        run_record = {
+            "id": run_id,
+            "agent_type": agent_type,
+            "run_by": user_id,
+            "status": "running",
+            "metadata": {"output_format": "unified"},
+        }
+        if is_project_scoped:
+            run_record["project_id"] = project_id
+        else:
+            run_record["initiative_id"] = initiative_id
+        await asyncio.to_thread(lambda: supabase.table("disco_runs").insert(run_record).execute())
 
         yield {"type": "status", "data": "Loading agent prompt..."}
 
@@ -996,8 +1259,11 @@ async def run_agent(
 
         yield {"type": "status", "data": "Building context..."}
 
-        # Build context
-        context = await build_agent_context(initiative_id, agent_type)
+        # Build context (branch based on scope)
+        if is_project_scoped:
+            context = await build_project_agent_context(project_id, agent_type)
+        else:
+            context = await build_agent_context(initiative_id, agent_type)
 
         # If KB tags specified, fetch and add those documents (preferred method)
         if kb_tags:
@@ -1015,8 +1281,11 @@ async def run_agent(
                 context["kb_folder_documents"] = kb_docs_content
                 logger.info(f"[PURDY] Added {len(kb_docs_content)} chars from KB folder")
 
-        # Build the full prompt
-        full_prompt = build_full_prompt(agent_type, context)
+        # Build the full prompt (project vs initiative)
+        if is_project_scoped:
+            full_prompt = build_project_prompt(agent_type, context)
+        else:
+            full_prompt = build_full_prompt(agent_type, context)
 
         # Track document IDs used
         if document_ids:
@@ -1068,16 +1337,27 @@ async def run_agent(
         # Parse output
         parsed_output = parse_agent_output(agent_type, full_response)
 
-        # Get next version number
-        version_result = await asyncio.to_thread(
-            lambda: supabase.table("disco_outputs")
-            .select("version")
-            .eq("initiative_id", initiative_id)
-            .eq("agent_type", agent_type)
-            .order("version", desc=True)
-            .limit(1)
-            .execute()
-        )
+        # Get next version number (scoped by project or initiative)
+        if is_project_scoped:
+            version_result = await asyncio.to_thread(
+                lambda: supabase.table("disco_outputs")
+                .select("version")
+                .eq("project_id", project_id)
+                .eq("agent_type", agent_type)
+                .order("version", desc=True)
+                .limit(1)
+                .execute()
+            )
+        else:
+            version_result = await asyncio.to_thread(
+                lambda: supabase.table("disco_outputs")
+                .select("version")
+                .eq("initiative_id", initiative_id)
+                .eq("agent_type", agent_type)
+                .order("version", desc=True)
+                .limit(1)
+                .execute()
+            )
         next_version = 1
         if version_result.data:
             next_version = version_result.data[0]["version"] + 1
@@ -1099,7 +1379,6 @@ async def run_agent(
         output_data = {
             "id": output_id,
             "run_id": run_id,
-            "initiative_id": initiative_id,
             "agent_type": agent_type,
             "version": next_version,
             "title": parsed_output.get("title"),
@@ -1114,6 +1393,11 @@ async def run_agent(
             "throughline_resolution": throughline_resolution,
             "triage_suggestions": triage_suggestions,
         }
+        # Set scope column
+        if is_project_scoped:
+            output_data["project_id"] = project_id
+        else:
+            output_data["initiative_id"] = initiative_id
 
         # Log the data being stored
         logger.info(f"[PURDY] Storing output - id: {output_id}, agent_type: {agent_type}, version: {next_version}")
@@ -1157,15 +1441,16 @@ async def run_agent(
             .execute()
         )
 
-        # Update initiative status based on agent type
-        new_status = get_status_for_agent(agent_type)
-        if new_status:
-            await asyncio.to_thread(
-                lambda: supabase.table("disco_initiatives")
-                .update({"status": new_status})
-                .eq("id", initiative_id)
-                .execute()
-            )
+        # Update initiative status based on agent type (skip for project-scoped runs)
+        if not is_project_scoped:
+            new_status = get_status_for_agent(agent_type)
+            if new_status:
+                await asyncio.to_thread(
+                    lambda: supabase.table("disco_initiatives")
+                    .update({"status": new_status})
+                    .eq("id", initiative_id)
+                    .execute()
+                )
 
         yield {
             "type": "complete",

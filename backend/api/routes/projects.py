@@ -582,6 +582,163 @@ async def get_projects_summary(current_user: dict = Depends(get_current_user), s
 
 
 # ============================================================================
+# DISCO AGENT ENDPOINTS (for project-level agent runs)
+# ============================================================================
+
+
+class ProjectAgentRunRequest(BaseModel):
+    """Request to run a DISCO agent on a project."""
+
+    agent_type: str
+    document_ids: Optional[List[str]] = None
+    kb_tags: Optional[List[str]] = None
+
+
+@router.post("/{project_id}/agents/run")
+async def run_project_agent(
+    project_id: str,
+    data: ProjectAgentRunRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Run a DISCO agent on a project with streaming response."""
+    from services.disco import run_agent
+
+    # Verify project exists and user has access
+    client_id = current_user.get("client_id")
+    if not client_id:
+        from database import get_default_client_id
+
+        client_id = get_default_client_id()
+
+    project = (
+        supabase.table("ai_projects").select("id").eq("id", project_id).eq("client_id", client_id).single().execute()
+    )
+    if not project.data:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    async def event_stream():
+        # Send initial padding to force proxy buffer flush
+        yield ": " + " " * 2048 + "\n\n"
+
+        try:
+            agent_gen = run_agent(
+                project_id=project_id,
+                agent_type=data.agent_type,
+                user_id=current_user["id"],
+                document_ids=data.document_ids,
+                kb_tags=data.kb_tags,
+            )
+
+            async for event in agent_gen:
+                event_type = event.get("type", "unknown")
+                event_data = event.get("data", "")
+
+                if event_type == "content":
+                    yield f"data: {event_data}\n\n"
+                elif event_type == "keepalive":
+                    yield ": keepalive\n\n"
+                elif event_type == "status":
+                    yield f"event: status\ndata: {event_data}\n\n"
+                elif event_type == "complete":
+                    yield f"event: complete\ndata: {json.dumps(event_data)}\n\n"
+                elif event_type == "error":
+                    yield f"event: error\ndata: {event_data}\n\n"
+
+        except Exception as e:
+            logger.error(f"Project agent stream error: {e}")
+            yield f"event: error\ndata: {str(e)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Content-Type": "text/event-stream; charset=utf-8",
+        },
+    )
+
+
+@router.get("/{project_id}/agents/outputs")
+async def get_project_agent_outputs(
+    project_id: str,
+    agent_type: Optional[str] = Query(None),
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Get all agent outputs for a project."""
+    client_id = current_user.get("client_id")
+    if not client_id:
+        from database import get_default_client_id
+
+        client_id = get_default_client_id()
+
+    # Verify project access
+    project = (
+        supabase.table("ai_projects").select("id").eq("id", project_id).eq("client_id", client_id).single().execute()
+    )
+    if not project.data:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    query = (
+        supabase.table("disco_outputs")
+        .select(
+            "id, agent_type, version, title, recommendation, confidence_level, executive_summary, content_markdown, content_structured, source_outputs, created_at, triage_suggestions"
+        )
+        .eq("project_id", project_id)
+        .order("created_at", desc=True)
+    )
+
+    if agent_type:
+        query = query.eq("agent_type", agent_type)
+
+    result = query.execute()
+
+    return {"success": True, "outputs": result.data or []}
+
+
+@router.get("/{project_id}/agents/outputs/latest/{agent_type}")
+async def get_project_agent_latest_output(
+    project_id: str,
+    agent_type: str,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Get the latest output of a specific agent type for a project."""
+    client_id = current_user.get("client_id")
+    if not client_id:
+        from database import get_default_client_id
+
+        client_id = get_default_client_id()
+
+    # Verify project access
+    project = (
+        supabase.table("ai_projects").select("id").eq("id", project_id).eq("client_id", client_id).single().execute()
+    )
+    if not project.data:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    result = (
+        supabase.table("disco_outputs")
+        .select(
+            "id, agent_type, version, title, recommendation, confidence_level, executive_summary, content_markdown, content_structured, source_outputs, created_at, triage_suggestions"
+        )
+        .eq("project_id", project_id)
+        .eq("agent_type", agent_type)
+        .order("version", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    if not result.data:
+        return {"success": True, "output": None}
+
+    return {"success": True, "output": result.data[0]}
+
+
+# ============================================================================
 # DOCUMENT & CHAT ENDPOINTS (for detail modal)
 # ============================================================================
 # NOTE: These must be defined BEFORE /{project_id} to avoid routing conflicts
