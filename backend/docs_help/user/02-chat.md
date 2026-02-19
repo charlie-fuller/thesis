@@ -199,6 +199,19 @@ Saved documents are also flagged for **reverse sync** -- they flow back to your 
 
 ---
 
+## Editing Tasks and Projects from Chat
+
+Agents can propose task and project edits directly in conversation. When an agent suggests changes to a task or project, you'll see action cards in the chat:
+
+- **Task proposals** -- Create new tasks or update existing ones (title, status, priority, description)
+- **Project proposals** -- Update project fields (status, scores, description)
+
+Click **Accept** to apply the changes or **Dismiss** to skip. This lets you manage work items without leaving the conversation.
+
+**KB document awareness:** When chatting in a project or initiative context, agents can see and reference linked KB documents. They'll cite specific documents when answering questions about the project's domain.
+
+---
+
 ## Common Patterns
 
 **The Perspective Gather:**

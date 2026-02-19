@@ -16,7 +16,7 @@ You'll see four columns:
 - **Blocked** - Waiting on something
 - **Done** - Completed
 
-Drag cards between columns to update status.
+Drag cards between columns to update status. You can also drag cards within a column to reorder them manually -- the custom position persists across sessions.
 
 **Column sorting:** Click the sort icon in any column header to change the order. Options include position (default), priority, due date, newest first, oldest first, and sequence number (for Taskmaster-created plans).
 
@@ -60,12 +60,36 @@ Click a card to open its detail view.
 ## Task Details
 
 In the detail view, you can:
-- Edit all fields
+- Edit all fields (title, description, priority, assignee, due date, team, project, notes)
+- Clear fields by selecting the empty option -- due date, assignee, team, and project can all be unset
+- Link to a project via the project dropdown
 - Add comments
 - See status history (who changed what, when)
 - View related context
 
 **Comments:** Use these for updates, questions, notes. They persist with the task.
+
+---
+
+## Kraken: Per-Task AI Evaluation
+
+Each task card includes a **Release the Kraken** button that evaluates whether AI can help complete the task.
+
+**How it works:**
+1. Open a task's detail view
+2. Click **Release the Kraken** at the bottom of the panel
+3. Kraken analyzes the task against your Knowledge Base and returns:
+   - **Category** -- Automatable, Assistable, or Manual
+   - **Confidence score** (0-100%) with a 5-dimension breakdown
+   - **Task understanding** -- how Kraken interprets what needs to be done
+   - **Execution steps** -- proposed step-by-step approach
+   - **KB gaps** -- what additional documents would improve confidence
+   - **Decision gaps** -- decisions needed before execution can proceed
+4. Review the evaluation, then click **Execute** to let Kraken complete the task or **Decline** to dismiss
+
+**After execution:** Kraken adds its output as a comment on the task and marks it complete. Recommendations from declined evaluations are saved to the task notes for reference.
+
+**When to use it:** Best for research, drafting, analysis, and synthesis tasks where the KB has relevant context. Less useful for tasks requiring human judgment or external actions.
 
 ---
 

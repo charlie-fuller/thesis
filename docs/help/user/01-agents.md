@@ -131,9 +131,9 @@ Creates sequenced task plans from chat conversations. Analyzes project context t
 *Best for:* "Create a task plan for this project" or "Break this initiative into action items"
 
 **Kraken** (Task Evaluation & Execution)
-Evaluates project tasks for "agentic workability" - which tasks AI can complete autonomously, which need human collaboration, and which require full human judgment. Then executes approved tasks non-destructively (output as comments and KB documents). Computes an agenticity score for each project.
+Evaluates individual tasks for "agentic workability" - classifying each as automatable, assistable, or manual. Provides a confidence score with 5-dimension breakdown (information sufficiency, output clarity, execution feasibility, completeness, domain fit), identifies KB gaps and decision gaps, then executes approved tasks non-destructively (output as task comments).
 
-*Best for:* Accessed via the Kraken panel in any project detail modal. Click "Release the Kraken" to evaluate tasks, then select and execute automatable ones.
+*Best for:* Click "Release the Kraken" on any task card to evaluate it. Review the analysis, then Execute or Decline.
 
 ---
 

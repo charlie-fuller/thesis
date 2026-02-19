@@ -253,59 +253,18 @@ All conversations with project context are saved and can be filtered in the main
 
 ---
 
-## Kraken: Autonomous Task Evaluation
+## Kraken: Per-Task AI Evaluation
 
-The Kraken panel appears in the project detail modal when a project has linked tasks. It evaluates which tasks AI can handle autonomously.
+Kraken evaluates individual tasks to determine whether AI can help complete them. The evaluation happens on each task card rather than at the project level.
 
 ### How to Use Kraken
 
-1. Open any project detail modal
-2. Scroll to the **Kraken** panel (below tasks)
-3. Click **Release the Kraken** to evaluate all linked tasks
-4. Review the evaluation results
+1. Open any task's detail view (from the Tasks board or a project's Tasks tab)
+2. Click **Release the Kraken** at the bottom of the task panel
+3. Review the evaluation: category (Automatable/Assistable/Manual), confidence score with 5-dimension breakdown, execution steps, KB gaps, and decision gaps
+4. Click **Execute** to let Kraken complete the task, or **Decline** to dismiss
 
-<details>
-<summary><strong>Task Categories</strong></summary>
-
-Kraken classifies each task into one of three categories:
-
-| Category | Meaning | Example |
-|----------|---------|---------|
-| **Automatable** | AI can complete this fully | Research summaries, document drafts, analysis |
-| **Assistable** | AI can help but needs human input | Strategy documents, stakeholder communications |
-| **Manual** | Requires human judgment | Executive decisions, relationship-building, approvals |
-
-Each evaluation includes a confidence level and proposed action describing what Kraken would do.
-
-</details>
-
-<details>
-<summary><strong>Agenticity Score</strong></summary>
-
-After evaluation, the project gets an **agenticity score** - the percentage of tasks that are automatable. This helps you understand how much of a project's workload AI can handle.
-
-</details>
-
-<details>
-<summary><strong>Executing Tasks</strong></summary>
-
-1. After evaluation, select automatable tasks using the checkboxes
-2. Click **Execute N Tasks**
-3. Kraken produces output non-destructively:
-   - **Task comments** - Detailed work product added as a comment on the task
-   - **KB documents** - Longer outputs saved to the Knowledge Base
-4. Tasks are marked as completed after successful execution
-
-Kraken uses project documents and KB context for better output quality. Results include web research when relevant.
-
-</details>
-
-<details>
-<summary><strong>Stale Evaluations</strong></summary>
-
-If you add or remove tasks after evaluation, Kraken shows a "stale" indicator. Re-run the evaluation to get updated results.
-
-</details>
+See the [Tasks help](./05-tasks.md#kraken-per-task-ai-evaluation) for full details on the evaluation output and workflow.
 
 ---
 

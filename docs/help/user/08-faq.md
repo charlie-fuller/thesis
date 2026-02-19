@@ -89,6 +89,9 @@ Yes. Upload a transcript or ask the agents to identify action items from a discu
 **How do I track who's responsible?**
 Assign tasks to stakeholders. The linkage shows in both Task and Intelligence views.
 
+**What does "Release the Kraken" do on a task card?**
+It runs an AI evaluation of that specific task -- analyzing whether it can be automated, what steps would be involved, and what knowledge gaps exist. You can then execute the task via AI or decline. See the [Tasks guide](./05-tasks.md#kraken-per-task-ai-evaluation) for details.
+
 ---
 
 ## Opportunities
@@ -202,8 +205,12 @@ The system checks for potential duplicates when you accept. If a match is found,
 **What is the Thesis Manifesto?**
 Ten core organizational principles that guide how Thesis approaches AI strategy. Topics include problem-first thinking, multiple perspectives, human-AI collaboration, and bias awareness. Access it via **Manifesto** in the top navigation bar.
 
+**What are the Manifesto tabs?**
+- **The Principles** -- All 10 principles with expandable cards showing full descriptions and enforcement content
+- **The Check** -- Operational compliance guidance organized around Five Guardrails: Do We Need This?, Is It Grounded?, Are Multiple Perspectives Represented?, Is the Human in the Loop?, and Have We Checked Our Blind Spots?
+
 **Can agents use the manifesto?**
-Yes. The principles are available in agent-loadable XML format. Agents can reference manifesto principles when framing recommendations or evaluating approaches.
+Yes. Agent responses include manifesto compliance indicators (colored dots) showing alignment with the principles. These are scored automatically by a semantic evaluator.
 
 ---
 
