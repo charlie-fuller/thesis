@@ -18,7 +18,8 @@ import {
   GitBranch,
   LayoutGrid,
   TreeDeciduous,
-  Network
+  Network,
+  BookOpen
 } from 'lucide-react'
 import DiscoProcessMap from '@/components/disco/DiscoProcessMap'
 import DiscoOperationalizeMap from '@/components/disco/DiscoOperationalizeMap'
@@ -395,7 +396,8 @@ export default function DiscoInitiativesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [createModalOpen, setCreateModalOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'discoveries' | 'workflow' | 'throughline' | 'operationalize' | 'platform-map' | 'platform-tree' | 'hub-spoke' | 'lifecycle'>('discoveries')
+  const [activeTab, setActiveTab] = useState<'discoveries' | 'guides'>('discoveries')
+  const [activeGuide, setActiveGuide] = useState<'workflow' | 'throughline' | 'operationalize' | 'platform-map' | 'platform-tree' | 'hub-spoke' | 'lifecycle'>('workflow')
 
   const loadInitiatives = async () => {
     try {
@@ -478,129 +480,94 @@ export default function DiscoInitiativesPage() {
           Discoveries
         </button>
         <button
-          onClick={() => setActiveTab('workflow')}
+          onClick={() => setActiveTab('guides')}
           className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
-            activeTab === 'workflow'
+            activeTab === 'guides'
               ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
               : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >
-          <Map className="w-4 h-4" />
-          Workflow Map
-        </button>
-        <button
-          onClick={() => setActiveTab('throughline')}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
-            activeTab === 'throughline'
-              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-          }`}
-        >
-          <FileText className="w-4 h-4" />
-          Throughline Guide
-        </button>
-        <button
-          onClick={() => setActiveTab('operationalize')}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
-            activeTab === 'operationalize'
-              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-          }`}
-        >
-          <GitBranch className="w-4 h-4" />
-          Operationalize Map
-        </button>
-        <button
-          onClick={() => setActiveTab('platform-map')}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
-            activeTab === 'platform-map'
-              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-          }`}
-        >
-          <LayoutGrid className="w-4 h-4" />
-          Platform Map
-        </button>
-        <button
-          onClick={() => setActiveTab('platform-tree')}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
-            activeTab === 'platform-tree'
-              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-          }`}
-        >
-          <TreeDeciduous className="w-4 h-4" />
-          Platform Decision Tree
-        </button>
-        <button
-          onClick={() => setActiveTab('hub-spoke')}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
-            activeTab === 'hub-spoke'
-              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-          }`}
-        >
-          <Network className="w-4 h-4" />
-          Hub & Spoke
-        </button>
-        <button
-          onClick={() => setActiveTab('lifecycle')}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
-            activeTab === 'lifecycle'
-              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-          }`}
-        >
-          <ChevronRight className="w-4 h-4" />
-          Discovery to Delivery
+          <BookOpen className="w-4 h-4" />
+          Maps and Guides
         </button>
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'workflow' ? (
-        <DiscoProcessMap />
-      ) : activeTab === 'throughline' ? (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
-          <iframe
-            src="/throughline-process-map.html"
-            className="w-full h-full border-0"
-            title="Investigation Framing (Throughline) Deep-Dive"
-          />
-        </div>
-      ) : activeTab === 'operationalize' ? (
-        <DiscoOperationalizeMap />
-      ) : activeTab === 'platform-map' ? (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
-          <iframe
-            src="/platform-process-map.html"
-            className="w-full h-full border-0"
-            title="AI Platform Selection Process Map"
-          />
-        </div>
-      ) : activeTab === 'platform-tree' ? (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
-          <iframe
-            src="/platform-decision-tree.html"
-            className="w-full h-full border-0"
-            title="AI Platform Selection Decision Tree"
-          />
-        </div>
-      ) : activeTab === 'hub-spoke' ? (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
-          <iframe
-            src="/hub-spoke-model.html"
-            className="w-full h-full border-0"
-            title="Hub-and-Spoke Governance Model"
-          />
-        </div>
-      ) : activeTab === 'lifecycle' ? (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
-          <iframe
-            src="/discovery-to-delivery.html"
-            className="w-full h-full border-0"
-            title="Discovery to Delivery Lifecycle"
-          />
-        </div>
+      {activeTab === 'guides' ? (
+        <>
+          {/* Guide Selector */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            {([
+              { key: 'workflow', label: 'Workflow Map', icon: Map },
+              { key: 'throughline', label: 'Throughline Guide', icon: FileText },
+              { key: 'operationalize', label: 'Operationalize Map', icon: GitBranch },
+              { key: 'platform-map', label: 'Platform Map', icon: LayoutGrid },
+              { key: 'platform-tree', label: 'Platform Decision Tree', icon: TreeDeciduous },
+              { key: 'hub-spoke', label: 'Hub & Spoke', icon: Network },
+              { key: 'lifecycle', label: 'Discovery to Delivery', icon: ChevronRight },
+            ] as const).map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => setActiveGuide(key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full border transition-colors ${
+                  activeGuide === key
+                    ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-700'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Guide Content */}
+          {activeGuide === 'workflow' ? (
+            <DiscoProcessMap />
+          ) : activeGuide === 'throughline' ? (
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 260px)' }}>
+              <iframe
+                src="/throughline-process-map.html"
+                className="w-full h-full border-0"
+                title="Investigation Framing (Throughline) Deep-Dive"
+              />
+            </div>
+          ) : activeGuide === 'operationalize' ? (
+            <DiscoOperationalizeMap />
+          ) : activeGuide === 'platform-map' ? (
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 260px)' }}>
+              <iframe
+                src="/platform-process-map.html"
+                className="w-full h-full border-0"
+                title="AI Platform Selection Process Map"
+              />
+            </div>
+          ) : activeGuide === 'platform-tree' ? (
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 260px)' }}>
+              <iframe
+                src="/platform-decision-tree.html"
+                className="w-full h-full border-0"
+                title="AI Platform Selection Decision Tree"
+              />
+            </div>
+          ) : activeGuide === 'hub-spoke' ? (
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 260px)' }}>
+              <iframe
+                src="/hub-spoke-model.html"
+                className="w-full h-full border-0"
+                title="Hub-and-Spoke Governance Model"
+              />
+            </div>
+          ) : activeGuide === 'lifecycle' ? (
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ height: 'calc(100vh - 260px)' }}>
+              <iframe
+                src="/discovery-to-delivery.html"
+                className="w-full h-full border-0"
+                title="Discovery to Delivery Lifecycle"
+              />
+            </div>
+          ) : null}
+        </>
       ) : (
         <>
 
