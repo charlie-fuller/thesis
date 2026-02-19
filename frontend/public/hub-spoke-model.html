@@ -56,6 +56,37 @@
     h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem; }
     .subtitle { color: var(--gray-500); font-size: 0.875rem; }
 
+    /* Legend */
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--gray-700);
+    }
+
+    .legend-box {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      border: 2px solid;
+    }
+
+    .legend-box.hub { background: var(--primary-bg); border-color: var(--primary); }
+    .legend-box.spoke { background: var(--success-light); border-color: var(--success); }
+    .legend-box.governance { background: var(--teal-light); border-color: var(--teal); }
+    .legend-box.risk { background: var(--danger-light); border-color: var(--danger); }
+    .legend-box.pending { background: var(--warning-light); border-color: var(--warning); }
+
+    /* Sections */
     .section {
       background: var(--bg-card, white);
       border: 1px solid var(--gray-200);
@@ -79,11 +110,248 @@
       border-bottom: 1px solid var(--gray-200);
     }
 
-    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    /* Hub-Spoke Visual */
+    .hub-spoke-visual {
+      position: relative;
+      min-height: 480px;
+      margin: 1rem 0;
+    }
 
+    .hub-center {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: var(--primary-bg);
+      border: 3px solid var(--primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      z-index: 2;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    }
+
+    .hub-center .hub-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .hub-center .hub-label {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--primary);
+    }
+
+    .hub-center .hub-desc {
+      font-size: 0.65rem;
+      color: var(--gray-500);
+      margin-top: 0.15rem;
+    }
+
+    .spoke-node {
+      position: absolute;
+      width: 140px;
+      padding: 0.6rem 0.5rem;
+      border-radius: 0.75rem;
+      border: 2px solid;
+      text-align: center;
+      z-index: 2;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      background: var(--bg-card, white);
+    }
+
+    .spoke-node .spoke-icon { font-size: 1rem; margin-bottom: 0.15rem; }
+    .spoke-node .spoke-title { font-weight: 600; font-size: 0.7rem; color: var(--gray-800); }
+    .spoke-node .spoke-desc { font-size: 0.6rem; color: var(--gray-500); margin-top: 0.15rem; }
+
+    .spoke-node.glean { border-color: var(--primary); }
+    .spoke-node.gemini { border-color: var(--warning); }
+    .spoke-node.notebooklm { border-color: var(--orange); }
+    .spoke-node.claude { border-color: var(--pink); }
+    .spoke-node.mulesoft { border-color: var(--teal); }
+    .spoke-node.custom { border-color: #8b5cf6; }
+
+    .spoke-line {
+      position: absolute;
+      z-index: 1;
+      background: var(--gray-300);
+      transform-origin: 0 0;
+    }
+
+    /* Hub Standards Cards */
+    .hub-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin-top: 0.75rem;
+    }
+
+    .hub-card {
+      background: var(--primary-bg);
+      border: 2px solid var(--primary);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      position: relative;
+    }
+
+    .hub-card::before {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      font-size: 0.7rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      background: var(--primary);
+    }
+
+    .hub-card:nth-child(1)::before { content: '1'; }
+    .hub-card:nth-child(2)::before { content: '2'; }
+    .hub-card:nth-child(3)::before { content: '3'; }
+
+    .hub-card h5 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      color: var(--gray-800);
+    }
+
+    .hub-card ul {
+      font-size: 0.7rem;
+      color: var(--gray-600);
+      margin-left: 1rem;
+      list-style-type: none;
+    }
+
+    .hub-card ul li { margin-bottom: 0.2rem; position: relative; }
+    .hub-card ul li::before { content: ''; position: absolute; left: -0.8rem; top: 0.55em; width: 5px; height: 5px; border-radius: 50%; background: var(--primary); }
+
+    /* Spoke Flexibility Cards */
+    .spoke-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin-top: 0.75rem;
+    }
+
+    .spoke-card {
+      background: var(--success-light);
+      border: 2px solid var(--success);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      position: relative;
+    }
+
+    .spoke-card::before {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      font-size: 0.7rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      background: var(--success);
+    }
+
+    .spoke-card:nth-child(1)::before { content: '1'; }
+    .spoke-card:nth-child(2)::before { content: '2'; }
+    .spoke-card:nth-child(3)::before { content: '3'; }
+
+    .spoke-card h5 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      color: var(--gray-800);
+    }
+
+    .spoke-card ul {
+      font-size: 0.7rem;
+      color: var(--gray-600);
+      margin-left: 1rem;
+      list-style-type: none;
+    }
+
+    .spoke-card ul li { margin-bottom: 0.2rem; position: relative; }
+    .spoke-card ul li::before { content: ''; position: absolute; left: -0.8rem; top: 0.55em; width: 5px; height: 5px; border-radius: 50%; background: var(--success); }
+
+    /* Experimentation Path Flow */
+    .exp-flow {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+
+    .exp-node {
+      border: 1.5px solid var(--gray-300);
+      border-radius: 0.35rem;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.65rem;
+      text-align: center;
+      white-space: nowrap;
+      background: var(--bg-card, white);
+    }
+
+    .exp-node.start { border-color: var(--primary); background: var(--primary-bg); font-weight: 600; }
+    .exp-node.check { border-color: var(--warning); background: var(--warning-light); font-weight: 600; }
+    .exp-node.go { border-color: var(--success); background: var(--success-light); font-weight: 600; }
+    .exp-node.stop { border-color: var(--danger); background: var(--danger-light); font-weight: 600; }
+    .exp-node.review { border-color: var(--teal); background: var(--teal-light); font-weight: 600; }
+
+    .exp-arrow { color: var(--gray-400); font-size: 0.8rem; }
+
+    /* Comparison Table */
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.7rem;
+      margin-top: 0.75rem;
+    }
+
+    .comparison-table th {
+      background: var(--gray-100);
+      padding: 0.5rem;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid var(--gray-200);
+      position: sticky;
+      top: 0;
+    }
+
+    .comparison-table td {
+      padding: 0.4rem 0.5rem;
+      border-bottom: 1px solid var(--gray-100);
+      vertical-align: top;
+    }
+
+    .comparison-table tr:hover td { background: var(--gray-50); }
+
+    .check { color: var(--success); font-weight: bold; }
+    .cross { color: var(--danger); font-weight: bold; }
+    .partial { color: var(--warning); font-weight: bold; }
+
+    /* Gov Grid */
     .gov-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 0.75rem;
       margin-top: 0.75rem;
     }
@@ -91,7 +359,7 @@
     .gov-card {
       background: var(--gray-50);
       border: 1px solid var(--gray-200);
-      border-radius: 0.5rem;
+      border-radius: 0.75rem;
       padding: 0.75rem;
     }
 
@@ -107,6 +375,14 @@
       color: var(--gray-500);
     }
 
+    .gov-card .question {
+      font-size: 0.65rem;
+      color: var(--primary);
+      font-style: italic;
+      margin-top: 0.35rem;
+    }
+
+    /* Callout */
     .callout {
       background: var(--info-light);
       border: 1px solid #93c5fd;
@@ -121,7 +397,60 @@
       border-color: #fcd34d;
     }
 
+    .callout.teal {
+      background: var(--teal-light);
+      border-color: var(--teal);
+    }
+
     .callout strong { color: var(--gray-800); }
+
+    /* Grids */
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+
+    /* Path Cards */
+    .path-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 0.75rem;
+    }
+
+    .path-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 0.75rem;
+      padding: 1rem;
+    }
+
+    .path-card .path-title {
+      font-weight: 600;
+      font-size: 0.8rem;
+      margin-bottom: 0.25rem;
+      color: var(--gray-800);
+    }
+
+    .path-card .path-desc {
+      font-size: 0.7rem;
+      color: var(--gray-500);
+      margin-bottom: 0.5rem;
+    }
+
+    /* Section Badge */
+    .section-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .section-badge.hub { background: var(--primary); color: white; }
+    .section-badge.spoke { background: var(--success); color: white; }
+    .section-badge.governance { background: var(--teal); color: white; }
 
     .watermark {
       text-align: center;
@@ -131,7 +460,11 @@
     }
 
     @media (max-width: 900px) {
-      .grid-2 { grid-template-columns: 1fr; }
+      .grid-2, .grid-3, .path-grid { grid-template-columns: 1fr; }
+      .hub-spoke-visual { min-height: auto; }
+      .hub-spoke-visual .hub-center { position: relative; left: auto; top: auto; transform: none; margin: 0 auto 1rem; }
+      .hub-spoke-visual .spoke-node { position: relative !important; left: auto !important; top: auto !important; right: auto !important; bottom: auto !important; width: 100%; margin-bottom: 0.5rem; }
+      .spoke-line { display: none; }
     }
 
     /* Dark mode overrides */
@@ -174,9 +507,39 @@
       border-bottom-color: var(--gray-200);
     }
 
+    html.dark .hub-card {
+      background: var(--primary-bg);
+      border-color: var(--primary);
+    }
+
+    html.dark .spoke-card {
+      background: var(--success-light);
+      border-color: var(--success);
+    }
+
+    html.dark .hub-center {
+      background: var(--primary-bg);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    html.dark .spoke-node {
+      background: var(--bg-card, #111111);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
     html.dark .gov-card {
       background: var(--gray-100);
       border-color: var(--gray-200);
+    }
+
+    html.dark .path-card {
+      background: var(--gray-100);
+      border-color: var(--gray-200);
+    }
+
+    html.dark .exp-node {
+      background: var(--bg-card, #111111);
+      border-color: var(--gray-300);
     }
 
     html.dark .callout {
@@ -187,6 +550,36 @@
     html.dark .callout.warn {
       background: var(--gray-100);
       border-color: var(--gray-300);
+    }
+
+    html.dark .callout.teal {
+      background: var(--gray-100);
+      border-color: var(--gray-300);
+    }
+
+    html.dark .comparison-table th {
+      background: var(--gray-100);
+      border-bottom-color: var(--gray-200);
+    }
+
+    html.dark .comparison-table td {
+      border-bottom-color: var(--gray-100);
+    }
+
+    html.dark .comparison-table tr:hover td {
+      background: var(--gray-100);
+    }
+
+    html.dark .spoke-line {
+      background: var(--gray-300);
+    }
+
+    html.dark .legend-box.hub {
+      background: var(--primary-bg);
+    }
+
+    html.dark .legend-box.spoke {
+      background: var(--success-light);
     }
   </style>
 </head>
@@ -276,58 +669,392 @@
   <div class="container">
     <header>
       <h1>Hub-and-Spoke Governance Model</h1>
-      <p class="subtitle">Teams can use preferred tools within standards -- the hub provides governance, the spokes provide flexibility</p>
+      <p class="subtitle">Central standards provide governance, team spokes provide flexibility -- teams can use preferred tools within guardrails</p>
     </header>
 
-    <div class="section">
-      <div class="section-title">Hub-and-Spoke Governance Model</div>
-      <div class="section-subtitle">Teams can use preferred tools within standards -- the hub provides governance, the spokes provide flexibility</div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-box hub"></div><span>Hub (Central Standards)</span></div>
+      <div class="legend-item"><div class="legend-box spoke"></div><span>Spoke (Team Flexibility)</span></div>
+      <div class="legend-item"><div class="legend-box governance"></div><span>Governance Check</span></div>
+      <div class="legend-item"><div class="legend-box pending"></div><span>Pending / In Review</span></div>
+      <div class="legend-item"><div class="legend-box risk"></div><span>Risk / Blocker</span></div>
+    </div>
 
-      <div class="grid-2">
-        <div>
-          <h5 style="font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--gray-800);">Hub: Central Standards</h5>
-          <div class="gov-grid" style="grid-template-columns: 1fr;">
-            <div class="gov-card">
-              <h5>Standard Configuration Files</h5>
-              <p>Every tool/agent must have: standard MD documentation, JSON config where applicable, KB entry in Thesis platform, evaluation criteria defined</p>
-            </div>
-            <div class="gov-card">
-              <h5>Accountability Requirements</h5>
-              <p>Process lead identified, backup owner named, evaluation cadence set, handoff documentation maintained</p>
-            </div>
-            <div class="gov-card">
-              <h5>Security Baseline</h5>
-              <p>Enterprise agreement with vendor, proper authentication (not just password), no uncontrolled external sharing, data classification applied</p>
+    <!-- ============================================================ -->
+    <!-- SECTION 1: VISUAL HUB-AND-SPOKE DIAGRAM -->
+    <!-- ============================================================ -->
+    <div class="section">
+      <div class="section-title">Platform Ecosystem</div>
+      <div class="section-subtitle">The hub sets standards; spokes are the approved platforms teams can choose from based on use case</div>
+
+      <div class="hub-spoke-visual" id="hubSpokeVisual">
+        <div class="hub-center" id="hubCenter">
+          <div class="hub-label">Central Hub</div>
+          <div class="hub-desc">Standards, Config,<br>Accountability,<br>Security Baseline</div>
+        </div>
+
+        <div class="spoke-node glean" id="spoke-glean" style="top: 20px; left: calc(50% - 70px);">
+          <div class="spoke-title">Glean</div>
+          <div class="spoke-desc">Company-wide Q&A, agents, search</div>
+        </div>
+
+        <div class="spoke-node gemini" id="spoke-gemini" style="top: 80px; right: 60px;">
+          <div class="spoke-title">Gemini / Gems</div>
+          <div class="spoke-desc">Large context, Google native, team agents</div>
+        </div>
+
+        <div class="spoke-node notebooklm" id="spoke-notebooklm" style="top: 260px; right: 30px;">
+          <div class="spoke-title">NotebookLM</div>
+          <div class="spoke-desc">Multimedia analysis, SOP generation</div>
+        </div>
+
+        <div class="spoke-node claude" id="spoke-claude" style="bottom: 20px; left: calc(50% - 70px);">
+          <div class="spoke-title">Claude</div>
+          <div class="spoke-desc">Complex reasoning, 200K context</div>
+        </div>
+
+        <div class="spoke-node mulesoft" id="spoke-mulesoft" style="top: 260px; left: 30px;">
+          <div class="spoke-title">MuleSoft</div>
+          <div class="spoke-desc">Enterprise integration, full governance</div>
+        </div>
+
+        <div class="spoke-node custom" id="spoke-custom" style="top: 80px; left: 60px;">
+          <div class="spoke-title">Custom Build</div>
+          <div class="spoke-desc">Novel requirements, full flexibility</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 2: HUB STANDARDS -->
+    <!-- ============================================================ -->
+    <div class="section">
+      <div class="section-badge hub">Hub: Central Standards</div>
+      <div class="section-title">What Every Tool/Agent Must Have</div>
+      <div class="section-subtitle">Non-negotiable requirements enforced by the hub -- applies to all platforms regardless of which spoke is chosen</div>
+
+      <div class="hub-grid">
+        <div class="hub-card">
+          <h5>Standard Configuration Files</h5>
+          <ul>
+            <li>Standard MD documentation</li>
+            <li>JSON config where applicable</li>
+            <li>KB entry in Thesis platform</li>
+            <li>Evaluation criteria defined</li>
+          </ul>
+        </div>
+        <div class="hub-card">
+          <h5>Accountability Requirements</h5>
+          <ul>
+            <li>Process lead identified</li>
+            <li>Backup owner named</li>
+            <li>Evaluation cadence set</li>
+            <li>Handoff documentation maintained</li>
+          </ul>
+        </div>
+        <div class="hub-card">
+          <h5>Security Baseline</h5>
+          <ul>
+            <li>Enterprise agreement with vendor</li>
+            <li>Proper authentication (not just password)</li>
+            <li>No uncontrolled external sharing</li>
+            <li>Data classification applied</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 3: SPOKE FLEXIBILITY -->
+    <!-- ============================================================ -->
+    <div class="section">
+      <div class="section-badge spoke">Spokes: Team Flexibility</div>
+      <div class="section-title">How Teams Choose and Experiment</div>
+      <div class="section-subtitle">Within hub standards, teams select the right platform for their use case and follow the experimentation path for new tools</div>
+
+      <div class="spoke-grid">
+        <div class="spoke-card">
+          <h5>Approved Platform Set</h5>
+          <ul>
+            <li>Glean (default, company-wide)</li>
+            <li>Gemini / Gems (Google Workspace)</li>
+            <li>NotebookLM (multimedia)</li>
+            <li>Claude (with approval)</li>
+            <li>MuleSoft (enterprise integration)</li>
+            <li>Custom (with justification)</li>
+          </ul>
+        </div>
+        <div class="spoke-card">
+          <h5>Experimentation Path</h5>
+          <ul>
+            <li>No-cost + less than 1 month: experimentation ticket</li>
+            <li>Requires budget: procurement process</li>
+            <li>New vendor: security + legal review</li>
+            <li>German users: Works Council check</li>
+          </ul>
+        </div>
+        <div class="spoke-card">
+          <h5>Evaluation Before Deployment</h5>
+          <ul>
+            <li>Test against defined criteria before release</li>
+            <li>Ongoing evaluation cadence after deployment</li>
+            <li>Standard QA process for agents and workflows</li>
+            <li>Backup owner confirmed before go-live</li>
+          </ul>
+        </div>
+      </div>
+
+      <div style="margin-top: 1.25rem;">
+        <h5 style="font-size: 0.8rem; font-weight: 600; color: var(--gray-800); margin-bottom: 0.5rem;">Experimentation Decision Flow</h5>
+        <div class="path-grid">
+          <div class="path-card">
+            <div class="path-title">Free / Low-Cost Tool</div>
+            <div class="path-desc">No budget required, under 1 month trial</div>
+            <div class="exp-flow">
+              <div class="exp-node start">New idea</div>
+              <span class="exp-arrow">&#8594;</span>
+              <div class="exp-node check">Cost check</div>
+              <span class="exp-arrow">&#8594;</span>
+              <div class="exp-node">Experiment ticket</div>
+              <span class="exp-arrow">&#8594;</span>
+              <div class="exp-node check">Security baseline</div>
+              <span class="exp-arrow">&#8594;</span>
+              <div class="exp-node go">Try it</div>
             </div>
           </div>
-        </div>
-        <div>
-          <h5 style="font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--gray-800);">Spokes: Team Flexibility</h5>
-          <div class="gov-grid" style="grid-template-columns: 1fr;">
-            <div class="gov-card">
-              <h5>Approved Platform Set</h5>
-              <p>Glean, Gemini/Gems, NotebookLM, Claude (with approval), MuleSoft (enterprise), Custom (with justification)</p>
+          <div class="path-card">
+            <div class="path-title">Paid Tool / New Vendor</div>
+            <div class="path-desc">Requires budget or enterprise agreement</div>
+            <div class="exp-flow">
+              <div class="exp-node start">New idea</div>
+              <span class="exp-arrow">&#8594;</span>
+              <div class="exp-node check">Cost check</div>
+              <span class="exp-arrow">&#8594;</span>
+              <div class="exp-node review">Procurement</div>
+              <span class="exp-arrow">&#8594;</span>
+              <div class="exp-node review">Security + Legal</div>
+              <span class="exp-arrow">&#8594;</span>
+              <div class="exp-node go">Approved</div>
             </div>
-            <div class="gov-card">
-              <h5>Experimentation Path</h5>
-              <p>No-cost + less than 1 month: experimentation ticket. Requires budget: procurement process. New vendor: security + legal review.</p>
-            </div>
-            <div class="gov-card">
-              <h5>Evaluation Before Deployment</h5>
-              <p>Test against defined criteria before release. Ongoing evaluation cadence after deployment. Standard QA process for agents and workflows.</p>
+          </div>
+          <div class="path-card">
+            <div class="path-title">German Employee Impact</div>
+            <div class="path-desc">Any new tool used by German employees</div>
+            <div class="exp-flow">
+              <div class="exp-node start">New tool</div>
+              <span class="exp-arrow">&#8594;</span>
+              <div class="exp-node check">German users?</div>
+              <span class="exp-arrow">&#8594;</span>
+              <div class="exp-node stop">Works Council</div>
+              <span class="exp-arrow">&#8594;</span>
+              <div class="exp-node review">Legal review</div>
+              <span class="exp-arrow">&#8594;</span>
+              <div class="exp-node go">Cleared</div>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <div class="callout warn">
-        <strong>MCP Architecture Note (from Raza):</strong> MCPs should be designed per use case, not as 1:1 API replacements. "If I say 'give me all pull requests during November 2025,' the MCP should know exactly which tool to use. Don't expose raw API endpoints as MCP tools -- that makes things less deterministic, not more."
+    <!-- ============================================================ -->
+    <!-- SECTION 4: PLATFORM COMPLIANCE MATRIX -->
+    <!-- ============================================================ -->
+    <div class="section">
+      <div class="section-badge governance">Governance Compliance</div>
+      <div class="section-title">Platform Compliance with Hub Standards</div>
+      <div class="section-subtitle">How each spoke platform meets the hub's central requirements</div>
+
+      <div style="overflow-x: auto;">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Hub Requirement</th>
+              <th>Glean</th>
+              <th>Gemini/Gems</th>
+              <th>NotebookLM</th>
+              <th>Claude</th>
+              <th>MuleSoft</th>
+              <th>Custom</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Enterprise Agreement</strong></td>
+              <td><span class="check">Y</span></td>
+              <td><span class="check">Y</span> Google Workspace</td>
+              <td><span class="check">Y</span> Google Workspace</td>
+              <td><span class="partial">~</span> VOC pending</td>
+              <td><span class="check">Y</span> Existing</td>
+              <td><span class="partial">~</span> Depends</td>
+            </tr>
+            <tr>
+              <td><strong>Auth (not just password)</strong></td>
+              <td><span class="check">Y</span> SSO</td>
+              <td><span class="check">Y</span> Google IAM</td>
+              <td><span class="check">Y</span> Google IAM</td>
+              <td><span class="partial">~</span> Projects only</td>
+              <td><span class="check">Y</span> Full IAM</td>
+              <td><span class="cross">N</span> Must build</td>
+            </tr>
+            <tr>
+              <td><strong>No external sharing</strong></td>
+              <td><span class="check">Y</span> Internal only</td>
+              <td><span class="check">Y</span> Workspace controls</td>
+              <td><span class="check">Y</span> Workspace controls</td>
+              <td><span class="check">Y</span> Org-level</td>
+              <td><span class="check">Y</span> Policy engine</td>
+              <td><span class="cross">N</span> Must enforce</td>
+            </tr>
+            <tr>
+              <td><strong>Data classification</strong></td>
+              <td><span class="check">Y</span> Source permissions</td>
+              <td><span class="partial">~</span> Drive labels</td>
+              <td><span class="partial">~</span> Drive labels</td>
+              <td><span class="cross">N</span> Manual</td>
+              <td><span class="check">Y</span> PII filtering</td>
+              <td><span class="cross">N</span> Must build</td>
+            </tr>
+            <tr>
+              <td><strong>Owner + backup</strong></td>
+              <td><span class="check">Y</span> Admin panel</td>
+              <td><span class="partial">~</span> Gem creator</td>
+              <td><span class="partial">~</span> Notebook creator</td>
+              <td><span class="partial">~</span> Project owner</td>
+              <td><span class="check">Y</span> Managed</td>
+              <td><span class="cross">N</span> Must assign</td>
+            </tr>
+            <tr>
+              <td><strong>German approved</strong></td>
+              <td><span class="check">Y</span> May 2025</td>
+              <td><span class="check">Y</span> Enterprise</td>
+              <td><span class="check">Y</span> Enterprise</td>
+              <td><span class="cross">N</span> Not yet</td>
+              <td><span class="check">Y</span> Existing</td>
+              <td><span class="partial">~</span> Depends</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 5: GOVERNANCE CHECKLIST -->
+    <!-- ============================================================ -->
+    <div class="section">
+      <div class="section-title">Governance Checklist</div>
+      <div class="section-subtitle">Before any tool/agent goes live, confirm each item -- this is the hub's quality gate</div>
+
+      <div class="gov-grid">
+        <div class="gov-card" style="border-left: 3px solid var(--primary);">
+          <h5>Documentation</h5>
+          <p>MD file with purpose, usage, and architecture. JSON config if applicable. KB entry created.</p>
+          <p class="question">Check: Can someone unfamiliar maintain this from docs alone?</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--success);">
+          <h5>Ownership</h5>
+          <p>Primary owner and backup owner assigned. Both have access and knowledge. Handoff doc exists.</p>
+          <p class="question">Check: If owner goes on PTO tomorrow, who takes over?</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--teal);">
+          <h5>Security</h5>
+          <p>Enterprise agreement active. Auth beyond password. No external data sharing. Data classification applied.</p>
+          <p class="question">Check: Would this pass a security audit today?</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--warning);">
+          <h5>Evaluation</h5>
+          <p>Success criteria defined. Testing cadence set. QA process documented. Performance baseline recorded.</p>
+          <p class="question">Check: How do we know if this stops working correctly?</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--info);">
+          <h5>Compliance</h5>
+          <p>German Works Council cleared (if applicable). Data residency confirmed. Regulatory requirements met.</p>
+          <p class="question">Check: Are there regional or legal constraints we haven't addressed?</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--pink);">
+          <h5>Lifecycle</h5>
+          <p>Sunset criteria defined. Review date scheduled. Upgrade/migration path considered.</p>
+          <p class="question">Check: When should we re-evaluate if this is still the right tool?</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 6: MCP NOTE + OPEN ITEMS -->
+    <!-- ============================================================ -->
+    <div class="section">
+      <div class="section-title">Architecture Notes and Open Items</div>
+      <div class="section-subtitle">Key design principles and pending decisions that affect the hub-and-spoke model</div>
+
+      <div class="grid-3">
+        <div class="gov-card" style="border-left: 3px solid var(--danger);">
+          <h5>MuleSoft POC</h5>
+          <p>Cloud 2.0 contract pending. 2-month trial. Raza targeting demo by Feb 20-28. Determines enterprise integration path.</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--warning);">
+          <h5>Claude Licenses</h5>
+          <p>5-10 Claude Desktop licenses proposed for key stakeholders. Needs security + legal review. Chris exploring Bedrock alternative.</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--warning);">
+          <h5>API Key Governance</h5>
+          <p>No clear billing framework for API keys. GCP billing accounts as temporary solution. Danny + Steffen to define scalable approach.</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--info);">
+          <h5>Gemini Announcement</h5>
+          <p>Gemini and Gems available but not widely communicated. Could address many use cases currently falling to custom builds.</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--info);">
+          <h5>Glean MCP Connector</h5>
+          <p>Steffen's idea: build Glean connector template that connects to external MCP servers to index data. Expands Glean's reach without custom builds.</p>
+        </div>
+        <div class="gov-card" style="border-left: 3px solid var(--info);">
+          <h5>Google Agentspace</h5>
+          <p>VS Code clone with Google AI. Currently disabled (preview features off). Legal terms pending. Weekly rate limits could be useful.</p>
+        </div>
       </div>
     </div>
 
     <div class="watermark">
-      Hub-and-Spoke Governance Model | Contentful AI Governance | February 13, 2026
+      Hub-and-Spoke Governance Model | Contentful AI Governance | February 13, 2026<br>
+      Sources: Raza (Business Platforms, Feb 13), Steffen (IT Engineering, Feb 13), AI Implementation Team
     </div>
   </div>
+
+<script>
+// Draw connector lines from hub center to each spoke node
+(function() {
+  function drawLines() {
+    document.querySelectorAll('.spoke-line').forEach(function(el) { el.remove(); });
+    var container = document.getElementById('hubSpokeVisual');
+    var hub = document.getElementById('hubCenter');
+    if (!container || !hub) return;
+
+    var containerRect = container.getBoundingClientRect();
+    var hubRect = hub.getBoundingClientRect();
+    var hubCX = hubRect.left + hubRect.width / 2 - containerRect.left;
+    var hubCY = hubRect.top + hubRect.height / 2 - containerRect.top;
+
+    var spokes = container.querySelectorAll('.spoke-node');
+    spokes.forEach(function(spoke) {
+      var spokeRect = spoke.getBoundingClientRect();
+      var spokeCX = spokeRect.left + spokeRect.width / 2 - containerRect.left;
+      var spokeCY = spokeRect.top + spokeRect.height / 2 - containerRect.top;
+
+      var dx = spokeCX - hubCX;
+      var dy = spokeCY - hubCY;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      var angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+      var line = document.createElement('div');
+      line.className = 'spoke-line';
+      line.style.cssText = 'position:absolute;height:2px;background:var(--gray-300);left:' + hubCX + 'px;top:' + hubCY + 'px;width:' + dist + 'px;transform:rotate(' + angle + 'deg);';
+      container.appendChild(line);
+    });
+  }
+  window.addEventListener('load', drawLines);
+  window.addEventListener('resize', drawLines);
+  setTimeout(drawLines, 300);
+  setTimeout(drawLines, 600);
+})();
+</script>
 </body>
 </html>
