@@ -65,7 +65,7 @@ This document contains detailed architecture documentation. For essential Claude
 
 ### Task & Project Management
 11. **Auto-Generated Titles** - Conversation titles from initial message
-12. **Task Management** - Kanban board with auto-extraction from documents, Taskmaster sequenced task plans from chat, notes field, cascade filtering by team/project/assignee
+12. **Task Management** - Kanban board with auto-extraction from documents, Taskmaster sequenced task plans from chat, notes field, cascade filtering by team/project/assignee, per-task project linking dropdown, within-column drag-and-drop reordering
 13. **Project Triage (Operator)** - AI project pipeline with tier-based scoring
 14. **Projects Pipeline** - Pipeline and Analysis tabs with scatter plot visualization, project-scoped chat with RAG search limited to linked documents
 
@@ -113,15 +113,18 @@ This document contains detailed architecture documentation. For essential Claude
 36. **Initiative Folder Links** - Link vault folders to discoveries. When a folder is linked, all documents in that folder are automatically linked to the initiative. Folder link state tracked in `disco_initiative_folder_links`. Removal sync unlinks documents when folders are removed.
 37. **Discovery Agent Context Injection** - The Discovery Agent (chat) receives full initiative context via `build_initiative_context()`: initiative metadata, throughline, agent output summaries, linked document names, and value alignment. Previously the agent claimed context but received none.
 38. **Project Creation from Discovery** - Create projects directly from the discovery detail page via ProjectCreateModal, with automatic initiative linking.
-39. **Kraken Agent (Task Automation)** - Evaluates project tasks for autonomous AI execution using a 5-dimension confidence framework (information sufficiency, output clarity, execution feasibility, completeness achievable, domain fit). Categorizes tasks as automatable (70-100%), assistable (40-69%), or manual (<40%). Computes agenticity score per project. Executes approved tasks non-destructively: output saved as task comments and KB documents. Uses web search for real-time research. Never modifies task status.
+39. **Kraken Agent (Task Automation)** - Per-task "Release the Kraken" button evaluates individual tasks for autonomous AI execution using a 5-dimension confidence framework (information sufficiency, output clarity, execution feasibility, completeness achievable, domain fit) plus decision gaps analysis. Categorizes tasks as automatable (70-100%), assistable (40-69%), or manual (<40%). Computes agenticity score per project. Executes approved tasks non-destructively: output saved as task comments and KB documents. Uses web search for real-time research. Never modifies task status.
 40. **DISCO Process Map** - Standalone HTML visualization of the complete DISCO pipeline at `/disco-process-map.html`. Shows all 5 stages, 4 checkpoint gates, agent details, throughline system, output document types, multi-pass synthesis, and operationalization paths.
 41. **AI Platform Governance Maps** - Standalone HTML visualizations for platform governance: Platform Process Map (`/platform-process-map.html`) covers approved platforms (Glean, Gemini/Gems, NotebookLM, Claude, MuleSoft, Custom), comparison matrix, quick decision paths, and hub-and-spoke governance. Platform Decision Tree (`/platform-decision-tree.html`) provides guided platform selection. Both embedded as tabs on the DISCO page.
-42. **Thesis Manifesto** - 10 core organizational principles accessible from top navigation. Tabbed layout: Principles (cards with core statement and elaboration) and XML (agent-loadable format). Principles cover state change orientation, problems before solutions, multiple perspectives, trace connections, and more.
+42. **Thesis Manifesto** - 10 core organizational principles accessible from top navigation. Tabbed layout: Principles (expandable cards with core statement, elaboration, and enforcement content) and The Check (operational compliance guidance with Five Guardrails). Principles cover state change orientation, problems before solutions, multiple perspectives, trace connections, and more.
 43. **Agent Selection Guide (Deductive Discovery)** - Redesigned from tool-picker to situational discovery process at `/agent-selection-tree.html`. Three modes: Discovery Mode (3-step wizard: Situation → Context → Recommendation), Browse All Agents (22-agent catalog), Visual Map (full decision tree visualization). Results recommend primary + supporting agents with reasoning, approach, and manifesto alignment.
 44. **Agent Context Token Budget** - `get_all_initiative_content()` enforces a 500k character (~150k token) budget when loading initiative documents for agent prompts. Documents loaded by link recency. Prevents prompt overflow on initiatives with many linked documents.
-45. **Iframe Theme Inheritance** - All 9 embedded HTML visualizations (agent-selection-tree, data-flow-map, meeting-rooms-process-map, throughline-process-map, platform-process-map, platform-decision-tree, kraken-process-map, project-scoring-map, hub-spoke-model) sync with the parent app's theme. Script reads ThemeContext CSS custom properties and computes a full gray ramp via color interpolation. Supports dark/light detection with polling and MutationObserver for runtime changes.
+45. **Iframe Theme Inheritance** - All 9 embedded HTML visualizations (agent-selection-tree, data-flow-map, meeting-rooms-process-map, throughline-process-map, platform-process-map, platform-decision-tree, kraken-process-map, project-scoring-map, hub-spoke-model) in `frontend/public/` sync with the parent app's theme. Script reads ThemeContext CSS custom properties and computes a full gray ramp via color interpolation. Supports dark/light detection with polling and MutationObserver for runtime changes.
 46. **DISCo Chat Document Save** - Discovery Agent can save documents directly to the KB from initiative chat via `<save_document>` XML tag. Backend extracts XML, saves to documents table with `obsidian_file_path` and `needs_reverse_sync=true`. Frontend handles `save_document_result` SSE event. Default folder detected from most common folder in initiative's linked documents.
 47. **Manifesto Compliance System** - Background semantic evaluation of chat and meeting messages against manifesto principles. Claude Haiku scores messages for compliance. Three levels: aligned, drifting, misaligned. Compliance indicator dots on chat and meeting messages. Weekly digest scheduler. Admin analytics endpoint.
+48. **Task-to-Project Linking** - Tasks can be linked to existing projects directly from the task edit modal via a dropdown that loads all projects alphabetically with project codes. Supports linking, unlinking, and changing project associations.
+49. **Task Board Reordering** - Within-column manual drag-and-drop reordering of tasks with persistent order.
+50. **Chat Task/Project Editing** - Chat agents can edit tasks and projects directly from conversation context. KB document awareness injected into project/initiative-scoped chat prompts with actual project UUIDs in agent action instructions.
 
 **Consolidated Agent Architecture (v1.2):**
 | # | Agent | Color | Consolidates | Checkpoint After |
@@ -257,12 +260,15 @@ Run migrations in order from `/database/migrations/`:
 | 075 | task_kraken | Agenticity columns on `ai_projects` (score, evaluation JSONB, task hash) |
 | 076 | initiative_corrections | `user_corrections` TEXT on `disco_initiatives` for ground-truth overrides |
 | 077 | reverse_sync | `needs_reverse_sync` BOOLEAN and `reverse_synced_at` TIMESTAMPTZ on `documents` for app-to-vault sync |
+| 078 | document_digests | Document digest columns for content summarization |
+| 079 | security_fixes | Restore `search_path` on SECURITY INVOKER functions for proper RLS enforcement |
+| 080 | performance_fixes | Resolve 753 Supabase performance advisories (index optimization, query improvements) |
 
 ## Important Files Reference
 
 ### Backend Core
 - `/backend/main.py` - FastAPI entry point
-- `/backend/agents/` - Agent implementations (21 agents)
+- `/backend/agents/` - Agent implementations (22 agents)
 - `/backend/agents/agent_factory.py` - Agent creation
 - `/backend/agents/base_agent.py` - Base class with instruction loading
 
@@ -320,7 +326,7 @@ Run migrations in order from `/database/migrations/`:
 
 ### DISCO Agent Prompts
 - `/backend/disco_agents/` - Agent prompt definitions (versioned markdown) (formerly `purdy_agents/`, path alias still supported)
-  - **Consolidated (v1.2):** `discovery-guide-v1.2.md`, `insight-analyst-v1.1.md`, `initiative-builder-v1.1.md`, `requirements-generator-v1.2.md`
+  - **Consolidated (latest):** `discovery-guide-v2.0.md`, `insight-analyst-v1.1.md`, `initiative-builder-v1.1.md`, `requirements-generator-v1.2.md`
   - **KB References:** `KB/gap-taxonomy-reference.md` - Gap categorization taxonomy for Discovery Guide
   - **Output Templates:** `evaluation-framework-v1.0.md`, `decision-framework-v1.0.md`, `prd-generator-v1.0.md`, `strategist-v1.0.md`
   - **Legacy:** `triage-v4.2.md`, `discovery-planner-v4.1.md`, `coverage-tracker-v4.1.md`, `insight-extractor-v4.2.md`, `consolidator-v4.2.md`, `tech-evaluation-v4.0.md`

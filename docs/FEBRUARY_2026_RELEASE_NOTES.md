@@ -1018,3 +1018,101 @@ Raised Kraken agent document context limits for richer task evaluation when anal
 - **Save document JSON parsing**: Fixed newline escaping in `save_document` JSON -- first escaped all raw newlines, then refined to only escape inside JSON string values
 - **Missing modules**: Added missing `manifesto_compliance` service module and `copy-event` endpoint for KPI tracking
 - **Platform process map**: Aligned branch labels with corresponding nodes; corrected "Mickey" to "Mikki"
+
+---
+
+## February 17-18, 2026
+
+### Per-Task Kraken Evaluation
+
+Moved Kraken evaluation from project-level batch operation to individual task cards with an enhanced evaluation schema.
+
+**Features**:
+- "Release the Kraken" button on each task card (inside task edit modal)
+- Helper text describes what the button does: "The Kraken evaluates this task and recommends which agents to involve"
+- Decision gaps field added to evaluation output (decisions needed before execution)
+- Confidence label updated from raw score to descriptive format
+- SSE streaming for evaluation progress and results
+
+**Files**: `frontend/components/tasks/KrakenTaskPanel.tsx`, `backend/services/task_kraken.py`, `backend/api/routes/tasks.py`
+
+### Task-to-Project Linking from Task Cards
+
+Tasks can now be linked to existing projects directly from the task edit modal, without requiring project-side management.
+
+**Features**:
+- Editable "Linked Project" dropdown in task create/edit modal
+- Loads all projects (up to 200) sorted alphabetically
+- Shows project code prefix when available (e.g., "H06 -- Job Description Generator")
+- "No project" option to unlink
+- Existing project association pre-populated when editing
+
+**Files**: `frontend/components/tasks/TaskCreateModal.tsx`
+
+### Task Board Reordering
+
+Added within-column manual task reordering via drag-and-drop and fixed several board stability issues.
+
+**Features**:
+- Drag-and-drop reorder within the same column
+- Manual sort mode preserves user-defined order
+- Toast suppressed on same-column reorder (visual-only change)
+- Fixed task card duplication bug on drag events
+
+**Files**: `frontend/components/tasks/TaskKanbanBoard.tsx`, `frontend/components/tasks/TaskColumn.tsx`
+
+### Task Field Clearing
+
+Task fields (due date, assignee, team, etc.) can now be cleared/reset to empty values from the edit modal.
+
+**Files**: `frontend/components/tasks/TaskCreateModal.tsx`, `backend/api/routes/tasks.py`
+
+### Manifesto Check Tab Overhaul
+
+The Manifesto "Check" tab now features collapsible principle sections with enforcement content and operational guidance.
+
+**Features**:
+- Each principle rendered as a collapsible card with core statement and elaboration
+- Enforcement content describes how each principle translates to agent behavior
+- Five Guardrails section for non-negotiable deployment requirements
+
+**Files**: `frontend/app/manifesto/page.tsx`
+
+### Chat Task and Project Editing
+
+Chat agents can now edit tasks and projects directly from conversation, and have awareness of KB documents linked to the current project/initiative context.
+
+**Features**:
+- Task editing capabilities surfaced in chat agent actions
+- Project field updates from conversation context
+- KB document awareness injected into project/initiative-scoped chat prompts
+- Project UUID injected into agent action capability instructions
+
+**Files**: `backend/api/routes/chat.py`, `backend/services/project_chat.py`, `backend/agents/project_agent.py`
+
+### Navigation and Layout Updates
+
+- **Thesis brand positioning**: "Thesis" moved between hamburger menu and first nav link for better visibility
+- **Dashboard tab reorder**: Analytics first, Discovery Inbox second
+- **IS department added**: Added "IS" to all 6 department list definitions with uppercase rendering fix for short abbreviations (IS, IT, HR)
+- **Agent dropdown improvements**: Wider dropdown, single-line rows, scroll overflow for long agent lists
+
+**Files**: `frontend/components/PageHeader.tsx`, `frontend/app/page.tsx`, 6 department list files
+
+### Database Performance and Security
+
+- **Migration 080**: Resolved 753 Supabase performance advisories (index optimization, query improvements)
+- **Migration 079**: Restored `search_path` on SECURITY INVOKER functions for proper RLS enforcement
+- **Stream timeout**: Increased to 120s with parallelized context queries for faster agent responses
+
+**Files**: `database/migrations/079_security_fixes.sql`, `database/migrations/080_performance_fixes.sql`, `backend/api/routes/chat.py`
+
+### Bug Fixes
+
+- **Manifesto compliance config**: Added `project_agent` and `compass` to compliance evaluation config
+- **Compliance metadata persistence**: Manifesto compliance metadata now always persisted to messages (not just when score exceeds threshold)
+- **AgentIcon guard**: Fixed undefined agent name crash in compliance panel and AgentIcon component
+- **Project modal stability**: Fixed close-reopen race condition via React portal rendering, two-phase close with click-absorbing overlay, and deep-link URL param cleanup
+- **Taskmaster targeting**: Allow Taskmaster for projects with `active` status even without `project_name` set
+- **Goal alignment model**: Added `goal_alignment_details` to ProjectUpdate Pydantic model
+- **Taskmaster anti-patterns**: Added task consolidation anti-patterns to prevent premature implementation recommendations
