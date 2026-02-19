@@ -39,6 +39,7 @@ interface FlaggedItem {
   source_id: string;
   agent: string;
   score: number;
+  confidence: number;
   level: string;
   signals: string[];
   gaps: string[];
@@ -103,6 +104,7 @@ function relativeTime(dateStr: string): string {
 function buildCopyText(item: FlaggedItem): string {
   const lines = [
     `Agent: ${item.agent}`,
+    `Confidence: ${item.confidence}%`,
     `Score: ${(item.score * 100).toFixed(0)}% (${item.level})`,
     `Source: ${item.source === 'chat' ? 'Chat' : 'Meeting Room'}`,
     `Time: ${new Date(item.created_at).toLocaleString()}`,
@@ -111,6 +113,12 @@ function buildCopyText(item: FlaggedItem): string {
     `Preview: ${item.content_preview}`,
   ];
   return lines.join('\n');
+}
+
+function getConfidenceColor(confidence: number): string {
+  if (confidence >= 80) return 'text-red-400 bg-red-500/20';
+  if (confidence >= 60) return 'text-amber-400 bg-amber-500/20';
+  return 'text-yellow-400 bg-yellow-500/20';
 }
 
 function FlaggedItemsPanel({
@@ -219,8 +227,8 @@ function FlaggedItemsPanel({
                     <span className="text-sm font-medium text-primary capitalize">
                       {item.agent}
                     </span>
-                    <span className="text-xs text-muted">
-                      {(item.score * 100).toFixed(0)}%
+                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${getConfidenceColor(item.confidence)}`}>
+                      {item.confidence}%
                     </span>
                   </div>
                   <div className="flex items-center gap-2">

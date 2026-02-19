@@ -293,6 +293,7 @@ async def get_flagged_messages(
                 continue
             gaps = compliance.get("gaps", [])
             signals = compliance.get("signals", [])
+            score = compliance.get("score", 0.0)
             content = msg.get("content") or ""
             items.append(
                 {
@@ -300,7 +301,8 @@ async def get_flagged_messages(
                     "source": "chat",
                     "source_id": msg.get("conversation_id"),
                     "agent": compliance.get("agent", "unknown"),
-                    "score": compliance.get("score", 0.0),
+                    "score": score,
+                    "confidence": round((1 - score) * 100),
                     "level": msg_level,
                     "signals": signals,
                     "gaps": gaps,
@@ -321,6 +323,7 @@ async def get_flagged_messages(
                 continue
             gaps = compliance.get("gaps", [])
             signals = compliance.get("signals", [])
+            score = compliance.get("score", 0.0)
             content = msg.get("content") or ""
             items.append(
                 {
@@ -328,7 +331,8 @@ async def get_flagged_messages(
                     "source": "meeting_room",
                     "source_id": msg.get("meeting_room_id"),
                     "agent": compliance.get("agent", "unknown"),
-                    "score": compliance.get("score", 0.0),
+                    "score": score,
+                    "confidence": round((1 - score) * 100),
                     "level": msg_level,
                     "signals": signals,
                     "gaps": gaps,
