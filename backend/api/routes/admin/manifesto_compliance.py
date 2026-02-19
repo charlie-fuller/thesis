@@ -193,14 +193,28 @@ async def get_manifesto_compliance(
         ) from e
 
 
-def _build_recommendation(gaps: list[str], max_items: int = 3) -> str:
+def _build_recommendation(gaps: list[str], signals: list[str], max_items: int = 3) -> str:
     """Build a recommendation string from the top gap principles."""
     parts = []
     for gap in gaps[:max_items]:
         rec = PRINCIPLE_RECOMMENDATIONS.get(gap)
         if rec:
             parts.append(rec)
-    return " ".join(parts) if parts else ""
+    if parts:
+        return " ".join(parts)
+    # Fallback when no specific gaps (agent not in expected config)
+    signal_count = len(signals)
+    total = len(PRINCIPLE_RECOMMENDATIONS)
+    return f"Only {signal_count} of {total} principles detected. Broaden principle engagement across responses."
+
+
+def _build_why_flagged(gaps: list[str], signals: list[str]) -> str:
+    """Build a human-readable 'why flagged' string."""
+    if gaps:
+        return ", ".join(_format_principle(g) for g in gaps)
+    signal_count = len(signals)
+    total = len(PRINCIPLE_RECOMMENDATIONS)
+    return f"Low overall principle coverage ({signal_count}/{total} detected)"
 
 
 def _format_principle(principle_id: str) -> str:
@@ -262,6 +276,7 @@ async def get_flagged_messages(
             if msg_level != level:
                 continue
             gaps = compliance.get("gaps", [])
+            signals = compliance.get("signals", [])
             content = msg.get("content") or ""
             items.append(
                 {
@@ -271,11 +286,12 @@ async def get_flagged_messages(
                     "agent": compliance.get("agent", "unknown"),
                     "score": compliance.get("score", 0.0),
                     "level": msg_level,
-                    "signals": compliance.get("signals", []),
+                    "signals": signals,
                     "gaps": gaps,
+                    "why_flagged": _build_why_flagged(gaps, signals),
                     "content_preview": content[:150] + ("..." if len(content) > 150 else ""),
                     "created_at": msg.get("created_at"),
-                    "recommendation": _build_recommendation(gaps),
+                    "recommendation": _build_recommendation(gaps, signals),
                 }
             )
 
@@ -288,6 +304,7 @@ async def get_flagged_messages(
             if msg_level != level:
                 continue
             gaps = compliance.get("gaps", [])
+            signals = compliance.get("signals", [])
             content = msg.get("content") or ""
             items.append(
                 {
@@ -297,11 +314,12 @@ async def get_flagged_messages(
                     "agent": compliance.get("agent", "unknown"),
                     "score": compliance.get("score", 0.0),
                     "level": msg_level,
-                    "signals": compliance.get("signals", []),
+                    "signals": signals,
                     "gaps": gaps,
+                    "why_flagged": _build_why_flagged(gaps, signals),
                     "content_preview": content[:150] + ("..." if len(content) > 150 else ""),
                     "created_at": msg.get("created_at"),
-                    "recommendation": _build_recommendation(gaps),
+                    "recommendation": _build_recommendation(gaps, signals),
                 }
             )
 

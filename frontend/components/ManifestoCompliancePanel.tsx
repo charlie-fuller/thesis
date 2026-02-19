@@ -42,6 +42,7 @@ interface FlaggedItem {
   level: string;
   signals: string[];
   gaps: string[];
+  why_flagged: string;
   content_preview: string;
   created_at: string;
   recommendation: string;
@@ -100,14 +101,13 @@ function relativeTime(dateStr: string): string {
 }
 
 function buildCopyText(item: FlaggedItem): string {
-  const gapLabels = item.gaps.map(formatPrinciple).join(', ');
   const lines = [
     `Agent: ${item.agent}`,
     `Score: ${(item.score * 100).toFixed(0)}% (${item.level})`,
     `Source: ${item.source === 'chat' ? 'Chat' : 'Meeting Room'}`,
     `Time: ${new Date(item.created_at).toLocaleString()}`,
-    `Gaps: ${gapLabels || 'None'}`,
-    `Recommendation: ${item.recommendation || 'N/A'}`,
+    `Why flagged: ${item.why_flagged}`,
+    `Recommendation: ${item.recommendation}`,
     `Preview: ${item.content_preview}`,
   ];
   return lines.join('\n');
@@ -252,19 +252,15 @@ function FlaggedItemsPanel({
                   {item.content_preview}
                 </p>
 
-                {item.gaps.length > 0 && (
-                  <p className="text-xs text-muted">
-                    <span className="font-medium text-secondary">Why flagged: </span>
-                    {item.gaps.map(formatPrinciple).join(', ')}
-                  </p>
-                )}
+                <p className="text-xs text-muted">
+                  <span className="font-medium text-secondary">Why flagged: </span>
+                  {item.why_flagged}
+                </p>
 
-                {item.recommendation && (
-                  <p className="text-xs text-muted">
-                    <span className="font-medium text-secondary">Recommendation: </span>
-                    {item.recommendation}
-                  </p>
-                )}
+                <p className="text-xs text-muted">
+                  <span className="font-medium text-secondary">Recommendation: </span>
+                  {item.recommendation}
+                </p>
               </div>
             );
           })}
