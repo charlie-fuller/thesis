@@ -155,6 +155,20 @@ PRINCIPLE_SIGNALS: dict[str, list[str]] = {
 
 # Expected principle engagement per agent. Agents are expected to show
 # signals for principles they champion or naturally engage with.
+PRINCIPLE_DESCRIPTIONS: dict[str, str] = {
+    "P1_state_change": "No signal that the response frames a state change or measurable shift",
+    "P2_problems_before_solutions": "Jumped to solutions without clearly defining the problem first",
+    "P3_evidence_over_eloquence": "Made claims without citing specific data, sources, or KB content",
+    "P4_know_your_output_type": "Did not distinguish between deterministic facts and informed interpretation",
+    "P5_people_are_the_center": "Response lacks consideration of human/stakeholder impact",
+    "P6_humans_decide": "Presented conclusions rather than options for human decision-making",
+    "P7_multiple_perspectives": "Single viewpoint without surfacing alternative perspectives",
+    "P8_context_and_brevity": "Response was not concise or lacked smart brevity structure",
+    "P9_guardrails_not_gates": "Blocked or restricted rather than enabling with guardrails",
+    "P10_trace_connections": "Did not trace second-order effects or downstream connections",
+    "P11_disco_methodology": "No engagement with the DISCO methodology framework",
+}
+
 PRINCIPLE_RECOMMENDATIONS: dict[str, str] = {
     "P1_state_change": "Frame responses around what changed and why it matters, not just what is.",
     "P2_problems_before_solutions": "Lead with the problem statement before proposing solutions.",

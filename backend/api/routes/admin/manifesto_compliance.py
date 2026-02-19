@@ -12,6 +12,7 @@ from services.manifesto_compliance import (
     AGENT_EXPECTED_PRINCIPLES,
     DRIFT_ALERT_THRESHOLD,
     MIN_MESSAGES_FOR_EVALUATION,
+    PRINCIPLE_DESCRIPTIONS,
     PRINCIPLE_RECOMMENDATIONS,
     _get_compliance_level,
 )
@@ -208,13 +209,28 @@ def _build_recommendation(gaps: list[str], signals: list[str], max_items: int = 
     return f"Only {signal_count} of {total} principles detected. Broaden principle engagement across responses."
 
 
-def _build_why_flagged(gaps: list[str], signals: list[str]) -> str:
-    """Build a human-readable 'why flagged' string."""
+def _build_why_flagged(gaps: list[str], signals: list[str], max_items: int = 3) -> str:
+    """Build a human-readable 'why flagged' string with descriptions."""
     if gaps:
-        return ", ".join(_format_principle(g) for g in gaps)
+        parts = []
+        for gap in gaps[:max_items]:
+            desc = PRINCIPLE_DESCRIPTIONS.get(gap)
+            label = _format_principle(gap)
+            if desc:
+                parts.append(f"{label}: {desc}")
+            else:
+                parts.append(label)
+        remaining = len(gaps) - max_items
+        result = ". ".join(parts)
+        if remaining > 0:
+            result += f". Plus {remaining} more gap{'s' if remaining > 1 else ''}."
+        return result
     signal_count = len(signals)
-    total = len(PRINCIPLE_RECOMMENDATIONS)
-    return f"Low overall principle coverage ({signal_count}/{total} detected)"
+    total = len(PRINCIPLE_DESCRIPTIONS)
+    return (
+        f"Low overall principle coverage -- only {signal_count} of {total} "
+        f"manifesto principles detected in this response."
+    )
 
 
 def _format_principle(principle_id: str) -> str:
