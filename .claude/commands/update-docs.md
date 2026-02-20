@@ -2,6 +2,8 @@
 
 Update project documentation based on recent code changes. Reviews recent commits and ensures documentation reflects the current state of the codebase.
 
+**This command operates on the current git repository.** It detects the repo root automatically.
+
 ## Usage
 
 ```
@@ -11,12 +13,21 @@ Update project documentation based on recent code changes. Reviews recent commit
 
 ## Instructions
 
+### Step 0: Detect Current Repository
+
+Determine the git repository root and identify the project:
+
+```bash
+git rev-parse --show-toplevel
+```
+
+Use this as the working directory for all subsequent steps. The repo name determines which documentation files to look for. Do NOT hardcode paths to any specific repo.
+
 ### Step 1: Review Recent Changes
 
 Get commits from the last 7 days:
 
 ```bash
-cd /Users/charlie.fuller/vaults/Contentful/GitHub/thesis
 git log --oneline --since="7 days ago" | head -30
 ```
 
@@ -29,26 +40,26 @@ For each significant commit, note:
 
 ### Step 2: Identify Documentation to Update
 
-Check these files for needed updates:
+Look for documentation files in the current repo. Common locations:
 
-| File | Purpose | Update When |
-|------|---------|-------------|
-| `docs/ARCHITECTURE.md` | Agent roster, capabilities, database schema | New agents, features, or schema changes |
-| `docs/JANUARY_2026_RELEASE_NOTES.md` | Monthly release notes | Any user-facing changes |
-| `docs/obsidian-sync-readme.md` | Obsidian sync documentation | Sync feature changes |
-| `docs/deployment/DEPLOYMENT_GUIDE.md` | Deployment instructions | Infrastructure changes |
+| Pattern | Purpose | Update When |
+|---------|---------|-------------|
+| `docs/ARCHITECTURE.md` | Architecture reference | New features, agents, or schema changes |
+| `docs/*RELEASE_NOTES*.md` | Release notes (monthly or per-version) | Any user-facing changes |
+| `docs/deployment/*` | Deployment instructions | Infrastructure changes |
+| `README.md` | Project overview | Major capability changes |
+| `docs/*.md` | Any other docs | When relevant content changes |
+
+Find what exists:
+
+```bash
+find docs/ -name "*.md" -maxdepth 2 2>/dev/null
+ls README.md CHANGELOG.md 2>/dev/null
+```
 
 ### Step 3: Read Current Documentation
 
-Read each file that needs updates:
-
-```bash
-# Read architecture doc
-cat docs/ARCHITECTURE.md
-
-# Read release notes
-cat docs/JANUARY_2026_RELEASE_NOTES.md
-```
+Read each documentation file that likely needs updates based on the recent commits.
 
 ### Step 4: Make Updates
 
@@ -61,7 +72,7 @@ For each documentation file:
 
 ### Step 5: Update Release Notes
 
-Add entries to `docs/JANUARY_2026_RELEASE_NOTES.md` for user-facing changes:
+If release notes exist, add entries for user-facing changes:
 
 ```markdown
 ### [Date] - [Category]
@@ -85,7 +96,7 @@ git commit -m "docs: update documentation for recent changes
 
 - [List specific doc updates]
 
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 ```
 
 ## Documentation Standards
@@ -95,11 +106,6 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 - Be concise - bullet points over paragraphs
 - Include code examples where helpful
 - Link to related documentation
-
-### Architecture.md Structure
-- Agent Roster: Table format with Agent, Name, Purpose
-- Capabilities: Numbered list with bold feature names
-- Database Schema: Table definitions with column descriptions
 
 ### Release Notes Format
 ```markdown
