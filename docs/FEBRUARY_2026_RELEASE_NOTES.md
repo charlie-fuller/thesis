@@ -1116,3 +1116,65 @@ Chat agents can now edit tasks and projects directly from conversation, and have
 - **Taskmaster targeting**: Allow Taskmaster for projects with `active` status even without `project_name` set
 - **Goal alignment model**: Added `goal_alignment_details` to ProjectUpdate Pydantic model
 - **Taskmaster anti-patterns**: Added task consolidation anti-patterns to prevent premature implementation recommendations
+
+---
+
+## February 18-20, 2026
+
+### Compliance Drill-Down Panels
+
+New expandable drill-down panels on manifesto compliance indicators show detailed flagged message analysis with principle-level scoring.
+
+**Features**:
+- Drill-down panels reveal flagged messages with specific principle violations
+- Why-flagged text enriched with full principle descriptions for context
+- Why-flagged and recommendation always visible (not hidden behind toggles)
+- Context-aware confidence scoring adjusts compliance scores based on message context (e.g., quoting vs. advocating)
+- Confidence rating displayed per flagged item (high/medium/low)
+
+**Files**: `frontend/components/manifesto/`, `backend/services/manifesto_semantic_scorer.py`
+
+### In-App User Guides
+
+Added 6 interactive user guides as standalone HTML pages and surfaced 3 previously orphaned process maps in the DISCO tab.
+
+**Features**:
+- 6 new HTML guides embedded as iframes in the DISCO page
+- 3 orphaned process maps (meeting-rooms, data-flow, throughline) now accessible
+- DISCO maps and guides consolidated into a single tab with pill selector UI
+
+**Files**: `frontend/public/*.html`, `frontend/app/disco/page.tsx`
+
+### Hub-Spoke Governance Redesign
+
+Complete visual overhaul of the hub-and-spoke governance page with colored diagrams, flow paths, and consistent styling matching other platform maps.
+
+**Features**:
+- Color-coded hub-spoke diagram with visual flow paths
+- Consistent styling with platform-process-map and decision-tree pages
+- Responsive layout with improved readability
+
+**Files**: `frontend/public/hub-spoke-model.html`
+
+### Process Owner / Process Steward Framework
+
+New accountability framework defining process ownership roles for AI governance workflows.
+
+**Features**:
+- Process Owner and Process Steward role definitions
+- Accountability mapping for governance workflows
+- Integration with hub-spoke governance model
+
+**Files**: `frontend/public/hub-spoke-model.html`
+
+### Project-Level DISCO Agents
+
+DISCO agents now operate at the project level (not just initiative level), with a streamlined workflow for project-scoped discovery. Also renames all user-facing "Discoveries" labels to "Initiatives".
+
+**Features**:
+- Project detail modal includes DISCO agent runner panel
+- Four-agent workflow adapted for project context (Discovery Guide, Insight Analyst, Initiative Builder, Requirements Generator)
+- All UI labels renamed from "Discoveries" to "Initiatives" for clarity
+- DISCO page header, navigation, and breadcrumbs updated
+
+**Files**: `frontend/app/disco/page.tsx`, `frontend/components/disco/`, `frontend/components/projects/ProjectDetailModal.tsx`, `backend/services/disco/`
