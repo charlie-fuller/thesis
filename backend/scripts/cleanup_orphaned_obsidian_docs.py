@@ -119,7 +119,7 @@ def delete_orphans(supabase, orphans, dry_run=True):
             try:
                 supabase.table("document_chunks").delete().eq("document_id", doc_id).execute()
                 supabase.table("documents").delete().eq("id", doc_id).execute()
-                print(f"    Deleted successfully")
+                print("    Deleted successfully")
             except Exception as e:
                 print(f"    ERROR: {e}")
 

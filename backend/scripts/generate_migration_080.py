@@ -48,9 +48,7 @@ def get_connection():
         print("ERROR: SUPABASE_DB_PASSWORD not set", file=sys.stderr)
         sys.exit(1)
 
-    conn_str = (
-        f"postgresql://postgres.{PROJECT_REF}:{password}" f"@{POOLER_HOST}:{POOLER_PORT}/postgres?sslmode=require"
-    )
+    conn_str = f"postgresql://postgres.{PROJECT_REF}:{password}@{POOLER_HOST}:{POOLER_PORT}/postgres?sslmode=require"
     return psycopg2.connect(conn_str)
 
 
@@ -171,7 +169,6 @@ def fix_initplan_expr(expr):
 
 def is_service_role_policy(policy):
     """Check if this policy is meant for service_role access."""
-    roles = policy["roles"]
     qual = policy["qual"] or ""
     # Service role policies typically have auth.role() = 'service_role' in USING
     if "service_role" in qual.lower():
@@ -349,7 +346,7 @@ def main():
     multi_perm_count = 0
     dropped_redundant = 0
 
-    for (table, cmd), group in sorted(permissive_groups.items()):
+    for (table, _cmd), group in sorted(permissive_groups.items()):
         if len(group) <= 1:
             continue
 
@@ -511,7 +508,7 @@ def main():
     print("\n".join(sql_parts))
 
     # Summary to stderr
-    print(f"\n-- SUMMARY:", file=sys.stderr)
+    print("\n-- SUMMARY:", file=sys.stderr)
     print(f"--   auth_rls_initplan policies fixed: {initplan_count}", file=sys.stderr)
     print(f"--   multiple_permissive rewritten: {multi_perm_count}", file=sys.stderr)
     print(f"--   redundant policies dropped: {dropped_redundant}", file=sys.stderr)

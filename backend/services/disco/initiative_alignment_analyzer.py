@@ -8,8 +8,6 @@ Reuses the same 4-pillar framework and parser from the project analyzer.
 import asyncio
 import logging
 import os
-from datetime import datetime, timezone
-from typing import Optional
 
 import anthropic
 

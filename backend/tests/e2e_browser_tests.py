@@ -3610,7 +3610,7 @@ def get_scenario_manifest() -> str:
             tier_marker = {"core": "[C]", "extended": "[E]", "skip": "[S]"}.get(s.tier, "[?]")
             skip_note = f" -- {s.skip_reason}" if s.skip_reason else ""
             fixture_note = f" [fixtures: {', '.join(s.fixture_files)}]" if s.fixture_files else ""
-            lines.append(f"  {tier_marker} {s.run_order:2d}. {sid}: " f"{s.description}{skip_note}{fixture_note}")
+            lines.append(f"  {tier_marker} {s.run_order:2d}. {sid}: {s.description}{skip_note}{fixture_note}")
 
     lines.append("\n" + "=" * 70)
     lines.append("Legend: [C]=Core [E]=Extended [S]=Skip")

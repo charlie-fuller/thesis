@@ -6,7 +6,6 @@ Follows the same pattern as services/project_context.py build_project_context().
 """
 
 import json
-from typing import Dict, Optional
 
 from database import get_supabase
 from logger_config import get_logger

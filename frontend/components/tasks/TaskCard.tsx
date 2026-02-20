@@ -78,7 +78,7 @@ export default function TaskCard({ task, onClick, stakeholders = [], onAssigneeC
       const el = e.target as HTMLElement
       el.classList.add('opacity-50')
     }, 0)
-  }, [task.id])
+  }, [task.id, task.status])
 
   const handleDragEnd = useCallback((e: DragEvent<HTMLDivElement>) => {
     setIsDragging(false)

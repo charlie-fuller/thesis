@@ -165,8 +165,8 @@ async def _generate_and_send_digest() -> dict:
     <ul>
         <li><strong>Total scored messages:</strong> {total}</li>
         <li><strong>Average score:</strong> {avg_score:.2f}</li>
-        <li><strong>Aligned:</strong> {level_counts['aligned']} | <strong>Drifting:</strong> {level_counts['drifting']} | <strong>Misaligned:</strong> {level_counts['misaligned']}</li>
-        <li><strong>Sources:</strong> {', '.join(f'{k}: {v}' for k, v in source_counts.items())}</li>
+        <li><strong>Aligned:</strong> {level_counts["aligned"]} | <strong>Drifting:</strong> {level_counts["drifting"]} | <strong>Misaligned:</strong> {level_counts["misaligned"]}</li>
+        <li><strong>Sources:</strong> {", ".join(f"{k}: {v}" for k, v in source_counts.items())}</li>
     </ul>
 
     <h3>Per-Agent Breakdown</h3>
@@ -194,8 +194,8 @@ Period: {period_start} - {period_end}
 Summary:
   Total scored messages: {total}
   Average score: {avg_score:.2f}
-  Aligned: {level_counts['aligned']} | Drifting: {level_counts['drifting']} | Misaligned: {level_counts['misaligned']}
-  Sources: {', '.join(f'{k}: {v}' for k, v in source_counts.items())}
+  Aligned: {level_counts["aligned"]} | Drifting: {level_counts["drifting"]} | Misaligned: {level_counts["misaligned"]}
+  Sources: {", ".join(f"{k}: {v}" for k, v in source_counts.items())}
 
 Per-Agent Breakdown:
 {agent_rows_text}

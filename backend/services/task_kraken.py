@@ -504,10 +504,10 @@ PROJECT CONTEXT:
 
 TASK TO EXECUTE:
 - **Title**: {task_title}
-- **Description**: {task.get('description', 'No description provided')}
-{f"- **Notes**: {task['notes']}" if task.get('notes') else ""}
-- **Priority**: {task.get('priority', 3)}
-- **Status**: {task.get('status', 'pending')}
+- **Description**: {task.get("description", "No description provided")}
+{f"- **Notes**: {task['notes']}" if task.get("notes") else ""}
+- **Priority**: {task.get("priority", 3)}
+- **Status**: {task.get("status", "pending")}
 
 INSTRUCTIONS:
 1. Execute this task by producing real, substantive output - not a description of what you would do.
@@ -589,7 +589,7 @@ INSTRUCTIONS:
                     # Shorten comment to summary + reference
                     summary_lines = output_text.split("\n")[:10]
                     summary_text = "\n".join(summary_lines)
-                    comment_content = f"{summary_text}\n\n---\n" f'Full output saved as KB document: "{doc_title}"'
+                    comment_content = f'{summary_text}\n\n---\nFull output saved as KB document: "{doc_title}"'
 
                 except Exception as e:
                     logger.warning(f"Failed to create KB doc for task {task_id}: {e}")
@@ -779,8 +779,8 @@ Include:
 
 <evaluation>
 {{
-  "task_id": "{task['id']}",
-  "title": "{task.get('title', 'Untitled')}",
+  "task_id": "{task["id"]}",
+  "title": "{task.get("title", "Untitled")}",
   "task_understanding": "What this task is and why it matters",
   "steps": ["Step 1: ...", "Step 2: ..."],
   "recommendations": ["Upload X document to KB", "Add Y information"],
@@ -966,10 +966,10 @@ async def execute_single_task(
 
 TASK TO EXECUTE:
 - **Title**: {task_title}
-- **Description**: {task.get('description', 'No description provided')}
-{f"- **Notes**: {task['notes']}" if task.get('notes') else ""}
-- **Priority**: {task.get('priority', 3)}
-- **Status**: {task.get('status', 'pending')}
+- **Description**: {task.get("description", "No description provided")}
+{f"- **Notes**: {task['notes']}" if task.get("notes") else ""}
+- **Priority**: {task.get("priority", 3)}
+- **Status**: {task.get("status", "pending")}
 
 INSTRUCTIONS:
 1. Execute this task by producing real, substantive output - not a description of what you would do.

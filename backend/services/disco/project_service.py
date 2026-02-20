@@ -4,7 +4,7 @@ Handles operations related to projects linked to DISCo initiatives.
 """
 
 import asyncio
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from database import get_supabase, with_db_retry
 from logger_config import get_logger
@@ -72,7 +72,7 @@ async def get_initiative_projects(initiative_id: str, status: Optional[str] = No
         query = (
             db.table("ai_projects")
             .select(
-                "id, project_code, title, description, status, tier, " "total_score, source_type, source_id, created_at"
+                "id, project_code, title, description, status, tier, total_score, source_type, source_id, created_at"
             )
             .contains("initiative_ids", [resolved_id])
         )

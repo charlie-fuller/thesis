@@ -574,8 +574,7 @@ async def get_all_initiative_content(initiative_id: str, max_chars: int = 500_00
 
         if included_docs > 0:
             logger.info(
-                f"Initiative {initiative_id}: included {included_docs}/{total_docs} documents "
-                f"({current_chars:,} chars)"
+                f"Initiative {initiative_id}: included {included_docs}/{total_docs} documents ({current_chars:,} chars)"
             )
 
         return "\n".join(content_parts)

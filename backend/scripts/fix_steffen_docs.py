@@ -57,7 +57,7 @@ def main():
     )
 
     steffen_docs = {doc["obsidian_file_path"]: doc for doc in (existing.data or [])}
-    for path, doc in steffen_docs.items():
+    for _path, doc in steffen_docs.items():
         print(f"  Found: {doc['id']} - {doc['title']} (date: {doc.get('original_date')})")
 
     # Step 2: Fix Meeting Guide date if Steffen version exists
@@ -86,7 +86,7 @@ def main():
         print("  Done")
     else:
         # No Steffen version yet - rename the Stefan one
-        print(f"\nNo 'Steffen' Meeting Guide found. Renaming Stefan version...")
+        print("\nNo 'Steffen' Meeting Guide found. Renaming Stefan version...")
         db_op(
             lambda: db.table("documents")
             .update(
@@ -115,7 +115,7 @@ def main():
         )
         print("  Done")
     else:
-        print(f"\nNo 'Steffen' Open Questions found. Renaming Stefan version...")
+        print("\nNo 'Steffen' Open Questions found. Renaming Stefan version...")
         db_op(
             lambda: db.table("documents")
             .update(

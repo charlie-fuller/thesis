@@ -1320,8 +1320,6 @@ For example: "Create a diagram of the 10 learning design issues we discussed" or
                         is_task_confirmed = any(phrase in user_msg_lower for phrase in task_confirm_phrases)
 
                         if is_task_confirmed:
-                            import re as _re
-
                             logger.info("User confirmed task proposals - creating tasks")
 
                             # Get project_id from conversation
@@ -2090,7 +2088,7 @@ Instructions:
                         framing_proposal_data = json.loads(fp_match.group(1))
                         full_response = full_response[: fp_match.start()] + full_response[fp_match.end() :]
                         full_response = full_response.rstrip()
-                        logger.info(f"Extracted framing proposal from Discovery Agent response")
+                        logger.info("Extracted framing proposal from Discovery Agent response")
                     except json.JSONDecodeError as json_err:
                         logger.warning(f"Failed to parse framing_proposal JSON: {json_err}")
                         framing_proposal_data = None

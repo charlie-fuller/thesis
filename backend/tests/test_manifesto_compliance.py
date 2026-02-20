@@ -1,16 +1,10 @@
 """Tests for manifesto compliance scoring and admin analytics."""
 
 import asyncio
-from collections import defaultdict
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from services.manifesto_compliance import (
     AGENT_EXPECTED_PRINCIPLES,
-    COMPLIANCE_THRESHOLDS,
-    DRIFT_ALERT_THRESHOLD,
-    MIN_MESSAGES_FOR_EVALUATION,
     PRINCIPLE_SIGNALS,
     _get_compliance_level,
     _normalize_agent_name,
@@ -114,9 +108,9 @@ class TestManifestoScorer:
         """Every principle in AGENT_EXPECTED_PRINCIPLES must exist in PRINCIPLE_SIGNALS."""
         for agent, principles in AGENT_EXPECTED_PRINCIPLES.items():
             for principle in principles:
-                assert principle in PRINCIPLE_SIGNALS, (
-                    f"Agent '{agent}' expects principle '{principle}' " f"which is not defined in PRINCIPLE_SIGNALS"
-                )
+                assert (
+                    principle in PRINCIPLE_SIGNALS
+                ), f"Agent '{agent}' expects principle '{principle}' which is not defined in PRINCIPLE_SIGNALS"
 
     def test_get_compliance_level_aligned(self):
         assert _get_compliance_level(1.0) == "aligned"

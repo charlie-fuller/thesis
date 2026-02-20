@@ -79,9 +79,7 @@ def process_discovery_scan():
             except Exception as user_error:
                 logger.error(f"      Error scanning for user {user.get('id')}: {user_error}")
 
-        logger.info(
-            f"Discovery Scan Job Completed: scanned {total_scanned} docs, " f"extracted {total_extracted} items"
-        )
+        logger.info(f"Discovery Scan Job Completed: scanned {total_scanned} docs, extracted {total_extracted} items")
 
     except Exception as e:
         logger.error(f"Fatal error in discovery scan job: {e}")

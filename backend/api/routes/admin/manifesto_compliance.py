@@ -269,13 +269,13 @@ def _compute_confidence(
     length = len(content)
     if length < 50:
         length_factor = 0.3
-        factors["length"] = f"very short <50 chars (0.3x)"
+        factors["length"] = "very short <50 chars (0.3x)"
     elif length < 150:
         length_factor = 0.6
-        factors["length"] = f"short <150 chars (0.6x)"
+        factors["length"] = "short <150 chars (0.6x)"
     elif length < 300:
         length_factor = 0.8
-        factors["length"] = f"medium <300 chars (0.8x)"
+        factors["length"] = "medium <300 chars (0.8x)"
     else:
         length_factor = 1.0
         factors["length"] = "full length (1.0x)"
@@ -288,7 +288,7 @@ def _compute_confidence(
 
         if any(kw in title for kw in _TEST_KEYWORDS):
             context_factor = 0.2
-            factors["context"] = f"test conversation (0.2x)"
+            factors["context"] = "test conversation (0.2x)"
         elif title in ("new conversation", "") or not title:
             context_factor = 0.6
             factors["context"] = "auto-generated title (0.6x)"
