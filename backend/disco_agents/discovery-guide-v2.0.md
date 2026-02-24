@@ -302,6 +302,14 @@ BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACC
 
 [ONLY include when Strategic Alignment section is present. This helps report consumers who are not system users understand what goals the scoring is based on.]
 
+[If a company priority is set, show it first:]
+
+### Company Priority
+
+[Company priority text]
+
+### IS Team FY27 Strategic Pillars
+
 | Pillar | Description | KPIs |
 |--------|-------------|------|
 | [Pillar 1 name] | [One sentence] | [KPIs] |
@@ -309,11 +317,17 @@ BUILD / BUY / COORDINATE / TRAIN / GOVERN / RESTRUCTURE / DOCUMENT / DEFER / ACC
 | [Pillar 3 name] | [One sentence] | [KPIs] |
 | [Pillar 4 name] | [One sentence] | [KPIs] |
 
-[If department-specific goals are available, add:]
+### [Department/Team Name] Goals and KPIs
 
-**[Department] Goals:** [bullet list of department goals and KPIs]
+[If department goals are available:]
+- [Department goal 1]
+- [Department goal 2]
+[Department] KPIs: [list]
 
-*These are the goals currently in the system. If this initiative maps to goals or KPIs not listed above, identifying them would improve scoring accuracy.*
+[If no department goals are available:]
+*No [team] goals or KPIs are currently in the system. Identifying these would significantly improve alignment scoring for this initiative and related projects.*
+
+*If this initiative maps to goals or KPIs not listed above, identifying them would improve scoring accuracy across all related projects and initiatives.*
 ```
 
 ### Formatting Rules (CRITICAL — READ CAREFULLY)

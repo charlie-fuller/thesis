@@ -1698,25 +1698,52 @@ FINALLY, create the discovery plan with:
 
         parts.append("\n\n## Appendix: Strategic Goals Currently in the System\n")
         parts.append(
-            "The following IS team FY27 strategic pillars and KPIs are used to score alignment. If this initiative maps to goals or KPIs NOT listed here, note that in your output.\n"
+            "These are the goals and KPIs the system uses to score strategic alignment. "
+            "If this initiative maps to goals or KPIs NOT listed here, note that in your output "
+            "so they can be added to improve scoring accuracy.\n"
         )
-        for i, (key, pillar) in enumerate(IS_GOALS.items(), 1):
+
+        # Company-level priority (if set on the initiative)
+        val_align = context.get("value_alignment") or {}
+        if isinstance(val_align, str):
+            import json
+
+            try:
+                val_align = json.loads(val_align)
+            except (json.JSONDecodeError, TypeError):
+                val_align = {}
+        company_priority = val_align.get("company_priority") if isinstance(val_align, dict) else None
+        if company_priority:
+            parts.append(f"### Company Priority\n{company_priority}\n")
+
+        # IS Team Strategic Pillars
+        parts.append("### IS Team FY27 Strategic Pillars\n")
+        for i, (_key, pillar) in enumerate(IS_GOALS.items(), 1):
             kpis = "; ".join(pillar["kpis"])
-            parts.append(f"{i}. **{pillar['name']}** -- {pillar['description'][:120]}")
+            parts.append(f"{i}. **{pillar['name']}** -- {pillar['description'][:150]}")
             parts.append(f"   KPIs: {kpis}")
-        # Include initiative-specific department goals if available
-        val_align = context.get("value_alignment", {})
+
+        # Team/department-specific goals
+        dept = context.get("target_department")
         if isinstance(val_align, dict):
-            dept = context.get("target_department")
-            dept_goals = val_align.get("department_goals", [])
-            dept_kpis = val_align.get("kpis", [])
-            if dept_goals or dept_kpis:
-                dept_label = f" ({dept})" if dept else ""
-                parts.append(f"\n**Department-Specific Goals{dept_label}:**")
-                for g in dept_goals or []:
-                    parts.append(f"- {g}")
-                if dept_kpis:
-                    parts.append(f"Department KPIs: {'; '.join(dept_kpis)}")
+            dept_goals = val_align.get("department_goals") or []
+            dept_kpis = val_align.get("kpis") or []
+        else:
+            dept_goals = []
+            dept_kpis = []
+
+        dept_label = dept or "Owning Team"
+        parts.append(f"\n### {dept_label} Goals and KPIs\n")
+        if dept_goals or dept_kpis:
+            for g in dept_goals:
+                parts.append(f"- {g}")
+            if dept_kpis:
+                parts.append(f"\n{dept_label} KPIs: {'; '.join(dept_kpis)}")
+        else:
+            parts.append(
+                f"No {dept_label.lower()} goals or KPIs are currently in the system. "
+                "Identifying these would significantly improve alignment scoring."
+            )
         parts.append("")
 
     # Add throughline-awareness instructions when throughline is present
