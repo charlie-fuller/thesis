@@ -398,13 +398,20 @@ function OutputDetail({
 </html>`)
     printWindow.document.close()
 
-    // Wait for content to render, then trigger print
+    // Wait for content to render, then trigger print once
+    let printed = false
     printWindow.onload = () => {
-      printWindow.print()
+      if (!printed) {
+        printed = true
+        printWindow.print()
+      }
     }
     // Fallback for browsers that don't fire onload reliably
     setTimeout(() => {
-      printWindow.print()
+      if (!printed) {
+        printed = true
+        printWindow.print()
+      }
     }, 500)
   }
 
